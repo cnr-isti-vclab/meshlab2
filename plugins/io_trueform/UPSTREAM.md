@@ -9,12 +9,15 @@ git -C external/trueform fetch
 git -C external/trueform checkout <reviewed-commit>
 ```
 
-Currently pinned at **v0.10.2** (2026-09-03). Everything since v0.10.0 is
+Currently pinned at **v0.10.3** (2026-09-05). Everything since v0.10.0 is
 additive, so neither plugin changed to take it: v0.10.1 repaired orientation and
-the Euler count, and v0.10.2 reads every OBJ in parallel — 44.5 ms to 6.5 ms on a
+the Euler count; v0.10.2 reads every OBJ in parallel — 44.5 ms to 6.5 ms on a
 million-triangle dragon, and 76.3 ms to 8.3 ms for the reader that also returns
 normals, texture coordinates and groups — decides bundle containment from face
-interiors rather than from vertices, and lets `make_cdt` return region labels.
+interiors rather than from vertices, and lets `make_cdt` return region labels;
+v0.10.3 builds its internal allocator with large pages off, so a long-lived
+session doing repeated CSG no longer retains memory toward its workers'
+high-water marks.
 
 The step from v0.9.17 to v0.10.0 was the breaking one: the `cut` module was
 removed outright, with no compatibility shim, and its ground redistributed to
