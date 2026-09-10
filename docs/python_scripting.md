@@ -24,9 +24,9 @@ same namespace for the current QMeshLab session.
 main entry point for document and filter operations.
 
 ```python
-print("Meshes:", ms.mesh_count())
+print("Meshes:", ms.mesh_number())
 print("Current mesh:", ms.current_mesh())
-print("Rasters:", ms.raster_count())
+print("Rasters:", ms.raster_number())
 ```
 
 Important: `ms` borrows the live QMeshLab `Document`. Calling modifying methods
@@ -61,9 +61,8 @@ document.
 ```python
 import pymeshlab2
 
-print(pymeshlab2.filter_list()[:5])
 other = pymeshlab2.MeshSet()
-print("Standalone mesh set:", other.mesh_count())
+print("Standalone mesh set:", other.mesh_number())
 ```
 
 Most scripts inside QMeshLab should use the predefined `ms` object. Import
@@ -92,19 +91,17 @@ defaults at the time each action was recorded.
 
 The public `pymeshlab2` facade exposes:
 
+- `pymeshlab2.Mesh`
 - `pymeshlab2.MeshSet`
 - `pymeshlab2.FilterInfo`
 - `pymeshlab2.FilterRunResult`
 - `pymeshlab2.MlGui`
-- `pymeshlab2.filter_list()`
-- `pymeshlab2.print_filter_list()`
-- `pymeshlab2.load_default_plugins()`
 
 ## MeshSet Basics
 
 The live `ms` object supports the following core methods:
 
-- `mesh_count()`, `mesh_number()`, `number_meshes()`
+- `mesh_number()`
 - `current_mesh()`, `current_mesh_id()`, `set_current_mesh(index)`
 - `mesh_id_exists(index)`
 - `set_current_mesh_visibility(visible)`
@@ -112,9 +109,9 @@ The live `ms` object supports the following core methods:
 - `is_current_mesh_visible()`, `is_mesh_visible(index)`
 - `load_new_mesh(path)`
 - `save_current_mesh(path)`
-- `raster_count()`, `raster_number()`, `number_rasters()`
+- `raster_number()`
 - `current_raster()`, `set_current_raster(index)`
-- `load_raster_image(path)`, `load_new_raster(path)`
+- `load_new_raster(path)`
 - `clear()`
 - `load_project(path)`, `save_project(path)`
 - `filter_list()`, `list_filters()`
@@ -124,9 +121,9 @@ The live `ms` object supports the following core methods:
 Example:
 
 ```python
-print("Mesh count:", ms.mesh_count())
+print("Mesh count:", ms.mesh_number())
 
-if ms.mesh_count() > 0:
+if ms.mesh_number() > 0:
     print("Current mesh index:", ms.current_mesh())
     print("Current mesh id:", ms.current_mesh_id())
 ```
@@ -285,8 +282,8 @@ processing and batch-style scripts.
 Print a short document report:
 
 ```python
-print("Meshes:", ms.mesh_count())
-print("Rasters:", ms.raster_count())
+print("Meshes:", ms.mesh_number())
+print("Rasters:", ms.raster_number())
 
 for info in ms.list_filters()[:10]:
     print(info.python_name, "-", info.name)

@@ -51,29 +51,6 @@ std::string pyUnicodeToStdString(PyObject *obj)
     return std::string(utf8, static_cast<size_t>(size));
 }
 
-// ---------------------------------------------------------------------------
-// Python name computation — mirrors MeshLab's python_utils.cpp logic:
-//   toLower + replace ' ', '/', '-' with '_' + drop "().,'\":+"
-// Example: "Remove Unreferenced Vertices" -> "remove_unreferenced_vertices"
-// ---------------------------------------------------------------------------
-static std::string computePythonName(const std::string &displayName)
-{
-    std::string result;
-    result.reserve(displayName.size());
-    for (unsigned char c : displayName) {
-        if (std::isalnum(c)) {
-            result += static_cast<char>(std::tolower(c));
-        } else if (c == ' ' || c == '/' || c == '-') {
-            if (!result.empty() && result.back() != '_')
-                result += '_';
-        }
-        // Characters ( ) . , ' " : + are simply dropped
-    }
-    while (!result.empty() && result.back() == '_')
-        result.pop_back();
-    return result;
-}
-
 std::vector<std::string> toStdVector(const QStringList &list)
 {
     std::vector<std::string> out;

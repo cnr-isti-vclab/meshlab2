@@ -169,9 +169,6 @@ pymeshlab2.MeshSet = _qml.MeshSet
 pymeshlab2.FilterInfo = _qml.FilterInfo
 pymeshlab2.FilterRunResult = _qml.FilterRunResult
 pymeshlab2.MlGui = _qml.MlGui
-pymeshlab2.filter_list = _qml.filter_list
-pymeshlab2.print_filter_list = _qml.print_filter_list
-pymeshlab2.load_default_plugins = _qml.load_default_plugins
 pymeshlab2.__all__ = ["Mesh", "MeshSet", "FilterInfo", "FilterRunResult", "MlGui"]
 sys.modules["pymeshlab2"] = pymeshlab2
 
