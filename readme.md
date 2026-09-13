@@ -27,7 +27,8 @@ CI — see [GitHub Actions: macOS DMG](#github-actions-macos-dmg) below.
     [TrueForm Plugin](docs/design/trueform_plugin.md)
   - Proposals: [LLM Integration](docs/design/proposals/llm_integration.md) ·
     [Usage Statistics](docs/design/proposals/usage_statistics.md) ·
-    [Gaussian Splatting](docs/design/proposals/gaussian_splatting.md)
+    [Gaussian Splatting](docs/design/proposals/gaussian_splatting.md) ·
+    [Repository Rename](docs/design/proposals/repository_rename.md)
   - History: [Filter Classification](docs/design/history/filter_classification.md) ·
     [Filter Names](docs/design/history/filter_names.md) ·
     [Pass 2 Identifier Map](docs/design/history/pass2_identifier_map.md)
