@@ -41,6 +41,7 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [LLM Integration](proposals/llm_integration.md) | Option space for driving QMeshLab from a model. Not implemented. |
 | [Usage Statistics](proposals/usage_statistics.md) | Aggregate usage collection, designed for privacy. Not implemented. |
 | [Gaussian Splatting](proposals/gaussian_splatting.md) | Splat loading, rendering and editing. Not implemented; some decisions taken. |
+| [Repository Rename](proposals/repository_rename.md) | Renaming QMeshLab to meshlab2, in five phases. Not started. |
 
 ## History
 

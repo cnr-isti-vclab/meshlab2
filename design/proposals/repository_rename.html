@@ -1,0 +1,796 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Repository Rename: QMeshLab → meshlab2 - QMeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">QMeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">QMeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/proposals/repository_rename.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="repository-rename-qmeshlab-meshlab2">
+<h1>Repository Rename: QMeshLab → meshlab2<a class="headerlink" href="#repository-rename-qmeshlab-meshlab2" title="Link to this heading">¶</a></h1>
+<p>A plan for renaming the project. <strong>Nothing described here has been done.</strong> It
+exists so the rename happens in reviewable pieces with the traps identified
+first, rather than as one large find-and-replace.</p>
+<p>See also: <a class="reference internal" href="../architecture.html"><span class="std std-doc">Architecture</span></a>, <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>
+(the plugin-id convention), <a class="reference internal" href="../preferences.html"><span class="std std-doc">Preferences</span></a> (where user settings live).</p>
+<section id="status">
+<h2>Status<a class="headerlink" href="#status" title="Link to this heading">¶</a></h2>
+<p>As of 2026-09-13: planned, not started. The measurements below were taken on
+that date against the tracked tree.</p>
+</section>
+<section id="the-rename-is-six-separate-things">
+<h2>“The rename” is six separate things<a class="headerlink" href="#the-rename-is-six-separate-things" title="Link to this heading">¶</a></h2>
+<p>Only the first is the GitHub repository name, and they can be done — or declined
+— independently.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Surface</p></th>
+<th class="head"><p>Measured extent</p></th>
+<th class="head"><p>Reversible?</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>GitHub repository name</p></td>
+<td><p>1 setting; 7 in-tree URLs</p></td>
+<td><p>Yes — GitHub redirects the old path indefinitely</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Build identifiers (CMake targets, options, macros)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab*</span></code> 918, <code class="docutils literal notranslate"><span class="pre">QMESH_*</span></code> 251, <code class="docutils literal notranslate"><span class="pre">QMESHLAB_*</span></code> 157</p></td>
+<td><p>Yes, it is all internal</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Plugin ids and Qt resource prefixes</p></td>
+<td><p>34 ids, 222 <code class="docutils literal notranslate"><span class="pre">qmeshlab.</span></code> occurrences</p></td>
+<td><p>Mostly — one user setting keys off them</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>User-facing app identity (name, QSettings, bundle id)</p></td>
+<td><p>3 lines, but they own user data</p></td>
+<td><p><strong>No</strong> without a migration shim</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Local working-copy directory</p></td>
+<td><p>1 <code class="docutils literal notranslate"><span class="pre">mv</span></code></p></td>
+<td><p>Yes, but it moves the agent state — see below</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Release artifact names</p></td>
+<td><p>2 workflow lines</p></td>
+<td><p>Yes</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Total: <strong>1,297 occurrences across 213 tracked files.</strong></p>
+</section>
+<section id="what-must-not-be-renamed">
+<h2>What must not be renamed<a class="headerlink" href="#what-must-not-be-renamed" title="Link to this heading">¶</a></h2>
+<p>This is the trap that makes a blanket <code class="docutils literal notranslate"><span class="pre">sed</span> <span class="pre">-i</span> <span class="pre">'s/[Qq]meshlab/meshlab2/gI'</span></code>
+destructive. The tree contains roughly <strong>180 references to the <em>original</em>
+MeshLab that must survive verbatim</strong>:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Kind</p></th>
+<th class="head"><p>Count</p></th>
+<th class="head"><p>Why it stays</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLabProject*</span></code> classes</p></td>
+<td><p>~50</p></td>
+<td><p>The <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> reader/writer. It is MeshLab’s format; renaming it makes the code lie.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Bare <code class="docutils literal notranslate"><span class="pre">MeshLab</span></code> in prose</p></td>
+<td><p>~130</p></td>
+<td><p>“Unlike MeshLab, the source keeps its own domain”, “MeshLab project files”.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> (the old library) in prose</p></td>
+<td><p>—</p></td>
+<td><p>Discussion of the <em>previous</em> Python API stays about the previous API.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">vcglib</span></code></p></td>
+<td><p>—</p></td>
+<td><p>Separate project, separate repo.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>So every rename below is <strong>case-sensitive and family-by-family</strong>, never a global
+substitution. The decision to call the product <em>MeshLab</em> sharpens this rather than
+relaxing it: user-facing strings do become “MeshLab”, while <code class="docutils literal notranslate"><span class="pre">MeshLabProject*</span></code>
+symbols must not move, so the sweep has to tell a display string from a symbol.
+Review the diff for every <code class="docutils literal notranslate"><span class="pre">MeshLab</span></code> that gained or lost a <code class="docutils literal notranslate"><span class="pre">Q</span></code> or a <code class="docutils literal notranslate"><span class="pre">2</span></code>.</p>
+</section>
+<section id="decisions-taken-2026-09-13">
+<h2>Decisions taken (2026-09-13)<a class="headerlink" href="#decisions-taken-2026-09-13" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Surface</p></th>
+<th class="head"><p>Decision</p></th>
+<th class="head"><p>Rationale</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Product / display name</p></td>
+<td><p><strong>MeshLab</strong></p></td>
+<td><p>This codebase replaces the old one. It is the product’s name, not a new product.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Repository, local directory</p></td>
+<td><p><strong>meshlab2</strong></p></td>
+<td><p>A genuinely different codebase, so a different repo.</p></td>
+</tr>
+<tr class="row-even"><td><p>Python facade</p></td>
+<td><p><strong>pymeshlab</strong> (from <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code>)</p></td>
+<td><p>Encourages transition to the new library.</p></td>
+</tr>
+<tr class="row-odd"><td><p>CMake options and macros</p></td>
+<td><p><strong><code class="docutils literal notranslate"><span class="pre">MESHLAB2_*</span></code></strong></p></td>
+<td><p>Over the shorter <code class="docutils literal notranslate"><span class="pre">ML2_*</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Code identifiers (targets, classes)</p></td>
+<td><p><strong><code class="docutils literal notranslate"><span class="pre">MeshLab2*</span></code></strong></p></td>
+<td><p>Matches <code class="docutils literal notranslate"><span class="pre">MESHLAB2_*</span></code>, and stays clear of the <code class="docutils literal notranslate"><span class="pre">MeshLabProject*</span></code> family.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><em>Display name</em> and <em>code identifier</em> are deliberately different here. “MeshLab” is
+the product; <code class="docutils literal notranslate"><span class="pre">MeshLab2*</span></code> is what the symbols are called, following the repository
+rather than the product. That divergence is the point: it keeps <code class="docutils literal notranslate"><span class="pre">MeshLab2Core</span></code>
+legible next to <code class="docutils literal notranslate"><span class="pre">MeshLabProjectMeshEntry</span></code>, which <code class="docutils literal notranslate"><span class="pre">MeshLabCore</span></code> would not be.</p>
+<section id="the-full-mapping">
+<h3>The full mapping<a class="headerlink" href="#the-full-mapping" title="Link to this heading">¶</a></h3>
+<p>Every family, with its measured extent. This is the table the sweep works from.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Family</p></th>
+<th class="head"><p>Current</p></th>
+<th class="head"><p>Target</p></th>
+<th class="head"><p>Extent</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Application target and bundle</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshLab2</span></code> (target) / <code class="docutils literal notranslate"><span class="pre">MeshLab</span></code> (display)</p></td>
+<td><p>27 target refs</p></td>
+</tr>
+<tr class="row-odd"><td><p>Core library</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">QMeshLabCore</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshLab2Core</span></code></p></td>
+<td><p>64</p></td>
+</tr>
+<tr class="row-even"><td><p>Plugin aggregate</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">QMeshLabPlugins</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshLab2Plugins</span></code></p></td>
+<td><p>93</p></td>
+</tr>
+<tr class="row-odd"><td><p>Plugin targets</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">QMeshLabPluginFilter*</span></code>, <code class="docutils literal notranslate"><span class="pre">QMeshLabPluginIO*</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshLab2PluginFilter*</span></code>, <code class="docutils literal notranslate"><span class="pre">MeshLab2PluginIO*</span></code></p></td>
+<td><p>358</p></td>
+</tr>
+<tr class="row-even"><td><p>Test targets</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">QMeshLabTests</span></code>, <code class="docutils literal notranslate"><span class="pre">QMeshLabFilterTests</span></code>, …</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshLab2Tests</span></code>, …</p></td>
+<td><p>in the 918</p></td>
+</tr>
+<tr class="row-odd"><td><p>CMake options</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">QMESH_PLUGIN_*</span></code>, <code class="docutils literal notranslate"><span class="pre">QMESH_IGL_*</span></code>, <code class="docutils literal notranslate"><span class="pre">QMESH_MACOS_*</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MESHLAB2_PLUGIN_*</span></code>, …</p></td>
+<td><p>251</p></td>
+</tr>
+<tr class="row-even"><td><p>Macros and env vars</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">QMESHLAB_PYTHON_CONSOLE</span></code>, <code class="docutils literal notranslate"><span class="pre">QMESHLAB_BUILD_ID</span></code>, …</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MESHLAB2_*</span></code></p></td>
+<td><p>157</p></td>
+</tr>
+<tr class="row-odd"><td><p>Plugin ids and resource prefixes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qmeshlab.filter.*</span></code>, <code class="docutils literal notranslate"><span class="pre">qmeshlab.io.*</span></code>, <code class="docutils literal notranslate"><span class="pre">qmeshlab.test.*</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshlab2.*</span></code></p></td>
+<td><p>34 ids, 222 refs</p></td>
+</tr>
+<tr class="row-even"><td><p>Native Python module</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">_qmeshlab</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">_meshlab</span></code></p></td>
+<td><p>56</p></td>
+</tr>
+<tr class="row-odd"><td><p>Python facade module</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code></p></td>
+<td><p>51</p></td>
+</tr>
+<tr class="row-even"><td><p>Qt application name</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span></code> + settings migration</p></td>
+<td><p>3 lines</p></td>
+</tr>
+<tr class="row-odd"><td><p>Window title, About, log strings</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&quot;QMeshLab&quot;</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&quot;MeshLab&quot;</span></code></p></td>
+<td><p>~10</p></td>
+</tr>
+<tr class="row-even"><td><p>Snapshot PNG text key</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab.CameraTrackballState</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshLab.CameraTrackballState</span></code>, old key still read</p></td>
+<td><p>3</p></td>
+</tr>
+<tr class="row-odd"><td><p>Release artifacts</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab-&lt;date&gt;-&lt;sha&gt;-…</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshLab-&lt;date&gt;-&lt;sha&gt;-…</span></code></p></td>
+<td><p>2 workflow lines</p></td>
+</tr>
+<tr class="row-even"><td><p>Repository and local directory</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshlab2</span></code></p></td>
+<td><p>1 setting, 7 URLs, 1 <code class="docutils literal notranslate"><span class="pre">mv</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Not renamed</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshLabProject*</span></code>, bare <code class="docutils literal notranslate"><span class="pre">MeshLab</span></code> in prose, <code class="docutils literal notranslate"><span class="pre">vcglib</span></code></p></td>
+<td><p>unchanged</p></td>
+<td><p>~180</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="python-the-consequential-part-is-not-in-this-repo">
+<h3>Python: the consequential part is not in this repo<a class="headerlink" href="#python-the-consequential-part-is-not-in-this-repo" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> here is only an in-process module name, created at
+<code class="docutils literal notranslate"><span class="pre">PythonHost.cpp:165</span></code> over the native <code class="docutils literal notranslate"><span class="pre">_qmeshlab</span></code> module (<code class="docutils literal notranslate"><span class="pre">NB_MODULE(_qmeshlab)</span></code>,
+56 occurrences). There is no packaging metadata in this tree — no <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>,
+no <code class="docutils literal notranslate"><span class="pre">setup.py</span></code>. Renaming to <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> costs three source files and seven docs.</p>
+<p>What is consequential belongs to the sibling <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> repository: taking the
+published <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> name on PyPI. cnr-isti-vclab owns that name, so it is
+available — but the new API is deliberately incompatible (<code class="docutils literal notranslate"><span class="pre">pythonName</span></code>s were
+renamed outright, with no aliases for the old ones), so <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">pymeshlab</span></code>
+would move existing users onto a different API. A major version bump is the
+normal way to signal that, and unpinned scripts will still break on upgrade.
+That decision is worth taking in the other repo, explicitly.</p>
+</section>
+<section id="the-bundle-identifier-no-longer-a-bug-now-a-choice">
+<h3>The bundle identifier: no longer a bug, now a choice<a class="headerlink" href="#the-bundle-identifier-no-longer-a-bug-now-a-choice" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:23</span></code> sets <code class="docutils literal notranslate"><span class="pre">QMESHLAB_BUNDLE_IDENTIFIER</span> <span class="pre">&quot;net.meshlab.MeshLab&quot;</span></code> — the
+same bundle id as the released MeshLab. Before the display name was settled that
+read as a collision. With the product named <strong>MeshLab and replacing the old one</strong>,
+it becomes defensible: macOS treats the new build as the <em>same application</em>, so
+it upgrades in place and inherits the existing Launch Services registration, TCC
+grants and preferences domain.</p>
+<p>The question is whether that is wanted <strong>during the transition</strong>, while a user may
+still have both installed. Sharing the id then means the two fight over file
+associations and share a preferences domain with incompatible contents.</p>
+<ul class="simple">
+<li><p>Keep <code class="docutils literal notranslate"><span class="pre">net.meshlab.MeshLab</span></code> → a clean in-place succession, but the two cannot
+coexist properly on one machine.</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">net.meshlab.meshlab2</span></code> → they coexist cleanly; the succession is a separate
+install, and TCC/Gatekeeper prompts reappear once.</p></li>
+</ul>
+<p>Coexistence during a transition period argues for the second, with a move to the
+original id once the old MeshLab is retired.</p>
+</section>
+<section id="user-settings-need-a-migration-shim-not-a-rename">
+<h3>User settings need a migration shim, not a rename<a class="headerlink" href="#user-settings-need-a-migration-shim-not-a-rename" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">src/app/main.cpp:82-84</span></code> sets <code class="docutils literal notranslate"><span class="pre">organizationName</span></code> <code class="docutils literal notranslate"><span class="pre">QMeshLab</span></code>, <code class="docutils literal notranslate"><span class="pre">organizationDomain</span></code>
+<code class="docutils literal notranslate"><span class="pre">meshlab.net</span></code>, <code class="docutils literal notranslate"><span class="pre">applicationName</span></code> <code class="docutils literal notranslate"><span class="pre">QMeshLab</span></code>. QSettings therefore stores
+preferences at <code class="docutils literal notranslate"><span class="pre">~/Library/Preferences/net.meshlab.QMeshLab.plist</span></code> (and the
+equivalent registry path on Windows). Renaming <code class="docutils literal notranslate"><span class="pre">applicationName</span></code> <strong>silently
+orphans every existing user’s settings</strong> — no error, just defaults.</p>
+<p>The fix is a one-time migration at startup: if the new settings object is empty
+and the old one exists, copy every key across and leave a marker. Roughly 20
+lines in <code class="docutils literal notranslate"><span class="pre">Preferences</span></code>, and it should stay in place for at least one release
+cycle.</p>
+<p>One setting is keyed by plugin id rather than by name:
+<code class="docutils literal notranslate"><span class="pre">meshiopluginmanager.cpp:28</span></code> reads the preferred import plugin per extension from
+QSettings, storing a plugin id string. Renaming plugin ids orphans that
+preference too — it degrades to the default rather than failing, so it is low
+severity, but the migration shim should rewrite these keys while it is there.</p>
+</section>
+<section id="one-persisted-format-key">
+<h3>One persisted format key<a class="headerlink" href="#one-persisted-format-key" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">mainwindow.cpp:2586</span></code> and <code class="docutils literal notranslate"><span class="pre">:2622</span></code> embed the camera state in saved snapshot PNGs
+under the text key <code class="docutils literal notranslate"><span class="pre">QMeshLab.CameraTrackballState</span></code>, and <code class="docutils literal notranslate"><span class="pre">renderwidget.cpp:936</span></code>
+reads it back. Snapshots already saved in the wild carry that key. Rename it and
+those images silently stop restoring their camera.</p>
+<p>Cheap fix, and it belongs with Phase 3: write the new key, accept either on read.</p>
+</section>
+</section>
+<section id="sequencing">
+<h2>Sequencing<a class="headerlink" href="#sequencing" title="Link to this heading">¶</a></h2>
+<p>Five phases. Each is a separate commit, each leaves the tree building and the
+tests green, and any one can be stopped at without leaving the project in a
+half-renamed state.</p>
+<section id="phase-0-github-repository-rename">
+<h3>Phase 0 — GitHub repository rename<a class="headerlink" href="#phase-0-github-repository-rename" title="Link to this heading">¶</a></h3>
+<p>Rename <code class="docutils literal notranslate"><span class="pre">cnr-isti-vclab/QMeshLab</span></code> → <code class="docutils literal notranslate"><span class="pre">cnr-isti-vclab/meshlab2</span></code> in repository
+settings. GitHub redirects the old URL — web, git, and API — indefinitely, so
+existing clones keep working and no one has to do anything. Then:</p>
+<ul class="simple">
+<li><p>Update the 7 in-tree URLs (<code class="docutils literal notranslate"><span class="pre">readme.md</span></code>, About-dialog links, <code class="docutils literal notranslate"><span class="pre">docs/index.rst</span></code>).</p></li>
+<li><p>Fix the stale one while passing: <code class="docutils literal notranslate"><span class="pre">docs/index.rst:38</span></code> still points at
+<code class="docutils literal notranslate"><span class="pre">github.com/anomalyco/QMeshLab</span></code>, which is wrong today regardless of the rename.</p></li>
+<li><p>Update <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">remote</span> <span class="pre">set-url</span></code> locally, though the redirect makes it optional.</p></li>
+<li><p>The GitHub Pages URL moves to <code class="docutils literal notranslate"><span class="pre">cnr-isti-vclab.github.io/meshlab2</span></code>; the old one
+redirects.</p></li>
+</ul>
+<p>This phase is free and reversible, and it is worth doing first so the name is
+settled before any code churns.</p>
+</section>
+<section id="phase-1-build-identifiers">
+<h3>Phase 1 — build identifiers<a class="headerlink" href="#phase-1-build-identifiers" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">QMeshLab*</span></code> targets, <code class="docutils literal notranslate"><span class="pre">QMESH_*</span></code> options, <code class="docutils literal notranslate"><span class="pre">QMESHLAB_*</span></code> macros and env vars. Purely
+internal: nothing here is visible to a user or persisted anywhere.</p>
+<p>Mechanical, but do it as <strong>three commits</strong>, one per family, each verified by a
+clean configure-and-build. The option rename in particular touches 55
+<code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code> files and a stale <code class="docutils literal notranslate"><span class="pre">QMESH_PLUGIN_*</span></code> name fails silently by simply
+not enabling a plugin — so after this phase, diff the built plugin list against
+the list from before.</p>
+<p><code class="docutils literal notranslate"><span class="pre">QMESHLAB_PYTHON_CONSOLE</span></code> is documented in <code class="docutils literal notranslate"><span class="pre">readme.md</span></code> and used in CI; rename it
+in the same commit as its documentation.</p>
+</section>
+<section id="phase-2-plugin-ids-and-resource-prefixes">
+<h3>Phase 2 — plugin ids and resource prefixes<a class="headerlink" href="#phase-2-plugin-ids-and-resource-prefixes" title="Link to this heading">¶</a></h3>
+<p>34 ids of the form <code class="docutils literal notranslate"><span class="pre">qmeshlab.filter.foo</span></code> → <code class="docutils literal notranslate"><span class="pre">meshlab2.filter.foo</span></code>. Each appears in
+its <code class="docutils literal notranslate"><span class="pre">filters.json</span></code>, in the plugin’s <code class="docutils literal notranslate"><span class="pre">pluginId()</span></code>, and as the <code class="docutils literal notranslate"><span class="pre">qt_add_resources</span></code>
+PREFIX — and <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a> states the invariant that
+the prefix must match the id, so all three move together or the descriptors fail
+to load.</p>
+<p>Guard: <code class="docutils literal notranslate"><span class="pre">QMeshLabFilterDescriptorTests</span></code> and <code class="docutils literal notranslate"><span class="pre">QMeshLabFilterCreationTests</span></code> both
+load every descriptor, so a mismatch fails fast rather than at runtime.</p>
+<p>The Python API is unaffected — scripts call <code class="docutils literal notranslate"><span class="pre">apply_filter(&quot;do_something&quot;,</span> <span class="pre">…)</span></code>
+using <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>, and <code class="docutils literal notranslate"><span class="pre">filterKey</span></code> (<code class="docutils literal notranslate"><span class="pre">pluginId::filterId</span></code>) is in-memory only,
+never serialized into a script or a project file.</p>
+</section>
+<section id="phase-3-user-facing-identity">
+<h3>Phase 3 — user-facing identity<a class="headerlink" href="#phase-3-user-facing-identity" title="Link to this heading">¶</a></h3>
+<p>App name, QSettings migration shim, bundle identifier, window title, About box.
+This is the only phase that can lose user data, and it should be one commit with
+the shim included, never split.</p>
+</section>
+<section id="phase-4-local-working-copy-and-agent-state">
+<h3>Phase 4 — local working copy and agent state<a class="headerlink" href="#phase-4-local-working-copy-and-agent-state" title="Link to this heading">¶</a></h3>
+<p>Rename <code class="docutils literal notranslate"><span class="pre">~/Documents/devel/github/QMeshLab</span></code> to <code class="docutils literal notranslate"><span class="pre">…/meshlab2</span></code>, for local clarity
+against the new repository name. See the next section: the directory name is what
+keys the agent state, so the two moves happen together.</p>
+</section>
+<section id="phase-5-artifacts-and-documentation">
+<h3>Phase 5 — artifacts and documentation<a class="headerlink" href="#phase-5-artifacts-and-documentation" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">APP_NAME:</span> <span class="pre">QMeshLab</span></code> in <code class="docutils literal notranslate"><span class="pre">macos-dmg.yml:43</span></code> and the hard-coded stem in
+<code class="docutils literal notranslate"><span class="pre">windows-portable.yml:246</span></code> produce <code class="docutils literal notranslate"><span class="pre">QMeshLab-&lt;date&gt;-&lt;sha&gt;-&lt;platform&gt;</span></code>. Renaming
+them changes the artifact names; older artifacts keep their old names, which is
+correct — they were built by the old project.</p>
+<p>Then the doc sweep: 27 Markdown files, plus <code class="docutils literal notranslate"><span class="pre">docs/design/README.md</span></code> and the
+memory of which docs are reference versus history.</p>
+</section>
+</section>
+<section id="impact-on-the-claude-code-project">
+<h2>Impact on the Claude Code project<a class="headerlink" href="#impact-on-the-claude-code-project" title="Link to this heading">¶</a></h2>
+<p>This is the part with a non-obvious failure mode, and it belongs to <strong>Phase 4
+only</strong>. If the local directory keeps its name, none of this applies.</p>
+<p>Claude Code keys its per-project state on the <strong>absolute path of the working
+directory</strong>, with separators flattened to dashes. Today that is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">~/.</span><span class="n">claude</span><span class="o">/</span><span class="n">projects</span><span class="o">/-</span><span class="n">Users</span><span class="o">-</span><span class="n">cignoni</span><span class="o">-</span><span class="n">Documents</span><span class="o">-</span><span class="n">devel</span><span class="o">-</span><span class="n">github</span><span class="o">-</span><span class="n">QMeshLab</span><span class="o">/</span>
+</pre></div>
+</div>
+<p>Renaming <code class="docutils literal notranslate"><span class="pre">~/Documents/devel/github/QMeshLab</span></code> to <code class="docutils literal notranslate"><span class="pre">…/meshlab2</span></code> makes Claude Code
+look for <code class="docutils literal notranslate"><span class="pre">-Users-cignoni-Documents-devel-github-meshlab2</span></code>, find nothing, and
+create it empty. What is left behind:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>State</p></th>
+<th class="head"><p>Extent</p></th>
+<th class="head"><p>Consequence if orphaned</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Session transcripts</p></td>
+<td><p>9 files, <strong>146 MB</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--resume</span></code> and <code class="docutils literal notranslate"><span class="pre">--continue</span></code> find no history</p></td>
+</tr>
+<tr class="row-odd"><td><p>Memory files</p></td>
+<td><p>24 files, 120 KB</p></td>
+<td><p>Every learned convention is gone; the agent starts from nothing</p></td>
+</tr>
+<tr class="row-even"><td><p>Per-project settings</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.claude/settings.local.json</span></code> (in-repo, moves with the tree)</p></td>
+<td><p>—</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Mitigation, before launching Claude from the new path:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mv<span class="w"> </span>~/.claude/projects/-Users-cignoni-Documents-devel-github-QMeshLab<span class="w"> </span><span class="se">\</span>
+<span class="w">   </span>~/.claude/projects/-Users-cignoni-Documents-devel-github-meshlab2
+</pre></div>
+</div>
+<p>Do this in the same sitting as the directory rename. The transcripts contain the
+old absolute path in their recorded content, but that is history rather than a
+lookup key, so resume is expected to work — this has not been verified, so do the
+move first and confirm <code class="docutils literal notranslate"><span class="pre">--resume</span></code> before deleting anything.</p>
+<p>Two further passes, both cheap:</p>
+<ul class="simple">
+<li><p><strong>Memory files.</strong> 17 of the 24 mention <code class="docutils literal notranslate"><span class="pre">QMeshLab</span></code>, including six build-target
+names (<code class="docutils literal notranslate"><span class="pre">QMeshLabCore</span></code>, <code class="docutils literal notranslate"><span class="pre">QMeshLabEmbree</span></code>, <code class="docutils literal notranslate"><span class="pre">QMeshLabFilterSmokeTests</span></code>, …). Stale
+target names in memory are worse than no memory: the agent will confidently
+run a build command that no longer exists. Sweep them in the same phase.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">.claude/settings.local.json</span></code>.</strong> <strong>65 entries</strong> mention <code class="docutils literal notranslate"><span class="pre">QMeshLab</span></code>, most of
+them permission rules for build commands such as
+<code class="docutils literal notranslate"><span class="pre">cmake</span> <span class="pre">--build</span> <span class="pre">…</span> <span class="pre">--target</span> <span class="pre">QMeshLab</span> <span class="pre">-j8</span></code>. After Phase 1 these stop matching and
+every build prompts for permission again. They are prefix rules, so the fix is
+the same rename applied to the file.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">.opencode/rules.md</span></code> also names the project and three design docs; it belongs to
+a different agent but is in the same tree and should be swept with the docs.</p>
+</section>
+<section id="risks">
+<h2>Risks<a class="headerlink" href="#risks" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Risk</p></th>
+<th class="head"><p>Severity</p></th>
+<th class="head"><p>Mitigation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>A blanket case-insensitive replace destroys the ~180 genuine MeshLab references</p></td>
+<td><p>High</p></td>
+<td><p>Case-sensitive, family-by-family; <code class="docutils literal notranslate"><span class="pre">MeshLabProject*</span></code> explicitly excluded; review the diff for <code class="docutils literal notranslate"><span class="pre">MeshLab</span></code> without <code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>User preferences orphaned by the app-name change</p></td>
+<td><p>High</p></td>
+<td><p>Migration shim in Phase 3, kept for a release</p></td>
+</tr>
+<tr class="row-even"><td><p>A renamed <code class="docutils literal notranslate"><span class="pre">QMESH_PLUGIN_*</span></code> option silently disables a plugin</p></td>
+<td><p>Medium</p></td>
+<td><p>Diff the built plugin list before and after Phase 1</p></td>
+</tr>
+<tr class="row-odd"><td><p>Bundle-id change resets TCC and Gatekeeper</p></td>
+<td><p>Low, one-time</p></td>
+<td><p>Expected and desirable; note it in the release notes</p></td>
+</tr>
+<tr class="row-even"><td><p>Agent memory and history orphaned</p></td>
+<td><p>Medium</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mv</span></code> the project directory in the same sitting (Phase 4)</p></td>
+</tr>
+<tr class="row-odd"><td><p>In-flight branches conflict massively</p></td>
+<td><p>Medium</p></td>
+<td><p>Do the rename when no long-lived branch is open; each phase is one commit, so rebases resolve per-family</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="open-questions">
+<h2>Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
+<p>One remains, and it is smaller than the others: whether the macOS bundle
+identifier stays <code class="docutils literal notranslate"><span class="pre">net.meshlab.MeshLab</span></code> (in-place succession, but the old and new
+applications cannot coexist cleanly) or becomes <code class="docutils literal notranslate"><span class="pre">net.meshlab.meshlab2</span></code>
+(coexistence during the transition, at the cost of one round of Gatekeeper and
+TCC prompts). See <a class="reference internal" href="#the-bundle-identifier-no-longer-a-bug-now-a-choice"><span class="xref myst">the discussion above</span></a>.</p>
+<p>It only has to be answered before Phase 3, and it can be revisited when the old
+MeshLab is retired.</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Repository Rename: QMeshLab → meshlab2</a><ul>
+<li><a class="reference internal" href="#status">Status</a></li>
+<li><a class="reference internal" href="#the-rename-is-six-separate-things">“The rename” is six separate things</a></li>
+<li><a class="reference internal" href="#what-must-not-be-renamed">What must not be renamed</a></li>
+<li><a class="reference internal" href="#decisions-taken-2026-09-13">Decisions taken (2026-09-13)</a><ul>
+<li><a class="reference internal" href="#the-full-mapping">The full mapping</a></li>
+<li><a class="reference internal" href="#python-the-consequential-part-is-not-in-this-repo">Python: the consequential part is not in this repo</a></li>
+<li><a class="reference internal" href="#the-bundle-identifier-no-longer-a-bug-now-a-choice">The bundle identifier: no longer a bug, now a choice</a></li>
+<li><a class="reference internal" href="#user-settings-need-a-migration-shim-not-a-rename">User settings need a migration shim, not a rename</a></li>
+<li><a class="reference internal" href="#one-persisted-format-key">One persisted format key</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#sequencing">Sequencing</a><ul>
+<li><a class="reference internal" href="#phase-0-github-repository-rename">Phase 0 — GitHub repository rename</a></li>
+<li><a class="reference internal" href="#phase-1-build-identifiers">Phase 1 — build identifiers</a></li>
+<li><a class="reference internal" href="#phase-2-plugin-ids-and-resource-prefixes">Phase 2 — plugin ids and resource prefixes</a></li>
+<li><a class="reference internal" href="#phase-3-user-facing-identity">Phase 3 — user-facing identity</a></li>
+<li><a class="reference internal" href="#phase-4-local-working-copy-and-agent-state">Phase 4 — local working copy and agent state</a></li>
+<li><a class="reference internal" href="#phase-5-artifacts-and-documentation">Phase 5 — artifacts and documentation</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#impact-on-the-claude-code-project">Impact on the Claude Code project</a></li>
+<li><a class="reference internal" href="#risks">Risks</a></li>
+<li><a class="reference internal" href="#open-questions">Open questions</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>
