@@ -47,7 +47,7 @@ MeshFilterRunResult success(const QString &name, int newIndex, const QStringList
 
 QString CreateFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.create");
+    return QStringLiteral("meshlab2.filter.create");
 }
 
 QString CreateFilterPlugin::name() const

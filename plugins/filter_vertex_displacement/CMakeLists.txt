@@ -23,6 +23,6 @@ target_link_libraries(MeshLab2PluginFilterVertexDisplacement
 )
 
 qt_add_resources(MeshLab2PluginFilterVertexDisplacement "filter_vertex_displacement_descriptors"
-    PREFIX "/filters/qmeshlab.filter.vertex_displacement"
+    PREFIX "/filters/meshlab2.filter.vertex_displacement"
     FILES filters.json
 )

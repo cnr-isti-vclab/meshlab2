@@ -67,6 +67,6 @@ endif()
 
 
 qt_add_resources(MeshLab2PluginFilterExpression "filter_expression_descriptors"
-    PREFIX "/filters/qmeshlab.filter.expression"
+    PREFIX "/filters/meshlab2.filter.expression"
     FILES filters.json
 )

@@ -26,6 +26,6 @@ target_link_libraries(MeshLab2PluginFilterIsoParam
 )
 
 qt_add_resources(MeshLab2PluginFilterIsoParam "filter_isoparam_descriptors"
-    PREFIX "/filters/qmeshlab.filter.isoparam"
+    PREFIX "/filters/meshlab2.filter.isoparam"
     FILES filters.json
 )

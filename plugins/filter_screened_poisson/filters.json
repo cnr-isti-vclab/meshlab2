@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.screened_poisson",
+  "pluginId": "meshlab2.filter.screened_poisson",
   "references": [
     {
       "id": "kazhdan2013screened",

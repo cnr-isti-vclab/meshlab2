@@ -65,6 +65,6 @@ target_link_libraries(MeshLab2PluginFilterInstantMeshes PUBLIC
 )
 
 qt_add_resources(MeshLab2PluginFilterInstantMeshes "filter_instant_meshes_descriptors"
-    PREFIX "/filters/qmeshlab.filter.instant_meshes"
+    PREFIX "/filters/meshlab2.filter.instant_meshes"
     FILES filters.json
 )

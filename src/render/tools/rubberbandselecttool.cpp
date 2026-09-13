@@ -177,7 +177,7 @@ bool RubberBandSelectTool::mouseRelease(QMouseEvent *e)
     params[QStringLiteral("uv_zoom")] = double(m_view->uvZoom());
 
     const MeshFilterRunResult result =
-        doc->runFilter(QStringLiteral("qmeshlab.filter.select::select_by_screen_rectangle"), params);
+        doc->runFilter(QStringLiteral("meshlab2.filter.select::select_by_screen_rectangle"), params);
     if (!result.success)
         doc->writeLog(QObject::tr("Rubber-band selection failed: %1").arg(result.errorMessage),
                       Document::LogSource::Application, Document::LogLevel::Error);

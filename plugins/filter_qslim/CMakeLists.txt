@@ -54,6 +54,6 @@ target_link_libraries(MeshLab2PluginFilterQSlim PUBLIC
 )
 
 qt_add_resources(MeshLab2PluginFilterQSlim "filter_qslim_descriptors"
-    PREFIX "/filters/qmeshlab.filter.qslim"
+    PREFIX "/filters/meshlab2.filter.qslim"
     FILES filters.json
 )

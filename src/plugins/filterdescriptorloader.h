@@ -11,7 +11,7 @@ class Document;
 //
 // JSON format:
 //   {
-//     "pluginId": "qmeshlab.filter.basic",
+//     "pluginId": "meshlab2.filter.basic",
 //     "filters": [ { ... }, ... ]
 //   }
 //

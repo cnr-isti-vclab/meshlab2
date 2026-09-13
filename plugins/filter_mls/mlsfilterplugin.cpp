@@ -351,7 +351,7 @@ QString marchingMeshName(const Document::MeshEntry &sourceEntry, const QString &
 
 QString MlsFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.mls");
+    return QStringLiteral("meshlab2.filter.mls");
 }
 
 QString MlsFilterPlugin::name() const

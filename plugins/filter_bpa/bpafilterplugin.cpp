@@ -70,7 +70,7 @@ PositionKey keyOf(const glm::vec3 &p) { return PositionKey{p.x, p.y, p.z}; }
 
 QString BpaFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.bpa");
+    return QStringLiteral("meshlab2.filter.bpa");
 }
 
 QString BpaFilterPlugin::name() const

@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.instant_meshes",
+  "pluginId": "meshlab2.filter.instant_meshes",
   "provenance": {
     "project": "Instant Meshes",
     "repository": "https://github.com/wjakob/instant-meshes",

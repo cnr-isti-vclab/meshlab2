@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.isoparam",
+  "pluginId": "meshlab2.filter.isoparam",
   "references": [
     {
       "id": "pietroni2010isoparam",

@@ -194,7 +194,7 @@ SnapBorderResult snapMismatchedBorder(
 
 QString CleanFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.clean");
+    return QStringLiteral("meshlab2.filter.clean");
 }
 
 QString CleanFilterPlugin::name() const

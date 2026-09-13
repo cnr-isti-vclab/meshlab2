@@ -24,6 +24,6 @@ target_link_libraries(MeshLab2PluginFilterImgPatchParam
 )
 
 qt_add_resources(MeshLab2PluginFilterImgPatchParam "filter_img_patch_param_descriptors"
-    PREFIX "/filters/qmeshlab.filter.img_patch_param"
+    PREFIX "/filters/meshlab2.filter.img_patch_param"
     FILES filters.json
 )

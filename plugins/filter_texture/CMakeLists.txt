@@ -26,6 +26,6 @@ target_link_libraries(MeshLab2PluginFilterTexture
 )
 
 qt_add_resources(MeshLab2PluginFilterTexture "filter_texture_descriptors"
-    PREFIX "/filters/qmeshlab.filter.texture"
+    PREFIX "/filters/meshlab2.filter.texture"
     FILES filters.json
 )

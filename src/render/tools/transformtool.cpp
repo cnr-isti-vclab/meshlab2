@@ -17,7 +17,7 @@ namespace {
 // One filter for all three gestures: the gesture matrix goes over whole rather than
 // decomposed. See commitGesture().
 constexpr const char *kSetMatrixKey =
-    "qmeshlab.filter.meshing::set_matrix_from_values_or_layer";
+    "meshlab2.filter.meshing::set_matrix_from_values_or_layer";
 
 QVector3D axisVector(int axis)
 {

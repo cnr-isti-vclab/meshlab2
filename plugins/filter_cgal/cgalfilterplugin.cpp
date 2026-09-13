@@ -1171,7 +1171,7 @@ MeshFilterRunResult runKinetic(const FilterParams &params, Document &doc)
 
 QString CgalFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.cgal");
+    return QStringLiteral("meshlab2.filter.cgal");
 }
 
 QString CgalFilterPlugin::name() const

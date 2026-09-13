@@ -42,6 +42,6 @@ target_link_libraries(MeshLab2PluginFilterBpa
 )
 
 qt_add_resources(MeshLab2PluginFilterBpa "filter_bpa_descriptors"
-    PREFIX "/filters/qmeshlab.filter.bpa"
+    PREFIX "/filters/meshlab2.filter.bpa"
     FILES filters.json
 )

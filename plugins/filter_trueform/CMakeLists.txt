@@ -52,6 +52,6 @@ if (MSVC)
 endif()
 
 qt_add_resources(MeshLab2PluginFilterTrueForm "filter_trueform_descriptors"
-    PREFIX "/filters/qmeshlab.filter.trueform"
+    PREFIX "/filters/meshlab2.filter.trueform"
     FILES filters.json
 )

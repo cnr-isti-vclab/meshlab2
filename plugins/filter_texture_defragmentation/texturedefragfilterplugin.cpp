@@ -206,7 +206,7 @@ void applyPackingTransforms(const std::vector<ChartHandle> &charts,
 
 QString TextureDefragFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.texture_defragmentation");
+    return QStringLiteral("meshlab2.filter.texture_defragmentation");
 }
 
 QString TextureDefragFilterPlugin::name() const

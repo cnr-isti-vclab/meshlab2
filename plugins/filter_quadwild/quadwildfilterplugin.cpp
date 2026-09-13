@@ -104,7 +104,7 @@ bool writeScaledConfig(
 
 QString QuadWildFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.quadwild");
+    return QStringLiteral("meshlab2.filter.quadwild");
 }
 
 QString QuadWildFilterPlugin::name() const

@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.xatlas",
+  "pluginId": "meshlab2.filter.xatlas",
   "filters": [
     {
       "id": "parametrize_by_atlas_xatlas",

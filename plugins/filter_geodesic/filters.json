@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.geodesic",
+  "pluginId": "meshlab2.filter.geodesic",
   "filters": [
     {
       "id": "compute_geodesic_distance_from_border",

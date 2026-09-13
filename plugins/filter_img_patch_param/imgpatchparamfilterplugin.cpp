@@ -911,7 +911,7 @@ QStringList patchBasedTextureParameterization(
 // ---------------------------------------------------------------------------
 
 QString ImgPatchParamFilterPlugin::pluginId() const
-{ return QStringLiteral("qmeshlab.filter.img_patch_param"); }
+{ return QStringLiteral("meshlab2.filter.img_patch_param"); }
 
 QString ImgPatchParamFilterPlugin::name() const
 { return QStringLiteral("Image Patch Parametrization Filters"); }

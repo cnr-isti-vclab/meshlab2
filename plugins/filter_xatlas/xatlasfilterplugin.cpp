@@ -80,7 +80,7 @@ float finiteNonNegativeDouble(const FilterParams &params, const QString &id, dou
 
 QString XAtlasFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.xatlas");
+    return QStringLiteral("meshlab2.filter.xatlas");
 }
 
 QString XAtlasFilterPlugin::name() const

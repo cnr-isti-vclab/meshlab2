@@ -39,7 +39,7 @@ void progress(Document &doc, int percentage, const char *message)
 
 QString InstantMeshesFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.instant_meshes");
+    return QStringLiteral("meshlab2.filter.instant_meshes");
 }
 
 QString InstantMeshesFilterPlugin::name() const

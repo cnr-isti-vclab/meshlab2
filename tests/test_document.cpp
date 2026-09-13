@@ -460,7 +460,7 @@ private:
 };
 int ProbeLayerData::s_live = 0;
 
-const QString kProbeKey = QStringLiteral("qmeshlab.test.probe/domain");
+const QString kProbeKey = QStringLiteral("meshlab2.test.probe/domain");
 
 int addTinyMesh(Document &doc, const QString &name)
 {
@@ -511,7 +511,7 @@ void DocumentTests::layerDataIsDroppedWhenGeometryChanges()
 {
     Document doc;
     const int index = addTinyMesh(doc, QStringLiteral("Layer"));
-    const QString survivorKey = QStringLiteral("qmeshlab.test.probe/survivor");
+    const QString survivorKey = QStringLiteral("meshlab2.test.probe/survivor");
 
     doc.setLayerData(index, kProbeKey,
                      std::make_shared<ProbeLayerData>(QStringLiteral("derived"), false));
@@ -555,7 +555,7 @@ void DocumentTests::layerDataIsCountedInTheMemoryReport()
     const qint64 baseTotal = before[0].totalBytes();
 
     doc.setLayerData(index, kProbeKey, std::make_shared<ProbeLayerData>(QStringLiteral("a")));
-    doc.setLayerData(index, QStringLiteral("qmeshlab.test.probe/second"),
+    doc.setLayerData(index, QStringLiteral("meshlab2.test.probe/second"),
                      std::make_shared<ProbeLayerData>(QStringLiteral("b")));
 
     const auto after = doc.cpuMeshMemoryStats();
@@ -1780,7 +1780,7 @@ void DocumentTests::plyWithLongPerVertexListLoads()
 void DocumentTests::trueFormRoundTripsObjAndStl()
 {
     Document probe;
-    const QString trueFormId = QStringLiteral("qmeshlab.io.trueform");
+    const QString trueFormId = QStringLiteral("meshlab2.io.trueform");
     if (!probe.openDialogFilter().contains(QStringLiteral("TrueForm")))
         QSKIP("TrueForm I/O plugin is not available in this build.");
 

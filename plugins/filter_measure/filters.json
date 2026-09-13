@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.measure",
+  "pluginId": "meshlab2.filter.measure",
   "filters": [
     {
       "id": "measure_topological_properties",

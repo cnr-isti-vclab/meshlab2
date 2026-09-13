@@ -182,7 +182,7 @@ int weightingPolicy(const QString &value)
 
 QString QSlimFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.qslim");
+    return QStringLiteral("meshlab2.filter.qslim");
 }
 
 QString QSlimFilterPlugin::name() const

@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.igl",
+  "pluginId": "meshlab2.filter.igl",
   "provenance": {
     "project": "libigl",
     "repository": "https://github.com/libigl/libigl",

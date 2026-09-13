@@ -10,7 +10,7 @@
 
 QString IglFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.igl");
+    return QStringLiteral("meshlab2.filter.igl");
 }
 
 QString IglFilterPlugin::name() const

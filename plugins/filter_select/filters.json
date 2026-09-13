@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.select",
+  "pluginId": "meshlab2.filter.select",
   "filters": [
     {
       "id": "select_all",

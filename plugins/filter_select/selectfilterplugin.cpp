@@ -74,7 +74,7 @@ void updateGeometryAfterDeletion(VCGMesh &mesh)
 
 QString SelectFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.select");
+    return QStringLiteral("meshlab2.filter.select");
 }
 
 QString SelectFilterPlugin::name() const

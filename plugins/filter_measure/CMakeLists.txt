@@ -23,6 +23,6 @@ target_link_libraries(MeshLab2PluginFilterMeasure
 )
 
 qt_add_resources(MeshLab2PluginFilterMeasure "filter_measure_descriptors"
-    PREFIX "/filters/qmeshlab.filter.measure"
+    PREFIX "/filters/meshlab2.filter.measure"
     FILES filters.json
 )

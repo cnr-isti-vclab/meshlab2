@@ -21,7 +21,7 @@ constexpr QLatin1StringView kFilterCreateNoisyIso("create_isosurface_from_perlin
 
 QString BasicFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.basic");
+    return QStringLiteral("meshlab2.filter.basic");
 }
 
 QString BasicFilterPlugin::name() const

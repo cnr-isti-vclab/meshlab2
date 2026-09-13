@@ -24,6 +24,6 @@ target_link_libraries(MeshLab2PluginFilterColorProc
 )
 
 qt_add_resources(MeshLab2PluginFilterColorProc "filter_colorproc_descriptors"
-    PREFIX "/filters/qmeshlab.filter.colorproc"
+    PREFIX "/filters/meshlab2.filter.colorproc"
     FILES filters.json
 )

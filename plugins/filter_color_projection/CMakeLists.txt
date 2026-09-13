@@ -24,6 +24,6 @@ target_link_libraries(MeshLab2PluginFilterColorProjection
 )
 
 qt_add_resources(MeshLab2PluginFilterColorProjection "filter_color_projection_descriptors"
-    PREFIX "/filters/qmeshlab.filter.color_projection"
+    PREFIX "/filters/meshlab2.filter.color_projection"
     FILES filters.json
 )

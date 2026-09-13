@@ -23,6 +23,6 @@ target_link_libraries(MeshLab2PluginFilterICP
 )
 
 qt_add_resources(MeshLab2PluginFilterICP "filter_icp_descriptors"
-    PREFIX "/filters/qmeshlab.filter.icp"
+    PREFIX "/filters/meshlab2.filter.icp"
     FILES filters.json
 )

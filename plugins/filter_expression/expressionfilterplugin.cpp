@@ -723,7 +723,7 @@ bool checkCustomAttributeName(const QString &name, QString &error)
 
 QString ExpressionFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.expression");
+    return QStringLiteral("meshlab2.filter.expression");
 }
 
 QString ExpressionFilterPlugin::name() const

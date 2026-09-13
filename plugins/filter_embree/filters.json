@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.embree",
+  "pluginId": "meshlab2.filter.embree",
   "filters": [
     {
       "id": "compute_obscurance",

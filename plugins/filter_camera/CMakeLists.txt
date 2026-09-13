@@ -24,6 +24,6 @@ target_link_libraries(MeshLab2PluginFilterCamera
 )
 
 qt_add_resources(MeshLab2PluginFilterCamera "filter_camera_descriptors"
-    PREFIX "/filters/qmeshlab.filter.camera"
+    PREFIX "/filters/meshlab2.filter.camera"
     FILES filters.json
 )

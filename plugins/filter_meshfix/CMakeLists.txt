@@ -64,6 +64,6 @@ target_link_libraries(MeshLab2PluginFilterMeshFix
 )
 
 qt_add_resources(MeshLab2PluginFilterMeshFix "filter_meshfix_descriptors"
-    PREFIX "/filters/qmeshlab.filter.meshfix"
+    PREFIX "/filters/meshlab2.filter.meshfix"
     FILES filters.json
 )

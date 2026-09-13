@@ -132,7 +132,7 @@ constexpr QLatin1StringView kFilterRemesh("remesh_by_abstract_domain");
 constexpr QLatin1StringView kFilterAtlas("create_atlased_mesh_from_abstract_domain");
 constexpr QLatin1StringView kFilterTransfer("transfer_abstract_domain_to_another_layer");
 constexpr QLatin1StringView kFilterMeasure("measure_abstract_domain");
-const QString kDomainKey = QStringLiteral("qmeshlab.filter.isoparam/abstract_domain");
+const QString kDomainKey = QStringLiteral("meshlab2.filter.isoparam/abstract_domain");
 
 MeshFilterRunResult fail(const QString &message)
 {
@@ -683,7 +683,7 @@ MeshFilterRunResult runTransfer(const FilterParams &params, Document &doc)
 
 QString IsoParamFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.isoparam");
+    return QStringLiteral("meshlab2.filter.isoparam");
 }
 
 QString IsoParamFilterPlugin::name() const

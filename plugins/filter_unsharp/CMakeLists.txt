@@ -23,6 +23,6 @@ target_link_libraries(MeshLab2PluginFilterUnsharp
 )
 
 qt_add_resources(MeshLab2PluginFilterUnsharp "filter_unsharp_descriptors"
-    PREFIX "/filters/qmeshlab.filter.unsharp"
+    PREFIX "/filters/meshlab2.filter.unsharp"
     FILES filters.json
 )

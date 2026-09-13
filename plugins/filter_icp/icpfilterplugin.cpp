@@ -691,7 +691,7 @@ MeshFilterRunResult runOverlappingMeshes(const FilterParams &params, Document &d
 
 QString IcpFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.icp");
+    return QStringLiteral("meshlab2.filter.icp");
 }
 
 QString IcpFilterPlugin::name() const

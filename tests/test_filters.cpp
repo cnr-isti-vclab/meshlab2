@@ -1150,7 +1150,7 @@ void FilterTests::vertexDisplacementFiltersRunOnCube()
     bool foundRandom = false;
     bool foundLegacyRandom = false;
     for (const auto &info : doc.filterInfos()) {
-        if (info.pluginId == QStringLiteral("qmeshlab.filter.vertex_displacement")) {
+        if (info.pluginId == QStringLiteral("meshlab2.filter.vertex_displacement")) {
             foundRandom = foundRandom
                 || info.descriptor.id == QStringLiteral("displace_vertices_randomly");
             if (fractalIds.contains(info.descriptor.id)) {
@@ -5862,7 +5862,7 @@ void FilterTests::abstractDomainIsBuiltAndAttachedToTheLayer()
     QVERIFY2(r.success, qPrintable(r.errorMessage));
 
     const LayerDataPtr domain =
-        doc.layerData(index, QStringLiteral("qmeshlab.filter.isoparam/abstract_domain"));
+        doc.layerData(index, QStringLiteral("meshlab2.filter.isoparam/abstract_domain"));
     QVERIFY2(domain, "the abstract domain was not attached to the layer");
     QVERIFY2(domain->describe().contains(QStringLiteral("abstract domain")),
              qPrintable(domain->describe()));
@@ -6394,7 +6394,7 @@ void FilterTests::hardcodedFilterKeysInTheUiStillResolve()
     QVERIFY(!declared.isEmpty());
 
     const QRegularExpression keyPattern(
-        QStringLiteral("qmeshlab\\.filter\\.[a-z_]+::[a-z_]+"));
+        QStringLiteral("meshlab2\\.filter\\.[a-z_]+::[a-z_]+"));
     QStringList missing;
     int found = 0;
     QDirIterator it(QStringLiteral(TEST_SOURCE_DIR "/src"),
@@ -6561,7 +6561,7 @@ void FilterTests::abstractDomainIndexesRegionsOnFaces()
 
 void FilterTests::abstractDomainConsumersRunAndRefuseWithoutIt()
 {
-    const QString kDomain = QStringLiteral("qmeshlab.filter.isoparam/abstract_domain");
+    const QString kDomain = QStringLiteral("meshlab2.filter.isoparam/abstract_domain");
     const QStringList consumers{
         QStringLiteral("remesh_by_abstract_domain"),
         QStringLiteral("create_atlased_mesh_from_abstract_domain")
@@ -6648,7 +6648,7 @@ void FilterTests::abstractDomainRefusesAnOpenMesh()
         filterKeyForId(doc, QStringLiteral("parametrize_by_abstract_domain")), {});
     QVERIFY2(!r.success, "an open mesh was accepted");
     QVERIFY2(r.errorMessage.contains(QStringLiteral("watertight")), qPrintable(r.errorMessage));
-    QVERIFY(!doc.layerData(index, QStringLiteral("qmeshlab.filter.isoparam/abstract_domain")));
+    QVERIFY(!doc.layerData(index, QStringLiteral("meshlab2.filter.isoparam/abstract_domain")));
 }
 
 void FilterTests::selfIntersectionCurvesFindTheCrossing()

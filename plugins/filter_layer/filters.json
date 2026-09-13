@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.layer",
+  "pluginId": "meshlab2.filter.layer",
   "filters": [
     {
       "id": "extract_selected_faces",

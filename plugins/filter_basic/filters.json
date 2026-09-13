@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.basic",
+  "pluginId": "meshlab2.filter.basic",
   "filters": [
     {
       "id": "measure_mesh_summary",

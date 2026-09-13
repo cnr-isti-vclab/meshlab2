@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.trueform",
+  "pluginId": "meshlab2.filter.trueform",
   "references": [
     {
       "id": "taubin1995",

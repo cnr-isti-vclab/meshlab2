@@ -10,7 +10,7 @@ See also: [Architecture](../architecture.md), [Adding a Filter](../adding_a_filt
 ## Status
 
 As of 2026-09-13: Phase 0 done (repo renamed to `cnr-isti-vclab/meshlab2`).
-Phase 1 applied, not yet committed. The measurements below were taken on
+Phases 1 and 2 applied, not yet committed. The measurements below were taken on
 that date against the tracked tree.
 
 ## "The rename" is six separate things
@@ -76,7 +76,7 @@ Every family, with its measured extent. This is the table the sweep works from.
 | Test targets | `MeshLab2Tests`, `MeshLab2FilterTests`, … | `MeshLab2Tests`, … | in the 918 |
 | CMake options | `MESHLAB2_PLUGIN_*`, `MESHLAB2_IGL_*`, `MESHLAB2_MACOS_*` | `MESHLAB2_PLUGIN_*`, … | 251 |
 | Macros and env vars | `MESHLAB2_PYTHON_CONSOLE`, `MESHLAB2_BUILD_ID`, … | `MESHLAB2_*` | 157 |
-| Plugin ids and resource prefixes | `qmeshlab.filter.*`, `qmeshlab.io.*`, `qmeshlab.test.*` | `meshlab2.*` | 34 ids, 222 refs |
+| Plugin ids and resource prefixes | `meshlab2.filter.*`, `meshlab2.io.*`, `meshlab2.test.*` | `meshlab2.*` | 34 ids, 222 refs |
 | Native Python module | `_qmeshlab` | `_meshlab` | 56 |
 | Python facade module | `pymeshlab2` | `pymeshlab` | 51 |
 | Qt application name | `QMeshLab` | `MeshLab` + settings migration | 3 lines |
@@ -152,9 +152,14 @@ Cheap fix, and it belongs with Phase 3: write the new key, accept either on read
 
 `layerfilterplugin.cpp:451` is the same shape: the exported raster-camera XML uses
 `QMeshLabRasterCameras` as its root element. Nothing in this tree reads it back, so
-it is an export format for other tools to consume. Both tokens were deliberately
-**excluded from Phase 1**, along with the QSettings application name
-`QMeshLabFileDialogDirectoryTest` used to isolate a test.
+it is an export format for other tools to consume. A third is the memory report's
+schema string `org.qmeshlab.memory-report.v1` (`mainwindow.cpp:2936`), which is
+versioned and read by whatever consumes the exported JSON.
+
+All three were deliberately **excluded from Phases 1 and 2**, along with the
+QSettings application name `QMeshLabFileDialogDirectoryTest` used to isolate a
+test. They are a single Phase 3 decision: rename and accept both spellings on
+read, or leave them as the historical format names.
 
 ## Sequencing
 
@@ -194,7 +199,7 @@ in the same commit as its documentation.
 
 ### Phase 2 — plugin ids and resource prefixes
 
-34 ids of the form `qmeshlab.filter.foo` → `meshlab2.filter.foo`. Each appears in
+34 ids of the form `meshlab2.filter.foo` → `meshlab2.filter.foo`. Each appears in
 its `filters.json`, in the plugin's `pluginId()`, and as the `qt_add_resources`
 PREFIX — and [Adding a Filter](../adding_a_filter.md) states the invariant that
 the prefix must match the id, so all three move together or the descriptors fail

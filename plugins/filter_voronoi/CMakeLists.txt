@@ -23,6 +23,6 @@ target_link_libraries(MeshLab2PluginFilterVoronoi
 )
 
 qt_add_resources(MeshLab2PluginFilterVoronoi "filter_voronoi_descriptors"
-    PREFIX "/filters/qmeshlab.filter.voronoi"
+    PREFIX "/filters/meshlab2.filter.voronoi"
     FILES filters.json
 )

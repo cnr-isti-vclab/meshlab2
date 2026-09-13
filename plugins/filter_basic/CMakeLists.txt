@@ -23,6 +23,6 @@ target_link_libraries(MeshLab2PluginFilterBasic
 )
 
 qt_add_resources(MeshLab2PluginFilterBasic "filter_basic_descriptors"
-    PREFIX "/filters/qmeshlab.filter.basic"
+    PREFIX "/filters/meshlab2.filter.basic"
     FILES filters.json
 )

@@ -25,6 +25,6 @@ target_link_libraries(MeshLab2PluginFilterXAtlas
 )
 
 qt_add_resources(MeshLab2PluginFilterXAtlas "filter_xatlas_descriptors"
-    PREFIX "/filters/qmeshlab.filter.xatlas"
+    PREFIX "/filters/meshlab2.filter.xatlas"
     FILES filters.json
 )

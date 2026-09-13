@@ -31,7 +31,7 @@ plugins/filter_foo/
 
 ```json
 {
-  "pluginId": "qmeshlab.filter.foo",
+  "pluginId": "meshlab2.filter.foo",
   "provenance": {
     "project": "Upstream Project",
     "repository": "https://github.com/example/upstream",
@@ -183,7 +183,7 @@ site rather than changing the shared signature.
 ```cpp
 class FooFilterPlugin final : public MeshFilterPlugin {
 public:
-    QString pluginId() const override { return QStringLiteral("qmeshlab.filter.foo"); }
+    QString pluginId() const override { return QStringLiteral("meshlab2.filter.foo"); }
     QString name() const override { return QObject::tr("Foo Filters"); }
     MeshFilterRunResult runFilter(const QString &filterId,
                                   const FilterParams &params,
@@ -200,7 +200,7 @@ void registerFooFilterPlugin(MeshFilterPluginManager &pm);
 
 - `plugins/filter_foo/CMakeLists.txt`: `option(MESHLAB2_PLUGIN_FILTER_FOO … ON)`, an
   `add_library(... STATIC)` linking `MeshLab2Core`, and `qt_add_resources(...
-  PREFIX "/filters/qmeshlab.filter.foo" FILES filters.json)`. Copy `filter_basic`.
+  PREFIX "/filters/meshlab2.filter.foo" FILES filters.json)`. Copy `filter_basic`.
 - `plugins/CMakeLists.txt`: `add_subdirectory(filter_foo)` + link it into
   `MeshLab2Plugins` guarded by `MESHLAB2_PLUGIN_FILTER_FOO_ENABLED`.
 - `plugins/filterpluginregistry.cpp`: `#include` the header and call

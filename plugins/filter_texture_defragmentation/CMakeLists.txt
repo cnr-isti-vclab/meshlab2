@@ -48,6 +48,6 @@ if(MSVC)
 endif()
 
 qt_add_resources(MeshLab2PluginFilterTextureDefragmentation "filter_texture_defragmentation_descriptors"
-    PREFIX "/filters/qmeshlab.filter.texture_defragmentation"
+    PREFIX "/filters/meshlab2.filter.texture_defragmentation"
     FILES filters.json
 )

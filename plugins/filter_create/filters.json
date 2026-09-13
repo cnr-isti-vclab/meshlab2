@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.create",
+  "pluginId": "meshlab2.filter.create",
   "filters": [
     {
       "id": "create_tetrahedron",

@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.expression",
+  "pluginId": "meshlab2.filter.expression",
   "filters": [
     {
       "id": "select_vertices_by_expression",

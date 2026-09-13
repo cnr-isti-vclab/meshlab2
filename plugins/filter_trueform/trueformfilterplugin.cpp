@@ -2320,7 +2320,7 @@ MeshFilterRunResult runImproveTriangulation(const FilterParams &params, Document
 
 QString TrueFormFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.trueform");
+    return QStringLiteral("meshlab2.filter.trueform");
 }
 
 QString TrueFormFilterPlugin::name() const

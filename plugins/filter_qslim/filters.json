@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.qslim",
+  "pluginId": "meshlab2.filter.qslim",
   "provenance": {
     "project": "QSlim 2.1 (original MixKit implementation)",
     "repository": "https://github.com/alecjacobson/qslim",

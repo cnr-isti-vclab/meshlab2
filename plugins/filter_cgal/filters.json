@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.cgal",
+  "pluginId": "meshlab2.filter.cgal",
   "filters": [
     {
       "id": "reconstruct_surface_by_alpha_wrapping",

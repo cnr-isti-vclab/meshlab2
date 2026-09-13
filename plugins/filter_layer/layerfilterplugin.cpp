@@ -382,7 +382,7 @@ bool readVcgCameraFile(const QString &path, std::vector<CameraShot> &shots, QStr
 
 QString LayerFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.layer");
+    return QStringLiteral("meshlab2.filter.layer");
 }
 
 QString LayerFilterPlugin::name() const

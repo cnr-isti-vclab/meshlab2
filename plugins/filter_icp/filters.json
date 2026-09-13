@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.icp",
+  "pluginId": "meshlab2.filter.icp",
   "references": [
     {
       "id": "besl1992",

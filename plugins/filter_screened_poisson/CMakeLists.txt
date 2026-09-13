@@ -76,6 +76,6 @@ if (OpenMP_CXX_FOUND)
 endif()
 
 qt_add_resources(MeshLab2PluginFilterScreenedPoisson "filter_screened_poisson_descriptors"
-    PREFIX "/filters/qmeshlab.filter.screened_poisson"
+    PREFIX "/filters/meshlab2.filter.screened_poisson"
     FILES filters.json
 )

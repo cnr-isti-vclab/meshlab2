@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.texture",
+  "pluginId": "meshlab2.filter.texture",
   "filters": [
     {
       "id": "parametrize_by_voronoi_atlas_vcglib",

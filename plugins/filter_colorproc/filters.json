@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.colorproc",
+  "pluginId": "meshlab2.filter.colorproc",
   "filters": [
     {
       "id": "set_vertex_color",

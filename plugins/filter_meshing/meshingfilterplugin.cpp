@@ -576,7 +576,7 @@ MeshFilterRunResult qualitySuccess(
 
 QString MeshingFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.meshing");
+    return QStringLiteral("meshlab2.filter.meshing");
 }
 
 QString MeshingFilterPlugin::name() const

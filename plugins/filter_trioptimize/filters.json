@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.trioptimize",
+  "pluginId": "meshlab2.filter.trioptimize",
   "filters": [
     {
       "id": "flip_edges_by_planarity",

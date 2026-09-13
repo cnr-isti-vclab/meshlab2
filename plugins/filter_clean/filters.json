@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.clean",
+  "pluginId": "meshlab2.filter.clean",
   "filters": [
     {
       "id": "reconstruct_surface_by_ball_pivoting_vcglib",

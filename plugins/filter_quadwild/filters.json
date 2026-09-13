@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.quadwild",
+  "pluginId": "meshlab2.filter.quadwild",
   "provenance": {
     "project": "QuadWild-BiMDF",
     "repository": "https://github.com/cgg-bern/quadwild-bimdf",

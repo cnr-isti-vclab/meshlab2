@@ -42,7 +42,7 @@ MeshFilterRunResult ok(const QStringList &info = {}) {
 // ---------------------------------------------------------------------------
 
 QString PlyMCFilterPlugin::pluginId() const
-{ return QStringLiteral("qmeshlab.filter.plymc"); }
+{ return QStringLiteral("meshlab2.filter.plymc"); }
 
 QString PlyMCFilterPlugin::name() const
 { return QStringLiteral("PlyMC Reconstruction Filters"); }

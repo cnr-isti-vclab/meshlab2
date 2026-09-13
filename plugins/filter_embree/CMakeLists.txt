@@ -30,6 +30,6 @@ target_link_libraries(MeshLab2PluginFilterEmbree
 )
 
 qt_add_resources(MeshLab2PluginFilterEmbree "filter_embree_descriptors"
-    PREFIX "/filters/qmeshlab.filter.embree"
+    PREFIX "/filters/meshlab2.filter.embree"
     FILES filters.json
 )

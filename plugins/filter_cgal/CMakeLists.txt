@@ -31,6 +31,6 @@ target_link_libraries(MeshLab2PluginFilterCGAL
 )
 
 qt_add_resources(MeshLab2PluginFilterCGAL "filter_cgal_descriptors"
-    PREFIX "/filters/qmeshlab.filter.cgal"
+    PREFIX "/filters/meshlab2.filter.cgal"
     FILES filters.json
 )

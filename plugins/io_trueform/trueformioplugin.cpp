@@ -144,7 +144,7 @@ tf::polygons_buffer<int, float, 3, 3> makeTrueFormTriangles(const VCGMesh &mesh)
 class TrueFormIOPlugin final : public MeshIOPlugin
 {
 public:
-    QString pluginId() const override { return QStringLiteral("qmeshlab.io.trueform"); }
+    QString pluginId() const override { return QStringLiteral("meshlab2.io.trueform"); }
 
     QString name() const override { return QObject::tr("TrueForm OBJ/STL"); }
 

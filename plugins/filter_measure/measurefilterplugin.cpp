@@ -169,7 +169,7 @@ QString histogramCountString(double value, bool areaWeighted)
 
 QString MeasureFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.measure");
+    return QStringLiteral("meshlab2.filter.measure");
 }
 
 QString MeasureFilterPlugin::name() const

@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.vertex_displacement",
+  "pluginId": "meshlab2.filter.vertex_displacement",
   "provenance": {
     "project": "MeshLab Fractal Filter",
     "repository": "https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal",

@@ -23,6 +23,6 @@ target_link_libraries(MeshLab2PluginFilterSampling
 )
 
 qt_add_resources(MeshLab2PluginFilterSampling "filter_sampling_descriptors"
-    PREFIX "/filters/qmeshlab.filter.sampling"
+    PREFIX "/filters/meshlab2.filter.sampling"
     FILES filters.json
 )

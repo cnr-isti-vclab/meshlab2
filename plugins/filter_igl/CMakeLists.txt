@@ -56,6 +56,6 @@ target_link_libraries(MeshLab2PluginFilterIgl
 )
 
 qt_add_resources(MeshLab2PluginFilterIgl "filter_igl_descriptors"
-    PREFIX "/filters/qmeshlab.filter.igl"
+    PREFIX "/filters/meshlab2.filter.igl"
     FILES filters.json
 )

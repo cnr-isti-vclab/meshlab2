@@ -167,7 +167,7 @@ void applyTransformToVisibleMeshes(Document &doc, const QMatrix4x4 &transf)
 // ---------------------------------------------------------------------------
 
 QString CameraFilterPlugin::pluginId() const
-{ return QStringLiteral("qmeshlab.filter.camera"); }
+{ return QStringLiteral("meshlab2.filter.camera"); }
 
 QString CameraFilterPlugin::name() const
 { return QStringLiteral("Camera Filters"); }

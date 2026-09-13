@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.plymc",
+  "pluginId": "meshlab2.filter.plymc",
   "filters": [
     {
       "id": "reconstruct_surface_by_volumetric_merging",

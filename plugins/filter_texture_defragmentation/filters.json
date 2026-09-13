@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.texture_defragmentation",
+  "pluginId": "meshlab2.filter.texture_defragmentation",
   "references": [
     {
       "id": "maggiordomo2021texture",

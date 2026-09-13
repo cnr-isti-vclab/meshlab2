@@ -147,7 +147,7 @@ MeshFilterRunResult failResult(const QString &message)
 
 QString UnsharpFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.unsharp");
+    return QStringLiteral("meshlab2.filter.unsharp");
 }
 
 QString UnsharpFilterPlugin::name() const

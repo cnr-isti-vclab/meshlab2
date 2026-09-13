@@ -80,7 +80,7 @@ target_link_libraries(MeshLab2PluginFilterQuadWild PUBLIC
 )
 
 qt_add_resources(MeshLab2PluginFilterQuadWild "filter_quadwild_descriptors"
-    PREFIX "/filters/qmeshlab.filter.quadwild"
+    PREFIX "/filters/meshlab2.filter.quadwild"
     FILES filters.json
 )
 

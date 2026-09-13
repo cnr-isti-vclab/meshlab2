@@ -283,7 +283,7 @@ MeshFilterRunResult displaceRandomly(Document &doc, int meshIndex, const FilterP
 
 QString VertexDisplacementFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.vertex_displacement");
+    return QStringLiteral("meshlab2.filter.vertex_displacement");
 }
 
 QString VertexDisplacementFilterPlugin::name() const

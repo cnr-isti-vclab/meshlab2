@@ -299,7 +299,7 @@ QRgb sampleWrappedTexture(const QImage &image, const vcg::Point2f &uv)
 
 QString ColorProcFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.colorproc");
+    return QStringLiteral("meshlab2.filter.colorproc");
 }
 
 QString ColorProcFilterPlugin::name() const

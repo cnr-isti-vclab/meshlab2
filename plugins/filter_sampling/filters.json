@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.sampling",
+  "pluginId": "meshlab2.filter.sampling",
   "filters": [
     {
       "id": "sample_mesh_elements",

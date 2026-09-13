@@ -25,6 +25,6 @@ target_link_libraries(MeshLab2PluginFilterTriOptimize
 )
 
 qt_add_resources(MeshLab2PluginFilterTriOptimize "filter_trioptimize_descriptors"
-    PREFIX "/filters/qmeshlab.filter.trioptimize"
+    PREFIX "/filters/meshlab2.filter.trioptimize"
     FILES filters.json
 )

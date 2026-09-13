@@ -23,6 +23,6 @@ target_link_libraries(MeshLab2PluginFilterLayer
 )
 
 qt_add_resources(MeshLab2PluginFilterLayer "filter_layer_descriptors"
-    PREFIX "/filters/qmeshlab.filter.layer"
+    PREFIX "/filters/meshlab2.filter.layer"
     FILES filters.json
 )

@@ -83,7 +83,7 @@ bool hasGoodNormals(VCGMesh &mesh)
 
 QString ScreenedPoissonFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.screened_poisson");
+    return QStringLiteral("meshlab2.filter.screened_poisson");
 }
 
 QString ScreenedPoissonFilterPlugin::name() const

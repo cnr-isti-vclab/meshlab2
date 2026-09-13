@@ -162,7 +162,7 @@ Interactive tools are thin view-owned interaction front-ends over filter/documen
 Current built-in tools:
 
 - `Select Layer`: click in Scene3D to schedule an asynchronous GPU surface pick; on hit, the picked mesh becomes the current mesh layer.
-- `Rubber-band Select`: drag a rectangle in Scene3D or UV mode, then run `qmeshlab.filter.select::select_by_rectangle`. `Shift` adds, `Ctrl` subtracts, and `F`/`V` switch between face and vertex selection. The tool passes either camera-state JSON or UV pan/zoom parameters depending on the active view mode.
+- `Rubber-band Select`: drag a rectangle in Scene3D or UV mode, then run `meshlab2.filter.select::select_by_rectangle`. `Shift` adds, `Ctrl` subtracts, and `F`/`V` switch between face and vertex selection. The tool passes either camera-state JSON or UV pan/zoom parameters depending on the active view mode.
 - `Measuring Tool`: click surface points in Scene3D to build/edit measurement segments. It uses asynchronous surface picking for placement and drag previews, draws labels and depth-cued segments, `C` clears, Backspace removes the last segment, `P` prints to the log, `S` saves a TSV, and `X` exports the measurements as an edge-only mesh layer.
 - `Transform Layer`: modal layer transform tool for the current mesh. `G`, `R`, and `S` start translate/rotate/scale gestures; `X`/`Y`/`Z` constrain to an axis, `Shift` plus an axis constrains to the perpendicular plane, typed numbers set exact values, and Enter/click commits. During preview it updates the layer matrix directly, then restores the original matrix and commits exactly one transform filter so undo/script history remain clean. The tool exposes the shared `:/img/axis.png` toolbar icon.
 

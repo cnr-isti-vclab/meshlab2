@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.color_projection",
+  "pluginId": "meshlab2.filter.color_projection",
   "filters": [
     {
       "id": "transfer_color_from_current_raster_to_vertex",

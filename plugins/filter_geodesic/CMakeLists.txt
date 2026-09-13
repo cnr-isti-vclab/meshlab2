@@ -23,6 +23,6 @@ target_link_libraries(MeshLab2PluginFilterGeodesic
 )
 
 qt_add_resources(MeshLab2PluginFilterGeodesic "filter_geodesic_descriptors"
-    PREFIX "/filters/qmeshlab.filter.geodesic"
+    PREFIX "/filters/meshlab2.filter.geodesic"
     FILES filters.json
 )

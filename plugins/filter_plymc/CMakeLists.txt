@@ -26,6 +26,6 @@ target_link_libraries(MeshLab2PluginFilterPlyMC
 )
 
 qt_add_resources(MeshLab2PluginFilterPlyMC "filter_plymc_descriptors"
-    PREFIX "/filters/qmeshlab.filter.plymc"
+    PREFIX "/filters/meshlab2.filter.plymc"
     FILES filters.json
 )
