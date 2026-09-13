@@ -1,29 +1,29 @@
-option(QMESH_PLUGIN_FILTER_COLOR_PROJECTION "Build color projection filter plugin" ON)
+option(MESHLAB2_PLUGIN_FILTER_COLOR_PROJECTION "Build color projection filter plugin" ON)
 
-if (NOT QMESH_PLUGIN_FILTER_COLOR_PROJECTION)
+if (NOT MESHLAB2_PLUGIN_FILTER_COLOR_PROJECTION)
     message(STATUS "Skipping filter_color_projection - plugin disabled")
     return()
 endif()
 
-add_library(QMeshLabPluginFilterColorProjection STATIC
+add_library(MeshLab2PluginFilterColorProjection STATIC
     colorprojectionfilterplugin.h
     colorprojectionfilterplugin.cpp
 )
 
-target_include_directories(QMeshLabPluginFilterColorProjection
+target_include_directories(MeshLab2PluginFilterColorProjection
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabPluginFilterColorProjection
+target_link_libraries(MeshLab2PluginFilterColorProjection
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
         Qt6::Gui
 )
 
-qt_add_resources(QMeshLabPluginFilterColorProjection "filter_color_projection_descriptors"
+qt_add_resources(MeshLab2PluginFilterColorProjection "filter_color_projection_descriptors"
     PREFIX "/filters/qmeshlab.filter.color_projection"
     FILES filters.json
 )

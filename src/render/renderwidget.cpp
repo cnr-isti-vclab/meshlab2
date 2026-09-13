@@ -44,7 +44,7 @@
 
 namespace {
 
-// Moved to QMeshLabCore so they can be unit tested; see rendersettingsjson.h.
+// Moved to MeshLab2Core so they can be unit tested; see rendersettingsjson.h.
 using RenderSettingsJson::fuzzyFloatEqual;
 using RenderSettingsJson::parseFloatValue;
 using RenderSettingsJson::colorToJsonArray;
@@ -357,7 +357,7 @@ QJsonObject trackballStateToJsonObject(
 
 bool parseTrackballStateObject(const QJsonObject &obj, ViewTrackball::State &outState, QString *error)
 {
-    // Single source of truth lives in QMeshLabCore so filters can share it.
+    // Single source of truth lives in MeshLab2Core so filters can share it.
     return ViewTrackball::stateFromJson(obj, outState, error);
 }
 

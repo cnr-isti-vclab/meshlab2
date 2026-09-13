@@ -40,8 +40,8 @@ QString buildMode()
 
 QString buildId()
 {
-#ifdef QMESHLAB_BUILD_ID
-    return QStringLiteral(QMESHLAB_BUILD_ID);
+#ifdef MESHLAB2_BUILD_ID
+    return QStringLiteral(MESHLAB2_BUILD_ID);
 #else
     return QObject::tr("Unavailable");
 #endif

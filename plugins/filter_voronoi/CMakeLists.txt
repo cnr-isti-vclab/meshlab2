@@ -1,28 +1,28 @@
-option(QMESH_PLUGIN_FILTER_VORONOI "Build Voronoi sampling filter plugin" ON)
+option(MESHLAB2_PLUGIN_FILTER_VORONOI "Build Voronoi sampling filter plugin" ON)
 
-if (NOT QMESH_PLUGIN_FILTER_VORONOI)
+if (NOT MESHLAB2_PLUGIN_FILTER_VORONOI)
     message(STATUS "Skipping filter_voronoi - plugin disabled")
     return()
 endif()
 
-add_library(QMeshLabPluginFilterVoronoi STATIC
+add_library(MeshLab2PluginFilterVoronoi STATIC
     voronoifilterplugin.h
     voronoifilterplugin.cpp
 )
 
-target_include_directories(QMeshLabPluginFilterVoronoi
+target_include_directories(MeshLab2PluginFilterVoronoi
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabPluginFilterVoronoi
+target_link_libraries(MeshLab2PluginFilterVoronoi
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
 )
 
-qt_add_resources(QMeshLabPluginFilterVoronoi "filter_voronoi_descriptors"
+qt_add_resources(MeshLab2PluginFilterVoronoi "filter_voronoi_descriptors"
     PREFIX "/filters/qmeshlab.filter.voronoi"
     FILES filters.json
 )

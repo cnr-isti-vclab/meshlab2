@@ -78,7 +78,7 @@ project; it is not conveyed by the public licence and does not extend to
 third parties. Anyone redistributing a QMeshLab binary built with the TrueForm
 components needs their own agreement with XLAB — contact `info@polydera.com`.
 
-The build option `QMESH_PLUGIN_IO_TRUEFORM` is **ON** by default on the strength
+The build option `MESHLAB2_PLUGIN_IO_TRUEFORM` is **ON** by default on the strength
 of that permission. Integration details are in
 [`plugins/io_trueform/UPSTREAM.md`](../plugins/io_trueform/UPSTREAM.md).
 

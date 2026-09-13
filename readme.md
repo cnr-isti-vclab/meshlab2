@@ -51,7 +51,7 @@ CI — see [GitHub Actions: macOS DMG](#github-actions-macos-dmg) below.
 - Filter parameters include mesh, texture, point/vector, camera-state, and render-state values; parameter panels can reset to descriptor defaults and source state JSON from the active view
 - Raster projection filters can transfer current/all visible raster colors to vertex colors or bake visible rasters into a mesh texture atlas using existing wedge UVs
 - Remeshing filters include layer-aware mesh parameters such as an alternate reference surface for isotropic remeshing reprojection/distance checks
-- Embedded Python bindings when `QMESHLAB_PYTHON_CONSOLE=ON`; the in-app Python dock exposes the live document as `ms`, the live view helper as `mlgui`, and the public standalone facade as `pymeshlab2`
+- Embedded Python bindings when `MESHLAB2_PYTHON_CONSOLE=ON`; the in-app Python dock exposes the live document as `ms`, the live view helper as `mlgui`, and the public standalone facade as `pymeshlab2`
 - Tree-shaped undo/redo integrated with mesh operations, filter runs, selection-delta storage, camera/render-style snapshots, script-action history, branch pruning/linearization, and opt-in byte-budget/system-pressure purging
 - Structured logging for app/VCG/error messages, load/filter progress, GPU buffer rebuild timing, and automatic undo-prune events; `Help > Memory Info` separates OS footprint, tracked CPU ownership, and logical GPU-cache sizes and can copy exact JSON for external profiling
 - PNG snapshot export from the active view (custom resolution + embedded camera/trackball JSON metadata), plus snapshot-to-raster workflows
@@ -112,7 +112,7 @@ Prerequisites:
 - CMake 3.25+
 - Build tool: `ninja` or `make`
 - vcpkg clone
-- Python development libraries when `QMESHLAB_PYTHON_CONSOLE=ON` (default)
+- Python development libraries when `MESHLAB2_PYTHON_CONSOLE=ON` (default)
 
 This repository contains `vcpkg.json`; non-Qt dependencies are installed via vcpkg manifest mode.
 Qt6 and Python are intentionally kept outside vcpkg. `vcglib`, selected

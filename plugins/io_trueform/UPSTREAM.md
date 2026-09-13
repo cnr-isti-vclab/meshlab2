@@ -41,7 +41,7 @@ commercial agreement with XLAB, neither of which is GPL-compatible.
 
 **QMeshLab has explicit permission from the TrueForm owners (Polydera/XLAB) to
 include the library**, obtained for this project specifically. That permission is
-why `QMESH_PLUGIN_IO_TRUEFORM` defaults to `ON`.
+why `MESHLAB2_PLUGIN_IO_TRUEFORM` defaults to `ON`.
 
 It does not travel with the source. Anyone redistributing a QMeshLab binary that
 contains the TrueForm components needs their own agreement with XLAB

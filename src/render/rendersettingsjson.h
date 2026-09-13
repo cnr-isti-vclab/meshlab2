@@ -12,7 +12,7 @@
 
 // JSON serialisation for the render settings structs.
 //
-// Lives in QMeshLabCore rather than next to RenderWidget so it can be tested
+// Lives in MeshLab2Core rather than next to RenderWidget so it can be tested
 // directly (RenderWidget is in the app executable and cannot be linked from a test)
 // and so non-UI code can round-trip a render state. Same reasoning as
 // ViewTrackball::stateFromJson.

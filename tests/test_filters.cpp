@@ -5750,7 +5750,7 @@ void FilterTests::toolIconsResolveFromResources()
     const QString build = QString::fromUtf8(cmake.readAll());
     cmake.close();
 
-    const int at = build.indexOf(QStringLiteral("qt_add_resources(QMeshLab \"icons\""));
+    const int at = build.indexOf(QStringLiteral("qt_add_resources(MeshLab2 \"icons\""));
     QVERIFY2(at >= 0, "the icons resource block moved or was renamed");
     const int close = build.indexOf(QStringLiteral("\n)"), at);
     QVERIFY(close > at);

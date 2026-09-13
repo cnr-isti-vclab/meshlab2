@@ -198,11 +198,11 @@ void registerFooFilterPlugin(MeshFilterPluginManager &pm);
 
 ### 3–5. Wiring (three edits)
 
-- `plugins/filter_foo/CMakeLists.txt`: `option(QMESH_PLUGIN_FILTER_FOO … ON)`, an
-  `add_library(... STATIC)` linking `QMeshLabCore`, and `qt_add_resources(...
+- `plugins/filter_foo/CMakeLists.txt`: `option(MESHLAB2_PLUGIN_FILTER_FOO … ON)`, an
+  `add_library(... STATIC)` linking `MeshLab2Core`, and `qt_add_resources(...
   PREFIX "/filters/qmeshlab.filter.foo" FILES filters.json)`. Copy `filter_basic`.
 - `plugins/CMakeLists.txt`: `add_subdirectory(filter_foo)` + link it into
-  `QMeshLabPlugins` guarded by `QMESH_PLUGIN_FILTER_FOO_ENABLED`.
+  `MeshLab2Plugins` guarded by `MESHLAB2_PLUGIN_FILTER_FOO_ENABLED`.
 - `plugins/filterpluginregistry.cpp`: `#include` the header and call
   `registerFooFilterPlugin(pm)` under the same `#if …_ENABLED`.
 

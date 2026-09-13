@@ -399,8 +399,8 @@ void FilterSmokeTests::runsOrRefuses()
     // A sweep that runs three hundred algorithms will eventually meet one that
     // crashes, and Qt Test names the function but not the data row, so the run
     // dies without saying which filter or which input did it. Set
-    // QMESHLAB_SMOKE_TRACE=1 to get a breadcrumb before every attempt.
-    const bool trace = qEnvironmentVariableIsSet("QMESHLAB_SMOKE_TRACE");
+    // MESHLAB2_SMOKE_TRACE=1 to get a breadcrumb before every attempt.
+    const bool trace = qEnvironmentVariableIsSet("MESHLAB2_SMOKE_TRACE");
 
     QStringList refusals;
     for (Fixture f : fixtureLadder()) {

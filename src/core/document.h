@@ -298,7 +298,7 @@ public:
     void markMeshSelectionChanged(int index, const QString &contextMessage = {});
     SelectionDelta captureSelectionDelta(int meshIndex) const;
     void applySelectionDelta(const SelectionDelta &delta);
-    // Wall-clock stamp taken when QMeshLabCore loaded, so a view can render an entry's
+    // Wall-clock stamp taken when MeshLab2Core loaded, so a view can render an entry's
     // time as an elapsed offset from application start instead of a bare clock reading.
     static qint64 applicationStartMSecsSinceEpoch();
 

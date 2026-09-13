@@ -45,7 +45,7 @@ jobs:
             -DQMESH_PLUGIN_GLTF=OFF \
             -DQMESH_PLUGIN_FILTER_EXPRESSION=OFF \
             -DQMESH_PLUGIN_FILTER_EMBREE=OFF
-          cmake --build build --target QMeshLab -j4
+          cmake --build build --target MeshLab2 -j4
 
       - name: Generate API documentation
         run: |

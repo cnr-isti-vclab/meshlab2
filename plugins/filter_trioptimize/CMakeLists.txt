@@ -1,30 +1,30 @@
-option(QMESH_PLUGIN_FILTER_TRIOPTIMIZE "Build TriOptimize mesh filter plugin" ON)
+option(MESHLAB2_PLUGIN_FILTER_TRIOPTIMIZE "Build TriOptimize mesh filter plugin" ON)
 
-if (NOT QMESH_PLUGIN_FILTER_TRIOPTIMIZE)
+if (NOT MESHLAB2_PLUGIN_FILTER_TRIOPTIMIZE)
     message(STATUS "Skipping filter_trioptimize - plugin disabled")
     return()
 endif()
 
-add_library(QMeshLabPluginFilterTriOptimize STATIC
+add_library(MeshLab2PluginFilterTriOptimize STATIC
     curvdata.h
     curvedgeflip.h
     trioptimizefilterplugin.h
     trioptimizefilterplugin.cpp
 )
 
-target_include_directories(QMeshLabPluginFilterTriOptimize
+target_include_directories(MeshLab2PluginFilterTriOptimize
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabPluginFilterTriOptimize
+target_link_libraries(MeshLab2PluginFilterTriOptimize
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
 )
 
-qt_add_resources(QMeshLabPluginFilterTriOptimize "filter_trioptimize_descriptors"
+qt_add_resources(MeshLab2PluginFilterTriOptimize "filter_trioptimize_descriptors"
     PREFIX "/filters/qmeshlab.filter.trioptimize"
     FILES filters.json
 )

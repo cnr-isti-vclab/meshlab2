@@ -26,7 +26,7 @@ private slots:
 void PreferencesTests::initTestCase()
 {
     // Keep the developer's real settings out of it.
-    QCoreApplication::setOrganizationName(QStringLiteral("QMeshLabTest"));
+    QCoreApplication::setOrganizationName(QStringLiteral("MeshLab2Test"));
     QCoreApplication::setApplicationName(QStringLiteral("PreferencesTests"));
 }
 

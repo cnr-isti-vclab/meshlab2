@@ -8,7 +8,7 @@
 
 #include <limits>
 
-#if defined(QMESHLAB_HAS_STB_IMAGE)
+#if defined(MESHLAB2_HAS_STB_IMAGE)
 // The implementation lives in stbimageimpl.cpp; this is declarations only.
 #include <stb_image.h>
 #endif
@@ -63,7 +63,7 @@ namespace {
 // other formats Qt has no plugin for at all.
 bool readWithStb(const QString &path, QImage &image)
 {
-#if defined(QMESHLAB_HAS_STB_IMAGE)
+#if defined(MESHLAB2_HAS_STB_IMAGE)
     // stb takes a byte path; hand it the file's bytes instead so non-ASCII paths work
     // the same on every platform. Textures are small enough to read whole.
     QFile file(path);

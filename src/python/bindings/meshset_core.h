@@ -3,14 +3,14 @@
 #ifdef slots
 #  pragma push_macro("slots")
 #  undef slots
-#  define QMESH_RESTORE_QT_SLOTS_MACRO
+#  define MESHLAB2_RESTORE_QT_SLOTS_MACRO
 #endif
 
 #include <nanobind/nanobind.h>
 
-#ifdef QMESH_RESTORE_QT_SLOTS_MACRO
+#ifdef MESHLAB2_RESTORE_QT_SLOTS_MACRO
 #  pragma pop_macro("slots")
-#  undef QMESH_RESTORE_QT_SLOTS_MACRO
+#  undef MESHLAB2_RESTORE_QT_SLOTS_MACRO
 #endif
 
 #include <QString>

@@ -390,7 +390,7 @@ Open question:
 Every pre-baseline plugin classified against decision 1. Evidence columns were
 measured from each plugin's
 `CMakeLists.txt`, `.gitmodules`, and directory contents — not inferred from names.
-The uniform `option(QMESH_PLUGIN_FILTER_*)` present in every plugin is build
+The uniform `option(MESHLAB2_PLUGIN_FILTER_*)` present in every plugin is build
 plumbing, not a dependency gate, and does not justify a separate plugin.
 
 Verdicts: **KEEP** = passes a split test as-is · **RENAME** = passes a test but
@@ -402,9 +402,9 @@ the name is unclear · **FOLD** = fails both tests, merge into family plugin(s) 
 | Current | Filters | Dependency evidence | Verdict | Target |
 |---|---|---|---|---|
 | `filter_cgal` | 1 | `find_package(CGAL)` | KEEP | `filter_cgal` |
-| `filter_embree` | 5 | embree + OpenMP via `QMeshLabEmbree` | KEEP | `filter_embree` |
+| `filter_embree` | 5 | embree + OpenMP via `MeshLab2Embree` | KEEP | `filter_embree` |
 | `filter_mesh_booleans` | 4 | `find_package(libigl)` | MERGE | `filter_igl` |
-| `filter_parametrization` | 2 | libigl — gated on `QMeshLabPluginFilterIglCommon`, includes `igl/lscm.h`, `igl/harmonic.h` | MERGE | `filter_igl` |
+| `filter_parametrization` | 2 | libigl — gated on `MeshLab2PluginFilterIglCommon`, includes `igl/lscm.h`, `igl/harmonic.h` | MERGE | `filter_igl` |
 | `filter_func` | 18 | `find_package(muparser)` | RENAME | `filter_expression` — dep is real, but "func" says nothing |
 
 **One dependency → one plugin.** In the historical proposal, the two libigl plugins

@@ -3,9 +3,9 @@
 # include it, which is why this is ON by default. That permission covers this project and
 # does not travel to third parties: redistributing a binary containing these components
 # needs a separate agreement with XLAB. See plugins/io_trueform/UPSTREAM.md.
-option(QMESH_PLUGIN_IO_TRUEFORM "Build TrueForm OBJ/STL I/O plugin" ON)
+option(MESHLAB2_PLUGIN_IO_TRUEFORM "Build TrueForm OBJ/STL I/O plugin" ON)
 
-if (NOT QMESH_PLUGIN_IO_TRUEFORM)
+if (NOT MESHLAB2_PLUGIN_IO_TRUEFORM)
     message(STATUS "Skipping io_trueform - plugin disabled")
     return()
 endif()
@@ -24,12 +24,12 @@ if (NOT TARGET TBB::tbb)
     return()
 endif()
 
-add_library(QMeshLabPluginIOTrueForm STATIC
+add_library(MeshLab2PluginIOTrueForm STATIC
     trueformioplugin.h
     trueformioplugin.cpp
 )
 
-target_include_directories(QMeshLabPluginIOTrueForm
+target_include_directories(MeshLab2PluginIOTrueForm
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -38,11 +38,11 @@ target_include_directories(QMeshLabPluginIOTrueForm
         ${_trueform_include}
 )
 
-target_link_libraries(QMeshLabPluginIOTrueForm
+target_link_libraries(MeshLab2PluginIOTrueForm
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
         TBB::tbb
 )
 
-target_compile_features(QMeshLabPluginIOTrueForm PUBLIC cxx_std_17)
+target_compile_features(MeshLab2PluginIOTrueForm PUBLIC cxx_std_17)

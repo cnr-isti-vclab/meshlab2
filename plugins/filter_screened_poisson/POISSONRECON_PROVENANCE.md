@@ -124,7 +124,7 @@ plugins/filter_screened_poisson/check_upstream_status.sh
 4. Rebuild QMeshLab and retest:
 
 ```bash
-cmake --build build-release --target QMeshLab -j4
+cmake --build build-release --target MeshLab2 -j4
 ```
 
 5. Update this file:

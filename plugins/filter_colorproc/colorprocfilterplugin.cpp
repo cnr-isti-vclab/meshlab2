@@ -255,7 +255,7 @@ std::vector<float> finiteVertexQualityValues(const VCGMesh &mesh)
     return values;
 }
 
-void applyQMeshLabVertexQualityColorMap(
+void applyMeshLab2VertexQualityColorMap(
     VCGMesh &mesh,
     const RenderQualityRange &range,
     const QString &colorMapId,
@@ -540,7 +540,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
                 Scalar(range.maxV),
                 cmap);
         } else {
-            applyQMeshLabVertexQualityColorMap(mesh, range, colorMapId, invert);
+            applyMeshLab2VertexQualityColorMap(mesh, range, colorMapId, invert);
         }
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Mapped vertex quality into color on '%1'").arg(meshLabel(entry, meshIndex)));

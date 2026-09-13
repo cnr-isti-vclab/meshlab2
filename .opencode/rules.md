@@ -20,15 +20,15 @@ See `docs/design/architecture.md`, `docs/design/data_model.md`, `docs/design/ren
   [TrueForm Plugin](../docs/design/trueform_plugin.md).
 - Include vcglib headers from `vcglib/`.
 - Build with cmake presets: `cmake --preset vcpkg-debug`, then
-  `cmake --build build-debug --target QMeshLab -j8`.
+  `cmake --build build-debug --target MeshLab2 -j8`.
 - Plugin registration: 4-line `add_subdirectory` block in `plugins/CMakeLists.txt`, plus
   `#include` and register call in `plugins/filterpluginregistry.cpp`.
 
 ## Plugin Conventions
 
-- **Static library** (`add_library(... STATIC ...)`), linked into `QMeshLabPlugins`.
+- **Static library** (`add_library(... STATIC ...)`), linked into `MeshLab2Plugins`.
 - Include `${CMAKE_SOURCE_DIR}` and `${CMAKE_CURRENT_SOURCE_DIR}` in target.
-- Link `QMeshLabCore` and `Qt6::Core` (add `Qt6::Gui` if QImage needed).
+- Link `MeshLab2Core` and `Qt6::Core` (add `Qt6::Gui` if QImage needed).
 - **One `.cpp` per plugin** — consolidate algorithm logic; use separate files only when
   the algorithm requires its own data structures or exceeds ~800 lines.
 - Filters declare metadata in `filters.json` loaded via `qt_add_resources`.

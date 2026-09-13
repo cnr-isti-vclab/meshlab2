@@ -6,7 +6,7 @@ Building the documentation
 Prerequisites
 -------------
 
-* QMeshLab compiled with ``QMESHLAB_PYTHON_CONSOLE=ON`` (default).
+* QMeshLab compiled with ``MESHLAB2_PYTHON_CONSOLE=ON`` (default).
 * Python packages from ``docs/requirements.txt``.
 
 Step 1 — Generate the API source files
@@ -24,14 +24,14 @@ Step 1 — Generate the API source files
      -DQMESH_PLUGIN_GLTF=OFF \
      -DQMESH_PLUGIN_FILTER_FUNC=OFF \
      -DQMESH_PLUGIN_FILTER_EMBREE=OFF
-   cmake --build build --target QMeshLab -j8
+   cmake --build build --target MeshLab2 -j8
    QT_QPA_PLATFORM=offscreen ./build/QMeshLab --generate-docs docs
 
 This introspects the ``_qmeshlab`` module from within the running app,
 reads all ``filters.json`` files, and writes the reStructuredText and MyST
 Markdown sources into ``docs/api/``.
 
-The ``QMESH_REQUIRE_VCPKG_DEPS=OFF`` option is used here because the
+The ``MESHLAB2_REQUIRE_VCPKG_DEPS=OFF`` option is used here because the
 documentation build only needs the app binary for Python/API introspection and
 the CI job does not activate the vcpkg toolchain. The listed plugin options
 disable dependency-gated plugins that otherwise require vcpkg-provided

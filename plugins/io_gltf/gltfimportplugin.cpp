@@ -31,14 +31,14 @@
 #include <vector>
 
 #define TINYGLTF_IMPLEMENTATION
-// STB_IMAGE_IMPLEMENTATION deliberately absent: QMeshLabCore's stbimageimpl.cpp compiles
+// STB_IMAGE_IMPLEMENTATION deliberately absent: MeshLab2Core's stbimageimpl.cpp compiles
 // stb_image for the whole project (readImageFile falls back to it for the formats Qt
 // declines), and defining it twice collides at link. tinygltf still gets its
 // declarations from the header and its definitions from core, which this plugin links.
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <tiny_gltf.h>
 
-#if defined(QMESHLAB_GLTF_HAS_DRACO)
+#if defined(MESHLAB2_GLTF_HAS_DRACO)
 #include <draco/attributes/geometry_attribute.h>
 #include <draco/compression/encode.h>
 #include <draco/core/encoder_buffer.h>
@@ -358,7 +358,7 @@ bool modelUsesDracoCompression(const tinygltf::Model &model)
     return false;
 }
 
-#if defined(QMESHLAB_GLTF_HAS_DRACO)
+#if defined(MESHLAB2_GLTF_HAS_DRACO)
 struct DracoEncodedPrimitive {
     std::vector<unsigned char> bytes;
     std::unordered_map<std::string, int> attributeUniqueIds;
@@ -1022,7 +1022,7 @@ public:
                     .arg(mat.pbrMetallicRoughness.roughnessFactor, 0, 'f', 3));
         }
 
-#if !defined(QMESHLAB_GLTF_HAS_DRACO)
+#if !defined(MESHLAB2_GLTF_HAS_DRACO)
         if (modelUsesDracoCompression(model)) {
             reportProgress(
                 cb,
@@ -1767,7 +1767,7 @@ public:
         bool usedDracoCompression = false;
         bool warnedDracoModeUnsupported = false;
         bool warnedDracoUnavailable = false;
-#if defined(QMESHLAB_GLTF_HAS_DRACO)
+#if defined(MESHLAB2_GLTF_HAS_DRACO)
         (void) warnedDracoUnavailable;
 #endif
 
@@ -1787,7 +1787,7 @@ public:
                 warnedDracoModeUnsupported = true;
             }
 
-#if defined(QMESHLAB_GLTF_HAS_DRACO)
+#if defined(MESHLAB2_GLTF_HAS_DRACO)
             if (dracoRequested && prim.mode == TINYGLTF_MODE_TRIANGLES) {
                 DracoEncodedPrimitive dracoPrim;
                 if (encodePrimitiveWithDraco(prim, options, dracoPrim) && dracoPrim.valid) {

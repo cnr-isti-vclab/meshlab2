@@ -136,7 +136,7 @@ MeshFilterRunResult QuadWildFilterPlugin::runFilter(
     if (!QFileInfo::exists(quadwild) || !QFileInfo::exists(quadFromPatches)) {
         return fail(QObject::tr(
             "Bundled QuadWild-BiMDF helpers are missing. Rebuild QMeshLab with "
-            "QMESH_PLUGIN_FILTER_QUADWILD enabled."));
+            "MESHLAB2_PLUGIN_FILTER_QUADWILD enabled."));
     }
 
     QTemporaryDir temporary(

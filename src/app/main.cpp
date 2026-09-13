@@ -1,5 +1,5 @@
 // Python.h must be included before any Qt headers to avoid macro conflicts.
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 // Forward-declare the init function for the statically-linked _qmeshlab module.
@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
         return list;
     }();
 
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
     // Early-exit mode: generate Python API documentation then quit.
     if (args.size() >= 2 && args[1] == QStringLiteral("--generate-docs")) {
         // Register the built-in _qmeshlab extension.
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
     // Register the built-in _qmeshlab extension before Py_Initialize so that
     // `import _qmeshlab` works inside the embedded interpreter.
     // This must happen before QApplication (and certainly before PythonHost::initialize).

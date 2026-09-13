@@ -1,7 +1,7 @@
 # Python Scripting
 
 QMeshLab can expose an embedded Python console and script editor when it is built
-with `QMESHLAB_PYTHON_CONSOLE=ON`. The embedded interpreter works on the live
+with `MESHLAB2_PYTHON_CONSOLE=ON`. The embedded interpreter works on the live
 application document, so scripts can inspect the current scene, run filters,
 load/save meshes and rasters, and capture view snapshots.
 

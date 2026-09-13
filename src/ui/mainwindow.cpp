@@ -15,7 +15,7 @@
 #include "layerwidget.h"
 #include "memorypressuremonitor.h"
 #include "undographwidget.h"
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
 #include "pythonconsole.h"
 #include "PythonHost.h"
 #endif
@@ -494,7 +494,7 @@ MainWindow::MainWindow(QWidget *parent)
             return true;
         });
 
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
     m_terminalButton = new QToolButton(this);
     m_terminalButton->setText(QStringLiteral(">_"));
     m_terminalButton->setToolTip(tr("Toggle Python console"));
@@ -715,7 +715,7 @@ MainWindow::MainWindow(QWidget *parent)
     setCorner(Qt::TopRightCorner, Qt::RightDockWidgetArea);
     setCorner(Qt::BottomRightCorner, Qt::RightDockWidgetArea);
 
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
     m_pythonConsole = new PythonConsoleWidget(this);
     m_pythonConsoleDock = new QDockWidget(tr("Python Console"), this);
     m_pythonConsoleDock->setWidget(m_pythonConsole);
@@ -997,7 +997,7 @@ MainWindow::MainWindow(QWidget *parent)
                 }
             }
         }
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
         if (m_pythonConsoleDock)
             m_pythonConsoleDock->show();
         if (m_pythonConsole)
@@ -1157,7 +1157,7 @@ MainWindow::MainWindow(QWidget *parent)
         view->setMeshVisible(index, visible);
     });
 
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
     // Initialize the embedded Python interpreter.  PyImport_AppendInittab was
     // already called from main() before QApplication was created.
     PythonHost::instance().initialize(m_doc, m_currentRenderWidget);
@@ -1240,7 +1240,7 @@ MainWindow::MainWindow(QWidget *parent)
                 [this](const QString &filterKey, const MeshFilterParameterValues &params, const QString &label) {
             executeFilter(filterKey, label, params);
         });
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
         connect(m_filterPanel, &MeshFilterPanel::copyToConsoleRequested, this,
                 [this](const QString &code) {
             if (m_terminalButton && !m_terminalButton->isChecked())
@@ -1342,7 +1342,7 @@ MainWindow::MainWindow(QWidget *parent)
     for (RenderWidget *view : m_renderWidgets)
         attachViewShortcuts(view);
 
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
     viewMenu->addSeparator();
     if (m_pythonConsoleDock) {
         QAction *consoleAction = m_pythonConsoleDock->toggleViewAction();

@@ -1,6 +1,6 @@
-option(QMESH_PLUGIN_E57 "Build E57 input plugin" ON)
+option(MESHLAB2_PLUGIN_E57 "Build E57 input plugin" ON)
 
-if (NOT QMESH_PLUGIN_E57)
+if (NOT MESHLAB2_PLUGIN_E57)
     message(STATUS "Skipping io_e57 - plugin disabled")
     return()
 endif()
@@ -19,12 +19,12 @@ if (_e57format_target STREQUAL "")
         "Install dependency in manifest mode and configure with vcpkg toolchain.")
 endif()
 
-add_library(QMeshLabPluginIOE57 STATIC
+add_library(MeshLab2PluginIOE57 STATIC
     e57importplugin.h
     e57importplugin.cpp
 )
 
-target_include_directories(QMeshLabPluginIOE57
+target_include_directories(MeshLab2PluginIOE57
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -32,9 +32,9 @@ target_include_directories(QMeshLabPluginIOE57
         ${CMAKE_SOURCE_DIR}/vcglib/eigenlib
 )
 
-target_link_libraries(QMeshLabPluginIOE57
+target_link_libraries(MeshLab2PluginIOE57
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
         ${_e57format_target}
 )

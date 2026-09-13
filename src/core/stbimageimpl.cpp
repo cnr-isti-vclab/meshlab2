@@ -7,7 +7,7 @@
 // stb is here for one job: decoding what Qt's own image plugins decline. See
 // TextureAssociationUtils::readImageFile.
 
-#if defined(QMESHLAB_HAS_STB_IMAGE)
+#if defined(MESHLAB2_HAS_STB_IMAGE)
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>

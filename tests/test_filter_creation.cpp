@@ -16,7 +16,7 @@
 // output.  Results are also collected manually and written as an HTML report at
 // the end of the test run (see cleanupTestCase).
 //
-// Report path: QMESHLAB_REPORT_FILE env var, or filter_creation_report.html in
+// Report path: MESHLAB2_REPORT_FILE env var, or filter_creation_report.html in
 // the current working directory.
 
 // ---------------------------------------------------------------------------
@@ -347,7 +347,7 @@ void FilterCreationTests::runWithDefaults()
 
 void FilterCreationTests::cleanupTestCase()
 {
-    const QString envPath = qEnvironmentVariable("QMESHLAB_REPORT_FILE");
+    const QString envPath = qEnvironmentVariable("MESHLAB2_REPORT_FILE");
     QString path;
     if (!envPath.isEmpty()) {
         path = envPath;

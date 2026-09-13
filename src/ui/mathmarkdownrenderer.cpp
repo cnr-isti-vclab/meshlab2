@@ -8,7 +8,7 @@
 #include <QTextImageFormat>
 #include <QVector>
 
-#ifdef QMESHLAB_MATH_HELP
+#ifdef MESHLAB2_MATH_HELP
 #include <jkqtmathtext/jkqtmathtext.h>
 #endif
 
@@ -40,7 +40,7 @@ int closingDelimiter(const QString &text, int from, int delimiterLength)
     return -1;
 }
 
-#ifdef QMESHLAB_MATH_HELP
+#ifdef MESHLAB2_MATH_HELP
 QImage formulaImage(
     const QString &latex,
     bool display,
@@ -90,7 +90,7 @@ struct FormulaResource
 
 void MathMarkdownRenderer::setMarkdown(QTextBrowser &browser, const QString &markdown)
 {
-#ifndef QMESHLAB_MATH_HELP
+#ifndef MESHLAB2_MATH_HELP
     browser.setMarkdown(markdown);
 #else
     QString rendered;

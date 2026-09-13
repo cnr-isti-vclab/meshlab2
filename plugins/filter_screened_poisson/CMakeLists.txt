@@ -1,6 +1,6 @@
-option(QMESH_PLUGIN_FILTER_SCREENED_POISSON "Build screened Poisson reconstruction filter plugin" ON)
+option(MESHLAB2_PLUGIN_FILTER_SCREENED_POISSON "Build screened Poisson reconstruction filter plugin" ON)
 
-if (NOT QMESH_PLUGIN_FILTER_SCREENED_POISSON)
+if (NOT MESHLAB2_PLUGIN_FILTER_SCREENED_POISSON)
     message(STATUS "Skipping filter_screened_poisson - plugin disabled")
     return()
 endif()
@@ -38,7 +38,7 @@ if (NOT OpenMP_CXX_FOUND AND APPLE)
     endif()
 endif()
 
-add_library(QMeshLabPluginFilterScreenedPoisson STATIC
+add_library(MeshLab2PluginFilterScreenedPoisson STATIC
     screenedpoissonfilterplugin.h
     screenedpoissonfilterplugin.cpp
     poissonrecon_backend.h
@@ -47,20 +47,20 @@ add_library(QMeshLabPluginFilterScreenedPoisson STATIC
     poissonrecon_adapter.cpp
 )
 
-target_include_directories(QMeshLabPluginFilterScreenedPoisson
+target_include_directories(MeshLab2PluginFilterScreenedPoisson
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabPluginFilterScreenedPoisson
+target_link_libraries(MeshLab2PluginFilterScreenedPoisson
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
         Qt6::Gui
 )
 
-target_compile_definitions(QMeshLabPluginFilterScreenedPoisson
+target_compile_definitions(MeshLab2PluginFilterScreenedPoisson
     PRIVATE
         BRUNO_LEVY_FIX
         FOR_RELEASE
@@ -68,14 +68,14 @@ target_compile_definitions(QMeshLabPluginFilterScreenedPoisson
 
 if(MSVC)
     # The bundled upstream PoissonRecon templates generate very large objects.
-    target_compile_options(QMeshLabPluginFilterScreenedPoisson PRIVATE /bigobj)
+    target_compile_options(MeshLab2PluginFilterScreenedPoisson PRIVATE /bigobj)
 endif()
 
 if (OpenMP_CXX_FOUND)
-    target_link_libraries(QMeshLabPluginFilterScreenedPoisson PUBLIC OpenMP::OpenMP_CXX)
+    target_link_libraries(MeshLab2PluginFilterScreenedPoisson PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
-qt_add_resources(QMeshLabPluginFilterScreenedPoisson "filter_screened_poisson_descriptors"
+qt_add_resources(MeshLab2PluginFilterScreenedPoisson "filter_screened_poisson_descriptors"
     PREFIX "/filters/qmeshlab.filter.screened_poisson"
     FILES filters.json
 )
