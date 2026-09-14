@@ -163,15 +163,12 @@ import types
 import _meshlab as _qml
 
 pymeshlab = types.ModuleType("pymeshlab")
-pymeshlab.__doc__ = "Public MeshLab scripting facade backed by _meshlab."
+pymeshlab.__doc__ = "Public MeshLab/PyMeshLab2 scripting facade backed by _meshlab."
 pymeshlab.Mesh = _qml.Mesh
 pymeshlab.MeshSet = _qml.MeshSet
 pymeshlab.FilterInfo = _qml.FilterInfo
 pymeshlab.FilterRunResult = _qml.FilterRunResult
 pymeshlab.MlGui = _qml.MlGui
-pymeshlab.filter_list = _qml.filter_list
-pymeshlab.print_filter_list = _qml.print_filter_list
-pymeshlab.load_default_plugins = _qml.load_default_plugins
 pymeshlab.__all__ = ["Mesh", "MeshSet", "FilterInfo", "FilterRunResult", "MlGui"]
 sys.modules["pymeshlab"] = pymeshlab
 

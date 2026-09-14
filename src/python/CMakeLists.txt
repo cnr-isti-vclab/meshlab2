@@ -14,13 +14,9 @@
 # guards against building it twice).
 nanobind_build_library(nanobind-static)
 
-add_library(_meshlab2_bindings STATIC
-    bindings/meshset_core.h
-    bindings/meshset_core.cpp
-    bindings/pymesh.h
-    bindings/pymesh.cpp
-    bindings/module.cpp
-)
+include(${CMAKE_CURRENT_SOURCE_DIR}/bindings/sources.cmake)
+
+add_library(_meshlab2_bindings STATIC ${MESHLAB2_PYTHON_BINDING_SOURCES})
 
 target_include_directories(_meshlab2_bindings PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/bindings
