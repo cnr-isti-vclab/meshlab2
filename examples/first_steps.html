@@ -253,9 +253,9 @@ view state and snapshot helpers.</p>
 <h2>Example 1 - Inspect the currently loaded meshes<a class="headerlink" href="#example-1-inspect-the-currently-loaded-meshes" title="Link to this heading">¶</a></h2>
 <p>This script prints basic information about the meshes that are already loaded
 in the current MeshLab document.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Mesh count:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">())</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Mesh count:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">())</span>
 
-<span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+<span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">"No meshes are currently loaded."</span><span class="p">)</span>
 <span class="k">else</span><span class="p">:</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh index:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh</span><span class="p">())</span>

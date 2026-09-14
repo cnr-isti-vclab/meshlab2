@@ -18,9 +18,9 @@ in the current MeshLab document.
 
 .. code-block:: python
 
-   print("Mesh count:", ms.mesh_count())
+   print("Mesh count:", ms.mesh_number())
 
-   if ms.mesh_count() == 0:
+   if ms.mesh_number() == 0:
        print("No meshes are currently loaded.")
    else:
        print("Current mesh index:", ms.current_mesh())
