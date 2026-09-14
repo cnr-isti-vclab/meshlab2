@@ -27,7 +27,7 @@ FetchContent_Declare(meshlab2_quadwild_gmm
 )
 FetchContent_MakeAvailable(meshlab2_quadwild_gmm)
 
-set(QUADWILD_BUILD_DIR "${CMAKE_BINARY_DIR}/quadwild-bimdf")
+set(QUADWILD_BUILD_DIR "${PROJECT_BINARY_DIR}/quadwild-bimdf")
 set(QUADWILD_BIN_DIR "${QUADWILD_BUILD_DIR}/Build/bin")
 set(QUADWILD_EXECUTABLE "${QUADWILD_BIN_DIR}/quadwild${CMAKE_EXECUTABLE_SUFFIX}")
 set(QUAD_FROM_PATCHES_EXECUTABLE
@@ -89,7 +89,10 @@ qt_add_resources(MeshLab2PluginFilterQuadWild "filter_quadwild_descriptors"
 function(meshlab2_bundle_quadwild target)
     add_dependencies(${target} MeshLab2QuadWildHelpers)
     set(_quadwild_root "${MESHLAB2_SOURCE_DIR}/external/quadwild-bimdf")
-    set(_quadwild_bin_dir "${CMAKE_BINARY_DIR}/quadwild-bimdf/Build/bin")
+    # Must match QUADWILD_BUILD_DIR above. Not CMAKE_BINARY_DIR: that is the outer
+    # project when MeshLab2 is pulled in with add_subdirectory(), and the helpers
+    # would be looked for in a build tree we do not own.
+    set(_quadwild_bin_dir "${PROJECT_BINARY_DIR}/quadwild-bimdf/Build/bin")
     set(_quadwild_executable
         "${_quadwild_bin_dir}/quadwild${CMAKE_EXECUTABLE_SUFFIX}")
     set(_quad_from_patches_executable
