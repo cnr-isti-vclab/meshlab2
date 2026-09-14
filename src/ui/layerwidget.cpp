@@ -1,3 +1,5 @@
+#include "filedialogdirectory.h"
+#include "textureassociationutils.h"
 #include "layerwidget.h"
 #include "document.h"
 #include <wrap/io_trimesh/io_mask.h>
@@ -739,7 +741,14 @@ QPixmap textureThumbnail(const QString &path, int w, int h)
         const QSize native = reader.size();
         if (native.isValid())
             reader.setScaledSize(native.scaled(w, h, Qt::KeepAspectRatio));
-        const QImage img = reader.read();
+        QImage img = reader.read();
+        if (img.isNull()) {
+            // Scaled reads are the cheap path and worth keeping, but they only work for
+            // formats Qt itself decodes. Anything it declines comes back full size
+            // through the fallback and gets scaled below like everything else.
+            QString imageError;
+            TextureAssociationUtils::readImageFile(path, img, imageError);
+        }
         if (!img.isNull()) {
             QImage normalized = img;
             normalized.setDevicePixelRatio(1.0);
@@ -1143,33 +1152,33 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
 
     // Document connections — always rebuild
     connect(m_doc, &Document::meshAdded, this, [this](int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::meshRemoved, this, &LayerWidget::rebuild);
     connect(m_doc, &Document::meshVisibilityChanged, this, [this](int, bool) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::currentLayerChanged, this, [this](CurrentLayerKind, int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::rasterAdded, this, [this](int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::rasterRemoved, this, &LayerWidget::rebuild);
     connect(m_doc, &Document::rasterVisibilityChanged, this, [this](int, bool) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::currentRasterChanged, this, [this](int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::rasterDataChanged, this, [this](int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
 
     rebuild();
@@ -1187,6 +1196,17 @@ void LayerWidget::setViewMode(ViewMode mode)
 void LayerWidget::toggleViewMode()
 {
     setViewMode(m_viewMode == ViewMode::Tree ? ViewMode::Table : ViewMode::Tree);
+}
+
+void LayerWidget::scheduleRebuild()
+{
+    if (m_rebuildPending)
+        return;
+    m_rebuildPending = true;
+    QMetaObject::invokeMethod(this, [this]() {
+        m_rebuildPending = false;
+        rebuild();
+    }, Qt::QueuedConnection);
 }
 
 void LayerWidget::rebuild()
@@ -1817,25 +1837,74 @@ void LayerWidget::savePlaneImage(int rasterIndex, int planeIndex)
     const QString path = QFileDialog::getSaveFileName(
         this,
         tr("Save Plane Image"),
-        defaultName,
+        FileDialogDirectory::startingPath(QStringLiteral("raster"), defaultName),
         tr("PNG Image (*.png);;JPEG Image (*.jpg *.jpeg);;BMP Image (*.bmp);;All Files (*)"));
     if (path.isEmpty())
         return;
+    FileDialogDirectory::remember(QStringLiteral("raster"), path);
     if (!plane.image.save(path)) {
         QMessageBox::critical(this, tr("Save Plane Image"),
             tr("Failed to save image to:\n%1").arg(path));
     }
 }
 
+LayerWidget::LayerItemRef LayerWidget::layerRefAt(const QPoint &widgetPos) const
+{
+    const auto localPos = [this, &widgetPos](const QAbstractScrollArea *view) {
+        return view->viewport()->mapFrom(this, widgetPos);
+    };
+    const auto isUnder = [&](const QAbstractScrollArea *view) {
+        return view && view->isVisible()
+            && view->viewport()->rect().contains(localPos(view));
+    };
+
+    if (m_viewMode == ViewMode::Tree) {
+        if (isUnder(m_meshTree))
+            return layerRefForItem(m_meshTree->itemAt(localPos(m_meshTree)));
+        if (isUnder(m_rasterTree))
+            return layerRefForItem(m_rasterTree->itemAt(localPos(m_rasterTree)));
+        return {};
+    }
+
+    // Both tables can be sorted by any column, so a row number is not a layer number. The
+    // layer index travels with the row, in the eye column's role data.
+    const auto indexInRow = [](const QTableWidget *table, int row, int role) {
+        const QTableWidgetItem *item = table->item(row, 0);
+        if (!item)
+            return -1;
+        bool ok = false;
+        const int index = item->data(role).toInt(&ok);
+        return ok ? index : -1;
+    };
+
+    if (isUnder(m_meshTable)) {
+        const int row = m_meshTable->rowAt(localPos(m_meshTable).y());
+        const int index = (row >= 0) ? indexInRow(m_meshTable, row, kRoleMeshIndex) : -1;
+        if (index >= 0 && index < m_doc->meshCount())
+            return LayerItemRef { LayerItemKind::Mesh, index };
+    }
+    if (isUnder(m_rasterTable)) {
+        const int row = m_rasterTable->rowAt(localPos(m_rasterTable).y());
+        const int index = (row >= 0) ? indexInRow(m_rasterTable, row, kRoleRasterIndex) : -1;
+        if (index >= 0 && index < m_doc->rasterCount())
+            return LayerItemRef { LayerItemKind::Raster, index };
+    }
+    return {};
+}
+
 void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
 {
-    // In table mode, the table widgets handle their own context menus.
-    // Forward to the tree context if possible, otherwise no-op.
-    if (m_viewMode == ViewMode::Table)
-        return;
-
-    QTreeWidgetItem *itemUnderCursor = m_meshTree->itemAt(event->pos());
-    if (!itemUnderCursor) itemUnderCursor = m_rasterTree->itemAt(event->pos());
+    // A raster's planes are children of its row, so they exist only in the tree. Everything
+    // below this block works in either view.
+    QTreeWidgetItem *itemUnderCursor = nullptr;
+    if (m_viewMode == ViewMode::Tree) {
+        const QPoint meshPos = m_meshTree->viewport()->mapFrom(this, event->pos());
+        const QPoint rasterPos = m_rasterTree->viewport()->mapFrom(this, event->pos());
+        if (m_meshTree->viewport()->rect().contains(meshPos))
+            itemUnderCursor = m_meshTree->itemAt(meshPos);
+        else if (m_rasterTree->viewport()->rect().contains(rasterPos))
+            itemUnderCursor = m_rasterTree->itemAt(rasterPos);
+    }
 
     // Right-click on a plane child item
     if (itemUnderCursor && itemUnderCursor->parent()) {
@@ -1866,7 +1935,7 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
         }
     }
 
-    const LayerItemRef ref = layerRefForItem(itemUnderCursor);
+    const LayerItemRef ref = layerRefAt(event->pos());
     if (ref.kind == LayerItemKind::Raster && ref.index >= 0) {
         QMenu menu(this);
         QAction *currentAction = menu.addAction(tr("Set Current Raster"));

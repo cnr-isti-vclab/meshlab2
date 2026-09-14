@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.voronoi",
+  "pluginId": "meshlab2.filter.voronoi",
   "filters": [
     {
       "id": "sample_surface_by_voronoi_relaxation",

@@ -1,4 +1,5 @@
 #include "document_internal.h"
+#include "textureassociationutils.h"
 
 #include <vcg/complex/algorithms/clean.h>
 
@@ -124,14 +125,10 @@ int Document::loadRasterImage(const QString &filename)
     if (normalizedFilename.isEmpty())
         return -1;
 
-    QImageReader reader(normalizedFilename);
-    reader.setAutoTransform(true);
-    const QImage image = reader.read();
-    if (image.isNull()) {
-        writeLog(
-            tr("Failed to load raster image '%1': %2")
-                .arg(normalizedFilename, reader.errorString()),
-            LogSource::Application, LogLevel::Warning);
+    QImage image;
+    QString imageError;
+    if (!TextureAssociationUtils::readImageFile(normalizedFilename, image, imageError)) {
+        writeLog(imageError, LogSource::Application, LogLevel::Warning);
         return -1;
     }
 
@@ -455,10 +452,8 @@ void Document::ensureRasterPlaneImage(RasterPlane &plane)
         return;
     if (plane.sourcePath.trimmed().isEmpty())
         return;
-    QImageReader reader(plane.sourcePath);
-    reader.setAutoTransform(true);
-    plane.image = reader.read();
-    if (!plane.image.isNull())
+    QString imageError;
+    if (TextureAssociationUtils::readImageFile(plane.sourcePath, plane.image, imageError))
         plane.size = plane.image.size();
 }
 

@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.sampling",
+  "pluginId": "meshlab2.filter.sampling",
   "filters": [
     {
       "id": "sample_mesh_elements",
@@ -441,7 +441,7 @@
       "name": "Measure Hausdorff Distance",
       "pythonName": "measure_hausdorff_distance",
       "shortDescription": "Compute directional Hausdorff distance statistics between two meshes.",
-      "longDescriptionMarkdown": "Compute the Measure Hausdorff Distance between two layers, sampling one of the two and finding for each sample the closest point over the other mesh. If sample layers are saved, distances are stored in vertex quality and QMeshLab switches those layers to vertex-quality color visualization without baking colors.",
+      "longDescriptionMarkdown": "Compute the Measure Hausdorff Distance between two layers, sampling one of the two and finding for each sample the closest point over the other mesh. If sample layers are saved, distances are stored in vertex quality and MeshLab switches those layers to vertex-quality color visualization without baking colors.",
       "tags": [
         "sampling",
         "distance",
@@ -552,7 +552,7 @@
       "name": "Compute Distance from Reference Mesh",
       "pythonName": "compute_distance_from_reference_mesh",
       "shortDescription": "Compute per-vertex distance from another mesh or point cloud.",
-      "longDescriptionMarkdown": "Compute the signed/unsigned (per vertex) distance between a mesh/pointcloud and a reference mesh/pointcloud. Distance is stored in vertex quality; after the filter runs QMeshLab switches the measured mesh to vertex-quality color visualization without baking colors.",
+      "longDescriptionMarkdown": "Compute the signed/unsigned (per vertex) distance between a mesh/pointcloud and a reference mesh/pointcloud. Distance is stored in vertex quality; after the filter runs MeshLab switches the measured mesh to vertex-quality color visualization without baking colors.",
       "tags": [
         "sampling",
         "distance",

@@ -6,7 +6,7 @@ Licence: Boost Software License 1.0, `upstream/LICENSE.txt`.
 Vendored files: `src/lib/bpa.h`, `src/lib/bpa.cpp`, `src/lib/IO.h`, `LICENSE.txt`.
 The CLI driver and the Catch2 tests are not vendored.
 
-**The tree is unpatched.** Everything QMeshLab needs is done on the outside, in
+**The tree is unpatched.** Everything MeshLab needs is done on the outside, in
 `bpafilterplugin.cpp`.
 
 ## Why this one, next to vcglib's
@@ -22,7 +22,7 @@ text; neither is a drop-in for the other.
 
 **C++20.** `bpa.cpp` uses `std::numbers::pi_v` in exactly one place (line 248), which is the
 tree's only requirement above C++17. Rather than patch it, the CMake target asks for
-`cxx_std_20`; nothing else in QMeshLab is affected, and the vendored file stays pristine.
+`cxx_std_20`; nothing else in MeshLab is affected, and the vendored file stays pristine.
 
 **It hands back loose triangles.** `reconstruct()` returns `std::vector<Triangle>`, three
 bare `glm::vec3` each -- no shared vertices and no indices. Welding those by position would

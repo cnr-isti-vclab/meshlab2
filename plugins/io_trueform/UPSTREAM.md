@@ -18,7 +18,7 @@ interiors rather than from vertices, and lets `make_cdt` return region labels.
 
 The step from v0.9.17 to v0.10.0 was the breaking one: the `cut` module was
 removed outright, with no compatibility shim, and its ground redistributed to
-`arrangement`, `iso` and `csg`. It cost QMeshLab one call site, because both
+`arrangement`, `iso` and `csg`. It cost MeshLab one call site, because both
 plugins include the umbrella `<trueform/trueform.hpp>`, which re-exports the new
 modules — the header moves are invisible from here, and only a removed *entry
 point* breaks the build. Read the release notes' "Module map" and "Removed entry
@@ -39,11 +39,11 @@ covered by a test:
 TrueForm is dual-licensed under the PolyForm Noncommercial License 1.0.0 or a
 commercial agreement with XLAB, neither of which is GPL-compatible.
 
-**QMeshLab has explicit permission from the TrueForm owners (Polydera/XLAB) to
+**MeshLab has explicit permission from the TrueForm owners (Polydera/XLAB) to
 include the library**, obtained for this project specifically. That permission is
-why `QMESH_PLUGIN_IO_TRUEFORM` defaults to `ON`.
+why `MESHLAB2_PLUGIN_IO_TRUEFORM` defaults to `ON`.
 
-It does not travel with the source. Anyone redistributing a QMeshLab binary that
+It does not travel with the source. Anyone redistributing a MeshLab binary that
 contains the TrueForm components needs their own agreement with XLAB
 (`info@polydera.com`). See `external/README.md` for the summary and
 `external/trueform/LICENSE` and `COMMERCIAL.md` for the terms.

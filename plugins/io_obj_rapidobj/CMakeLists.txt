@@ -1,6 +1,6 @@
-option(QMESH_PLUGIN_OBJ_RAPIDOBJ "Build rapidobj OBJ input plugin" ON)
+option(MESHLAB2_PLUGIN_OBJ_RAPIDOBJ "Build rapidobj OBJ input plugin" ON)
 
-if (NOT QMESH_PLUGIN_OBJ_RAPIDOBJ)
+if (NOT MESHLAB2_PLUGIN_OBJ_RAPIDOBJ)
     message(STATUS "Skipping io_obj_rapidobj - plugin disabled")
     return()
 endif()
@@ -45,12 +45,12 @@ if (NOT _rapidobj_target AND NOT RAPIDOBJ_INCLUDE_DIR)
         "Install dependency in manifest mode and configure with vcpkg toolchain.")
 endif()
 
-add_library(QMeshLabPluginIORapidObj STATIC
+add_library(MeshLab2PluginIORapidObj STATIC
     rapidobjimportplugin.h
     rapidobjimportplugin.cpp
 )
 
-target_include_directories(QMeshLabPluginIORapidObj
+target_include_directories(MeshLab2PluginIORapidObj
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -59,20 +59,20 @@ target_include_directories(QMeshLabPluginIORapidObj
 )
 
 if (RAPIDOBJ_INCLUDE_DIR)
-    target_include_directories(QMeshLabPluginIORapidObj PUBLIC ${RAPIDOBJ_INCLUDE_DIR})
+    target_include_directories(MeshLab2PluginIORapidObj PUBLIC ${RAPIDOBJ_INCLUDE_DIR})
 endif()
 
-target_link_libraries(QMeshLabPluginIORapidObj
+target_link_libraries(MeshLab2PluginIORapidObj
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
 )
 
 if (_rapidobj_target)
-    target_link_libraries(QMeshLabPluginIORapidObj PUBLIC ${_rapidobj_target})
+    target_link_libraries(MeshLab2PluginIORapidObj PUBLIC ${_rapidobj_target})
 else()
     find_package(Threads QUIET)
     if (Threads_FOUND)
-        target_link_libraries(QMeshLabPluginIORapidObj PUBLIC Threads::Threads)
+        target_link_libraries(MeshLab2PluginIORapidObj PUBLIC Threads::Threads)
     endif()
 endif()

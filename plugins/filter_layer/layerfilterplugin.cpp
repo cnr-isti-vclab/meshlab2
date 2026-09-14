@@ -382,7 +382,7 @@ bool readVcgCameraFile(const QString &path, std::vector<CameraShot> &shots, QStr
 
 QString LayerFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.layer");
+    return QStringLiteral("meshlab2.filter.layer");
 }
 
 QString LayerFilterPlugin::name() const
@@ -448,7 +448,7 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
         QXmlStreamWriter xml(&file);
         xml.setAutoFormatting(true);
         xml.writeStartDocument();
-        xml.writeStartElement(QStringLiteral("QMeshLabRasterCameras"));
+        xml.writeStartElement(QStringLiteral("MeshLabRasterCameras"));
         for (int rasterIndex : activeRasters) {
             const Document::RasterEntry &raster = doc.raster(rasterIndex);
             xml.writeStartElement(QStringLiteral("RasterCamera"));

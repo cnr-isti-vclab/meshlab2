@@ -51,6 +51,11 @@ void ViewAxisGizmo::setOrientation(const QQuaternion &rotation)
     update();
 }
 
+qreal ViewAxisGizmo::handleRadius()
+{
+    return kHandleRadius;
+}
+
 std::array<ViewAxisGizmo::Handle, 6> ViewAxisGizmo::projectedHandles() const
 {
     const QPointF mid(width() / 2.0, height() / 2.0);
@@ -114,19 +119,23 @@ void ViewAxisGizmo::paintEvent(QPaintEvent *)
               [](const Handle &a, const Handle &b) { return a.depth < b.depth; });
 
     const QPointF mid(width() / 2.0, height() / 2.0);
-    for (const Handle &handle : h) {
-        if (handle.negative)
-            continue;
-        p.setPen(QPen(kAxisColor[handle.axis], kStemWidth, Qt::SolidLine, Qt::RoundCap));
-        p.drawLine(mid, handle.center);
-    }
 
     QFont f = p.font();
     f.setPixelSize(10);
     f.setBold(true);
     p.setFont(f);
 
+    // One back-to-front pass, stem then disc per handle. Two passes -- every stem, then
+    // every disc -- put all six discs on top of all three stems whatever the sort said, so
+    // a handle behind an axis still covered it. The stem is drawn at its own handle's
+    // depth, which is an approximation near the centre where every stem meets, but it is
+    // what makes the near/far relationship read correctly out at the handles where it shows.
     for (const Handle &handle : h) {
+        if (!handle.negative) {
+            p.setPen(QPen(kAxisColor[handle.axis], kStemWidth, Qt::SolidLine, Qt::RoundCap));
+            p.drawLine(mid, handle.center);
+        }
+
         const QColor base = kAxisColor[handle.axis];
         const bool hot = (handle.id == m_hovered);
 
@@ -206,7 +215,19 @@ void ViewAxisGizmo::mouseReleaseEvent(QMouseEvent *e)
         emit orbitEnded();
     } else if (m_pressedHandle >= 0 && handleAt(e->position()) == m_pressedHandle) {
         // A click, and it ended on the handle it started on.
-        emit axisPicked(unitAxis(m_pressedHandle / 2, (m_pressedHandle % 2) == 1));
+        QVector3D direction = unitAxis(m_pressedHandle / 2, (m_pressedHandle % 2) == 1);
+
+        // Clicking the handle you are already looking down flips to the far side instead of
+        // doing nothing, so the same letter walks front/back the way it does in Blender.
+        // A handle pointing at the viewer has camera-space z of +1, which is what "already
+        // looking down this axis" means here; the threshold is about two and a half
+        // degrees, tight enough that a click after orbiting away re-snaps rather than
+        // flipping, since that is the other thing a second click could reasonably mean.
+        constexpr float kAlreadyFacing = 0.999f;
+        if (projectedHandles()[std::size_t(m_pressedHandle)].depth > kAlreadyFacing)
+            direction = -direction;
+
+        emit axisPicked(direction);
     }
 
     m_dragging = false;

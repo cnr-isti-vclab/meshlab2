@@ -7,7 +7,7 @@
 This document records the `categories` applied to the **272-filter migration
 baseline**. It was generated once, by rules, from the pre-migration descriptors and
 the ontology in
-[Vocabulary](vocabulary.md) §1; see [Filter Organization](filter_organization.md)
+[Vocabulary](../vocabulary.md) §1; see [Filter Organization](../filter_organization.md)
 for the plugin-side mapping.
 
 **Status: APPLIED** (pass 1, 2026-07-29). All 272 filters present on that date received

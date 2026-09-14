@@ -1,6 +1,6 @@
-option(QMESH_PLUGIN_FILTER_MESHFIX "Build MeshFix-based mesh filter plugin" ON)
+option(MESHLAB2_PLUGIN_FILTER_MESHFIX "Build MeshFix-based mesh filter plugin" ON)
 
-if (NOT QMESH_PLUGIN_FILTER_MESHFIX)
+if (NOT MESHLAB2_PLUGIN_FILTER_MESHFIX)
     message(STATUS "Skipping filter_meshfix - plugin disabled")
     return()
 endif()
@@ -35,35 +35,35 @@ set(MESHFIX_CORE_SOURCES
     "${MESHFIX_ROOT}/src/Kernel/jqsort.cpp"
 )
 
-add_library(QMeshLabMeshFixCore STATIC ${MESHFIX_CORE_SOURCES})
-target_include_directories(QMeshLabMeshFixCore PUBLIC
+add_library(MeshLab2MeshFixCore STATIC ${MESHFIX_CORE_SOURCES})
+target_include_directories(MeshLab2MeshFixCore PUBLIC
     "${MESHFIX_ROOT}/include/TMesh"
     "${MESHFIX_ROOT}/include/Kernel"
 )
-target_compile_features(QMeshLabMeshFixCore PUBLIC cxx_std_11)
+target_compile_features(MeshLab2MeshFixCore PUBLIC cxx_std_11)
 if (CMAKE_SIZEOF_VOID_P EQUAL 8)
-    target_compile_definitions(QMeshLabMeshFixCore PUBLIC IS64BITPLATFORM)
+    target_compile_definitions(MeshLab2MeshFixCore PUBLIC IS64BITPLATFORM)
 endif()
 
-add_library(QMeshLabPluginFilterMeshFix STATIC
+add_library(MeshLab2PluginFilterMeshFix STATIC
     meshfixfilterplugin.h
     meshfixfilterplugin.cpp
 )
 
-target_include_directories(QMeshLabPluginFilterMeshFix
+target_include_directories(MeshLab2PluginFilterMeshFix
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabPluginFilterMeshFix
+target_link_libraries(MeshLab2PluginFilterMeshFix
     PUBLIC
-        QMeshLabCore
-        QMeshLabMeshFixCore
+        MeshLab2Core
+        MeshLab2MeshFixCore
         Qt6::Core
 )
 
-qt_add_resources(QMeshLabPluginFilterMeshFix "filter_meshfix_descriptors"
-    PREFIX "/filters/qmeshlab.filter.meshfix"
+qt_add_resources(MeshLab2PluginFilterMeshFix "filter_meshfix_descriptors"
+    PREFIX "/filters/meshlab2.filter.meshfix"
     FILES filters.json
 )

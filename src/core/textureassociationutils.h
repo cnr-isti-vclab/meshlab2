@@ -12,6 +12,11 @@ namespace TextureAssociationUtils {
 QString normalizeExistingPath(const QString &path);
 QImage makeDummyTexture(int imageSize, int checkSize, bool checkerboard);
 
+// Read an image file, reporting *why* it could not be read. Prefer this over
+// QImage(path) anywhere the failure reaches the user: a missing image-format
+// plugin is otherwise indistinguishable from a corrupt file.
+bool readImageFile(const QString &path, QImage &image, QString &error);
+
 MeshIOTextureAsset makeTextureAssetFromPath(const QString &path);
 MeshIOTextureAsset makeTextureAssetFromImage(
     const QImage &image,

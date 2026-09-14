@@ -13,12 +13,7 @@ void RenderWidget::renderSceneBufferItems(
     if (items.empty())
         return;
 
-    cb->setViewport({
-        0,
-        0,
-        float(plan.pixelSize.width()),
-        float(plan.pixelSize.height())
-    });
+    cb->setViewport(plan.rhiViewport());
     for (const SceneBufferDrawItem &item : items) {
         if (!item.pipeline || !item.vertexBuffer || item.vertexCount <= 0)
             continue;
@@ -38,7 +33,7 @@ void RenderWidget::renderSceneBufferItems(
         setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
         const QRhiCommandBuffer::VertexInput binding(item.vertexBuffer, 0);
         cb->setVertexInput(0, 1, &binding);
-        cb->draw(item.vertexCount);
+        cb->draw(quint32(item.vertexCount), 1, quint32(item.firstVertex));
     }
 }
 
@@ -103,7 +98,7 @@ void RenderWidget::renderSceneDecoratorItems(
         return true;
     };
 
-    cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+    cb->setViewport(plan.rhiViewport());
     for (const SceneDecoratorDrawItem &item : plan.decoratorItems) {
         if (!item.vertexBuffer || item.vertexCount <= 0)
             continue;
@@ -150,7 +145,7 @@ void RenderWidget::renderSceneSelectionItems(
     }
 
     const QSize &sz = plan.pixelSize;
-    cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+    cb->setViewport(plan.rhiViewport());
     const QMatrix4x4 frameVp = plan.proj * plan.view;
 
     for (const SceneSelectionDrawItem &item : plan.selectionItems) {

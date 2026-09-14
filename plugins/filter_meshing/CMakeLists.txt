@@ -1,29 +1,29 @@
-option(QMESH_PLUGIN_FILTER_MESHING "Build meshing filter plugin" ON)
+option(MESHLAB2_PLUGIN_FILTER_MESHING "Build meshing filter plugin" ON)
 
-if (NOT QMESH_PLUGIN_FILTER_MESHING)
+if (NOT MESHLAB2_PLUGIN_FILTER_MESHING)
     message(STATUS "Skipping filter_meshing - plugin disabled")
     return()
 endif()
 
-add_library(QMeshLabPluginFilterMeshing STATIC
+add_library(MeshLab2PluginFilterMeshing STATIC
     meshingfilterplugin.h
     meshingfilterplugin.cpp
 )
 
-target_include_directories(QMeshLabPluginFilterMeshing
+target_include_directories(MeshLab2PluginFilterMeshing
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabPluginFilterMeshing
+target_link_libraries(MeshLab2PluginFilterMeshing
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
 )
 
 
-qt_add_resources(QMeshLabPluginFilterMeshing "filter_meshing_descriptors"
-    PREFIX "/filters/qmeshlab.filter.meshing"
+qt_add_resources(MeshLab2PluginFilterMeshing "filter_meshing_descriptors"
+    PREFIX "/filters/meshlab2.filter.meshing"
     FILES filters.json
 )

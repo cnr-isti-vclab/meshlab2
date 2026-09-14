@@ -228,7 +228,7 @@ void ColorMapRegistry::loadBundledResourceMaps()
 void ColorMapRegistry::loadExternalFolderMaps()
 {
     QStringList candidateDirs;
-    const QByteArray envDirs = qgetenv("QMESHLAB_COLORMAP_DIRS");
+    const QByteArray envDirs = qgetenv("MESHLAB2_COLORMAP_DIRS");
     if (!envDirs.isEmpty()) {
         const QStringList overrideDirs = QString::fromLocal8Bit(envDirs).split(
             QDir::listSeparator(),

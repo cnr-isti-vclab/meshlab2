@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.mls",
+  "pluginId": "meshlab2.filter.mls",
   "references": [
     {
       "id": "guennebaud2007",

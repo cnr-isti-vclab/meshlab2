@@ -40,8 +40,8 @@ QString buildMode()
 
 QString buildId()
 {
-#ifdef QMESHLAB_BUILD_ID
-    return QStringLiteral(QMESHLAB_BUILD_ID);
+#ifdef MESHLAB2_BUILD_ID
+    return QStringLiteral(MESHLAB2_BUILD_ID);
 #else
     return QObject::tr("Unavailable");
 #endif
@@ -50,7 +50,7 @@ QString buildId()
 QString buildInformation()
 {
     return QObject::tr(
-        "QMeshLab build: %1\n"
+        "MeshLab build: %1\n"
         "Built: %2\n"
         "Configuration: %3\n"
         "Qt: %4 (built with %5)\n"
@@ -87,7 +87,7 @@ QString htmlTableRow(const QString &label, const QString &value)
 AboutDialog::AboutDialog(QWidget *parent)
     : QDialog(parent)
 {
-    setWindowTitle(tr("About QMeshLab"));
+    setWindowTitle(tr("About MeshLab"));
     setModal(true);
     resize(760, 540);
     setMinimumSize(620, 440);
@@ -105,7 +105,7 @@ AboutDialog::AboutDialog(QWidget *parent)
     auto *identity = new QLabel(this);
     identity->setTextFormat(Qt::RichText);
     identity->setText(tr(
-        "<div style='font-size:28pt; font-weight:600'>QMeshLab</div>"
+        "<div style='font-size:28pt; font-weight:600'>MeshLab</div>"
         "<div style='font-size:13pt'>The MeshLab rewrite for Qt 6</div>"
         "<div style='margin-top:8px; color:gray'>Build %1</div>")
         .arg(buildId().toHtmlEscaped()));
@@ -116,41 +116,41 @@ AboutDialog::AboutDialog(QWidget *parent)
     auto *tabs = new QTabWidget(this);
     tabs->addTab(htmlPage(tr(
         "<h2>Open-source mesh processing</h2>"
-        "<p>QMeshLab is a from-scratch Qt 6 rewrite of MeshLab, the widely used "
+        "<p>This is a from-scratch Qt 6 rewrite of MeshLab, the widely used "
         "system for editing, cleaning, repairing, inspecting, rendering, "
         "texturing and converting 3D meshes.</p>"
         "<p>It combines a modern Qt/QRhi application framework with "
         "<a href='https://github.com/cnr-isti-vclab/vcglib'>VCGLib</a> for mesh "
-        "processing. QMeshLab also aims to preserve geometry-processing "
+        "processing. It also aims to preserve geometry-processing "
         "algorithms as clearly attributed, reproducible plugins whose upstream "
         "implementations remain easy to update.</p>"
         "<h3>Project links</h3>"
-        "<p><a href='https://github.com/cnr-isti-vclab/QMeshLab'>Source code</a> &nbsp;·&nbsp; "
-        "<a href='https://github.com/cnr-isti-vclab/QMeshLab/issues'>Report an issue</a> &nbsp;·&nbsp; "
-        "<a href='https://github.com/cnr-isti-vclab/QMeshLab/tree/main/docs'>Documentation</a> &nbsp;·&nbsp; "
+        "<p><a href='https://github.com/cnr-isti-vclab/meshlab2'>Source code</a> &nbsp;·&nbsp; "
+        "<a href='https://github.com/cnr-isti-vclab/meshlab2/issues'>Report an issue</a> &nbsp;·&nbsp; "
+        "<a href='https://github.com/cnr-isti-vclab/meshlab2/tree/main/docs'>Documentation</a> &nbsp;·&nbsp; "
         "<a href='https://www.meshlab.net'>Original MeshLab</a></p>"), tabs),
         tr("Overview"));
 
     tabs->addTab(htmlPage(tr(
         "<h2>MeshLab lineage</h2>"
-        "<p>QMeshLab continues the MeshLab project developed at the "
+        "<p>It continues the MeshLab project developed at the "
         "<a href='https://vcg.isti.cnr.it'>Visual Computing "
         "Lab</a>, ISTI-CNR. Its architecture and interface are new, while its "
         "purpose, data model traditions and VCGLib foundation come from the "
         "original project.</p>"
-        "<p>See the <a href='https://github.com/cnr-isti-vclab/QMeshLab/graphs/contributors'>"
-        "QMeshLab contributors</a> and the "
+        "<p>See the <a href='https://github.com/cnr-isti-vclab/meshlab2/graphs/contributors'>"
+        "contributors to this rewrite</a> and the "
         "<a href='https://github.com/cnr-isti-vclab/meshlab/graphs/contributors'>"
-        "MeshLab contributors</a>.</p>"
-        "<h2>Citing QMeshLab and its algorithms</h2>"
-        "<p>If QMeshLab contributes to published work, please cite the relevant "
+        "contributors to the original MeshLab</a>.</p>"
+        "<h2>Citing MeshLab and its algorithms</h2>"
+        "<p>If MeshLab contributes to published work, please cite the relevant "
         "MeshLab publication and each processing algorithm used. Filters expose "
         "<b>[bib]</b>, <b>[doi]</b> and <b>[web]</b> links whenever their provenance "
         "metadata is available.</p>"
         "<p>The MeshLab publication list and suggested references are available at "
         "<a href='https://www.meshlab.net/#references'>meshlab.net/references</a>.</p>"
         "<h3>Contact</h3>"
-        "<p>Please use the <a href='https://github.com/cnr-isti-vclab/QMeshLab/issues'>"
+        "<p>Please use the <a href='https://github.com/cnr-isti-vclab/meshlab2/issues'>"
         "issue tracker</a> for reproducible bugs and concrete feature requests.</p>"), tabs),
         tr("Credits and citations"));
 
@@ -167,8 +167,8 @@ AboutDialog::AboutDialog(QWidget *parent)
     buildHtml += htmlTableRow(tr("CPU architecture"), QSysInfo::currentCpuArchitecture());
     buildHtml += tr(
         "</table><h2>License</h2>"
-        "<p>QMeshLab is free software distributed under the "
-        "<a href='https://github.com/cnr-isti-vclab/QMeshLab/blob/main/LICENSE'>"
+        "<p>MeshLab is free software distributed under the "
+        "<a href='https://github.com/cnr-isti-vclab/meshlab2/blob/main/LICENSE'>"
         "GNU General Public License, version 3</a>. Integrated third-party "
         "components and archived algorithms retain their respective licenses "
         "and provenance.</p>");

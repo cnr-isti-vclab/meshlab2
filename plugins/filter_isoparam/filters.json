@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.isoparam",
+  "pluginId": "meshlab2.filter.isoparam",
   "references": [
     {
       "id": "pietroni2010isoparam",
@@ -45,6 +45,8 @@
         "pietroni2010isoparam"
       ],
       "shortDescription": "Build an abstract domain of equilateral triangles and an almost isometric parametrization of the layer onto it.",
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
       "longDescriptionMarkdown": "Simplifies the layer down to a coarse **abstract domain** and parametrizes the original surface onto it, keeping the mapping as close to isometric as the surface allows.\n\nThe domain is *abstract* in a strict sense: it is connectivity and adjacency only, with every one of its triangles taken to be equilateral and unit-sided. It has no 3D embedding, and for most surfaces none exists. That is what makes it a simple domain to work over -- all its regions are the same shape and size -- and it is also what the parametrization aims at: regions of equal area on the mesh, separated by paths of equal length, which is exactly the condition for the mapping to be isometric.\n\nIt is built by decimation. Every triangle of the input starts as its own sub-domain; edge collapses and edge flips on the domain then reduce it, each one followed by a local reoptimization of the mapping and, at intervals, a global one over the whole mesh. A collapse costs the inverse of the two regions' areas plus the squared length of the path between them, so the smallest regions and the shortest paths go first, and what survives tends toward equally sized regions separated by equally long paths. The optimizer weights area preservation three times as heavily as conformality.\n\nThe domain is attached to the layer as plugin data rather than written into the mesh, and the layer panel reports its size and distortion. It is dropped automatically if the layer's geometry changes, because a parametrization of moved vertices would be meaningless.\n\nWhat *is* written into the mesh is the mapping itself, as per-vertex UVs, and the domain regions, as scalars: each vertex gets the region its own position falls in, and each face gets the one its centre falls in. The per-face one is the better picture -- a region boundary is a path across the surface rather than a chain of mesh edges, so a face can straddle one, and deciding per face keeps the regions crisp where the per-vertex values dither along the seam. The filter asks the view to colour by it when it finishes, which is the quickest way to see what kind of domain you got. Any per-vertex or per-face scalar already on the layer is overwritten.\n\nThe mesh must be a **single watertight two-manifold component**; the filter says which precondition failed when it is not.\n\nCounter-intuitively, a *smaller* abstract domain costs more, not less. The two size bounds are a search range, not a tolerance: decimation always runs all the way down to the smallest, scoring the domain at every step, and then back-tracks to the best size in the interval. Lowering the smallest therefore buys more work, not less. On a 40k-vertex sphere, 150-200 faces took about twice as long as 400-500.\n\nBased on Pietroni, Tarini and Cignoni, *Almost isometric mesh parameterization through abstract domains*, IEEE TVCG 2010.",
       "inputRequirements": {
         "requireVertices": true,
@@ -126,6 +128,35 @@
       ]
     },
     {
+      "id": "measure_abstract_domain",
+      "pythonName": "measure_abstract_domain",
+      "name": "Measure Abstract Domain",
+      "categories": [
+        "Measurement/Topological",
+        "Parametrization/UV Creation"
+      ],
+      "referenceIds": [
+        "pietroni2010isoparam"
+      ],
+      "shortDescription": "Report the structure, quality and validity of the abstract domain attached to a layer.",
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "longDescriptionMarkdown": "Report everything known about the abstract domain a previous run of *Parametrize by Abstract Domain* left on this layer. Nothing is modified.\n\nThe domain is otherwise hard to inspect: it lives in layer data, the layer panel shows only three numbers, and each filter that consumes it exposes just the part it needs. This reports:\n\n- **Structure.** The number of sub-domains -- the unit-sided equilateral triangles the domain is made of -- with the domain's vertex, edge and face counts, its Euler characteristic and genus, and whether it is closed and 2-manifold.\n- **Vertex valences.** A histogram, and the count of irregular vertices. Valence six is regular; the *Star* and *Hexagon* chart shapes of *Create Atlased Mesh* merge around regular vertices by default, so this predicts how much they can merge.\n- **Chart counts.** How many charts each chart shape of *Create Atlased Mesh* would produce, which saves running it to find out.\n- **How the mesh sits in the domain.** Parametrized vertex and face counts, layer faces per sub-domain, the spread of vertices across sub-domains, and how many faces straddle more than one sub-domain.\n- **Quality.** The stretch efficiency and area distortion the parametrizator reported when it stopped. A stretch of 1.0 is isometric.\n- **Structural checks.** The invariants the technique requires: at least four sub-domains, a closed domain, no sub-domain left uncovered, and every vertex naming a sub-domain that exists and sitting inside its triangle. A domain that fails one of these is not usable, and the symptom is otherwise just a later filter misbehaving.\n\nEvery figure is also returned as a named output value, so a script can assert on it.",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": null,
+      "tags": [
+        "measure",
+        "parametrization",
+        "inspection",
+        "info",
+        "isoparametrization"
+      ],
+      "parameters": []
+    },
+    {
       "id": "remesh_by_abstract_domain",
       "pythonName": "remesh_by_abstract_domain",
       "name": "Remesh by Abstract Domain",
@@ -136,6 +167,8 @@
         "pietroni2010isoparam"
       ],
       "shortDescription": "Remesh a layer uniformly by sampling each region of its abstract domain on a regular grid.",
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
       "longDescriptionMarkdown": "Builds a new layer by resampling the surface through the abstract domain. One square patch of *N* x *N* samples is taken over each **half-diamond** of the domain -- the region belonging to one domain edge -- on a grid of lines parallel to its sides, and the patches are stitched together into a single mesh.\n\nThe result is close to uniform, and regular almost everywhere. Every interior sample of a patch ends up with exactly six neighbours, four along the grid and two along the one patch diagonal that is used, and because the domain's triangles are equilateral by construction those six come out at nearly equal distances on the surface. Irregular vertices survive only where the domain itself is irregular, at its cone singularities.\n\nThe output size is the number of domain edges -- half again the number of domain faces -- times the square of the sampling rate, less the samples merged where patches meet.\n\nThe filter reports which interpolation domain each sample was placed through: a single domain triangle where the sample and its neighbourhood fit inside one, a half-diamond where they straddle a domain edge, a half-star where they turn around a domain vertex. All three cover the whole domain, so a sample always has at least one to use.\n\nRequires an abstract domain on the layer: run **Parametrize by Abstract Domain** first.",
       "inputRequirements": {
         "requireVertices": true,
@@ -166,6 +199,8 @@
         "pietroni2010isoparam"
       ],
       "shortDescription": "Build a new layer carrying a per-wedge atlas parametrization, with a choice of how the abstract domain is cut into charts.",
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
       "longDescriptionMarkdown": "Turns the abstract domain into an ordinary texture atlas. The domain is a set of unit-sided equilateral triangles, and it can be cut into charts in several ways -- three of them are partitions given in the paper this is built on (Pietroni et al. 2010, section 4.2) -- after which one of the vcglib packers lays the charts out in a single UV square.\n\nThe result is a new layer with per-wedge UVs, all sharing texture index 0, usable by anything that consumes a normal parametrization.\n\n*Chart shape* decides both the cut and the unfolding:\n\n- **Square** takes one chart per *half-diamond* -- the region belonging to a domain edge -- and flattens it onto a square, which is what the paper's own geometry-image construction does. It packs best, but that map is explicitly not rigid, so it distorts.\n- **Rhombus** unfolds the same region as the 60 degree rhombus it actually is, so both halves come out as the equilateral triangles the paper says its samples form when the right patch diagonal is used. Near-isometric, at the cost of some atlas area.\n- **Hexagon** merges: a half-diamond is a rhombus whose obtuse corners sit on the two triangle barycentres it spans, so the three that meet across a domain triangle join at 120 degrees each and tile a regular hexagon. Every domain triangle is a candidate, but a half-diamond belongs to the triangles on both sides of its edge and can only go to one of them, so some charts come out a wedge short and a few regions stay single.\n- **Polygon** uses the paper's *half-star* partition instead: one chart per domain vertex, each the k-agon joining the barycentres of the k triangles around it. It is a partition and not a search, so every region lands in exactly one chart and nothing is left over -- the fewest charts of any option, and the lowest area distortion, because that unfolding is area-preserving by construction where the square and rhombus ones are not.\n- **Star** merges around domain vertices the other way, out of whole half-diamonds. They meet at their *acute* corners there, so six of them close the ring but leave a six-pointed chart whose points cost atlas area.\n\nOn a 1.2k sphere with a 194-triangle domain:\n\n| shape | charts | atlas covered | area distortion |\n| --- | --- | --- | --- |\n| Square | 291 | 73% | 1.35 |\n| Rhombus | 291 | 65% | 1.35 |\n| Hexagon | 131 | 69% | 1.35 |\n| Polygon | 99 | 62% | 1.30 |\n| Star | 154 | 60% | 1.35 |\n| Star, irregular too | 94 | 54% | 1.33 |\n\n(*area distortion* is the 95th percentile of per-face texel density over its median; 1.0 would be perfectly area-preserving.) Every shape lays its charts out at one texel density, so no chart takes more of the atlas per unit of surface than another.\n\nThere is no single winner: **Square** buys atlas area with distortion and seams, **Polygon** buys the fewest seams and the truest areas with atlas area, and **Hexagon** sits between them. Pick by whether the atlas is going to be baked once or authored against.\n\nFour packers are offered, and they trade quality against time very differently -- see **Pack UV Charts**, which drives the same ones -- but *Rasterized, scaled to fit* is what you want here unless the chart count makes it too slow.\n\nRequires an abstract domain on the layer: run **Parametrize by Abstract Domain** first.\n\nBased on Pietroni, Tarini and Cignoni, *Almost isometric mesh parameterization through abstract domains*, IEEE TVCG 2010; the square patches and the half-star partition are theirs, the merged hexagon and star charts are not.",
       "inputRequirements": {
         "requireVertices": true,
@@ -309,15 +344,13 @@
         "pietroni2010isoparam"
       ],
       "shortDescription": "Carry an abstract domain from one layer onto another, similar and aligned one, by closest point.",
+      "inputDomain": "WholeDocument",
+      "outputDomain": "ModifyCurrentMesh",
       "longDescriptionMarkdown": "Copies a layer's abstract domain onto a second layer -- typically the same object at a different resolution -- by finding, for each target vertex, the closest point on the source parametrization and reading its domain position off that.\n\nThis is a convenience rather than part of the original technique, and it inherits the limits of closest-point matching: the two layers must be reasonably similar in shape and already aligned, and nothing here registers them for you. Where the surfaces disagree the domain positions will follow the source's geometry rather than the target's.\n\nUnlike MeshLab, which moves the domain and leaves the source without one, the source **keeps its own domain** and the target gets an independent copy.",
       "inputRequirements": {
         "requireVertices": true,
         "requireFaces": true
       },
-      "outputModifies": [
-        "VT",
-        "WT"
-      ],
       "parameters": [
         {
           "id": "sourceMesh",

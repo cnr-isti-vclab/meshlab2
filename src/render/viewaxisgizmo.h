@@ -40,7 +40,7 @@ protected:
     void mouseReleaseEvent(QMouseEvent *e) override;
     void leaveEvent(QEvent *e) override;
 
-private:
+public:
     struct Handle {
         QPointF center;      // widget coordinates
         float depth = 0.0f;  // camera-space z; larger is nearer the viewer
@@ -49,7 +49,14 @@ private:
         bool negative = false;
     };
 
+    // Where each handle lands in widget coordinates, and how near it is. Public because
+    // the depth-order test works out for itself where one handle crosses another's stem;
+    // it is pure geometry with no side effects.
     std::array<Handle, 6> projectedHandles() const;
+
+    static qreal handleRadius();
+
+private:
     // Returns a handle id, or -1 when the point misses every handle.
     int handleAt(const QPointF &pos) const;
     void setHovered(int id);

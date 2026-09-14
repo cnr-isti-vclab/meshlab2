@@ -31,7 +31,7 @@ plugins/filter_foo/
 
 ```json
 {
-  "pluginId": "qmeshlab.filter.foo",
+  "pluginId": "meshlab2.filter.foo",
   "provenance": {
     "project": "Upstream Project",
     "repository": "https://github.com/example/upstream",
@@ -45,12 +45,19 @@ plugins/filter_foo/
       "name": "Do Something",
       "pythonName": "do_something",
       "shortDescription": "One line shown in the browser.",
+      "longDescriptionMarkdown": "What it does, for the in-app help and the Python docs.",
+      "tags": ["topology"],
       "inputDomain": "SingleMesh",          // None | SingleMesh | WholeDocument
       "outputDomain": "ModifyCurrentMesh",  // Information | ModifyCurrentMesh | NewMeshes
+      "inputRequirements": { "requireVertices": true, "requireFaces": true },
       "inputPrepare": ["FF", "FNorm"],      // topology/normals the framework builds for you
       "outputModifies": ["VG", "FN"],       // which mesh attributes you change (see below)
       "parameters": [
-        { "id": "amount", "label": "Amount", "type": "double", "default": 1.0, "min": 0.0 }
+        {
+          "id": "amount", "label": "Amount", "type": "double", "group": "main",
+          "default": 1.0, "min": 0.0, "max": 10.0, "decimals": 3,
+          "help": "A sentence or two. Shown in the tooltip and the generated docs."
+        }
       ]
     }
   ]
@@ -59,8 +66,41 @@ plugins/filter_foo/
 
 The default `MeshFilterPlugin::filters()` loads this from the Qt resource
 `:/filters/<pluginId>/filters.json`, so the `CMakeLists.txt` PREFIX must match
-`pluginId`. Parameter types: `bool int double absPerc enum color point3f string
-fileOpen fileSave mesh cameraState renderState textureRef textureOutputRef`.
+`pluginId`.
+
+Parameter types are matched **exactly, in lower case**. An unrecognised string
+falls through to `string` silently, so `absPerc` is a bug rather than a synonym:
+
+```
+bool  int  double  absperc  enum  color  point3f  string  mesh
+fileopen  filesave  textureref  textureoutputref  camerastate  renderstate
+```
+
+(`file_open` and `file_save` are accepted as alternates.)
+
+Every parameter also carries `label`, `help` and `group` — all 1168 declared
+parameters do. Each distinct `group` becomes one section of the form, in order
+of first appearance, and headings only appear once there is more than one group.
+The name is cosmetic except for one rule: **a group whose name begins with
+`advanced` is hidden behind the advanced toggle**, which is why `advanced.tree`
+and `advanced.solver` work. Underscores and dots become spaces in the heading
+(`advanced.solver` reads "Advanced solver" — sections are flat, not nested), and
+an empty group is "Main".
+
+`enum` parameters must carry `enumOptions`, an array of `{"id", "label"}` — each
+option may also carry its own `help`. Numeric parameters take `min`, `max` and
+`decimals` (default 3).
+
+`inputRequirements` declares preconditions the framework checks *before* your
+code runs, so the filter is greyed out with a reason instead of failing inside
+`runFilter`. All are optional booleans: `requireVertices`, `requireFaces`,
+`requireEdges`, `requireVertexQuality`, `requireFaceQuality`, `requireVertexColor`,
+`requireFaceColor`, `requireTextureCoordinates`, `requirePerVertexTexCoords`,
+`requirePerWedgeTexCoords`, `requireTextures`. Declare them instead of
+re-checking by hand — 291 of 337 filters do.
+
+`tags` are free-form search keywords; see [Vocabulary](vocabulary.md) for the
+standing question of whether they should be generated rather than written.
 
 `categories` is required for in-tree descriptors and is validated against the
 closed ontology in [Vocabulary](vocabulary.md). The first category is the
@@ -130,7 +170,7 @@ for the angle from an axis to a cone boundary, and **Angular Diameter** (or
 **Full Aperture**) for the angle between opposite boundary directions. Avoid the
 ambiguous label **Cone Angle**.
 
-Prefer the half-angle: every cone and cap parameter QMeshLab exposes is one, so
+Prefer the half-angle: every cone and cap parameter MeshLab exposes is one, so
 a new filter that adopts a full aperture makes two sibling filters disagree
 about what the same number means. Name the parameter for the convention as well
 as labelling it -- `half_angle`, `cone_half_angle` -- because a label protects
@@ -143,7 +183,7 @@ site rather than changing the shared signature.
 ```cpp
 class FooFilterPlugin final : public MeshFilterPlugin {
 public:
-    QString pluginId() const override { return QStringLiteral("qmeshlab.filter.foo"); }
+    QString pluginId() const override { return QStringLiteral("meshlab2.filter.foo"); }
     QString name() const override { return QObject::tr("Foo Filters"); }
     MeshFilterRunResult runFilter(const QString &filterId,
                                   const FilterParams &params,
@@ -158,11 +198,11 @@ void registerFooFilterPlugin(MeshFilterPluginManager &pm);
 
 ### 3–5. Wiring (three edits)
 
-- `plugins/filter_foo/CMakeLists.txt`: `option(QMESH_PLUGIN_FILTER_FOO … ON)`, an
-  `add_library(... STATIC)` linking `QMeshLabCore`, and `qt_add_resources(...
-  PREFIX "/filters/qmeshlab.filter.foo" FILES filters.json)`. Copy `filter_basic`.
+- `plugins/filter_foo/CMakeLists.txt`: `option(MESHLAB2_PLUGIN_FILTER_FOO … ON)`, an
+  `add_library(... STATIC)` linking `MeshLab2Core`, and `qt_add_resources(...
+  PREFIX "/filters/meshlab2.filter.foo" FILES filters.json)`. Copy `filter_basic`.
 - `plugins/CMakeLists.txt`: `add_subdirectory(filter_foo)` + link it into
-  `QMeshLabPlugins` guarded by `QMESH_PLUGIN_FILTER_FOO_ENABLED`.
+  `MeshLab2Plugins` guarded by `MESHLAB2_PLUGIN_FILTER_FOO_ENABLED`.
 - `plugins/filterpluginregistry.cpp`: `#include` the header and call
   `registerFooFilterPlugin(pm)` under the same `#if …_ENABLED`.
 
@@ -172,12 +212,16 @@ void registerFooFilterPlugin(MeshFilterPluginManager &pm);
 
 - **Undo**: `runFilter` for a non-`Information` filter is automatically wrapped in
   one undo step, and the Python call is recorded. **Never touch the undo stack.**
-  A filter whose `outputModifies` is only selection (`VS`/`FS`) automatically uses
-  the cheap bit-packed selection-delta undo instead of a full snapshot.
-- **Input preparation**: declare `inputPrepare` codes (`FF`, `VF`, `FNorm`,
-  `VNorm`, `BBox`, `WTex`, …) instead of computing adjacency/normals by hand —
-  the framework enables the OCF components, runs the vcglib update, and disables
-  them afterward.
+  A `SingleMesh` filter whose `outputModifies` is non-empty and contains only
+  selection codes (`VS`/`FS`) automatically uses the cheap bit-packed
+  selection-delta undo instead of a full snapshot — which matters on large
+  meshes, where snapshotting is seconds of deep copy.
+- **Input preparation**: declare `inputPrepare` codes instead of computing
+  adjacency, normals or flags by hand — the framework enables the OCF
+  components, runs the vcglib update in dependency order, and disables them
+  afterward. The full set: `FF`, `VF`, `BorderFF`, `BorderVF` (each border code
+  implies its adjacency), `FNorm`, `VNorm` (implies `FNorm`), `BBox`, `FMark`,
+  `VMark`, `VTex`, `WTex`, `CurvDir`.
 - **Cleanup/compaction**: after a successful filter the framework compacts the
   affected meshes; don't leave deleted elements around expecting them to persist.
 - **Notify changes**: after mutating a mesh, call the matching
@@ -187,16 +231,39 @@ void registerFooFilterPlugin(MeshFilterPluginManager &pm);
 ## Best practices / what's expected
 
 - **Declare `outputModifies` accurately** — the framework keys undo storage,
-  compaction, and cache invalidation off it. Codes: `VG VN VC VQ VT VS FV FN FC
-  FQ FS FP WT TX TM` (V*/F* = vertex/face geometry, normals, color, quality,
-  texcoords, selection; `FP` = polygon/faux-edge bits; `TM` = per-mesh transform).
-- **Reuse vcglib** (`src/vcglib` → repo-root `vcglib/`) for all 3D computation.
+  compaction, and cache invalidation off it. The codes, as the UI spells them
+  out (`FilterPresentation::modifiedDataLabels`):
+
+  | | vertex | face |
+  | --- | --- | --- |
+  | geometry / connectivity | `VG` | `FV` |
+  | normals | `VN` | `FN` |
+  | color | `VC` | `FC` |
+  | scalar (quality) | `VQ` | `FQ` |
+  | texcoords | `VT` | `WT` (per wedge) |
+  | named attributes | `VA` | `FA` |
+  | selection | `VS` | `FS` |
+
+  plus `FP` (face polygon bits), `TX` (texture images) and `TM` (per-mesh
+  transform).
+- **Reuse vcglib** — the `vcglib/` submodule at the repo root — for all 3D
+  computation.
 - **Parallelize heavy per-element loops** with `std::thread` when independent.
 - **Return useful `infoMessages`** — they appear in the log; keep `errorMessage`
   actionable and return `success = false` on bad input rather than asserting.
 - **Suggest a view change** (optional) via `MeshFilterRunResult::visualizationHints`
   (e.g. switch to textured/quality shading) — see the visualization-hint path in
   `MainWindow::applyFilterVisualizationHints`.
+- **Randomized filters declare `randomSeed`** — `int`, default `0`, minimum `0`,
+  resolved through `FilterParams::getRandomSeed()`, with the drawn value reported
+  in the result messages so a run can be pinned afterwards. 39 parameters follow
+  this; see [Filter Organization](filter_organization.md#randomseed).
+- **Per-layer plugin data** (rare) — `doc.setLayerData(meshIndex, "<pluginId>/<name>", ptr)`
+  attaches an immutable, plugin-owned object to a layer: a solver state, a
+  parametrization domain, anything too structured for mesh attributes. Undo
+  carries it, and it is dropped when the layer's geometry changes unless it
+  says it survives. Subclass `LayerData` (`src/core/layerdata.h`); read it back
+  with `doc.layerData(meshIndex, key)`.
 - **Follow the naming/menu taxonomy** in [Filter Organization](filter_organization.md);
   names should describe the observable result, not the algorithm.
 

@@ -58,6 +58,44 @@ bool RenderWidget::computeWorldSceneBBox(QVector3D &minCorner, QVector3D &maxCor
     return hasVisibleMesh;
 }
 
+bool RenderWidget::meshFitsInCurrentFrame(int index) const
+{
+    if (index < 0 || index >= m_doc->meshCount())
+        return true;
+    const auto &entry = m_doc->mesh(index);
+    if (entry.mesh.bbox.IsNull())
+        return true; // nothing to see, so nothing to reframe for
+
+    // The trackball frames a sphere of `radius` about `center`; treat the new mesh as
+    // visible when its whole bounding box sits inside that sphere. Conservative on
+    // purpose -- a mesh hanging half out of view is the case this is meant to catch --
+    // and it costs eight dot products rather than a frustum build.
+    const ViewTrackball::State state = m_trackball.state();
+    if (!(state.radius > 0.0f))
+        return false;
+
+    const vcg::Box3f &box = entry.mesh.bbox;
+    const QVector3D corners[8] = {
+        QVector3D(box.min[0], box.min[1], box.min[2]),
+        QVector3D(box.max[0], box.min[1], box.min[2]),
+        QVector3D(box.min[0], box.max[1], box.min[2]),
+        QVector3D(box.max[0], box.max[1], box.min[2]),
+        QVector3D(box.min[0], box.min[1], box.max[2]),
+        QVector3D(box.max[0], box.min[1], box.max[2]),
+        QVector3D(box.min[0], box.max[1], box.max[2]),
+        QVector3D(box.max[0], box.max[1], box.max[2])
+    };
+    for (const QVector3D &corner : corners) {
+        const QVector4D transformed = entry.transform * QVector4D(corner, 1.0f);
+        const QVector3D world = (std::abs(transformed.w()) > 1e-8f)
+            ? transformed.toVector3DAffine()
+            : transformed.toVector3D();
+        if ((world - state.center).length() > state.radius)
+            return false;
+    }
+    return true;
+}
+
 void RenderWidget::updateCameraFrameIfNeeded()
 {
     if (!m_reframeCameraRequested)

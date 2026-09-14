@@ -176,7 +176,7 @@ void MeshFilterPanel::buildUi()
     m_bibButton = makeReferenceButton(QStringLiteral("[bib]"), tr("Show BibTeX"));
     m_doiButton = makeReferenceButton(QStringLiteral("[doi]"), tr("Open publication DOI"));
     m_webButton = makeReferenceButton(QStringLiteral("[web]"), tr("Open publication web page"));
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
     m_copyToConsoleButton = new QToolButton(m_parametersPage);
     m_copyToConsoleButton->setText(QStringLiteral(">_"));
     m_copyToConsoleButton->setToolTip(tr("Copy Python call to console"));
@@ -202,7 +202,7 @@ void MeshFilterPanel::buildUi()
     headerLayout->addWidget(m_bibButton, 0, Qt::AlignTop);
     headerLayout->addWidget(m_doiButton, 0, Qt::AlignTop);
     headerLayout->addWidget(m_webButton, 0, Qt::AlignTop);
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
     headerLayout->addWidget(m_copyToConsoleButton, 0, Qt::AlignTop);
 #endif
     headerLayout->addWidget(m_resetParametersButton, 0, Qt::AlignTop);
@@ -583,7 +583,7 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
     updateReferenceButtons(info.descriptor);
     const bool hasLongDescription = !longDescription.isEmpty();
     m_longDescriptionToggle->setVisible(hasLongDescription);
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
     if (m_copyToConsoleButton)
         m_copyToConsoleButton->setVisible(true);
 #endif

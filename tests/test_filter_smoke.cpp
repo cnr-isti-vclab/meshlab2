@@ -28,7 +28,7 @@
 // ladder of fixtures, poorest first, and the first that works is the answer. The
 // ladder is ordered so that the level a filter needs *is* its real input
 // requirement, which makes this suite's own output the evidence for declaring
-// those requirements in the manifests (see docs/design/filter_classification.md).
+// those requirements in the manifests (see docs/design/history/filter_classification.md).
 //
 // A filter that fails on every rung must be listed in kExpectedRefusals with a
 // reason. That table is the to-do list, not a suppression file: a listed filter
@@ -279,6 +279,12 @@ const QHash<QString, QString> &expectedRefusals()
         {QStringLiteral("select_by_screen_rectangle"),                     QStringLiteral("needs a live camera state")},
 
 
+        // Needs a prior filter's output on the layer, which the ladder does not build.
+        {QStringLiteral("measure_abstract_domain"),                        QStringLiteral("needs an abstract domain from Parametrize by Abstract Domain")},
+        {QStringLiteral("remesh_by_abstract_domain"),                      QStringLiteral("needs an abstract domain from Parametrize by Abstract Domain")},
+        {QStringLiteral("create_atlased_mesh_from_abstract_domain"),       QStringLiteral("needs an abstract domain from Parametrize by Abstract Domain")},
+        {QStringLiteral("transfer_abstract_domain_to_another_layer"),      QStringLiteral("needs an abstract domain on a second layer")},
+
         // Optional component, absent from some build configurations.
         {QStringLiteral("remesh_to_quads_quadwild_bimdf"),                 QStringLiteral("bundled helpers not present in every build")},
     };
@@ -393,8 +399,8 @@ void FilterSmokeTests::runsOrRefuses()
     // A sweep that runs three hundred algorithms will eventually meet one that
     // crashes, and Qt Test names the function but not the data row, so the run
     // dies without saying which filter or which input did it. Set
-    // QMESHLAB_SMOKE_TRACE=1 to get a breadcrumb before every attempt.
-    const bool trace = qEnvironmentVariableIsSet("QMESHLAB_SMOKE_TRACE");
+    // MESHLAB2_SMOKE_TRACE=1 to get a breadcrumb before every attempt.
+    const bool trace = qEnvironmentVariableIsSet("MESHLAB2_SMOKE_TRACE");
 
     QStringList refusals;
     for (Fixture f : fixtureLadder()) {

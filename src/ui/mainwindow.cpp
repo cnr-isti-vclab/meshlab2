@@ -7,12 +7,15 @@
 #include "helperprocess.h"
 #include "meshfilterpanel.h"
 #include "meshsaveoptionsdialog.h"
+#include "filedialogdirectory.h"
 #include "renderwidget.h"
+#include "snapshotdialog.h"
+#include "viewsplitterlayout.h"
 #include "interactivetool.h"
 #include "layerwidget.h"
 #include "memorypressuremonitor.h"
 #include "undographwidget.h"
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
 #include "pythonconsole.h"
 #include "PythonHost.h"
 #endif
@@ -41,6 +44,7 @@
 #include <QStatusBar>
 #include <QTextBrowser>
 #include <QScreen>
+#include <QScrollBar>
 #include <QSplitter>
 #include <QDockWidget>
 #include <QDialog>
@@ -381,7 +385,7 @@ MainWindow::~MainWindow() = default;
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    setWindowTitle(QStringLiteral("QMeshLab"));
+    setWindowTitle(QStringLiteral("MeshLab"));
     setAcceptDrops(true);
     if (QScreen *screen = QGuiApplication::primaryScreen()) {
         const QRect avail = screen->availableGeometry();
@@ -490,7 +494,7 @@ MainWindow::MainWindow(QWidget *parent)
             return true;
         });
 
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
     m_terminalButton = new QToolButton(this);
     m_terminalButton->setText(QStringLiteral(">_"));
     m_terminalButton->setToolTip(tr("Toggle Python console"));
@@ -711,7 +715,7 @@ MainWindow::MainWindow(QWidget *parent)
     setCorner(Qt::TopRightCorner, Qt::RightDockWidgetArea);
     setCorner(Qt::BottomRightCorner, Qt::RightDockWidgetArea);
 
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
     m_pythonConsole = new PythonConsoleWidget(this);
     m_pythonConsoleDock = new QDockWidget(tr("Python Console"), this);
     m_pythonConsoleDock->setWidget(m_pythonConsole);
@@ -914,7 +918,7 @@ MainWindow::MainWindow(QWidget *parent)
         }
 
         QStringList lines;
-        lines << QStringLiteral("# Uses the embedded QMeshLab scripting session.");
+        lines << QStringLiteral("# Uses the embedded MeshLab scripting session.");
         lines << QStringLiteral("# `ms` already refers to the current document MeshSet.");
         lines << QStringLiteral("");
 
@@ -993,7 +997,7 @@ MainWindow::MainWindow(QWidget *parent)
                 }
             }
         }
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
         if (m_pythonConsoleDock)
             m_pythonConsoleDock->show();
         if (m_pythonConsole)
@@ -1153,7 +1157,7 @@ MainWindow::MainWindow(QWidget *parent)
         view->setMeshVisible(index, visible);
     });
 
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
     // Initialize the embedded Python interpreter.  PyImport_AppendInittab was
     // already called from main() before QApplication was created.
     PythonHost::instance().initialize(m_doc, m_currentRenderWidget);
@@ -1236,7 +1240,7 @@ MainWindow::MainWindow(QWidget *parent)
                 [this](const QString &filterKey, const MeshFilterParameterValues &params, const QString &label) {
             executeFilter(filterKey, label, params);
         });
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
         connect(m_filterPanel, &MeshFilterPanel::copyToConsoleRequested, this,
                 [this](const QString &code) {
             if (m_terminalButton && !m_terminalButton->isChecked())
@@ -1248,19 +1252,19 @@ MainWindow::MainWindow(QWidget *parent)
     }
     connect(m_doc, &Document::meshAdded, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
-        refreshFilterUi();
+        scheduleFilterUiRefresh();
     });
     connect(m_doc, &Document::meshRemoved, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
-        refreshFilterUi();
+        scheduleFilterUiRefresh();
     });
     connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
-        refreshFilterUi();
+        scheduleFilterUiRefresh();
     });
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
-        refreshFilterUi();
+        scheduleFilterUiRefresh();
     });
     connect(m_doc, &Document::rasterAdded, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
@@ -1286,6 +1290,20 @@ MainWindow::MainWindow(QWidget *parent)
         this,
         &MainWindow::setCurrentViewParametrizationMode);
     viewMenu->addAction(tr("Raster Mode"), this, &MainWindow::setCurrentViewRasterMode);
+    viewMenu->addSeparator();
+    m_layerGridAction = viewMenu->addAction(
+        tr("Arrange Layers in a Grid"),
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G),
+        this,
+        &MainWindow::toggleCurrentViewLayerGrid);
+    m_layerGridAction->setCheckable(true);
+    m_layerGridAction->setShortcutContext(Qt::WindowShortcut);
+    connect(viewMenu, &QMenu::aboutToShow, this, [this] {
+        const RenderWidget *view = currentRenderWidget();
+        m_layerGridAction->setChecked(
+            view
+            && view->renderSettings().layerArrangement == LayerArrangement::Grid);
+    });
     viewMenu->addSeparator();
     viewMenu->addAction(tr("Split Horizontally"), this, &MainWindow::splitViewHorizontally);
     viewMenu->addAction(tr("Split Vertically"), this, &MainWindow::splitViewVertically);
@@ -1324,7 +1342,7 @@ MainWindow::MainWindow(QWidget *parent)
     for (RenderWidget *view : m_renderWidgets)
         attachViewShortcuts(view);
 
-#ifdef QMESHLAB_PYTHON_CONSOLE
+#ifdef MESHLAB2_PYTHON_CONSOLE
     viewMenu->addSeparator();
     if (m_pythonConsoleDock) {
         QAction *consoleAction = m_pythonConsoleDock->toggleViewAction();
@@ -1478,6 +1496,12 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
         uvModeAction->setEnabled(view->canSwitchToViewMode(RenderWidget::ViewMode::ParametrizationUV));
         rasterModeAction->setEnabled(view->canSwitchToViewMode(RenderWidget::ViewMode::RasterImage));
         menu.addSeparator();
+        QAction *layerGridAction = menu.addAction(tr("Arrange Layers in a Grid"));
+        layerGridAction->setCheckable(true);
+        layerGridAction->setChecked(
+            view->renderSettings().layerArrangement == LayerArrangement::Grid);
+        layerGridAction->setEnabled(view->viewMode() == RenderWidget::ViewMode::Scene3D);
+        menu.addSeparator();
         QAction *syncCameraAction = menu.addAction(tr("Synchronize Camera"));
         syncCameraAction->setCheckable(true);
         syncCameraAction->setChecked(m_cameraSyncEnabled);
@@ -1500,6 +1524,8 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
             setCurrentViewParametrizationMode();
         } else if (chosen == rasterModeAction) {
             setCurrentViewRasterMode();
+        } else if (chosen == layerGridAction) {
+            toggleCurrentViewLayerGrid();
         } else if (chosen == syncCameraAction) {
             m_cameraSyncEnabled = syncCameraAction->isChecked();
             if (m_cameraSyncEnabled)
@@ -1574,6 +1600,17 @@ void MainWindow::setupToolsMenu(QMenu *toolsMenu)
             setActiveToolIndex(checked ? i : -1);
         });
     }
+
+    // Snapshot lives here rather than on the horizontal bar, which is entirely rendering
+    // state: this does something rather than changing how the view looks. It is not one of
+    // the tools above either -- nothing is entered or exited, so it is not checkable and
+    // stays out of their exclusive group -- hence the separator.
+    toolBar->addSeparator();
+    auto *snapshotAction = new QAction(QIcon(QStringLiteral(":/img/snapshot.png")),
+                                       tr("Snapshot PNG"), this);
+    snapshotAction->setToolTip(tr("Save a PNG of the current view (Ctrl+Shift+S)"));
+    connect(snapshotAction, &QAction::triggered, this, &MainWindow::saveSnapshotPng);
+    toolBar->addAction(snapshotAction);
 }
 
 void MainWindow::exitActiveTool()
@@ -1721,10 +1758,22 @@ void MainWindow::splitCurrentView(Qt::Orientation orientation)
     newView->setRenderSettings(sourceView->renderSettings());
     newView->copyPerMeshRenderModesFrom(sourceView);
     newView->setMeshVisibilityState(sourceView->meshVisibilityState());
+    // Both of these used to be collected and dropped. A failure here is invisible in the
+    // result -- the new view just shows the default camera, or the 3D mode instead of the
+    // one being split -- which reads as "splitting reset my camera" and leaves nothing to
+    // go on. Copying the camera also clears the new view's pending frame-the-scene, so a
+    // failure here is exactly what would make the split appear to reset it.
     QString viewModeError;
-    newView->setViewMode(sourceView->viewMode(), &viewModeError);
+    if (!newView->setViewMode(sourceView->viewMode(), &viewModeError) && !viewModeError.isEmpty()) {
+        m_doc->writeLog(tr("Split view: could not carry over the view mode: %1").arg(viewModeError),
+                        Document::LogSource::Application, Document::LogLevel::Warning);
+    }
     QString cameraError;
-    newView->applyCameraStateJson(sourceView->cameraStateJson(), &cameraError);
+    if (!newView->applyCameraStateJson(sourceView->cameraStateJson(), &cameraError)
+        && !cameraError.isEmpty()) {
+        m_doc->writeLog(tr("Split view: could not carry over the camera: %1").arg(cameraError),
+                        Document::LogSource::Application, Document::LogLevel::Warning);
+    }
 
     setCurrentRenderWidget(newView);
     statusBar()->showMessage(tr("Created new view"), 1500);
@@ -1757,28 +1806,7 @@ bool MainWindow::closeRenderWidget(RenderWidget *view)
     view->setParent(nullptr);
     view->deleteLater();
 
-    // Collapse nested splitters left with a single child.
-    auto collapse = [this](QSplitter *splitter) {
-        QSplitter *current = splitter;
-        while (current && current != m_viewSplitter) {
-            if (current->count() != 1) {
-                current = qobject_cast<QSplitter *>(current->parentWidget());
-                continue;
-            }
-
-            QWidget *onlyChild = current->widget(0);
-            auto *parent = qobject_cast<QSplitter *>(current->parentWidget());
-            if (!onlyChild || !parent)
-                break;
-
-            const int idx = parent->indexOf(current);
-            onlyChild->setParent(parent);
-            parent->insertWidget(idx, onlyChild);
-            current->deleteLater();
-            current = parent;
-        }
-    };
-    collapse(parentSplitter);
+    ViewSplitterLayout::collapseSingleChildSplitters(parentSplitter, m_viewSplitter);
 
     if (!nextCurrent && !m_renderWidgets.isEmpty())
         nextCurrent = m_renderWidgets.first();
@@ -1800,6 +1828,31 @@ void MainWindow::closeCurrentView()
         return;
     }
     statusBar()->showMessage(tr("View closed"), 1500);
+}
+
+void MainWindow::toggleCurrentViewLayerGrid()
+{
+    RenderWidget *view = currentRenderWidget();
+    if (!view)
+        return;
+    if (view->viewMode() != RenderWidget::ViewMode::Scene3D) {
+        statusBar()->showMessage(
+            tr("The grid arrangement applies to the 3D scene view."), 3000);
+        return;
+    }
+
+    RenderSettings settings = view->renderSettings();
+    const bool toGrid = (settings.layerArrangement != LayerArrangement::Grid);
+    settings.layerArrangement = toGrid ? LayerArrangement::Grid : LayerArrangement::Overlay;
+    view->setRenderSettings(settings);
+
+    // A grid of one tile is the overlay arrangement, so say so rather than leave the user
+    // wondering why nothing happened.
+    if (toGrid && !view->isLayerGridActive()) {
+        statusBar()->showMessage(
+            tr("The grid needs at least two visible layers; showing the single one full size."),
+            4000);
+    }
 }
 
 void MainWindow::splitViewHorizontally()
@@ -1840,8 +1893,8 @@ void MainWindow::newInstance()
     const QString program = QCoreApplication::applicationFilePath();
     const bool started = QProcess::startDetached(program, QStringList());
     statusBar()->showMessage(
-        started ? tr("Started new QMeshLab instance")
-                : tr("Failed to start a new QMeshLab instance"),
+        started ? tr("Started new MeshLab instance")
+                : tr("Failed to start a new MeshLab instance"),
         started ? 2000 : 4000);
 }
 
@@ -1850,22 +1903,27 @@ void MainWindow::openFile()
     const QStringList fileNames = QFileDialog::getOpenFileNames(
         this,
         tr("Open Mesh"),
-        QString(),
+        FileDialogDirectory::startingDirectory(QStringLiteral("mesh")),
         m_doc->openDialogFilter());
     if (fileNames.isEmpty())
         return;
+
+    FileDialogDirectory::remember(QStringLiteral("mesh"), fileNames.first());
 
     const bool groupUndoStep = (fileNames.size() > 1);
     if (groupUndoStep)
         m_doc->beginUndoStep(tr("Open Meshes"));
 
     int loadedCount = 0;
-    int failedCount = 0;
+    QStringList failures;
     for (const QString &fileName : fileNames) {
-        if (loadMeshFromPath(fileName))
+        // Single file: let loadMeshFromPath put its own message in the status bar, which is
+        // where one has always gone. A batch collects instead, so nothing is overwritten.
+        QString reason;
+        if (loadMeshFromPath(fileName, fileNames.size() > 1 ? &reason : nullptr))
             ++loadedCount;
         else
-            ++failedCount;
+            failures << tr("%1 -- %2").arg(QFileInfo(fileName).fileName(), reason);
     }
     if (groupUndoStep)
         m_doc->endUndoStep(loadedCount > 0);
@@ -1874,9 +1932,32 @@ void MainWindow::openFile()
         statusBar()->showMessage(
             tr("Open complete: %1 loaded, %2 failed")
                 .arg(loadedCount)
-                .arg(failedCount),
+                .arg(failures.size()),
             3500);
     }
+
+    if (failures.isEmpty())
+        return;
+
+    // Say which files did not make it and why. A count alone leaves the user to work out
+    // which of the names they picked is missing from the layer list.
+    for (const QString &failure : failures)
+        m_doc->writeLog(tr("Open failed: %1").arg(failure), Document::LogSource::Application,
+                        Document::LogLevel::Warning);
+    if (fileNames.size() == 1)
+        return; // already in the status bar, and one failure is not worth a dialog
+
+    static constexpr int kMaxListed = 12;
+    QStringList listed = failures.mid(0, kMaxListed);
+    if (failures.size() > kMaxListed)
+        listed << tr("... and %1 more (see the log)").arg(failures.size() - kMaxListed);
+    QMessageBox::warning(
+        this,
+        tr("Some files did not open"),
+        tr("%1 of %2 files did not open:\n\n%3")
+            .arg(failures.size())
+            .arg(fileNames.size())
+            .arg(listed.join(QStringLiteral("\n"))));
 }
 
 void MainWindow::openRasterImage()
@@ -1884,10 +1965,12 @@ void MainWindow::openRasterImage()
     const QStringList fileNames = QFileDialog::getOpenFileNames(
         this,
         tr("Open Raster Image"),
-        QString(),
+        FileDialogDirectory::startingDirectory(QStringLiteral("raster")),
         rasterImageOpenDialogFilter());
     if (fileNames.isEmpty())
         return;
+
+    FileDialogDirectory::remember(QStringLiteral("raster"), fileNames.first());
 
     const bool groupUndoStep = (fileNames.size() > 1);
     if (groupUndoStep)
@@ -2050,6 +2133,17 @@ void MainWindow::reloadAllMeshes()
 void MainWindow::refreshFiltersMenu()
 {
     refreshFiltersMenu(m_doc ? m_doc->filterInfos() : std::vector<Document::FilterInfo>{});
+}
+
+void MainWindow::scheduleFilterUiRefresh()
+{
+    if (m_filterUiRefreshPending)
+        return;
+    m_filterUiRefreshPending = true;
+    QMetaObject::invokeMethod(this, [this]() {
+        m_filterUiRefreshPending = false;
+        refreshFilterUi();
+    }, Qt::QueuedConnection);
 }
 
 void MainWindow::refreshFilterUi()
@@ -2305,7 +2399,10 @@ void MainWindow::saveCurrentMesh()
     const Document::MeshEntry &entry = m_doc->mesh(currentIndex);
     const QString defaultPath = !entry.sourcePath.isEmpty()
         ? entry.sourcePath
-        : QStringLiteral("%1.ply").arg(entry.name.isEmpty() ? QStringLiteral("mesh") : entry.name);
+        : FileDialogDirectory::startingPath(
+              QStringLiteral("mesh"),
+              QStringLiteral("%1.ply").arg(
+                  entry.name.isEmpty() ? QStringLiteral("mesh") : entry.name));
 
     QString selectedFilter;
     QString targetPath = QFileDialog::getSaveFileName(
@@ -2316,6 +2413,7 @@ void MainWindow::saveCurrentMesh()
         &selectedFilter);
     if (targetPath.isEmpty())
         return;
+    FileDialogDirectory::remember(QStringLiteral("mesh"), targetPath);
     targetPath = appendSaveExtensionIfMissing(targetPath, selectedFilter);
 
     const int capabilityMask = m_doc->saveMaskCapability(targetPath);
@@ -2371,7 +2469,8 @@ void MainWindow::saveProjectAs()
     using SaveOpts = Document::MeshLabProjectSaveOptions;
 
     QString selectedFilter;
-    const QString defaultPath = QStringLiteral("project.mlp");
+    const QString defaultPath = FileDialogDirectory::startingPath(
+        QStringLiteral("project"), QStringLiteral("project.mlp"));
     QString targetPath = QFileDialog::getSaveFileName(
         this,
         tr("Save MeshLab Project"),
@@ -2379,6 +2478,7 @@ void MainWindow::saveProjectAs()
         tr("MeshLab Project (*.mlp)"),
         &selectedFilter);
     if (targetPath.isEmpty()) return;
+    FileDialogDirectory::remember(QStringLiteral("project"), targetPath);
 
     // Options dialog
     QDialog dlg(this);
@@ -2458,76 +2558,23 @@ void MainWindow::saveSnapshotPng()
     if (!view)
         return;
 
-    QString targetPath = QFileDialog::getSaveFileName(
-        this,
-        tr("Save Snapshot"),
-        QStringLiteral("snapshot.png"),
-        tr("PNG Image (*.png)"));
-    if (targetPath.isEmpty())
-        return;
-    if (!targetPath.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive))
-        targetPath += QStringLiteral(".png");
-
-    const qreal dpr = qMax(1.0, view->devicePixelRatioF());
-    const QSize basePixelSize(
-        qMax(1, int(std::lround(double(view->width()) * dpr))),
-        qMax(1, int(std::lround(double(view->height()) * dpr))));
-
-    QDialog optionsDialog(this);
-    optionsDialog.setWindowTitle(tr("Snapshot Options"));
-    auto *optionsLayout = new QVBoxLayout(&optionsDialog);
-    auto *form = new QFormLayout();
-    optionsLayout->addLayout(form);
-
-    auto *widthSpin = new QSpinBox(&optionsDialog);
-    widthSpin->setRange(64, 16384);
-    widthSpin->setValue(basePixelSize.width());
-    widthSpin->setSuffix(tr(" px"));
-
-    auto *heightSpin = new QSpinBox(&optionsDialog);
-    heightSpin->setRange(64, 16384);
-    heightSpin->setValue(basePixelSize.height());
-    heightSpin->setSuffix(tr(" px"));
-
-    auto *lockAspect = new QCheckBox(tr("Lock aspect ratio"), &optionsDialog);
-    lockAspect->setChecked(true);
-
-    form->addRow(tr("Width"), widthSpin);
-    form->addRow(tr("Height"), heightSpin);
-    form->addRow(QString(), lockAspect);
-
-    bool resizingFromLock = false;
-    const double aspect =
-        (basePixelSize.height() > 0)
-        ? (double(basePixelSize.width()) / double(basePixelSize.height()))
-        : 1.0;
-    connect(widthSpin, qOverload<int>(&QSpinBox::valueChanged), &optionsDialog, [=, &resizingFromLock](int w) {
-        if (!lockAspect->isChecked() || resizingFromLock || aspect <= 0.0)
-            return;
-        resizingFromLock = true;
-        heightSpin->setValue(qMax(64, int(std::lround(double(w) / aspect))));
-        resizingFromLock = false;
-    });
-    connect(heightSpin, qOverload<int>(&QSpinBox::valueChanged), &optionsDialog, [=, &resizingFromLock](int h) {
-        if (!lockAspect->isChecked() || resizingFromLock)
-            return;
-        resizingFromLock = true;
-        widthSpin->setValue(qMax(64, int(std::lround(double(h) * aspect))));
-        resizingFromLock = false;
-    });
-
-    auto *buttons =
-        new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &optionsDialog);
-    optionsLayout->addWidget(buttons);
-    connect(buttons, &QDialogButtonBox::accepted, &optionsDialog, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, &optionsDialog, &QDialog::reject);
-
-    if (optionsDialog.exec() != QDialog::Accepted)
+    SnapshotDialog dialog(
+        view,
+        FileDialogDirectory::startingPath(QStringLiteral("snapshot"),
+                                          QStringLiteral("snapshot.png")),
+        this);
+    if (dialog.exec() != QDialog::Accepted)
         return;
 
-    const QSize snapshotSize(widthSpin->value(), heightSpin->value());
+    const QString targetPath = dialog.targetPath();
+    if (targetPath.isEmpty()) {
+        statusBar()->showMessage(tr("Snapshot needs a file name"), 3000);
+        return;
+    }
+    FileDialogDirectory::remember(QStringLiteral("snapshot"), targetPath);
+
     QString captureError;
-    const QImage snapshot = view->renderOffscreenToImage(snapshotSize, false, &captureError);
+    const QImage snapshot = dialog.capture(dialog.snapshotSize(), &captureError);
     if (snapshot.isNull()) {
         const QString msg = tr("Failed to capture snapshot: %1").arg(captureError);
         statusBar()->showMessage(msg, 3500);
@@ -2536,7 +2583,7 @@ void MainWindow::saveSnapshotPng()
     }
 
     QImage outImage = snapshot.convertToFormat(QImage::Format_RGBA8888);
-    outImage.setText(QStringLiteral("QMeshLab.CameraTrackballState"), view->cameraStateJson());
+    outImage.setText(QStringLiteral("MeshLab.CameraTrackballState"), view->cameraStateJson());
 
     QImageWriter writer(targetPath, "png");
     if (!writer.write(outImage)) {
@@ -2572,7 +2619,7 @@ void MainWindow::addSnapshotRaster()
     }
 
     snapshot = snapshot.convertToFormat(QImage::Format_RGBA8888);
-    snapshot.setText(QStringLiteral("QMeshLab.CameraTrackballState"), view->cameraStateJson());
+    snapshot.setText(QStringLiteral("MeshLab.CameraTrackballState"), view->cameraStateJson());
 
     const CameraShot shot = view->cameraShotForViewport(snapshotSize);
     const QString name = tr("Snapshot %1").arg(m_doc->rasterCount() + 1);
@@ -2886,7 +2933,7 @@ void MainWindow::showMemoryInfo()
     gpuJson.insert(QStringLiteral("meshCacheTotalBytes"), double(gpuTotal));
 
     QJsonObject report;
-    report.insert(QStringLiteral("schema"), QStringLiteral("org.qmeshlab.memory-report.v1"));
+    report.insert(QStringLiteral("schema"), QStringLiteral("org.meshlab.memory-report.v1"));
     report.insert(QStringLiteral("timestampUtc"),
                   QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
     report.insert(QStringLiteral("pid"), double(QCoreApplication::applicationPid()));
@@ -2929,15 +2976,87 @@ void MainWindow::showImportPlugins()
     dialog.setWindowTitle(tr("I/O Plugins"));
 
     auto *layout = new QVBoxLayout(&dialog);
-    layout->addWidget(new QLabel(tr("Import preferences"), &dialog));
 
+    // A QTableWidget's sizeHint is its scroll area's, not its contents' -- about 256x192
+    // whatever it holds -- so a dialog sized from size hints opens with the tables cropped:
+    // elided plugin names down the side, the right-hand columns past the edge, and the last
+    // row hidden. These matrices are small and fixed (a handful of plugins by a handful of
+    // extensions), so measure what they actually need and let the dialog be that wide.
+    const auto fitToContents = [](QTableWidget *table, int maxHeight) {
+        table->resizeColumnsToContents();
+        table->resizeRowsToContents();
+        // The vertical header's sizeHint is also premature -- it has not measured its own
+        // labels yet and reports far less than the plugin names need, which is what elided
+        // them. Measure the text.
+        // isHidden(), not isVisible(): nothing here has been shown yet, so isVisible() is
+        // false for a header that is perfectly well configured to appear, and the whole
+        // measurement silently came out as the columns alone.
+        int width = 0;
+        if (!table->verticalHeader()->isHidden()) {
+            const QFontMetrics metrics(table->verticalHeader()->font());
+            for (int row = 0; row < table->rowCount(); ++row) {
+                if (const QTableWidgetItem *item = table->verticalHeaderItem(row))
+                    width = std::max(width, metrics.horizontalAdvance(item->text()));
+            }
+            width += 16; // the header's own padding either side
+        }
+        for (int col = 0; col < table->columnCount(); ++col) {
+            // resizeColumnsToContents measures items, and these cells hold WIDGETS -- the
+            // radio buttons -- which have not been laid out yet and so measure near zero.
+            // The header's own hint knows how wide "gltf" is; the floor covers a column
+            // whose only content is a radio button. The header's ResizeToContents mode
+            // sets the real widths once there is something to measure, so this is an upper
+            // bound on what it will choose -- deliberately, since underestimating crops.
+            static constexpr int kMinCellWidth = 34;
+            width += std::max({ table->columnWidth(col),
+                                table->horizontalHeader()->sectionSizeHint(col),
+                                kMinCellWidth });
+        }
+        int height = table->horizontalHeader()->sizeHint().height();
+        for (int row = 0; row < table->rowCount(); ++row)
+            height += table->rowHeight(row);
+        const int frame = 2 * table->frameWidth() + 2;
+        table->setMinimumWidth(width + frame);
+        // Also a maximum: stretched to the dialog width these matrices are mostly empty
+        // frame, and a table exactly as wide as its columns reads as a table.
+        table->setMaximumWidth(width + frame);
+        // Capped, so an install with many plugins scrolls instead of filling the screen.
+        table->setMinimumHeight(std::min(height + frame, maxHeight));
+        table->setMaximumHeight(height + frame);
+    };
+
+    const auto sectionLabel = [&dialog](const QString &text) {
+        auto *label = new QLabel(text, &dialog);
+        QFont font = label->font();
+        font.setBold(true);
+        label->setFont(font);
+        return label;
+    };
+    const auto explanation = [&dialog](const QString &text) {
+        auto *label = new QLabel(text, &dialog);
+        label->setWordWrap(true);
+        label->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        return label;
+    };
+
+    layout->addWidget(explanation(
+        tr("Every format MeshLab opens or saves is handled by a plugin, and some formats "
+           "are handled by more than one -- three plugins read .obj. This is where you "
+           "choose which of them opens each kind of file, and see what each plugin can "
+           "carry.")));
+    layout->addSpacing(8);
+    layout->addWidget(sectionLabel(tr("Import: which plugin opens each format")));
+
+    QTableWidget *importTable = nullptr;
     std::vector<QButtonGroup *> groups;
     if (hasImportMatrix) {
-        layout->addWidget(new QLabel(
-            tr("Choose the preferred plugin for each file type/extension."),
-            &dialog));
+        layout->addWidget(explanation(
+            tr("Pick one plugin per extension; the choice is remembered between sessions. "
+               "Where you have not chosen, the first plugin that accepts the file is used. "
+               "Plugins differ in what they tolerate and what they preserve, so a file that "
+               "one refuses may well open with another.")));
 
-        auto *importTable = new QTableWidget(
+        importTable = new QTableWidget(
             static_cast<int>(importPlugins.size()),
             importExtensions.size(),
             &dialog);
@@ -2998,35 +3117,30 @@ void MainWindow::showImportPlugins()
             }
         }
 
-        importTable->resizeColumnsToContents();
-        importTable->resizeRowsToContents();
         importTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         importTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        importTable->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
-        layout->addWidget(importTable, 1);
+        fitToContents(importTable, 260);
+        layout->addWidget(importTable, 0);
     } else {
         auto *label = new QLabel(tr("No import plugins are available."), &dialog);
         label->setStyleSheet(QStringLiteral("color: palette(mid);"));
         layout->addWidget(label);
     }
 
-    layout->addSpacing(8);
-    layout->addWidget(new QLabel(tr("Export support"), &dialog));
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Export: which plugin writes each format")));
     if (hasExportMatrix) {
-        auto *summary = new QLabel(
-            tr("Savable formats: %1")
-                .arg(exportExtensions.join(QStringLiteral(", "))),
-            &dialog);
-        summary->setStyleSheet(QStringLiteral("color: palette(mid);"));
-        layout->addWidget(summary);
+        layout->addWidget(explanation(
+            tr("Nothing to choose here: saving uses whichever plugin writes the format you "
+               "save to. Savable formats: %1.")
+                .arg(exportExtensions.join(QStringLiteral(", ")))));
     } else {
-        auto *summary = new QLabel(tr("No savable formats available."), &dialog);
-        summary->setStyleSheet(QStringLiteral("color: palette(mid);"));
-        layout->addWidget(summary);
+        layout->addWidget(explanation(tr("No savable formats available.")));
     }
 
+    QTableWidget *exportTable = nullptr;
     if (hasExportMatrix) {
-        auto *exportTable = new QTableWidget(
+        exportTable = new QTableWidget(
             static_cast<int>(exportPlugins.size()),
             exportExtensions.size(),
             &dialog);
@@ -3063,20 +3177,22 @@ void MainWindow::showImportPlugins()
             }
         }
 
-        exportTable->resizeColumnsToContents();
-        exportTable->resizeRowsToContents();
         exportTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         exportTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        exportTable->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
-        layout->addWidget(exportTable, 1);
+        fitToContents(exportTable, 260);
+        layout->addWidget(exportTable, 0);
     } else {
         auto *label = new QLabel(tr("No export plugins are available."), &dialog);
         label->setStyleSheet(QStringLiteral("color: palette(mid);"));
         layout->addWidget(label);
     }
 
-    layout->addSpacing(8);
-    layout->addWidget(new QLabel(tr("Format data support"), &dialog));
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("What each plugin carries")));
+    layout->addWidget(explanation(
+        tr("The mesh data each plugin can read and write for a format. Anything not listed "
+           "is dropped when a file goes through that plugin, which is the other reason the "
+           "choice above matters.")));
     auto *capabilityTable = new QTableWidget(&dialog);
     capabilityTable->setColumnCount(4);
     capabilityTable->setHorizontalHeaderLabels(
@@ -3118,11 +3234,16 @@ void MainWindow::showImportPlugins()
     }
     capabilityTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     capabilityTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    capabilityTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-    capabilityTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
+    // Stretch shared the leftover width between these two, which with a narrow dialog left
+    // each attribute list wrapping at about five characters a line. Give them a real width
+    // and let the dialog carry it.
+    capabilityTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Interactive);
+    capabilityTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Interactive);
+    capabilityTable->setColumnWidth(2, 260);
+    capabilityTable->setColumnWidth(3, 260);
     capabilityTable->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    capabilityTable->setMinimumHeight(180);
-    layout->addWidget(capabilityTable, 2);
+    capabilityTable->setMinimumHeight(200);
+    layout->addWidget(capabilityTable, 1);
 
     auto *buttons =
         new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dialog);
@@ -3131,11 +3252,30 @@ void MainWindow::showImportPlugins()
     layout->addWidget(buttons);
     dialog.adjustSize();
 
+    // Widest thing the dialog has to show, rather than the size hint, which understates the
+    // tables (see fitToContents above). The capability table is allowed to scroll sideways
+    // if its two attribute columns are extravagant, so it only asks for its fixed columns.
+    int contentWidth = 0;
+    for (const QTableWidget *table : { importTable, exportTable })
+        if (table)
+            contentWidth = std::max(contentWidth, table->minimumWidth());
+    const int capabilityColumns = capabilityTable->horizontalHeader()->sectionSize(0)
+        + capabilityTable->horizontalHeader()->sectionSize(1) + 2 * 260;
+    contentWidth = std::max(contentWidth,
+                            capabilityColumns + 2 * capabilityTable->frameWidth()
+                                + capabilityTable->verticalScrollBar()->sizeHint().width());
+    const QMargins margins = layout->contentsMargins();
+    contentWidth += margins.left() + margins.right();
+
     if (QScreen *screen = dialog.screen()) {
-        const QSize maxDialogSize(
-            screen->availableGeometry().width() * 9 / 10,
-            screen->availableGeometry().height() * 9 / 10);
-        dialog.resize(dialog.sizeHint().boundedTo(maxDialogSize));
+        const QRect available = screen->availableGeometry();
+        const QSize maxDialogSize(available.width() * 9 / 10, available.height() * 9 / 10);
+        const QSize wanted(std::max(contentWidth, dialog.sizeHint().width()),
+                           dialog.sizeHint().height());
+        dialog.resize(wanted.boundedTo(maxDialogSize));
+    } else {
+        dialog.resize(std::max(contentWidth, dialog.sizeHint().width()),
+                      dialog.sizeHint().height());
     }
 
     if (dialog.exec() != QDialog::Accepted)
@@ -3276,15 +3416,27 @@ void MainWindow::pasteCameraState()
     m_doc->writeLog(msg, Document::LogSource::Application);
 }
 
-bool MainWindow::loadMeshFromPath(const QString &filePath)
+bool MainWindow::loadMeshFromPath(const QString &filePath, QString *errorMessage)
 {
     const bool isProject =
         QFileInfo(filePath).suffix().compare(QStringLiteral("mlp"), Qt::CaseInsensitive) == 0;
+    QString reason;
     const int err = isProject
         ? m_doc->loadMeshLabProject(filePath)
-        : m_doc->loadMesh(filePath);
+        : m_doc->loadMesh(filePath, &reason);
     if (err != 0) {
-        statusBar()->showMessage(tr("Failed to load %1").arg(filePath), 3000);
+        if (reason.isEmpty()) {
+            reason = isProject ? tr("the project could not be opened")
+                               : tr("the importer reported error %1").arg(err);
+        }
+        // The status bar is the wrong place to leave this when several files are opening:
+        // the next file's message replaces it and the summary replaces them all, which is
+        // how a four-file open could drop two of them with nothing to show for it. The
+        // caller collects the reason and reports the set.
+        if (errorMessage)
+            *errorMessage = reason;
+        else
+            statusBar()->showMessage(tr("Failed to load %1: %2").arg(filePath, reason), 5000);
         return false;
     }
 

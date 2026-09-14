@@ -74,7 +74,7 @@ void updateGeometryAfterDeletion(VCGMesh &mesh)
 
 QString SelectFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.select");
+    return QStringLiteral("meshlab2.filter.select");
 }
 
 QString SelectFilterPlugin::name() const
@@ -434,7 +434,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
 
         if (params.getBool(QStringLiteral("usecamera"))) {
             return fail(QObject::tr(
-                "Use ViewPoint from Mesh Camera is not supported in current QMeshLab data model."));
+                "Use ViewPoint from Mesh Camera is not supported in current MeshLab data model."));
         }
 
         const QVector3D vp = params.getPoint3f(QStringLiteral("viewpoint"));
@@ -540,7 +540,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
 
         if (params.getBool(QStringLiteral("usecamera"))) {
             return fail(QObject::tr(
-                "Use ViewPoint from Mesh Camera is not supported in current QMeshLab data model."));
+                "Use ViewPoint from Mesh Camera is not supported in current MeshLab data model."));
         }
 
         const QVector3D vp = params.getPoint3f(QStringLiteral("viewpoint"));

@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.igl",
+  "pluginId": "meshlab2.filter.igl",
   "provenance": {
     "project": "libigl",
     "repository": "https://github.com/libigl/libigl",
@@ -559,7 +559,7 @@
       "pythonName": "compute_gaussian_curvature_libigl",
       "referenceIds": ["libigl", "meyer2003discrete"],
       "shortDescription": "Compute the integrated Gaussian curvature at each vertex with libigl.",
-      "longDescriptionMarkdown": "Computes libigl's discrete **angle deficit** at every face-referenced vertex and stores it in **vertex scalar**:\n\n$$K_i = 2\\pi - \\sum_{f \\ni} \\theta_{if}.$$\n\nThis is integrated Gaussian curvature, not curvature divided by a vertex area. On a closed manifold mesh its sum is governed by Gauss-Bonnet. At boundary vertices the expression is not an intrinsic Gaussian-curvature estimate; the reported value still uses $2\\pi$, so interpret boundary values with care. Faux-edge polygon groups are processed through their stored triangle representation. No colors are baked into the mesh; QMeshLab switches to vertex-scalar visualization after completion.",
+      "longDescriptionMarkdown": "Computes libigl's discrete **angle deficit** at every face-referenced vertex and stores it in **vertex scalar**:\n\n$$K_i = 2\\pi - \\sum_{f \\ni} \\theta_{if}.$$\n\nThis is integrated Gaussian curvature, not curvature divided by a vertex area. On a closed manifold mesh its sum is governed by Gauss-Bonnet. At boundary vertices the expression is not an intrinsic Gaussian-curvature estimate; the reported value still uses $2\\pi$, so interpret boundary values with care. Faux-edge polygon groups are processed through their stored triangle representation. No colors are baked into the mesh; MeshLab switches to vertex-scalar visualization after completion.",
       "tags": ["curvature", "gaussian", "angle deficit", "libigl"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
@@ -629,7 +629,7 @@
       "pythonName": "compute_exact_geodesic_distance_from_selection_libigl",
       "referenceIds": ["libigl", "mitchell1987geodesic"],
       "shortDescription": "Compute exact surface distance from selected vertices with libigl.",
-      "longDescriptionMarkdown": "Computes the exact polyhedral geodesic distance from the nearest selected, face-referenced vertex to every face-referenced vertex and stores it in **vertex scalar**. Distances follow the piecewise-linear triangle surface, not only mesh edges. Faux edges therefore remain ordinary edges of the stored surface triangulation.\n\nThis implementation is substantially more expensive than graph or heat-method approximations and is intended when exact distances are required. At least one face-referenced vertex must be selected. No colors are baked into the mesh; QMeshLab switches to vertex-scalar visualization after completion.",
+      "longDescriptionMarkdown": "Computes the exact polyhedral geodesic distance from the nearest selected, face-referenced vertex to every face-referenced vertex and stores it in **vertex scalar**. Distances follow the piecewise-linear triangle surface, not only mesh edges. Faux edges therefore remain ordinary edges of the stored surface triangulation.\n\nThis implementation is substantially more expensive than graph or heat-method approximations and is intended when exact distances are required. At least one face-referenced vertex must be selected. No colors are baked into the mesh; MeshLab switches to vertex-scalar visualization after completion.",
       "tags": ["geodesic", "distance", "exact", "selection", "libigl"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",

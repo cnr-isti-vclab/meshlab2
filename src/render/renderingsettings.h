@@ -97,6 +97,12 @@ struct RsFillParams {
     bool operator!=(const RsFillParams &o) const { return !(*this == o); }
 };
 
+// How a layer's bounding box is drawn.
+enum class BoundingBoxStyle {
+    Box = 0,        // all twelve edges
+    CornerBrackets  // three short arms at each corner, the rest of each edge left open
+};
+
 enum class PointColorSource {
     Constant = 0,
     PerVertex,
@@ -107,6 +113,17 @@ enum class QualityHistogramSource {
     Auto = 0,
     VertexQuality,
     FaceQuality
+};
+
+// How the visible layers share the 3D view.
+enum class LayerArrangement {
+    // Every visible layer drawn in one shared space, which is what a 3D viewer normally
+    // does and what you want whenever the layers belong together in world coordinates.
+    Overlay = 0,
+    // One tile per visible layer, all tiles showing the same camera from the same angle.
+    // For comparing variants of one object -- decimations, parametrizations, repairs --
+    // where overlaying them just produces one unreadable pile.
+    Grid
 };
 
 enum class CurrentMeshDebugView {
@@ -123,6 +140,7 @@ enum class CurrentMeshDebugView {
 // named type so that external code can manipulate per-mesh settings directly.
 struct PerMeshRenderSettings {
     bool showBoundingBox = false;
+    BoundingBoxStyle boundingBoxStyle = BoundingBoxStyle::Box;
     bool showPoints = false;
     bool showEdges = false;
     bool showWire = true;
@@ -186,8 +204,13 @@ Q_DECLARE_METATYPE(PerMeshRenderSettings)
 
 // View-level (global) rendering settings shared across all meshes in the scene.
 struct GlobalRenderSettings {
+    LayerArrangement layerArrangement = LayerArrangement::Overlay;
     bool highlightCurrentMesh = true;
     bool showTrackballGizmo = true;
+    // Separate from showTrackballGizmo on purpose: the orbit sphere and the corner
+    // orientation gizmo are two different things, and wanting one without the other is the
+    // common case -- the sphere sits over the mesh, the axis gizmo sits out of the way.
+    bool showAxisGizmo = true;
     bool showViewCameras = true;
     bool showBoundingBoxCorners = false;
     bool showBoundingBoxDimensions = false;

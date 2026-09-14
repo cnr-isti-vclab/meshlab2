@@ -47,7 +47,7 @@ MeshFilterRunResult success(const QString &name, int newIndex, const QStringList
 
 QString CreateFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.create");
+    return QStringLiteral("meshlab2.filter.create");
 }
 
 QString CreateFilterPlugin::name() const
@@ -157,7 +157,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         m.face.EnableFFAdjacency();
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
         // vcg::tri::SphericalCap takes the cap's *full* angular diameter, while every
-        // other cone and cap parameter in QMeshLab is a half-angle. Convert here rather
+        // other cone and cap parameter in MeshLab is a half-angle. Convert here rather
         // than changing the vcglib signature, which MeshLab also compiles against.
         vcg::tri::SphericalCap(m, vcg::math::ToRad(2.0f * halfAngleDeg), subdiv);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);

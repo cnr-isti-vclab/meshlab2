@@ -1,4 +1,4 @@
-# QMeshLab Project Rules
+# MeshLab Project Rules
 
 ## Architecture
 
@@ -7,7 +7,7 @@ the canonical mesh list, raster list, undo tree, and shared `MeshGpuResourceCach
 Multiple `RenderWidget` views observe it via Qt signals. Per-view state
 (mesh render modes, camera, visibility vector) lives in each `RenderWidget`.
 
-The optional embedded Python console exposes `_qmeshlab.MeshSet` (nanobind) that
+The optional embedded Python console exposes `_meshlab.MeshSet` (nanobind) that
 wraps a `Document` and calls the same filter manager used by the GUI.
 
 See `docs/design/architecture.md`, `docs/design/data_model.md`, `docs/design/rendering.md`.
@@ -20,15 +20,15 @@ See `docs/design/architecture.md`, `docs/design/data_model.md`, `docs/design/ren
   [TrueForm Plugin](../docs/design/trueform_plugin.md).
 - Include vcglib headers from `vcglib/`.
 - Build with cmake presets: `cmake --preset vcpkg-debug`, then
-  `cmake --build build-debug --target QMeshLab -j8`.
+  `cmake --build build-debug --target MeshLab2 -j8`.
 - Plugin registration: 4-line `add_subdirectory` block in `plugins/CMakeLists.txt`, plus
   `#include` and register call in `plugins/filterpluginregistry.cpp`.
 
 ## Plugin Conventions
 
-- **Static library** (`add_library(... STATIC ...)`), linked into `QMeshLabPlugins`.
+- **Static library** (`add_library(... STATIC ...)`), linked into `MeshLab2Plugins`.
 - Include `${CMAKE_SOURCE_DIR}` and `${CMAKE_CURRENT_SOURCE_DIR}` in target.
-- Link `QMeshLabCore` and `Qt6::Core` (add `Qt6::Gui` if QImage needed).
+- Link `MeshLab2Core` and `Qt6::Core` (add `Qt6::Gui` if QImage needed).
 - **One `.cpp` per plugin** — consolidate algorithm logic; use separate files only when
   the algorithm requires its own data structures or exceeds ~800 lines.
 - Filters declare metadata in `filters.json` loaded via `qt_add_resources`.
@@ -71,17 +71,17 @@ See `docs/design/architecture.md`, `docs/design/data_model.md`, `docs/design/ren
    the descriptor. Undeclared params are absent. Reading one with
    `params.getString("a")` returns `""` — which muparser rejects as "Expression is empty."
    Declare every parameter the C++ code reads, even if trivial (e.g., `"a"` defaults to `"1"`).
-7. **MeshEntry has no `shot` member** in QMeshLab — only `RasterEntry` carries a camera.
+7. **MeshEntry has no `shot` member** in MeshLab — only `RasterEntry` carries a camera.
 8. **`QJsonDocument` parsing in Qt6:** `fromJson()` takes QByteArray by value and owns
    the data. Don't hold QJsonValue references across function boundaries.
 9. **Python bindings:** `resolveFilterKey` must match against `effectivePythonName()`,
    not `computePythonName(displayName)`, so it aligns with the copy-to-console button.
-10. **Meshes are always VCG-compact** in QMeshLab — no `IsD()` checks needed in loops.
+10. **Meshes are always VCG-compact** in MeshLab — no `IsD()` checks needed in loops.
 
 ## Porting a MeshLab Plugin
 
 1. **Study the original** under `.reference/meshlab/src/meshlabplugins/<name>/`.
-2. **Map filter classes:** original `RichParameter` subtypes → QMeshLab
+2. **Map filter classes:** original `RichParameter` subtypes → MeshLab
    `MeshFilterParameterDescriptor::type` (`bool`, `int`, `double`, `string`, `enum`,
    `color`, `point3f`, `camerastate`, `renderstate`, etc.).
 3. **Map mesh requirements:** original `MM_*` flags → `inputRequirements` boolean
@@ -89,7 +89,7 @@ See `docs/design/architecture.md`, `docs/design/data_model.md`, `docs/design/ren
    two-letter codes (`VG`, `VC`, `WT`, `TX`, `VQ`, `FQ`, etc.).
 4. **Convert VCG types:** `CMeshO` → `VCGMesh`, `Shotm` → `CameraShot`,
    `MeshDocument &md` → `Document &doc`, `md.mm()` → `doc.mesh(currentMeshIndex())`.
-5. **Replace GPU code with CPU equivalents.** QMeshLab filters have no GPU context.
+5. **Replace GPU code with CPU equivalents.** MeshLab filters have no GPU context.
 6. **Use `inputDomain: "SingleMesh"`** unless the filter genuinely needs all visible layers
    (`"WholeDocument"`).
 7. **Return `MeshFilterRunResult`** with `success`, `documentModified`, `infoMessages`,
@@ -97,7 +97,7 @@ See `docs/design/architecture.md`, `docs/design/data_model.md`, `docs/design/ren
 
 ## Python Bindings
 
-- `_qmeshlab.MeshSet.apply_filter(name, **kwargs)` → `FilterRunRecord`
+- `_meshlab.MeshSet.apply_filter(name, **kwargs)` → `FilterRunRecord`
 - Dictionary keys map to filter parameter `id` fields (not labels).
 - `FilterRunRecord.output_values` is a Python dict (converted from `QVariantMap`).
 - Supports `bool`, `int`, `float`, `str`, `QVector3D` → `tuple`, and `QList<double>` → `list`.

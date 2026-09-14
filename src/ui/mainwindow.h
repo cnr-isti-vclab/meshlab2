@@ -83,6 +83,9 @@ private slots:
     void setCurrentViewSceneMode();
     void setCurrentViewParametrizationMode();
     void setCurrentViewRasterMode();
+    // Toggles the current view between overlaying its visible layers and giving each one a
+    // tile of its own.
+    void toggleCurrentViewLayerGrid();
     void splitViewHorizontally();
     void splitViewVertically();
 
@@ -97,7 +100,9 @@ private:
     bool closeRenderWidget(RenderWidget *view);
     void closeCurrentView();
     void syncDocumentVisibilityFromCurrentView();
-    bool loadMeshFromPath(const QString &filePath);
+    // errorMessage, when given, receives the reason instead of it going to the status bar,
+    // so a batch open can report every failure together rather than each replacing the last.
+    bool loadMeshFromPath(const QString &filePath, QString *errorMessage = nullptr);
     bool loadRasterFromPath(const QString &filePath);
     bool handleDragEnterOrMove(QDropEvent *event);
     void setInteractionBlocked(bool blocked);
@@ -108,6 +113,10 @@ private:
     void refreshRecentMeshesMenu();
     void syncCameraViewsFrom(RenderWidget *sourceView);
     void refreshFilterUi();
+    // Recomputes applicability for every registered filter, rebuilds the whole filters
+    // menu and reloads the filter panel -- so it is posted once per burst rather than run
+    // for each of the forty layers a split can add.
+    void scheduleFilterUiRefresh();
     void refreshFiltersMenu();
     void refreshFiltersMenu(const std::vector<Document::FilterInfo> &infos);
     void setupToolsMenu(QMenu *toolsMenu);
@@ -132,6 +141,10 @@ private:
     QSplitter *m_viewSplitter = nullptr;
     QList<RenderWidget *> m_renderWidgets;
     RenderWidget *m_currentRenderWidget = nullptr;
+    bool m_filterUiRefreshPending = false;
+    // Checked state follows the current view, refreshed when the View menu opens so it stays
+    // right after an undo or a script changes the arrangement behind the menu's back.
+    QAction *m_layerGridAction = nullptr;
     bool m_cameraSyncEnabled = false;
     bool m_syncingCameraViews = false;
     bool m_syncingVisibilityProxy = false;

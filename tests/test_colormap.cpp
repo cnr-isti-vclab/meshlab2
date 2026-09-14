@@ -10,7 +10,7 @@
 #include <cmath>
 
 namespace {
-constexpr const char *kEnvColorMapDirs = "QMESHLAB_COLORMAP_DIRS";
+constexpr const char *kEnvColorMapDirs = "MESHLAB2_COLORMAP_DIRS";
 
 QString makeTestColormapJson(
     const QString &id,

@@ -103,11 +103,20 @@ void Document::setPreferredImportPluginForExtension(const QString &extension, co
     m_pluginManager->setPreferredPluginForExtension(extension, pluginId);
 }
 
-int Document::loadMesh(const QString &filename)
+int Document::loadMesh(const QString &filename, QString *errorMessage)
 {
+    const auto reportError = [errorMessage](const QString &message) {
+        if (errorMessage)
+            *errorMessage = message;
+    };
+    if (errorMessage)
+        errorMessage->clear();
+
     const MeshIOPlugin *plugin = m_pluginManager->pluginFor(filename);
     if (!plugin) {
         writeLog(tr("No plugin found for: %1").arg(filename), LogSource::Application);
+        reportError(tr("no importer handles .%1 files")
+                        .arg(QFileInfo(filename).suffix().toLower()));
         return -1;
     }
 
@@ -119,7 +128,10 @@ int Document::loadMesh(const QString &filename)
         beginUndoStep(tr("Open Mesh"), sa);
     }
 
-    writeLog(tr("Loading mesh: %1").arg(filename), LogSource::Application);
+    // Naming the plugin matters because three of them accept .obj and the choice is
+    // invisible otherwise: which one ran is the first thing you need when a file that
+    // opens elsewhere fails here.
+    writeLog(tr("Loading mesh: %1 (%2)").arg(filename, plugin->name()), LogSource::Application);
 
     auto entry = std::make_unique<MeshEntry>();
     m_lastProgressPos = -1;
@@ -161,6 +173,7 @@ int Document::loadMesh(const QString &filename)
             .arg(importElapsedMs)
             .arg(plugin->errorString(err)),
             LogSource::Application);
+        reportError(plugin->errorString(err));
         if (ownUndoStep)
             endUndoStep(false);
         return err;

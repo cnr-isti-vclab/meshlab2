@@ -11,7 +11,7 @@
 *                                                                           *
 * UBO materialFlags (RS):  x=invert, y=displayMode (0/1/2)                 *
 * UBO materialParams (RS): x=enhancement (0.0–1.0, default 0.5)            *
-* UBO wireParams:          z=1/viewportWidth, w=1/viewportHeight            *
+* UBO pointParams:         z=1/targetWidth,   w=1/targetHeight              *
 ****************************************************************************/
 #version 440
 
@@ -21,9 +21,9 @@ layout(std140, binding = 0) uniform buf {
     mat3 normalMatrix;
     vec4 bboxColor;
     vec4 pointColor;
-    vec4 pointParams;
+    vec4 pointParams;  // z = 1/targetWidth (sw), w = 1/targetHeight (sh)
     vec4 wireColor;
-    vec4 wireParams;   // z = 1/width (sw), w = 1/height (sh)
+    vec4 wireParams;
     vec4 fillColor;
     vec4 lightingParams;
     vec4 edgeColor;
@@ -120,9 +120,12 @@ void main()
     vec3 color = baseColor;
     if (ub.lightingParams.w > 0.5) {
 
-        // Pixel-step sizes in the gradient texture (= sw, sh from 02_rs.fs).
-        float sw = ub.wireParams.z;   // 1 / viewportWidth
-        float sh = ub.wireParams.w;   // 1 / viewportHeight
+        // Pixel-step sizes in the gradient texture (= sw, sh from 02_rs.fs). The gradient
+        // covers the whole render target and is addressed by absolute framebuffer position,
+        // so this is the target's inverse size, not the viewport's: the two differ when the
+        // view draws each layer in its own tile.
+        float sw = ub.pointParams.z;  // 1 / targetWidth
+        float sh = ub.pointParams.w;  // 1 / targetHeight
 
         // Screen-space UV of this fragment.
         float xc = gl_FragCoord.x * sw;

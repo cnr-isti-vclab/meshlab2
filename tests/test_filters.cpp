@@ -2,6 +2,7 @@
 
 #include <QElapsedTimer>
 #include <QFile>
+#include <QTemporaryDir>
 #include <QFileInfo>
 #include <QDirIterator>
 #include <QRegularExpression>
@@ -431,9 +432,12 @@ private slots:
     void abstractDomainIndexesRegionsOnFaces();
     void abstractDomainConsumersRunAndRefuseWithoutIt();
     void atlasedMeshPacksOneUvSpaceForEveryChartShape();
+    void abstractDomainMeasureReportsItsStructureAndCatchesABrokenOne();
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
+    void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToConnectedComponents();
     void islandMergeCanTakeItsIslandsFromTheSelection();
+    void islandMergeSurvivesATextureItCannotDecode();
     void hardcodedFilterKeysInTheUiStillResolve();
     void setMatrixComposesOnTheLeftOfTheLayerTransform();
     void bothBallPivotingsInterpolateTheirInputPoints();
@@ -1147,7 +1151,7 @@ void FilterTests::vertexDisplacementFiltersRunOnCube()
     bool foundRandom = false;
     bool foundLegacyRandom = false;
     for (const auto &info : doc.filterInfos()) {
-        if (info.pluginId == QStringLiteral("qmeshlab.filter.vertex_displacement")) {
+        if (info.pluginId == QStringLiteral("meshlab2.filter.vertex_displacement")) {
             foundRandom = foundRandom
                 || info.descriptor.id == QStringLiteral("displace_vertices_randomly");
             if (fractalIds.contains(info.descriptor.id)) {
@@ -5747,7 +5751,7 @@ void FilterTests::toolIconsResolveFromResources()
     const QString build = QString::fromUtf8(cmake.readAll());
     cmake.close();
 
-    const int at = build.indexOf(QStringLiteral("qt_add_resources(QMeshLab \"icons\""));
+    const int at = build.indexOf(QStringLiteral("qt_add_resources(MeshLab2 \"icons\""));
     QVERIFY2(at >= 0, "the icons resource block moved or was renamed");
     const int close = build.indexOf(QStringLiteral("\n)"), at);
     QVERIFY(close > at);
@@ -5859,7 +5863,7 @@ void FilterTests::abstractDomainIsBuiltAndAttachedToTheLayer()
     QVERIFY2(r.success, qPrintable(r.errorMessage));
 
     const LayerDataPtr domain =
-        doc.layerData(index, QStringLiteral("qmeshlab.filter.isoparam/abstract_domain"));
+        doc.layerData(index, QStringLiteral("meshlab2.filter.isoparam/abstract_domain"));
     QVERIFY2(domain, "the abstract domain was not attached to the layer");
     QVERIFY2(domain->describe().contains(QStringLiteral("abstract domain")),
              qPrintable(domain->describe()));
@@ -5876,6 +5880,75 @@ void FilterTests::abstractDomainIsBuiltAndAttachedToTheLayer()
 // The atlas has to be one UV space. AssociateDiamond keeps the diamond index in WT.N() as
 // scratch, and left there it escapes as the wedge's texture id -- 291 distinct ids on a
 // 1.2k sphere, so every diamond looked like a separate texture.
+void FilterTests::abstractDomainMeasureReportsItsStructureAndCatchesABrokenOne()
+{
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply")) >= 0);
+    doc.setCurrentMeshIndex(0);
+
+    const QString measureKey = filterKeyForId(doc, QStringLiteral("measure_abstract_domain"));
+    QVERIFY(!measureKey.isEmpty());
+
+    // Before the domain exists the filter has to say so rather than report zeroes -- this is
+    // the first of the family most people reach, since it is the one that only looks.
+    {
+        const MeshFilterRunResult r = doc.runFilter(measureKey, MeshFilterParameterValues{});
+        QVERIFY2(!r.success, "measuring a layer with no domain should refuse");
+        QVERIFY2(r.errorMessage.contains(QStringLiteral("no abstract domain")),
+                 qPrintable(r.errorMessage));
+    }
+
+    MeshFilterParameterValues build;
+    build.insert(QStringLiteral("minDomainFaces"), 150);
+    build.insert(QStringLiteral("maxDomainFaces"), 200);
+    QVERIFY(doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("parametrize_by_abstract_domain")), build).success);
+
+    const MeshFilterRunResult r = doc.runFilter(measureKey, MeshFilterParameterValues{});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(!r.documentModified);
+
+    const auto value = [&r](const char *key) {
+        const QString k = QString::fromLatin1(key);
+        Q_ASSERT(r.outputValues.contains(k));
+        return r.outputValues.value(k);
+    };
+
+    // Paper, sec. 4: the domain is a closed, 2-manifold, well-oriented set of equilateral
+    // sub-domains, N "typically ranges between a minimum of 4 and a maximum of a few
+    // hundreds", and Theta is a bijection -- so no sub-domain may be left uncovered.
+    const int subDomains = value("sub_domains").toInt();
+    QVERIFY2(subDomains >= 4, qPrintable(QStringLiteral("N = %1").arg(subDomains)));
+    QVERIFY(subDomains <= 200); // the interval asked for above
+    QCOMPARE(value("domain_border_sides").toInt(), 0);
+    QCOMPARE(value("empty_sub_domains").toInt(), 0);
+    QCOMPARE(value("vertices_outside_their_sub_domain").toInt(), 0);
+    QVERIFY(value("structurally_valid").toBool());
+
+    // A closed sphere: genus zero, so V - E + F = 2. Worth pinning, because the count of
+    // edges is derived from the face count and the border count rather than counted, and
+    // this is what catches that derivation going wrong.
+    QCOMPARE(value("domain_euler_characteristic").toInt(), 2);
+    QCOMPARE(value("domain_edges").toInt(), (3 * subDomains) / 2);
+
+    // Square and Rhombus build one chart per half-diamond, i.e. per domain edge, and
+    // Polygon one per half-star, i.e. per domain vertex. The atlas test measures exactly
+    // 291 square charts on this mesh, so the report has to agree with it.
+    QCOMPARE(value("domain_edges").toInt(), 291);
+    QCOMPARE(value("domain_vertices").toInt(), 99);
+
+    QCOMPARE(value("param_faces").toInt(), doc.mesh(0).mesh.FN());
+    QVERIFY(value("stretch_efficiency").toDouble() >= 1.0);
+    QVERIFY2(value("stretch_efficiency").toDouble() < 1.5,
+             qPrintable(QStringLiteral("stretch %1").arg(value("stretch_efficiency").toDouble())));
+    QVERIFY(value("layer_faces_per_sub_domain").toDouble() > 0.0);
+
+    const QString report = r.infoMessages.join(QLatin1Char('\n'));
+    QVERIFY2(report.contains(QStringLiteral("Sub-domains")), qPrintable(report));
+    QVERIFY2(report.contains(QStringLiteral("valence")), qPrintable(report));
+    QVERIFY2(report.contains(QStringLiteral("Structural checks: all passed")), qPrintable(report));
+}
+
 void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
 {
     Document doc;
@@ -5907,6 +5980,11 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
         MeshFilterParameterValues params;
         params.insert(QStringLiteral("chartShape"), pass.first);
         params.insert(QStringLiteral("mergeIrregularStars"), pass.second);
+        // Pinned, because the default of 0 means "fresh seed every run" and it drives the
+        // packer's permutation shuffle: the coverages below moved by a few tenths of a
+        // percent from run to run, and the assertions here are one-sided bounds that a bad
+        // draw could cross. Any fixed value does; this one is arbitrary.
+        params.insert(QStringLiteral("randomSeed"), 20100701);
         const MeshFilterRunResult r = doc.runFilter(key, params);
         QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(shape, r.errorMessage)));
 
@@ -5981,10 +6059,99 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
 
 // Both ball pivoting filters are interpolating reconstructions: every face they add must be
 // built on points that were already there. The two implementations differ in almost every
-// other respect, which is why QMeshLab ships both, so this checks the property they share
+// other respect, which is why MeshLab ships both, so this checks the property they share
 // rather than pinning either one's output.
 // Merge Texture Islands can take its candidates from the face selection instead of
 // from the size threshold, so a chart can be folded into a chosen neighbour by hand.
+void FilterTests::islandMergeSurvivesATextureItCannotDecode()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    // A texture the application cannot decode. In the wild this is not exotic: Qt reads
+    // an image format only when the matching plugin from qtimageformats is deployed, and
+    // its Targa reader then rejects every file that lacks the TrueVision 2.0 footer, so a
+    // well-formed .tga written to the original spec fails too. The bytes here must not be
+    // a readable image either -- QImageReader falls back to sniffing the content when the
+    // suffix has no handler, so a PNG under another name would load.
+    const QString texturePath = dir.filePath(QStringLiteral("atlas.psd"));
+    {
+        QFile file(texturePath);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("8BPS\0\1\0\0 not actually a photoshop file");
+    }
+
+    const auto build = [&](Document &doc) {
+        VCGMesh grid;
+        constexpr int kSide = 3;
+        vcg::tri::Allocator<VCGMesh>::AddVertices(grid, kSide * kSide);
+        for (int j = 0; j < kSide; ++j)
+            for (int i = 0; i < kSide; ++i)
+                grid.vert[std::size_t(j * kSide + i)].P() =
+                    vcg::Point3f(float(i), float(j), 0.0f);
+        for (int j = 0; j < kSide - 1; ++j)
+            for (int i = 0; i < kSide - 1; ++i) {
+                const int a = j * kSide + i;
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + 1, a + kSide + 1);
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + kSide + 1, a + kSide);
+            }
+        vcg::tri::UpdateBounding<VCGMesh>::Box(grid);
+        const int index = doc.addMesh(grid, QStringLiteral("Grid"),
+                                      vcg::tri::io::Mask::IOM_VERTCOORD);
+        doc.setCurrentMeshIndex(index);
+        MeshFilterParameterValues uvParams;
+        uvParams.insert(QStringLiteral("textdim"), 256);
+        if (!doc.runFilter(
+                filterKeyForId(doc,
+                    QStringLiteral("parametrize_by_trivial_per_triangle_layout")),
+                uvParams).success)
+            return false;
+        // The layer now claims a texture that cannot be read -- exactly what an .obj
+        // pointing at a legacy .tga leaves behind, since import records the path and
+        // decodes nothing.
+        TextureAssociationUtils::ensureTextureListed(doc.mesh(index), texturePath);
+        return Document::meshTextureAssociationCount(doc.mesh(index)) == 1;
+    };
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("islandSource"), QStringLiteral("by_size"));
+    params.insert(QStringLiteral("quickRun"), true);
+
+    // Resampling off: nothing samples the image, so the run proceeds on a stand-in and
+    // says so. Before this it refused over a texture it was never going to touch.
+    {
+        Document doc;
+        QVERIFY(build(doc));
+        MeshFilterParameterValues layoutOnly = params;
+        layoutOnly.insert(QStringLiteral("resampleTextures"), false);
+        const MeshFilterRunResult r = doc.runFilter(
+            filterKeyForId(doc, QStringLiteral("merge_texture_islands")), layoutOnly);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        const QString info = r.infoMessages.join(QLatin1Char('\n'));
+        QVERIFY2(info.contains(QStringLiteral("Could not read")), qPrintable(info));
+        // No readable texture on the layer to take the texel grid from, so the stand-in
+        // falls back to the output atlas size. The result has to name it: the layout is
+        // sound either way, but a gutter given in pixels now refers to that grid.
+        QVERIFY2(info.contains(QStringLiteral("assumed 1024x1024")), qPrintable(info));
+    }
+
+    // Resampling on: the pixels are genuinely needed, so this still fails -- but the
+    // message has to point at the way out rather than just naming the file.
+    {
+        Document doc;
+        QVERIFY(build(doc));
+        MeshFilterParameterValues resampling = params;
+        resampling.insert(QStringLiteral("resampleTextures"), true);
+        const MeshFilterRunResult r = doc.runFilter(
+            filterKeyForId(doc, QStringLiteral("merge_texture_islands")), resampling);
+        QVERIFY2(!r.success, "resampling from an undecodable texture cannot work");
+        QVERIFY2(r.errorMessage.contains(QStringLiteral("Resample textures")),
+                 qPrintable(r.errorMessage));
+        QVERIFY2(r.errorMessage.contains(QStringLiteral("no decoder in this build")),
+                 qPrintable(r.errorMessage));
+    }
+}
+
 void FilterTests::islandMergeCanTakeItsIslandsFromTheSelection()
 {
     // A trivial per-triangle parametrization: every face is its own island, which is the
@@ -6075,6 +6242,46 @@ void FilterTests::islandMergeCanTakeItsIslandsFromTheSelection()
 // pan/zoom/aspect, so which faces the rectangle hits is exact rather than inferred from a
 // camera. Three triangles form one component, a fourth stands alone, and the rectangle is
 // aimed at a single triangle of the first.
+void FilterTests::stateJsonAcceptsBothNameSpellings()
+{
+    // The "kind" tag on camera and render state was "MeshLab.*" until the 2026-09
+    // rename. It is embedded in saved snapshots, copied state, and any script that
+    // pins a cameraState parameter, so both spellings have to keep validating --
+    // otherwise the rename silently invalidates state people already have.
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply")) >= 0);
+    doc.setCurrentMeshIndex(0);
+    const QString key = filterKeyForId(doc, QStringLiteral("select_by_screen_rectangle"));
+    QVERIFY(!key.isEmpty());
+
+    const auto runWithKind = [&](const QString &kind) -> QString {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("space"), QStringLiteral("uv"));
+        params.insert(QStringLiteral("camera_state"),
+                      QStringLiteral(R"({"kind":"%1","version":1})").arg(kind));
+        params.insert(QStringLiteral("aspect"), 1.0);
+        params.insert(QStringLiteral("uv_pan_x"), 0.0);
+        params.insert(QStringLiteral("uv_pan_y"), 0.0);
+        params.insert(QStringLiteral("uv_zoom"), 1.0);
+        params.insert(QStringLiteral("rect_min_x"), 0.45);
+        params.insert(QStringLiteral("rect_max_x"), 0.55);
+        params.insert(QStringLiteral("rect_min_y"), 0.45);
+        params.insert(QStringLiteral("rect_max_y"), 0.55);
+        params.insert(QStringLiteral("element"), QStringLiteral("face"));
+        params.insert(QStringLiteral("mode"), QStringLiteral("replace"));
+        return doc.runFilter(key, params).errorMessage;
+    };
+
+    for (const QString &kind : {QStringLiteral("MeshLab.CameraState"),
+                                QStringLiteral("MeshLab.CameraState")}) {
+        const QString error = runWithKind(kind);
+        QVERIFY2(!error.contains(QStringLiteral("invalid kind")),
+                 qPrintable(QStringLiteral("%1 was rejected: %2").arg(kind, error)));
+    }
+    // And the check is still a check.
+    QVERIFY(runWithKind(QStringLiteral("Something.Else")).contains(QStringLiteral("invalid kind")));
+}
+
 void FilterTests::rubberBandExpandsToConnectedComponents()
 {
     VCGMesh mesh;
@@ -6130,7 +6337,7 @@ void FilterTests::rubberBandExpandsToConnectedComponents()
         // Unused in UV space, but the parameter is typed and has no default, so it has to
         // be a well-formed camera state rather than an empty object.
         params.insert(QStringLiteral("camera_state"),
-                      QStringLiteral(R"({"kind":"QMeshLab.CameraState","version":1})"));
+                      QStringLiteral(R"({"kind":"MeshLab.CameraState","version":1})"));
         params.insert(QStringLiteral("aspect"), 1.0);
         params.insert(QStringLiteral("uv_pan_x"), 0.0);
         params.insert(QStringLiteral("uv_pan_y"), 0.0);
@@ -6228,7 +6435,7 @@ void FilterTests::hardcodedFilterKeysInTheUiStillResolve()
     QVERIFY(!declared.isEmpty());
 
     const QRegularExpression keyPattern(
-        QStringLiteral("qmeshlab\\.filter\\.[a-z_]+::[a-z_]+"));
+        QStringLiteral("meshlab2\\.filter\\.[a-z_]+::[a-z_]+"));
     QStringList missing;
     int found = 0;
     QDirIterator it(QStringLiteral(TEST_SOURCE_DIR "/src"),
@@ -6395,7 +6602,7 @@ void FilterTests::abstractDomainIndexesRegionsOnFaces()
 
 void FilterTests::abstractDomainConsumersRunAndRefuseWithoutIt()
 {
-    const QString kDomain = QStringLiteral("qmeshlab.filter.isoparam/abstract_domain");
+    const QString kDomain = QStringLiteral("meshlab2.filter.isoparam/abstract_domain");
     const QStringList consumers{
         QStringLiteral("remesh_by_abstract_domain"),
         QStringLiteral("create_atlased_mesh_from_abstract_domain")
@@ -6482,7 +6689,7 @@ void FilterTests::abstractDomainRefusesAnOpenMesh()
         filterKeyForId(doc, QStringLiteral("parametrize_by_abstract_domain")), {});
     QVERIFY2(!r.success, "an open mesh was accepted");
     QVERIFY2(r.errorMessage.contains(QStringLiteral("watertight")), qPrintable(r.errorMessage));
-    QVERIFY(!doc.layerData(index, QStringLiteral("qmeshlab.filter.isoparam/abstract_domain")));
+    QVERIFY(!doc.layerData(index, QStringLiteral("meshlab2.filter.isoparam/abstract_domain")));
 }
 
 void FilterTests::selfIntersectionCurvesFindTheCrossing()

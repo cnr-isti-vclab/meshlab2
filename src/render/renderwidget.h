@@ -13,6 +13,7 @@
 #include <QMatrix4x4>
 #include <QPoint>
 #include <QPointF>
+#include <QRect>
 #include <QString>
 #include <QVector2D>
 #include <array>
@@ -78,6 +79,23 @@ public:
     float uvZoom() const { return m_uvZoom; }
     bool canSwitchToViewMode(ViewMode mode, QString *errorMessage = nullptr) const;
     bool setViewMode(ViewMode mode, QString *errorMessage = nullptr);
+    // One tile of the current layer arrangement: a rectangle of the view, and the single
+    // layer shown in it. meshIndex is -1 for the whole-view tile of the overlay
+    // arrangement, which means "every visible layer" -- so callers written for the grid
+    // need no separate path for the classic view.
+    struct ViewTile {
+        QRect rect;         // y down from the top-left, in the caller's own units
+        int meshIndex = -1;
+    };
+    // Tiles in the coordinate system of `viewportSize`: pass a device-pixel size to place a
+    // GPU viewport, a logical one to hit-test the mouse. Always at least one tile.
+    std::vector<ViewTile> viewTiles(const QSize &viewportSize) const;
+    // The tile `point` (logical pixels) falls in, or -1 for a point in a gutter. The whole
+    // view is one tile in the overlay arrangement, so this is 0 there for any point inside.
+    int viewTileAt(const QPoint &point) const;
+    // True when the view is actually drawing a grid: the setting asks for one *and* there
+    // is more than one tile to draw. One tile is the overlay arrangement by any other name.
+    bool isLayerGridActive() const;
     bool meshVisible(int index) const;
     void setMeshVisible(int index, bool visible);
     std::vector<bool> meshVisibilityState() const { return m_meshVisibility; }
@@ -166,6 +184,9 @@ private:
         PerMeshRenderSettings meshSettings;
         QRhiBuffer *vertexBuffer = nullptr;
         int vertexCount = 0;
+        // Non-zero only for the bounding box, whose buffer holds both of its styles back
+        // to back so that switching style costs a draw range rather than a rebuild.
+        int firstVertex = 0;
     };
     struct SceneRasterBackplateDrawItem {
         int rasterIndex = -1;
@@ -215,6 +236,11 @@ struct SceneRasterProjectedDrawItem {
     struct RenderFramePlan {
         ViewMode viewMode = ViewMode::Scene3D;
         QSize pixelSize;
+        // Where in the render target this plan draws, y down from the top-left, and how
+        // big the whole target is. Equal to (0,0,pixelSize) for the single tile of the
+        // overlay arrangement, which is why every pass could ignore them until now.
+        QRect viewportRect;
+        QSize targetPixelSize;
         QMatrix4x4 proj;
         QMatrix4x4 view;
         QVector3D lightDir;
@@ -246,6 +272,11 @@ struct SceneRasterProjectedDrawItem {
             return hasFillPass() || hasWirePass() || hasEdgesPass() || hasBoundingBoxPass()
                 || hasPointsPass() || hasSelectionPass() || hasDecoratorPass()
                 || hasRasterBackplatePass() || hasRasterProjectedPass();
+        }
+
+        QRhiViewport rhiViewport() const
+        {
+            return RenderWidgetInternal::rhiViewportFor(viewportRect, targetPixelSize);
         }
     };
     struct RenderMeshPassRequests {
@@ -297,6 +328,8 @@ struct SceneRasterProjectedDrawItem {
     struct RenderFrameRequest {
         ViewMode viewMode = ViewMode::Scene3D;
         QSize pixelSize;
+        QRect viewportRect;
+        QSize targetPixelSize;
         QMatrix4x4 proj;
         QMatrix4x4 view;
         QVector3D lightDir;
@@ -306,6 +339,22 @@ struct SceneRasterProjectedDrawItem {
         RenderFramePassRequests passes;
     };
 
+    // The tile whose camera the single-camera overlays follow -- trackball gizmo, current
+    // layer outline, bounding-box corner labels, tool lines. The current layer's tile when
+    // it has one, otherwise the first.
+    int referenceTileIndex(const std::vector<ViewTile> &tiles) const;
+    // True when `meshIndex` belongs in `tile` (every visible layer for the overlay tile).
+    static bool tileShowsMesh(const ViewTile &tile, int meshIndex);
+    // The tile under `pos` in logical pixels, falling back to the reference tile for a point
+    // in a gutter, so this always names a usable rectangle.
+    QRect navigationTileRectAt(const QPointF &pos) const;
+    // The layer shown in the tile under `point` (logical pixels), or -1 when the point is in
+    // a gutter or the view is not showing a grid.
+    int layerAtViewPoint(const QPoint &point) const;
+    // Captions naming each tile's layer, and the marker on the current layer's tile. A grid
+    // without them is a contact sheet you cannot read: every tile looks like a view of the
+    // same scene until something says which layer it holds.
+    void updateTileOverlays();
     void createOverlayButtons();
     void layoutOverlayButtons();
     // Move the camera onto the given world axis, keeping center and distance.
@@ -320,10 +369,13 @@ struct SceneRasterProjectedDrawItem {
     // bbox-display toggle). Used for camera framing and far-plane clipping.
     bool computeWorldSceneBBox(QVector3D &minCorner, QVector3D &maxCorner) const;
     void updateBoundingBoxCornersOverlay();
+    // `viewportRect` is where the frame was drawn inside the render target, in device
+    // pixels: the labels follow projected world positions, so they need the tile's origin
+    // as well as its size.
     void updateBoundingBoxCornersOverlayPlacement(
         const QMatrix4x4 &mvp,
         const QMatrix4x4 &view,
-        const QSize &pixelSize);
+        const QRect &viewportRect);
     void updateQualityHistogramOverlay();
     void updateDecoratorInfoOverlay();
     void bakeCurrentQualityMappingToVertexColor();
@@ -376,7 +428,9 @@ struct SceneRasterProjectedDrawItem {
         const RenderFrameRequest &request);
     RenderFramePlan buildRenderFramePlan(
         const RenderFrameRequest &request);
-    RenderFramePassRequests collectRenderFramePassRequests() const;
+    // `onlyMeshIndex` >= 0 restricts the frame to that single layer, which is what a grid
+    // tile draws; -1 collects every visible layer, which is the overlay arrangement.
+    RenderFramePassRequests collectRenderFramePassRequests(int onlyMeshIndex) const;
     void planSimpleBufferPasses(
         const RenderFramePassRequests &requests,
         RenderFramePlan &plan);
@@ -393,9 +447,12 @@ struct SceneRasterProjectedDrawItem {
     void planSelectionPasses(
         const RenderFramePassRequests &requests,
         RenderFramePlan &plan);
+    // Takes every tile's plan at once: the radiance-scaling prepass clears its gradient
+    // buffer when it opens a pass, and QRhi has no way to open one without clearing, so
+    // running it per tile would wipe the tiles already drawn.
     void renderSceneFillPrepasses(
         QRhiCommandBuffer *cb,
-        const RenderFramePlan &plan);
+        const std::vector<RenderFramePlan> &plans);
     void renderSceneFillPass(
         QRhiCommandBuffer *cb,
         const RenderFramePlan &plan);
@@ -455,10 +512,16 @@ struct SceneRasterProjectedDrawItem {
         int meshIndex,
         int textureIndex,
         const MeshGpuResourceCache::FillPassView &fillView) const;
+    // Both render scene geometry into a full-target offscreen buffer, so both need the
+    // tile: what to project with, where to put it, and which layers belong in it.
     void executePendingDepthPick(
         QRhiCommandBuffer *cb,
-        const QSize &pixelSize);
-    void renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize);
+        const QSize &pixelSize,
+        const ViewTile &tile);
+    void renderCurrentMeshMask(
+        QRhiCommandBuffer *cb,
+        const QSize &pixelSize,
+        const ViewTile &tile);
     void processCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshDebugView(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pixelSize);
@@ -514,6 +577,15 @@ struct SceneRasterProjectedDrawItem {
     mutable std::unique_ptr<QRhiBuffer> m_viewFrustumVbuf;
     mutable std::unique_ptr<QRhiBuffer> m_viewFrustumUbuf;
     mutable std::unique_ptr<QRhiShaderResourceBindings> m_viewFrustumSrb;
+    // True when the mesh's bounding box is wholly inside the sphere the trackball frames.
+    // Drives the "when the new mesh is off-screen" reframe preference.
+    bool meshFitsInCurrentFrame(int index) const;
+
+    // Set only for the duration of an offscreen capture asking for a transparent
+    // background: the colour buffer is cleared to alpha 0 and the gradient quad is skipped,
+    // so the scene lands on nothing instead of on the viewport's own backdrop.
+    bool m_captureTransparentBackground = false;
+
     bool m_reframeCameraRequested = true;
     bool m_resetTrackballRequested = false;
     bool m_centerAnimActive = false;
@@ -716,11 +788,19 @@ struct SceneRasterProjectedDrawItem {
     QQuaternion m_lightRotation;     // rotates view-space (0,0,1) to current light dir
     bool m_lightDragActive = false;
     QPointF m_lightDragLastPos;
+    // The tile a camera drag started in, in logical pixels. Every tile shares one camera,
+    // but the arcball is sized to the viewport it is dragged in, so the tile is latched at
+    // press: dragging out of it keeps the rotation the gesture started with.
+    QRect m_navigationTileRect;
     RenderSettings m_renderSettings;
     RenderOverlayPanel *m_overlayPanel = nullptr;
     ViewAxisGizmo *m_axisGizmo = nullptr;
     QWidget *m_currentViewIndicator = nullptr;
     bool m_currentViewHighlighted = false;
+    // Pooled rather than rebuilt: tiles come and go every time a layer's visibility is
+    // toggled, and recreating widgets on each toggle is churn for nothing.
+    std::vector<QLabel *> m_tileCaptionLabels;
+    QWidget *m_currentTileIndicator = nullptr;
     QLabel *m_bboxMinCornerOverlayLabel = nullptr;
     QLabel *m_bboxMaxCornerOverlayLabel = nullptr;
     QLabel *m_bboxDimXOverlayLabel = nullptr;

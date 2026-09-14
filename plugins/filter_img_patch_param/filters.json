@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.img_patch_param",
+  "pluginId": "meshlab2.filter.img_patch_param",
   "filters": [
     {
       "id": "parametrize_from_registered_rasters",

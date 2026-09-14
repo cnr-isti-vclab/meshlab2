@@ -206,7 +206,7 @@ void applyPackingTransforms(const std::vector<ChartHandle> &charts,
 
 QString TextureDefragFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.texture_defragmentation");
+    return QStringLiteral("meshlab2.filter.texture_defragmentation");
 }
 
 QString TextureDefragFilterPlugin::name() const
@@ -327,14 +327,58 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
         placeholder.fill(0);
         textureObject->AddImage(placeholder);
     }
+    // With resampling off nothing ever samples these images -- they are read only to
+    // learn the texel grid the UVs live on -- so one that cannot be decoded is no reason
+    // to refuse the whole run. There is always some format the build has no decoder for
+    // (readImageFile tries Qt's plugins and then stb, and the set that survives both is
+    // never empty), quite apart from files that are simply corrupt or truncated. Stand a
+    // placeholder in for each unreadable slot and name it in the result instead.
+    //
+    // The array has to stay index-aligned with the source: ScaleTextureCoordinatesToImage
+    // looks each face's texture up by WT(0).N() and silently scales by 1.0 past the end,
+    // which would leave those faces in [0,1] while every other face is in texel space.
     const int textureCount = packsWithoutTextures ? 0 : sourceTextureCount;
+    std::vector<QImage> sourceImages(size_t(std::max(0, textureCount)));
+    QStringList unreadableTextures;
+    QSize standInSize;
     for (int textureIndex = 0; textureIndex < textureCount; ++textureIndex) {
-        QImage image;
-        if (!Tex::loadAssociatedTextureImage(sourceEntry, textureIndex, image, textureError)) {
-            doc.finishFilterProgress(false, textureError);
-            return fail(textureError);
+        QImage &image = sourceImages[size_t(textureIndex)];
+        if (Tex::loadAssociatedTextureImage(sourceEntry, textureIndex, image, textureError))
+            continue;
+        if (wantsResampling) {
+            const QString message = QObject::tr("%1 cannot resample texture %2: %3 Turn off "
+                                                "\"Resample textures\" to work on the "
+                                                "parametrization alone.")
+                                        .arg(filterLabel,
+                                             Document::meshTextureDisplayName(sourceEntry, textureIndex),
+                                             textureError);
+            doc.finishFilterProgress(false, message);
+            return fail(message);
         }
-        if (!textureObject->AddImage(image)) {
+        unreadableTextures << Document::meshTextureDisplayName(sourceEntry, textureIndex);
+    }
+    if (!unreadableTextures.isEmpty()) {
+        // Match a texture we could read, so the gutter keeps meaning the same thing
+        // across the atlas; fall back to the output size only when none of them read.
+        for (const QImage &image : sourceImages) {
+            if (!image.isNull()) {
+                standInSize = image.size();
+                break;
+            }
+        }
+        if (standInSize.isEmpty()) {
+            const int atlasSize = params.getInt(QStringLiteral("textureSize"), 1024);
+            standInSize = QSize(atlasSize, atlasSize);
+        }
+        for (QImage &image : sourceImages) {
+            if (!image.isNull())
+                continue;
+            image = QImage(standInSize, QImage::Format_Mono);
+            image.fill(0);
+        }
+    }
+    for (int textureIndex = 0; textureIndex < textureCount; ++textureIndex) {
+        if (!textureObject->AddImage(sourceImages[size_t(textureIndex)])) {
             const QString message = QObject::tr("Failed to add source texture %1 to defragmentation input.")
                 .arg(textureIndex + 1);
             doc.finishFilterProgress(false, message);
@@ -780,6 +824,12 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
                 .arg(islandsBeforeDefrag - islandsAfterDefrag)
          << QObject::tr("Charts packed: %1").arg(chartsToPack.size())
          << QObject::tr("Duplicated vertices introduced by seam processing: %1").arg(duplicatedVertices);
+    if (!unreadableTextures.isEmpty())
+        info << QObject::tr("Could not read %1: assumed %2x%3 for the UV scale. The layout is "
+                            "sound, but a gutter given in pixels refers to that grid.")
+                    .arg(unreadableTextures.join(QStringLiteral(", ")))
+                    .arg(standInSize.width())
+                    .arg(standInSize.height());
     if (removedZeroFaces > 0)
         info << QObject::tr("Removed %1 zero-area face(s) before defragmentation.").arg(removedZeroFaces);
     if (removedDuplicateVertices > 0)

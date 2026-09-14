@@ -608,7 +608,7 @@ QString meshName(const Document &doc, int meshIndex)
 
 QString SamplingFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.sampling");
+    return QStringLiteral("meshlab2.filter.sampling");
 }
 
 QString SamplingFilterPlugin::name() const

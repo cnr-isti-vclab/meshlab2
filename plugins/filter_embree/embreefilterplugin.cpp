@@ -96,7 +96,7 @@ vcg::Matrix44f qtToVcg(const QMatrix4x4 &m)
 
 QString EmbreeFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.embree");
+    return QStringLiteral("meshlab2.filter.embree");
 }
 
 QString EmbreeFilterPlugin::name() const

@@ -187,6 +187,14 @@ quint32 RenderWidget::uploadMainUbuf(
     // pointParams.y is otherwise unused; the depth-pick shaders read it as the
     // encoded mesh id and write it to the pick target's alpha channel.
     ubufData[kUbufPointParamsOffset + 1] = pickId;
+    // zw is the inverse size of the whole render target, which is not the inverse viewport
+    // size in wireParams.zw once the view draws a grid of tiles. Radiance scaling reads a
+    // gradient buffer covering the whole target by absolute framebuffer position, so it is
+    // the target it needs; screen-space widths, which scale with the viewport, keep using
+    // wireParams.
+    const QSize targetSize = renderTarget() ? renderTarget()->pixelSize() : pixelSize;
+    ubufData[kUbufPointParamsOffset + 2] = 1.0f / float(qMax(1, targetSize.width()));
+    ubufData[kUbufPointParamsOffset + 3] = 1.0f / float(qMax(1, targetSize.height()));
 
     QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
     uMesh->updateDynamicBuffer(m_ubuf.get(), offset, kUbufSize, ubufData);
@@ -281,13 +289,24 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         && m_renderSettings.highlightCurrentMesh
         && (currentMeshIndex >= 0)
         && (currentMeshIndex < m_doc->meshCount());
-    const RenderFramePassRequests framePassRequests = collectRenderFramePassRequests();
+    const QSize sz = renderTarget()->pixelSize();
+    // One tile covering everything in the overlay arrangement, one per visible layer in the
+    // grid. Everything below is written against this list, so the two arrangements share a
+    // path instead of branching inside every pass.
+    const std::vector<ViewTile> tiles = viewTiles(sz);
+    // Some things exist once however many tiles there are -- the trackball gizmo, the
+    // current layer's outline, the bounding-box labels, a tool's world-space lines -- so
+    // they follow one tile: the current layer's.
+    const ViewTile &referenceTile = tiles[size_t(referenceTileIndex(tiles))];
+    const QSize referenceViewport = referenceTile.rect.size();
+
+    // Buffers are prepared for every layer the frame touches, whichever tile it lands in,
+    // so this stays one whole-document pass.
+    const RenderFramePassRequests framePassRequests = collectRenderFramePassRequests(-1);
 
     prepareDirtyBuffers(cb, framePassRequests, currentMeshIndex, drawCurrentMeshHighlight);
 
     m_frameTimer.start();
-
-    const QSize sz = renderTarget()->pixelSize();
 
     QRhiResourceUpdateBatch *u = nullptr;
     auto updateQualityColorMapLut = [&](QRhiResourceUpdateBatch *&batch) {
@@ -419,7 +438,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             view.setToIdentity();
         }
     } else {
-        const float aspect = float(sz.width()) / float(qMax(1, sz.height()));
+        const float aspect =
+            float(referenceViewport.width()) / float(qMax(1, referenceViewport.height()));
         proj = m_trackball.projectionMatrix(aspect);
         view = m_trackball.viewMatrix();
     }
@@ -496,7 +516,11 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             cb->resourceUpdate(u);
             u = nullptr;
         }
-        executePendingDepthPick(cb, sz);
+        // The pick belongs to the tile the cursor is over, not the current layer's: in a
+        // grid you recentre on what you double-clicked.
+        const int pickTile = viewTileAt(m_depthPickPos);
+        executePendingDepthPick(
+            cb, sz, tiles[size_t(pickTile >= 0 ? pickTile : referenceTileIndex(tiles))]);
     }
 
     if (!rasterMode && drawCurrentMeshHighlight) {
@@ -504,7 +528,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             cb->resourceUpdate(u);
             u = nullptr;
         }
-        renderCurrentMeshMask(cb, sz);
+        renderCurrentMeshMask(cb, sz, referenceTile);
         processCurrentMeshMask(cb, sz);
     }
 
@@ -523,62 +547,112 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         u->updateDynamicBuffer(m_sceneBackgroundUbuf.get(), 0, sizeof(bgData), bgData);
     }
 
-    RenderFrameRequest frameRequest;
-    frameRequest.viewMode = m_viewMode;
-    frameRequest.pixelSize = sz;
-    frameRequest.proj = proj;
-    frameRequest.view = view;
-    frameRequest.lightDir = frameLightDir;
-    frameRequest.rasterOpacity = rasterMode ? m_rasterOpacity : 1.0f;
-    frameRequest.rasterZoom = rasterMode ? m_rasterZoom : 1.0f;
-    frameRequest.rasterPan = rasterMode ? m_rasterPan : QVector2D(0.5f, 0.5f);
-    frameRequest.passes = framePassRequests;
+    std::vector<RenderFramePlan> tilePlans;
+    tilePlans.reserve(tiles.size());
+    for (const ViewTile &tile : tiles) {
+        RenderFrameRequest frameRequest;
+        frameRequest.viewMode = m_viewMode;
+        frameRequest.pixelSize = tile.rect.size();
+        frameRequest.viewportRect = tile.rect;
+        frameRequest.targetPixelSize = sz;
+        frameRequest.proj = proj;
+        // Tiles are congruent, so this only matters if a future layout stops making them so.
+        if (!rasterMode && tile.rect.size() != referenceViewport) {
+            frameRequest.proj = m_trackball.projectionMatrix(
+                float(tile.rect.width()) / float(qMax(1, tile.rect.height())));
+        }
+        frameRequest.view = view;
+        frameRequest.lightDir = frameLightDir;
+        frameRequest.rasterOpacity = rasterMode ? m_rasterOpacity : 1.0f;
+        frameRequest.rasterZoom = rasterMode ? m_rasterZoom : 1.0f;
+        frameRequest.rasterPan = rasterMode ? m_rasterPan : QVector2D(0.5f, 0.5f);
+        frameRequest.passes = collectRenderFramePassRequests(tile.meshIndex);
+        tilePlans.push_back(buildRenderFramePlan(frameRequest));
+    }
 
-    const RenderFramePlan framePlan = buildRenderFramePlan(frameRequest);
+    bool anySceneDrawItems = false;
+    for (const RenderFramePlan &plan : tilePlans)
+        anySceneDrawItems = anySceneDrawItems || plan.hasSceneDrawItems();
+
     const bool needMvpForFrame =
-        framePlan.hasSceneDrawItems()
+        anySceneDrawItems
         || drawCurrentMeshHighlight
         || drawTrackballGizmo
         || depthPickPendingAtFrameStart
         || m_lightDragActive;
 
-    if (framePlan.hasFillPass())
-        renderSceneFillPrepasses(cb, framePlan);
+    renderSceneFillPrepasses(cb, tilePlans);
 
     if (!rasterMode)
-        prepareToolDepthCuedLines(u, vp, sz);
+        prepareToolDepthCuedLines(u, vp, referenceViewport);
 
-    cb->beginPass(renderTarget(), m_renderSettings.sceneBackgroundBottomColor, { 1.0f, 0 }, u);
+    // With more than one tile the clear colour is only ever seen in the gaps between them,
+    // which is what turns those gaps into a frame.
+    const bool framed = (tilePlans.size() > 1) && !m_captureTransparentBackground;
+    const QColor clearColor = m_captureTransparentBackground
+        ? QColor(0, 0, 0, 0)
+        : (framed
+               ? RenderWidgetInternal::tileFrameColorFor(
+                     m_renderSettings.sceneBackgroundBottomColor,
+                     m_renderSettings.sceneBackgroundTopColor)
+               : m_renderSettings.sceneBackgroundBottomColor);
+    cb->beginPass(renderTarget(), clearColor, { 1.0f, 0 }, u);
     cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
 
-    if (m_sceneBackgroundPipeline && m_sceneBackgroundSrb) {
+    // The backdrop is a full-screen quad shaded from its own interpolated clip coordinates,
+    // so drawing it once per tile viewport gives every tile the whole gradient rather than
+    // its slice of one gradient stretched across the view -- which is what makes a tile read
+    // as a small viewport of its own instead of a window cut into a larger picture.
+    //
+    // Clearing to alpha 0 is not enough on its own for a transparent capture: drawing the
+    // quad would paint the backdrop straight back over the cleared buffer.
+    if (!m_captureTransparentBackground && m_sceneBackgroundPipeline && m_sceneBackgroundSrb) {
         cb->setGraphicsPipeline(m_sceneBackgroundPipeline.get());
         cb->setShaderResources(m_sceneBackgroundSrb.get());
-        cb->draw(3);
+        for (const RenderFramePlan &plan : tilePlans) {
+            cb->setViewport(plan.rhiViewport());
+            cb->draw(3);
+        }
     }
 
-    if (framePlan.hasFillPass())
-        renderSceneFillPass(cb, framePlan);
-
-    renderSceneBufferItems(cb, framePlan, framePlan.wireItems);
-    renderSceneBufferItems(cb, framePlan, framePlan.edgeItems);
-    renderSceneBufferItems(cb, framePlan, framePlan.boundingBoxItems);
-    renderSceneBufferItems(cb, framePlan, framePlan.pointItems);
-    if (framePlan.hasRasterProjectedPass())
-        renderSceneRasterProjected(cb, framePlan);
-    renderSceneDecoratorItems(cb, framePlan);
-    if (!rasterMode)
+    // Each stage runs across every tile before the next one starts, which keeps the draw
+    // order of a single tile exactly what it was before the view could be split.
+    for (const RenderFramePlan &plan : tilePlans) {
+        if (plan.hasFillPass())
+            renderSceneFillPass(cb, plan);
+    }
+    for (const RenderFramePlan &plan : tilePlans)
+        renderSceneBufferItems(cb, plan, plan.wireItems);
+    for (const RenderFramePlan &plan : tilePlans)
+        renderSceneBufferItems(cb, plan, plan.edgeItems);
+    for (const RenderFramePlan &plan : tilePlans)
+        renderSceneBufferItems(cb, plan, plan.boundingBoxItems);
+    for (const RenderFramePlan &plan : tilePlans)
+        renderSceneBufferItems(cb, plan, plan.pointItems);
+    for (const RenderFramePlan &plan : tilePlans) {
+        if (plan.hasRasterProjectedPass())
+            renderSceneRasterProjected(cb, plan);
+    }
+    for (const RenderFramePlan &plan : tilePlans)
+        renderSceneDecoratorItems(cb, plan);
+    if (!rasterMode) {
+        cb->setViewport(
+            RenderWidgetInternal::rhiViewportFor(referenceTile.rect, sz));
         drawToolDepthCuedLines(cb);
+    }
 
     // In RasterImage mode the raster must be a screen-space overlay over the
     // 3D scene (no depth test), controlled by raster opacity.
-    if (framePlan.hasRasterBackplatePass())
-        renderSceneRasterBackplates(cb, framePlan);
+    for (const RenderFramePlan &plan : tilePlans) {
+        if (plan.hasRasterBackplatePass())
+            renderSceneRasterBackplates(cb, plan);
+    }
 
     if (drawTrackballGizmo && m_trackballGizmoPipeline && m_trackballGizmoVbuf && m_trackballGizmoSrb) {
         cb->setGraphicsPipeline(m_trackballGizmoPipeline.get());
         cb->setShaderResources(m_trackballGizmoSrb.get());
-        cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+        // The orbit sphere sits on the shared camera's centre, so it belongs in one tile.
+        cb->setViewport(RenderWidgetInternal::rhiViewportFor(referenceTile.rect, sz));
         const QRhiCommandBuffer::VertexInput gv(m_trackballGizmoVbuf.get(), 0);
         cb->setVertexInput(0, 1, &gv);
         cb->draw(m_trackballGizmoVertexCount);
@@ -597,10 +671,11 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (!rasterMode && drawCurrentMeshHighlight)
         drawCurrentMeshOutline(cb, sz);
 
-    renderSceneSelectionItems(cb, framePlan);
+    for (const RenderFramePlan &plan : tilePlans)
+        renderSceneSelectionItems(cb, plan);
 
     if (!rasterMode && needMvpForFrame) {
-        updateBoundingBoxCornersOverlayPlacement(vp, view, sz);
+        updateBoundingBoxCornersOverlayPlacement(vp, view, referenceTile.rect);
     }
 
     cb->endPass();

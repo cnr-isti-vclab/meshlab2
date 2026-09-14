@@ -167,7 +167,7 @@ void applyTransformToVisibleMeshes(Document &doc, const QMatrix4x4 &transf)
 // ---------------------------------------------------------------------------
 
 QString CameraFilterPlugin::pluginId() const
-{ return QStringLiteral("qmeshlab.filter.camera"); }
+{ return QStringLiteral("meshlab2.filter.camera"); }
 
 QString CameraFilterPlugin::name() const
 { return QStringLiteral("Camera Filters"); }
@@ -616,7 +616,7 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
         trackball.insert(QStringLiteral("fov_y_degrees"), state.fovYDeg);
 
         QJsonObject root;
-        root.insert(QStringLiteral("kind"), QStringLiteral("QMeshLab.CameraState"));
+        root.insert(QStringLiteral("kind"), QStringLiteral("MeshLab.CameraState"));
         root.insert(QStringLiteral("version"), 1);
         root.insert(QStringLiteral("trackball"), trackball);
 
@@ -700,7 +700,7 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
         trackball.insert(QStringLiteral("fov_y_degrees"), state.fovYDeg);
 
         QJsonObject root;
-        root.insert(QStringLiteral("kind"), QStringLiteral("QMeshLab.CameraState"));
+        root.insert(QStringLiteral("kind"), QStringLiteral("MeshLab.CameraState"));
         root.insert(QStringLiteral("version"), 1);
         root.insert(QStringLiteral("trackball"), trackball);
 

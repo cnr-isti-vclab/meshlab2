@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.expression",
+  "pluginId": "meshlab2.filter.expression",
   "filters": [
     {
       "id": "select_vertices_by_expression",
@@ -472,7 +472,7 @@
         {
           "id": "map",
           "label": "Also Bake To Color",
-          "help": "Also write a per-vertex color ramp. Disabled by default because QMeshLab automatically switches to vertex-quality visualization after the quality is computed.",
+          "help": "Also write a per-vertex color ramp. Disabled by default because MeshLab automatically switches to vertex-quality visualization after the quality is computed.",
           "group": "main",
           "type": "bool",
           "default": false
@@ -537,7 +537,7 @@
         {
           "id": "map",
           "label": "Also Bake To Color",
-          "help": "Also write a per-face color ramp. Disabled by default because QMeshLab automatically switches to face-quality visualization after the quality is computed.",
+          "help": "Also write a per-face color ramp. Disabled by default because MeshLab automatically switches to face-quality visualization after the quality is computed.",
           "group": "main",
           "type": "bool",
           "default": false

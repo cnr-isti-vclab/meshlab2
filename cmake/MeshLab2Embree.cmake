@@ -1,24 +1,24 @@
-# Reusable Intel Embree (v4) + OpenMP detection, shared by QMeshLabCore (the
+# Reusable Intel Embree (v4) + OpenMP detection, shared by MeshLab2Core (the
 # viewpoint occlusion service) and the filter_embree plugin.
 #
-# Creates an INTERFACE target `QMeshLabEmbree` that consumers can link
+# Creates an INTERFACE target `MeshLab2Embree` that consumers can link
 # unconditionally. When embree and OpenMP are found the target carries the
-# include dirs, libraries and the compile definition QMESHLAB_EMBREE_ENABLED=1,
-# and QMESHLAB_EMBREE_FOUND is set TRUE. Otherwise the target still exists but
+# include dirs, libraries and the compile definition MESHLAB2_EMBREE_ENABLED=1,
+# and MESHLAB2_EMBREE_FOUND is set TRUE. Otherwise the target still exists but
 # adds nothing, and embree-dependent code paths compile out (falling back to the
 # vcglib grid ray caster).
 
-if (TARGET QMeshLabEmbree)
+if (TARGET MeshLab2Embree)
     return()
 endif()
 
-option(QMESHLAB_WITH_EMBREE "Use Intel Embree for ray casting when available" ON)
+option(MESHLAB2_WITH_EMBREE "Use Intel Embree for ray casting when available" ON)
 
-add_library(QMeshLabEmbree INTERFACE)
-set(QMESHLAB_EMBREE_FOUND FALSE CACHE INTERNAL "Embree (v4) + OpenMP available")
+add_library(MeshLab2Embree INTERFACE)
+set(MESHLAB2_EMBREE_FOUND FALSE CACHE INTERNAL "Embree (v4) + OpenMP available")
 
-if (NOT QMESHLAB_WITH_EMBREE)
-    message(STATUS "Embree support disabled (QMESHLAB_WITH_EMBREE=OFF); using vcglib grid ray caster")
+if (NOT MESHLAB2_WITH_EMBREE)
+    message(STATUS "Embree support disabled (MESHLAB2_WITH_EMBREE=OFF); using vcglib grid ray caster")
     return()
 endif()
 
@@ -78,12 +78,12 @@ endif()
 
 # --- wire up the interface target ---
 if (_embree_target)
-    target_link_libraries(QMeshLabEmbree INTERFACE ${_embree_target})
+    target_link_libraries(MeshLab2Embree INTERFACE ${_embree_target})
 else()
-    target_include_directories(QMeshLabEmbree INTERFACE ${_embree_include})
-    target_link_libraries(QMeshLabEmbree INTERFACE ${_embree_lib})
+    target_include_directories(MeshLab2Embree INTERFACE ${_embree_include})
+    target_link_libraries(MeshLab2Embree INTERFACE ${_embree_lib})
 endif()
-target_link_libraries(QMeshLabEmbree INTERFACE OpenMP::OpenMP_CXX)
-target_compile_definitions(QMeshLabEmbree INTERFACE QMESHLAB_EMBREE_ENABLED=1)
-set(QMESHLAB_EMBREE_FOUND TRUE CACHE INTERNAL "Embree (v4) + OpenMP available")
+target_link_libraries(MeshLab2Embree INTERFACE OpenMP::OpenMP_CXX)
+target_compile_definitions(MeshLab2Embree INTERFACE MESHLAB2_EMBREE_ENABLED=1)
+set(MESHLAB2_EMBREE_FOUND TRUE CACHE INTERNAL "Embree (v4) + OpenMP available")
 message(STATUS "Embree (v4) enabled for ray casting")

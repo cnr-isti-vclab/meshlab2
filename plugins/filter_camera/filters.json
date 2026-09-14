@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.camera",
+  "pluginId": "meshlab2.filter.camera",
   "filters": [
     {
       "id": "set_mesh_camera",

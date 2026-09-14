@@ -1,5 +1,6 @@
 #ifndef _ISO_TANGENTSPACE
 #define _ISO_TANGENTSPACE
+#include <random>
 #include "iso_parametrization.h"
 #include <vcg/complex/algorithms/update/curvature.h>
 #include <vcg/complex/algorithms/update/normal.h>
@@ -218,8 +219,15 @@ public:
 		return true;
 	}
 
-	void Test(int Sample=100,int Ite=100) 
+	// QMeshLab: seed added. This self-check probes each sub-domain with Ite random
+	// tangent directions per barycentric sample; drawn from rand() a failure could not
+	// be reproduced, which is the one thing a self-check has to support. Nothing in the
+	// project calls Test() today -- it is kept because it is the only executable
+	// statement of what Sum() and the tangent frame are supposed to satisfy.
+	void Test(int Sample=100,int Ite=100,unsigned int seed=20100701u) 
 	{
+		std::mt19937 probe(seed);
+		std::uniform_int_distribution<int> coord(0, 999); // rand()%1000 was [0,999]
 		int max=isoParam->AbsMesh()->face.size();
 		for (int I=0;I<max;I++)
 		{
@@ -240,8 +248,8 @@ public:
 						
 						for (int k=0;k<Ite;k++)
 						{
-							ScalarType d0=((ScalarType)(rand()%1000));
-							ScalarType d1=((ScalarType)(rand()%1000));
+							ScalarType d0=((ScalarType)coord(probe));
+							ScalarType d1=((ScalarType)coord(probe));
 							vcg::Point2<ScalarType> vect=vcg::Point2<ScalarType>(d0,d1);
 							vect.Normalize();
 							ScalarType norm=(ScalarType)0.05;//((ScalarType)(rand()%1000))/(ScalarType)2000;

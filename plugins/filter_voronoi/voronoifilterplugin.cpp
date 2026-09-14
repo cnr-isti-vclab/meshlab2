@@ -697,7 +697,7 @@ MeshFilterRunResult runSolidWireframe(const FilterParams &params, Document &doc)
 
 QString VoronoiFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.voronoi");
+    return QStringLiteral("meshlab2.filter.voronoi");
 }
 
 QString VoronoiFilterPlugin::name() const

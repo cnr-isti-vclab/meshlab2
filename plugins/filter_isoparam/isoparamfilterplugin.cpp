@@ -1,3 +1,4 @@
+#include <map>
 #include "isoparamfilterplugin.h"
 
 #include "document.h"
@@ -130,7 +131,8 @@ constexpr QLatin1StringView kFilterAbstractDomain("parametrize_by_abstract_domai
 constexpr QLatin1StringView kFilterRemesh("remesh_by_abstract_domain");
 constexpr QLatin1StringView kFilterAtlas("create_atlased_mesh_from_abstract_domain");
 constexpr QLatin1StringView kFilterTransfer("transfer_abstract_domain_to_another_layer");
-const QString kDomainKey = QStringLiteral("qmeshlab.filter.isoparam/abstract_domain");
+constexpr QLatin1StringView kFilterMeasure("measure_abstract_domain");
+const QString kDomainKey = QStringLiteral("meshlab2.filter.isoparam/abstract_domain");
 
 MeshFilterRunResult fail(const QString &message)
 {
@@ -177,6 +179,11 @@ public:
 
     IsoParametrization *parametrization() const { return m_iso.get(); }
     const AbstractMesh *abstractMesh() const { return m_abstractMesh.get(); }
+    // What the parametrizator reported when it stopped. Read by "Measure Abstract Domain";
+    // describe() above shows the same three in the layer panel.
+    int domainFaces() const { return m_domainFaces; }
+    float stretch() const { return m_stretch; }
+    float distortion() const { return m_distortion; }
 
 private:
     // IsoParametrization only holds pointers to these two -- MeshLab allocates them with a
@@ -392,6 +399,206 @@ MeshFilterRunResult runAtlasedMesh(const FilterParams &params, Document &doc, in
     return result;
 }
 
+// Reports what the abstract domain on a layer actually is. Nothing here modifies anything;
+// the point is that the domain is otherwise opaque -- it lives in layer data, the layer
+// panel shows three numbers, and the three filters that consume it each expose only the
+// part they need. The measures are the ones a user has to know to choose between the atlas
+// chart shapes, plus the paper's own structural invariants, checked rather than assumed.
+//
+// Section 4 of Pietroni, Tarini and Cignoni (IEEE TVCG 2010) is the reference: the domain
+// is N unit-sided equilateral sub-domains, a position in it is a triple (i, alpha, beta)
+// with i in [0..N-1] and (alpha, beta) the first two barycentric coordinates, the
+// connectivity makes it "2-manifold, closed, and well oriented", Theta is a bijection, and
+// N "typically ranges between a minimum of 4 and a maximum of a few hundreds".
+MeshFilterRunResult runMeasureDomain(const FilterParams &params, Document &doc, int index)
+{
+    Q_UNUSED(params);
+    QString error;
+    const AbstractDomainData *domain = domainOf(doc, index, error);
+    if (!domain)
+        return fail(error);
+
+    const AbstractMesh *abs = domain->abstractMesh();
+    IsoParametrization *iso = domain->parametrization();
+    if (!abs || !iso || !iso->ParaMesh())
+        return fail(QObject::tr("The abstract domain on this layer is incomplete."));
+    const ParamMesh &para = *iso->ParaMesh();
+
+    // ---- domain structure ----
+    int subDomains = 0;
+    for (const auto &f : abs->face)
+        if (!f.IsD())
+            ++subDomains;
+    int domainVertices = 0;
+    for (const auto &v : abs->vert)
+        if (!v.IsD())
+            ++domainVertices;
+
+    // Every side of every sub-domain is shared with exactly one other (paper, sec. 4), so
+    // a closed domain has 3F/2 edges and no border. Count the borders rather than trusting
+    // it: a border here means the invariant is broken, and the half-diamond partition -- one
+    // domain per edge -- is what the atlas builds its charts from.
+    int borderEdges = 0;
+    std::vector<int> valence(abs->vert.size(), 0);
+    for (const auto &f : abs->face) {
+        if (f.IsD())
+            continue;
+        for (int j = 0; j < 3; ++j) {
+            if (vcg::face::IsBorder(f, j))
+                ++borderEdges;
+            valence[std::size_t(vcg::tri::Index(*const_cast<AbstractMesh *>(abs), f.cV(j)))] += 1;
+        }
+    }
+    const int domainEdges = (3 * subDomains + borderEdges) / 2;
+    // V - E + F = 2 - 2g on a closed orientable surface. Reported as the domain's own
+    // genus: the method puts no restriction on it, and it should match the surface's.
+    const int euler = domainVertices - domainEdges + subDomains;
+    const bool closed = borderEdges == 0;
+
+    std::map<int, int> valenceHistogram;
+    for (std::size_t i = 0; i < abs->vert.size(); ++i)
+        if (!abs->vert[i].IsD())
+            ++valenceHistogram[valence[i]];
+
+    // ---- how the mapping sits in the domain ----
+    std::vector<int> verticesPerSubDomain(std::size_t(std::max(1, subDomains)), 0);
+    int outOfRange = 0;
+    int paramVertices = 0;
+    for (const auto &v : para.vert) {
+        if (v.IsD())
+            continue;
+        ++paramVertices;
+        const int I = v.cT().N();
+        const vcg::Point2f bary = v.cT().P();
+        // The (i, alpha, beta) triple: i names a sub-domain, and (alpha, beta) must land
+        // inside the unit triangle. A tolerance because these are optimized floats.
+        const float tol = 1e-4f;
+        if (I < 0 || I >= subDomains || bary.X() < -tol || bary.Y() < -tol
+            || bary.X() + bary.Y() > 1.0f + tol) {
+            ++outOfRange;
+            continue;
+        }
+        ++verticesPerSubDomain[std::size_t(I)];
+    }
+
+    int paramFaces = 0;
+    int spanningFaces = 0;
+    for (const auto &f : para.face) {
+        if (f.IsD())
+            continue;
+        ++paramFaces;
+        // A face whose corners name different sub-domains straddles them, which the paper
+        // allows: an interpolation domain is what makes such a face expressible at all.
+        if (f.cV(0)->cT().N() != f.cV(1)->cT().N() || f.cV(1)->cT().N() != f.cV(2)->cT().N())
+            ++spanningFaces;
+    }
+
+    int emptySubDomains = 0;
+    int minPer = paramVertices;
+    int maxPer = 0;
+    for (int i = 0; i < subDomains; ++i) {
+        const int n = verticesPerSubDomain[std::size_t(i)];
+        if (n == 0)
+            ++emptySubDomains;
+        minPer = std::min(minPer, n);
+        maxPer = std::max(maxPer, n);
+    }
+    if (subDomains == 0)
+        minPer = 0;
+    const double meanPer =
+        subDomains > 0 ? double(paramVertices - outOfRange) / double(subDomains) : 0.0;
+
+    const Document::MeshEntry &entry = doc.mesh(index);
+    const double facesPerSubDomain =
+        subDomains > 0 ? double(entry.mesh.FN()) / double(subDomains) : 0.0;
+
+    // ---- the report ----
+    const auto yesNo = [](bool b) { return b ? QObject::tr("yes") : QObject::tr("no"); };
+    QStringList info;
+    info << QObject::tr("Layer: %1").arg(entry.name);
+    info << QObject::tr("Sub-domains (equilateral triangles): %1").arg(subDomains);
+    info << QObject::tr("Domain V: %1  E: %2  F: %3").arg(domainVertices).arg(domainEdges).arg(subDomains);
+    info << QObject::tr("Closed and 2-manifold: %1%2")
+                .arg(yesNo(closed))
+                .arg(closed ? QString() : QObject::tr(" (%1 border side(s))").arg(borderEdges));
+    if (closed && euler % 2 == 0)
+        info << QObject::tr("Euler characteristic: %1 (genus %2)").arg(euler).arg((2 - euler) / 2);
+    else
+        info << QObject::tr("Euler characteristic: %1").arg(euler);
+
+    QStringList valenceParts;
+    for (const auto &bucket : valenceHistogram) {
+        valenceParts << QObject::tr("%1x valence %2").arg(bucket.second).arg(bucket.first);
+    }
+    info << QObject::tr("Domain vertex valences: %1").arg(valenceParts.join(QStringLiteral(", ")));
+    info << QObject::tr("Irregular domain vertices (valence != 6): %1")
+                .arg(domainVertices - valenceHistogram[6]);
+
+    // The three partitions of sec. 4.2, which is what the atlas filter's Chart shape picks
+    // between. Quoting the counts saves the user running it to find out.
+    info << QObject::tr("Charts the atlas would build -- Square/Rhombus: %1 (one per "
+                        "half-diamond, i.e. per domain edge); Polygon: %2 (one per "
+                        "half-star, i.e. per domain vertex); Hexagon and Star merge these "
+                        "and end up with fewer.")
+                .arg(domainEdges)
+                .arg(domainVertices);
+
+    info << QObject::tr("Parametrized mesh: %1 vertices, %2 faces (layer has %3 faces)")
+                .arg(paramVertices).arg(paramFaces).arg(entry.mesh.FN());
+    info << QObject::tr("Layer faces per sub-domain: %1")
+                .arg(facesPerSubDomain, 0, 'f', 1);
+    info << QObject::tr("Param vertices per sub-domain: min %1, mean %2, max %3")
+                .arg(minPer).arg(meanPer, 0, 'f', 1).arg(maxPer);
+    info << QObject::tr("Faces straddling two or more sub-domains: %1 of %2")
+                .arg(spanningFaces).arg(paramFaces);
+
+    info << QObject::tr("Stretch efficiency: %1 (1.0 is isometric)")
+                .arg(double(domain->stretch()), 0, 'f', 4);
+    info << QObject::tr("Area distortion: %1%").arg(double(domain->distortion()), 0, 'f', 2);
+
+    // The checks. A domain that fails one of these is not usable, and until now the only
+    // symptom was a downstream filter behaving oddly.
+    QStringList problems;
+    if (subDomains < 4)
+        problems << QObject::tr("only %1 sub-domains; the method's minimum is 4").arg(subDomains);
+    if (!closed)
+        problems << QObject::tr("%1 border side(s): the domain is not closed").arg(borderEdges);
+    if (emptySubDomains > 0)
+        problems << QObject::tr("%1 sub-domain(s) have no parametrized vertex, so the "
+                                "mapping cannot cover them").arg(emptySubDomains);
+    if (outOfRange > 0)
+        problems << QObject::tr("%1 vertex/vertices name a sub-domain outside [0,%2) or sit "
+                                "outside their triangle").arg(outOfRange).arg(subDomains);
+    if (problems.isEmpty())
+        info << QObject::tr("Structural checks: all passed.");
+    else
+        info << QObject::tr("Structural checks FAILED: %1.").arg(problems.join(QStringLiteral("; ")));
+
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = false;
+    result.infoMessages = info;
+    result.outputValues[QStringLiteral("sub_domains")] = subDomains;
+    result.outputValues[QStringLiteral("domain_vertices")] = domainVertices;
+    result.outputValues[QStringLiteral("domain_edges")] = domainEdges;
+    result.outputValues[QStringLiteral("domain_border_sides")] = borderEdges;
+    result.outputValues[QStringLiteral("domain_euler_characteristic")] = euler;
+    result.outputValues[QStringLiteral("irregular_domain_vertices")] =
+        domainVertices - valenceHistogram[6];
+    result.outputValues[QStringLiteral("param_vertices")] = paramVertices;
+    result.outputValues[QStringLiteral("param_faces")] = paramFaces;
+    result.outputValues[QStringLiteral("faces_straddling_sub_domains")] = spanningFaces;
+    result.outputValues[QStringLiteral("layer_faces_per_sub_domain")] = facesPerSubDomain;
+    result.outputValues[QStringLiteral("param_vertices_per_sub_domain_min")] = minPer;
+    result.outputValues[QStringLiteral("param_vertices_per_sub_domain_max")] = maxPer;
+    result.outputValues[QStringLiteral("empty_sub_domains")] = emptySubDomains;
+    result.outputValues[QStringLiteral("vertices_outside_their_sub_domain")] = outOfRange;
+    result.outputValues[QStringLiteral("stretch_efficiency")] = double(domain->stretch());
+    result.outputValues[QStringLiteral("area_distortion_percent")] = double(domain->distortion());
+    result.outputValues[QStringLiteral("structurally_valid")] = problems.isEmpty();
+    return result;
+}
+
 // Carries a domain onto a second, similar layer by closest point.
 MeshFilterRunResult runTransfer(const FilterParams &params, Document &doc)
 {
@@ -476,7 +683,7 @@ MeshFilterRunResult runTransfer(const FilterParams &params, Document &doc)
 
 QString IsoParamFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.isoparam");
+    return QStringLiteral("meshlab2.filter.isoparam");
 }
 
 QString IsoParamFilterPlugin::name() const
@@ -497,6 +704,8 @@ MeshFilterRunResult IsoParamFilterPlugin::runFilter(
         return runRemesh(params, doc, index);
     if (filterId == QString::fromLatin1(kFilterAtlas))
         return runAtlasedMesh(params, doc, index);
+    if (filterId == QString::fromLatin1(kFilterMeasure))
+        return runMeasureDomain(params, doc, index);
     if (filterId == QString::fromLatin1(kFilterTransfer))
         return runTransfer(params, doc);
     if (filterId != QString::fromLatin1(kFilterAbstractDomain))

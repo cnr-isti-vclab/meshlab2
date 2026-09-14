@@ -1,6 +1,6 @@
 # Filter Name Proposal
 
-Proposed display names aligned to the naming grammar in [Vocabulary](vocabulary.md) §6:
+Proposed display names aligned to the naming grammar in [Vocabulary](../vocabulary.md) §6:
 
 ```text
 Verb Object [(Backend)]
@@ -41,7 +41,7 @@ separately from the display names.
 
 Currently every name begins `Mesh Boolean:`, repeating the category. The result of a
 boolean *is* a conventionally named object, so these are named for the result rather than
-the action — the noun-phrase exception recorded in [Vocabulary](vocabulary.md) §6.
+the action — the noun-phrase exception recorded in [Vocabulary](../vocabulary.md) §6.
 
 | Current | Proposed | Python |
 |---|---|---|
@@ -137,7 +137,7 @@ case, which is exactly the exception the verb lexicon allows.
 
 ## Verbs added to the lexicon
 
-Two, both now recorded in [Vocabulary](vocabulary.md) §3:
+Two, both now recorded in [Vocabulary](../vocabulary.md) §3:
 
 | Verb | Means | Why the existing lexicon was not enough |
 |---|---|---|
@@ -177,7 +177,7 @@ failures are pre-existing and were confirmed identical with the changes stashed)
 The largest root and the least regular: 61 of the 65 names do not lead with a verb, and
 the same operation is spelled three different ways across plugins (`Re-Compute`,
 `Compute`, bare noun). It is also where the `scalar`-not-`quality` ruling
-([Vocabulary](vocabulary.md) §4) first bites — 17 names say *Quality* today.
+([Vocabulary](../vocabulary.md) §4) first bites — 17 names say *Quality* today.
 
 Three cross-cutting patterns do most of the work:
 
@@ -205,7 +205,7 @@ Three cross-cutting patterns do most of the work:
 | Smooth normals on point sets | **Smooth Point Cloud Normals** | `smooth_point_cloud_normals` |
 | UnSharp Mask Normals | **Sharpen Face Normals by Unsharp Mask** | `sharpen_face_normals_by_unsharp_mask` |
 
-`Re-Compute` → `Compute` is the casing rule in [Vocabulary](vocabulary.md) §5 applied
+`Re-Compute` → `Compute` is the casing rule in [Vocabulary](../vocabulary.md) §5 applied
 literally; the "Re-" carried no information, since every one of these overwrites whatever
 was there.
 

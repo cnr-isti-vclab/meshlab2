@@ -19,7 +19,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
         && m_renderSettings.highlightCurrentMesh
         && currentMeshIndex >= 0
         && currentMeshIndex < m_doc->meshCount();
-    const RenderFramePassRequests requests = collectRenderFramePassRequests();
+    const RenderFramePassRequests requests = collectRenderFramePassRequests(-1);
     prepareDirtyBuffers(cb, requests, currentMeshIndex, drawCurrentMeshHighlight);
 }
 
@@ -115,7 +115,8 @@ void RenderWidget::prepareDirtyBuffers(
 
 void RenderWidget::executePendingDepthPick(
     QRhiCommandBuffer *cb,
-    const QSize &pixelSize)
+    const QSize &pixelSize,
+    const ViewTile &tile)
 {
     if (!m_depthPickPending || m_depthPickInFlight || !m_rhi || !cb || pixelSize.isEmpty())
         return;
@@ -144,13 +145,16 @@ void RenderWidget::executePendingDepthPick(
 
     const auto fillVariant = Document::FillGpuVariant::Constant;
 
-    const float aspect = pixelSize.width() / float(pixelSize.height());
+    // The pick target covers the whole view, but only the clicked tile is drawn into it, at
+    // the tile's own place and through the tile's own projection. The readback coordinate is
+    // therefore unchanged: it is still the pixel under the cursor.
+    const float aspect = tile.rect.width() / float(qMax(1, tile.rect.height()));
     QMatrix4x4 proj = m_trackball.projectionMatrix(aspect);
     const QMatrix4x4 view = m_trackball.viewMatrix();
     const QMatrix4x4 vp = proj * view;
 
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        if (!meshVisible(mi))
+        if (!meshVisible(mi) || !tileShowsMesh(tile, mi))
             continue;
         const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
         const auto pointVariant = static_cast<Document::PointGpuVariant>(
@@ -174,10 +178,10 @@ void RenderWidget::executePendingDepthPick(
     }
 
     cb->beginPass(m_depthPickRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
-    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+    cb->setViewport(rhiViewportFor(tile.rect, pixelSize));
 
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        if (!meshVisible(mi))
+        if (!meshVisible(mi) || !tileShowsMesh(tile, mi))
             continue;
 
         const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
@@ -189,8 +193,8 @@ void RenderWidget::executePendingDepthPick(
         // which mesh was hit. id 0 is background, so meshes map to mi+1.
         const float pickId = float(mi + 1) / 255.0f;
         uploadMainUbufForMesh(
-            cb, mi, proj, view, meshSettings, pixelSize, true, QVector3D(0.0f, 0.0f, 1.0f),
-            MainUbufMaterialOverrides{}, ubufOffset, pickId);
+            cb, mi, proj, view, meshSettings, tile.rect.size(), true,
+            QVector3D(0.0f, 0.0f, 1.0f), MainUbufMaterialOverrides{}, ubufOffset, pickId);
 
         if (m_depthPickFillPipeline) {
             const Document::FillPassGpuView fillView =
@@ -229,9 +233,14 @@ void RenderWidget::executePendingDepthPick(
     QPointer<RenderWidget> self(this);
     const int pickSequence = m_depthPickSequence; /* capture at submit time */
     const PickPurpose purpose = m_depthPickPurpose;
+    // The readback pixel is addressed in the whole pick target, but the geometry was
+    // projected through the tile's viewport, so it is the tile that normalized device
+    // coordinates span. Unprojecting against the target instead puts the recovered point
+    // somewhere else entirely once a tile is smaller than the view.
+    const QRect pickViewport = tile.rect;
     m_depthPickReadbackResult = std::make_unique<QRhiReadbackResult>();
     m_depthPickReadbackResult->completed =
-        [self, pickSequence, purpose, invMvp, px, pyScreen, pixelSize, yUpInNdc, clipDepthZeroToOne]() {
+        [self, pickSequence, purpose, invMvp, px, pyScreen, pickViewport, yUpInNdc, clipDepthZeroToOne]() {
         if (!self)
             return;
         const QByteArray data =
@@ -241,7 +250,7 @@ void RenderWidget::executePendingDepthPick(
             : QRhiTexture::UnknownFormat;
         QMetaObject::invokeMethod(
             self,
-            [self, pickSequence, purpose, data, format, invMvp, px, pyScreen, pixelSize, yUpInNdc, clipDepthZeroToOne]() {
+            [self, pickSequence, purpose, data, format, invMvp, px, pyScreen, pickViewport, yUpInNdc, clipDepthZeroToOne]() {
             if (!self)
                 return;
             /* Stale-callback guard: a newer double-click incremented the sequence. */
@@ -273,9 +282,11 @@ void RenderWidget::executePendingDepthPick(
                 const bool bgraOrder = (format == QRhiTexture::BGRA8);
                 const float depth01 = decodePackedDepthRgb8(pxData, bgraOrder);
                 if (depth01 > 0.0f && depth01 < 1.0f) {
+                    const float tileX = float(px - pickViewport.x()) + 0.5f;
+                    const float tileY = float(pyScreen - pickViewport.y()) + 0.5f;
                     const float ndcX =
-                        (2.0f * (float(px) + 0.5f) / float(qMax(1, pixelSize.width()))) - 1.0f;
-                    const float y01 = (float(pyScreen) + 0.5f) / float(qMax(1, pixelSize.height()));
+                        (2.0f * tileX / float(qMax(1, pickViewport.width()))) - 1.0f;
+                    const float y01 = tileY / float(qMax(1, pickViewport.height()));
                     const float ndcY = yUpInNdc ? (1.0f - 2.0f * y01) : (2.0f * y01 - 1.0f);
                     const float ndcZ = clipDepthZeroToOne ? depth01 : (depth01 * 2.0f - 1.0f);
                     QVector4D world = invMvp * QVector4D(ndcX, ndcY, ndcZ, 1.0f);
@@ -319,7 +330,10 @@ void RenderWidget::executePendingDepthPick(
     m_depthPickInFlight = true;
 }
 
-void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize)
+void RenderWidget::renderCurrentMeshMask(
+    QRhiCommandBuffer *cb,
+    const QSize &pixelSize,
+    const ViewTile &tile)
 {
     if (!m_renderSettings.highlightCurrentMesh)
         return;
@@ -334,9 +348,13 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     if (!m_currentMaskRt || !m_currentMaskBaseRt || !m_currentMaskWorkRt)
         return;
 
-    const float aspect = pixelSize.width() / float(pixelSize.height());
+    // The mask buffers span the whole view and the morphology and outline passes below read
+    // them full-screen; only the geometry goes in at the tile, so the outline lands on the
+    // current layer wherever its tile is.
+    const float aspect = tile.rect.width() / float(qMax(1, tile.rect.height()));
     QMatrix4x4 proj = m_trackball.projectionMatrix(aspect);
     const QMatrix4x4 view = m_trackball.viewMatrix();
+    const QRhiViewport tileViewport = rhiViewportFor(tile.rect, pixelSize);
 
     const PerMeshRenderSettings currentMeshSettings = renderModeForMesh(currentMeshIndex);
     const MeshRenderMode currentMeshMode = renderModeForMesh(currentMeshIndex);
@@ -381,7 +399,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     if (!currentHasFill && !currentHasEdges && currentHasPoints) {
         // Keep the point-cloud outline path unchanged.
         cb->beginPass(m_currentMaskRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
-        cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+        cb->setViewport(tileViewport);
         if (m_currentMaskPointsPipeline) {
             const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
             uploadMainUbufForMesh(
@@ -390,7 +408,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
                 proj,
                 view,
                 currentMeshSettings,
-                pixelSize,
+                tile.rect.size(),
                 true,
                 QVector3D(0.0f, 0.0f, 1.0f),
                 MainUbufMaterialOverrides{},
@@ -418,7 +436,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
             proj,
             view,
             meshSettings,
-            pixelSize,
+            tile.rect.size(),
             true,
             QVector3D(0.0f, 0.0f, 1.0f),
             MainUbufMaterialOverrides{},
@@ -445,7 +463,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
             proj,
             view,
             meshSettings,
-            pixelSize,
+            tile.rect.size(),
             true,
             QVector3D(0.0f, 0.0f, 1.0f),
             MainUbufMaterialOverrides{},
@@ -502,7 +520,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
             proj,
             view,
             meshSettings,
-            pixelSize,
+            tile.rect.size(),
             true,
             QVector3D(0.0f, 0.0f, 1.0f),
             MainUbufMaterialOverrides{},
@@ -517,7 +535,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
 
     // 1) Render current mesh into buffer A (encoded depth in color, depth test/write enabled).
     cb->beginPass(m_currentMaskBaseRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
-    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+    cb->setViewport(tileViewport);
     if (currentHasFill) {
         drawFillDepth(currentMeshIndex, currentMeshSettings, currentFillView);
     } else if (currentHasEdges) {
@@ -547,11 +565,12 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     }
     cb->endPass();
 
-    // 3) Render whole scene depth into a second depth-encoded buffer.
+    // 3) Render whole scene depth into a second depth-encoded buffer. In the grid the tile
+    // holds only the current layer, so nothing occludes it and this draws nothing.
     cb->beginPass(m_currentMaskRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
-    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+    cb->setViewport(tileViewport);
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        if (!meshVisible(mi))
+        if (!meshVisible(mi) || !tileShowsMesh(tile, mi))
             continue;
         if (mi == currentMeshIndex)
             continue;

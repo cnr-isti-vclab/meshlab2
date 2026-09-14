@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.texture",
+  "pluginId": "meshlab2.filter.texture",
   "filters": [
     {
       "id": "parametrize_by_voronoi_atlas_vcglib",
@@ -628,7 +628,7 @@
       "name": "Convert Object-Space Normal Map to Tangent Space",
       "pythonName": "convert_object_space_normal_map_to_tangent_space",
       "shortDescription": "Convert an object-space normal map into a tangent-space normal map for the current mesh UV slot.",
-      "longDescriptionMarkdown": "Converts an object-space normal map into a tangent-space normal map using the current mesh geometry, normals, and UV parametrization. The result is suitable for direct use in QMeshLab's PBR normal-texture channel.",
+      "longDescriptionMarkdown": "Converts an object-space normal map into a tangent-space normal map using the current mesh geometry, normals, and UV parametrization. The result is suitable for direct use in MeshLab's PBR normal-texture channel.",
       "tags": [
         "texture",
         "normal map",

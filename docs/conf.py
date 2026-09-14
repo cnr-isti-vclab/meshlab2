@@ -1,5 +1,5 @@
 # Configuration file for the Sphinx documentation builder.
-project = 'QMeshLab'
+project = 'MeshLab'
 copyright = '2026, MeshLab Developers'
 author = 'MeshLab Developers'
 release = '0.1'

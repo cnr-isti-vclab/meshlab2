@@ -16,7 +16,7 @@
 // output.  Results are also collected manually and written as an HTML report at
 // the end of the test run (see cleanupTestCase).
 //
-// Report path: QMESHLAB_REPORT_FILE env var, or filter_creation_report.html in
+// Report path: MESHLAB2_REPORT_FILE env var, or filter_creation_report.html in
 // the current working directory.
 
 // ---------------------------------------------------------------------------
@@ -70,7 +70,7 @@ static void writeHtmlReport(const QVector<FilterTestResult> &results, const QStr
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Filter Creation Test Report — QMeshLab</title>
+<title>Filter Creation Test Report — MeshLab</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f4f6f9;color:#222}
@@ -102,7 +102,7 @@ code{font-family:"SF Mono",Consolas,monospace;font-size:.83em;background:#f0f2f5
 
     // ---- header -----------------------------------------------------------
     o << "<div class=\"hdr\">\n"
-      << "  <h1>Filter Creation Test Report &mdash; QMeshLab</h1>\n"
+      << "  <h1>Filter Creation Test Report &mdash; MeshLab</h1>\n"
       << "  <div class=\"meta\">Generated: " << htmlEscape(timestamp) << "</div>\n"
       << "</div>\n";
 
@@ -192,7 +192,7 @@ void FilterCreationTests::ontologyIsWellFormed()
 
 // Guards the classification against drift: this is what stops a new filter
 // inventing a category, which is how the previous 32 free-text menuPath values
-// accumulated. See docs/design/filter_classification.md.
+// accumulated. See docs/design/history/filter_classification.md.
 void FilterCreationTests::everyFilterIsClassified()
 {
     Document doc;
@@ -347,7 +347,7 @@ void FilterCreationTests::runWithDefaults()
 
 void FilterCreationTests::cleanupTestCase()
 {
-    const QString envPath = qEnvironmentVariable("QMESHLAB_REPORT_FILE");
+    const QString envPath = qEnvironmentVariable("MESHLAB2_REPORT_FILE");
     QString path;
     if (!envPath.isEmpty()) {
         path = envPath;

@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.layer",
+  "pluginId": "meshlab2.filter.layer",
   "filters": [
     {
       "id": "extract_selected_faces",
@@ -293,7 +293,7 @@
         {
           "id": "camera_state",
           "label": "Camera State",
-          "help": "Camera-state JSON payload (kind = QMeshLab.CameraState). Source can be Text, File, or Current View.",
+          "help": "Camera-state JSON payload (kind = MeshLab.CameraState). Source can be Text, File, or Current View.",
           "group": "main",
           "type": "camerastate",
           "default": "",
@@ -303,7 +303,7 @@
         {
           "id": "render_state",
           "label": "Render State",
-          "help": "Render-state JSON payload (kind = QMeshLab.RenderState). Source can be Text, File, or Current View.",
+          "help": "Render-state JSON payload (kind = MeshLab.RenderState). Source can be Text, File, or Current View.",
           "group": "main",
           "type": "renderstate",
           "default": "",

@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.qslim",
+  "pluginId": "meshlab2.filter.qslim",
   "provenance": {
     "project": "QSlim 2.1 (original MixKit implementation)",
     "repository": "https://github.com/alecjacobson/qslim",
@@ -45,7 +45,7 @@
         "garland1997qem"
       ],
       "shortDescription": "Simplify a triangle mesh with Garland's original QSlim implementation.",
-      "longDescriptionMarkdown": "Runs the original `MxEdgeQSlim` edge-contraction implementation from Michael Garland's MixKit, preserved through the pinned [QSlim 2.1 repository](https://github.com/alecjacobson/qslim). This is a separate implementation from QMeshLab's VCGLib quadric decimator, allowing results and historical behavior to be compared directly.\n\nQSlim's placement and weighting policies, boundary constraint weight, compactness threshold, and meshing penalty are exposed using their original meanings. The result is created as a new geometry-only layer and preserves the input layer transform. Vertex and face attributes, materials, textures, selections, and polygonal edge markings are not transferred. The original core has no cancellation or fine-grained progress API, so only phase-level progress is available.",
+      "longDescriptionMarkdown": "Runs the original `MxEdgeQSlim` edge-contraction implementation from Michael Garland's MixKit, preserved through the pinned [QSlim 2.1 repository](https://github.com/alecjacobson/qslim). This is a separate implementation from MeshLab's VCGLib quadric decimator, allowing results and historical behavior to be compared directly.\n\nQSlim's placement and weighting policies, boundary constraint weight, compactness threshold, and meshing penalty are exposed using their original meanings. The result is created as a new geometry-only layer and preserves the input layer transform. Vertex and face attributes, materials, textures, selections, and polygonal edge markings are not transferred. The original core has no cancellation or fine-grained progress API, so only phase-level progress is available.",
       "tags": [
         "meshing",
         "simplification",

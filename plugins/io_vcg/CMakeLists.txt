@@ -1,10 +1,10 @@
-add_library(QMeshLabPluginIOVCG STATIC
+add_library(MeshLab2PluginIOVCG STATIC
     vcgimportplugin.h
     vcgimportplugin.cpp
     ${CMAKE_SOURCE_DIR}/vcglib/wrap/ply/plylib.cpp
 )
 
-target_include_directories(QMeshLabPluginIOVCG
+target_include_directories(MeshLab2PluginIOVCG
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -12,8 +12,8 @@ target_include_directories(QMeshLabPluginIOVCG
         ${CMAKE_SOURCE_DIR}/vcglib/eigenlib
 )
 
-target_link_libraries(QMeshLabPluginIOVCG
+target_link_libraries(MeshLab2PluginIOVCG
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
 )

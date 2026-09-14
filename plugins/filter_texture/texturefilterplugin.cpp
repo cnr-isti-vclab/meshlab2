@@ -433,7 +433,7 @@ private:
 
 QString TextureFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.texture");
+    return QStringLiteral("meshlab2.filter.texture");
 }
 
 QString TextureFilterPlugin::name() const

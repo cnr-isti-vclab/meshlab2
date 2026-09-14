@@ -12,7 +12,7 @@
 
 // JSON serialisation for the render settings structs.
 //
-// Lives in QMeshLabCore rather than next to RenderWidget so it can be tested
+// Lives in MeshLab2Core rather than next to RenderWidget so it can be tested
 // directly (RenderWidget is in the app executable and cannot be linked from a test)
 // and so non-UI code can round-trip a render state. Same reasoning as
 // ViewTrackball::stateFromJson.
@@ -60,7 +60,7 @@ bool parsePerMeshSettings(const QJsonObject &obj, PerMeshRenderSettings &out, QS
 // field. The round-trip test pins these so that adding a field to the struct without
 // adding it to the serialiser fails a test instead of silently dropping out of every
 // saved render state. Update alongside the struct.
-constexpr int kGlobalSettingsFieldCount = 32;
-constexpr int kPerMeshSettingsFieldCount = 45;
+constexpr int kGlobalSettingsFieldCount = 34;
+constexpr int kPerMeshSettingsFieldCount = 46;
 
 } // namespace RenderSettingsJson

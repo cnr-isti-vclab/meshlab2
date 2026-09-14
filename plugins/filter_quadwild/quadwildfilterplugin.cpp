@@ -104,7 +104,7 @@ bool writeScaledConfig(
 
 QString QuadWildFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.quadwild");
+    return QStringLiteral("meshlab2.filter.quadwild");
 }
 
 QString QuadWildFilterPlugin::name() const
@@ -135,12 +135,12 @@ MeshFilterRunResult QuadWildFilterPlugin::runFilter(
         QDir(runtime.helpers).filePath(executableName(QStringLiteral("quad_from_patches")));
     if (!QFileInfo::exists(quadwild) || !QFileInfo::exists(quadFromPatches)) {
         return fail(QObject::tr(
-            "Bundled QuadWild-BiMDF helpers are missing. Rebuild QMeshLab with "
-            "QMESH_PLUGIN_FILTER_QUADWILD enabled."));
+            "Bundled QuadWild-BiMDF helpers are missing. Rebuild MeshLab with "
+            "MESHLAB2_PLUGIN_FILTER_QUADWILD enabled."));
     }
 
     QTemporaryDir temporary(
-        QDir(QDir::tempPath()).filePath(QStringLiteral("QMeshLab-QuadWild-XXXXXX")));
+        QDir(QDir::tempPath()).filePath(QStringLiteral("MeshLab-QuadWild-XXXXXX")));
     if (!temporary.isValid())
         return fail(QObject::tr("Cannot create a temporary directory for QuadWild-BiMDF."));
 

@@ -1,3 +1,4 @@
+#include "filedialogdirectory.h"
 #include "measuretool.h"
 
 #include "document.h"
@@ -393,10 +394,13 @@ void MeasureTool::saveMeasurements() const
     const QString path = QFileDialog::getSaveFileName(
         m_view,
         QObject::tr("Save Measurements"),
-        QStringLiteral("%1_measurements.tsv").arg(base),
+        FileDialogDirectory::startingPath(
+            QStringLiteral("export"),
+            QStringLiteral("%1_measurements.tsv").arg(base)),
         QObject::tr("Tab-separated values (*.tsv);;Text files (*.txt)"));
     if (path.isEmpty())
         return;
+    FileDialogDirectory::remember(QStringLiteral("export"), path);
 
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {

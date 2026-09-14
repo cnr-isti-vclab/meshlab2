@@ -9,7 +9,7 @@ class RenderWidget;
 // Singleton that owns the embedded CPython interpreter lifetime.
 //
 // Usage from main.cpp (before QApplication):
-//   PyImport_AppendInittab("_qmeshlab", &PyInit__qmeshlab);
+//   PyImport_AppendInittab("_meshlab", &PyInit__meshlab);
 //
 // Usage from MainWindow constructor (after building widgets):
 //   PythonHost::instance().initialize(m_doc);
@@ -27,7 +27,7 @@ public:
     // creates a code.InteractiveConsole with `meshset` bound to *doc* in
     // its locals namespace.  If *view* is non-null, a `mlgui` binding for
     // desktop GUI access is also injected.
-    // Must be called after PyImport_AppendInittab("_qmeshlab", ...) in main().
+    // Must be called after PyImport_AppendInittab("_meshlab", ...) in main().
     void initialize(Document *doc, RenderWidget *view = nullptr);
 
     // Finalises the interpreter (Py_Finalize).  Called automatically on

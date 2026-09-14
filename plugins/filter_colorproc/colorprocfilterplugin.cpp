@@ -255,7 +255,7 @@ std::vector<float> finiteVertexQualityValues(const VCGMesh &mesh)
     return values;
 }
 
-void applyQMeshLabVertexQualityColorMap(
+void applyMeshLab2VertexQualityColorMap(
     VCGMesh &mesh,
     const RenderQualityRange &range,
     const QString &colorMapId,
@@ -299,7 +299,7 @@ QRgb sampleWrappedTexture(const QImage &image, const vcg::Point2f &uv)
 
 QString ColorProcFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.colorproc");
+    return QStringLiteral("meshlab2.filter.colorproc");
 }
 
 QString ColorProcFilterPlugin::name() const
@@ -540,7 +540,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
                 Scalar(range.maxV),
                 cmap);
         } else {
-            applyQMeshLabVertexQualityColorMap(mesh, range, colorMapId, invert);
+            applyMeshLab2VertexQualityColorMap(mesh, range, colorMapId, invert);
         }
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Mapped vertex quality into color on '%1'").arg(meshLabel(entry, meshIndex)));

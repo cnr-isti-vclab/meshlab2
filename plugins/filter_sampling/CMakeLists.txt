@@ -1,28 +1,28 @@
-option(QMESH_PLUGIN_FILTER_SAMPLING "Build sampling filter plugin" ON)
+option(MESHLAB2_PLUGIN_FILTER_SAMPLING "Build sampling filter plugin" ON)
 
-if (NOT QMESH_PLUGIN_FILTER_SAMPLING)
+if (NOT MESHLAB2_PLUGIN_FILTER_SAMPLING)
     message(STATUS "Skipping filter_sampling - plugin disabled")
     return()
 endif()
 
-add_library(QMeshLabPluginFilterSampling STATIC
+add_library(MeshLab2PluginFilterSampling STATIC
     samplingfilterplugin.h
     samplingfilterplugin.cpp
 )
 
-target_include_directories(QMeshLabPluginFilterSampling
+target_include_directories(MeshLab2PluginFilterSampling
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabPluginFilterSampling
+target_link_libraries(MeshLab2PluginFilterSampling
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
 )
 
-qt_add_resources(QMeshLabPluginFilterSampling "filter_sampling_descriptors"
-    PREFIX "/filters/qmeshlab.filter.sampling"
+qt_add_resources(MeshLab2PluginFilterSampling "filter_sampling_descriptors"
+    PREFIX "/filters/meshlab2.filter.sampling"
     FILES filters.json
 )

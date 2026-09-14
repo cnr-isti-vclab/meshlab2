@@ -7,7 +7,7 @@
 #include <random>
 #include <string>
 
-namespace qmeshlab::filters {
+namespace meshlab::filters {
 
 inline std::string parserStringToStd(const mu::string_type &s)
 {
@@ -284,4 +284,4 @@ private:
     double m_q1 = 0.0;
 };
 
-} // namespace qmeshlab::filters
+} // namespace meshlab::filters

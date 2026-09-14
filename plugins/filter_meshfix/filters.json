@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.meshfix",
+  "pluginId": "meshlab2.filter.meshfix",
   "provenance": {
     "project": "MeshFix 2.1",
     "repository": "https://github.com/MarcoAttene/MeshFix-V2.1",

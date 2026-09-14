@@ -12,7 +12,7 @@ class Document;
 // started: the log names the command and its pid, the helper's own output is echoed as
 // it arrives, and terminateAll() can stop anything still alive. Without that last part a
 // hung helper outlives its window -- the filter sits in this pump, the main event loop
-// never regains control, and QMeshLab can only be killed from outside.
+// never regains control, and MeshLab can only be killed from outside.
 namespace HelperProcess {
 
 struct Request

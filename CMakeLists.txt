@@ -10,44 +10,44 @@ if (APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET 15.0)
 endif()
 
-project(QMeshLab LANGUAGES CXX)
+project(MeshLab2 LANGUAGES CXX)
 
 # Product identity, single source of truth for the macOS bundle (see
 # resources/Info.plist.in) and anywhere else the app names itself.
 # Version follows the MeshLab date scheme (YYYY.MM); CI may override it.
-set(QMESHLAB_VERSION "2026.11" CACHE STRING "Product version, YYYY.MM")
-set(QMESHLAB_BUNDLE_NAME "QMeshLab")
+set(MESHLAB2_VERSION "2026.11" CACHE STRING "Product version, YYYY.MM")
+set(MESHLAB2_BUNDLE_NAME "MeshLab")
 # Deliberately distinct from classic MeshLab's com.vcg.meshlab so both can be
 # installed side by side. Changing this invalidates code-signing identity and
 # the user's TCC privacy grants, so treat it as stable.
-set(QMESHLAB_BUNDLE_IDENTIFIER "net.meshlab.MeshLab")
-set(QMESHLAB_BUNDLE_COPYRIGHT "© 2026 Visual Computing Lab, CNR-ISTI. GPL-3.0.")
+set(MESHLAB2_BUNDLE_IDENTIFIER "net.meshlab.MeshLab")
+set(MESHLAB2_BUNDLE_COPYRIGHT "© 2026 Visual Computing Lab, CNR-ISTI. GPL-3.0.")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(QT_NO_PRIVATE_MODULE_WARNING ON)
 
-option(QMESH_REQUIRE_VCPKG_DEPS "Require vcpkg toolchain for non-Qt external dependencies" ON)
-option(QMESHLAB_MATH_HELP "Render LaTeX formulas in filter help" ON)
-if (QMESH_REQUIRE_VCPKG_DEPS)
+option(MESHLAB2_REQUIRE_VCPKG_DEPS "Require vcpkg toolchain for non-Qt external dependencies" ON)
+option(MESHLAB2_MATH_HELP "Render LaTeX formulas in filter help" ON)
+if (MESHLAB2_REQUIRE_VCPKG_DEPS)
     if (NOT DEFINED VCPKG_TARGET_TRIPLET)
         message(FATAL_ERROR
-            "QMESH_REQUIRE_VCPKG_DEPS=ON but vcpkg toolchain is not active. "
+            "MESHLAB2_REQUIRE_VCPKG_DEPS=ON but vcpkg toolchain is not active. "
             "Set VCPKG_ROOT to your vcpkg clone and configure with "
             "-DCMAKE_TOOLCHAIN_FILE=$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake, "
             "or use the 'vcpkg-manifest' preset.")
     endif()
-    message(STATUS "QMeshLab external dependency mode: vcpkg (triplet: ${VCPKG_TARGET_TRIPLET})")
+    message(STATUS "MeshLab external dependency mode: vcpkg (triplet: ${VCPKG_TARGET_TRIPLET})")
 endif()
 
 find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets GuiPrivate ShaderTools Test)
 
-if(QMESHLAB_MATH_HELP)
+if(MESHLAB2_MATH_HELP)
     find_package(Qt6 6.11 REQUIRED COMPONENTS Xml)
     if(NOT EXISTS "${CMAKE_SOURCE_DIR}/external/jkqtplotter/CMakeLists.txt")
         message(FATAL_ERROR
-            "QMESHLAB_MATH_HELP=ON but external/jkqtplotter is missing. "
+            "MESHLAB2_MATH_HELP=ON but external/jkqtplotter is missing. "
             "Run: git submodule update --init external/jkqtplotter")
     endif()
     set(JKQtPlotter_BUILD_INCLUDE_XITS_FONTS OFF)
@@ -59,13 +59,13 @@ if(QMESHLAB_MATH_HELP)
     set(JKQtPlotter_BUILD_FORCE_NO_PRINTER_SUPPORT ON)
     set(JKQtPlotter_BUILD_WITH_PRECOMPILED_HEADERS OFF)
     if(DEFINED BUILD_SHARED_LIBS)
-        set(_qmeshlab_build_shared_libs "${BUILD_SHARED_LIBS}")
+        set(_meshlab2_build_shared_libs "${BUILD_SHARED_LIBS}")
     endif()
     set(BUILD_SHARED_LIBS OFF)
     add_subdirectory(external/jkqtplotter EXCLUDE_FROM_ALL)
-    if(DEFINED _qmeshlab_build_shared_libs)
-        set(BUILD_SHARED_LIBS "${_qmeshlab_build_shared_libs}")
-        unset(_qmeshlab_build_shared_libs)
+    if(DEFINED _meshlab2_build_shared_libs)
+        set(BUILD_SHARED_LIBS "${_meshlab2_build_shared_libs}")
+        unset(_meshlab2_build_shared_libs)
     else()
         unset(BUILD_SHARED_LIBS)
     endif()
@@ -74,22 +74,22 @@ endif()
 # ---------------------------------------------------------------------------
 # Optional Intel Embree ray casting (shared by core + filter_embree)
 # ---------------------------------------------------------------------------
-include(${CMAKE_SOURCE_DIR}/cmake/QMeshLabEmbree.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/MeshLab2Embree.cmake)
 
 # ---------------------------------------------------------------------------
 # Optional embedded Python console
 # ---------------------------------------------------------------------------
-option(QMESHLAB_PYTHON_CONSOLE "Build embedded Python interpreter and console dock" ON)
-if(QMESHLAB_PYTHON_CONSOLE)
+option(MESHLAB2_PYTHON_CONSOLE "Build embedded Python interpreter and console dock" ON)
+if(MESHLAB2_PYTHON_CONSOLE)
     # nanobind's cmake config requires the CMake `Python` package (not `Python3`)
     # because it checks for the Python::Module imported target.
     find_package(Python REQUIRED COMPONENTS Interpreter Development.Embed Development.Module)
     # nanobind is provided by the local vcpkg ports (vcpkg/ports/nanobind).
     find_package(nanobind CONFIG REQUIRED)
-    message(STATUS "QMeshLab: Python console enabled (Python ${Python_VERSION})")
+    message(STATUS "MeshLab: Python console enabled (Python ${Python_VERSION})")
 endif()
 
-add_library(QMeshLabCore STATIC
+add_library(MeshLab2Core STATIC
     src/core/camerashot.h src/core/camerashot.cpp
     src/core/document.h src/core/document.cpp
     src/core/document_internal.h src/core/document_internal.cpp
@@ -108,7 +108,9 @@ add_library(QMeshLabCore STATIC
     src/core/helperprocess.h src/core/helperprocess.cpp
     src/core/memorypressuremonitor.h src/core/memorypressuremonitor.cpp
     src/core/filterparam.h src/core/filterparam.cpp
+    src/core/filedialogdirectory.h src/core/filedialogdirectory.cpp
     src/core/textureassociationutils.h src/core/textureassociationutils.cpp
+    src/core/stbimageimpl.cpp
     src/core/uvpacker.h src/core/uvpacker.cpp
     src/core/viewpointoccluder.h src/core/viewpointoccluder.cpp
     src/core/layerdata.h
@@ -127,13 +129,29 @@ add_library(QMeshLabCore STATIC
     src/render/renderingsettings.h
     src/render/rendersettingsjson.h src/render/rendersettingsjson.cpp
     src/render/viewstate.h
+    src/render/viewgridlayout.h src/render/viewgridlayout.cpp
+    src/render/viewsplitterlayout.h src/render/viewsplitterlayout.cpp
+    src/render/viewaxisgizmo.h src/render/viewaxisgizmo.cpp
     src/render/viewtrackball.h src/render/viewtrackball.cpp
 )
 
 # Backs the rasterized packers in uvpacker; the only .cpp vcglib needs compiled in.
-target_sources(QMeshLabCore PRIVATE ${CMAKE_SOURCE_DIR}/vcglib/wrap/qt/outline2_rasterizer.cpp)
+target_sources(MeshLab2Core PRIVATE ${CMAKE_SOURCE_DIR}/vcglib/wrap/qt/outline2_rasterizer.cpp)
 
-target_include_directories(QMeshLabCore PUBLIC
+# stb_image backs readImageFile's fallback for the formats Qt declines -- notably any
+# Targa without the TrueVision 2.0 footer, which QTgaHandler rejects outright. The
+# implementation is compiled here, once, and stbimageimpl.cpp is the only translation
+# unit that may define STB_IMAGE_IMPLEMENTATION: tinygltf pulls the same header into
+# the glTF plugin, so a second definition would collide at link time.
+find_path(STB_INCLUDE_DIR stb_image.h PATH_SUFFIXES stb)
+if (STB_INCLUDE_DIR)
+    target_include_directories(MeshLab2Core PUBLIC ${STB_INCLUDE_DIR})
+    target_compile_definitions(MeshLab2Core PUBLIC MESHLAB2_HAS_STB_IMAGE)
+else()
+    message(WARNING "stb_image.h not found: images Qt cannot decode (legacy .tga) will fail to load.")
+endif()
+
+target_include_directories(MeshLab2Core PUBLIC
     ${CMAKE_SOURCE_DIR}/src/core
     ${CMAKE_SOURCE_DIR}/src/render
     ${CMAKE_SOURCE_DIR}/src/plugins
@@ -142,7 +160,7 @@ target_include_directories(QMeshLabCore PUBLIC
     ${CMAKE_SOURCE_DIR}/vcglib/eigenlib
 )
 
-target_link_libraries(QMeshLabCore PUBLIC
+target_link_libraries(MeshLab2Core PUBLIC
     Qt6::Core
     Qt6::Gui
     Qt6::GuiPrivate
@@ -152,20 +170,20 @@ target_link_libraries(QMeshLabCore PUBLIC
 if(WIN32)
     # Prevent the Windows SDK's min/max macros from rewriting std::min and
     # std::max in vcglib, CGAL, and plugins that consume the core target.
-    target_compile_definitions(QMeshLabCore PUBLIC NOMINMAX)
-    target_link_libraries(QMeshLabCore PRIVATE Psapi)
+    target_compile_definitions(MeshLab2Core PUBLIC NOMINMAX)
+    target_link_libraries(MeshLab2Core PRIVATE Psapi)
 endif()
 
 # Embree occlusion backend (no-op interface target when embree is unavailable).
-target_link_libraries(QMeshLabCore PRIVATE QMeshLabEmbree)
+target_link_libraries(MeshLab2Core PRIVATE MeshLab2Embree)
 
-qt_add_resources(QMeshLabCore "preferences"
+qt_add_resources(MeshLab2Core "preferences"
     PREFIX "/"
     FILES
         resources/preferences.json
 )
 
-qt_add_resources(QMeshLabCore "colormaps"
+qt_add_resources(MeshLab2Core "colormaps"
     PREFIX "/"
     FILES
         colormaps/rainbow.json
@@ -178,22 +196,22 @@ qt_add_resources(QMeshLabCore "colormaps"
 
 add_subdirectory(plugins)
 
-if(QMESHLAB_PYTHON_CONSOLE)
+if(MESHLAB2_PYTHON_CONSOLE)
     add_subdirectory(src/python)
 endif()
 
-add_library(QMeshLabMathHelp STATIC
+add_library(MeshLab2MathHelp STATIC
     src/ui/mathmarkdownrenderer.h
     src/ui/mathmarkdownrenderer.cpp
 )
-target_link_libraries(QMeshLabMathHelp PUBLIC Qt6::Widgets)
-target_include_directories(QMeshLabMathHelp PUBLIC ${CMAKE_SOURCE_DIR}/src/ui)
-if(QMESHLAB_MATH_HELP)
-    target_link_libraries(QMeshLabMathHelp PRIVATE JKQTPlotter6::JKQTMathText6)
-    target_compile_definitions(QMeshLabMathHelp PRIVATE QMESHLAB_MATH_HELP)
+target_link_libraries(MeshLab2MathHelp PUBLIC Qt6::Widgets)
+target_include_directories(MeshLab2MathHelp PUBLIC ${CMAKE_SOURCE_DIR}/src/ui)
+if(MESHLAB2_MATH_HELP)
+    target_link_libraries(MeshLab2MathHelp PRIVATE JKQTPlotter6::JKQTMathText6)
+    target_compile_definitions(MeshLab2MathHelp PRIVATE MESHLAB2_MATH_HELP)
 endif()
 
-qt_add_executable(QMeshLab
+qt_add_executable(MeshLab2
     src/app/main.cpp
     src/ui/aboutdialog.h src/ui/aboutdialog.cpp
     src/ui/mainwindow.h src/ui/mainwindow.cpp
@@ -203,6 +221,7 @@ qt_add_executable(QMeshLab
     src/ui/filterpresentation.h src/ui/filterpresentation.cpp
     src/ui/filterpluginsinfodialog.h src/ui/filterpluginsinfodialog.cpp
     src/ui/meshsaveoptionsdialog.h src/ui/meshsaveoptionsdialog.cpp
+    src/ui/snapshotdialog.h src/ui/snapshotdialog.cpp
     src/render/renderwidget.h src/render/renderwidget.cpp
     src/render/renderwidget_internal.h
     src/render/renderwidget_modes.cpp
@@ -217,7 +236,6 @@ qt_add_executable(QMeshLab
     src/render/viewtrackball.h
     src/render/viewstate.h
     src/render/renderoverlaypanel.h src/render/renderoverlaypanel.cpp
-    src/render/viewaxisgizmo.h src/render/viewaxisgizmo.cpp
     src/render/interactivetool.h src/render/interactivetoolfactory.cpp
     src/render/tools/selectlayertool.h src/render/tools/selectlayertool.cpp
     src/render/tools/rubberbandselecttool.h src/render/tools/rubberbandselecttool.cpp
@@ -227,37 +245,39 @@ qt_add_executable(QMeshLab
     src/ui/undographwidget.h src/ui/undographwidget.cpp
 )
 
-set_target_properties(QMeshLab PROPERTIES
+# The target is MeshLab2 (following the repository); the product is MeshLab.
+set_target_properties(MeshLab2 PROPERTIES
+    OUTPUT_NAME "MeshLab"
     MACOSX_BUNDLE TRUE
     # Also set as target properties, not only in the plist: the Xcode generator and
     # some Qt deployment tooling read these rather than the generated Info.plist.
-    MACOSX_BUNDLE_GUI_IDENTIFIER "${QMESHLAB_BUNDLE_IDENTIFIER}"
-    MACOSX_BUNDLE_BUNDLE_NAME "${QMESHLAB_BUNDLE_NAME}"
-    MACOSX_BUNDLE_SHORT_VERSION_STRING "${QMESHLAB_VERSION}"
-    MACOSX_BUNDLE_BUNDLE_VERSION "${QMESHLAB_VERSION}"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "${MESHLAB2_BUNDLE_IDENTIFIER}"
+    MACOSX_BUNDLE_BUNDLE_NAME "${MESHLAB2_BUNDLE_NAME}"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${MESHLAB2_VERSION}"
+    MACOSX_BUNDLE_BUNDLE_VERSION "${MESHLAB2_VERSION}"
 )
 
-option(QMESH_MACOS_BUNDLE_ICON "Generate and embed the macOS app bundle icon" ON)
-if (APPLE AND QMESH_MACOS_BUNDLE_ICON)
-    set(QMESHLAB_APP_ICON_PNG "${CMAKE_SOURCE_DIR}/img/MeshLab_Icon_512x512.png")
-    set(QMESHLAB_APP_ICON_ICNS "${CMAKE_CURRENT_BINARY_DIR}/QMeshLab.icns")
+option(MESHLAB2_MACOS_BUNDLE_ICON "Generate and embed the macOS app bundle icon" ON)
+if (APPLE AND MESHLAB2_MACOS_BUNDLE_ICON)
+    set(MESHLAB2_APP_ICON_PNG "${CMAKE_SOURCE_DIR}/img/MeshLab_Icon_512x512.png")
+    set(MESHLAB2_APP_ICON_ICNS "${CMAKE_CURRENT_BINARY_DIR}/MeshLab.icns")
     add_custom_command(
-        OUTPUT "${QMESHLAB_APP_ICON_ICNS}"
+        OUTPUT "${MESHLAB2_APP_ICON_ICNS}"
         COMMAND "${CMAKE_COMMAND}"
-            -DINPUT_PNG=${QMESHLAB_APP_ICON_PNG}
-            -DOUTPUT_ICNS=${QMESHLAB_APP_ICON_ICNS}
+            -DINPUT_PNG=${MESHLAB2_APP_ICON_PNG}
+            -DOUTPUT_ICNS=${MESHLAB2_APP_ICON_ICNS}
             -P "${CMAKE_SOURCE_DIR}/cmake/generate_mac_icon.cmake"
-        DEPENDS "${QMESHLAB_APP_ICON_PNG}" "${CMAKE_SOURCE_DIR}/cmake/generate_mac_icon.cmake"
+        DEPENDS "${MESHLAB2_APP_ICON_PNG}" "${CMAKE_SOURCE_DIR}/cmake/generate_mac_icon.cmake"
         COMMENT "Generating macOS app icon"
         VERBATIM
     )
-    target_sources(QMeshLab PRIVATE "${QMESHLAB_APP_ICON_ICNS}")
-    set_source_files_properties("${QMESHLAB_APP_ICON_ICNS}" PROPERTIES
+    target_sources(MeshLab2 PRIVATE "${MESHLAB2_APP_ICON_ICNS}")
+    set_source_files_properties("${MESHLAB2_APP_ICON_ICNS}" PROPERTIES
         MACOSX_PACKAGE_LOCATION "Resources"
     )
-    set(QMESHLAB_BUNDLE_ICON_NAME "QMeshLab.icns")
-    set_target_properties(QMeshLab PROPERTIES
-        MACOSX_BUNDLE_ICON_FILE "${QMESHLAB_BUNDLE_ICON_NAME}"
+    set(MESHLAB2_BUNDLE_ICON_NAME "MeshLab.icns")
+    set_target_properties(MeshLab2 PROPERTIES
+        MACOSX_BUNDLE_ICON_FILE "${MESHLAB2_BUNDLE_ICON_NAME}"
     )
 endif()
 
@@ -268,69 +288,69 @@ endif()
 # document types at all. Pre-configured here with @ONLY so every value is
 # resolved from this scope rather than by Qt's own substitution pass.
 if (APPLE)
-    if (NOT DEFINED QMESHLAB_BUNDLE_ICON_NAME)
-        set(QMESHLAB_BUNDLE_ICON_NAME "")
+    if (NOT DEFINED MESHLAB2_BUNDLE_ICON_NAME)
+        set(MESHLAB2_BUNDLE_ICON_NAME "")
     endif()
     configure_file(
         "${CMAKE_SOURCE_DIR}/resources/Info.plist.in"
         "${CMAKE_CURRENT_BINARY_DIR}/Info.plist"
         @ONLY
     )
-    set_target_properties(QMeshLab PROPERTIES
+    set_target_properties(MeshLab2 PROPERTIES
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist"
     )
 endif()
 
-target_include_directories(QMeshLab PRIVATE
+target_include_directories(MeshLab2 PRIVATE
     ${CMAKE_SOURCE_DIR}/src/ui
 )
 
-foreach(QMESHLAB_GIT_STATE IN ITEMS .git/HEAD .git/logs/HEAD)
-    if(EXISTS "${CMAKE_SOURCE_DIR}/${QMESHLAB_GIT_STATE}")
+foreach(MESHLAB2_GIT_STATE IN ITEMS .git/HEAD .git/logs/HEAD)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/${MESHLAB2_GIT_STATE}")
         set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-            "${CMAKE_SOURCE_DIR}/${QMESHLAB_GIT_STATE}")
+            "${CMAKE_SOURCE_DIR}/${MESHLAB2_GIT_STATE}")
     endif()
 endforeach()
 execute_process(
     COMMAND git -C "${CMAKE_SOURCE_DIR}" rev-parse --short=12 HEAD
-    OUTPUT_VARIABLE QMESHLAB_BUILD_ID
+    OUTPUT_VARIABLE MESHLAB2_BUILD_ID
     OUTPUT_STRIP_TRAILING_WHITESPACE
     ERROR_QUIET
 )
-if(NOT QMESHLAB_BUILD_ID)
-    set(QMESHLAB_BUILD_ID "unversioned")
+if(NOT MESHLAB2_BUILD_ID)
+    set(MESHLAB2_BUILD_ID "unversioned")
 endif()
-target_compile_definitions(QMeshLab PRIVATE QMESHLAB_BUILD_ID="${QMESHLAB_BUILD_ID}")
+target_compile_definitions(MeshLab2 PRIVATE MESHLAB2_BUILD_ID="${MESHLAB2_BUILD_ID}")
 
-target_link_libraries(QMeshLab PRIVATE
-    QMeshLabPlugins
-    QMeshLabMathHelp
+target_link_libraries(MeshLab2 PRIVATE
+    MeshLab2Plugins
+    MeshLab2MathHelp
     Qt6::Widgets
     Qt6::GuiPrivate
 )
 
-if(COMMAND qmeshlab_bundle_quadwild)
-    qmeshlab_bundle_quadwild(QMeshLab)
+if(COMMAND meshlab2_bundle_quadwild)
+    meshlab2_bundle_quadwild(MeshLab2)
 endif()
 
-if(QMESHLAB_PYTHON_CONSOLE)
-    target_sources(QMeshLab PRIVATE
+if(MESHLAB2_PYTHON_CONSOLE)
+    target_sources(MeshLab2 PRIVATE
         src/ui/pythonconsole.h
         src/ui/pythonconsole.cpp
         src/ui/scripteditor.h
         src/ui/scripteditor.cpp
     )
-    target_link_libraries(QMeshLab PRIVATE QMeshLabPythonHost _qmeshlab_bindings)
-    target_compile_definitions(QMeshLab PRIVATE QMESHLAB_PYTHON_CONSOLE)
+    target_link_libraries(MeshLab2 PRIVATE MeshLab2PythonHost _meshlab2_bindings)
+    target_compile_definitions(MeshLab2 PRIVATE MESHLAB2_PYTHON_CONSOLE)
     # Embed the Python lib dir in the rpath so the app finds libpython at
     # runtime regardless of where conda / homebrew installed it.
-    set_property(TARGET QMeshLab APPEND PROPERTY
+    set_property(TARGET MeshLab2 APPEND PROPERTY
         BUILD_RPATH "${Python_LIBRARY_DIRS}")
-    set_property(TARGET QMeshLab APPEND PROPERTY
+    set_property(TARGET MeshLab2 APPEND PROPERTY
         INSTALL_RPATH "${Python_LIBRARY_DIRS}")
 endif()
 
-qt_add_shaders(QMeshLab "shaders"
+qt_add_shaders(MeshLab2 "shaders"
     PREFIX "/"
     FILES
         shaders/fill_smooth.vert
@@ -377,7 +397,7 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/uv_fill_texture.vert
 )
 
-qt_add_resources(QMeshLab "icons"
+qt_add_resources(MeshLab2 "icons"
     PREFIX "/"
     FILES
         img/options.png
@@ -408,6 +428,7 @@ qt_add_resources(QMeshLab "icons"
         img/tool_select_layer.png
         img/tool_select_rect.png
         img/icon_measure.png
+        img/snapshot.png
         img/axis.png
         img/cur_pick.png
         img/cur_measure.png
@@ -421,7 +442,7 @@ qt_add_resources(QMeshLab "icons"
         img/cur_badge_cc.png
 )
 
-qt_add_resources(QMeshLab "help"
+qt_add_resources(MeshLab2 "help"
     PREFIX "/"
     FILES
         resources/quick_help_overlay.html
@@ -429,177 +450,249 @@ qt_add_resources(QMeshLab "help"
 
 enable_testing()
 
-qt_add_executable(QMeshLabTests
+qt_add_executable(MeshLab2Tests
     tests/test_document.cpp
 )
 
-target_include_directories(QMeshLabTests PRIVATE
+target_include_directories(MeshLab2Tests PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabTests PRIVATE
-    QMeshLabPlugins
+target_link_libraries(MeshLab2Tests PRIVATE
+    MeshLab2Plugins
     Qt6::Test
 )
 
-target_compile_definitions(QMeshLabTests PRIVATE
+target_compile_definitions(MeshLab2Tests PRIVATE
     TEST_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
 
-add_test(NAME QMeshLabTests COMMAND QMeshLabTests)
+add_test(NAME MeshLab2Tests COMMAND MeshLab2Tests)
 
-qt_add_executable(QMeshLabColorMapTests
+qt_add_executable(MeshLab2ColorMapTests
     tests/test_colormap.cpp
 )
 
-target_include_directories(QMeshLabColorMapTests PRIVATE
+target_include_directories(MeshLab2ColorMapTests PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabColorMapTests PRIVATE
-    QMeshLabCore
+target_link_libraries(MeshLab2ColorMapTests PRIVATE
+    MeshLab2Core
     Qt6::Test
 )
 
-add_test(NAME QMeshLabColorMapTests COMMAND QMeshLabColorMapTests)
+add_test(NAME MeshLab2ColorMapTests COMMAND MeshLab2ColorMapTests)
 
-if(QMESHLAB_MATH_HELP)
-    qt_add_executable(QMeshLabMathMarkdownTests
+if(MESHLAB2_MATH_HELP)
+    qt_add_executable(MeshLab2MathMarkdownTests
         tests/test_mathmarkdown.cpp
     )
-    target_link_libraries(QMeshLabMathMarkdownTests PRIVATE
-        QMeshLabMathHelp
+    target_link_libraries(MeshLab2MathMarkdownTests PRIVATE
+        MeshLab2MathHelp
         Qt6::Test
     )
-    add_test(NAME QMeshLabMathMarkdownTests COMMAND QMeshLabMathMarkdownTests)
+    add_test(NAME MeshLab2MathMarkdownTests COMMAND MeshLab2MathMarkdownTests)
 endif()
 
-qt_add_executable(QMeshLabFilterTests
+qt_add_executable(MeshLab2FilterTests
     tests/test_filters.cpp
 )
 
-target_include_directories(QMeshLabFilterTests PRIVATE
+target_include_directories(MeshLab2FilterTests PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabFilterTests PRIVATE
-    QMeshLabPlugins
+target_link_libraries(MeshLab2FilterTests PRIVATE
+    MeshLab2Plugins
     Qt6::Test
 )
 
-target_compile_definitions(QMeshLabFilterTests PRIVATE
+target_compile_definitions(MeshLab2FilterTests PRIVATE
     TEST_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
 
-add_test(NAME QMeshLabFilterTests COMMAND QMeshLabFilterTests)
+add_test(NAME MeshLab2FilterTests COMMAND MeshLab2FilterTests)
 
-qt_add_executable(QMeshLabFilterCreationTests
+qt_add_executable(MeshLab2FilterCreationTests
     tests/test_filter_creation.cpp
 )
 
-target_include_directories(QMeshLabFilterCreationTests PRIVATE
+target_include_directories(MeshLab2FilterCreationTests PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabFilterCreationTests PRIVATE
-    QMeshLabPlugins
+target_link_libraries(MeshLab2FilterCreationTests PRIVATE
+    MeshLab2Plugins
     Qt6::Test
 )
 
-target_compile_definitions(QMeshLabFilterCreationTests PRIVATE
+target_compile_definitions(MeshLab2FilterCreationTests PRIVATE
     TEST_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
 
-add_test(NAME QMeshLabFilterCreationTests COMMAND QMeshLabFilterCreationTests)
+add_test(NAME MeshLab2FilterCreationTests COMMAND MeshLab2FilterCreationTests)
 
-qt_add_executable(QMeshLabFilterDescriptorTests
+qt_add_executable(MeshLab2FilterDescriptorTests
     tests/test_filter_descriptors.cpp
 )
 
-target_include_directories(QMeshLabFilterDescriptorTests PRIVATE
+target_include_directories(MeshLab2FilterDescriptorTests PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabFilterDescriptorTests PRIVATE
-    QMeshLabPlugins
+target_link_libraries(MeshLab2FilterDescriptorTests PRIVATE
+    MeshLab2Plugins
     Qt6::Test
 )
 
-target_compile_definitions(QMeshLabFilterDescriptorTests PRIVATE
+target_compile_definitions(MeshLab2FilterDescriptorTests PRIVATE
     TEST_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
 
-add_test(NAME QMeshLabFilterDescriptorTests COMMAND QMeshLabFilterDescriptorTests)
+add_test(NAME MeshLab2FilterDescriptorTests COMMAND MeshLab2FilterDescriptorTests)
 
-qt_add_executable(QMeshLabFilterSmokeTests
+qt_add_executable(MeshLab2FilterSmokeTests
     tests/test_filter_smoke.cpp
 )
 
-target_include_directories(QMeshLabFilterSmokeTests PRIVATE
+target_include_directories(MeshLab2FilterSmokeTests PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabFilterSmokeTests PRIVATE
-    QMeshLabPlugins
+target_link_libraries(MeshLab2FilterSmokeTests PRIVATE
+    MeshLab2Plugins
     Qt6::Test
 )
 
-target_compile_definitions(QMeshLabFilterSmokeTests PRIVATE
+target_compile_definitions(MeshLab2FilterSmokeTests PRIVATE
     TEST_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
 
-add_test(NAME QMeshLabFilterSmokeTests COMMAND QMeshLabFilterSmokeTests)
+add_test(NAME MeshLab2FilterSmokeTests COMMAND MeshLab2FilterSmokeTests)
 
 # ParameterFormBuilder deliberately depends on nothing but Document + Qt Widgets,
 # so it can be compiled straight into the test rather than dragging in the app.
-qt_add_executable(QMeshLabParameterFormTests
+qt_add_executable(MeshLab2ParameterFormTests
     tests/test_parameterform.cpp
     src/ui/parameterformbuilder.h src/ui/parameterformbuilder.cpp
 )
 
-target_include_directories(QMeshLabParameterFormTests PRIVATE
+target_include_directories(MeshLab2ParameterFormTests PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src/ui
 )
 
-target_link_libraries(QMeshLabParameterFormTests PRIVATE
-    QMeshLabCore
+target_link_libraries(MeshLab2ParameterFormTests PRIVATE
+    MeshLab2Core
     Qt6::Test
     Qt6::Widgets
 )
 
-add_test(NAME QMeshLabParameterFormTests COMMAND QMeshLabParameterFormTests)
+add_test(NAME MeshLab2ParameterFormTests COMMAND MeshLab2ParameterFormTests)
 
-qt_add_executable(QMeshLabPreferencesTests
+qt_add_executable(MeshLab2PreferencesTests
     tests/test_preferences.cpp
 )
 
-target_include_directories(QMeshLabPreferencesTests PRIVATE
+target_include_directories(MeshLab2PreferencesTests PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src/core
 )
 
-# QMeshLabCore's Document pulls in the plugin registries, so link the same
+# MeshLab2Core's Document pulls in the plugin registries, so link the same
 # aggregate the other document-backed tests use.
-target_link_libraries(QMeshLabPreferencesTests PRIVATE
-    QMeshLabPlugins
+target_link_libraries(MeshLab2PreferencesTests PRIVATE
+    MeshLab2Plugins
     Qt6::Test
 )
 
-add_test(NAME QMeshLabPreferencesTests COMMAND QMeshLabPreferencesTests)
+add_test(NAME MeshLab2PreferencesTests COMMAND MeshLab2PreferencesTests)
 
-qt_add_executable(QMeshLabRenderSettingsJsonTests
-    tests/test_rendersettingsjson.cpp
+qt_add_executable(MeshLab2ViewLayoutTests
+    tests/test_viewsplitterlayout.cpp
 )
 
-target_include_directories(QMeshLabRenderSettingsJsonTests PRIVATE
+target_include_directories(MeshLab2ViewLayoutTests PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src/render
 )
 
-target_link_libraries(QMeshLabRenderSettingsJsonTests PRIVATE
-    QMeshLabCore
+# Splitter surgery only, so this needs Core rather than the whole plugin aggregate.
+target_link_libraries(MeshLab2ViewLayoutTests PRIVATE
+    MeshLab2Core
+    Qt6::Test
+    Qt6::Widgets
+)
+
+add_test(NAME MeshLab2ViewLayoutTests COMMAND MeshLab2ViewLayoutTests)
+
+qt_add_executable(MeshLab2ViewGridLayoutTests
+    tests/test_viewgridlayout.cpp
+)
+
+target_include_directories(MeshLab2ViewGridLayoutTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src/render
+)
+
+# Tile arithmetic only -- no document, no GPU, not even a widget.
+target_link_libraries(MeshLab2ViewGridLayoutTests PRIVATE
+    MeshLab2Core
     Qt6::Test
 )
 
-add_test(NAME QMeshLabRenderSettingsJsonTests COMMAND QMeshLabRenderSettingsJsonTests)
+add_test(NAME MeshLab2ViewGridLayoutTests COMMAND MeshLab2ViewGridLayoutTests)
+
+qt_add_executable(MeshLab2LineGeometryTests
+    tests/test_linegeometry.cpp
+)
+
+target_include_directories(MeshLab2LineGeometryTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src/render
+)
+
+# Line geometry only -- no document, no GPU, not even a widget.
+target_link_libraries(MeshLab2LineGeometryTests PRIVATE
+    MeshLab2Core
+    Qt6::Test
+)
+
+add_test(NAME MeshLab2LineGeometryTests COMMAND MeshLab2LineGeometryTests)
+
+qt_add_executable(MeshLab2AxisGizmoTests
+    tests/test_viewaxisgizmo.cpp
+)
+
+target_include_directories(MeshLab2AxisGizmoTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src/render
+    ${CMAKE_SOURCE_DIR}/src/core
+)
+
+# The gizmo reads Preferences, which drags in Document, which references the plugin
+# registries -- so this needs the same aggregate the other document-backed tests link.
+target_link_libraries(MeshLab2AxisGizmoTests PRIVATE
+    MeshLab2Plugins
+    Qt6::Test
+    Qt6::Widgets
+)
+
+add_test(NAME MeshLab2AxisGizmoTests COMMAND MeshLab2AxisGizmoTests)
+
+qt_add_executable(MeshLab2RenderSettingsJsonTests
+    tests/test_rendersettingsjson.cpp
+)
+
+target_include_directories(MeshLab2RenderSettingsJsonTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src/render
+)
+
+target_link_libraries(MeshLab2RenderSettingsJsonTests PRIVATE
+    MeshLab2Core
+    Qt6::Test
+)
+
+add_test(NAME MeshLab2RenderSettingsJsonTests COMMAND MeshLab2RenderSettingsJsonTests)

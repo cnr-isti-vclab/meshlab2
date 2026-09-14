@@ -22,7 +22,7 @@
 
 1. Fetch or clone the upstream repository.
 2. Copy `source/xatlas/xatlas.h`, `source/xatlas/xatlas.cpp`, and `LICENSE` into `plugins/filter_xatlas/upstream/`.
-3. Rebuild `QMeshLabPluginFilterXAtlas` and `QMeshLab`.
+3. Rebuild `MeshLab2PluginFilterXAtlas` and `MeshLab`.
 4. Re-test:
    - single-mesh atlas generation
    - UV view

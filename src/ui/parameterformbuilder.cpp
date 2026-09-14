@@ -1,3 +1,4 @@
+#include "filedialogdirectory.h"
 #include "parameterformbuilder.h"
 
 #include <QAbstractSpinBox>
@@ -201,6 +202,10 @@ public:
                         startPath = QFileInfo(sourcePath).absolutePath();
                 }
             }
+            // Last resort, after the field's own text and the current layer's folder: the
+            // directory a file dialog was last used in, rather than the working directory.
+            if (startPath.isEmpty())
+                startPath = FileDialogDirectory::startingDirectory(QStringLiteral("filter"));
 
             QString chosenPath;
             if (m_mode == Mode::SaveFile) {
@@ -221,8 +226,10 @@ public:
                     startPath,
                     m_nameFilters.join(QStringLiteral(";;")));
             }
-            if (!chosenPath.isEmpty())
+            if (!chosenPath.isEmpty()) {
+                FileDialogDirectory::remember(QStringLiteral("filter"), chosenPath);
                 m_lineEdit->setText(chosenPath);
+            }
         });
     }
 

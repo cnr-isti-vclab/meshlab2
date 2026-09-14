@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.geodesic",
+  "pluginId": "meshlab2.filter.geodesic",
   "filters": [
     {
       "id": "compute_geodesic_distance_from_border",
@@ -7,7 +7,7 @@
       "name": "Compute Geodesic Distance from Border",
       "pythonName": "compute_geodesic_distance_from_border",
       "shortDescription": "Compute geodesic distance from mesh borders into vertex quality.",
-      "longDescriptionMarkdown": "Store in the vertex quality field the geodesic distance from borders. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization.",
+      "longDescriptionMarkdown": "Store in the vertex quality field the geodesic distance from borders. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization.",
       "tags": [
         "geodesic",
         "quality",
@@ -33,7 +33,7 @@
       "name": "Compute Geodesic Distance from Point",
       "pythonName": "compute_geodesic_distance_from_point",
       "shortDescription": "Compute geodesic distance from a given point into vertex quality.",
-      "longDescriptionMarkdown": "Store in the vertex quality field the geodesic distance from a given point on the mesh surface. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization.",
+      "longDescriptionMarkdown": "Store in the vertex quality field the geodesic distance from a given point on the mesh surface. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization.",
       "tags": [
         "geodesic",
         "quality",
@@ -84,7 +84,7 @@
       "name": "Compute Geodesic Distance from Selection (vcglib)",
       "pythonName": "compute_geodesic_distance_from_selection_vcglib",
       "shortDescription": "Compute geodesic distance from selected vertices into vertex quality.",
-      "longDescriptionMarkdown": "Store in the vertex quality field the geodesic distance from the selected points on the mesh surface. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization.",
+      "longDescriptionMarkdown": "Store in the vertex quality field the geodesic distance from the selected points on the mesh surface. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization.",
       "tags": [
         "geodesic",
         "quality",
@@ -123,7 +123,7 @@
       "name": "Compute Heat Geodesic Distance from Selection (vcglib)",
       "pythonName": "compute_heat_geodesic_distance_from_selection_vcglib",
       "shortDescription": "Approximate geodesic distance via the heat method into vertex quality.",
-      "longDescriptionMarkdown": "Store in the vertex quality field the approximated geodesic distance, computed via the heat method (Crane et al.), from the selected points on the mesh surface. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization. As this implementation does not use intrinsic triangulation it is very sensitive to triangulation. First run takes longer because factorization has to be built.",
+      "longDescriptionMarkdown": "Store in the vertex quality field the approximated geodesic distance, computed via the heat method (Crane et al.), from the selected points on the mesh surface. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization. As this implementation does not use intrinsic triangulation it is very sensitive to triangulation. First run takes longer because factorization has to be built.",
       "tags": [
         "geodesic",
         "quality",

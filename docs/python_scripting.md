@@ -1,11 +1,11 @@
 # Python Scripting
 
-QMeshLab can expose an embedded Python console and script editor when it is built
-with `QMESHLAB_PYTHON_CONSOLE=ON`. The embedded interpreter works on the live
+MeshLab can expose an embedded Python console and script editor when it is built
+with `MESHLAB2_PYTHON_CONSOLE=ON`. The embedded interpreter works on the live
 application document, so scripts can inspect the current scene, run filters,
 load/save meshes and rasters, and capture view snapshots.
 
-The shared API is the `pymeshlab2.MeshSet` interface, and QMeshLab reuses that
+The shared API is the `pymeshlab.MeshSet` interface, and MeshLab reuses that
 same model inside the desktop application. Generated API reference files live
 under `docs/api/` when regenerated from the current filter descriptors; the
 local generated snapshot can lag until the app is run with `--generate-docs`.
@@ -16,57 +16,58 @@ helper.
 
 The script environment is the Python `__main__` namespace used by the embedded
 console. Names created in the console and names created by scripts share the
-same namespace for the current QMeshLab session.
+same namespace for the current MeshLab session.
 
 ### `ms`
 
-`ms` is the live document, exposed as a `pymeshlab2.MeshSet`-compatible object. This is the
+`ms` is the live document, exposed as a `pymeshlab.MeshSet`-compatible object. This is the
 main entry point for document and filter operations.
 
 ```python
-print("Meshes:", ms.mesh_number())
+print("Meshes:", ms.mesh_count())
 print("Current mesh:", ms.current_mesh())
-print("Rasters:", ms.raster_number())
+print("Rasters:", ms.raster_count())
 ```
 
-Important: `ms` borrows the live QMeshLab `Document`. Calling modifying methods
+Important: `ms` borrows the live MeshLab `Document`. Calling modifying methods
 on it changes the open document.
 
-If you already know `pymeshlab2`, you can think of `ms` as "the current
-QMeshLab document presented through the same MeshSet-style API".
+If you already know `pymeshlab`, you can think of `ms` as "the current
+MeshLab document presented through the same MeshSet-style API".
 
 ### `mlgui`
 
-`mlgui` is the live GUI/view helper. It is backed by the private `_qmeshlab.MlGui` type. It is
+`mlgui` is the live GUI/view helper. It is backed by the private `_meshlab.MlGui` type. It is
 available in the desktop application when an active render view exists.
 
 ```python
 print(mlgui.camera_state_json())
 print(mlgui.render_state_json())
-mlgui.save_snapshot("/tmp/qmeshlab_snapshot.png", 1200, 900)
+mlgui.save_snapshot("/tmp/meshlab_snapshot.png", 1200, 900)
 ```
 
 Use `mlgui` for view state and rendering operations. It is not meant to be a
 general document API.
 
-### `pymeshlab2`
+### `pymeshlab`
 
-`pymeshlab2` is the public Python facade for standalone, GUI-less mesh processing.
-In the embedded QMeshLab console it is injected as a lightweight module backed by
-the same private `_qmeshlab` extension used by the headless package.
+`pymeshlab` is the public Python facade for standalone, GUI-less mesh processing.
+In the embedded MeshLab console it is injected as a lightweight module backed by
+the same private `_meshlab` extension used by the headless package.
 
 Use it when you want a separate mesh set that does not operate on the live GUI
 document.
 
 ```python
-import pymeshlab2
+import pymeshlab
 
-other = pymeshlab2.MeshSet()
-print("Standalone mesh set:", other.mesh_number())
+print(pymeshlab.filter_list()[:5])
+other = pymeshlab.MeshSet()
+print("Standalone mesh set:", other.mesh_count())
 ```
 
-Most scripts inside QMeshLab should use the predefined `ms` object. Import
-`pymeshlab2` only when you want the same public API exposed by the GUI-less
+Most scripts inside MeshLab should use the predefined `ms` object. Import
+`pymeshlab` only when you want the same public API exposed by the GUI-less
 package, or when you want to create an independent `MeshSet`.
 
 ## Console and Script Editor
@@ -89,19 +90,21 @@ defaults at the time each action was recorded.
 
 ## Available Module Objects
 
-The public `pymeshlab2` facade exposes:
+The public `pymeshlab` facade exposes:
 
-- `pymeshlab2.Mesh`
-- `pymeshlab2.MeshSet`
-- `pymeshlab2.FilterInfo`
-- `pymeshlab2.FilterRunResult`
-- `pymeshlab2.MlGui`
+- `pymeshlab.MeshSet`
+- `pymeshlab.FilterInfo`
+- `pymeshlab.FilterRunResult`
+- `pymeshlab.MlGui`
+- `pymeshlab.filter_list()`
+- `pymeshlab.print_filter_list()`
+- `pymeshlab.load_default_plugins()`
 
 ## MeshSet Basics
 
 The live `ms` object supports the following core methods:
 
-- `mesh_number()`
+- `mesh_count()`, `mesh_number()`, `number_meshes()`
 - `current_mesh()`, `current_mesh_id()`, `set_current_mesh(index)`
 - `mesh_id_exists(index)`
 - `set_current_mesh_visibility(visible)`
@@ -109,9 +112,9 @@ The live `ms` object supports the following core methods:
 - `is_current_mesh_visible()`, `is_mesh_visible(index)`
 - `load_new_mesh(path)`
 - `save_current_mesh(path)`
-- `raster_number()`
+- `raster_count()`, `raster_number()`, `number_rasters()`
 - `current_raster()`, `set_current_raster(index)`
-- `load_new_raster(path)`
+- `load_raster_image(path)`, `load_new_raster(path)`
 - `clear()`
 - `load_project(path)`, `save_project(path)`
 - `filter_list()`, `list_filters()`
@@ -121,9 +124,9 @@ The live `ms` object supports the following core methods:
 Example:
 
 ```python
-print("Mesh count:", ms.mesh_number())
+print("Mesh count:", ms.mesh_count())
 
-if ms.mesh_number() > 0:
+if ms.mesh_count() > 0:
     print("Current mesh index:", ms.current_mesh())
     print("Current mesh id:", ms.current_mesh_id())
 ```
@@ -213,7 +216,7 @@ and choose either the full or compact format.
 
 ## Filter Results
 
-Filter calls return a `pymeshlab2.FilterRunResult`-compatible object.
+Filter calls return a `pymeshlab.FilterRunResult`-compatible object.
 
 ```python
 result = ms.apply_filter("mesh_info", {"precision": 3})
@@ -242,14 +245,14 @@ Fields:
 Save the current view to a PNG:
 
 ```python
-mlgui.save_snapshot("/tmp/qmeshlab_view.png", 1600, 1200)
+mlgui.save_snapshot("/tmp/meshlab_view.png", 1600, 1200)
 ```
 
 Capture and reapply render state:
 
 ```python
 state = mlgui.render_state_json()
-mlgui.save_snapshot("/tmp/qmeshlab_view.png", 1600, 1200, state)
+mlgui.save_snapshot("/tmp/meshlab_view.png", 1600, 1200, state)
 ```
 
 Get raw RGBA bytes:
@@ -263,10 +266,10 @@ print("Bytes:", len(pixels))
 Render from a standalone mesh set without borrowing the live GUI document:
 
 ```python
-import pymeshlab2
+import pymeshlab
 from pathlib import Path
 
-other = pymeshlab2.MeshSet()
+other = pymeshlab.MeshSet()
 other.load_new_mesh("/tmp/input.ply")
 state_json = Path("/tmp/render_state.json").read_text()
 pixels = other.render_snapshot(state_json, 800, 600)
@@ -282,8 +285,8 @@ processing and batch-style scripts.
 Print a short document report:
 
 ```python
-print("Meshes:", ms.mesh_number())
-print("Rasters:", ms.raster_number())
+print("Meshes:", ms.mesh_count())
+print("Rasters:", ms.raster_count())
 
 for info in ms.list_filters()[:10]:
     print(info.python_name, "-", info.name)
@@ -310,10 +313,10 @@ else:
 
 ## Caveats
 
-- `_qmeshlab` is the private compiled extension module. User scripts should prefer the predefined `ms` object or `import pymeshlab2`.
+- `_meshlab` is the private compiled extension module. User scripts should prefer the predefined `ms` object or `import pymeshlab`.
 - `ms` operates on the live document; scripts can modify the scene.
 - `mlgui` depends on an active desktop render view.
-- Standalone `pymeshlab2.MeshSet()` objects own their own document and do not
+- Standalone `pymeshlab.MeshSet()` objects own their own document and do not
   automatically share the live application document.
 - History-generated scripts replay recorded action metadata. Compact scripts are
   intentionally smaller and omit descriptor-default parameters; full scripts are

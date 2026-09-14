@@ -9,7 +9,7 @@
 #include <limits>
 #include <mutex>
 
-#if QMESHLAB_EMBREE_ENABLED
+#if MESHLAB2_EMBREE_ENABLED
 #include <wrap/embree/EmbreeAdaptor.h>
 #endif
 
@@ -71,7 +71,7 @@ std::uint64_t g_cachedRev = ~std::uint64_t(0);
 
 struct ViewpointOccluder::Impl
 {
-#if QMESHLAB_EMBREE_ENABLED
+#if MESHLAB2_EMBREE_ENABLED
     std::unique_ptr<vcg::EmbreeAdaptor<VCGMesh>> embree;
 #endif
     vcg::GridStaticPtr<VCGFace, VCGMesh::ScalarType> grid;
@@ -82,7 +82,7 @@ ViewpointOccluder::ViewpointOccluder(VCGMesh &mesh)
     : d(std::make_unique<Impl>())
 {
     d->occlEps = mesh.bbox.IsNull() ? 0.0f : float(mesh.bbox.Diag()) * 1e-4f;
-#if QMESHLAB_EMBREE_ENABLED
+#if MESHLAB2_EMBREE_ENABLED
     // Builds the embree scene once (copies vertex/index buffers) and keeps it.
     // preprocess=false: a visibility query is read-only, so leave the mesh's
     // normals/bbox/flags untouched.
@@ -108,7 +108,7 @@ std::shared_ptr<ViewpointOccluder> ViewpointOccluder::getOrBuild(VCGMesh &mesh,
 
 bool ViewpointOccluder::usesEmbree() const
 {
-#if QMESHLAB_EMBREE_ENABLED
+#if MESHLAB2_EMBREE_ENABLED
     return d->embree != nullptr;
 #else
     return false;
@@ -117,7 +117,7 @@ bool ViewpointOccluder::usesEmbree() const
 
 bool ViewpointOccluder::isOccluded(const vcg::Point3f &sample, const vcg::Point3f &eye) const
 {
-#if QMESHLAB_EMBREE_ENABLED
+#if MESHLAB2_EMBREE_ENABLED
     if (d->embree)
         return !d->embree->segmentUnoccluded(eye, sample);
 #endif

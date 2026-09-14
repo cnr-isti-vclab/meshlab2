@@ -81,7 +81,7 @@ inline std::unique_ptr<FloatBuffer> buildDepthBuffer(
     std::vector<float> zbuf(size_t(w * h), kMax);
 
     // Pre-compute projection + depth for all vertices in one pass
-    // (QMeshLab meshes are always compact — no deleted vertices)
+    // (MeshLab meshes are always compact — no deleted vertices)
     std::vector<QVector2D> proj;
     std::vector<float> depths;
     std::vector<bool> frontFace;

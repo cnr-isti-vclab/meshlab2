@@ -1,3 +1,4 @@
+#include "textureassociationutils.h"
 #include "renderwidget.h"
 #include "colormap.h"
 #include "document.h"
@@ -135,14 +136,12 @@ void RenderWidget::syncUvTextureGroupUi()
                 }
             }
 
+            // loadAssociatedTextureImage owns the whole resolution order -- embedded
+            // asset first, then the backing file through readImageFile's fallbacks.
             QImage image;
-            if (const MeshIOTextureAsset *asset = Document::meshTextureAsset(entry, textureIndex))
-                image = asset->image;
-            if (image.isNull()) {
-                const QString path = Document::meshTextureSourcePath(entry, textureIndex);
-                if (!path.isEmpty())
-                    image.load(path);
-            }
+            QString imageError;
+            TextureAssociationUtils::loadAssociatedTextureImage(
+                entry, textureIndex, image, imageError);
             QPixmap thumbnail(64, 64);
             thumbnail.fill(QColor(80, 80, 82));
             if (!image.isNull())

@@ -1,13 +1,13 @@
 # Gaussian Splatting
 
 This document evaluates adding 3D Gaussian splat loading, rendering and editing
-to QMeshLab. **Nothing described here is implemented.** It records what the
-technique demands, which of QMeshLab's mechanisms already carry weight for it,
+to MeshLab. **Nothing described here is implemented.** It records what the
+technique demands, which of MeshLab's mechanisms already carry weight for it,
 which do not, and the design decisions already taken.
 
-See also: [Rendering](rendering.md) (the QRhi pipeline this would extend),
-[Data Model](data_model.md) (layers, revisions, undo), [Architecture](architecture.md),
-[Adding a Filter](adding_a_filter.md).
+See also: [Rendering](../rendering.md) (the QRhi pipeline this would extend),
+[Data Model](../data_model.md) (layers, revisions, undo), [Architecture](../architecture.md),
+[Adding a Filter](../adding_a_filter.md).
 
 ## Status
 
@@ -32,7 +32,7 @@ At degree 3 that is roughly **240 bytes per splat**, so a one-million-splat
 scene is ~240 MB of attributes on top of the geometry, and real captures run to
 several million.
 
-Two properties make this different from anything QMeshLab renders today:
+Two properties make this different from anything MeshLab renders today:
 
 - **Rendering is order-dependent.** Splats are transparent and blended, so they
   must be drawn back-to-front in view order. The ordering changes whenever the
@@ -85,7 +85,7 @@ Two frictions:
 | [antimatter15/splat](https://github.com/antimatter15/splat) | WebGL | MIT | The canonical minimal implementation. The covariance-projection maths and the sort strategy port directly. |
 
 Nothing here drops into a QRhi renderer. The work is reimplementing roughly 600
-lines of well-documented technique, not inventing anything. QMeshLab is GPL-3.0,
+lines of well-documented technique, not inventing anything. MeshLab is GPL-3.0,
 so LGPL reference code is licence-compatible if any of it were ever lifted
 verbatim, but it would not be.
 
@@ -134,7 +134,7 @@ The machinery to fix it generically is already in vcglib:
 
 So the change is a small registry mapping `std::type_index` to a factory that
 creates that attribute on the destination mesh, plus a loop in `deepCopyMesh()`.
-QMeshLab would register the handful of types it means to support (`float`,
+MeshLab would register the handful of types it means to support (`float`,
 `Point3f`, the splat struct) rather than trying to be universal. Roughly 40–100
 lines plus tests, and it also has to be threaded through memory accounting
 (`document_memory.cpp`) and the layer panel's size reporting.
@@ -203,15 +203,15 @@ Rough effort, assuming the prerequisite is done: **3–5 days** for stage 1,
   unmodified; the former makes it harder to apply a filter that would silently
   invalidate the splats.
 - Transform baking versus shader-side transform (see above).
-- What the PLY writer guarantees on round-trip, and whether QMeshLab should
+- What the PLY writer guarantees on round-trip, and whether MeshLab should
   write the compressed formats at all or only read them.
 - Whether SH degree should be a load-time choice (drop to degree 0 on load to
   save memory) or always preserved.
 
 ## Non-goals
 
-- Training or optimizing splats. QMeshLab views and edits; it does not fit.
+- Training or optimizing splats. MeshLab views and edits; it does not fit.
 - Any CUDA dependency. The renderer is QRhi and stays that way.
 - Mixing splat and mesh layers in one view, initially.
-- Reimplementing a third-party viewer inside QMeshLab rather than using its
+- Reimplementing a third-party viewer inside MeshLab rather than using its
   technique.

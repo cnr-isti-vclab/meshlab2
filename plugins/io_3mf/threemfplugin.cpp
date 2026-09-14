@@ -306,7 +306,7 @@ public:
             const auto wrapper = Lib3MF::CWrapper::loadLibrary();
             const auto model = wrapper->CreateModel();
             model->GetMetaDataGroup()->AddMetaData(
-                "", "Application", "QMeshLab", "string", false);
+                "", "Application", "MeshLab", "string", false);
             const auto object = model->AddMeshObject();
             object->SetName(QFileInfo(filename).completeBaseName().toStdString());
 

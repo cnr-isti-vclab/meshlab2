@@ -6,10 +6,13 @@
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QScopeGuard>
+#include <QSettings>
 #include <QTemporaryDir>
 #include <cmath>
 
 #include "document.h"
+#include "filedialogdirectory.h"
+#include "textureassociationutils.h"
 #include "layerdata.h"
 #include "helperprocess.h"
 #include "processmemoryinfo.h"
@@ -60,9 +63,14 @@ private slots:
     void planarPolygonTessellationHandlesConcavity();
     void loadConcavePolygonFormatsPreserveFauxEdges();
     void loadObjWithMissingMaterialLibrary();
+    void factoryDefaultObjImporterIsVcglib();
+    void fileDialogsRememberWhereYouWere();
+    void failedLoadSaysWhyNotJustThatItFailed();
     void addRasterImageCreatesDocumentLayer();
     void currentLayerKindFollowsMeshAndRasterSelection();
     void loadRasterImageReadsFile();
+    void unreadableImageSaysWhyItCannotBeRead();
+    void legacyTargaLoadsThroughTheStbFallback();
     void loadMeshLabProjectLoadsMeshesAndTransforms();
     void loadMeshLabProjectLoadsRastersAndCamera();
     void rasterCameraUndoRedoRestoresShot();
@@ -452,7 +460,7 @@ private:
 };
 int ProbeLayerData::s_live = 0;
 
-const QString kProbeKey = QStringLiteral("qmeshlab.test.probe/domain");
+const QString kProbeKey = QStringLiteral("meshlab2.test.probe/domain");
 
 int addTinyMesh(Document &doc, const QString &name)
 {
@@ -503,7 +511,7 @@ void DocumentTests::layerDataIsDroppedWhenGeometryChanges()
 {
     Document doc;
     const int index = addTinyMesh(doc, QStringLiteral("Layer"));
-    const QString survivorKey = QStringLiteral("qmeshlab.test.probe/survivor");
+    const QString survivorKey = QStringLiteral("meshlab2.test.probe/survivor");
 
     doc.setLayerData(index, kProbeKey,
                      std::make_shared<ProbeLayerData>(QStringLiteral("derived"), false));
@@ -547,7 +555,7 @@ void DocumentTests::layerDataIsCountedInTheMemoryReport()
     const qint64 baseTotal = before[0].totalBytes();
 
     doc.setLayerData(index, kProbeKey, std::make_shared<ProbeLayerData>(QStringLiteral("a")));
-    doc.setLayerData(index, QStringLiteral("qmeshlab.test.probe/second"),
+    doc.setLayerData(index, QStringLiteral("meshlab2.test.probe/second"),
                      std::make_shared<ProbeLayerData>(QStringLiteral("b")));
 
     const auto after = doc.cpuMeshMemoryStats();
@@ -577,7 +585,7 @@ void DocumentTests::helperProcessLoopEndsWhenTheEventPumpReapsTheChild()
     Document doc;
     // A zero-interval timer keeps the event queue non-empty, so processEvents() inside
     // HelperProcess::run() really spins -- which is what lets it, rather than
-    // waitForFinished(), observe the child's exit. That ordering used to hang QMeshLab:
+    // waitForFinished(), observe the child's exit. That ordering used to hang MeshLab:
     // waitForFinished() reports false for a process that has already been reaped, so a
     // loop testing its result never ends. The timer stops when it goes out of scope.
     QTimer busy;
@@ -895,6 +903,158 @@ void DocumentTests::loadConcavePolygonFormatsPreserveFauxEdges()
     QCOMPARE(fauxEdgeCount, 2);
 }
 
+void DocumentTests::failedLoadSaysWhyNotJustThatItFailed()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    // An extension no importer claims. The reason has to name it: opening four files and
+    // being told only that two failed leaves the user to work out which two.
+    const QString unknown = dir.filePath(QStringLiteral("model.xyzzy"));
+    {
+        QFile f(unknown);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("not a mesh");
+    }
+    Document doc;
+    QString reason;
+    QVERIFY(doc.loadMesh(unknown, &reason) != 0);
+    QVERIFY2(reason.contains(QStringLiteral("xyzzy")), qPrintable(reason));
+    QVERIFY2(reason.contains(QStringLiteral("importer")), qPrintable(reason));
+
+    // A file the importer accepts by extension but cannot parse: the reason must come from
+    // the importer rather than being invented here.
+    const QString broken = dir.filePath(QStringLiteral("broken.ply"));
+    {
+        QFile f(broken);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("ply\nformat ascii 1.0\nelement vertex 99\nend_header\n");
+    }
+    reason.clear();
+    QVERIFY(doc.loadMesh(broken, &reason) != 0);
+    QVERIFY2(!reason.isEmpty(), "a failed load must say why");
+
+    // And the out-parameter is optional: every other caller passes nothing.
+    QVERIFY(doc.loadMesh(unknown) != 0);
+
+    // On success it must not leave a stale reason behind for the caller to misread.
+    const QString good = dir.filePath(QStringLiteral("triangle.obj"));
+    {
+        QFile f(good);
+        QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+        f.write("v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");
+    }
+    reason = QStringLiteral("stale");
+    QCOMPARE(doc.loadMesh(good, &reason), 0);
+    QVERIFY2(reason.isEmpty(), qPrintable(reason));
+}
+
+void DocumentTests::fileDialogsRememberWhereYouWere()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QTemporaryDir other;
+    QVERIFY(other.isValid());
+
+    // QSettings is process-wide, so give this test its own application name and put it back
+    // afterwards rather than trampling whatever the rest of the suite relies on.
+    const QString savedApp = QCoreApplication::applicationName();
+    QCoreApplication::setApplicationName(QStringLiteral("MeshLabFileDialogDirectoryTest"));
+    const auto restore = qScopeGuard([&] {
+        QSettings settings;
+        settings.clear();
+        QCoreApplication::setApplicationName(savedApp);
+    });
+    { QSettings settings; settings.clear(); }
+
+    // Nothing remembered: the caller gets an empty directory and its bare suggestion, which
+    // is exactly the behaviour the call sites had before, so a fresh profile is unchanged.
+    QVERIFY(FileDialogDirectory::startingDirectory(QStringLiteral("mesh")).isEmpty());
+    QCOMPARE(FileDialogDirectory::startingPath(QStringLiteral("mesh"),
+                                               QStringLiteral("model.ply")),
+             QStringLiteral("model.ply"));
+
+    // A file is remembered by its directory, and the file need not exist -- a save dialog's
+    // target does not yet.
+    FileDialogDirectory::remember(QStringLiteral("mesh"),
+                                  QDir(dir.path()).filePath(QStringLiteral("not_yet.ply")));
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("mesh")), dir.path());
+    QCOMPARE(FileDialogDirectory::startingPath(QStringLiteral("mesh"),
+                                               QStringLiteral("model.ply")),
+             QDir(dir.path()).filePath(QStringLiteral("model.ply")));
+
+    // A purpose never used before falls back to wherever the user last was, rather than to
+    // the working directory: related files tend to sit together.
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("snapshot")), dir.path());
+
+    // Purposes stay independent once each has been used.
+    FileDialogDirectory::remember(QStringLiteral("snapshot"),
+                                  QDir(other.path()).filePath(QStringLiteral("shot.png")));
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("snapshot")), other.path());
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("mesh")), dir.path());
+
+    // A remembered directory that has since gone away must not be handed back: the dialog
+    // would open on nothing. Falling through to the shared fallback is the recovery.
+    QTemporaryDir *doomed = new QTemporaryDir;
+    QVERIFY(doomed->isValid());
+    const QString doomedPath = doomed->path();
+    FileDialogDirectory::remember(QStringLiteral("export"),
+                                  QDir(doomedPath).filePath(QStringLiteral("out.tsv")));
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("export")), doomedPath);
+    delete doomed;
+    QVERIFY(!QFileInfo(doomedPath).isDir());
+    // Both the purpose and the shared fallback pointed at it -- it was the last directory
+    // used for anything -- so there is nothing left to fall back to and the caller gets an
+    // empty string, i.e. the platform default. Only one directory is kept per purpose, and
+    // inventing a different one the user never asked for would be worse than that.
+    QVERIFY(FileDialogDirectory::startingDirectory(QStringLiteral("export")).isEmpty());
+
+    // A purpose whose own directory is gone still falls back when the shared one survives.
+    FileDialogDirectory::remember(QStringLiteral("mesh"),
+                                  QDir(dir.path()).filePath(QStringLiteral("again.ply")));
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("export")), dir.path());
+
+    // An empty path is ignored rather than wiping what is remembered.
+    FileDialogDirectory::remember(QStringLiteral("mesh"), QString());
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("mesh")), dir.path());
+}
+
+void DocumentTests::factoryDefaultObjImporterIsVcglib()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("triangle.obj"));
+    {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");
+    }
+
+    Document doc;
+    // The factory default is whoever registered first among the plugins that accept the
+    // extension, so clear any preference this machine happens to carry before asking.
+    const QString saved = doc.preferredImportPluginForExtension(QStringLiteral("obj"));
+    const auto restore = qScopeGuard([&] {
+        doc.setPreferredImportPluginForExtension(QStringLiteral("obj"), saved);
+    });
+    doc.setPreferredImportPluginForExtension(QStringLiteral("obj"), QString());
+
+    QCOMPARE(doc.loadMesh(path), 0);
+
+    // Three plugins accept .obj -- vcglib, rapidobj and TrueForm -- and which one runs is
+    // decided by the order in plugins/meshpluginregistry.cpp. vcglib has to be the one,
+    // because it is the most tolerant of the three and a default meets whatever a user
+    // drags onto it. The log line is the only place that choice is visible.
+    QString loadLine;
+    for (const Document::LogEntry &entry : doc.logMessages()) {
+        if (entry.message.contains(QStringLiteral("Loading mesh:")))
+            loadLine = entry.message;
+    }
+    QVERIFY2(!loadLine.isEmpty(), "the load should be logged");
+    QVERIFY2(loadLine.contains(QStringLiteral("VCG"), Qt::CaseInsensitive),
+             qPrintable(QStringLiteral("factory default importer changed: %1").arg(loadLine)));
+}
+
 void DocumentTests::loadObjWithMissingMaterialLibrary()
 {
     QTemporaryDir dir;
@@ -1013,6 +1173,108 @@ void DocumentTests::loadRasterImageReadsFile()
     QVERIFY(doc.raster(0).currentPlane());
     QCOMPARE(doc.raster(0).currentPlane()->size, QSize(5, 3));
     QCOMPARE(doc.raster(0).currentPlane()->sourcePath, path);
+}
+
+void DocumentTests::unreadableImageSaysWhyItCannotBeRead()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    QImage image(4, 2, QImage::Format_RGBA8888);
+    image.fill(Qt::magenta);
+
+    // A format Qt never ships a plugin for, so the verdict is the same everywhere.
+    // The bytes must not be a readable image either: QImageReader tries the suffix's
+    // handler first but then falls back to sniffing the content, so a PNG named .psd
+    // loads fine and would not reach the branch under test.
+    const QString unhandled = dir.filePath(QStringLiteral("texture.psd"));
+    QFile unhandledFile(unhandled);
+    QVERIFY(unhandledFile.open(QIODevice::WriteOnly));
+    unhandledFile.write("8BPS\0\1\0\0 not actually a photoshop file");
+    unhandledFile.close();
+    QImage read;
+    QString error;
+    QVERIFY(!TextureAssociationUtils::readImageFile(unhandled, read, error));
+    QVERIFY(read.isNull());
+    // The whole point of the message: name the format, not just the failure. A .tga
+    // texture on a build without qtimageformats used to arrive as "Failed to load
+    // texture 'auvBG.tga'." with nothing to act on -- and content sniffing cannot
+    // supply the format either, since an uncompressed Targa header is byte-identical
+    // to a Windows .cur one and QImageReader::imageFormat() answers "ico".
+    QVERIFY2(error.contains(QStringLiteral("psd")), qPrintable(error));
+    QVERIFY2(error.contains(QStringLiteral("no decoder in this build")), qPrintable(error));
+
+    const QString missing = dir.filePath(QStringLiteral("absent.png"));
+    QVERIFY(!TextureAssociationUtils::readImageFile(missing, read, error));
+    QVERIFY2(error.contains(QStringLiteral("does not exist")), qPrintable(error));
+
+    const QString corrupt = dir.filePath(QStringLiteral("broken.png"));
+    QFile file(corrupt);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.write("\x89PNG\r\n\x1a\n" "not actually a png");
+    file.close();
+    QVERIFY(!TextureAssociationUtils::readImageFile(corrupt, read, error));
+    QVERIFY2(!error.contains(QStringLiteral("no decoder in this build")), qPrintable(error));
+
+    const QString good = dir.filePath(QStringLiteral("fine.png"));
+    QVERIFY(image.save(good));
+    QVERIFY2(TextureAssociationUtils::readImageFile(good, read, error), qPrintable(error));
+    QCOMPARE(read.size(), QSize(4, 2));
+}
+
+void DocumentTests::legacyTargaLoadsThroughTheStbFallback()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    // A Targa written to the original spec: 18-byte header, uncompressed true-colour, no
+    // trailing "TRUEVISION-XFILE." footer. QTgaHandler accepts only TrueVision 2.0 files,
+    // so it rejects this one outright even where qtimageformats is deployed -- and where
+    // it is not, Qt has no Targa handler at all and misidentifies the header as a Windows
+    // .cur. Either way the file has to come back through the stb fallback.
+    constexpr int kWidth = 4;
+    constexpr int kHeight = 2;
+    QByteArray tga;
+    const auto put16 = [&tga](int value) {
+        tga.append(char(value & 0xFF));
+        tga.append(char((value >> 8) & 0xFF));
+    };
+    tga.append(char(0));    // no image id
+    tga.append(char(0));    // no colour map
+    tga.append(char(2));    // uncompressed true-colour
+    put16(0);               // colour map origin
+    put16(0);               // colour map length
+    tga.append(char(0));    // colour map entry size
+    put16(0);               // x origin
+    put16(0);               // y origin
+    put16(kWidth);
+    put16(kHeight);
+    tga.append(char(24));   // bits per pixel
+    tga.append(char(0));    // descriptor: bottom-left origin, as Targa defaults to
+    QCOMPARE(tga.size(), 18);
+
+    // Pixels are BGR, and with a bottom-left origin the first row in the file is the
+    // BOTTOM row of the image. Writing blue first and red second means a correctly
+    // decoded image is red along its top edge -- the check that catches a missing flip,
+    // which would otherwise mirror every texture that comes through here.
+    for (int i = 0; i < kWidth; ++i)
+        tga.append("\xFF\x00\x00", 3); // blue, bottom row
+    for (int i = 0; i < kWidth; ++i)
+        tga.append("\x00\x00\xFF", 3); // red, top row
+
+    const QString path = dir.filePath(QStringLiteral("legacy.tga"));
+    {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write(tga), qint64(tga.size()));
+    }
+
+    QImage image;
+    QString error;
+    QVERIFY2(TextureAssociationUtils::readImageFile(path, image, error), qPrintable(error));
+    QCOMPARE(image.size(), QSize(kWidth, kHeight));
+    QCOMPARE(image.pixelColor(0, 0), QColor(Qt::red));
+    QCOMPARE(image.pixelColor(kWidth - 1, kHeight - 1), QColor(Qt::blue));
 }
 
 void DocumentTests::loadMeshLabProjectLoadsMeshesAndTransforms()
@@ -1518,7 +1780,7 @@ void DocumentTests::plyWithLongPerVertexListLoads()
 void DocumentTests::trueFormRoundTripsObjAndStl()
 {
     Document probe;
-    const QString trueFormId = QStringLiteral("qmeshlab.io.trueform");
+    const QString trueFormId = QStringLiteral("meshlab2.io.trueform");
     if (!probe.openDialogFilter().contains(QStringLiteral("TrueForm")))
         QSKIP("TrueForm I/O plugin is not available in this build.");
 

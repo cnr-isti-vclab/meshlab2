@@ -7,7 +7,7 @@
 #include <QVector4D>
 #include <array>
 
-namespace qmeshlab::libigl {
+namespace meshlab::libigl {
 namespace {
 
 vcg::Point3f transformedPoint(const vcg::Point3f &p, const QMatrix4x4 *transform)
@@ -303,4 +303,4 @@ bool writeVertexCurvature(
     return true;
 }
 
-} // namespace qmeshlab::libigl
+} // namespace meshlab::libigl

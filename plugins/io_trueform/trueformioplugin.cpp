@@ -67,7 +67,7 @@ bool copyToVcgMesh(const Buffer &buffer, VCGMesh &mesh)
         const std::size_t n = std::size_t(face.size());
         if (n < 3)
             continue;
-        // Fan-triangulate: QMeshLab stores triangle meshes.
+        // Fan-triangulate: MeshLab stores triangle meshes.
         for (std::size_t k = 2; k < n; ++k) {
             const int a = int(face[0]);
             const int b = int(face[k - 1]);
@@ -144,7 +144,7 @@ tf::polygons_buffer<int, float, 3, 3> makeTrueFormTriangles(const VCGMesh &mesh)
 class TrueFormIOPlugin final : public MeshIOPlugin
 {
 public:
-    QString pluginId() const override { return QStringLiteral("qmeshlab.io.trueform"); }
+    QString pluginId() const override { return QStringLiteral("meshlab2.io.trueform"); }
 
     QString name() const override { return QObject::tr("TrueForm OBJ/STL"); }
 

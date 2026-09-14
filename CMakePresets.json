@@ -13,7 +13,7 @@
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "QMESH_REQUIRE_VCPKG_DEPS": "ON",
+        "MESHLAB2_REQUIRE_VCPKG_DEPS": "ON",
         "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/ci/vcpkg-triplets"
       }
     },
@@ -28,10 +28,10 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build-local",
       "cacheVariables": {
-        "QMESH_REQUIRE_VCPKG_DEPS": "OFF",
-        "QMESH_PLUGIN_OBJ_RAPIDOBJ": "OFF",
-        "QMESH_PLUGIN_E57": "OFF",
-        "QMESH_PLUGIN_GLTF": "OFF"
+        "MESHLAB2_REQUIRE_VCPKG_DEPS": "OFF",
+        "MESHLAB2_PLUGIN_OBJ_RAPIDOBJ": "OFF",
+        "MESHLAB2_PLUGIN_E57": "OFF",
+        "MESHLAB2_PLUGIN_GLTF": "OFF"
       }
     }
   ],

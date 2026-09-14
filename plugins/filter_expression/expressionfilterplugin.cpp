@@ -106,7 +106,7 @@ uint8_t clampToByte(double value)
 
 QString parserErrorString(const mu::Parser::exception_type &e)
 {
-    return QString::fromStdString(qmeshlab::filters::parserStringToStd(e.GetMsg()));
+    return QString::fromStdString(meshlab::filters::parserStringToStd(e.GetMsg()));
 }
 
 bool isValidIdentifier(const std::string &name)
@@ -488,7 +488,7 @@ void setPerVertexVariables(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &
     parser.DefineVar("ti", &runtime.ti);
     parser.DefineVar("vsel", &runtime.vsel);
     defineCommonBBoxVars(parser, runtime);
-    qmeshlab::filters::defineParserCustomFunctions(parser);
+    meshlab::filters::defineParserCustomFunctions(parser);
     bindVertexCustomAttributes(parser, runtime, mesh);
 }
 
@@ -551,7 +551,7 @@ void setPerFaceVariables(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &me
     parser.DefineVar("vsel2", &runtime.vsel2);
     parser.DefineVar("ti", &runtime.ti);
     defineCommonBBoxVars(parser, runtime);
-    qmeshlab::filters::defineParserCustomFunctions(parser);
+    meshlab::filters::defineParserCustomFunctions(parser);
     bindFaceCustomAttributes(parser, runtime, mesh);
 }
 
@@ -723,7 +723,7 @@ bool checkCustomAttributeName(const QString &name, QString &error)
 
 QString ExpressionFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.expression");
+    return QStringLiteral("meshlab2.filter.expression");
 }
 
 QString ExpressionFilterPlugin::name() const
@@ -750,7 +750,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
     // formula which does use them is reproducible when randomSeed is pinned. The
     // seed is not echoed in the result messages, since the vast majority of runs
     // never touch the generator.
-    qmeshlab::filters::seedParserRandom(params.getRandomSeed().value);
+    meshlab::filters::seedParserRandom(params.getRandomSeed().value);
 
     if (filterId == QString::fromLatin1(kFilterGrid)) {
         const int w = params.getInt(QStringLiteral("numVertX"));
@@ -833,7 +833,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         double x = 0.0;
         double y = 0.0;
         double z = 0.0;
-        qmeshlab::filters::defineParserCustomFunctions(parser);
+        meshlab::filters::defineParserCustomFunctions(parser);
         parser.DefineVar("x", &x);
         parser.DefineVar("y", &y);
         parser.DefineVar("z", &z);
@@ -1600,15 +1600,15 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         bool midpointError = false;
         bool edgeError = false;
         std::string message;
-        qmeshlab::filters::MidPointCustom<VCGMesh> midpoint(mesh, exprX, exprY, exprZ, midpointError, message);
-        qmeshlab::filters::CustomEdge<VCGMesh> edge(condSelect, edgeError, message);
+        meshlab::filters::MidPointCustom<VCGMesh> midpoint(mesh, exprX, exprY, exprZ, midpointError, message);
+        meshlab::filters::CustomEdge<VCGMesh> edge(condSelect, edgeError, message);
         if (midpointError || edgeError)
             return fail(QString::fromStdString(message));
 
         vcg::tri::RefineE<
             VCGMesh,
-            qmeshlab::filters::MidPointCustom<VCGMesh>,
-            qmeshlab::filters::CustomEdge<VCGMesh>>(mesh, midpoint, edge, false, nullptr);
+            meshlab::filters::MidPointCustom<VCGMesh>,
+            meshlab::filters::CustomEdge<VCGMesh>>(mesh, midpoint, edge, false, nullptr);
         vcg::tri::UpdateFlags<VCGMesh>::VertexClearV(mesh);
         vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);

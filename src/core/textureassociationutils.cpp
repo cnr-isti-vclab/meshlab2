@@ -1,8 +1,17 @@
 #include "textureassociationutils.h"
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QImageReader>
 #include <QObject>
+
+#include <limits>
+
+#if defined(MESHLAB2_HAS_STB_IMAGE)
+// The implementation lives in stbimageimpl.cpp; this is declarations only.
+#include <stb_image.h>
+#endif
 
 namespace TextureAssociationUtils {
 
@@ -38,6 +47,112 @@ QImage makeDummyTexture(int imageSize, int checkSize, bool checkerboard)
         }
     }
     return image;
+}
+
+namespace {
+
+// Second opinion for the files Qt declines. Qt's own plugins are always asked first --
+// they honour EXIF orientation, ICC profiles and 16-bit channels, and their QImage
+// formats are the ones the rest of the application expects -- so this only ever runs
+// after QImageReader has already given up.
+//
+// The case that motivates it: QTgaHandler accepts only TrueVision 2.0 Targas, meaning
+// files that carry the 18-byte "TRUEVISION-XFILE." footer. A perfectly well-formed
+// Targa written to the original 1984 spec has no footer, and Qt rejects it outright
+// even with qtimageformats deployed. stb_image reads both, along with a handful of
+// other formats Qt has no plugin for at all.
+bool readWithStb(const QString &path, QImage &image)
+{
+#if defined(MESHLAB2_HAS_STB_IMAGE)
+    // stb takes a byte path; hand it the file's bytes instead so non-ASCII paths work
+    // the same on every platform. Textures are small enough to read whole.
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return false;
+    const QByteArray bytes = file.readAll();
+    file.close();
+    if (bytes.isEmpty() || bytes.size() > qsizetype(std::numeric_limits<int>::max()))
+        return false;
+
+    int width = 0;
+    int height = 0;
+    int channelsInFile = 0;
+    // Always ask for RGBA: it is the one request stb satisfies for every input, and it
+    // saves branching on the source channel count. QImage keeps the same byte order.
+    stbi_uc *pixels = stbi_load_from_memory(
+        reinterpret_cast<const stbi_uc *>(bytes.constData()),
+        int(bytes.size()),
+        &width,
+        &height,
+        &channelsInFile,
+        4);
+    if (!pixels)
+        return false;
+
+    // Copy rather than adopt: the QImage has to outlive stbi_image_free, and this also
+    // hands back an image with QImage's own row alignment.
+    const QImage wrapped(pixels, width, height, width * 4, QImage::Format_RGBA8888);
+    image = wrapped.copy();
+    stbi_image_free(pixels);
+    return !image.isNull();
+#else
+    Q_UNUSED(path);
+    Q_UNUSED(image);
+    return false;
+#endif
+}
+
+} // namespace
+
+bool readImageFile(const QString &path, QImage &image, QString &error)
+{
+    image = QImage();
+    const QString trimmed = path.trimmed();
+    if (trimmed.isEmpty()) {
+        error = QObject::tr("No image file path was given.");
+        return false;
+    }
+
+    const QFileInfo info(trimmed);
+    const QString shown = QDir::toNativeSeparators(trimmed);
+    if (!info.exists() || !info.isFile()) {
+        error = QObject::tr("Image file '%1' does not exist.").arg(shown);
+        return false;
+    }
+
+    QImageReader reader(trimmed);
+    reader.setAutoTransform(true);
+    image = reader.read();
+    if (!image.isNull())
+        return true;
+
+    if (readWithStb(trimmed, image))
+        return true;
+
+    // A format is readable only when its plugin from Qt's qtimageformats module sits
+    // beside the application, so on a build without it .tga, .tif and .webp files die
+    // here with nothing but "Unknown error". Content sniffing cannot be used to say so
+    // either: an uncompressed .tga header is byte-identical to a Windows .cur one, so
+    // QImageReader::imageFormat() answers "ico" for a Targa file and canRead() returns
+    // true. Only the suffix is worth reporting.
+    const QString suffix = info.suffix().toLower();
+    bool handled = suffix.isEmpty();
+    for (const QByteArray &format : QImageReader::supportedImageFormats()) {
+        if (suffix == QString::fromLatin1(format).toLower()) {
+            handled = true;
+            break;
+        }
+    }
+    if (!handled) {
+        error = QObject::tr("Cannot read '%1': no decoder in this build handles .%2 files "
+                            "(Qt's image plugins and the stb fallback both declined it). "
+                            "Convert the image to PNG.")
+                    .arg(shown, suffix);
+        return false;
+    }
+
+    error = QObject::tr("Cannot read image '%1': %2").arg(shown, reader.errorString());
+    return false;
 }
 
 MeshIOTextureAsset makeTextureAssetFromPath(const QString &path)
@@ -128,12 +243,7 @@ bool loadAssociatedTextureImage(
         return false;
     }
 
-    image = QImage(sourcePath);
-    if (image.isNull()) {
-        error = QObject::tr("Failed to load texture '%1'.").arg(sourcePath);
-        return false;
-    }
-    return true;
+    return readImageFile(sourcePath, image, error);
 }
 
 bool saveImages(const QStringList &paths, const std::vector<QImage> &images, QString &error)

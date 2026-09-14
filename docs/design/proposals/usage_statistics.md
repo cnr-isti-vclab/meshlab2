@@ -1,17 +1,17 @@
 # Usage Statistics
 
-A plan for collecting aggregate usage data from QMeshLab installs, designed so that
+A plan for collecting aggregate usage data from MeshLab installs, designed so that
 the data is useful enough to change decisions and narrow enough that it cannot
 identify anyone. Nothing in this document is implemented yet; the codebase today has
 no network code at all (`find_package(Qt6 ... )` in `CMakeLists.txt:33` does not
 include `Network`) and no crash handling.
 
-See also: [Preferences](preferences.md) · [Architecture](architecture.md) ·
-[Filter Organization](filter_organization.md)
+See also: [Preferences](../preferences.md) · [Architecture](../architecture.md) ·
+[Filter Organization](../filter_organization.md)
 
 ## 1. Why collect anything
 
-QMeshLab ships **334 filters across 34 filter plugins, exposing 1163 parameters**,
+MeshLab ships **334 filters across 34 filter plugins, exposing 1163 parameters**,
 organized into 11 root categories and 42 subcategories, plus 6 I/O plugins covering 9
 file formats, 4 interactive tools and 15 preferences. (Counts as of 2026-09-06; they
 moved twice while this document was being written, which is itself part of the
@@ -253,7 +253,7 @@ session. Opt-in rates rise sharply when the payload is inspectable, and the same
 viewer is the best debugging tool the feature has.
 
 Additional rules: consent is versioned, and a schema change that adds a *category* of
-data re-asks; `QMESHLAB_NO_TELEMETRY=1` and the conventional `DO_NOT_TRACK=1` force
+data re-asks; `MESHLAB2_NO_TELEMETRY=1` and the conventional `DO_NOT_TRACK=1` force
 off; headless, Python-driven, `--generate-docs` and test runs default to off, because
 there is no one present to consent — a CI farm must never be able to skew the data.
 
@@ -348,7 +348,7 @@ RenderWidget / tools──┘        │
                                │       one file per session, queue capped at 20 / 7 days
                                └──> sent.jsonl  (the local transparency log)
                                         │
-   next app start ──> TelemetrySubmitter ──> POST https://stats.qmeshlab.org/v1/ingest
+   next app start ──> TelemetrySubmitter ──> POST https://stats.meshlab.org/v1/ingest
 ```
 
 Design points worth committing to:
@@ -380,7 +380,7 @@ Design points worth committing to:
 | GPU family allowlist | `src/render` | map the driver string to a coarse family; raw strings must never leave |
 | Bucket ladders | `src/core/telemetry.h` | shared by client and server rollups; changing one is a schema version bump |
 | Consent + viewer UI | `src/ui` | first-run dialog, a preferences page, and a payload viewer |
-| Telemetry preferences | `resources/preferences.json` | `stats.enabled`, `stats.consentVersion` — the existing schema renders them with no UI code, per [Preferences](preferences.md) |
+| Telemetry preferences | `resources/preferences.json` | `stats.enabled`, `stats.consentVersion` — the existing schema renders them with no UI code, per [Preferences](../preferences.md) |
 
 ## 7. Server side sizing
 
@@ -497,7 +497,7 @@ exactly what everyone's payloads became.
 
 ## Related
 
-`Telemetry` is deliberately shaped like [`Preferences`](preferences.md) — a `src/core`
+`Telemetry` is deliberately shaped like [`Preferences`](../preferences.md) — a `src/core`
 singleton over a declared schema — so that adding a counter is a schema entry plus one
 call, and so that the same JSON-declared-parameters machinery can render the consent
 and settings UI without new widget code.

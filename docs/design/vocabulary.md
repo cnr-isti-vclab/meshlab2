@@ -1,6 +1,6 @@
-# QMeshLab Vocabulary
+# MeshLab Vocabulary
 
-The controlled vocabulary for QMeshLab: one term per concept, used **everywhere** —
+The controlled vocabulary for MeshLab: one term per concept, used **everywhere** —
 filter categories, display names, Python names, parameter ids, UI labels, and
 documentation prose.
 
@@ -468,7 +468,7 @@ mapping is recorded here so that looking for *update* lands somewhere useful:
 | `UpdateTopology`, `UpdateBounding`, `UpdateFlags`, `UpdateHalfEdges`, `UpdateComponentEP` | Rebuild a derived cache the next algorithm needs | *none* — see below |
 
 That last row is the important one: five of the thirteen `Update*` classes are
-bookkeeping the user never asks for. They are prerequisites, not operations, and QMeshLab
+bookkeeping the user never asks for. They are prerequisites, not operations, and MeshLab
 declares them per filter as `inputPrepare` (`FF`, `VF`, `BorderFF`, `FNorm`, `BBox`, …)
 for the plugin manager to run and tear down around the call. A filter named
 *Update Topology* would be exposing an implementation detail as a feature. Normals sit on
@@ -476,7 +476,7 @@ both sides of this line — a prerequisite when a filter needs them, and a resul
 asks for as *Compute Normals*.
 
 Every verb above the `Estimate` footnote is ratified. The rounds that introduced the
-later ones are recorded in [Filter Names](filter_names.md), which is the history; this
+later ones are recorded in [Filter Names](history/filter_names.md), which is the history; this
 table is the authority. `tests/test_filters.cpp` parses it and fails if any shipped
 display name leads with a word that is not here.
 

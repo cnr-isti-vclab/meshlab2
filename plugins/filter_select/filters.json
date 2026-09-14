@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.select",
+  "pluginId": "meshlab2.filter.select",
   "filters": [
     {
       "id": "select_all",
@@ -947,7 +947,7 @@
         {
           "id": "camera_state",
           "label": "Camera",
-          "help": "Camera state (QMeshLab.CameraState JSON) defining the projection.",
+          "help": "Camera state (MeshLab.CameraState JSON) defining the projection.",
           "group": "main",
           "type": "camerastate"
         },

@@ -1,7 +1,7 @@
-option(QMESH_PLUGIN_GLTF "Build glTF/glb input plugin" ON)
-option(QMESH_PLUGIN_GLTF_DRACO "Enable Draco compression/decompression for glTF (requires vcpkg draco)" ON)
+option(MESHLAB2_PLUGIN_GLTF "Build glTF/glb input plugin" ON)
+option(MESHLAB2_PLUGIN_GLTF_DRACO "Enable Draco compression/decompression for glTF (requires vcpkg draco)" ON)
 
-if (NOT QMESH_PLUGIN_GLTF)
+if (NOT MESHLAB2_PLUGIN_GLTF)
     message(STATUS "Skipping io_gltf - plugin disabled")
     return()
 endif()
@@ -76,12 +76,12 @@ if (NOT _tinygltf_target AND NOT TINYGLTF_INCLUDE_DIR)
         "Install dependency in manifest mode and configure with vcpkg toolchain.")
 endif()
 
-add_library(QMeshLabPluginIOGLTF STATIC
+add_library(MeshLab2PluginIOGLTF STATIC
     gltfimportplugin.h
     gltfimportplugin.cpp
 )
 
-target_include_directories(QMeshLabPluginIOGLTF
+target_include_directories(MeshLab2PluginIOGLTF
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -90,21 +90,21 @@ target_include_directories(QMeshLabPluginIOGLTF
 )
 
 if (TINYGLTF_INCLUDE_DIR)
-    target_include_directories(QMeshLabPluginIOGLTF PUBLIC ${TINYGLTF_INCLUDE_DIR})
+    target_include_directories(MeshLab2PluginIOGLTF PUBLIC ${TINYGLTF_INCLUDE_DIR})
 endif()
 
-target_link_libraries(QMeshLabPluginIOGLTF
+target_link_libraries(MeshLab2PluginIOGLTF
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
         Qt6::Gui
 )
 
 if (_tinygltf_target)
-    target_link_libraries(QMeshLabPluginIOGLTF PUBLIC ${_tinygltf_target})
+    target_link_libraries(MeshLab2PluginIOGLTF PUBLIC ${_tinygltf_target})
 endif()
 
-if (QMESH_PLUGIN_GLTF_DRACO)
+if (MESHLAB2_PLUGIN_GLTF_DRACO)
     set(_draco_target "")
     find_package(draco CONFIG QUIET)
     if (draco_FOUND)
@@ -120,10 +120,10 @@ if (QMESH_PLUGIN_GLTF_DRACO)
             "io_gltf Draco support is enabled but draco package was not found from vcpkg.")
     endif()
 
-    target_compile_definitions(QMeshLabPluginIOGLTF PRIVATE
+    target_compile_definitions(MeshLab2PluginIOGLTF PRIVATE
         TINYGLTF_ENABLE_DRACO
-        QMESHLAB_GLTF_HAS_DRACO
+        MESHLAB2_GLTF_HAS_DRACO
     )
-    target_link_libraries(QMeshLabPluginIOGLTF PUBLIC ${_draco_target})
+    target_link_libraries(MeshLab2PluginIOGLTF PUBLIC ${_draco_target})
     message(STATUS "io_gltf: Draco support enabled (${_draco_target})")
 endif()

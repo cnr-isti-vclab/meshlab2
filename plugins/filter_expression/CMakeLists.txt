@@ -1,6 +1,6 @@
-option(QMESH_PLUGIN_FILTER_EXPRESSION "Build expression-based mesh filter plugin (muparser)" ON)
+option(MESHLAB2_PLUGIN_FILTER_EXPRESSION "Build expression-based mesh filter plugin (muparser)" ON)
 
-if (NOT QMESH_PLUGIN_FILTER_EXPRESSION)
+if (NOT MESHLAB2_PLUGIN_FILTER_EXPRESSION)
     message(STATUS "Skipping filter_expression - plugin disabled")
     return()
 endif()
@@ -30,25 +30,25 @@ if (NOT _muparser_target AND (NOT MUPARSER_INCLUDE_DIR OR NOT MUPARSER_LIBRARY))
     return()
 endif()
 
-add_library(QMeshLabPluginFilterExpression STATIC
+add_library(MeshLab2PluginFilterExpression STATIC
     expressionfilterplugin.h
     expressionfilterplugin.cpp
     filter_refine.h
 )
 
-target_include_directories(QMeshLabPluginFilterExpression
+target_include_directories(MeshLab2PluginFilterExpression
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 if (MUPARSER_INCLUDE_DIR)
-    target_include_directories(QMeshLabPluginFilterExpression PUBLIC ${MUPARSER_INCLUDE_DIR})
+    target_include_directories(MeshLab2PluginFilterExpression PUBLIC ${MUPARSER_INCLUDE_DIR})
 endif()
 
-target_link_libraries(QMeshLabPluginFilterExpression
+target_link_libraries(MeshLab2PluginFilterExpression
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
 )
 
@@ -56,17 +56,17 @@ if (MSVC)
     # Qt exports _UNICODE on Windows, but the vcpkg muParser port is built with
     # ENABLE_WIDE_CHAR=OFF. Keep the consuming headers on the library's narrow
     # string ABI as well.
-    target_compile_options(QMeshLabPluginFilterExpression PRIVATE /U_UNICODE)
+    target_compile_options(MeshLab2PluginFilterExpression PRIVATE /U_UNICODE)
 endif()
 
 if (_muparser_target)
-    target_link_libraries(QMeshLabPluginFilterExpression PUBLIC ${_muparser_target})
+    target_link_libraries(MeshLab2PluginFilterExpression PUBLIC ${_muparser_target})
 else()
-    target_link_libraries(QMeshLabPluginFilterExpression PUBLIC ${MUPARSER_LIBRARY})
+    target_link_libraries(MeshLab2PluginFilterExpression PUBLIC ${MUPARSER_LIBRARY})
 endif()
 
 
-qt_add_resources(QMeshLabPluginFilterExpression "filter_expression_descriptors"
-    PREFIX "/filters/qmeshlab.filter.expression"
+qt_add_resources(MeshLab2PluginFilterExpression "filter_expression_descriptors"
+    PREFIX "/filters/meshlab2.filter.expression"
     FILES filters.json
 )

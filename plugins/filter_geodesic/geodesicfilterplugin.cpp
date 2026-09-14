@@ -30,7 +30,7 @@ MeshFilterRunResult vertexQualityResult(int meshIndex, const QString &message)
 
 QString GeodesicFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.geodesic");
+    return QStringLiteral("meshlab2.filter.geodesic");
 }
 
 QString GeodesicFilterPlugin::name() const

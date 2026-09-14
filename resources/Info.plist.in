@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  macOS bundle metadata for QMeshLab.
+  macOS bundle metadata for MeshLab.
 
   Configured by the root CMakeLists.txt into ${CMAKE_CURRENT_BINARY_DIR}/Info.plist
   and installed through the MACOSX_BUNDLE_INFO_PLIST target property.  Placeholders
@@ -17,15 +17,15 @@
 <dict>
     <!-- Identity -->
     <key>CFBundleIdentifier</key>
-    <string>@QMESHLAB_BUNDLE_IDENTIFIER@</string>
+    <string>@MESHLAB2_BUNDLE_IDENTIFIER@</string>
     <key>CFBundleName</key>
-    <string>@QMESHLAB_BUNDLE_NAME@</string>
+    <string>@MESHLAB2_BUNDLE_NAME@</string>
     <key>CFBundleDisplayName</key>
-    <string>@QMESHLAB_BUNDLE_NAME@</string>
+    <string>@MESHLAB2_BUNDLE_NAME@</string>
     <key>CFBundleExecutable</key>
-    <string>@QMESHLAB_BUNDLE_NAME@</string>
+    <string>@MESHLAB2_BUNDLE_NAME@</string>
     <key>CFBundleIconFile</key>
-    <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+    <string>@MESHLAB2_BUNDLE_ICON_NAME@</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key>
@@ -37,13 +37,13 @@
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.graphics-design</string>
     <key>NSHumanReadableCopyright</key>
-    <string>@QMESHLAB_BUNDLE_COPYRIGHT@</string>
+    <string>@MESHLAB2_BUNDLE_COPYRIGHT@</string>
 
     <!-- Version.  CFBundleVersion must increase monotonically across releases. -->
     <key>CFBundleShortVersionString</key>
-    <string>@QMESHLAB_VERSION@</string>
+    <string>@MESHLAB2_VERSION@</string>
     <key>CFBundleVersion</key>
-    <string>@QMESHLAB_VERSION@</string>
+    <string>@MESHLAB2_VERSION@</string>
 
     <!--
       Minimum OS.  Left empty by the default template, which means macOS lets the
@@ -99,7 +99,7 @@
             <key>LSHandlerRank</key>
             <string>Owner</string>
             <key>CFBundleTypeIconFile</key>
-            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+            <string>@MESHLAB2_BUNDLE_ICON_NAME@</string>
         </dict>
         <dict>
             <key>CFBundleTypeName</key>
@@ -111,7 +111,7 @@
             <key>LSHandlerRank</key>
             <string>Owner</string>
             <key>CFBundleTypeIconFile</key>
-            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+            <string>@MESHLAB2_BUNDLE_ICON_NAME@</string>
         </dict>
         <dict>
             <key>CFBundleTypeName</key>
@@ -123,7 +123,7 @@
             <key>LSHandlerRank</key>
             <string>Alternate</string>
             <key>CFBundleTypeIconFile</key>
-            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+            <string>@MESHLAB2_BUNDLE_ICON_NAME@</string>
         </dict>
         <dict>
             <key>CFBundleTypeName</key>
@@ -135,7 +135,7 @@
             <key>LSHandlerRank</key>
             <string>Alternate</string>
             <key>CFBundleTypeIconFile</key>
-            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+            <string>@MESHLAB2_BUNDLE_ICON_NAME@</string>
         </dict>
         <dict>
             <key>CFBundleTypeName</key>
@@ -147,7 +147,7 @@
             <key>LSHandlerRank</key>
             <string>Alternate</string>
             <key>CFBundleTypeIconFile</key>
-            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+            <string>@MESHLAB2_BUNDLE_ICON_NAME@</string>
         </dict>
         <dict>
             <key>CFBundleTypeName</key>
@@ -159,7 +159,7 @@
             <key>LSHandlerRank</key>
             <string>Alternate</string>
             <key>CFBundleTypeIconFile</key>
-            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+            <string>@MESHLAB2_BUNDLE_ICON_NAME@</string>
         </dict>
         <dict>
             <key>CFBundleTypeName</key>
@@ -174,7 +174,7 @@
             <key>LSHandlerRank</key>
             <string>Alternate</string>
             <key>CFBundleTypeIconFile</key>
-            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+            <string>@MESHLAB2_BUNDLE_ICON_NAME@</string>
         </dict>
         <dict>
             <key>CFBundleTypeName</key>
@@ -186,7 +186,7 @@
             <key>LSHandlerRank</key>
             <string>Alternate</string>
             <key>CFBundleTypeIconFile</key>
-            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+            <string>@MESHLAB2_BUNDLE_ICON_NAME@</string>
         </dict>
         <dict>
             <key>CFBundleTypeName</key>
@@ -198,7 +198,7 @@
             <key>LSHandlerRank</key>
             <string>Alternate</string>
             <key>CFBundleTypeIconFile</key>
-            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+            <string>@MESHLAB2_BUNDLE_ICON_NAME@</string>
         </dict>
     </array>
 
@@ -218,7 +218,7 @@
                 <string>public.xml</string>
             </array>
             <key>UTTypeIconFile</key>
-            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+            <string>@MESHLAB2_BUNDLE_ICON_NAME@</string>
             <key>UTTypeTagSpecification</key>
             <dict>
                 <key>public.filename-extension</key>

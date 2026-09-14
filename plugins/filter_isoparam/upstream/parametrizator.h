@@ -1,6 +1,7 @@
 #ifndef MESHLAB_PARAMETRIZATOR
 #define MESHLAB_PARAMETRIZATOR
 
+#include <random>
 #include <defines.h>
 
 
@@ -1041,8 +1042,12 @@ public:
         fclose(f);
     }
 
-    int LoadMCP(char* filename)
+    int LoadMCP(char* filename, unsigned int colorSeed = 20100701u)
     {
+        // QMeshLab: the per-face group colour below drew from rand(); a local generator
+        // with an explicit seed keeps a reloaded domain looking the same twice.
+        std::mt19937 palette(colorSeed);
+        std::uniform_int_distribution<int> channel(0, 199); // rand()%200 was [0,199]
         FILE *f=NULL;
         f=fopen(filename,"r");
         if (f==NULL)
@@ -1083,7 +1088,7 @@ public:
                 base_mesh.face[i].V(0)=&base_mesh.vert[index0];
                 base_mesh.face[i].V(1)=&base_mesh.vert[index1];
                 base_mesh.face[i].V(2)=&base_mesh.vert[index2];
-                base_mesh.face[i].group=vcg::Color4b(rand()%200,rand()%200,rand()%200,255);
+                base_mesh.face[i].group=vcg::Color4b(channel(palette),channel(palette),channel(palette),255);
             }
         }
 

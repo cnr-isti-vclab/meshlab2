@@ -1,5 +1,5 @@
 {
-  "kind": "QMeshLab.Preferences",
+  "kind": "MeshLab.Preferences",
   "version": 1,
   "_comment": [
     "Application preferences, declared with exactly the parameter schema used by",
@@ -32,7 +32,7 @@
       "group": "view",
       "type": "double",
       "default": 0.00333,
-      "min": 0.00001,
+      "min": 1e-05,
       "max": 2.0,
       "decimals": 5
     },
@@ -45,6 +45,28 @@
       "default": 84,
       "min": 32,
       "max": 256
+    },
+    {
+      "id": "view.reframeOnMeshAdded",
+      "label": "Reframe camera when a mesh is added",
+      "help": "Whether opening a mesh, or a filter creating a layer, moves the camera to frame the scene.\n\n**When the new mesh is off-screen** keeps the camera where you put it and reframes only when the addition would land outside the current view, so what arrives is always visible without a camera you set being thrown away.\n\n**Always** reframes on every addition. **Never** leaves the camera alone; use View > Reset Camera to reframe by hand.\n\nThe first mesh into an empty document always frames the scene, whatever this is set to -- otherwise the view would open pointed at nothing.",
+      "group": "view",
+      "type": "enum",
+      "default": "when_off_screen",
+      "enumOptions": [
+        {
+          "id": "when_off_screen",
+          "label": "When the new mesh is off-screen"
+        },
+        {
+          "id": "always",
+          "label": "Always"
+        },
+        {
+          "id": "never",
+          "label": "Never"
+        }
+      ]
     },
     {
       "id": "input.dragThreshold",
@@ -84,12 +106,30 @@
       "type": "enum",
       "default": "gray",
       "enumOptions": [
-        { "id": "gray", "label": "Gray" },
-        { "id": "viridis", "label": "Viridis" },
-        { "id": "plasma", "label": "Plasma" },
-        { "id": "cividis", "label": "Cividis" },
-        { "id": "turbo", "label": "Turbo" },
-        { "id": "rainbow", "label": "Rainbow" }
+        {
+          "id": "gray",
+          "label": "Gray"
+        },
+        {
+          "id": "viridis",
+          "label": "Viridis"
+        },
+        {
+          "id": "plasma",
+          "label": "Plasma"
+        },
+        {
+          "id": "cividis",
+          "label": "Cividis"
+        },
+        {
+          "id": "turbo",
+          "label": "Turbo"
+        },
+        {
+          "id": "rainbow",
+          "label": "Rainbow"
+        }
       ]
     },
     {
@@ -110,9 +150,18 @@
       "type": "enum",
       "default": "elapsed",
       "enumOptions": [
-        { "id": "none", "label": "None" },
-        { "id": "elapsed", "label": "Elapsed since start" },
-        { "id": "clock", "label": "Time of day" }
+        {
+          "id": "none",
+          "label": "None"
+        },
+        {
+          "id": "elapsed",
+          "label": "Elapsed since start"
+        },
+        {
+          "id": "clock",
+          "label": "Time of day"
+        }
       ]
     },
     {
@@ -123,10 +172,22 @@
       "type": "enum",
       "default": "info",
       "enumOptions": [
-        { "id": "error", "label": "Errors only" },
-        { "id": "warning", "label": "Errors and warnings" },
-        { "id": "info", "label": "Normal" },
-        { "id": "debug", "label": "Debug (timings and internals)" }
+        {
+          "id": "error",
+          "label": "Errors only"
+        },
+        {
+          "id": "warning",
+          "label": "Errors and warnings"
+        },
+        {
+          "id": "info",
+          "label": "Normal"
+        },
+        {
+          "id": "debug",
+          "label": "Debug (timings and internals)"
+        }
       ]
     },
     {

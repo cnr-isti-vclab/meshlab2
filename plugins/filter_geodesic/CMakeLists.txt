@@ -1,28 +1,28 @@
-option(QMESH_PLUGIN_FILTER_GEODESIC "Build geodesic filter plugin" ON)
+option(MESHLAB2_PLUGIN_FILTER_GEODESIC "Build geodesic filter plugin" ON)
 
-if (NOT QMESH_PLUGIN_FILTER_GEODESIC)
+if (NOT MESHLAB2_PLUGIN_FILTER_GEODESIC)
     message(STATUS "Skipping filter_geodesic - plugin disabled")
     return()
 endif()
 
-add_library(QMeshLabPluginFilterGeodesic STATIC
+add_library(MeshLab2PluginFilterGeodesic STATIC
     geodesicfilterplugin.h
     geodesicfilterplugin.cpp
 )
 
-target_include_directories(QMeshLabPluginFilterGeodesic
+target_include_directories(MeshLab2PluginFilterGeodesic
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabPluginFilterGeodesic
+target_link_libraries(MeshLab2PluginFilterGeodesic
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
 )
 
-qt_add_resources(QMeshLabPluginFilterGeodesic "filter_geodesic_descriptors"
-    PREFIX "/filters/qmeshlab.filter.geodesic"
+qt_add_resources(MeshLab2PluginFilterGeodesic "filter_geodesic_descriptors"
+    PREFIX "/filters/meshlab2.filter.geodesic"
     FILES filters.json
 )

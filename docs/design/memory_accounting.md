@@ -12,13 +12,13 @@ added together or expected to match one another exactly:
   Activity Monitor. Linux reports resident and private mappings from `/proc`; Windows
   reports working-set and private bytes.
 - **Tracked CPU allocations** are a lower-bound ownership estimate for data structures
-  QMeshLab can inspect directly.
+  MeshLab can inspect directly.
 - **Logical mesh GPU cache** sums QRhi buffer sizes and known RGBA8 texture payloads in
   `MeshGpuResourceCache`. It does not include per-view render targets, driver allocation
   granularity, command/staging resources, or all graphics memory charged to the process.
 
 The dialog uses binary units (`KiB`, `MiB`, `GiB`) and provides exact bytes in tooltips.
-`Copy JSON` exports the same snapshot as `org.qmeshlab.memory-report.v1`, including the
+`Copy JSON` exports the same snapshot as `org.meshlab.memory-report.v1`, including the
 process id, timestamp, and the separate CPU/GPU subtotals.
 
 ## Tracked CPU Data
@@ -70,10 +70,10 @@ written to the application log.
 
 ## External macOS Probe
 
-For repeatable comparison against system tools, start QMeshLab and run:
+For repeatable comparison against system tools, start MeshLab and run:
 
 ```bash
-tools/memory_probe_macos.sh QMeshLab
+tools/memory_probe_macos.sh MeshLab
 ```
 
 At each phase, open `Help > Memory Info`, click `Copy JSON`, and enter a checkpoint label
@@ -88,5 +88,5 @@ in the probe. A useful sequence is `baseline`, `one-mesh`, `two-mesh`, `after-ed
 Compare **deltas between stable checkpoints**, not only absolute values. Allow rendering
 uploads to settle before capture and repeat a run when establishing a tolerance. External
 footprint tests are diagnostic rather than strict CI assertions because allocator state,
-graphics backend, and operating-system accounting vary. Exact unit tests cover QMeshLab's
+graphics backend, and operating-system accounting vary. Exact unit tests cover MeshLab's
 deterministic ownership counters and pruning behavior in `tests/test_document.cpp`.

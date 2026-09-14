@@ -1,8 +1,8 @@
 """
-QMeshLab Python API documentation generator.
+MeshLab Python API documentation generator.
 
-Run from within the QMeshLab desktop app (--generate-docs flag).
-The _qmeshlab module is already imported when this script executes.
+Run from within the MeshLab desktop app (--generate-docs flag).
+The _meshlab module is already imported when this script executes.
 """
 
 import os
@@ -52,7 +52,7 @@ def _write_methods_rst(fh, class_name, members, extra_intro=''):
     if extra_intro:
         fh.write(extra_intro + '\n\n')
 
-    fh.write('.. py:currentmodule:: _qmeshlab\n\n')
+    fh.write('.. py:currentmodule:: _meshlab\n\n')
 
     methods = [m for m in members if m[3]]
     attrs = [m for m in members if not m[3]]
@@ -62,7 +62,7 @@ def _write_methods_rst(fh, class_name, members, extra_intro=''):
         fh.write('----------\n\n')
         for name, sig, doc, _ in attrs:
             fh.write(f'.. py:attribute:: {class_name}.{name}\n')
-            fh.write('   :module: _qmeshlab\n\n')
+            fh.write('   :module: _meshlab\n\n')
             if doc:
                 fh.write(f'   {doc}\n\n')
             else:
@@ -74,7 +74,7 @@ def _write_methods_rst(fh, class_name, members, extra_intro=''):
         for name, sig, doc, _ in methods:
             fname = f'{class_name}.{name}'
             fh.write(f'.. py:method:: {fname}{sig}\n')
-            fh.write('   :module: _qmeshlab\n\n')
+            fh.write('   :module: _meshlab\n\n')
             if doc:
                 # nanobind docstrings often have multiple lines
                 for line in doc.split('\n'):
@@ -262,7 +262,7 @@ def _write_filter_markdown(fh, filter_list):
             fh.write(f'{f["description"]}\n\n')
 
         fh.write(f'```{{py:function}} ms.{f["python_name"]}(**params)\n')
-        fh.write(':module: _qmeshlab\n\n')
+        fh.write(':module: _meshlab\n\n')
         long_description = f['long_description']
         if long_description and long_description != f['description']:
             fh.write(f'{long_description}\n\n')
@@ -301,11 +301,11 @@ def _write_filter_markdown(fh, filter_list):
 def generate(output_dir):
     """Main entry point.  *output_dir* is the path where .rst files are written.
 
-    This function is called from within the QMeshLab app after the
+    This function is called from within the MeshLab app after the
     `--generate-docs` flag has initialised the Python interpreter and
-    imported the ``_qmeshlab`` module.
+    imported the ``_meshlab`` module.
     """
-    import _qmeshlab as qml
+    import _meshlab as qml
 
     # Locate the repository root (the output_dir is "docs" under it).
     source_dir = os.path.normpath(os.path.join(output_dir, '..'))
@@ -339,7 +339,7 @@ def generate(output_dir):
         fh.write('.. _mlgui-api:\n\n')
         fh.write('MlGui\n')
         fh.write('=====\n\n')
-        fh.write('The ``mlgui`` object is available only when running QMeshLab\n')
+        fh.write('The ``mlgui`` object is available only when running MeshLab\n')
         fh.write('with a visible window (desktop app).  It is not available in\n')
         fh.write('headless pymeshlab.\n\n')
         _write_methods_rst(fh, 'MlGui', mlgui_members)
@@ -382,7 +382,7 @@ def generate(output_dir):
 
 
 if __name__ == '__main__':
-    # Standalone test (runs outside the app, won't work because _qmeshlab
+    # Standalone test (runs outside the app, won't work because _meshlab
     # isn't loaded).  Use the --generate-docs app flag instead.
-    print("This script runs inside the QMeshLab app via --generate-docs.")
-    print("  ./QMeshLab --generate-docs <output_dir>")
+    print("This script runs inside the MeshLab app via --generate-docs.")
+    print("  ./MeshLab --generate-docs <output_dir>")

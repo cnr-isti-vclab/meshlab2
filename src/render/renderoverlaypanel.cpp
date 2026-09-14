@@ -26,6 +26,22 @@
 #include <type_traits>
 
 namespace {
+
+// Only these five passes have an apply-to-all: RenderWidget copies their fields and ignores
+// the rest, so offering the gesture anywhere else would look like it had done something.
+bool passSupportsApplyToAll(RenderPass pass)
+{
+    switch (pass) {
+    case RenderPass::BoundingBox:
+    case RenderPass::Points:
+    case RenderPass::Edges:
+    case RenderPass::Wireframe:
+    case RenderPass::Fill:
+        return true;
+    default:
+        return false;
+    }
+}
 const QColor kAccentColor(36, 132, 210);
 const QColor kNeutralArrowColor(90, 90, 90, 175);
 const QColor kActiveArrowColor(36, 132, 210, 235);
@@ -205,9 +221,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
 
     m_currentMeshButton = makeButton(QStringLiteral(":/img/global.png"), tr("Viewer Settings"));
     m_currentMeshButton->setCheckable(false);
-    m_modeButton = makeButton(QStringLiteral(":/img/options.png"), tr("Rendering Settings"));
-    m_modeButton->setCheckable(true);
-    m_modeButton->setChecked(false);
     m_normalsDecoratorsButton = makeButton(QStringLiteral(":/img/normals.png"), tr("Normal Decorators"));
     m_boundaryDecoratorsButton = makeButton(QStringLiteral(":/img/boundary.png"), tr("Boundary Decorators"));
     m_bboxButton = makeButton(QStringLiteral(":/img/box.png"), tr("Bounding Box"));
@@ -220,7 +233,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_qualityHistogramButton =
         makeButton(QStringLiteral(":/img/histogram.png"), tr("Quality Histogram"));
 
-    buttonLayout->addWidget(m_modeButton);
     buttonLayout->addWidget(m_currentMeshButton);
     buttonLayout->addWidget(m_bboxButton);
     buttonLayout->addWidget(m_pointsButton);
@@ -261,10 +273,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         btn->setFixedSize(kColorButtonSize, kColorButtonSize);
         return btn;
     };
-    auto *modeArrowSpacer = new QWidget(arrowRow);
-    modeArrowSpacer->setFixedSize(kPassButtonSize, kPassArrowHeight);
-    arrowLayout->addWidget(modeArrowSpacer);
-
     m_currentMeshSettingsArrow = makeArrowButton(tr("Settings: Viewer"));
     arrowLayout->addWidget(m_currentMeshSettingsArrow);
 
@@ -321,6 +329,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_currentMeshHighlightCheck->setChecked(m_globalSettings.highlightCurrentMesh);
     m_showTrackballGizmoCheck = new QCheckBox(viewer3dPage);
     m_showTrackballGizmoCheck->setChecked(m_globalSettings.showTrackballGizmo);
+    m_showAxisGizmoCheck = new QCheckBox(viewer3dPage);
+    m_showAxisGizmoCheck->setChecked(m_globalSettings.showAxisGizmo);
     m_currentMeshOutlineColorButton = makeColorButton(viewer3dPage);
     m_sceneBackgroundTopColorButton = makeColorButton(viewer3dPage);
     m_sceneBackgroundBottomColorButton = makeColorButton(viewer3dPage);
@@ -361,12 +371,17 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_currentMeshDebugViewCombo->addItem(
         tr("Eroded"),
         static_cast<int>(CurrentMeshDebugView::ErodedMask));
+    // Names the thing it switches on. "Highlight" named neither what is highlighted nor
+    // how, and sat directly above the outline's own colour and width.
     currentMeshForm->addRow(
-        tr("Highlight"),
+        tr("Current layer outline"),
         makeCenteredFieldContainer(m_currentMeshHighlightCheck, viewer3dPage));
     currentMeshForm->addRow(
         tr("Trackball gizmo"),
         makeCenteredFieldContainer(m_showTrackballGizmoCheck, viewer3dPage));
+    currentMeshForm->addRow(
+        tr("Axis gizmo"),
+        makeCenteredFieldContainer(m_showAxisGizmoCheck, viewer3dPage));
     m_showViewCamerasCheck = new QCheckBox(viewer3dPage);
     m_showViewCamerasCheck->setChecked(m_globalSettings.showViewCameras);
     currentMeshForm->addRow(
@@ -501,8 +516,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_settingsStack->addWidget(boundaryDecoratorsPage);
 
     auto addApplyToAllButton = [this](QLayout *layout, RenderPass pass) {
-        auto *btn = new QPushButton(tr("Apply to All"));
-        btn->setToolTip(tr("Apply current %1 settings to all visible meshes")
+        // "to All" left the reader to guess all of what -- all passes? all views? It is
+        // all layers, and the label now says which.
+        auto *btn = new QPushButton(tr("Apply to All Layers"));
+        btn->setToolTip(tr("Apply current %1 settings to all visible layers")
             .arg(pass == RenderPass::BoundingBox ? tr("box") :
                  pass == RenderPass::Points ? tr("points") :
                  pass == RenderPass::Edges ? tr("edges") :
@@ -512,6 +529,13 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         connect(btn, &QPushButton::clicked, this, [this, pass]() {
             emit applyToAllMeshesRequested(m_meshSettings, pass);
         });
+
+        // The shortcut is invisible by nature, so it is written down exactly where someone
+        // who wanted it would be looking -- next to the long way round.
+        auto *hint = new QLabel(tr("Shift-click a pass button to do this without opening it."));
+        hint->setWordWrap(true);
+        hint->setStyleSheet(QStringLiteral("QLabel { color: rgba(90,90,96,205); }"));
+        layout->addWidget(hint);
     };
 
     auto *bboxPage = new QWidget(m_settingsStack);
@@ -523,11 +547,16 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bboxForm->setHorizontalSpacing(6);
     bboxForm->setVerticalSpacing(1);
     bboxForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_bboxStyleCombo = new QComboBox(bboxPage);
+    m_bboxStyleCombo->addItem(tr("Box"), static_cast<int>(BoundingBoxStyle::Box));
+    m_bboxStyleCombo->addItem(
+        tr("Corner brackets"), static_cast<int>(BoundingBoxStyle::CornerBrackets));
     m_bboxColorButton = makeColorButton(bboxPage);
     m_bboxShowCornersCheck = new QCheckBox(bboxPage);
     m_bboxShowCornersCheck->setChecked(m_globalSettings.showBoundingBoxCorners);
     m_bboxShowDimensionsCheck = new QCheckBox(bboxPage);
     m_bboxShowDimensionsCheck->setChecked(m_globalSettings.showBoundingBoxDimensions);
+    bboxForm->addRow(tr("Style"), m_bboxStyleCombo);
     bboxForm->addRow(
         tr("Wire color"),
         makeCenteredFieldContainer(m_bboxColorButton, bboxPage));
@@ -1143,26 +1172,36 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
 
     auto bindPassButton = [this](QToolButton *button, RenderPass pass, bool showSettings) {
         connect(button, &QToolButton::clicked, this, [this, pass, showSettings]() {
+            // Shift turns the click into "and make every layer look like this". The button
+            // has already emitted toggled() by the time clicked() arrives, so the pass it
+            // pushes out includes the on/off state this very click just set.
+            const bool applyToAll =
+                (QApplication::keyboardModifiers() & Qt::ShiftModifier)
+                && passSupportsApplyToAll(pass);
             setCurrentRenderPass(pass);
             if (showSettings)
                 setSettingsVisible(true);
+            if (applyToAll)
+                emit applyToAllMeshesRequested(m_meshSettings, pass);
         });
     };
 
-    connect(m_modeButton, &QToolButton::toggled, this, [this](bool checked) {
-        if (m_globalSettings.settingsPanelVisible == checked)
-            return;
-        m_globalSettings.settingsPanelVisible = checked;
-        if (m_settingsContainer)
-            m_settingsContainer->setVisible(checked);
-        stopSettingsAutoCloseTimer();
-        updateSettingsPanelGeometry();
-        adjustSize();
-        emit globalSettingsChanged(m_globalSettings);
-    });
+    // An arrow opens its own page and closes the panel again when that page is already the
+    // one showing. That is what the dropped panel button used to be for, except it now sits
+    // under the pass it belongs to instead of standing apart from all of them.
+    auto bindSettingsArrow = [this](QToolButton *button, RenderPass pass) {
+        connect(button, &QToolButton::clicked, this, [this, pass]() {
+            const bool alreadyOpen =
+                m_globalSettings.settingsPanelVisible && m_globalSettings.currentPass == pass;
+            setCurrentRenderPass(pass);
+            setSettingsVisible(!alreadyOpen);
+            syncRenderPassUiState();
+        });
+    };
 
     bindGlobalCheckBox(m_currentMeshHighlightCheck, &GlobalRenderSettings::highlightCurrentMesh);
     bindGlobalCheckBox(m_showTrackballGizmoCheck, &GlobalRenderSettings::showTrackballGizmo);
+    bindGlobalCheckBox(m_showAxisGizmoCheck, &GlobalRenderSettings::showAxisGizmo);
     bindGlobalCheckBox(m_showViewCamerasCheck, &GlobalRenderSettings::showViewCameras);
     bindGlobalCheckBox(m_fillTextureNearestCheck, &GlobalRenderSettings::fillTextureNearestSampling);
     bindGlobalColorButton(
@@ -1232,6 +1271,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindGlobalCheckBox(m_bboxShowCornersCheck, &GlobalRenderSettings::showBoundingBoxCorners);
     bindGlobalCheckBox(m_bboxShowDimensionsCheck, &GlobalRenderSettings::showBoundingBoxDimensions);
 
+    bindMeshEnumCombo(m_bboxStyleCombo, &PerMeshRenderSettings::boundingBoxStyle);
     bindMeshEnumCombo(m_pointColorSourceCombo, &PerMeshRenderSettings::pointColorSource);
     bindMeshColorButton(m_pointsColorButton, &PerMeshRenderSettings::pointColor, tr("Point Color"));
     bindMeshFloatSpin(m_pointSizeSpin, &PerMeshRenderSettings::pointSize);
@@ -1581,16 +1621,16 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindPassButton(m_selectionButton, RenderPass::Selection, false);
     bindPassButton(m_qualityHistogramButton, RenderPass::QualityHistogram, false);
 
-    bindPassButton(m_currentMeshSettingsArrow, RenderPass::CurrentMesh, true);
-    bindPassButton(m_normalsDecoratorsSettingsArrow, RenderPass::DecoratorNormals, true);
-    bindPassButton(m_boundaryDecoratorsSettingsArrow, RenderPass::DecoratorBoundary, true);
-    bindPassButton(m_bboxSettingsArrow, RenderPass::BoundingBox, true);
-    bindPassButton(m_pointsSettingsArrow, RenderPass::Points, true);
-    bindPassButton(m_edgesSettingsArrow, RenderPass::Edges, true);
-    bindPassButton(m_wireSettingsArrow, RenderPass::Wireframe, true);
-    bindPassButton(m_fillSettingsArrow, RenderPass::Fill, true);
-    bindPassButton(m_selectionSettingsArrow, RenderPass::Selection, true);
-    bindPassButton(m_qualityHistogramSettingsArrow, RenderPass::QualityHistogram, true);
+    bindSettingsArrow(m_currentMeshSettingsArrow, RenderPass::CurrentMesh);
+    bindSettingsArrow(m_normalsDecoratorsSettingsArrow, RenderPass::DecoratorNormals);
+    bindSettingsArrow(m_boundaryDecoratorsSettingsArrow, RenderPass::DecoratorBoundary);
+    bindSettingsArrow(m_bboxSettingsArrow, RenderPass::BoundingBox);
+    bindSettingsArrow(m_pointsSettingsArrow, RenderPass::Points);
+    bindSettingsArrow(m_edgesSettingsArrow, RenderPass::Edges);
+    bindSettingsArrow(m_wireSettingsArrow, RenderPass::Wireframe);
+    bindSettingsArrow(m_fillSettingsArrow, RenderPass::Fill);
+    bindSettingsArrow(m_selectionSettingsArrow, RenderPass::Selection);
+    bindSettingsArrow(m_qualityHistogramSettingsArrow, RenderPass::QualityHistogram);
 
     bindMeshToolToggle(m_bboxButton, &PerMeshRenderSettings::showBoundingBox);
     // Plain pass toggles, like Points/Edges/Wire/Fill: each owns only its master flag and
@@ -1697,8 +1737,15 @@ void RenderOverlayPanel::setCurrentRenderPass(RenderPass pass)
 void RenderOverlayPanel::setSettingsVisible(bool visible)
 {
     stopSettingsAutoCloseTimer();
-    if (m_modeButton && m_modeButton->isChecked() != visible)
-        m_modeButton->setChecked(visible);
+    if (m_globalSettings.settingsPanelVisible == visible)
+        return;
+    m_globalSettings.settingsPanelVisible = visible;
+    if (m_settingsContainer)
+        m_settingsContainer->setVisible(visible);
+    updateSettingsPanelGeometry();
+    adjustSize();
+    syncRenderPassUiState();
+    emit globalSettingsChanged(m_globalSettings);
 }
 
 void RenderOverlayPanel::startSettingsAutoCloseTimer()
@@ -1759,6 +1806,10 @@ void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
         QSignalBlocker blocker(m_showTrackballGizmoCheck);
         m_showTrackballGizmoCheck->setChecked(m_globalSettings.showTrackballGizmo);
     }
+    if (m_showAxisGizmoCheck) {
+        QSignalBlocker blocker(m_showAxisGizmoCheck);
+        m_showAxisGizmoCheck->setChecked(m_globalSettings.showAxisGizmo);
+    }
     if (m_uvShowFullTextureCheck) {
         QSignalBlocker blocker(m_uvShowFullTextureCheck);
         m_uvShowFullTextureCheck->setChecked(m_globalSettings.uvShowFullTexture);
@@ -1776,9 +1827,11 @@ void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
         QSignalBlocker blocker(m_bboxShowDimensionsCheck);
         m_bboxShowDimensionsCheck->setChecked(m_globalSettings.showBoundingBoxDimensions);
     }
-    if (m_modeButton) {
-        QSignalBlocker blocker(m_modeButton);
-        m_modeButton->setChecked(m_globalSettings.settingsPanelVisible);
+    if (m_settingsContainer
+        && m_settingsContainer->isVisible() != m_globalSettings.settingsPanelVisible) {
+        m_settingsContainer->setVisible(m_globalSettings.settingsPanelVisible);
+        updateSettingsPanelGeometry();
+        adjustSize();
     }
     if (m_currentMeshDilateRadiusSpin) {
         QSignalBlocker blocker(m_currentMeshDilateRadiusSpin);
@@ -2344,7 +2397,8 @@ void RenderOverlayPanel::syncRenderPassUiState()
     auto setArrowChecked = [this](QToolButton *btn, RenderPass pass) {
         if (!btn)
             return;
-        const bool isTarget = (m_globalSettings.currentPass == pass);
+        const bool isTarget =
+            m_globalSettings.settingsPanelVisible && (m_globalSettings.currentPass == pass);
         QSignalBlocker blocker(btn);
         btn->setChecked(isTarget);
         btn->update();

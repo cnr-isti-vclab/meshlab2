@@ -750,7 +750,7 @@ MeshFilterRunResult runSurfaceTrimmerImpl(
     infoMessages.push_back(contextMessage);
     if (polygonMeshRequested) {
         infoMessages.push_back(
-            QObject::tr("The original SurfaceTrimmer can preserve polygon output. QMeshLab stores triangle meshes, so the result was triangulated."));
+            QObject::tr("The original SurfaceTrimmer can preserve polygon output. MeshLab stores triangle meshes, so the result was triangulated."));
     }
     doc.finishFilterProgress(true, QObject::tr("Trimmed current mesh."));
 
@@ -785,8 +785,8 @@ QString placeholderErrorMessage()
 
 bool isEnabledByEnvironment()
 {
-    const QByteArray primary = qgetenv("QMESHLAB_POISSONRECON").trimmed();
-    const QByteArray legacy = qgetenv("QMESHLAB_POISSON_UPSTREAM").trimmed();
+    const QByteArray primary = qgetenv("MESHLAB2_POISSONRECON").trimmed();
+    const QByteArray legacy = qgetenv("MESHLAB2_POISSON_UPSTREAM").trimmed();
     const QByteArray value = primary.isEmpty() ? legacy : primary;
     if (value.isEmpty())
         return true;

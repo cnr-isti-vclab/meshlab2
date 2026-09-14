@@ -156,19 +156,21 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
 
 // Expand a field list into each of the three operations. Declared as macros because
 // the list itself is a macro; each takes the same F(key, member) shape.
-#define QMESHLAB_WRITE_FIELD(key, member) \
+#define MESHLAB2_WRITE_FIELD(key, member) \
     writeField(o, key, s, defaults, &SettingsType::member);
-#define QMESHLAB_READ_FIELD(key, member) \
+#define MESHLAB2_READ_FIELD(key, member) \
     if (!readField(obj, key, out, &SettingsType::member, error)) \
         return false;
-#define QMESHLAB_EQUAL_FIELD(key, member) \
+#define MESHLAB2_EQUAL_FIELD(key, member) \
     if (!fieldsEqual(*this, o, &SettingsType::member)) \
         return false;
 
-// 32 fields
-#define QMESHLAB_GLOBAL_SETTINGS_FIELDS(F) \
+// 34 fields
+#define MESHLAB2_GLOBAL_SETTINGS_FIELDS(F) \
+    F("layer_arrangement", layerArrangement) \
     F("highlight_current_mesh", highlightCurrentMesh) \
     F("show_trackball_gizmo", showTrackballGizmo) \
+    F("show_axis_gizmo", showAxisGizmo) \
     F("show_view_cameras", showViewCameras) \
     F("show_decorator_info", showDecoratorInfo) \
     F("fill_texture_nearest_sampling", fillTextureNearestSampling) \
@@ -200,9 +202,10 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("quality_isolines_enabled", qualityIsolinesEnabled) \
     F("quality_isoline_count", qualityIsolineCount)
 
-// 42 flat fields; the three fill_* sub-objects are listed separately
-#define QMESHLAB_PER_MESH_SETTINGS_FIELDS(F) \
+// 43 flat fields; the three fill_* sub-objects are listed separately
+#define MESHLAB2_PER_MESH_SETTINGS_FIELDS(F) \
     F("show_bounding_box", showBoundingBox) \
+    F("bounding_box_style", boundingBoxStyle) \
     F("show_points", showPoints) \
     F("show_edges", showEdges) \
     F("show_wire", showWire) \
@@ -246,13 +249,13 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("fill_color", fillColor)
 
 // PlainFillParams
-#define QMESHLAB_FILL_PLAIN_FIELDS(F) \
+#define MESHLAB2_FILL_PLAIN_FIELDS(F) \
     F("shading", shading) \
     F("color_source", colorSource) \
     F("texture_index", textureIndex)
 
 // PbrFillParams
-#define QMESHLAB_FILL_PBR_FIELDS(F) \
+#define MESHLAB2_FILL_PBR_FIELDS(F) \
     F("shading", shading) \
     F("albedo_source", albedoSource) \
     F("albedo_index", albedoIndex) \
@@ -268,33 +271,33 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("roughness_factor", roughnessFactor)
 
 // RsFillParams
-#define QMESHLAB_FILL_RS_FIELDS(F) \
+#define MESHLAB2_FILL_RS_FIELDS(F) \
     F("shading", shading) \
     F("enhancement", enhancement) \
     F("display_mode", displayMode) \
     F("invert", invert)
 
 // Each nested fill material is the same pattern one level down.
-#define QMESHLAB_DEFINE_NESTED(Type, FieldList, jsonName) \
+#define MESHLAB2_DEFINE_NESTED(Type, FieldList, jsonName) \
     QJsonObject Type##ToJson(const Type &s, const Type *defaults) \
     { \
         using SettingsType = Type; \
         QJsonObject o; \
-        FieldList(QMESHLAB_WRITE_FIELD) \
+        FieldList(MESHLAB2_WRITE_FIELD) \
         return o; \
     } \
     bool Type##FromJson(const QJsonObject &obj, Type &out, QString *error) \
     { \
         using SettingsType = Type; \
-        FieldList(QMESHLAB_READ_FIELD) \
+        FieldList(MESHLAB2_READ_FIELD) \
         return true; \
     }
 
-QMESHLAB_DEFINE_NESTED(PlainFillParams, QMESHLAB_FILL_PLAIN_FIELDS, "fill_plain")
-QMESHLAB_DEFINE_NESTED(PbrFillParams, QMESHLAB_FILL_PBR_FIELDS, "fill_pbr")
-QMESHLAB_DEFINE_NESTED(RsFillParams, QMESHLAB_FILL_RS_FIELDS, "fill_rs")
+MESHLAB2_DEFINE_NESTED(PlainFillParams, MESHLAB2_FILL_PLAIN_FIELDS, "fill_plain")
+MESHLAB2_DEFINE_NESTED(PbrFillParams, MESHLAB2_FILL_PBR_FIELDS, "fill_pbr")
+MESHLAB2_DEFINE_NESTED(RsFillParams, MESHLAB2_FILL_RS_FIELDS, "fill_rs")
 
-#undef QMESHLAB_DEFINE_NESTED
+#undef MESHLAB2_DEFINE_NESTED
 
 // Read a nested sub-object: absent leaves the member alone, present-but-not-an-object
 // is an error, and the contents go through the nested reader.
@@ -332,14 +335,14 @@ QJsonObject globalSettingsToJson(
 {
     using SettingsType = GlobalRenderSettings;
     QJsonObject o;
-    QMESHLAB_GLOBAL_SETTINGS_FIELDS(QMESHLAB_WRITE_FIELD)
+    MESHLAB2_GLOBAL_SETTINGS_FIELDS(MESHLAB2_WRITE_FIELD)
     return o;
 }
 
 bool parseGlobalSettings(const QJsonObject &obj, GlobalRenderSettings &out, QString *error)
 {
     using SettingsType = GlobalRenderSettings;
-    QMESHLAB_GLOBAL_SETTINGS_FIELDS(QMESHLAB_READ_FIELD)
+    MESHLAB2_GLOBAL_SETTINGS_FIELDS(MESHLAB2_READ_FIELD)
     return true;
 }
 
@@ -350,7 +353,7 @@ QJsonObject perMeshSettingsToJson(
     QJsonObject o;
     {
         using SettingsType = PerMeshRenderSettings;
-        QMESHLAB_PER_MESH_SETTINGS_FIELDS(QMESHLAB_WRITE_FIELD)
+        MESHLAB2_PER_MESH_SETTINGS_FIELDS(MESHLAB2_WRITE_FIELD)
     }
 
     // An empty sub-object means every nested field matched the default, so it is
@@ -375,7 +378,7 @@ bool parsePerMeshSettings(const QJsonObject &obj, PerMeshRenderSettings &out, QS
 {
     {
         using SettingsType = PerMeshRenderSettings;
-        QMESHLAB_PER_MESH_SETTINGS_FIELDS(QMESHLAB_READ_FIELD)
+        MESHLAB2_PER_MESH_SETTINGS_FIELDS(MESHLAB2_READ_FIELD)
     }
     return readNested(obj, "fill_plain", out.fillPlain, PlainFillParamsFromJson, error)
         && readNested(obj, "fill_pbr", out.fillPbr, PbrFillParamsFromJson, error)
@@ -390,24 +393,24 @@ bool parsePerMeshSettings(const QJsonObject &obj, PerMeshRenderSettings &out, QS
 // call is irrelevant.
 // ---------------------------------------------------------------------------
 
-#define QMESHLAB_DEFINE_EQUALITY(Type, FieldList) \
+#define MESHLAB2_DEFINE_EQUALITY(Type, FieldList) \
     bool Type::operator==(const Type &o) const \
     { \
         using namespace RenderSettingsJson; \
         using SettingsType = Type; \
-        FieldList(QMESHLAB_EQUAL_FIELD) \
+        FieldList(MESHLAB2_EQUAL_FIELD) \
         return true; \
     }
 
-QMESHLAB_DEFINE_EQUALITY(PlainFillParams, QMESHLAB_FILL_PLAIN_FIELDS)
-QMESHLAB_DEFINE_EQUALITY(PbrFillParams, QMESHLAB_FILL_PBR_FIELDS)
-QMESHLAB_DEFINE_EQUALITY(RsFillParams, QMESHLAB_FILL_RS_FIELDS)
+MESHLAB2_DEFINE_EQUALITY(PlainFillParams, MESHLAB2_FILL_PLAIN_FIELDS)
+MESHLAB2_DEFINE_EQUALITY(PbrFillParams, MESHLAB2_FILL_PBR_FIELDS)
+MESHLAB2_DEFINE_EQUALITY(RsFillParams, MESHLAB2_FILL_RS_FIELDS)
 
 bool PerMeshRenderSettings::operator==(const PerMeshRenderSettings &o) const
 {
     using namespace RenderSettingsJson;
     using SettingsType = PerMeshRenderSettings;
-    QMESHLAB_PER_MESH_SETTINGS_FIELDS(QMESHLAB_EQUAL_FIELD)
+    MESHLAB2_PER_MESH_SETTINGS_FIELDS(MESHLAB2_EQUAL_FIELD)
     return fillPbr == o.fillPbr && fillRs == o.fillRs && fillPlain == o.fillPlain;
 }
 
@@ -415,6 +418,6 @@ bool GlobalRenderSettings::operator==(const GlobalRenderSettings &o) const
 {
     using namespace RenderSettingsJson;
     using SettingsType = GlobalRenderSettings;
-    QMESHLAB_GLOBAL_SETTINGS_FIELDS(QMESHLAB_EQUAL_FIELD)
+    MESHLAB2_GLOBAL_SETTINGS_FIELDS(MESHLAB2_EQUAL_FIELD)
     return true;
 }

@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QMatrix3x3>
 #include <QMatrix4x4>
+#include <QRect>
 #include <QSize>
 #include <QtGlobal>
 #include <QVector2D>
@@ -207,6 +208,41 @@ inline void writeMainMatricesToUbuf(
     ubufData[32] = n[0]; ubufData[33] = n[1]; ubufData[34] = n[2]; ubufData[35] = 0.0f;
     ubufData[36] = n[3]; ubufData[37] = n[4]; ubufData[38] = n[5]; ubufData[39] = 0.0f;
     ubufData[40] = n[6]; ubufData[41] = n[7]; ubufData[42] = n[8]; ubufData[43] = 0.0f;
+}
+
+// QRhi takes OpenGL-style viewports, measured from the bottom-left of the render target,
+// while every rectangle in the widget is measured from the top-left. The two agree for a
+// viewport covering the whole target, which is why nothing had to convert until the view
+// could be split into tiles.
+// Colour of the gaps between tiles, which is what frames them: the pass clears the whole
+// target to it and each tile then paints its own background inside its own viewport.
+//
+// Derived from the backdrop rather than configured, so it stays visible whatever the
+// gradient is set to -- a fixed grey disappears against a grey background, and darkening
+// disappears against a dark one. Pushing away from the backdrop's own luminance always
+// leaves a line you can see without it shouting.
+inline QColor tileFrameColorFor(const QColor &bottom, const QColor &top)
+{
+    const auto mid = [](qreal a, qreal b) { return 0.5 * (a + b); };
+    const qreal r = mid(bottom.redF(), top.redF());
+    const qreal g = mid(bottom.greenF(), top.greenF());
+    const qreal b = mid(bottom.blueF(), top.blueF());
+    const qreal luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    const qreal towards = (luminance > 0.45) ? 0.0 : 1.0; // black against light, white against dark
+    constexpr qreal kAmount = 0.28;
+    return QColor::fromRgbF(
+        r + (towards - r) * kAmount,
+        g + (towards - g) * kAmount,
+        b + (towards - b) * kAmount);
+}
+
+inline QRhiViewport rhiViewportFor(const QRect &rect, const QSize &targetPixelSize)
+{
+    return QRhiViewport(
+        float(rect.x()),
+        float(targetPixelSize.height() - rect.y() - rect.height()),
+        float(qMax(1, rect.width())),
+        float(qMax(1, rect.height())));
 }
 
 inline void writeMainStyleToUbuf(

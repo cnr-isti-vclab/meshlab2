@@ -1,13 +1,13 @@
-option(QMESH_PLUGIN_FILTER_TEXTURE_DEFRAGMENTATION "Build texture defragmentation filter plugin" ON)
+option(MESHLAB2_PLUGIN_FILTER_TEXTURE_DEFRAGMENTATION "Build texture defragmentation filter plugin" ON)
 
-if (NOT QMESH_PLUGIN_FILTER_TEXTURE_DEFRAGMENTATION)
+if (NOT MESHLAB2_PLUGIN_FILTER_TEXTURE_DEFRAGMENTATION)
     message(STATUS "Skipping filter_texture_defragmentation - plugin disabled")
     return()
 endif()
 
 set(TEXTURE_DEFRAG_UPSTREAM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/upstream/TextureDefragmentation/src)
 
-add_library(QMeshLabPluginFilterTextureDefragmentation STATIC
+add_library(MeshLab2PluginFilterTextureDefragmentation STATIC
     ../filter_texture/texture_packer.cpp
     ../filter_texture/texture_packer.hpp
 
@@ -29,25 +29,25 @@ add_library(QMeshLabPluginFilterTextureDefragmentation STATIC
     ${TEXTURE_DEFRAG_UPSTREAM_DIR}/texture_rendering.cpp
 )
 
-target_include_directories(QMeshLabPluginFilterTextureDefragmentation
+target_include_directories(MeshLab2PluginFilterTextureDefragmentation
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${TEXTURE_DEFRAG_UPSTREAM_DIR}
 )
 
-target_link_libraries(QMeshLabPluginFilterTextureDefragmentation
+target_link_libraries(MeshLab2PluginFilterTextureDefragmentation
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
         Qt6::Gui
 )
 
 if(MSVC)
-    target_compile_definitions(QMeshLabPluginFilterTextureDefragmentation PRIVATE _USE_MATH_DEFINES)
+    target_compile_definitions(MeshLab2PluginFilterTextureDefragmentation PRIVATE _USE_MATH_DEFINES)
 endif()
 
-qt_add_resources(QMeshLabPluginFilterTextureDefragmentation "filter_texture_defragmentation_descriptors"
-    PREFIX "/filters/qmeshlab.filter.texture_defragmentation"
+qt_add_resources(MeshLab2PluginFilterTextureDefragmentation "filter_texture_defragmentation_descriptors"
+    PREFIX "/filters/meshlab2.filter.texture_defragmentation"
     FILES filters.json
 )

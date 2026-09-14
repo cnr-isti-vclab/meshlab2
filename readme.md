@@ -1,8 +1,8 @@
-# QMeshLab
+# MeshLab
 
 A ground-up rewrite of [MeshLab](https://github.com/cnr-isti-vclab/meshlab), the open
 source system for processing and editing large 3D triangular meshes and point clouds.
-QMeshLab is a single-document, multi-view Qt 6 application built on QRhi (Metal, Vulkan,
+MeshLab is a single-document, multi-view Qt 6 application built on QRhi (Metal, Vulkan,
 Direct3D 12), vcglib, and a plugin architecture for I/O and filters, with optional
 embedded Python bindings through nanobind.
 
@@ -12,18 +12,26 @@ CI — see [GitHub Actions: macOS DMG](#github-actions-macos-dmg) below.
 
 ## Documentation Index
 - [Python Scripting](docs/python_scripting.md)
-- [Architecture](docs/design/architecture.md)
-- [Data Model](docs/design/data_model.md)
-- [Rendering](docs/design/rendering.md)
-- [Adding a Filter](docs/design/adding_a_filter.md)
-- [Vocabulary](docs/design/vocabulary.md)
-- [Filter Organization](docs/design/filter_organization.md)
-- [Filter Classification](docs/design/filter_classification.md)
-- [Filter Names](docs/design/filter_names.md)
-- [Preferences](docs/design/preferences.md)
-- [Memory Accounting](docs/design/memory_accounting.md)
-- [Usage Statistics](docs/design/usage_statistics.md)
-- [LLM Integration](docs/design/llm_integration.md)
+- [Design Documents](docs/design/) — indexed and grouped in
+  [docs/design/README.md](docs/design/README.md), which separates reference
+  documents (how MeshLab works today) from proposals (not implemented) and
+  history (dated records of finished work):
+  - Reference: [Architecture](docs/design/architecture.md) ·
+    [Data Model](docs/design/data_model.md) ·
+    [Rendering](docs/design/rendering.md) ·
+    [Memory Accounting](docs/design/memory_accounting.md) ·
+    [Preferences](docs/design/preferences.md) ·
+    [Adding a Filter](docs/design/adding_a_filter.md) ·
+    [Vocabulary](docs/design/vocabulary.md) ·
+    [Filter Organization](docs/design/filter_organization.md) ·
+    [TrueForm Plugin](docs/design/trueform_plugin.md)
+  - Proposals: [LLM Integration](docs/design/proposals/llm_integration.md) ·
+    [Usage Statistics](docs/design/proposals/usage_statistics.md) ·
+    [Gaussian Splatting](docs/design/proposals/gaussian_splatting.md) ·
+    [Repository Rename](docs/design/proposals/repository_rename.md)
+  - History: [Filter Classification](docs/design/history/filter_classification.md) ·
+    [Filter Names](docs/design/history/filter_names.md) ·
+    [Pass 2 Identifier Map](docs/design/history/pass2_identifier_map.md)
 
 ## Current Features
 - Single `Document` shared by one or more `RenderWidget` views
@@ -43,7 +51,7 @@ CI — see [GitHub Actions: macOS DMG](#github-actions-macos-dmg) below.
 - Filter parameters include mesh, texture, point/vector, camera-state, and render-state values; parameter panels can reset to descriptor defaults and source state JSON from the active view
 - Raster projection filters can transfer current/all visible raster colors to vertex colors or bake visible rasters into a mesh texture atlas using existing wedge UVs
 - Remeshing filters include layer-aware mesh parameters such as an alternate reference surface for isotropic remeshing reprojection/distance checks
-- Embedded Python bindings when `QMESHLAB_PYTHON_CONSOLE=ON`; the in-app Python dock exposes the live document as `ms`, the live view helper as `mlgui`, and the public standalone facade as `pymeshlab2`
+- Embedded Python bindings when `MESHLAB2_PYTHON_CONSOLE=ON`; the in-app Python dock exposes the live document as `ms`, the live view helper as `mlgui`, and the public standalone facade as `pymeshlab`
 - Tree-shaped undo/redo integrated with mesh operations, filter runs, selection-delta storage, camera/render-style snapshots, script-action history, branch pruning/linearization, and opt-in byte-budget/system-pressure purging
 - Structured logging for app/VCG/error messages, load/filter progress, GPU buffer rebuild timing, and automatic undo-prune events; `Help > Memory Info` separates OS footprint, tracked CPU ownership, and logical GPU-cache sizes and can copy exact JSON for external profiling
 - PNG snapshot export from the active view (custom resolution + embedded camera/trackball JSON metadata), plus snapshot-to-raster workflows
@@ -104,13 +112,13 @@ Prerequisites:
 - CMake 3.25+
 - Build tool: `ninja` or `make`
 - vcpkg clone
-- Python development libraries when `QMESHLAB_PYTHON_CONSOLE=ON` (default)
+- Python development libraries when `MESHLAB2_PYTHON_CONSOLE=ON` (default)
 
 This repository contains `vcpkg.json`; non-Qt dependencies are installed via vcpkg manifest mode.
 Qt6 and Python are intentionally kept outside vcpkg. `vcglib`, selected
 algorithm archives such as MeshFix and QSlim, and the math-only JKQTMathText
 dependency are git submodules. `nanobind` is provided through vcpkg and is used
-for the private `_qmeshlab` extension behind the embedded `pymeshlab2` facade.
+for the private `_meshlab` extension behind the embedded `pymeshlab` facade.
 
 ### Dependency Installation
 
@@ -143,7 +151,7 @@ Release:
 ```bash
 cmake --preset vcpkg-release
 cmake --build --preset vcpkg-release -j8
-./build-release/QMeshLab
+./build-release/MeshLab
 ```
 
 Debug:
@@ -151,7 +159,7 @@ Debug:
 ```bash
 cmake --preset vcpkg-debug
 cmake --build --preset vcpkg-debug -j8
-./build-debug/QMeshLab
+./build-debug/MeshLab
 ```
 
 Notes:
@@ -175,12 +183,12 @@ If presets were changed and VS Code still uses stale values:
 git submodule update --init --recursive
 cmake --preset local-no-vcpkg
 cmake --build --preset local-no-vcpkg
-./build-local/QMeshLab
+./build-local/MeshLab
 ```
 
-The local minimal preset disables dependency-heavy plugins (`io_gltf`, `io_e57`, `io_obj_rapidobj`). Because the embedded Python console is enabled by default, this path still needs local Python development files and nanobind. If you want a lean viewer-only build without those, configure with `-DQMESHLAB_PYTHON_CONSOLE=OFF`.
+The local minimal preset disables dependency-heavy plugins (`io_gltf`, `io_e57`, `io_obj_rapidobj`). Because the embedded Python console is enabled by default, this path still needs local Python development files and nanobind. If you want a lean viewer-only build without those, configure with `-DMESHLAB2_PYTHON_CONSOLE=OFF`.
 LaTeX rendering in filter help can likewise be disabled with
-`-DQMESHLAB_MATH_HELP=OFF`.
+`-DMESHLAB2_MATH_HELP=OFF`.
 
 ## GitHub Actions: macOS DMG
 
@@ -202,7 +210,7 @@ What it does:
 - enables hardened runtime and secure timestamps
 - submits the DMG to Apple's notary service, staples the ticket, and verifies it
 - uploads the signed and notarized DMG as
-  `QMeshLab-YYYY-MM-DD-<short-sha>-macos-arm64.dmg`
+  `MeshLab-YYYY-MM-DD-<short-sha>-macos-arm64.dmg`
 
 Required repository secrets:
 - `MACOS_CERTIFICATE_P12`: the base64-encoded `.p12` containing the Developer ID
@@ -224,7 +232,7 @@ How to use it:
 1. Open the `Actions` tab on GitHub
 2. Select `macOS DMG`
 3. Click `Run workflow`
-4. Download the `QMeshLab-YYYY-MM-DD-<short-sha>-macos-arm64` artifact from the completed run
+4. Download the `MeshLab-YYYY-MM-DD-<short-sha>-macos-arm64` artifact from the completed run
 
 The workflow runs on `macos-15`, producing an `arm64` application. The resulting DMG
 therefore requires an Apple Silicon Mac: Rosetta does not help here, so Intel Macs are
@@ -245,17 +253,17 @@ What it does:
 - installs vcpkg dependencies in a separate manifest step before CMake configure
 - uses a custom release-only Windows vcpkg triplet so CI does not build debug dependency variants too
 - configures and builds a release build with the `vcpkg-manifest` preset
-- runs `windeployqt` on `QMeshLab.exe`
+- runs `windeployqt` on `MeshLab.exe`
 - copies additional runtime `.dll` files from the release-only manifest `vcpkg_installed/<triplet>/bin`
 - archives the deploy directory as
-  `QMeshLab-YYYY-MM-DD-<short-sha>-windows-x86_64.zip`
+  `MeshLab-YYYY-MM-DD-<short-sha>-windows-x86_64.zip`
 - uploads the generated `.zip` as a workflow artifact
 
 How to use it:
 1. Open the `Actions` tab on GitHub
 2. Select `Windows Portable`
 3. Click `Run workflow`
-4. Download the `QMeshLab-YYYY-MM-DD-<short-sha>-windows-x86_64` artifact from the completed run
+4. Download the `MeshLab-YYYY-MM-DD-<short-sha>-windows-x86_64` artifact from the completed run
 
 Current status:
 - packaging is portable `.zip`, not an installer

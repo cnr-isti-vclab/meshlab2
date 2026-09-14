@@ -110,12 +110,17 @@ class RenderWidget::FillMaterialRenderer
 public:
     virtual ~FillMaterialRenderer() = default;
 
+    // Takes every tile's plan, not one frame context: a prepass renders into a buffer
+    // shared by the whole frame, and QRhi clears a render target whenever a pass opens on
+    // it, so one pass per tile would wipe the tiles already drawn.
     virtual void renderPrepass(
-        const SceneFillFrameContext &ctx,
-        const std::vector<SceneFillDrawItem> &drawItems) const
+        QRhiCommandBuffer *cb,
+        const FillRenderServices &services,
+        const std::vector<RenderFramePlan> &plans) const
     {
-        Q_UNUSED(ctx);
-        Q_UNUSED(drawItems);
+        Q_UNUSED(cb);
+        Q_UNUSED(services);
+        Q_UNUSED(plans);
     }
 
     virtual void drawBatch(
@@ -239,60 +244,73 @@ class RenderWidget::RadianceScalingFillRenderer final : public FillMaterialRende
 {
 public:
     void renderPrepass(
-        const SceneFillFrameContext &frame,
-        const std::vector<SceneFillDrawItem> &drawItems) const override
+        QRhiCommandBuffer *cb,
+        const FillRenderServices &services,
+        const std::vector<RenderFramePlan> &plans) const override
     {
         const auto itemUsesThisRenderer = [this](const SceneFillDrawItem &item) {
             return item.materialRenderer == this;
         };
-        if (std::none_of(drawItems.begin(), drawItems.end(), itemUsesThisRenderer))
+        const auto planHasItems = [&](const RenderFramePlan &plan) {
+            const auto &items = plan.sceneFill.fillItems;
+            return std::any_of(items.begin(), items.end(), itemUsesThisRenderer);
+        };
+
+        QSize targetPixelSize;
+        for (const RenderFramePlan &plan : plans) {
+            if (planHasItems(plan))
+                targetPixelSize = plan.targetPixelSize;
+        }
+        if (targetPixelSize.isEmpty())
             return;
 
-        if (!frame.services.ensureRadianceScalingGradientResources(frame.pixelSize))
+        // The gradient buffer spans the whole render target rather than one tile: the fill
+        // shader reads it back by absolute framebuffer position, so each tile writes into
+        // its own corner of one shared buffer.
+        if (!services.ensureRadianceScalingGradientResources(targetPixelSize))
             return;
 
-        frame.cb->beginPass(
-            frame.services.radianceScalingGradientRenderTarget(),
+        cb->beginPass(
+            services.radianceScalingGradientRenderTarget(),
             QColor(0, 0, 0, 0),
             { 1.0f, 0 },
             nullptr);
-        frame.cb->setViewport({
-            0,
-            0,
-            float(frame.pixelSize.width()),
-            float(frame.pixelSize.height())
-        });
-        frame.cb->setGraphicsPipeline(frame.services.radianceScalingGradientPipeline());
-        for (const SceneFillDrawItem &item : drawItems) {
-            if (!itemUsesThisRenderer(item))
+        cb->setGraphicsPipeline(services.radianceScalingGradientPipeline());
+        for (const RenderFramePlan &plan : plans) {
+            if (!planHasItems(plan))
                 continue;
-            for (int bi = 0; bi < item.fillView.batchCount; ++bi) {
-                const auto &batch = item.fillView.batches[bi];
-                if (!hasDrawableBatchGeometry(batch))
+            cb->setViewport(plan.rhiViewport());
+            for (const SceneFillDrawItem &item : plan.sceneFill.fillItems) {
+                if (!itemUsesThisRenderer(item))
                     continue;
-                const quint32 ubufOffset = frame.services.allocateMainUbufOffset();
-                frame.services.uploadMainUbufForMesh(
-                    frame.cb,
-                    item.meshIndex,
-                    frame.proj,
-                    frame.view,
-                    item.meshSettings,
-                    frame.pixelSize,
-                    true,
-                    frame.lightDir,
-                    MainUbufMaterialOverrides {
-                        item.meshSettings.fillRs.enhancement,
-                        1.0f,
-                        1.0f },
-                    ubufOffset);
-                frame.services.setShaderResourcesWithOffset(
-                    frame.cb,
-                    frame.services.radianceScalingGradientShaderResources(),
-                    ubufOffset);
-                drawBatchGeometry(frame.cb, batch);
+                for (int bi = 0; bi < item.fillView.batchCount; ++bi) {
+                    const auto &batch = item.fillView.batches[bi];
+                    if (!hasDrawableBatchGeometry(batch))
+                        continue;
+                    const quint32 ubufOffset = services.allocateMainUbufOffset();
+                    services.uploadMainUbufForMesh(
+                        cb,
+                        item.meshIndex,
+                        plan.sceneFill.proj,
+                        plan.sceneFill.view,
+                        item.meshSettings,
+                        plan.sceneFill.pixelSize,
+                        true,
+                        plan.sceneFill.lightDir,
+                        MainUbufMaterialOverrides {
+                            item.meshSettings.fillRs.enhancement,
+                            1.0f,
+                            1.0f },
+                        ubufOffset);
+                    services.setShaderResourcesWithOffset(
+                        cb,
+                        services.radianceScalingGradientShaderResources(),
+                        ubufOffset);
+                    drawBatchGeometry(cb, batch);
+                }
             }
         }
-        frame.cb->endPass();
+        cb->endPass();
     }
 
     void drawBatch(
@@ -384,29 +402,22 @@ RenderWidget::SceneFillFramePlan RenderWidget::buildSceneFillFramePlan(
 
 void RenderWidget::renderSceneFillPrepasses(
     QRhiCommandBuffer *cb,
-    const RenderFramePlan &plan)
+    const std::vector<RenderFramePlan> &plans)
 {
-    const SceneFillFramePlan &fillPlan = plan.sceneFill;
     const FillRenderServices services(*this);
-    const SceneFillFrameContext frameCtx {
-        services,
-        cb,
-        fillPlan.pixelSize,
-        fillPlan.proj,
-        fillPlan.view,
-        fillPlan.lightDir
-    };
 
     std::vector<const FillMaterialRenderer *> prepassRenderers;
-    for (const SceneFillDrawItem &item : fillPlan.fillItems) {
-        if (!item.materialRenderer)
-            continue;
-        if (std::find(prepassRenderers.begin(), prepassRenderers.end(), item.materialRenderer)
-            != prepassRenderers.end()) {
-            continue;
+    for (const RenderFramePlan &plan : plans) {
+        for (const SceneFillDrawItem &item : plan.sceneFill.fillItems) {
+            if (!item.materialRenderer)
+                continue;
+            if (std::find(prepassRenderers.begin(), prepassRenderers.end(), item.materialRenderer)
+                != prepassRenderers.end()) {
+                continue;
+            }
+            prepassRenderers.push_back(item.materialRenderer);
+            item.materialRenderer->renderPrepass(cb, services, plans);
         }
-        prepassRenderers.push_back(item.materialRenderer);
-        item.materialRenderer->renderPrepass(frameCtx, fillPlan.fillItems);
     }
 }
 
@@ -424,6 +435,10 @@ void RenderWidget::renderSceneFillPass(
         fillPlan.view,
         fillPlan.lightDir
     };
+    if (fillPlan.fillItems.empty())
+        return;
+
+    cb->setViewport(plan.rhiViewport());
     for (const SceneFillDrawItem &item : fillPlan.fillItems) {
         cb->setGraphicsPipeline(item.pipeline);
         const SceneFillDrawContext fillCtx {

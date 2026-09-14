@@ -98,6 +98,7 @@ private:
     QPushButton *m_decoratorCurvatureDirPD2ColorButton = nullptr;
     QPushButton *m_decoratorBoundaryEdgeColorButton = nullptr;
     QPushButton *m_decoratorTextureSeamColorButton = nullptr;
+    QComboBox *m_bboxStyleCombo = nullptr;
     QPushButton *m_bboxColorButton = nullptr;
     QPushButton *m_pointsColorButton = nullptr;
     QPushButton *m_edgeColorButton = nullptr;
@@ -110,6 +111,7 @@ private:
     QComboBox *m_currentMeshDebugViewCombo = nullptr;
     QCheckBox *m_currentMeshHighlightCheck = nullptr;
     QCheckBox *m_showTrackballGizmoCheck = nullptr;
+    QCheckBox *m_showAxisGizmoCheck = nullptr;
     QCheckBox *m_showViewCamerasCheck = nullptr;
     QCheckBox *m_bboxShowCornersCheck = nullptr;
     QCheckBox *m_bboxShowDimensionsCheck = nullptr;
@@ -179,7 +181,6 @@ private:
     QComboBox *m_fillColorSourceCombo = nullptr;
     QStackedWidget *m_fillMaterialStack = nullptr;
     QToolButton *m_currentMeshButton = nullptr;
-    QToolButton *m_modeButton = nullptr;
     QToolButton *m_normalsDecoratorsButton = nullptr;
     QToolButton *m_boundaryDecoratorsButton = nullptr;
     QToolButton *m_bboxButton = nullptr;

@@ -1,6 +1,7 @@
 #ifndef MESHLAB_DIAMONDPARA_H
 #define MESHLAB_DIAMONDPARA_H
 
+#include <random>
 #include <algorithm>
 #include <ctime>
 #include <vcg/complex/algorithms/refine.h>
@@ -440,8 +441,14 @@ public:
 
     std::vector<vcg::Color4b > colorDiam;
 
+    // QMeshLab: kColorSeed is the default for Init's colorSeed argument below. The
+    // convention elsewhere in QMeshLab is that a seed of 0 means "different every run";
+    // that is deliberately not the case here, because these colours are cosmetic and a
+    // run should look the same twice. Pass a different value to vary the palette.
+    static const unsigned int kColorSeed = 20100701u;
+
     ///initialize the parameterization
-    void Init(IsoParametrization *_isoParam)
+    void Init(IsoParametrization *_isoParam, unsigned int colorSeed = kColorSeed)
     {
 
         isoParam=_isoParam;
@@ -456,10 +463,17 @@ public:
                     num_diamonds++;
         }
 
+        // QMeshLab: was `srand(clock())` followed by `rand()%255` per channel. Two
+        // separate problems. The palette differed on every run, so nothing downstream of
+        // it could be compared between runs. And seeding the process-wide generator is a
+        // side effect no caller asks for by building a parametrization: every other
+        // rand() user in the address space silently inherited a clock-derived seed from
+        // a cosmetic code path. A local generator with an explicit seed fixes both.
         colorDiam.resize(num_diamonds);
-        srand(clock());
+        std::mt19937 palette(colorSeed);
+        std::uniform_int_distribution<int> channel(0, 254); // rand()%255 was [0,254]
         for (unsigned int i=0;i<colorDiam.size();i++)
-            colorDiam[i]=vcg::Color4b(rand()%255,rand()%255,rand()%255,255);
+            colorDiam[i]=vcg::Color4b(channel(palette),channel(palette),channel(palette),255);
 
     }
 

@@ -1,4 +1,5 @@
 #include "renderwidget.h"
+#include "linerenderer.h"
 #include "document.h"
 #include <utility>
 
@@ -34,45 +35,54 @@ bool requestsDecoratorBoundaryPass(const PerMeshRenderSettings &settings)
 
 } // namespace
 
-RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassRequests() const
+RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassRequests(
+    int onlyMeshIndex) const
 {
     RenderFramePassRequests requests;
     if (!m_doc)
         return requests;
 
-    requests.rasterBackplates.reserve(m_doc->rasterCount());
-    requests.rasterProjected.reserve(m_doc->rasterCount());
-    if (m_viewMode == ViewMode::RasterImage) {
-        const int currentRasterIndex = m_doc->currentRasterIndex();
-        if (currentRasterIndex >= 0 && currentRasterIndex < m_doc->rasterCount()) {
-            Document::RasterEntry &entry = m_doc->raster(currentRasterIndex);
-            RasterPlane *plane = entry.currentPlane();
-            if (plane) {
-                Document::ensureRasterPlaneImage(*plane);
-                if (!plane->image.isNull())
-                    requests.rasterBackplates.push_back(currentRasterIndex);
-            }
-            if (!entry.shot.isValid())
+    // A grid tile belongs to one mesh layer. Rasters are not mesh layers and have no tile of
+    // their own, so a tile skips them -- drawing them would mean drawing them into every
+    // tile at once.
+    if (onlyMeshIndex < 0) {
+        requests.rasterBackplates.reserve(m_doc->rasterCount());
+        requests.rasterProjected.reserve(m_doc->rasterCount());
+        if (m_viewMode == ViewMode::RasterImage) {
+            const int currentRasterIndex = m_doc->currentRasterIndex();
+            if (currentRasterIndex >= 0 && currentRasterIndex < m_doc->rasterCount()) {
+                Document::RasterEntry &entry = m_doc->raster(currentRasterIndex);
+                RasterPlane *plane = entry.currentPlane();
+                if (plane) {
+                    Document::ensureRasterPlaneImage(*plane);
+                    if (!plane->image.isNull())
+                        requests.rasterBackplates.push_back(currentRasterIndex);
+                }
+                if (!entry.shot.isValid())
+                    return requests;
+            } else {
                 return requests;
+            }
         } else {
-            return requests;
-        }
-    } else {
-        for (int ri = 0; ri < m_doc->rasterCount(); ++ri) {
-            Document::RasterEntry &entry = m_doc->raster(ri);
-            RasterPlane *plane = entry.currentPlane();
-            if (!entry.visible || !plane)
-                continue;
-            Document::ensureRasterPlaneImage(*plane);
-            if (plane->image.isNull())
-                continue;
-            if (entry.shot.isValid())
-                requests.rasterProjected.push_back(ri);
+            for (int ri = 0; ri < m_doc->rasterCount(); ++ri) {
+                Document::RasterEntry &entry = m_doc->raster(ri);
+                RasterPlane *plane = entry.currentPlane();
+                if (!entry.visible || !plane)
+                    continue;
+                Document::ensureRasterPlaneImage(*plane);
+                if (plane->image.isNull())
+                    continue;
+                if (entry.shot.isValid())
+                    requests.rasterProjected.push_back(ri);
+            }
         }
     }
 
     requests.meshes.reserve(m_doc->meshCount());
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+        // A grid tile carries exactly one layer; the overlay tile passes -1 and takes all.
+        if (onlyMeshIndex >= 0 && mi != onlyMeshIndex)
+            continue;
         const bool visible = meshVisible(mi);
         const bool highlighted =
             m_renderSettings.highlightCurrentMesh && mi == m_doc->currentMeshIndex();
@@ -315,7 +325,8 @@ void RenderWidget::planSimpleBufferPasses(
            QRhiGraphicsPipeline *pipeline,
            const PerMeshRenderSettings &meshSettings,
            QRhiBuffer *vertexBuffer,
-           int vertexCount) {
+           int vertexCount,
+           int firstVertex = 0) {
             if (!pipeline || !vertexBuffer || vertexCount <= 0)
                 return;
             items.push_back(SceneBufferDrawItem {
@@ -323,7 +334,8 @@ void RenderWidget::planSimpleBufferPasses(
                 pipeline,
                 meshSettings,
                 vertexBuffer,
-                vertexCount
+                vertexCount,
+                firstVertex
             });
         };
 
@@ -387,13 +399,19 @@ void RenderWidget::planSimpleBufferPasses(
             const MeshGpuResourceCache::BBoxPassView bboxView =
                 m_doc->bboxPassGpuView(m_rhi, mi);
             if (bboxView.valid) {
+                // The buffer carries the box edges then the corner brackets; the style
+                // chooses which half to draw.
+                const bool brackets =
+                    meshSettings.boundingBoxStyle == BoundingBoxStyle::CornerBrackets;
                 appendBufferDrawItem(
                     plan.boundingBoxItems,
                     mi,
                     m_bboxPipeline.get(),
                     meshSettings,
                     bboxView.vertexBuffer,
-                    bboxView.vertexCount);
+                    brackets ? LineRenderer::kBoundingBoxBracketVertexCount
+                             : LineRenderer::kBoundingBoxEdgeVertexCount,
+                    brackets ? LineRenderer::kBoundingBoxEdgeVertexCount : 0);
             }
         }
 
@@ -725,6 +743,8 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
     RenderFramePlan plan;
     plan.viewMode = request.viewMode;
     plan.pixelSize = request.pixelSize;
+    plan.viewportRect = request.viewportRect;
+    plan.targetPixelSize = request.targetPixelSize;
     plan.proj = request.proj;
     plan.view = request.view;
     plan.lightDir = request.lightDir;

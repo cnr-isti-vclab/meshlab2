@@ -172,7 +172,7 @@ bool copyFromMeshFix(MeshFixMesh &source, VCGMesh &target, QString &error)
 
 QString MeshFixFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.meshfix");
+    return QStringLiteral("meshlab2.filter.meshfix");
 }
 
 QString MeshFixFilterPlugin::name() const

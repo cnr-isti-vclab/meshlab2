@@ -80,7 +80,7 @@ float finiteNonNegativeDouble(const FilterParams &params, const QString &id, dou
 
 QString XAtlasFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.xatlas");
+    return QStringLiteral("meshlab2.filter.xatlas");
 }
 
 QString XAtlasFilterPlugin::name() const
@@ -223,7 +223,7 @@ MeshFilterRunResult XAtlasFilterPlugin::runFilter(
 
     if (atlas->atlasCount > 1) {
         const QString message = QObject::tr(
-            "xatlas generated %1 atlases. This first QMeshLab integration currently supports only single-atlas output. "
+            "xatlas generated %1 atlases. This first MeshLab integration currently supports only single-atlas output. "
             "Try lowering texels-per-unit, leaving resolution at 0, or reducing padding.")
             .arg(atlas->atlasCount);
         doc.finishFilterProgress(false, message);

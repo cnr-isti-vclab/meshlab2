@@ -1,28 +1,28 @@
-option(QMESH_PLUGIN_FILTER_SELECT "Build selection mesh filter plugin" ON)
+option(MESHLAB2_PLUGIN_FILTER_SELECT "Build selection mesh filter plugin" ON)
 
-if (NOT QMESH_PLUGIN_FILTER_SELECT)
+if (NOT MESHLAB2_PLUGIN_FILTER_SELECT)
     message(STATUS "Skipping filter_select - plugin disabled")
     return()
 endif()
 
-add_library(QMeshLabPluginFilterSelect STATIC
+add_library(MeshLab2PluginFilterSelect STATIC
     selectfilterplugin.h
     selectfilterplugin.cpp
 )
 
-target_include_directories(QMeshLabPluginFilterSelect
+target_include_directories(MeshLab2PluginFilterSelect
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(QMeshLabPluginFilterSelect
+target_link_libraries(MeshLab2PluginFilterSelect
     PUBLIC
-        QMeshLabCore
+        MeshLab2Core
         Qt6::Core
 )
 
-qt_add_resources(QMeshLabPluginFilterSelect "filter_select_descriptors"
-    PREFIX "/filters/qmeshlab.filter.select"
+qt_add_resources(MeshLab2PluginFilterSelect "filter_select_descriptors"
+    PREFIX "/filters/meshlab2.filter.select"
     FILES filters.json
 )

@@ -3,7 +3,7 @@
 #include <QString>
 #include <QStringList>
 
-// The QMeshLab filter-category ontology: the single source of truth for how
+// The MeshLab filter-category ontology: the single source of truth for how
 // filters are classified. Normative description, including the definition and
 // discriminator of every category, lives in docs/design/vocabulary.md §1.
 //

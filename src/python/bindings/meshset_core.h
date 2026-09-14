@@ -3,14 +3,14 @@
 #ifdef slots
 #  pragma push_macro("slots")
 #  undef slots
-#  define QMESH_RESTORE_QT_SLOTS_MACRO
+#  define MESHLAB2_RESTORE_QT_SLOTS_MACRO
 #endif
 
 #include <nanobind/nanobind.h>
 
-#ifdef QMESH_RESTORE_QT_SLOTS_MACRO
+#ifdef MESHLAB2_RESTORE_QT_SLOTS_MACRO
 #  pragma pop_macro("slots")
-#  undef QMESH_RESTORE_QT_SLOTS_MACRO
+#  undef MESHLAB2_RESTORE_QT_SLOTS_MACRO
 #endif
 
 #include <QString>
@@ -51,7 +51,7 @@ struct FilterRunRecord
 //
 // Two construction modes:
 //  - MeshSetCore()          — standalone: creates and owns its own Document.
-//                             Used by the pymeshlab2 standalone library.
+//                             Used by the pymeshlab standalone library.
 //  - MeshSetCore(Document*) — embedded: borrows a live Document owned by
 //                             MainWindow.  Does NOT delete the document on
 //                             destruction.  Used by the in-app Python console.

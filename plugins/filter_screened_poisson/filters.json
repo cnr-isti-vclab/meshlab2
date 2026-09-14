@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.screened_poisson",
+  "pluginId": "meshlab2.filter.screened_poisson",
   "references": [
     {
       "id": "kazhdan2013screened",
@@ -428,7 +428,7 @@
         {
           "id": "polygonMesh",
           "label": "Polygon Mesh",
-          "help": "The original tool can preserve polygonal output. QMeshLab stores triangle meshes, so the result is always triangulated even when this option is enabled.",
+          "help": "The original tool can preserve polygonal output. MeshLab stores triangle meshes, so the result is always triangulated even when this option is enabled.",
           "group": "advanced.output",
           "type": "bool",
           "default": false

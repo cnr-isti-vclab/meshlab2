@@ -12,7 +12,27 @@ are **not** vendored, because they are the MeshLab plugin shell that
 The algorithm is templated on the mesh type, so it runs on `VCGMesh` unchanged --
 `CMeshO` appeared only in the shell we did not take.
 
-## The one patch we carry
+**This is a starting point, not a mirror.** The MeshLab copy is where the code came from,
+and it is still recognisably the same code, but it has been changed deliberately in the
+ways listed below: an external GPL-2.0 dependency dropped, its console narration captured,
+its uncontrollable randomness replaced by seeded generators, and three defects fixed in the
+diamond layout. Each change is marked `QMeshLab:` at the site — the project's name
+when the patches were made, left alone so the vendored tree stays byte-comparable
+with upstream — so a diff against a fresh checkout of the original MeshLab shows
+exactly what we did and why.
+
+## Changes from the MeshLab original
+
+| Change | Why | Where |
+|---|---|---|
+| levmar replaced by newuoa | drops a GPL-2.0 download and its build system | `opt_patch.h`, `param_collapse.h` |
+| console narration captured | ~120 `printf`/`fprintf` calls redirected to the document log | `isoparamfilterplugin.cpp`, sources untouched |
+| randomness made deterministic and seedable | output differed run to run; one site reseeded the process-wide RNG | `diam_parametrization.h`, `parametrizator.h`, `tangent_space.h` |
+| three fixes in the diamond layout | texture ids escaping, a removed C++17 base class, a layout hook | `diam_parametrization.h` |
+
+The rest of this file is the detail behind each.
+
+### levmar replaced by newuoa
 
 MeshLab builds this against **levmar** (GPL-2.0), downloaded at configure time. It is used
 at exactly two sites, both tiny derivative-free least-squares problems:
@@ -33,9 +53,11 @@ efficiency of 1.05, i.e. near-isometric, which is what the method is for.
 
 ## Updating
 
-Re-copy the headers from a reviewed MeshLab commit, then re-apply the two newuoa
-substitutions; search the diff for `slevmar_dif` and `dlevmar_dif` to find them. Nothing
-else in the tree is modified.
+Re-copy the headers from a reviewed MeshLab commit, then re-apply everything in the table
+above. Two greps find all of it: `QMeshLab:` marks every patch made in place, and
+`levmar_dif` finds the two newuoa substitutions, which predate that convention and carry no
+marker. Nothing else in the tree is modified, and no file has been added or removed -- the
+file list matches MeshLab's, so a plain diff of the directories is meaningful.
 
 ## Console output
 
@@ -44,6 +66,53 @@ lines for a 1,200-vertex mesh, 285 for a 40,000-vertex one. Rather than patch ev
 `isoparamfilterplugin.cpp` redefines `printf` and `fprintf` before including the headers,
 so the whole narration is captured and written to the document log at Debug level. The
 vendored sources are untouched by this.
+
+## Determinism
+
+The reference code called `rand()` at three sites and `srand(clock())` at one. All four are
+now local `std::mt19937` generators taking an explicit seed, so a run is reproducible and
+nothing reaches into process-wide RNG state. Each is marked `QMeshLab:` at the site.
+
+| Site | What it draws | Seed |
+|---|---|---|
+| `diam_parametrization.h` `Init` | the per-diamond debug colour palette | `colorSeed` argument, default `kColorSeed` |
+| `parametrizator.h` `LoadMCP` | the per-face group colour of a reloaded domain | `colorSeed` argument, default the same constant |
+| `tangent_space.h` `Test` | `Ite` probe directions per barycentric sample | `seed` argument |
+
+Two notes on the choices. The seeds default to a **fixed constant**, not to the
+MeshLab-wide convention where 0 means "different every run": two of the three only pick
+colours, and a palette that changes between runs makes two screenshots of the same mesh
+impossible to compare. And `srand(clock())` was worth removing on its own account quite
+apart from reproducibility -- seeding the global generator is not something a caller asks
+for by building a parametrization, yet every other `rand()` user in the address space
+inherited a clock-derived seed from that line.
+
+None of this changes the parametrization itself: no algorithmic decision in the tree ever
+consumed `rand()`. The one site that looks as though it might, `tangent_space.h`, is a
+self-check (see below).
+
+## The assert situation: unchanged, and worth knowing
+
+Nothing has been done here, despite it being the obvious next improvement. The vendored
+tree asserts heavily -- about 250 calls, concentrated in `local_parametrization.h` (52),
+`iso_parametrization.h` (49) and `parametrizator.h` (29) -- and they encode real invariants
+of the method, which is why they are worth reading before changing anything.
+
+The hazard is that `NDEBUG` compiles every one of them out, so a release build walks past
+exactly the conditions a debug build stops on. The save/reload note at the end of this file
+is a worked example: `param_domain::getClosest` aborts on `assert(index < HresDomain->fn)`
+in a debug build, and in a release build reads past the end of the array instead. Turning
+the load-bearing ones into checked failures that a filter can report would be a real
+improvement; it has not been attempted.
+
+## tangent_space.h: kept, dead, and stale
+
+Nothing in the project includes it, and it no longer compiles: `IsoParametrization` has no
+`ScalarType` (it is `PScalarType`), and vcglib has since renamed `UpdateNormals` to
+`UpdateNormal` and `PrincipalDirectionsNormalCycles` to `PrincipalDirectionsNormalCycle`.
+Five errors in all. It is kept because its `Test()` is the only executable statement of what
+`Sum()` and the tangent frame are supposed to satisfy, which is worth having if that part is
+ever revived -- but reviving it means fixing those renames first, not just calling it.
 
 ## Patches to diam_parametrization.h
 
@@ -65,7 +134,7 @@ portable and costs nothing.
 
 **`PrepareDiamonds` split out of `SetCoordinates`.** The loop that splits faces until each
 one lies inside a single diamond, and the assignment that names that diamond in `WT(0).N()`,
-are the only part of the layout QMeshLab reuses: `plugins/filter_isoparam/atlaslayout.h`
+are the only part of the layout MeshLab reuses: `plugins/filter_isoparam/atlaslayout.h`
 takes it from there and does its own chart building and packing. `SetCoordinates` still
 exists and still lays the diamonds out on the square grid; nothing here calls it.
 
@@ -101,7 +170,7 @@ area at k = 6, so `GE0` returns a valence-five star 10% too large and a valence-
 in the tree does, so anything else reading `GE0` on an irregular star inherits the error.
 
 Section 6.0.1 is where the atlased-mesh filter comes from: it samples each half-diamond on a
-grid into a square patch and packs the patches (their figure 7). QMeshLab keeps the square as
+grid into a square patch and packs the patches (their figure 7). MeshLab keeps the square as
 one chart shape, adds the rhombus -- which is the same patch with its samples in the place
 section 6.0.1 says they belong, two quasi-equilateral triangles across the fixed diagonal --
 and adds two ways of merging that are not in the paper: the hexagon, three half-diamonds
@@ -115,7 +184,7 @@ takes is `Phi` on the face centre, `getHStarIndex`, and `GE0` -- no contention, 
 and the lowest area distortion of the five, since `GE0` is area-preserving where the
 half-diamond-to-square map of section 6.0.1 explicitly is not.
 
-## Saving and loading the domain: not offered## Saving and loading the domain: not offered## Saving and loading the domain: not offered
+## Saving and loading the domain: not offered
 
 `IsoParametrization` has `SaveBaseDomain` / `LoadBaseDomain`, and building the domain is
 by far the most expensive step of the family, so a save/reload pair looks like the obvious

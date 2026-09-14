@@ -208,7 +208,7 @@ int runSinglePassEdgeFlip(VCGMesh &mesh, vcg::tri::PlanarEdgeFlipParameter &pp)
 
 QString TriOptimizeFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.trioptimize");
+    return QStringLiteral("meshlab2.filter.trioptimize");
 }
 
 QString TriOptimizeFilterPlugin::name() const

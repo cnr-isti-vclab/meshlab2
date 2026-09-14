@@ -7,7 +7,7 @@
 
 Only the mesh-processing sources used by the in-memory filter are vendored. The
 original GUI, command-line program, file serializers, OpenGL code, resources,
-NanoGUI, GLFW, legacy TBB, and build system are intentionally omitted. QMeshLab
+NanoGUI, GLFW, legacy TBB, and build system are intentionally omitted. MeshLab
 uses VCGLib for conversion to and from its mesh model and vcpkg's current oneTBB.
 
 ## Local changes inside `upstream`
@@ -21,7 +21,7 @@ uses VCGLib for conversion to and from its mesh model and vcpkg's current oneTBB
 - `src/hierarchy.h`: omit the corresponding serialization API.
 - `src/extract.cpp`: use `std::stable_sort` in deterministic mode.
 
-The QMeshLab adapter and plugin remain outside `upstream`. To inspect or update
+The MeshLab adapter and plugin remain outside `upstream`. To inspect or update
 the vendored code, clone or update the reference repository and run:
 
 ```bash

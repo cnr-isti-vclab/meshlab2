@@ -475,7 +475,7 @@ void FilterDescriptorTests::checkParameters(const MeshFilterDescriptor &d,
         }
     }
 
-    // See docs/design/filter_names.md: a randomized filter offers a seed, and 0 means
+    // See docs/design/history/filter_names.md: a randomized filter offers a seed, and 0 means
     // "fresh every run". Which filters must have one is asserted elsewhere; this pins
     // the shape wherever the parameter appears.
     for (const auto &p : d.parameters) {

@@ -32,7 +32,7 @@ public:
     // Parse a trackball "State" from a JSON object of the form written by
     // RenderWidget::cameraStateJson() (the "trackball" sub-object). Missing
     // fields keep their default; malformed present fields fail. Lives here (in
-    // QMeshLabCore) so filters can reconstruct a camera from a CameraState param.
+    // MeshLab2Core) so filters can reconstruct a camera from a CameraState param.
     static bool stateFromJson(const QJsonObject &obj, State &outState, QString *error = nullptr);
 
     void setFrame(const QVector3D &center, float radius, float distance);

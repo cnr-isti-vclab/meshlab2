@@ -340,12 +340,7 @@ void RenderWidget::renderSceneRasterProjected(
         return;
 
     cb->setGraphicsPipeline(m_rasterProjectedPipeline.get());
-    cb->setViewport({
-        0,
-        0,
-        float(plan.pixelSize.width()),
-        float(plan.pixelSize.height())
-    });
+    cb->setViewport(plan.rhiViewport());
 
     const QMatrix4x4 mvp = plan.proj * plan.view;
     for (const SceneRasterProjectedDrawItem &item : plan.rasterProjectedItems) {
@@ -411,12 +406,7 @@ void RenderWidget::renderSceneRasterBackplates(
     }
 
     cb->setGraphicsPipeline(m_rasterBackplatePipeline.get());
-    cb->setViewport({
-        0,
-        0,
-        float(plan.pixelSize.width()),
-        float(plan.pixelSize.height())
-    });
+    cb->setViewport(plan.rhiViewport());
 
     for (const SceneRasterBackplateDrawItem &item : plan.rasterBackplateItems) {
         if (!item.srb || item.imageSize.isEmpty())
