@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>LLM Integration - QMeshLab 0.1 documentation</title>
+        <title>LLM Integration - MeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">QMeshLab 0.1 documentation</div></a>
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
   
-  <span class="sidebar-brand-text">QMeshLab 0.1 documentation</span>
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -244,9 +244,9 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="llm-integration">
 <h1>LLM Integration<a class="headerlink" href="#llm-integration" title="Link to this heading">¶</a></h1>
-<p>This document maps the option space for driving QMeshLab from a large language
+<p>This document maps the option space for driving MeshLab from a large language
 model. <strong>Nothing described here is implemented.</strong> It exists to make the design
-choices explicit before any code is written, and to record which of QMeshLab’s
+choices explicit before any code is written, and to record which of MeshLab’s
 existing mechanisms are already load-bearing for this purpose.</p>
 <p>See also: <a class="reference internal" href="../architecture.html"><span class="std std-doc">Architecture</span></a> (layers and ownership),
 <a class="reference internal" href="../../python_scripting.html"><span class="std std-doc">Python Scripting</span></a> (the current <code class="docutils literal notranslate"><span class="pre">ms</span></code> / <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> surface),
@@ -261,7 +261,7 @@ independently, for its own reasons.</p>
 </section>
 <section id="the-substrate-that-already-exists">
 <h2>The substrate that already exists<a class="headerlink" href="#the-substrate-that-already-exists" title="Link to this heading">¶</a></h2>
-<p>QMeshLab is closer to being model-drivable than it looks. The relevant assets:</p>
+<p>MeshLab is closer to being model-drivable than it looks. The relevant assets:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -328,22 +328,22 @@ app, <code class="docutils literal notranslate"><span class="pre">_meshlab</span
 registered via <code class="docutils literal notranslate"><span class="pre">PyImport_AppendInittab</span></code>, and <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> is a shim module
 synthesized at runtime in <code class="docutils literal notranslate"><span class="pre">PythonHost.cpp</span></code>. A real wheel does exist, in the
 sibling repository <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab</span></code> (scikit-build-core + nanobind), which
-consumes QMeshLab as a submodule. Three kinds of drift separate them, and
+consumes MeshLab as a submodule. Three kinds of drift separate them, and
 only the third is substantial:</p>
 <ul class="simple">
 <li><p><em>Bindings</em>: none by construction. That repository compiles
 <code class="docutils literal notranslate"><span class="pre">src/python/bindings/{module,meshset_core}.cpp</span></code> directly out of the
-QMeshLab submodule — the same sources the app compiles.</p></li>
+MeshLab submodule — the same sources the app compiles.</p></li>
 <li><p><em>Facade</em>: two hand-maintained name lists. <code class="docutils literal notranslate"><span class="pre">PythonHost.cpp</span></code> exposes seven
 names; the wheel’s <code class="docutils literal notranslate"><span class="pre">python/pymeshlab/__init__.py</span></code> exposes three. Small,
 already drifted, and best fixed by giving it a single source of truth.</p></li>
-<li><p><em>Build graph</em>: the wheel’s <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code> hand-enumerates QMeshLab
+<li><p><em>Build graph</em>: the wheel’s <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code> hand-enumerates MeshLab
 sources and enables <strong>2 plugins out of the 40</strong> wired in
 <code class="docutils literal notranslate"><span class="pre">plugins/CMakeLists.txt</span></code>. The headless build is therefore not a lagging
 copy of the app’s filter set but a different, far smaller one — the
 opposite of what a model-facing catalogue needs.</p></li>
 </ul>
-<p>The fix is structural: either QMeshLab exports consumable CMake targets, or
+<p>The fix is structural: either MeshLab exports consumable CMake targets, or
 the wheel target moves into this repository and the sibling repo shrinks to
 packaging metadata. Two obstacles are real either way — <code class="docutils literal notranslate"><span class="pre">Document</span></code> does not
 separate cleanly from rendering (<code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache</span></code>, <code class="docutils literal notranslate"><span class="pre">linerenderer</span></code>,
@@ -370,7 +370,7 @@ chosen separately.</p>
 about what mesh-derived data may leave the machine.</p></li>
 <li><p><strong>Local model</strong> (llama.cpp / Ollama) — offline and private, but selecting
 correctly among 327 filters is hard for small models.</p></li>
-<li><p><strong>No embedded model.</strong> QMeshLab speaks a protocol; the user brings their own
+<li><p><strong>No embedded model.</strong> MeshLab speaks a protocol; the user brings their own
 client. Cheapest by a wide margin, and it makes the model a user choice rather
 than a shipped dependency.</p></li>
 </ul>
@@ -396,13 +396,13 @@ what makes the search leg viable.</p></li>
 <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code>. No GUI, no C++ changes beyond the extension-module packaging.
 Testable in CI, safe to iterate on, works with existing model clients.</p></li>
 <li><p><strong>Out-of-process, live document.</strong> The same server attached to a running
-QMeshLab over <code class="docutils literal notranslate"><span class="pre">QLocalServer</span></code>. Substantially more valuable — the user watches
+MeshLab over <code class="docutils literal notranslate"><span class="pre">QLocalServer</span></code>. Substantially more valuable — the user watches
 the mesh change, edits land in the undo graph, the viewport is the feedback —
 and the only option needing real new plumbing.</p></li>
 <li><p><strong>In-app chat dock.</strong> Most product-like, most code. Amounts to
 re-implementing an agent harness (streaming, tool loop, provider config,
 cancellation, cost accounting) that existing clients already provide.</p></li>
-<li><p><strong>CLI batch mode</strong> (<code class="docutils literal notranslate"><span class="pre">qmeshlab</span> <span class="pre">--script</span> <span class="pre">foo.py</span></code>). Not LLM-specific, but the
+<li><p><strong>CLI batch mode</strong> (<code class="docutils literal notranslate"><span class="pre">meshlab</span> <span class="pre">--script</span> <span class="pre">foo.py</span></code>). Not LLM-specific, but the
 substrate for headless automation and CI. Currently only <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code>
 exists.</p></li>
 </ul>
@@ -418,7 +418,7 @@ descriptors. No mesh mutation, no agent loop. Lowest risk, immediate value.</p><
 boundaries.” Needs the act/observe loop.</p></li>
 <li><p><strong>Closed-loop quality</strong> — “simplify until Hausdorff stays under 0.1%.” The
 measurement filters make this genuinely reachable, and it is the case where
-QMeshLab is better positioned than most comparable tools.</p></li>
+MeshLab is better positioned than most comparable tools.</p></li>
 <li><p><strong>Visual QA</strong> — snapshot to a vision model: “normals are inverted on the
 inner shell.”</p></li>
 <li><p><strong>Parameter suggestion</strong> inside the existing filter panel. The smallest

@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Repository Rename: QMeshLab → meshlab2 - QMeshLab 0.1 documentation</title>
+        <title>Repository Rename: QMeshLab → meshlab2 - MeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">QMeshLab 0.1 documentation</div></a>
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
   
-  <span class="sidebar-brand-text">QMeshLab 0.1 documentation</span>
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -257,8 +257,8 @@ mapping had to be restored from <code class="docutils literal notranslate"><span
 <section id="status">
 <h2>Status<a class="headerlink" href="#status" title="Link to this heading">¶</a></h2>
 <p>As of 2026-09-13: Phase 0 done (repo renamed to <code class="docutils literal notranslate"><span class="pre">cnr-isti-vclab/meshlab2</span></code>).
-Phases 1 and 2 committed (<code class="docutils literal notranslate"><span class="pre">f2542a0</span></code>, <code class="docutils literal notranslate"><span class="pre">75ca2cc</span></code>); Phase 3 applied; Phase 4
-prepared (the two <code class="docutils literal notranslate"><span class="pre">mv</span></code>s are the user’s to run). The measurements below were taken on
+All five phases done. Phases 1-4 committed (<code class="docutils literal notranslate"><span class="pre">f2542a0</span></code>, <code class="docutils literal notranslate"><span class="pre">75ca2cc</span></code>, <code class="docutils literal notranslate"><span class="pre">2712a6c</span></code>,
+<code class="docutils literal notranslate"><span class="pre">1bdf16c</span></code>); Phase 5 applied. The measurements below were taken on
 that date against the tracked tree.</p>
 </section>
 <section id="the-rename-is-six-separate-things">
@@ -624,8 +624,25 @@ the shim included, never split.</p>
 against the new repository name. See the next section: the directory name is what
 keys the agent state, so the two moves happen together.</p>
 </section>
-<section id="phase-5-artifacts-and-documentation">
-<h3>Phase 5 — artifacts and documentation<a class="headerlink" href="#phase-5-artifacts-and-documentation" title="Link to this heading">¶</a></h3>
+<section id="phase-5-comments-documentation-and-ci-internals">
+<h3>Phase 5 — comments, documentation and CI internals<a class="headerlink" href="#phase-5-comments-documentation-and-ci-internals" title="Link to this heading">¶</a></h3>
+<p>Three exclusions, each for a reason worth keeping:</p>
+<ul class="simple">
+<li><p><strong>Vendored <code class="docutils literal notranslate"><span class="pre">upstream/</span></code> trees.</strong> Their ~31 <code class="docutils literal notranslate"><span class="pre">QMeshLab:</span></code> adaptation markers stay, so
+the trees remain byte-comparable with upstream and our diffs against it stay
+minimal. The <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code> files note that the marker predates the rename.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">docs/design/history/</span></code>.</strong> Records are never edited after the fact — see
+<a class="reference internal" href="../README.html"><span class="std std-doc">the design README</span></a>. <code class="docutils literal notranslate"><span class="pre">filter_names.md</span></code> keeps the two sentences that
+contrast “filters MeshLab has and QMeshLab does not”, which is what was true when
+it was written.</p></li>
+<li><p><strong>This document</strong>, for the reason in the banner at the top.</p></li>
+</ul>
+<p>One sentence needed rewriting rather than substituting, the same trap as the About
+dialog: <code class="docutils literal notranslate"><span class="pre">plugins/io_3mf/README.md</span></code> said the plugin “ports the original MeshLab
+<code class="docutils literal notranslate"><span class="pre">io_3mf</span></code> functionality to QMeshLab’s I/O API”.</p>
+</section>
+<section id="phase-5-original-note-artifacts-and-documentation">
+<h3>Phase 5 (original note) — artifacts and documentation<a class="headerlink" href="#phase-5-original-note-artifacts-and-documentation" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">APP_NAME:</span> <span class="pre">QMeshLab</span></code> in <code class="docutils literal notranslate"><span class="pre">macos-dmg.yml:43</span></code> and the hard-coded stem in
 <code class="docutils literal notranslate"><span class="pre">windows-portable.yml:246</span></code> produce <code class="docutils literal notranslate"><span class="pre">QMeshLab-&lt;date&gt;-&lt;sha&gt;-&lt;platform&gt;</span></code>. Renaming
 them changes the artifact names; older artifacts keep their old names, which is
@@ -800,7 +817,8 @@ MeshLab is retired.</p>
 <li><a class="reference internal" href="#phase-2-plugin-ids-and-resource-prefixes">Phase 2 — plugin ids and resource prefixes</a></li>
 <li><a class="reference internal" href="#phase-3-user-facing-identity">Phase 3 — user-facing identity</a></li>
 <li><a class="reference internal" href="#phase-4-local-working-copy-and-agent-state">Phase 4 — local working copy and agent state</a></li>
-<li><a class="reference internal" href="#phase-5-artifacts-and-documentation">Phase 5 — artifacts and documentation</a></li>
+<li><a class="reference internal" href="#phase-5-comments-documentation-and-ci-internals">Phase 5 — comments, documentation and CI internals</a></li>
+<li><a class="reference internal" href="#phase-5-original-note-artifacts-and-documentation">Phase 5 (original note) — artifacts and documentation</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#impact-on-the-claude-code-project">Impact on the Claude Code project</a></li>

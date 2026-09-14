@@ -3,7 +3,7 @@
 MlGui
 =====
 
-The ``mlgui`` object is available only when running QMeshLab
+The ``mlgui`` object is available only when running MeshLab
 with a visible window (desktop app).  It is not available in
 headless pymeshlab.
 

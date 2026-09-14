@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Rendering - QMeshLab 0.1 documentation</title>
+        <title>Rendering - MeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">QMeshLab 0.1 documentation</div></a>
+      <a href="../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
   
-  <span class="sidebar-brand-text">QMeshLab 0.1 documentation</span>
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -263,7 +263,7 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">RenderWidget::renderStateJson()</span></code> exports the current per-view rendering state.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">RenderWidget::applyRenderStateJson(...)</span></code> applies such JSON back to a view.</p></li>
 </ul>
-<p>Schema (<code class="docutils literal notranslate"><span class="pre">kind</span> <span class="pre">=</span> <span class="pre">&quot;QMeshLab.RenderState&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">version</span> <span class="pre">=</span> <span class="pre">1</span></code>) includes:</p>
+<p>Schema (<code class="docutils literal notranslate"><span class="pre">kind</span> <span class="pre">=</span> <span class="pre">&quot;MeshLab.RenderState&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">version</span> <span class="pre">=</span> <span class="pre">1</span></code>) includes:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">view_mode</span></code>: <code class="docutils literal notranslate"><span class="pre">Scene3D</span></code> | <code class="docutils literal notranslate"><span class="pre">ParametrizationUV</span></code> | <code class="docutils literal notranslate"><span class="pre">RasterImage</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">raster_opacity</span></code>: float in <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">1]</span></code></p></li>
@@ -284,7 +284,7 @@
 <p>Filter integration:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">MainWindow</span></code> wires <code class="docutils literal notranslate"><span class="pre">Document::setRenderStateSnapshotFunction(...)</span></code> to the active view. <code class="docutils literal notranslate"><span class="pre">Document::renderSnapshotFromStateJson(...)</span></code> applies JSON to that view, renders an offscreen image at the requested size, returns both the <code class="docutils literal notranslate"><span class="pre">QImage</span></code> and resulting <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code>, then restores the previous render state.</p></li>
-<li><p>Layer menu filter <code class="docutils literal notranslate"><span class="pre">Render</span> <span class="pre">from</span> <span class="pre">Render-State</span> <span class="pre">JSON</span></code> (<code class="docutils literal notranslate"><span class="pre">id:</span> <span class="pre">render_from_render_state_json</span></code>) consumes typed <code class="docutils literal notranslate"><span class="pre">camera_state</span></code> (<code class="docutils literal notranslate"><span class="pre">QMeshLab.CameraState</span></code>) and <code class="docutils literal notranslate"><span class="pre">render_state</span></code> (<code class="docutils literal notranslate"><span class="pre">QMeshLab.RenderState</span></code>) payloads and runs an offscreen render.</p></li>
+<li><p>Layer menu filter <code class="docutils literal notranslate"><span class="pre">Render</span> <span class="pre">from</span> <span class="pre">Render-State</span> <span class="pre">JSON</span></code> (<code class="docutils literal notranslate"><span class="pre">id:</span> <span class="pre">render_from_render_state_json</span></code>) consumes typed <code class="docutils literal notranslate"><span class="pre">camera_state</span></code> (<code class="docutils literal notranslate"><span class="pre">MeshLab.CameraState</span></code>) and <code class="docutils literal notranslate"><span class="pre">render_state</span></code> (<code class="docutils literal notranslate"><span class="pre">MeshLab.RenderState</span></code>) payloads and runs an offscreen render.</p></li>
 <li><p>Both parameters support the same UI source modes: inline text, JSON file, or capture from current view.</p></li>
 <li><p>The filter can write a PNG snapshot and/or inject the snapshot as a raster layer, enabling reproducible scriptable rendering workflows.</p></li>
 </ul>
@@ -299,7 +299,7 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">buildRenderFramePlan(...)</span></code> converts the request into concrete draw items after resources/pipelines are available.</p></li>
 </ol>
 <p><code class="docutils literal notranslate"><span class="pre">RenderFrameRequest</span></code> adds frame-local state to the pass requests: view mode, pixel size, projection matrix, view matrix, light direction, and raster overlay state (opacity plus raster pan/zoom in <code class="docutils literal notranslate"><span class="pre">RasterImage</span></code> mode). <code class="docutils literal notranslate"><span class="pre">RenderFramePlan</span></code> is the concrete in-process result: fill items, buffer items, decorator items, selection items, and raster draw items with QRhi buffers/pipelines and material renderer pointers. Pass presence is derived from non-empty draw-item lists (<code class="docutils literal notranslate"><span class="pre">hasFillPass()</span></code>, <code class="docutils literal notranslate"><span class="pre">hasSceneDrawItems()</span></code>, etc.).</p>
-<p>This is an internal architecture boundary, not a public serialization contract. The implemented programmatic path serializes camera/render-state intent and lets QMeshLab build the GPU <code class="docutils literal notranslate"><span class="pre">RenderFramePlan</span></code> internally.</p>
+<p>This is an internal architecture boundary, not a public serialization contract. The implemented programmatic path serializes camera/render-state intent and lets MeshLab build the GPU <code class="docutils literal notranslate"><span class="pre">RenderFramePlan</span></code> internally.</p>
 </section>
 <section id="shared-gpu-cache-meshgpuresourcecache">
 <h2>Shared GPU Cache (<code class="docutils literal notranslate"><span class="pre">MeshGpuResourceCache</span></code>)<a class="headerlink" href="#shared-gpu-cache-meshgpuresourcecache" title="Link to this heading">¶</a></h2>
@@ -393,7 +393,7 @@ tracked CPU allocations and OS physical footprint.</p>
 </section>
 <section id="camera-models-camerashot-vs-viewtrackball">
 <h2>Camera Models: <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code> vs <code class="docutils literal notranslate"><span class="pre">ViewTrackball</span></code><a class="headerlink" href="#camera-models-camerashot-vs-viewtrackball" title="Link to this heading">¶</a></h2>
-<p>QMeshLab uses two distinct camera representations that overlap but are not interchangeable:</p>
+<p>MeshLab uses two distinct camera representations that overlap but are not interchangeable:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -472,7 +472,7 @@ tracked CPU allocations and OS physical footprint.</p>
 </section>
 <section id="snapshot-capture">
 <h2>Snapshot Capture<a class="headerlink" href="#snapshot-capture" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">MainWindow::saveSnapshotPng()</span></code>: set fixed color-buffer size → request update → wait for <code class="docutils literal notranslate"><span class="pre">frameRendered</span></code> → <code class="docutils literal notranslate"><span class="pre">grabFramebuffer</span></code> → restore previous size. Saved PNG embeds camera JSON in <code class="docutils literal notranslate"><span class="pre">QMeshLab.CameraTrackballState</span></code> metadata.</p>
+<p><code class="docutils literal notranslate"><span class="pre">MainWindow::saveSnapshotPng()</span></code>: set fixed color-buffer size → request update → wait for <code class="docutils literal notranslate"><span class="pre">frameRendered</span></code> → <code class="docutils literal notranslate"><span class="pre">grabFramebuffer</span></code> → restore previous size. Saved PNG embeds camera JSON in <code class="docutils literal notranslate"><span class="pre">MeshLab.CameraTrackballState</span></code> metadata.</p>
 <p>Snapshot-to-raster paths reuse the same view capture mechanics but add the resulting image to <code class="docutils literal notranslate"><span class="pre">Document</span></code> through <code class="docutils literal notranslate"><span class="pre">addRasterImage(...)</span></code> with a <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code> from <code class="docutils literal notranslate"><span class="pre">RenderWidget::cameraShotForViewport(...)</span></code> or from <code class="docutils literal notranslate"><span class="pre">renderSnapshotFromStateJson(...)</span></code>. This is how manual snapshot rasters and the <code class="docutils literal notranslate"><span class="pre">Render</span> <span class="pre">from</span> <span class="pre">Render-State</span> <span class="pre">JSON</span></code> layer filter create raster layers.</p>
 <p>Programmatic snapshots use the same render-state JSON contract. Embedded <code class="docutils literal notranslate"><span class="pre">mlgui.render_snapshot(...)</span></code> and <code class="docutils literal notranslate"><span class="pre">mlgui.save_snapshot(...)</span></code> render through the live active <code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code>; standalone <code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet.render_snapshot(...)</span></code> uses <code class="docutils literal notranslate"><span class="pre">HeadlessRenderContext</span></code>, which owns a hidden <code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code>/QRhi lifecycle for offscreen and batch rendering.</p>
 </section>

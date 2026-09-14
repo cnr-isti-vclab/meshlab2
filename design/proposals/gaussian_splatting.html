@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Gaussian Splatting - QMeshLab 0.1 documentation</title>
+        <title>Gaussian Splatting - MeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">QMeshLab 0.1 documentation</div></a>
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
   
-  <span class="sidebar-brand-text">QMeshLab 0.1 documentation</span>
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -245,8 +245,8 @@
           <section class="tex2jax_ignore mathjax_ignore" id="gaussian-splatting">
 <h1>Gaussian Splatting<a class="headerlink" href="#gaussian-splatting" title="Link to this heading">¶</a></h1>
 <p>This document evaluates adding 3D Gaussian splat loading, rendering and editing
-to QMeshLab. <strong>Nothing described here is implemented.</strong> It records what the
-technique demands, which of QMeshLab’s mechanisms already carry weight for it,
+to MeshLab. <strong>Nothing described here is implemented.</strong> It records what the
+technique demands, which of MeshLab’s mechanisms already carry weight for it,
 which do not, and the design decisions already taken.</p>
 <p>See also: <a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a> (the QRhi pipeline this would extend),
 <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a> (layers, revisions, undo), <a class="reference internal" href="../architecture.html"><span class="std std-doc">Architecture</span></a>,
@@ -296,7 +296,7 @@ ellipsoidal footprint and a view-dependent colour:</p>
 <p>At degree 3 that is roughly <strong>240 bytes per splat</strong>, so a one-million-splat
 scene is ~240 MB of attributes on top of the geometry, and real captures run to
 several million.</p>
-<p>Two properties make this different from anything QMeshLab renders today:</p>
+<p>Two properties make this different from anything MeshLab renders today:</p>
 <ul class="simple">
 <li><p><strong>Rendering is order-dependent.</strong> Splats are transparent and blended, so they
 must be drawn back-to-front in view order. The ordering changes whenever the
@@ -430,7 +430,7 @@ submodule is pinned much later. Lift the six headers; do not merge the branch.</
 </table>
 </div>
 <p>Nothing here drops into a QRhi renderer. The work is reimplementing roughly 600
-lines of well-documented technique, not inventing anything. QMeshLab is GPL-3.0,
+lines of well-documented technique, not inventing anything. MeshLab is GPL-3.0,
 so LGPL reference code is licence-compatible if any of it were ever lifted
 verbatim, but it would not be.</p>
 </section>
@@ -479,7 +479,7 @@ already exists with the same name and type. This is exactly how
 </ul>
 <p>So the change is a small registry mapping <code class="docutils literal notranslate"><span class="pre">std::type_index</span></code> to a factory that
 creates that attribute on the destination mesh, plus a loop in <code class="docutils literal notranslate"><span class="pre">deepCopyMesh()</span></code>.
-QMeshLab would register the handful of types it means to support (<code class="docutils literal notranslate"><span class="pre">float</span></code>,
+MeshLab would register the handful of types it means to support (<code class="docutils literal notranslate"><span class="pre">float</span></code>,
 <code class="docutils literal notranslate"><span class="pre">Point3f</span></code>, the splat struct) rather than trying to be universal. Roughly 40–100
 lines plus tests, and it also has to be threaded through memory accounting
 (<code class="docutils literal notranslate"><span class="pre">document_memory.cpp</span></code>) and the layer panel’s size reporting.</p>
@@ -570,7 +570,7 @@ attributes? The latter is less code and lets existing point-cloud filters work
 unmodified; the former makes it harder to apply a filter that would silently
 invalidate the splats.</p></li>
 <li><p>Transform baking versus shader-side transform (see above).</p></li>
-<li><p>What the PLY writer guarantees on round-trip, and whether QMeshLab should
+<li><p>What the PLY writer guarantees on round-trip, and whether MeshLab should
 write the compressed formats at all or only read them.</p></li>
 <li><p>Whether SH degree should be a load-time choice (drop to degree 0 on load to
 save memory) or always preserved.</p></li>
@@ -579,10 +579,10 @@ save memory) or always preserved.</p></li>
 <section id="non-goals">
 <h2>Non-goals<a class="headerlink" href="#non-goals" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p>Training or optimizing splats. QMeshLab views and edits; it does not fit.</p></li>
+<li><p>Training or optimizing splats. MeshLab views and edits; it does not fit.</p></li>
 <li><p>Any CUDA dependency. The renderer is QRhi and stays that way.</p></li>
 <li><p>Mixing splat and mesh layers in one view, initially.</p></li>
-<li><p>Reimplementing a third-party viewer inside QMeshLab rather than using its
+<li><p>Reimplementing a third-party viewer inside MeshLab rather than using its
 technique.</p></li>
 </ul>
 </section>

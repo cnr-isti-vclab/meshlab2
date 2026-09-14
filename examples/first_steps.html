@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Building the documentation" href="../building.html"><link rel="prev" title="Supporting Types" href="../api/types.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Getting started - QMeshLab 0.1 documentation</title>
+        <title>Getting started - MeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">QMeshLab 0.1 documentation</div></a>
+      <a href="../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
   
-  <span class="sidebar-brand-text">QMeshLab 0.1 documentation</span>
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section id="getting-started">
 <span id="first-steps"></span><h1>Getting started<a class="headerlink" href="#getting-started" title="Link to this heading">¶</a></h1>
-<p>Open the Python console in QMeshLab (Window &gt; Python Console). The predefined
+<p>Open the Python console in MeshLab (Window &gt; Python Console). The predefined
 <code class="docutils literal notranslate"><span class="pre">ms</span></code> variable holds a <a class="reference internal" href="../api/meshset.html#meshset-api"><span class="std std-ref">MeshSet</span></a> object linked to the
 current document. In the desktop app, <code class="docutils literal notranslate"><span class="pre">mlgui</span></code> gives access to the current
 view state and snapshot helpers.</p>
@@ -252,7 +252,7 @@ view state and snapshot helpers.</p>
 <section id="example-1-inspect-the-currently-loaded-meshes">
 <h2>Example 1 - Inspect the currently loaded meshes<a class="headerlink" href="#example-1-inspect-the-currently-loaded-meshes" title="Link to this heading">¶</a></h2>
 <p>This script prints basic information about the meshes that are already loaded
-in the current QMeshLab document.</p>
+in the current MeshLab document.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Mesh count:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">())</span>
 
 <span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -300,7 +300,7 @@ the filter panel using the “Copy Python call to console” button.</p>
 <p>This example uses <code class="docutils literal notranslate"><span class="pre">mlgui</span></code> to save the current desktop view as a PNG image.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
-<span class="n">output_path</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">"Downloads"</span> <span class="o">/</span> <span class="s2">"qmeshlab_snapshot.png"</span>
+<span class="n">output_path</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">"Downloads"</span> <span class="o">/</span> <span class="s2">"meshlab_snapshot.png"</span>
 <span class="n">mlgui</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">output_path</span><span class="p">),</span> <span class="mi">1600</span><span class="p">,</span> <span class="mi">1200</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Saved </span><span class="si">{</span><span class="n">output_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>

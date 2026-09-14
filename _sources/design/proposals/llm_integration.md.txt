@@ -1,8 +1,8 @@
 # LLM Integration
 
-This document maps the option space for driving QMeshLab from a large language
+This document maps the option space for driving MeshLab from a large language
 model. **Nothing described here is implemented.** It exists to make the design
-choices explicit before any code is written, and to record which of QMeshLab's
+choices explicit before any code is written, and to record which of MeshLab's
 existing mechanisms are already load-bearing for this purpose.
 
 See also: [Architecture](../architecture.md) (layers and ownership),
@@ -19,7 +19,7 @@ independently, for its own reasons.
 
 ## The substrate that already exists
 
-QMeshLab is closer to being model-drivable than it looks. The relevant assets:
+MeshLab is closer to being model-drivable than it looks. The relevant assets:
 
 | Asset | Where | Why it matters |
 |---|---|---|
@@ -44,22 +44,22 @@ Two gaps, of very different size.
    registered via `PyImport_AppendInittab`, and `pymeshlab` is a shim module
    synthesized at runtime in `PythonHost.cpp`. A real wheel does exist, in the
    sibling repository `cignoni/pymeshlab` (scikit-build-core + nanobind), which
-   consumes QMeshLab as a submodule. Three kinds of drift separate them, and
+   consumes MeshLab as a submodule. Three kinds of drift separate them, and
    only the third is substantial:
 
    - *Bindings*: none by construction. That repository compiles
      `src/python/bindings/{module,meshset_core}.cpp` directly out of the
-     QMeshLab submodule — the same sources the app compiles.
+     MeshLab submodule — the same sources the app compiles.
    - *Facade*: two hand-maintained name lists. `PythonHost.cpp` exposes seven
      names; the wheel's `python/pymeshlab/__init__.py` exposes three. Small,
      already drifted, and best fixed by giving it a single source of truth.
-   - *Build graph*: the wheel's `CMakeLists.txt` hand-enumerates QMeshLab
+   - *Build graph*: the wheel's `CMakeLists.txt` hand-enumerates MeshLab
      sources and enables **2 plugins out of the 40** wired in
      `plugins/CMakeLists.txt`. The headless build is therefore not a lagging
      copy of the app's filter set but a different, far smaller one — the
      opposite of what a model-facing catalogue needs.
 
-   The fix is structural: either QMeshLab exports consumable CMake targets, or
+   The fix is structural: either MeshLab exports consumable CMake targets, or
    the wheel target moves into this repository and the sibling repo shrinks to
    packaging metadata. Two obstacles are real either way — `Document` does not
    separate cleanly from rendering (`meshgpuresourcecache`, `linerenderer`,
@@ -84,7 +84,7 @@ chosen separately.
   about what mesh-derived data may leave the machine.
 - **Local model** (llama.cpp / Ollama) — offline and private, but selecting
   correctly among 327 filters is hard for small models.
-- **No embedded model.** QMeshLab speaks a protocol; the user brings their own
+- **No embedded model.** MeshLab speaks a protocol; the user brings their own
   client. Cheapest by a wide margin, and it makes the model a user choice rather
   than a shipped dependency.
 
@@ -106,13 +106,13 @@ chosen separately.
   `_meshlab`. No GUI, no C++ changes beyond the extension-module packaging.
   Testable in CI, safe to iterate on, works with existing model clients.
 - **Out-of-process, live document.** The same server attached to a running
-  QMeshLab over `QLocalServer`. Substantially more valuable — the user watches
+  MeshLab over `QLocalServer`. Substantially more valuable — the user watches
   the mesh change, edits land in the undo graph, the viewport is the feedback —
   and the only option needing real new plumbing.
 - **In-app chat dock.** Most product-like, most code. Amounts to
   re-implementing an agent harness (streaming, tool loop, provider config,
   cancellation, cost accounting) that existing clients already provide.
-- **CLI batch mode** (`qmeshlab --script foo.py`). Not LLM-specific, but the
+- **CLI batch mode** (`meshlab --script foo.py`). Not LLM-specific, but the
   substrate for headless automation and CI. Currently only `--generate-docs`
   exists.
 
@@ -127,7 +127,7 @@ The use case should drive the three axes above, not the reverse.
    boundaries." Needs the act/observe loop.
 4. **Closed-loop quality** — "simplify until Hausdorff stays under 0.1%." The
    measurement filters make this genuinely reachable, and it is the case where
-   QMeshLab is better positioned than most comparable tools.
+   MeshLab is better positioned than most comparable tools.
 5. **Visual QA** — snapshot to a vision model: "normals are inverted on the
    inner shell."
 6. **Parameter suggestion** inside the existing filter panel. The smallest

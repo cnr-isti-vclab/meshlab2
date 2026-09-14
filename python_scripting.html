@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Python Scripting - QMeshLab 0.1 documentation</title>
+        <title>Python Scripting - MeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="index.html"><div class="brand">QMeshLab 0.1 documentation</div></a>
+      <a href="index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
   
-  <span class="sidebar-brand-text">QMeshLab 0.1 documentation</span>
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -244,11 +244,11 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="python-scripting">
 <h1>Python Scripting<a class="headerlink" href="#python-scripting" title="Link to this heading">¶</a></h1>
-<p>QMeshLab can expose an embedded Python console and script editor when it is built
+<p>MeshLab can expose an embedded Python console and script editor when it is built
 with <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PYTHON_CONSOLE=ON</span></code>. The embedded interpreter works on the live
 application document, so scripts can inspect the current scene, run filters,
 load/save meshes and rasters, and capture view snapshots.</p>
-<p>The shared API is the <code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet</span></code> interface, and QMeshLab reuses that
+<p>The shared API is the <code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet</span></code> interface, and MeshLab reuses that
 same model inside the desktop application. Generated API reference files live
 under <code class="docutils literal notranslate"><span class="pre">docs/api/</span></code> when regenerated from the current filter descriptors; the
 local generated snapshot can lag until the app is run with <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code>.
@@ -258,7 +258,7 @@ helper.</p>
 <h2>Predefined Names<a class="headerlink" href="#predefined-names" title="Link to this heading">¶</a></h2>
 <p>The script environment is the Python <code class="docutils literal notranslate"><span class="pre">__main__</span></code> namespace used by the embedded
 console. Names created in the console and names created by scripts share the
-same namespace for the current QMeshLab session.</p>
+same namespace for the current MeshLab session.</p>
 <section id="ms">
 <h3><code class="docutils literal notranslate"><span class="pre">ms</span></code><a class="headerlink" href="#ms" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">ms</span></code> is the live document, exposed as a <code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet</span></code>-compatible object. This is the
@@ -268,10 +268,10 @@ main entry point for document and filter operations.</p>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"Rasters:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">raster_count</span><span class="p">())</span>
 </pre></div>
 </div>
-<p>Important: <code class="docutils literal notranslate"><span class="pre">ms</span></code> borrows the live QMeshLab <code class="docutils literal notranslate"><span class="pre">Document</span></code>. Calling modifying methods
+<p>Important: <code class="docutils literal notranslate"><span class="pre">ms</span></code> borrows the live MeshLab <code class="docutils literal notranslate"><span class="pre">Document</span></code>. Calling modifying methods
 on it changes the open document.</p>
 <p>If you already know <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code>, you can think of <code class="docutils literal notranslate"><span class="pre">ms</span></code> as “the current
-QMeshLab document presented through the same MeshSet-style API”.</p>
+MeshLab document presented through the same MeshSet-style API”.</p>
 </section>
 <section id="mlgui">
 <h3><code class="docutils literal notranslate"><span class="pre">mlgui</span></code><a class="headerlink" href="#mlgui" title="Link to this heading">¶</a></h3>
@@ -279,7 +279,7 @@ QMeshLab document presented through the same MeshSet-style API”.</p>
 available in the desktop application when an active render view exists.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">mlgui</span><span class="o">.</span><span class="n">camera_state_json</span><span class="p">())</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">mlgui</span><span class="o">.</span><span class="n">render_state_json</span><span class="p">())</span>
-<span class="n">mlgui</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="s2">"/tmp/qmeshlab_snapshot.png"</span><span class="p">,</span> <span class="mi">1200</span><span class="p">,</span> <span class="mi">900</span><span class="p">)</span>
+<span class="n">mlgui</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="s2">"/tmp/meshlab_snapshot.png"</span><span class="p">,</span> <span class="mi">1200</span><span class="p">,</span> <span class="mi">900</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Use <code class="docutils literal notranslate"><span class="pre">mlgui</span></code> for view state and rendering operations. It is not meant to be a
@@ -288,7 +288,7 @@ general document API.</p>
 <section id="pymeshlab">
 <h3><code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code><a class="headerlink" href="#pymeshlab" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> is the public Python facade for standalone, GUI-less mesh processing.
-In the embedded QMeshLab console it is injected as a lightweight module backed by
+In the embedded MeshLab console it is injected as a lightweight module backed by
 the same private <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> extension used by the headless package.</p>
 <p>Use it when you want a separate mesh set that does not operate on the live GUI
 document.</p>
@@ -299,7 +299,7 @@ document.</p>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"Standalone mesh set:"</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">())</span>
 </pre></div>
 </div>
-<p>Most scripts inside QMeshLab should use the predefined <code class="docutils literal notranslate"><span class="pre">ms</span></code> object. Import
+<p>Most scripts inside MeshLab should use the predefined <code class="docutils literal notranslate"><span class="pre">ms</span></code> object. Import
 <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> only when you want the same public API exposed by the GUI-less
 package, or when you want to create an independent <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code>.</p>
 </section>
@@ -465,12 +465,12 @@ and choose either the full or compact format.</p>
 <section id="snapshot-examples">
 <h2>Snapshot Examples<a class="headerlink" href="#snapshot-examples" title="Link to this heading">¶</a></h2>
 <p>Save the current view to a PNG:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">mlgui</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="s2">"/tmp/qmeshlab_view.png"</span><span class="p">,</span> <span class="mi">1600</span><span class="p">,</span> <span class="mi">1200</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">mlgui</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="s2">"/tmp/meshlab_view.png"</span><span class="p">,</span> <span class="mi">1600</span><span class="p">,</span> <span class="mi">1200</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Capture and reapply render state:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">state</span> <span class="o">=</span> <span class="n">mlgui</span><span class="o">.</span><span class="n">render_state_json</span><span class="p">()</span>
-<span class="n">mlgui</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="s2">"/tmp/qmeshlab_view.png"</span><span class="p">,</span> <span class="mi">1600</span><span class="p">,</span> <span class="mi">1200</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+<span class="n">mlgui</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="s2">"/tmp/meshlab_view.png"</span><span class="p">,</span> <span class="mi">1600</span><span class="p">,</span> <span class="mi">1200</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Get raw RGBA bytes:</p>

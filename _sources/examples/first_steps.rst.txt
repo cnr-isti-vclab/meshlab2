@@ -3,7 +3,7 @@
 Getting started
 ===============
 
-Open the Python console in QMeshLab (Window > Python Console). The predefined
+Open the Python console in MeshLab (Window > Python Console). The predefined
 ``ms`` variable holds a :ref:`MeshSet <meshset-api>` object linked to the
 current document. In the desktop app, ``mlgui`` gives access to the current
 view state and snapshot helpers.
@@ -14,7 +14,7 @@ Example 1 - Inspect the currently loaded meshes
 -----------------------------------------------
 
 This script prints basic information about the meshes that are already loaded
-in the current QMeshLab document.
+in the current MeshLab document.
 
 .. code-block:: python
 
@@ -70,7 +70,7 @@ This example uses ``mlgui`` to save the current desktop view as a PNG image.
 
    from pathlib import Path
 
-   output_path = Path.home() / "Downloads" / "qmeshlab_snapshot.png"
+   output_path = Path.home() / "Downloads" / "meshlab_snapshot.png"
    mlgui.save_snapshot(str(output_path), 1600, 1200)
    print(f"Saved {output_path}")
 

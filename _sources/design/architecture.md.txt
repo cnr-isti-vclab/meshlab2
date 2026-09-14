@@ -1,6 +1,6 @@
 # Architecture
 
-QMeshLab follows a **single-document, multi-view** architecture:
+MeshLab follows a **single-document, multi-view** architecture:
 
 - one `Document` is the authoritative model
 - UI widgets observe it through Qt signals

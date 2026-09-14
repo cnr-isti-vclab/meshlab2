@@ -170,7 +170,7 @@ for the angle from an axis to a cone boundary, and **Angular Diameter** (or
 **Full Aperture**) for the angle between opposite boundary directions. Avoid the
 ambiguous label **Cone Angle**.
 
-Prefer the half-angle: every cone and cap parameter QMeshLab exposes is one, so
+Prefer the half-angle: every cone and cap parameter MeshLab exposes is one, so
 a new filter that adopts a full aperture makes two sibling filters disagree
 about what the same number means. Name the parameter for the convention as well
 as labelling it -- `half_angle`, `cone_half_angle` -- because a label protects

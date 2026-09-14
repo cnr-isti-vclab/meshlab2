@@ -1,6 +1,6 @@
 # Filter Organization and Naming
 
-This document covers making QMeshLab filters easier to browse, name, document,
+This document covers making MeshLab filters easier to browse, name, document,
 script, and maintain. The **principles in "Agreed Decisions" below are settled**.
 The category ontology is implemented and validated; the large plugin-fold tables
 later in this document are retained as historical design notes, not as a live
@@ -14,7 +14,7 @@ per-filter display/Python name proposals derived from that grammar; [Adding a Fi
 
 ## Current Implementation Snapshot
 
-As of 2026-08-31, QMeshLab ships **327 filters across 33 filter plugins** with
+As of 2026-08-31, MeshLab ships **327 filters across 33 filter plugins** with
 **1131 declared parameters**. Each in-tree descriptor uses the ordered
 `categories` array, the loader validates entries against [Vocabulary](vocabulary.md),
 and the UI lists a filter under every category it declares. Filter search also
@@ -83,7 +83,7 @@ encouraged wherever it identifies which implementation the user gets — see
 name: several distinct filters can be routes to the same quantity, and then the suffix
 is what tells them apart.
 
-### 4. QMeshLab is an algorithm archive — competing implementations are a feature
+### 4. MeshLab is an algorithm archive — competing implementations are a feature
 
 Hosting several implementations of the same or a similar algorithm is an explicit
 goal, not duplication to be resolved. Simplification, for example, will legitimately
@@ -127,7 +127,7 @@ This supersedes the single-pass approach in *Migration Strategy* step 4 below.
 ## Remaining Issues
 
 The current filter set is partly inherited from MeshLab naming and partly shaped
-by incremental QMeshLab ports. That gives us working coverage, but not always a
+by incremental MeshLab ports. That gives us working coverage, but not always a
 coherent vocabulary.
 
 Common issues:
@@ -213,7 +213,7 @@ Still to avoid:
 
 Policy on renaming (unchanged): choose the canonical name from the vocabulary, not
 from MeshLab legacy; rename when materially clearer; never keep two canonical names
-for one operation. **No aliases** — QMeshLab has no legacy callers to protect, so a
+for one operation. **No aliases** — MeshLab has no legacy callers to protect, so a
 renamed filter or parameter is renamed outright and a stale call fails loudly with
 *Unknown parameter* rather than silently doing something else.
 
@@ -290,7 +290,7 @@ Current naming issue:
 
 - Many ported filters use MeshLab-style ids such as `TargetFaceNum`,
   `QualityThr`, or `PreserveBoundary`. These should be replaced by coherent
-  QMeshLab parameter ids when we do the naming pass.
+  MeshLab parameter ids when we do the naming pass.
 
 Open question:
 
@@ -503,17 +503,17 @@ family rather than a one-filter stub.
 **Filter Plugins Info** dialog. It is a separate axis from the directory/`pluginId`
 and needs the same pass. Current state is inconsistent in four ways:
 
-- **A `QMeshLab ` prefix on 19 of 31, absent on 12.** The prefix is pure noise:
-  every plugin in the application is a QMeshLab plugin.
+- **A `MeshLab ` prefix on 19 of 31, absent on 12.** The prefix is pure noise:
+  every plugin in the application is a MeshLab plugin.
 - **Inconsistent suffix** — mostly `… Filters`, but `Create Meshes`,
   `Texture Tools`, `VCG Surface Reconstruction`.
 - **Editorial qualifiers** — `Original QSlim Filters`.
-- **Family invisible or wrong** — `QMeshLab Sample Filters` (its one filter is a
-  smoothing filter), `QMeshLab Basic Filters`, `QMeshLab Function Filters`.
+- **Family invisible or wrong** — `MeshLab Sample Filters` (its one filter is a
+  smoothing filter), `MeshLab Basic Filters`, `MeshLab Function Filters`.
 
 Rules:
 
-1. Drop the `QMeshLab ` prefix everywhere.
+1. Drop the `MeshLab ` prefix everywhere.
 2. Family plugins: `<Family> Filters`.
 3. Dependency/vendored plugins: `<Library or Algorithm> <Family> Filters` — here
    the library **is** the identity, so naming it is informative, not provenance
@@ -523,37 +523,37 @@ Rules:
 
 | Current display name | Target |
 |---|---|
-| `QMeshLab Basic Filters` | *(dissolved — see fold table)* |
+| `MeshLab Basic Filters` | *(dissolved — see fold table)* |
 | `Camera Filters` | `Camera Filters` |
 | `CGAL Mesh Filters` | `CGAL Remeshing Filters` |
-| `QMeshLab Cleaning Filters` | `Cleaning Filters` |
+| `MeshLab Cleaning Filters` | `Cleaning Filters` |
 | `Color Projection Filters` | `Transfer and Projection Filters` |
-| `QMeshLab Color Processing Filters` | `Color Filters` |
+| `MeshLab Color Processing Filters` | `Color Filters` |
 | `Create Meshes` | `Create Filters` |
-| `QMeshLab Embree Filters` | `Embree Filters` |
-| `QMeshLab Function Filters` | `Expression Filters` |
-| `QMeshLab Geodesic Filters` | *(dissolved → Compute Filters)* |
-| `QMeshLab ICP Filters` | `Alignment Filters` |
+| `MeshLab Embree Filters` | `Embree Filters` |
+| `MeshLab Function Filters` | `Expression Filters` |
+| `MeshLab Geodesic Filters` | *(dissolved → Compute Filters)* |
+| `MeshLab ICP Filters` | `Alignment Filters` |
 | `Image Patch Parameterization Filters` | *(dissolved → Parametrization / Compute)* |
-| `QMeshLab Layer Filters` | `Layer Filters` |
-| `QMeshLab libigl Boolean Filters` | `libigl Filters` *(merged into `filter_igl`)* |
-| `QMeshLab libigl Parametrization Filters` | `libigl Filters` *(merged into `filter_igl`)* |
-| `QMeshLab Measure Filters` | `Measure Filters` |
+| `MeshLab Layer Filters` | `Layer Filters` |
+| `MeshLab libigl Boolean Filters` | `libigl Filters` *(merged into `filter_igl`)* |
+| `MeshLab libigl Parametrization Filters` | `libigl Filters` *(merged into `filter_igl`)* |
+| `MeshLab Measure Filters` | `Measure Filters` |
 | `MeshFix Filters` | `MeshFix Cleaning Filters` |
-| `QMeshLab Meshing Filters` | *(dissolved across nine families)* |
-| `QMeshLab MLS Filters` | `MLS (APSS/RIMLS) Filters` |
+| `MeshLab Meshing Filters` | *(dissolved across nine families)* |
+| `MeshLab MLS Filters` | `MLS (APSS/RIMLS) Filters` |
 | `VCG Surface Reconstruction` | *(dissolved → Reconstruction / Simplification)* |
 | `Original QSlim Filters` | `QSlim Simplification Filters` |
-| `QMeshLab Sample Filters` | *(dissolved → Smoothing Filters)* |
-| `QMeshLab Sampling Filters` | `Sampling Filters` |
-| `QMeshLab PoissonRecon Filters` | `Screened Poisson Reconstruction Filters` |
-| `QMeshLab Selection Filters` | `Selection Filters` |
+| `MeshLab Sample Filters` | *(dissolved → Smoothing Filters)* |
+| `MeshLab Sampling Filters` | `Sampling Filters` |
+| `MeshLab PoissonRecon Filters` | `Screened Poisson Reconstruction Filters` |
+| `MeshLab Selection Filters` | `Selection Filters` |
 | `Texture Tools` | `Texture Filters` |
 | `Texture Defragmentation Filters` | `Texture Defragmentation Filters` |
-| `QMeshLab TriOptimize Filters` | *(dissolved → Remeshing / Smoothing)* |
-| `QMeshLab Smoothing and Normal Filters` | *(split → Smoothing Filters / Compute Filters)* |
-| `QMeshLab Voronoi Filters` | *(dissolved → Remeshing / Sampling)* |
-| `QMeshLab xatlas Filters` | `xatlas Parametrization Filters` |
+| `MeshLab TriOptimize Filters` | *(dissolved → Remeshing / Smoothing)* |
+| `MeshLab Smoothing and Normal Filters` | *(split → Smoothing Filters / Compute Filters)* |
+| `MeshLab Voronoi Filters` | *(dissolved → Remeshing / Sampling)* |
+| `MeshLab xatlas Filters` | `xatlas Parametrization Filters` |
 
 New family plugins need display names too: `Compute Filters`,
 `Transform Filters`, `Subdivision Filters`, `Simplification Filters`,

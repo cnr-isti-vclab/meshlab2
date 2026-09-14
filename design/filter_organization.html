@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Filter Organization and Naming - QMeshLab 0.1 documentation</title>
+        <title>Filter Organization and Naming - MeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">QMeshLab 0.1 documentation</div></a>
+      <a href="../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
   
-  <span class="sidebar-brand-text">QMeshLab 0.1 documentation</span>
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filter-organization-and-naming">
 <h1>Filter Organization and Naming<a class="headerlink" href="#filter-organization-and-naming" title="Link to this heading">¶</a></h1>
-<p>This document covers making QMeshLab filters easier to browse, name, document,
+<p>This document covers making MeshLab filters easier to browse, name, document,
 script, and maintain. The <strong>principles in “Agreed Decisions” below are settled</strong>.
 The category ontology is implemented and validated; the large plugin-fold tables
 later in this document are retained as historical design notes, not as a live
@@ -256,7 +256,7 @@ per-filter display/Python name proposals derived from that grammar; <a class="re
 <a class="reference internal" href="data_model.html"><span class="std std-doc">Data Model</span></a>.</p>
 <section id="current-implementation-snapshot">
 <h2>Current Implementation Snapshot<a class="headerlink" href="#current-implementation-snapshot" title="Link to this heading">¶</a></h2>
-<p>As of 2026-08-31, QMeshLab ships <strong>327 filters across 33 filter plugins</strong> with
+<p>As of 2026-08-31, MeshLab ships <strong>327 filters across 33 filter plugins</strong> with
 <strong>1131 declared parameters</strong>. Each in-tree descriptor uses the ordered
 <code class="docutils literal notranslate"><span class="pre">categories</span></code> array, the loader validates entries against <a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a>,
 and the UI lists a filter under every category it declares. Filter search also
@@ -320,8 +320,8 @@ encouraged wherever it identifies which implementation the user gets — see
 name: several distinct filters can be routes to the same quantity, and then the suffix
 is what tells them apart.</p>
 </section>
-<section id="qmeshlab-is-an-algorithm-archive-competing-implementations-are-a-feature">
-<h3>4. QMeshLab is an algorithm archive — competing implementations are a feature<a class="headerlink" href="#qmeshlab-is-an-algorithm-archive-competing-implementations-are-a-feature" title="Link to this heading">¶</a></h3>
+<section id="meshlab-is-an-algorithm-archive-competing-implementations-are-a-feature">
+<h3>4. MeshLab is an algorithm archive — competing implementations are a feature<a class="headerlink" href="#meshlab-is-an-algorithm-archive-competing-implementations-are-a-feature" title="Link to this heading">¶</a></h3>
 <p>Hosting several implementations of the same or a similar algorithm is an explicit
 goal, not duplication to be resolved. Simplification, for example, will legitimately
 exist in vcglib, QSlim, CGAL, PlyMC and libigl flavours simultaneously.</p>
@@ -366,7 +366,7 @@ visualization changes.</p></li>
 <section id="remaining-issues">
 <h2>Remaining Issues<a class="headerlink" href="#remaining-issues" title="Link to this heading">¶</a></h2>
 <p>The current filter set is partly inherited from MeshLab naming and partly shaped
-by incremental QMeshLab ports. That gives us working coverage, but not always a
+by incremental MeshLab ports. That gives us working coverage, but not always a
 coherent vocabulary.</p>
 <p>Common issues:</p>
 <ul class="simple">
@@ -469,7 +469,7 @@ Collapse</em>, not <em>Simplification: Quadric Edge Collapse</em>;
 </ul>
 <p>Policy on renaming (unchanged): choose the canonical name from the vocabulary, not
 from MeshLab legacy; rename when materially clearer; never keep two canonical names
-for one operation. <strong>No aliases</strong> — QMeshLab has no legacy callers to protect, so a
+for one operation. <strong>No aliases</strong> — MeshLab has no legacy callers to protect, so a
 renamed filter or parameter is renamed outright and a stale call fails loudly with
 <em>Unknown parameter</em> rather than silently doing something else.</p>
 </section>
@@ -581,7 +581,7 @@ filters; extend it when you add one.</p>
 <ul class="simple">
 <li><p>Many ported filters use MeshLab-style ids such as <code class="docutils literal notranslate"><span class="pre">TargetFaceNum</span></code>,
 <code class="docutils literal notranslate"><span class="pre">QualityThr</span></code>, or <code class="docutils literal notranslate"><span class="pre">PreserveBoundary</span></code>. These should be replaced by coherent
-QMeshLab parameter ids when we do the naming pass.</p></li>
+MeshLab parameter ids when we do the naming pass.</p></li>
 </ul>
 <p>Open question:</p>
 <ul class="simple">
@@ -1022,17 +1022,17 @@ family rather than a one-filter stub.</p>
 <strong>Filter Plugins Info</strong> dialog. It is a separate axis from the directory/<code class="docutils literal notranslate"><span class="pre">pluginId</span></code>
 and needs the same pass. Current state is inconsistent in four ways:</p>
 <ul class="simple">
-<li><p><strong>A <code class="docutils literal notranslate"><span class="pre">QMeshLab</span> </code> prefix on 19 of 31, absent on 12.</strong> The prefix is pure noise:
-every plugin in the application is a QMeshLab plugin.</p></li>
+<li><p><strong>A <code class="docutils literal notranslate"><span class="pre">MeshLab</span> </code> prefix on 19 of 31, absent on 12.</strong> The prefix is pure noise:
+every plugin in the application is a MeshLab plugin.</p></li>
 <li><p><strong>Inconsistent suffix</strong> — mostly <code class="docutils literal notranslate"><span class="pre">…</span> <span class="pre">Filters</span></code>, but <code class="docutils literal notranslate"><span class="pre">Create</span> <span class="pre">Meshes</span></code>,
 <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Tools</span></code>, <code class="docutils literal notranslate"><span class="pre">VCG</span> <span class="pre">Surface</span> <span class="pre">Reconstruction</span></code>.</p></li>
 <li><p><strong>Editorial qualifiers</strong> — <code class="docutils literal notranslate"><span class="pre">Original</span> <span class="pre">QSlim</span> <span class="pre">Filters</span></code>.</p></li>
-<li><p><strong>Family invisible or wrong</strong> — <code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Sample</span> <span class="pre">Filters</span></code> (its one filter is a
-smoothing filter), <code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Basic</span> <span class="pre">Filters</span></code>, <code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Function</span> <span class="pre">Filters</span></code>.</p></li>
+<li><p><strong>Family invisible or wrong</strong> — <code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Sample</span> <span class="pre">Filters</span></code> (its one filter is a
+smoothing filter), <code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Basic</span> <span class="pre">Filters</span></code>, <code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Function</span> <span class="pre">Filters</span></code>.</p></li>
 </ul>
 <p>Rules:</p>
 <ol class="arabic simple">
-<li><p>Drop the <code class="docutils literal notranslate"><span class="pre">QMeshLab</span> </code> prefix everywhere.</p></li>
+<li><p>Drop the <code class="docutils literal notranslate"><span class="pre">MeshLab</span> </code> prefix everywhere.</p></li>
 <li><p>Family plugins: <code class="docutils literal notranslate"><span class="pre">&lt;Family&gt;</span> <span class="pre">Filters</span></code>.</p></li>
 <li><p>Dependency/vendored plugins: <code class="docutils literal notranslate"><span class="pre">&lt;Library</span> <span class="pre">or</span> <span class="pre">Algorithm&gt;</span> <span class="pre">&lt;Family&gt;</span> <span class="pre">Filters</span></code> — here
 the library <strong>is</strong> the identity, so naming it is informative, not provenance
@@ -1048,7 +1048,7 @@ plugin that exists <em>because</em> of that backend.)</p></li>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Basic</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Basic</span> <span class="pre">Filters</span></code></p></td>
 <td><p><em>(dissolved — see fold table)</em></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Camera</span> <span class="pre">Filters</span></code></p></td>
@@ -1057,52 +1057,52 @@ plugin that exists <em>because</em> of that backend.)</p></li>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CGAL</span> <span class="pre">Mesh</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">CGAL</span> <span class="pre">Remeshing</span> <span class="pre">Filters</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Cleaning</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Cleaning</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Cleaning</span> <span class="pre">Filters</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Color</span> <span class="pre">Projection</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Transfer</span> <span class="pre">and</span> <span class="pre">Projection</span> <span class="pre">Filters</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Color</span> <span class="pre">Processing</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Color</span> <span class="pre">Processing</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Color</span> <span class="pre">Filters</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Create</span> <span class="pre">Meshes</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Create</span> <span class="pre">Filters</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Embree</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Embree</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Embree</span> <span class="pre">Filters</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Function</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Function</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Expression</span> <span class="pre">Filters</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Geodesic</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Geodesic</span> <span class="pre">Filters</span></code></p></td>
 <td><p><em>(dissolved → Compute Filters)</em></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">ICP</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">ICP</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Alignment</span> <span class="pre">Filters</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Image</span> <span class="pre">Patch</span> <span class="pre">Parameterization</span> <span class="pre">Filters</span></code></p></td>
 <td><p><em>(dissolved → Parametrization / Compute)</em></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Layer</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Layer</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Layer</span> <span class="pre">Filters</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">libigl</span> <span class="pre">Boolean</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">libigl</span> <span class="pre">Boolean</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">libigl</span> <span class="pre">Filters</span></code> <em>(merged into <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code>)</em></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">libigl</span> <span class="pre">Parametrization</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">libigl</span> <span class="pre">Parametrization</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">libigl</span> <span class="pre">Filters</span></code> <em>(merged into <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code>)</em></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Measure</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Measure</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measure</span> <span class="pre">Filters</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshFix</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">MeshFix</span> <span class="pre">Cleaning</span> <span class="pre">Filters</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Meshing</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Meshing</span> <span class="pre">Filters</span></code></p></td>
 <td><p><em>(dissolved across nine families)</em></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">MLS</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">MLS</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">MLS</span> <span class="pre">(APSS/RIMLS)</span> <span class="pre">Filters</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">VCG</span> <span class="pre">Surface</span> <span class="pre">Reconstruction</span></code></p></td>
@@ -1111,16 +1111,16 @@ plugin that exists <em>because</em> of that backend.)</p></li>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Original</span> <span class="pre">QSlim</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">QSlim</span> <span class="pre">Simplification</span> <span class="pre">Filters</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Sample</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Sample</span> <span class="pre">Filters</span></code></p></td>
 <td><p><em>(dissolved → Smoothing Filters)</em></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Sampling</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Sampling</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Sampling</span> <span class="pre">Filters</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">PoissonRecon</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">PoissonRecon</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Screened</span> <span class="pre">Poisson</span> <span class="pre">Reconstruction</span> <span class="pre">Filters</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Selection</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Selection</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Selection</span> <span class="pre">Filters</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Tools</span></code></p></td>
@@ -1129,16 +1129,16 @@ plugin that exists <em>because</em> of that backend.)</p></li>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Defragmentation</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Defragmentation</span> <span class="pre">Filters</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">TriOptimize</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">TriOptimize</span> <span class="pre">Filters</span></code></p></td>
 <td><p><em>(dissolved → Remeshing / Smoothing)</em></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Smoothing</span> <span class="pre">and</span> <span class="pre">Normal</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Smoothing</span> <span class="pre">and</span> <span class="pre">Normal</span> <span class="pre">Filters</span></code></p></td>
 <td><p><em>(split → Smoothing Filters / Compute Filters)</em></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">Voronoi</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Voronoi</span> <span class="pre">Filters</span></code></p></td>
 <td><p><em>(dissolved → Remeshing / Sampling)</em></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">QMeshLab</span> <span class="pre">xatlas</span> <span class="pre">Filters</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">xatlas</span> <span class="pre">Filters</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">xatlas</span> <span class="pre">Parametrization</span> <span class="pre">Filters</span></code></p></td>
 </tr>
 </tbody>
@@ -1349,7 +1349,7 @@ specific release-management reason?</p></li>
 <li><a class="reference internal" href="#plugin-boundaries-follow-the-user-facing-family-split-only-for-dependencies">1. Plugin boundaries follow the user-facing family, split only for dependencies</a></li>
 <li><a class="reference internal" href="#filter-categories-are-a-closed-validated-ontology">2. Filter categories are a closed, validated ontology</a></li>
 <li><a class="reference internal" href="#backends-never-appear-in-menus-algorithm-names-may-appear-in-filter-names">3. Backends never appear in menus; algorithm names may appear in filter names</a></li>
-<li><a class="reference internal" href="#qmeshlab-is-an-algorithm-archive-competing-implementations-are-a-feature">4. QMeshLab is an algorithm archive — competing implementations are a feature</a></li>
+<li><a class="reference internal" href="#meshlab-is-an-algorithm-archive-competing-implementations-are-a-feature">4. MeshLab is an algorithm archive — competing implementations are a feature</a></li>
 <li><a class="reference internal" href="#first-pass-plugins-categories-only">5. First pass = plugins + categories only</a></li>
 </ul>
 </li>
