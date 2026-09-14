@@ -29,9 +29,18 @@ FetchContent_MakeAvailable(meshlab2_quadwild_gmm)
 
 set(QUADWILD_BUILD_DIR "${PROJECT_BINARY_DIR}/quadwild-bimdf")
 set(QUADWILD_BIN_DIR "${QUADWILD_BUILD_DIR}/Build/bin")
-set(QUADWILD_EXECUTABLE "${QUADWILD_BIN_DIR}/quadwild${CMAKE_EXECUTABLE_SUFFIX}")
+
+# The two helper paths are the one definition in the file. They are CACHE INTERNAL
+# because meshlab2_bundle_quadwild() below is invoked from the root CMakeLists, a
+# different directory scope, where a plain variable set here is not visible -- which
+# is why these paths used to be spelled out a second time inside the function and
+# could drift from these. INTERNAL implies FORCE, so they are re-evaluated on every
+# configure and cannot go stale if the binary directory moves.
+set(QUADWILD_EXECUTABLE "${QUADWILD_BIN_DIR}/quadwild${CMAKE_EXECUTABLE_SUFFIX}"
+    CACHE INTERNAL "QuadWild-BiMDF remesher helper")
 set(QUAD_FROM_PATCHES_EXECUTABLE
-    "${QUADWILD_BIN_DIR}/quad_from_patches${CMAKE_EXECUTABLE_SUFFIX}")
+    "${QUADWILD_BIN_DIR}/quad_from_patches${CMAKE_EXECUTABLE_SUFFIX}"
+    CACHE INTERNAL "QuadWild-BiMDF quad_from_patches helper")
 
 set(_quadwild_cmake_args
     "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
@@ -89,14 +98,6 @@ qt_add_resources(MeshLab2PluginFilterQuadWild "filter_quadwild_descriptors"
 function(meshlab2_bundle_quadwild target)
     add_dependencies(${target} MeshLab2QuadWildHelpers)
     set(_quadwild_root "${MESHLAB2_SOURCE_DIR}/external/quadwild-bimdf")
-    # Must match QUADWILD_BUILD_DIR above. Not CMAKE_BINARY_DIR: that is the outer
-    # project when MeshLab2 is pulled in with add_subdirectory(), and the helpers
-    # would be looked for in a build tree we do not own.
-    set(_quadwild_bin_dir "${PROJECT_BINARY_DIR}/quadwild-bimdf/Build/bin")
-    set(_quadwild_executable
-        "${_quadwild_bin_dir}/quadwild${CMAKE_EXECUTABLE_SUFFIX}")
-    set(_quad_from_patches_executable
-        "${_quadwild_bin_dir}/quad_from_patches${CMAKE_EXECUTABLE_SUFFIX}")
     if(APPLE)
         set(_helper_dir "$<TARGET_BUNDLE_DIR:${target}>/Contents/Helpers/quadwild-bimdf")
         set(_resource_dir "$<TARGET_BUNDLE_DIR:${target}>/Contents/Resources/quadwild-bimdf")
@@ -109,9 +110,9 @@ function(meshlab2_bundle_quadwild target)
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${_helper_dir}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${_resource_dir}"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-            "${_quadwild_executable}" "${_helper_dir}/"
+            "${QUADWILD_EXECUTABLE}" "${_helper_dir}/"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-            "${_quad_from_patches_executable}" "${_helper_dir}/"
+            "${QUAD_FROM_PATCHES_EXECUTABLE}" "${_helper_dir}/"
         COMMAND "${CMAKE_COMMAND}" -E copy_directory
             "${_quadwild_root}/config" "${_resource_dir}/config"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
