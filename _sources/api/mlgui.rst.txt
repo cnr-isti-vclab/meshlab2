@@ -7,48 +7,48 @@ The ``mlgui`` object is available only when running QMeshLab
 with a visible window (desktop app).  It is not available in
 headless pymeshlab.
 
-.. py:currentmodule:: _qmeshlab
+.. py:currentmodule:: _meshlab
 
 Methods
 -------
 
 .. py:method:: MlGui.__init__(self, /, *args, **kwargs)
-   :module: _qmeshlab
+   :module: _meshlab
 
    Initialize self.  See help(type(self)) for accurate signature.
 
 .. py:method:: MlGui.__repr__(self, /)
-   :module: _qmeshlab
+   :module: _meshlab
 
    Return repr(self).
 
 .. py:method:: MlGui.apply_camera_state_json(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    apply_camera_state_json(self, json: str) -> bool
 
 .. py:method:: MlGui.apply_render_state_json(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    apply_render_state_json(self, json: str) -> bool
 
 .. py:method:: MlGui.camera_state_json(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    camera_state_json(self) -> str
 
 .. py:method:: MlGui.render_snapshot(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    render_snapshot(self, render_state_json: str, width: int, height: int) -> bytes
 
 .. py:method:: MlGui.render_state_json(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    render_state_json(self) -> str
 
 .. py:method:: MlGui.save_snapshot(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    save_snapshot(self, path: str, width: int, height: int, render_state_json: str = '') -> None
 

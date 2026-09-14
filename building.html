@@ -247,30 +247,30 @@
 <section id="prerequisites">
 <h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p>QMeshLab compiled with <code class="docutils literal notranslate"><span class="pre">QMESHLAB_PYTHON_CONSOLE=ON</span></code> (default).</p></li>
+<li><p>QMeshLab compiled with <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PYTHON_CONSOLE=ON</span></code> (default).</p></li>
 <li><p>Python packages from <code class="docutils literal notranslate"><span class="pre">docs/requirements.txt</span></code>.</p></li>
 </ul>
 </section>
 <section id="step-1-generate-the-api-source-files">
 <h2>Step 1 — Generate the API source files<a class="headerlink" href="#step-1-generate-the-api-source-files" title="Link to this heading">¶</a></h2>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>cmake<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>-B<span class="w"> </span>build<span class="w"> </span>-G<span class="w"> </span>Ninja<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-DQMESH_REQUIRE_VCPKG_DEPS<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-DQMESH_MACOS_BUNDLE_ICON<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-DQMESHLAB_PYTHON_CONSOLE<span class="o">=</span>ON<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DMESHLAB2_REQUIRE_VCPKG_DEPS<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DMESHLAB2_MACOS_BUNDLE_ICON<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DMESHLAB2_PYTHON_CONSOLE<span class="o">=</span>ON<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-Dnanobind_DIR<span class="o">=</span><span class="s2">"</span><span class="k">$(</span>python<span class="w"> </span>-m<span class="w"> </span>nanobind<span class="w"> </span>--cmake_dir<span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-DQMESH_PLUGIN_OBJ_RAPIDOBJ<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-DQMESH_PLUGIN_E57<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-DQMESH_PLUGIN_GLTF<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-DQMESH_PLUGIN_FILTER_FUNC<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-DQMESH_PLUGIN_FILTER_EMBREE<span class="o">=</span>OFF
-cmake<span class="w"> </span>--build<span class="w"> </span>build<span class="w"> </span>--target<span class="w"> </span>QMeshLab<span class="w"> </span>-j8
+<span class="w">  </span>-DMESHLAB2_PLUGIN_OBJ_RAPIDOBJ<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DMESHLAB2_PLUGIN_E57<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DMESHLAB2_PLUGIN_GLTF<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DMESHLAB2_PLUGIN_FILTER_FUNC<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DMESHLAB2_PLUGIN_FILTER_EMBREE<span class="o">=</span>OFF
+cmake<span class="w"> </span>--build<span class="w"> </span>build<span class="w"> </span>--target<span class="w"> </span>MeshLab2<span class="w"> </span>-j8
 <span class="nv">QT_QPA_PLATFORM</span><span class="o">=</span>offscreen<span class="w"> </span>./build/QMeshLab<span class="w"> </span>--generate-docs<span class="w"> </span>docs
 </pre></div>
 </div>
-<p>This introspects the <code class="docutils literal notranslate"><span class="pre">_qmeshlab</span></code> module from within the running app,
+<p>This introspects the <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> module from within the running app,
 reads all <code class="docutils literal notranslate"><span class="pre">filters.json</span></code> files, and writes the reStructuredText and MyST
 Markdown sources into <code class="docutils literal notranslate"><span class="pre">docs/api/</span></code>.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">QMESH_REQUIRE_VCPKG_DEPS=OFF</span></code> option is used here because the
+<p>The <code class="docutils literal notranslate"><span class="pre">MESHLAB2_REQUIRE_VCPKG_DEPS=OFF</span></code> option is used here because the
 documentation build only needs the app binary for Python/API introspection and
 the CI job does not activate the vcpkg toolchain. The listed plugin options
 disable dependency-gated plugins that otherwise require vcpkg-provided

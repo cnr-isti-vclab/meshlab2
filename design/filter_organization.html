@@ -686,7 +686,7 @@ below therefore describe the <em>intended</em> end state, not the current tree.<
 <p>Every pre-baseline plugin classified against decision 1. Evidence columns were
 measured from each plugin’s
 <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code>, <code class="docutils literal notranslate"><span class="pre">.gitmodules</span></code>, and directory contents — not inferred from names.
-The uniform <code class="docutils literal notranslate"><span class="pre">option(QMESH_PLUGIN_FILTER_*)</span></code> present in every plugin is build
+The uniform <code class="docutils literal notranslate"><span class="pre">option(MESHLAB2_PLUGIN_FILTER_*)</span></code> present in every plugin is build
 plumbing, not a dependency gate, and does not justify a separate plugin.</p>
 <p>Verdicts: <strong>KEEP</strong> = passes a split test as-is · <strong>RENAME</strong> = passes a test but
 the name is unclear · <strong>FOLD</strong> = fails both tests, merge into family plugin(s) ·
@@ -712,7 +712,7 @@ the name is unclear · <strong>FOLD</strong> = fails both tests, merge into fami
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_embree</span></code></p></td>
 <td><p>5</p></td>
-<td><p>embree + OpenMP via <code class="docutils literal notranslate"><span class="pre">QMeshLabEmbree</span></code></p></td>
+<td><p>embree + OpenMP via <code class="docutils literal notranslate"><span class="pre">MeshLab2Embree</span></code></p></td>
 <td><p>KEEP</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">filter_embree</span></code></p></td>
 </tr>
@@ -724,7 +724,7 @@ the name is unclear · <strong>FOLD</strong> = fails both tests, merge into fami
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_parametrization</span></code></p></td>
 <td><p>2</p></td>
-<td><p>libigl — gated on <code class="docutils literal notranslate"><span class="pre">QMeshLabPluginFilterIglCommon</span></code>, includes <code class="docutils literal notranslate"><span class="pre">igl/lscm.h</span></code>, <code class="docutils literal notranslate"><span class="pre">igl/harmonic.h</span></code></p></td>
+<td><p>libigl — gated on <code class="docutils literal notranslate"><span class="pre">MeshLab2PluginFilterIglCommon</span></code>, includes <code class="docutils literal notranslate"><span class="pre">igl/lscm.h</span></code>, <code class="docutils literal notranslate"><span class="pre">igl/harmonic.h</span></code></p></td>
 <td><p>MERGE</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">filter_igl</span></code></p></td>
 </tr>

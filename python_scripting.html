@@ -245,10 +245,10 @@
           <section class="tex2jax_ignore mathjax_ignore" id="python-scripting">
 <h1>Python Scripting<a class="headerlink" href="#python-scripting" title="Link to this heading">¶</a></h1>
 <p>QMeshLab can expose an embedded Python console and script editor when it is built
-with <code class="docutils literal notranslate"><span class="pre">QMESHLAB_PYTHON_CONSOLE=ON</span></code>. The embedded interpreter works on the live
+with <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PYTHON_CONSOLE=ON</span></code>. The embedded interpreter works on the live
 application document, so scripts can inspect the current scene, run filters,
 load/save meshes and rasters, and capture view snapshots.</p>
-<p>The shared API is the <code class="docutils literal notranslate"><span class="pre">pymeshlab2.MeshSet</span></code> interface, and QMeshLab reuses that
+<p>The shared API is the <code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet</span></code> interface, and QMeshLab reuses that
 same model inside the desktop application. Generated API reference files live
 under <code class="docutils literal notranslate"><span class="pre">docs/api/</span></code> when regenerated from the current filter descriptors; the
 local generated snapshot can lag until the app is run with <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code>.
@@ -261,7 +261,7 @@ console. Names created in the console and names created by scripts share the
 same namespace for the current QMeshLab session.</p>
 <section id="ms">
 <h3><code class="docutils literal notranslate"><span class="pre">ms</span></code><a class="headerlink" href="#ms" title="Link to this heading">¶</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">ms</span></code> is the live document, exposed as a <code class="docutils literal notranslate"><span class="pre">pymeshlab2.MeshSet</span></code>-compatible object. This is the
+<p><code class="docutils literal notranslate"><span class="pre">ms</span></code> is the live document, exposed as a <code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet</span></code>-compatible object. This is the
 main entry point for document and filter operations.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Meshes:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">())</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh</span><span class="p">())</span>
@@ -270,12 +270,12 @@ main entry point for document and filter operations.</p>
 </div>
 <p>Important: <code class="docutils literal notranslate"><span class="pre">ms</span></code> borrows the live QMeshLab <code class="docutils literal notranslate"><span class="pre">Document</span></code>. Calling modifying methods
 on it changes the open document.</p>
-<p>If you already know <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code>, you can think of <code class="docutils literal notranslate"><span class="pre">ms</span></code> as “the current
+<p>If you already know <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code>, you can think of <code class="docutils literal notranslate"><span class="pre">ms</span></code> as “the current
 QMeshLab document presented through the same MeshSet-style API”.</p>
 </section>
 <section id="mlgui">
 <h3><code class="docutils literal notranslate"><span class="pre">mlgui</span></code><a class="headerlink" href="#mlgui" title="Link to this heading">¶</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">mlgui</span></code> is the live GUI/view helper. It is backed by the private <code class="docutils literal notranslate"><span class="pre">_qmeshlab.MlGui</span></code> type. It is
+<p><code class="docutils literal notranslate"><span class="pre">mlgui</span></code> is the live GUI/view helper. It is backed by the private <code class="docutils literal notranslate"><span class="pre">_meshlab.MlGui</span></code> type. It is
 available in the desktop application when an active render view exists.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">mlgui</span><span class="o">.</span><span class="n">camera_state_json</span><span class="p">())</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">mlgui</span><span class="o">.</span><span class="n">render_state_json</span><span class="p">())</span>
@@ -285,22 +285,22 @@ available in the desktop application when an active render view exists.</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">mlgui</span></code> for view state and rendering operations. It is not meant to be a
 general document API.</p>
 </section>
-<section id="pymeshlab2">
-<h3><code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code><a class="headerlink" href="#pymeshlab2" title="Link to this heading">¶</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> is the public Python facade for standalone, GUI-less mesh processing.
+<section id="pymeshlab">
+<h3><code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code><a class="headerlink" href="#pymeshlab" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> is the public Python facade for standalone, GUI-less mesh processing.
 In the embedded QMeshLab console it is injected as a lightweight module backed by
-the same private <code class="docutils literal notranslate"><span class="pre">_qmeshlab</span></code> extension used by the headless package.</p>
+the same private <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> extension used by the headless package.</p>
 <p>Use it when you want a separate mesh set that does not operate on the live GUI
 document.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pymeshlab2</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pymeshlab</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="n">pymeshlab2</span><span class="o">.</span><span class="n">filter_list</span><span class="p">()[:</span><span class="mi">5</span><span class="p">])</span>
-<span class="n">other</span> <span class="o">=</span> <span class="n">pymeshlab2</span><span class="o">.</span><span class="n">MeshSet</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pymeshlab</span><span class="o">.</span><span class="n">filter_list</span><span class="p">()[:</span><span class="mi">5</span><span class="p">])</span>
+<span class="n">other</span> <span class="o">=</span> <span class="n">pymeshlab</span><span class="o">.</span><span class="n">MeshSet</span><span class="p">()</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"Standalone mesh set:"</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">())</span>
 </pre></div>
 </div>
 <p>Most scripts inside QMeshLab should use the predefined <code class="docutils literal notranslate"><span class="pre">ms</span></code> object. Import
-<code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> only when you want the same public API exposed by the GUI-less
+<code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> only when you want the same public API exposed by the GUI-less
 package, or when you want to create an independent <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code>.</p>
 </section>
 </section>
@@ -323,15 +323,15 @@ defaults at the time each action was recorded.</p>
 </section>
 <section id="available-module-objects">
 <h2>Available Module Objects<a class="headerlink" href="#available-module-objects" title="Link to this heading">¶</a></h2>
-<p>The public <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> facade exposes:</p>
+<p>The public <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> facade exposes:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab2.MeshSet</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab2.FilterInfo</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab2.FilterRunResult</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab2.MlGui</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab2.filter_list()</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab2.print_filter_list()</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab2.load_default_plugins()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.FilterInfo</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.FilterRunResult</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.MlGui</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.filter_list()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.print_filter_list()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.load_default_plugins()</span></code></p></li>
 </ul>
 </section>
 <section id="meshset-basics">
@@ -439,7 +439,7 @@ and choose either the full or compact format.</p>
 </section>
 <section id="filter-results">
 <h2>Filter Results<a class="headerlink" href="#filter-results" title="Link to this heading">¶</a></h2>
-<p>Filter calls return a <code class="docutils literal notranslate"><span class="pre">pymeshlab2.FilterRunResult</span></code>-compatible object.</p>
+<p>Filter calls return a <code class="docutils literal notranslate"><span class="pre">pymeshlab.FilterRunResult</span></code>-compatible object.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">apply_filter</span><span class="p">(</span><span class="s2">"mesh_info"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"precision"</span><span class="p">:</span> <span class="mi">3</span><span class="p">})</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="s2">"success:"</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">)</span>
@@ -480,10 +480,10 @@ and choose either the full or compact format.</p>
 </pre></div>
 </div>
 <p>Render from a standalone mesh set without borrowing the live GUI document:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pymeshlab2</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pymeshlab</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
-<span class="n">other</span> <span class="o">=</span> <span class="n">pymeshlab2</span><span class="o">.</span><span class="n">MeshSet</span><span class="p">()</span>
+<span class="n">other</span> <span class="o">=</span> <span class="n">pymeshlab</span><span class="o">.</span><span class="n">MeshSet</span><span class="p">()</span>
 <span class="n">other</span><span class="o">.</span><span class="n">load_new_mesh</span><span class="p">(</span><span class="s2">"/tmp/input.ply"</span><span class="p">)</span>
 <span class="n">state_json</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"/tmp/render_state.json"</span><span class="p">)</span><span class="o">.</span><span class="n">read_text</span><span class="p">()</span>
 <span class="n">pixels</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">render_snapshot</span><span class="p">(</span><span class="n">state_json</span><span class="p">,</span> <span class="mi">800</span><span class="p">,</span> <span class="mi">600</span><span class="p">)</span>
@@ -523,10 +523,10 @@ processing and batch-style scripts.</p>
 <section id="caveats">
 <h2>Caveats<a class="headerlink" href="#caveats" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">_qmeshlab</span></code> is the private compiled extension module. User scripts should prefer the predefined <code class="docutils literal notranslate"><span class="pre">ms</span></code> object or <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">pymeshlab2</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> is the private compiled extension module. User scripts should prefer the predefined <code class="docutils literal notranslate"><span class="pre">ms</span></code> object or <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">pymeshlab</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">ms</span></code> operates on the live document; scripts can modify the scene.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">mlgui</span></code> depends on an active desktop render view.</p></li>
-<li><p>Standalone <code class="docutils literal notranslate"><span class="pre">pymeshlab2.MeshSet()</span></code> objects own their own document and do not
+<li><p>Standalone <code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet()</span></code> objects own their own document and do not
 automatically share the live application document.</p></li>
 <li><p>History-generated scripts replay recorded action metadata. Compact scripts are
 intentionally smaller and omit descriptor-default parameters; full scripts are
@@ -578,7 +578,7 @@ when you need exact parameter names.</p></li>
 <li><a class="reference internal" href="#predefined-names">Predefined Names</a><ul>
 <li><a class="reference internal" href="#ms"><code class="docutils literal notranslate"><span class="pre">ms</span></code></a></li>
 <li><a class="reference internal" href="#mlgui"><code class="docutils literal notranslate"><span class="pre">mlgui</span></code></a></li>
-<li><a class="reference internal" href="#pymeshlab2"><code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code></a></li>
+<li><a class="reference internal" href="#pymeshlab"><code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#console-and-script-editor">Console and Script Editor</a></li>

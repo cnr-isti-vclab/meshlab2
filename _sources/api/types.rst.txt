@@ -8,48 +8,48 @@ Supporting Types
    Describes one registered filter.
 
 
-.. py:currentmodule:: _qmeshlab
+.. py:currentmodule:: _meshlab
 
 Attributes
 ----------
 
 .. py:attribute:: FilterInfo.applicability_error
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> str
 
 .. py:attribute:: FilterInfo.applicable
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> bool
 
 .. py:attribute:: FilterInfo.id
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> str
 
 .. py:attribute:: FilterInfo.key
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> str
 
 .. py:attribute:: FilterInfo.name
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> str
 
 .. py:attribute:: FilterInfo.plugin_id
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> str
 
 .. py:attribute:: FilterInfo.plugin_name
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> str
 
 .. py:attribute:: FilterInfo.python_name
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> str
 
@@ -57,12 +57,12 @@ Methods
 -------
 
 .. py:method:: FilterInfo.__init__(self, /, *args, **kwargs)
-   :module: _qmeshlab
+   :module: _meshlab
 
    Initialize self.  See help(type(self)) for accurate signature.
 
 .. py:method:: FilterInfo.__repr__(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    __repr__(self) -> str
 
@@ -71,38 +71,38 @@ Methods
    Return value from ``apply_filter``.
 
 
-.. py:currentmodule:: _qmeshlab
+.. py:currentmodule:: _meshlab
 
 Attributes
 ----------
 
 .. py:attribute:: FilterRunResult.document_modified
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> bool
 
 .. py:attribute:: FilterRunResult.error_message
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> str
 
 .. py:attribute:: FilterRunResult.info_messages
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> list[str]
 
 .. py:attribute:: FilterRunResult.new_mesh_indices
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> list[int]
 
 .. py:attribute:: FilterRunResult.output_values
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> dict
 
 .. py:attribute:: FilterRunResult.success
-   :module: _qmeshlab
+   :module: _meshlab
 
    (self) -> bool
 
@@ -110,12 +110,12 @@ Methods
 -------
 
 .. py:method:: FilterRunResult.__init__(self, /, *args, **kwargs)
-   :module: _qmeshlab
+   :module: _meshlab
 
    Initialize self.  See help(type(self)) for accurate signature.
 
 .. py:method:: FilterRunResult.__repr__(self, /)
-   :module: _qmeshlab
+   :module: _meshlab
 
    Return repr(self).
 

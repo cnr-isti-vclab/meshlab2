@@ -253,7 +253,7 @@ session. Opt-in rates rise sharply when the payload is inspectable, and the same
 viewer is the best debugging tool the feature has.
 
 Additional rules: consent is versioned, and a schema change that adds a *category* of
-data re-asks; `QMESHLAB_NO_TELEMETRY=1` and the conventional `DO_NOT_TRACK=1` force
+data re-asks; `MESHLAB2_NO_TELEMETRY=1` and the conventional `DO_NOT_TRACK=1` force
 off; headless, Python-driven, `--generate-docs` and test runs default to off, because
 there is no one present to consent — a CI farm must never be able to skew the data.
 

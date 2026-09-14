@@ -249,7 +249,7 @@ model. <strong>Nothing described here is implemented.</strong> It exists to make
 choices explicit before any code is written, and to record which of QMeshLab’s
 existing mechanisms are already load-bearing for this purpose.</p>
 <p>See also: <a class="reference internal" href="../architecture.html"><span class="std std-doc">Architecture</span></a> (layers and ownership),
-<a class="reference internal" href="../../python_scripting.html"><span class="std std-doc">Python Scripting</span></a> (the current <code class="docutils literal notranslate"><span class="pre">ms</span></code> / <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> surface),
+<a class="reference internal" href="../../python_scripting.html"><span class="std std-doc">Python Scripting</span></a> (the current <code class="docutils literal notranslate"><span class="pre">ms</span></code> / <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> surface),
 <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a> (the naming grammar that makes filters machine-legible),
 <a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a> and <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>
 (descriptor schema).</p>
@@ -324,10 +324,10 @@ independently, for its own reasons.</p>
 <p>Two gaps, of very different size.</p>
 <ol class="arabic">
 <li><p><strong>The headless distribution is a separate, much smaller build.</strong> Inside the
-app, <code class="docutils literal notranslate"><span class="pre">_qmeshlab</span></code> is a <em>static</em> library (<code class="docutils literal notranslate"><span class="pre">src/python/CMakeLists.txt</span></code>)
-registered via <code class="docutils literal notranslate"><span class="pre">PyImport_AppendInittab</span></code>, and <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> is a shim module
+app, <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> is a <em>static</em> library (<code class="docutils literal notranslate"><span class="pre">src/python/CMakeLists.txt</span></code>)
+registered via <code class="docutils literal notranslate"><span class="pre">PyImport_AppendInittab</span></code>, and <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> is a shim module
 synthesized at runtime in <code class="docutils literal notranslate"><span class="pre">PythonHost.cpp</span></code>. A real wheel does exist, in the
-sibling repository <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code> (scikit-build-core + nanobind), which
+sibling repository <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab</span></code> (scikit-build-core + nanobind), which
 consumes QMeshLab as a submodule. Three kinds of drift separate them, and
 only the third is substantial:</p>
 <ul class="simple">
@@ -335,7 +335,7 @@ only the third is substantial:</p>
 <code class="docutils literal notranslate"><span class="pre">src/python/bindings/{module,meshset_core}.cpp</span></code> directly out of the
 QMeshLab submodule — the same sources the app compiles.</p></li>
 <li><p><em>Facade</em>: two hand-maintained name lists. <code class="docutils literal notranslate"><span class="pre">PythonHost.cpp</span></code> exposes seven
-names; the wheel’s <code class="docutils literal notranslate"><span class="pre">python/pymeshlab2/__init__.py</span></code> exposes three. Small,
+names; the wheel’s <code class="docutils literal notranslate"><span class="pre">python/pymeshlab/__init__.py</span></code> exposes three. Small,
 already drifted, and best fixed by giving it a single source of truth.</p></li>
 <li><p><em>Build graph</em>: the wheel’s <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code> hand-enumerates QMeshLab
 sources and enables <strong>2 plugins out of the 40</strong> wired in
@@ -393,7 +393,7 @@ what makes the search leg viable.</p></li>
 <h3>C. How it is wired<a class="headerlink" href="#c-how-it-is-wired" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><strong>Out-of-process, headless.</strong> An MCP (or similar) server over an importable
-<code class="docutils literal notranslate"><span class="pre">_qmeshlab</span></code>. No GUI, no C++ changes beyond the extension-module packaging.
+<code class="docutils literal notranslate"><span class="pre">_meshlab</span></code>. No GUI, no C++ changes beyond the extension-module packaging.
 Testable in CI, safe to iterate on, works with existing model clients.</p></li>
 <li><p><strong>Out-of-process, live document.</strong> The same server attached to a running
 QMeshLab over <code class="docutils literal notranslate"><span class="pre">QLocalServer</span></code>. Substantially more valuable — the user watches
@@ -413,7 +413,7 @@ exists.</p></li>
 <ol class="arabic simple">
 <li><p><strong>Filter discovery</strong> — “which filter removes these spikes?” Retrieval over
 descriptors. No mesh mutation, no agent loop. Lowest risk, immediate value.</p></li>
-<li><p><strong>Script authoring</strong> — natural language to a <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> script.</p></li>
+<li><p><strong>Script authoring</strong> — natural language to a <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> script.</p></li>
 <li><p><strong>Pipeline execution</strong> — “clean this scan, decimate to 50k, preserve
 boundaries.” Needs the act/observe loop.</p></li>
 <li><p><strong>Closed-loop quality</strong> — “simplify until Hausdorff stays under 0.1%.” The

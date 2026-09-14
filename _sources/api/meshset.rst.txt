@@ -7,163 +7,163 @@ This page documents the core ``MeshSet`` API.
 Filter-specific methods are documented in :ref:`filters` to avoid
 duplicating the full filter list here.
 
-.. py:currentmodule:: _qmeshlab
+.. py:currentmodule:: _meshlab
 
 Methods
 -------
 
 .. py:method:: MeshSet.__init__(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    __init__(self) -> None
 
 .. py:method:: MeshSet.__len__(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    __len__(self) -> int
 
 .. py:method:: MeshSet.__repr__(self, /)
-   :module: _qmeshlab
+   :module: _meshlab
 
    Return repr(self).
 
 .. py:method:: MeshSet.apply_filter(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
-   apply_filter(self, filter: str, params: dict = {}) -> _qmeshlab.FilterRunResult
+   apply_filter(self, filter: str, params: dict = {}) -> _meshlab.FilterRunResult
 
 .. py:method:: MeshSet.clear(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    clear(self) -> None
 
 .. py:method:: MeshSet.current_mesh(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    current_mesh(self) -> object
 
 .. py:method:: MeshSet.current_mesh_id(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    current_mesh_id(self) -> int
 
 .. py:method:: MeshSet.current_raster(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    current_raster(self) -> int
 
 .. py:method:: MeshSet.filter_list(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    filter_list(self) -> list[str]
 
 .. py:method:: MeshSet.is_current_mesh_visible(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    is_current_mesh_visible(self) -> bool
 
 .. py:method:: MeshSet.is_mesh_visible(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    is_mesh_visible(self, id: int) -> bool
 
 .. py:method:: MeshSet.list_filters(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
-   list_filters(self) -> list[_qmeshlab.FilterInfo]
+   list_filters(self) -> list[_meshlab.FilterInfo]
 
 .. py:method:: MeshSet.load_new_mesh(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    load_new_mesh(self, path: str) -> None
 
 .. py:method:: MeshSet.load_new_raster(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    load_new_raster(self, file_name: str) -> None
 
 .. py:method:: MeshSet.load_project(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    load_project(self, file_name: str) -> None
 
 .. py:method:: MeshSet.load_raster_image(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    load_raster_image(self, path: str) -> None
 
 .. py:method:: MeshSet.mesh(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    mesh(self, index: int) -> object
 
 .. py:method:: MeshSet.mesh_count(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    mesh_count(self) -> int
 
 .. py:method:: MeshSet.mesh_id_exists(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    mesh_id_exists(self, id: int) -> bool
 
 .. py:method:: MeshSet.mesh_number(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    mesh_number(self) -> int
 
 .. py:method:: MeshSet.number_meshes(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    number_meshes(self) -> int
 
 .. py:method:: MeshSet.number_rasters(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    number_rasters(self) -> int
 
 .. py:method:: MeshSet.raster_count(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    raster_count(self) -> int
 
 .. py:method:: MeshSet.raster_number(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    raster_number(self) -> int
 
 .. py:method:: MeshSet.render_snapshot(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    render_snapshot(self, render_state_json: str, width: int, height: int) -> bytes
 
 .. py:method:: MeshSet.save_current_mesh(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    save_current_mesh(self, path: str) -> None
 
 .. py:method:: MeshSet.save_project(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    save_project(self, file_name: str) -> None
 
 .. py:method:: MeshSet.set_current_mesh(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    set_current_mesh(self, index: int) -> None
 
 .. py:method:: MeshSet.set_current_mesh_visibility(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    set_current_mesh_visibility(self, visibility: bool) -> None
 
 .. py:method:: MeshSet.set_current_raster(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    set_current_raster(self, index: int) -> None
 
 .. py:method:: MeshSet.set_mesh_visibility(...)
-   :module: _qmeshlab
+   :module: _meshlab
 
    set_mesh_visibility(self, id: int, visibility: bool) -> None
 

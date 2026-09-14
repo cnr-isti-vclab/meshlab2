@@ -1,15 +1,21 @@
 # Repository Rename: QMeshLab → meshlab2
 
-A plan for renaming the project. **Nothing described here has been done.** It
-exists so the rename happens in reviewable pieces with the traps identified
-first, rather than as one large find-and-replace.
+A plan for renaming the project, and the record of it being carried out. See
+[Status](#status) for how far it has got.
+
+> **Exclude this file from any rename sweep.** It quotes the old identifiers on
+> purpose — the "Current" column below is the only surviving record of what the
+> names used to be. The Phase 1 and Phase 2 sweeps rewrote it once and the
+> mapping had to be restored from `git show 8fe38b7`.
 
 See also: [Architecture](../architecture.md), [Adding a Filter](../adding_a_filter.md)
 (the plugin-id convention), [Preferences](../preferences.md) (where user settings live).
 
 ## Status
 
-As of 2026-09-13: planned, not started. The measurements below were taken on
+As of 2026-09-13: Phase 0 done (repo renamed to `cnr-isti-vclab/meshlab2`).
+Phases 1 and 2 committed (`f2542a0`, `75ca2cc`); Phase 3 applied; Phase 4
+prepared (the two `mv`s are the user's to run). The measurements below were taken on
 that date against the tracked tree.
 
 ## "The rename" is six separate things
@@ -149,6 +155,23 @@ those images silently stop restoring their camera.
 
 Cheap fix, and it belongs with Phase 3: write the new key, accept either on read.
 
+`layerfilterplugin.cpp:451` is the same shape: the exported raster-camera XML uses
+`QMeshLabRasterCameras` as its root element. Nothing in this tree reads it back, so
+it is an export format for other tools to consume. A third is the memory report's
+schema string `org.qmeshlab.memory-report.v1` (`mainwindow.cpp:2936`), which is
+versioned and read by whatever consumes the exported JSON.
+
+Phase 3 found two more of the same shape: `QMeshLab.CameraState` and
+`QMeshLab.RenderState`, the `kind` tag on camera and render state JSON, which is
+**validated on read** (`renderwidget.cpp`, `meshfilterpluginmanager.cpp`) and
+travels in saved snapshots, copied state and any script pinning a `cameraState`
+parameter.
+
+All five were renamed in Phase 3 with the writers emitting the new spelling and
+the readers accepting both. `stateJsonAcceptsBothNameSpellings` in
+`tests/test_filters.cpp` holds that compatibility in place, since a promise of
+this kind is otherwise deleted by the next cleanup.
+
 ## Sequencing
 
 Five phases. Each is a separate commit, each leaves the tree building and the
@@ -170,6 +193,13 @@ existing clones keep working and no one has to do anything. Then:
 
 This phase is free and reversible, and it is worth doing first so the name is
 settled before any code churns.
+
+> **A regex with `\b` before the prefix is not enough.** Phase 1 used `\bQMESH_`
+> and missed every `-DQMESH_PLUGIN_...` in CI and docs, because `-D` leaves no word
+> boundary. CMake accepts an unknown `-D` silently, so `.github/workflows/docs.yml`
+> would have built with defaults instead of the flags it names — a silent behaviour
+> change, not a failure. Found and fixed during Phase 4. Verify option renames by
+> grepping the `-D` call sites too, not just `option()` declarations.
 
 ### Phase 1 — build identifiers
 
@@ -193,7 +223,7 @@ PREFIX — and [Adding a Filter](../adding_a_filter.md) states the invariant tha
 the prefix must match the id, so all three move together or the descriptors fail
 to load.
 
-Guard: `QMeshLabFilterDescriptorTests` and `QMeshLabFilterCreationTests` both
+Guard: `MeshLab2FilterDescriptorTests` and `MeshLab2FilterCreationTests` both
 load every descriptor, so a mismatch fails fast rather than at runtime.
 
 The Python API is unaffected — scripts call `apply_filter("do_something", …)`
@@ -259,12 +289,12 @@ move first and confirm `--resume` before deleting anything.
 Two further passes, both cheap:
 
 - **Memory files.** 17 of the 24 mention `QMeshLab`, including six build-target
-  names (`QMeshLabCore`, `QMeshLabEmbree`, `QMeshLabFilterSmokeTests`, …). Stale
+  names (`MeshLab2Core`, `MeshLab2Embree`, `MeshLab2FilterSmokeTests`, …). Stale
   target names in memory are worse than no memory: the agent will confidently
   run a build command that no longer exists. Sweep them in the same phase.
 - **`.claude/settings.local.json`.** **65 entries** mention `QMeshLab`, most of
   them permission rules for build commands such as
-  `cmake --build … --target QMeshLab -j8`. After Phase 1 these stop matching and
+  `cmake --build … --target MeshLab2 -j8`. After Phase 1 these stop matching and
   every build prompts for permission again. They are prefix rules, so the fix is
   the same rename applied to the file.
 
@@ -277,7 +307,7 @@ a different agent but is in the same tree and should be swept with the docs.
 |---|---|---|
 | A blanket case-insensitive replace destroys the ~180 genuine MeshLab references | High | Case-sensitive, family-by-family; `MeshLabProject*` explicitly excluded; review the diff for `MeshLab` without `2` |
 | User preferences orphaned by the app-name change | High | Migration shim in Phase 3, kept for a release |
-| A renamed `QMESH_PLUGIN_*` option silently disables a plugin | Medium | Diff the built plugin list before and after Phase 1 |
+| A renamed `MESHLAB2_PLUGIN_*` option silently disables a plugin | Medium | Diff the built plugin list before and after Phase 1 |
 | Bundle-id change resets TCC and Gatekeeper | Low, one-time | Expected and desirable; note it in the release notes |
 | Agent memory and history orphaned | Medium | `mv` the project directory in the same sitting (Phase 4) |
 | In-flight branches conflict massively | Medium | Do the rename when no long-lived branch is open; each phase is one commit, so rebases resolve per-family |

@@ -244,14 +244,21 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="repository-rename-qmeshlab-meshlab2">
 <h1>Repository Rename: QMeshLab → meshlab2<a class="headerlink" href="#repository-rename-qmeshlab-meshlab2" title="Link to this heading">¶</a></h1>
-<p>A plan for renaming the project. <strong>Nothing described here has been done.</strong> It
-exists so the rename happens in reviewable pieces with the traps identified
-first, rather than as one large find-and-replace.</p>
+<p>A plan for renaming the project, and the record of it being carried out. See
+<a class="reference internal" href="#status"><span class="xref myst">Status</span></a> for how far it has got.</p>
+<blockquote>
+<div><p><strong>Exclude this file from any rename sweep.</strong> It quotes the old identifiers on
+purpose — the “Current” column below is the only surviving record of what the
+names used to be. The Phase 1 and Phase 2 sweeps rewrote it once and the
+mapping had to be restored from <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">show</span> <span class="pre">8fe38b7</span></code>.</p>
+</div></blockquote>
 <p>See also: <a class="reference internal" href="../architecture.html"><span class="std std-doc">Architecture</span></a>, <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>
 (the plugin-id convention), <a class="reference internal" href="../preferences.html"><span class="std std-doc">Preferences</span></a> (where user settings live).</p>
 <section id="status">
 <h2>Status<a class="headerlink" href="#status" title="Link to this heading">¶</a></h2>
-<p>As of 2026-09-13: planned, not started. The measurements below were taken on
+<p>As of 2026-09-13: Phase 0 done (repo renamed to <code class="docutils literal notranslate"><span class="pre">cnr-isti-vclab/meshlab2</span></code>).
+Phases 1 and 2 committed (<code class="docutils literal notranslate"><span class="pre">f2542a0</span></code>, <code class="docutils literal notranslate"><span class="pre">75ca2cc</span></code>); Phase 3 applied; Phase 4
+prepared (the two <code class="docutils literal notranslate"><span class="pre">mv</span></code>s are the user’s to run). The measurements below were taken on
 that date against the tracked tree.</p>
 </section>
 <section id="the-rename-is-six-separate-things">
@@ -535,6 +542,20 @@ under the text key <code class="docutils literal notranslate"><span class="pre">
 reads it back. Snapshots already saved in the wild carry that key. Rename it and
 those images silently stop restoring their camera.</p>
 <p>Cheap fix, and it belongs with Phase 3: write the new key, accept either on read.</p>
+<p><code class="docutils literal notranslate"><span class="pre">layerfilterplugin.cpp:451</span></code> is the same shape: the exported raster-camera XML uses
+<code class="docutils literal notranslate"><span class="pre">QMeshLabRasterCameras</span></code> as its root element. Nothing in this tree reads it back, so
+it is an export format for other tools to consume. A third is the memory report’s
+schema string <code class="docutils literal notranslate"><span class="pre">org.qmeshlab.memory-report.v1</span></code> (<code class="docutils literal notranslate"><span class="pre">mainwindow.cpp:2936</span></code>), which is
+versioned and read by whatever consumes the exported JSON.</p>
+<p>Phase 3 found two more of the same shape: <code class="docutils literal notranslate"><span class="pre">QMeshLab.CameraState</span></code> and
+<code class="docutils literal notranslate"><span class="pre">QMeshLab.RenderState</span></code>, the <code class="docutils literal notranslate"><span class="pre">kind</span></code> tag on camera and render state JSON, which is
+<strong>validated on read</strong> (<code class="docutils literal notranslate"><span class="pre">renderwidget.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">meshfilterpluginmanager.cpp</span></code>) and
+travels in saved snapshots, copied state and any script pinning a <code class="docutils literal notranslate"><span class="pre">cameraState</span></code>
+parameter.</p>
+<p>All five were renamed in Phase 3 with the writers emitting the new spelling and
+the readers accepting both. <code class="docutils literal notranslate"><span class="pre">stateJsonAcceptsBothNameSpellings</span></code> in
+<code class="docutils literal notranslate"><span class="pre">tests/test_filters.cpp</span></code> holds that compatibility in place, since a promise of
+this kind is otherwise deleted by the next cleanup.</p>
 </section>
 </section>
 <section id="sequencing">
@@ -557,6 +578,14 @@ redirects.</p></li>
 </ul>
 <p>This phase is free and reversible, and it is worth doing first so the name is
 settled before any code churns.</p>
+<blockquote>
+<div><p><strong>A regex with <code class="docutils literal notranslate"><span class="pre">\b</span></code> before the prefix is not enough.</strong> Phase 1 used <code class="docutils literal notranslate"><span class="pre">\bQMESH_</span></code>
+and missed every <code class="docutils literal notranslate"><span class="pre">-DQMESH_PLUGIN_...</span></code> in CI and docs, because <code class="docutils literal notranslate"><span class="pre">-D</span></code> leaves no word
+boundary. CMake accepts an unknown <code class="docutils literal notranslate"><span class="pre">-D</span></code> silently, so <code class="docutils literal notranslate"><span class="pre">.github/workflows/docs.yml</span></code>
+would have built with defaults instead of the flags it names — a silent behaviour
+change, not a failure. Found and fixed during Phase 4. Verify option renames by
+grepping the <code class="docutils literal notranslate"><span class="pre">-D</span></code> call sites too, not just <code class="docutils literal notranslate"><span class="pre">option()</span></code> declarations.</p>
+</div></blockquote>
 </section>
 <section id="phase-1-build-identifiers">
 <h3>Phase 1 — build identifiers<a class="headerlink" href="#phase-1-build-identifiers" title="Link to this heading">¶</a></h3>
@@ -577,7 +606,7 @@ its <code class="docutils literal notranslate"><span class="pre">filters.json</s
 PREFIX — and <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a> states the invariant that
 the prefix must match the id, so all three move together or the descriptors fail
 to load.</p>
-<p>Guard: <code class="docutils literal notranslate"><span class="pre">QMeshLabFilterDescriptorTests</span></code> and <code class="docutils literal notranslate"><span class="pre">QMeshLabFilterCreationTests</span></code> both
+<p>Guard: <code class="docutils literal notranslate"><span class="pre">MeshLab2FilterDescriptorTests</span></code> and <code class="docutils literal notranslate"><span class="pre">MeshLab2FilterCreationTests</span></code> both
 load every descriptor, so a mismatch fails fast rather than at runtime.</p>
 <p>The Python API is unaffected — scripts call <code class="docutils literal notranslate"><span class="pre">apply_filter(&quot;do_something&quot;,</span> <span class="pre">…)</span></code>
 using <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>, and <code class="docutils literal notranslate"><span class="pre">filterKey</span></code> (<code class="docutils literal notranslate"><span class="pre">pluginId::filterId</span></code>) is in-memory only,
@@ -653,12 +682,12 @@ move first and confirm <code class="docutils literal notranslate"><span class="p
 <p>Two further passes, both cheap:</p>
 <ul class="simple">
 <li><p><strong>Memory files.</strong> 17 of the 24 mention <code class="docutils literal notranslate"><span class="pre">QMeshLab</span></code>, including six build-target
-names (<code class="docutils literal notranslate"><span class="pre">QMeshLabCore</span></code>, <code class="docutils literal notranslate"><span class="pre">QMeshLabEmbree</span></code>, <code class="docutils literal notranslate"><span class="pre">QMeshLabFilterSmokeTests</span></code>, …). Stale
+names (<code class="docutils literal notranslate"><span class="pre">MeshLab2Core</span></code>, <code class="docutils literal notranslate"><span class="pre">MeshLab2Embree</span></code>, <code class="docutils literal notranslate"><span class="pre">MeshLab2FilterSmokeTests</span></code>, …). Stale
 target names in memory are worse than no memory: the agent will confidently
 run a build command that no longer exists. Sweep them in the same phase.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">.claude/settings.local.json</span></code>.</strong> <strong>65 entries</strong> mention <code class="docutils literal notranslate"><span class="pre">QMeshLab</span></code>, most of
 them permission rules for build commands such as
-<code class="docutils literal notranslate"><span class="pre">cmake</span> <span class="pre">--build</span> <span class="pre">…</span> <span class="pre">--target</span> <span class="pre">QMeshLab</span> <span class="pre">-j8</span></code>. After Phase 1 these stop matching and
+<code class="docutils literal notranslate"><span class="pre">cmake</span> <span class="pre">--build</span> <span class="pre">…</span> <span class="pre">--target</span> <span class="pre">MeshLab2</span> <span class="pre">-j8</span></code>. After Phase 1 these stop matching and
 every build prompts for permission again. They are prefix rules, so the fix is
 the same rename applied to the file.</p></li>
 </ul>
@@ -684,7 +713,7 @@ a different agent but is in the same tree and should be swept with the docs.</p>
 <td><p>High</p></td>
 <td><p>Migration shim in Phase 3, kept for a release</p></td>
 </tr>
-<tr class="row-even"><td><p>A renamed <code class="docutils literal notranslate"><span class="pre">QMESH_PLUGIN_*</span></code> option silently disables a plugin</p></td>
+<tr class="row-even"><td><p>A renamed <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PLUGIN_*</span></code> option silently disables a plugin</p></td>
 <td><p>Medium</p></td>
 <td><p>Diff the built plugin list before and after Phase 1</p></td>
 </tr>
