@@ -21,7 +21,7 @@ Undo/redo integration: undo-tree nodes include one `ViewState` snapshot (active 
 - `RenderWidget::renderStateJson()` exports the current per-view rendering state.
 - `RenderWidget::applyRenderStateJson(...)` applies such JSON back to a view.
 
-Schema (`kind = "QMeshLab.RenderState"`, `version = 1`) includes:
+Schema (`kind = "MeshLab.RenderState"`, `version = 1`) includes:
 
 - `view_mode`: `Scene3D` | `ParametrizationUV` | `RasterImage`
 - `raster_opacity`: float in `[0, 1]`
@@ -42,7 +42,7 @@ Design notes:
 Filter integration:
 
 - `MainWindow` wires `Document::setRenderStateSnapshotFunction(...)` to the active view. `Document::renderSnapshotFromStateJson(...)` applies JSON to that view, renders an offscreen image at the requested size, returns both the `QImage` and resulting `CameraShot`, then restores the previous render state.
-- Layer menu filter `Render from Render-State JSON` (`id: render_from_render_state_json`) consumes typed `camera_state` (`QMeshLab.CameraState`) and `render_state` (`QMeshLab.RenderState`) payloads and runs an offscreen render.
+- Layer menu filter `Render from Render-State JSON` (`id: render_from_render_state_json`) consumes typed `camera_state` (`MeshLab.CameraState`) and `render_state` (`MeshLab.RenderState`) payloads and runs an offscreen render.
 - Both parameters support the same UI source modes: inline text, JSON file, or capture from current view.
 - The filter can write a PNG snapshot and/or inject the snapshot as a raster layer, enabling reproducible scriptable rendering workflows.
 
@@ -59,7 +59,7 @@ The same request object is used for two things:
 
 `RenderFrameRequest` adds frame-local state to the pass requests: view mode, pixel size, projection matrix, view matrix, light direction, and raster overlay state (opacity plus raster pan/zoom in `RasterImage` mode). `RenderFramePlan` is the concrete in-process result: fill items, buffer items, decorator items, selection items, and raster draw items with QRhi buffers/pipelines and material renderer pointers. Pass presence is derived from non-empty draw-item lists (`hasFillPass()`, `hasSceneDrawItems()`, etc.).
 
-This is an internal architecture boundary, not a public serialization contract. The implemented programmatic path serializes camera/render-state intent and lets QMeshLab build the GPU `RenderFramePlan` internally.
+This is an internal architecture boundary, not a public serialization contract. The implemented programmatic path serializes camera/render-state intent and lets MeshLab build the GPU `RenderFramePlan` internally.
 
 ## Shared GPU Cache (`MeshGpuResourceCache`)
 
@@ -170,7 +170,7 @@ Current built-in tools:
 
 ## Camera Models: `CameraShot` vs `ViewTrackball`
 
-QMeshLab uses two distinct camera representations that overlap but are not interchangeable:
+MeshLab uses two distinct camera representations that overlap but are not interchangeable:
 
 | | `CameraShot` | `ViewTrackball` |
 |---|---|---|
@@ -232,7 +232,7 @@ PBR rendering can consume normal maps directly as either tangent-space or object
 
 ## Snapshot Capture
 
-`MainWindow::saveSnapshotPng()`: set fixed color-buffer size → request update → wait for `frameRendered` → `grabFramebuffer` → restore previous size. Saved PNG embeds camera JSON in `QMeshLab.CameraTrackballState` metadata.
+`MainWindow::saveSnapshotPng()`: set fixed color-buffer size → request update → wait for `frameRendered` → `grabFramebuffer` → restore previous size. Saved PNG embeds camera JSON in `MeshLab.CameraTrackballState` metadata.
 
 Snapshot-to-raster paths reuse the same view capture mechanics but add the resulting image to `Document` through `addRasterImage(...)` with a `CameraShot` from `RenderWidget::cameraShotForViewport(...)` or from `renderSnapshotFromStateJson(...)`. This is how manual snapshot rasters and the `Render from Render-State JSON` layer filter create raster layers.
 

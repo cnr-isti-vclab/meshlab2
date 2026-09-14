@@ -67,7 +67,7 @@ bool copyToVcgMesh(const Buffer &buffer, VCGMesh &mesh)
         const std::size_t n = std::size_t(face.size());
         if (n < 3)
             continue;
-        // Fan-triangulate: QMeshLab stores triangle meshes.
+        // Fan-triangulate: MeshLab stores triangle meshes.
         for (std::size_t k = 2; k < n; ++k) {
             const int a = int(face[0]);
             const int b = int(face[k - 1]);

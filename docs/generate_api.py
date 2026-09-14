@@ -1,7 +1,7 @@
 """
-QMeshLab Python API documentation generator.
+MeshLab Python API documentation generator.
 
-Run from within the QMeshLab desktop app (--generate-docs flag).
+Run from within the MeshLab desktop app (--generate-docs flag).
 The _meshlab module is already imported when this script executes.
 """
 
@@ -301,7 +301,7 @@ def _write_filter_markdown(fh, filter_list):
 def generate(output_dir):
     """Main entry point.  *output_dir* is the path where .rst files are written.
 
-    This function is called from within the QMeshLab app after the
+    This function is called from within the MeshLab app after the
     `--generate-docs` flag has initialised the Python interpreter and
     imported the ``_meshlab`` module.
     """
@@ -339,7 +339,7 @@ def generate(output_dir):
         fh.write('.. _mlgui-api:\n\n')
         fh.write('MlGui\n')
         fh.write('=====\n\n')
-        fh.write('The ``mlgui`` object is available only when running QMeshLab\n')
+        fh.write('The ``mlgui`` object is available only when running MeshLab\n')
         fh.write('with a visible window (desktop app).  It is not available in\n')
         fh.write('headless pymeshlab.\n\n')
         _write_methods_rst(fh, 'MlGui', mlgui_members)
@@ -384,5 +384,5 @@ def generate(output_dir):
 if __name__ == '__main__':
     # Standalone test (runs outside the app, won't work because _meshlab
     # isn't loaded).  Use the --generate-docs app flag instead.
-    print("This script runs inside the QMeshLab app via --generate-docs.")
-    print("  ./QMeshLab --generate-docs <output_dir>")
+    print("This script runs inside the MeshLab app via --generate-docs.")
+    print("  ./MeshLab --generate-docs <output_dir>")

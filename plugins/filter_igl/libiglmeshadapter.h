@@ -7,7 +7,7 @@
 #include <QString>
 #include <vector>
 
-namespace qmeshlab::libigl {
+namespace meshlab::libigl {
 
 using VertexMatrix = Eigen::Matrix<double, Eigen::Dynamic, 3, Eigen::RowMajor>;
 using FaceMatrix = Eigen::Matrix<int, Eigen::Dynamic, 3, Eigen::RowMajor>;
@@ -69,4 +69,4 @@ bool writeVertexCurvature(
     const Eigen::VectorXd &minimumValues,
     QString &error);
 
-} // namespace qmeshlab::libigl
+} // namespace meshlab::libigl

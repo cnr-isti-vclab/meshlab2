@@ -1,5 +1,5 @@
 # TrueForm is dual-licensed: PolyForm Noncommercial 1.0.0, or a commercial agreement with
-# XLAB — neither GPL-compatible. QMeshLab has explicit permission from the owners to
+# XLAB — neither GPL-compatible. MeshLab has explicit permission from the owners to
 # include it, which is why this is ON by default. That permission covers this project and
 # does not travel to third parties: redistributing a binary containing these components
 # needs a separate agreement with XLAB. See plugins/io_trueform/UPSTREAM.md.

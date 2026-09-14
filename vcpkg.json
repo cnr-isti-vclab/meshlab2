@@ -1,5 +1,5 @@
 {
-  "name": "qmeshlab",
+  "name": "meshlab",
   "version-string": "0.1.0",
   "description": "Qt6-based mesh viewer and editor prototype",
   "license": "GPL-2.0-or-later",

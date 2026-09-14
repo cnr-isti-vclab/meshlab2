@@ -47,7 +47,7 @@ bool validateStateJsonPayload(
 
     const QJsonObject root = doc.object();
     const QString kind = root.value(QStringLiteral("kind")).toString().trimmed();
-    // State captured before the 2026-09 rename carries the "QMeshLab." prefix.
+    // State captured before the 2026-09 rename carries the "MeshLab." prefix.
     const QString legacyKind =
         QStringLiteral("Q") + requiredKind;
     if (kind != requiredKind && kind != legacyKind) {

@@ -7,7 +7,7 @@ came from, which vendored files were modified locally, and how to refresh it.
 
 - Upstream repository: `https://github.com/mkazhdan/PoissonRecon`
 - Local reference clone used for comparison: `.reference/PoissonRecon`
-- Vendored subtree in QMeshLab: `plugins/filter_screened_poisson/Src`
+- Vendored subtree in MeshLab: `plugins/filter_screened_poisson/Src`
 - Current reference commit:
 
 ```text
@@ -15,10 +15,10 @@ cd6dc7d33f028b2e6496f5cd999c25cecd56aff2
 ```
 
 The vendored subtree was copied from `.reference/PoissonRecon/Src` and then kept
-as close as possible to the reference source. QMeshLab-specific integration code is kept
+as close as possible to the reference source. MeshLab-specific integration code is kept
 outside the vendored subtree.
 
-## QMeshLab integration files outside the vendored subtree
+## MeshLab integration files outside the vendored subtree
 
 These files are intentionally separate from `Src` so future refreshes
 remain easy to review:
@@ -39,7 +39,7 @@ At the moment, two files inside `Src` differ from the reference clone:
 
 ### Thread-count setter (`MultiThreading.h`)
 
-Purpose: expose a small setter for the PoissonRecon thread-count static so QMeshLab
+Purpose: expose a small setter for the PoissonRecon thread-count static so MeshLab
 can control the solver thread pool from the filter parameter/UI.
 
 Current local change:
@@ -50,7 +50,7 @@ Current local change:
 
 Rationale:
 
-- QMeshLab needs to map the filter `threads` parameter to the PoissonRecon backend.
+- MeshLab needs to map the filter `threads` parameter to the PoissonRecon backend.
 - Keeping this as a one-line vendored patch is simpler and easier to reapply than
   moving thread-pool control into a larger fork.
 
@@ -74,11 +74,11 @@ Rationale:
 - This is a syntax-only disambiguation; it does not alter the recursion or runtime
   behavior.
 - The form matches existing parenthesized conditions elsewhere in the same upstream
-  file and keeps QMeshLab's normal conforming compiler mode enabled.
+  file and keeps MeshLab's normal conforming compiler mode enabled.
 
 ## How to verify current local differences
 
-From the QMeshLab repo root:
+From the MeshLab repo root:
 
 ```bash
 diff -rq .reference/PoissonRecon/Src plugins/filter_screened_poisson/Src
@@ -121,7 +121,7 @@ plugins/filter_screened_poisson/check_upstream_status.sh
    - Reapply the minimal local vendored patches in `Src/MultiThreading.h` and
      `Src/FEMTree.h`
 
-4. Rebuild QMeshLab and retest:
+4. Rebuild MeshLab and retest:
 
 ```bash
 cmake --build build-release --target MeshLab2 -j4
@@ -134,6 +134,6 @@ cmake --build build-release --target MeshLab2 -j4
 
 ## Maintenance rule
 
-Try to keep all future QMeshLab-specific changes out of `Src` unless a
+Try to keep all future MeshLab-specific changes out of `Src` unless a
 small vendored patch is clearly preferable. When a vendored patch is necessary,
 record it here immediately.

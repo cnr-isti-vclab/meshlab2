@@ -148,7 +148,7 @@ void MathMarkdownRenderer::setMarkdown(QTextBrowser &browser, const QString &mar
 
         rendered += markdown.mid(copiedUntil, i - copiedUntil);
         const QString placeholder =
-            QStringLiteral("QMESHLABFORMULA%1TOKEN").arg(formulas.size());
+            QStringLiteral("MESHLABFORMULA%1TOKEN").arg(formulas.size());
         rendered += display
             ? QStringLiteral("\n\n%1\n\n").arg(placeholder)
             : placeholder;

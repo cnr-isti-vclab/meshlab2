@@ -1,5 +1,5 @@
 # TrueForm is dual-licensed (PolyForm Noncommercial 1.0.0 / commercial agreement with
-# XLAB) and QMeshLab has explicit permission from the owners to include it, which is why
+# XLAB) and MeshLab has explicit permission from the owners to include it, which is why
 # this is ON by default. That permission does not travel to third parties — see
 # plugins/io_trueform/UPSTREAM.md.
 option(MESHLAB2_PLUGIN_FILTER_TRUEFORM "Build TrueForm geometry filter plugin" ON)

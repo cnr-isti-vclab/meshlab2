@@ -585,7 +585,7 @@ void DocumentTests::helperProcessLoopEndsWhenTheEventPumpReapsTheChild()
     Document doc;
     // A zero-interval timer keeps the event queue non-empty, so processEvents() inside
     // HelperProcess::run() really spins -- which is what lets it, rather than
-    // waitForFinished(), observe the child's exit. That ordering used to hang QMeshLab:
+    // waitForFinished(), observe the child's exit. That ordering used to hang MeshLab:
     // waitForFinished() reports false for a process that has already been reaped, so a
     // loop testing its result never ends. The timer stops when it goes out of scope.
     QTimer busy;

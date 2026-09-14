@@ -31,7 +31,7 @@ void modulePrintFilterList()
 
 void loadDefaultPlugins()
 {
-    // QMeshLab registers built-in plugins when the backing Document is created.
+    // MeshLab registers built-in plugins when the backing Document is created.
 }
 
 } // namespace

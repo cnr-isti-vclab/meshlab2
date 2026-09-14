@@ -136,7 +136,7 @@ TfPoints worldPoints(const Document::MeshEntry &entry)
 }
 
 // The reference layer's own vertex normals, rotated into world space. Point-to-plane
-// ICP needs a normal per reference point; QMeshLab already maintains these, and the user
+// ICP needs a normal per reference point; MeshLab already maintains these, and the user
 // controls them through the Compute/Orient normal filters, so they are a better source
 // than recomputing from the faces here.
 tf::unit_vectors_buffer<float, 3> worldNormals(const Document::MeshEntry &entry)
@@ -160,7 +160,7 @@ tf::unit_vectors_buffer<float, 3> worldNormals(const Document::MeshEntry &entry)
 }
 
 // TrueForm stores an affine transform as Dims x (Dims+1): the last column is the
-// translation. Widen it to the 4x4 QMeshLab keeps on a layer.
+// translation. Widen it to the 4x4 MeshLab keeps on a layer.
 template <typename Transformation>
 QMatrix4x4 toQMatrix(const Transformation &t)
 {
@@ -1062,7 +1062,7 @@ MeshFilterRunResult runSplitComponents(const FilterParams &params, Document &doc
 // Curves
 // ---------------------------------------------------------------------------
 
-// Turn a TrueForm curves_buffer into a QMeshLab polyline layer: an edge mesh, which is
+// Turn a TrueForm curves_buffer into a MeshLab polyline layer: an edge mesh, which is
 // what the Create Polyline family already produces.
 template <typename Curves>
 MeshFilterRunResult addPolylineLayer(
@@ -1182,7 +1182,7 @@ MeshFilterRunResult runIntersectionCurves(const FilterParams &params, Document &
 }
 
 // Contours of the per-vertex scalar field, as polylines lying on the surface. This is
-// what makes every scalar QMeshLab computes — geodesic distance, curvature, ambient
+// what makes every scalar MeshLab computes — geodesic distance, curvature, ambient
 // occlusion, raster coverage — into something with extractable level sets.
 MeshFilterRunResult runIsocurves(const FilterParams &params, Document &doc)
 {
@@ -2038,7 +2038,7 @@ MeshFilterRunResult runOrient(const QString &filterId, const FilterParams &param
 }
 
 // Mark the edges reported by TrueForm on the VCG mesh's per-face edge selection, which is
-// where QMeshLab keeps edge selections. The reported pairs are point indices, so they are
+// where MeshLab keeps edge selections. The reported pairs are point indices, so they are
 // mapped back through the live-vertex table and matched against each face's three edges.
 int selectFaceEdges(
     VCGMesh &mesh,

@@ -12,7 +12,7 @@ if(NOT EXISTS "${QUADWILD_ROOT}/quadwild/CMakeLists.txt")
 endif()
 
 # Build upstream as a separate project. Besides preventing its many global CMake
-# settings and target names from leaking into QMeshLab, this keeps calls to exit()
+# settings and target names from leaking into MeshLab, this keeps calls to exit()
 # and assertions inside helper processes rather than the application.
 include(FetchContent)
 include(ExternalProject)
@@ -84,7 +84,7 @@ qt_add_resources(MeshLab2PluginFilterQuadWild "filter_quadwild_descriptors"
     FILES filters.json
 )
 
-# Called after the QMeshLab executable target exists. The configuration files
+# Called after the MeshLab executable target exists. The configuration files
 # stay verbatim so updating the upstream submodule automatically updates them.
 function(meshlab2_bundle_quadwild target)
     add_dependencies(${target} MeshLab2QuadWildHelpers)

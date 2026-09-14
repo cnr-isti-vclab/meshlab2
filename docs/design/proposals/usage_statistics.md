@@ -1,6 +1,6 @@
 # Usage Statistics
 
-A plan for collecting aggregate usage data from QMeshLab installs, designed so that
+A plan for collecting aggregate usage data from MeshLab installs, designed so that
 the data is useful enough to change decisions and narrow enough that it cannot
 identify anyone. Nothing in this document is implemented yet; the codebase today has
 no network code at all (`find_package(Qt6 ... )` in `CMakeLists.txt:33` does not
@@ -11,7 +11,7 @@ See also: [Preferences](../preferences.md) · [Architecture](../architecture.md)
 
 ## 1. Why collect anything
 
-QMeshLab ships **334 filters across 34 filter plugins, exposing 1163 parameters**,
+MeshLab ships **334 filters across 34 filter plugins, exposing 1163 parameters**,
 organized into 11 root categories and 42 subcategories, plus 6 I/O plugins covering 9
 file formats, 4 interactive tools and 15 preferences. (Counts as of 2026-09-06; they
 moved twice while this document was being written, which is itself part of the
@@ -348,7 +348,7 @@ RenderWidget / tools──┘        │
                                │       one file per session, queue capped at 20 / 7 days
                                └──> sent.jsonl  (the local transparency log)
                                         │
-   next app start ──> TelemetrySubmitter ──> POST https://stats.qmeshlab.org/v1/ingest
+   next app start ──> TelemetrySubmitter ──> POST https://stats.meshlab.org/v1/ingest
 ```
 
 Design points worth committing to:

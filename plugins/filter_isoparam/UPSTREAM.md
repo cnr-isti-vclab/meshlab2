@@ -16,8 +16,10 @@ The algorithm is templated on the mesh type, so it runs on `VCGMesh` unchanged -
 and it is still recognisably the same code, but it has been changed deliberately in the
 ways listed below: an external GPL-2.0 dependency dropped, its console narration captured,
 its uncontrollable randomness replaced by seeded generators, and three defects fixed in the
-diamond layout. Each change is marked `QMeshLab:` at the site, so a diff against a fresh
-MeshLab checkout shows exactly what we did and why.
+diamond layout. Each change is marked `QMeshLab:` at the site — the project's name
+when the patches were made, left alone so the vendored tree stays byte-comparable
+with upstream — so a diff against a fresh checkout of the original MeshLab shows
+exactly what we did and why.
 
 ## Changes from the MeshLab original
 
@@ -78,7 +80,7 @@ nothing reaches into process-wide RNG state. Each is marked `QMeshLab:` at the s
 | `tangent_space.h` `Test` | `Ite` probe directions per barycentric sample | `seed` argument |
 
 Two notes on the choices. The seeds default to a **fixed constant**, not to the
-QMeshLab-wide convention where 0 means "different every run": two of the three only pick
+MeshLab-wide convention where 0 means "different every run": two of the three only pick
 colours, and a palette that changes between runs makes two screenshots of the same mesh
 impossible to compare. And `srand(clock())` was worth removing on its own account quite
 apart from reproducibility -- seeding the global generator is not something a caller asks
@@ -132,7 +134,7 @@ portable and costs nothing.
 
 **`PrepareDiamonds` split out of `SetCoordinates`.** The loop that splits faces until each
 one lies inside a single diamond, and the assignment that names that diamond in `WT(0).N()`,
-are the only part of the layout QMeshLab reuses: `plugins/filter_isoparam/atlaslayout.h`
+are the only part of the layout MeshLab reuses: `plugins/filter_isoparam/atlaslayout.h`
 takes it from there and does its own chart building and packing. `SetCoordinates` still
 exists and still lays the diamonds out on the square grid; nothing here calls it.
 
@@ -168,7 +170,7 @@ area at k = 6, so `GE0` returns a valence-five star 10% too large and a valence-
 in the tree does, so anything else reading `GE0` on an irregular star inherits the error.
 
 Section 6.0.1 is where the atlased-mesh filter comes from: it samples each half-diamond on a
-grid into a square patch and packs the patches (their figure 7). QMeshLab keeps the square as
+grid into a square patch and packs the patches (their figure 7). MeshLab keeps the square as
 one chart shape, adds the rhombus -- which is the same patch with its samples in the place
 section 6.0.1 says they belong, two quasi-equilateral triangles across the fixed diagonal --
 and adds two ways of merging that are not in the paper: the hexagon, three half-diamonds

@@ -6059,7 +6059,7 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
 
 // Both ball pivoting filters are interpolating reconstructions: every face they add must be
 // built on points that were already there. The two implementations differ in almost every
-// other respect, which is why QMeshLab ships both, so this checks the property they share
+// other respect, which is why MeshLab ships both, so this checks the property they share
 // rather than pinning either one's output.
 // Merge Texture Islands can take its candidates from the face selection instead of
 // from the size threshold, so a chart can be folded into a chosen neighbour by hand.
@@ -6244,7 +6244,7 @@ void FilterTests::islandMergeCanTakeItsIslandsFromTheSelection()
 // aimed at a single triangle of the first.
 void FilterTests::stateJsonAcceptsBothNameSpellings()
 {
-    // The "kind" tag on camera and render state was "QMeshLab.*" until the 2026-09
+    // The "kind" tag on camera and render state was "MeshLab.*" until the 2026-09
     // rename. It is embedded in saved snapshots, copied state, and any script that
     // pins a cameraState parameter, so both spellings have to keep validating --
     // otherwise the rename silently invalidates state people already have.
@@ -6273,7 +6273,7 @@ void FilterTests::stateJsonAcceptsBothNameSpellings()
     };
 
     for (const QString &kind : {QStringLiteral("MeshLab.CameraState"),
-                                QStringLiteral("QMeshLab.CameraState")}) {
+                                QStringLiteral("MeshLab.CameraState")}) {
         const QString error = runWithKind(kind);
         QVERIFY2(!error.contains(QStringLiteral("invalid kind")),
                  qPrintable(QStringLiteral("%1 was rejected: %2").arg(kind, error)));
@@ -6337,7 +6337,7 @@ void FilterTests::rubberBandExpandsToConnectedComponents()
         // Unused in UV space, but the parameter is typed and has no default, so it has to
         // be a well-formed camera state rather than an empty object.
         params.insert(QStringLiteral("camera_state"),
-                      QStringLiteral(R"({"kind":"QMeshLab.CameraState","version":1})"));
+                      QStringLiteral(R"({"kind":"MeshLab.CameraState","version":1})"));
         params.insert(QStringLiteral("aspect"), 1.0);
         params.insert(QStringLiteral("uv_pan_x"), 0.0);
         params.insert(QStringLiteral("uv_pan_y"), 0.0);

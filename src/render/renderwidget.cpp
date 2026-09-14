@@ -931,12 +931,12 @@ bool RenderWidget::applyCameraStateJson(const QString &jsonText, QString *errorM
     const QJsonObject root = doc.object();
     if (root.contains(QStringLiteral("kind"))) {
         const QString kind = root.value(QStringLiteral("kind")).toString();
-        // Both spellings: state written before the 2026-09 rename says "QMeshLab.".
+        // Both spellings: state written before the 2026-09 rename says "MeshLab.".
         if (!kind.isEmpty()
             && kind != QStringLiteral("MeshLab.CameraState")
             && kind != QStringLiteral("MeshLab.CameraTrackballState")
-            && kind != QStringLiteral("QMeshLab.CameraState")
-            && kind != QStringLiteral("QMeshLab.CameraTrackballState")) {
+            && kind != QStringLiteral("MeshLab.CameraState")
+            && kind != QStringLiteral("MeshLab.CameraTrackballState")) {
             return fail(tr("Unsupported camera JSON kind: %1").arg(kind));
         }
     }
@@ -1073,7 +1073,7 @@ bool RenderWidget::applyRenderStateJson(const QString &jsonText, QString *errorM
     if (root.contains(QStringLiteral("kind"))) {
         const QString kind = root.value(QStringLiteral("kind")).toString();
         if (!kind.isEmpty() && kind != QStringLiteral("MeshLab.RenderState")
-            && kind != QStringLiteral("QMeshLab.RenderState"))
+            && kind != QStringLiteral("MeshLab.RenderState"))
             return fail(tr("Unsupported render-state JSON kind: %1").arg(kind));
     }
 

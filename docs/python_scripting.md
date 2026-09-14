@@ -1,11 +1,11 @@
 # Python Scripting
 
-QMeshLab can expose an embedded Python console and script editor when it is built
+MeshLab can expose an embedded Python console and script editor when it is built
 with `MESHLAB2_PYTHON_CONSOLE=ON`. The embedded interpreter works on the live
 application document, so scripts can inspect the current scene, run filters,
 load/save meshes and rasters, and capture view snapshots.
 
-The shared API is the `pymeshlab.MeshSet` interface, and QMeshLab reuses that
+The shared API is the `pymeshlab.MeshSet` interface, and MeshLab reuses that
 same model inside the desktop application. Generated API reference files live
 under `docs/api/` when regenerated from the current filter descriptors; the
 local generated snapshot can lag until the app is run with `--generate-docs`.
@@ -16,7 +16,7 @@ helper.
 
 The script environment is the Python `__main__` namespace used by the embedded
 console. Names created in the console and names created by scripts share the
-same namespace for the current QMeshLab session.
+same namespace for the current MeshLab session.
 
 ### `ms`
 
@@ -29,11 +29,11 @@ print("Current mesh:", ms.current_mesh())
 print("Rasters:", ms.raster_count())
 ```
 
-Important: `ms` borrows the live QMeshLab `Document`. Calling modifying methods
+Important: `ms` borrows the live MeshLab `Document`. Calling modifying methods
 on it changes the open document.
 
 If you already know `pymeshlab`, you can think of `ms` as "the current
-QMeshLab document presented through the same MeshSet-style API".
+MeshLab document presented through the same MeshSet-style API".
 
 ### `mlgui`
 
@@ -43,7 +43,7 @@ available in the desktop application when an active render view exists.
 ```python
 print(mlgui.camera_state_json())
 print(mlgui.render_state_json())
-mlgui.save_snapshot("/tmp/qmeshlab_snapshot.png", 1200, 900)
+mlgui.save_snapshot("/tmp/meshlab_snapshot.png", 1200, 900)
 ```
 
 Use `mlgui` for view state and rendering operations. It is not meant to be a
@@ -52,7 +52,7 @@ general document API.
 ### `pymeshlab`
 
 `pymeshlab` is the public Python facade for standalone, GUI-less mesh processing.
-In the embedded QMeshLab console it is injected as a lightweight module backed by
+In the embedded MeshLab console it is injected as a lightweight module backed by
 the same private `_meshlab` extension used by the headless package.
 
 Use it when you want a separate mesh set that does not operate on the live GUI
@@ -66,7 +66,7 @@ other = pymeshlab.MeshSet()
 print("Standalone mesh set:", other.mesh_count())
 ```
 
-Most scripts inside QMeshLab should use the predefined `ms` object. Import
+Most scripts inside MeshLab should use the predefined `ms` object. Import
 `pymeshlab` only when you want the same public API exposed by the GUI-less
 package, or when you want to create an independent `MeshSet`.
 
@@ -245,14 +245,14 @@ Fields:
 Save the current view to a PNG:
 
 ```python
-mlgui.save_snapshot("/tmp/qmeshlab_view.png", 1600, 1200)
+mlgui.save_snapshot("/tmp/meshlab_view.png", 1600, 1200)
 ```
 
 Capture and reapply render state:
 
 ```python
 state = mlgui.render_state_json()
-mlgui.save_snapshot("/tmp/qmeshlab_view.png", 1600, 1200, state)
+mlgui.save_snapshot("/tmp/meshlab_view.png", 1600, 1200, state)
 ```
 
 Get raw RGBA bytes:

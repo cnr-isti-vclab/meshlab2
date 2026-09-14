@@ -2,7 +2,7 @@
 
 Three kinds of document live here, and the distinction is worth keeping:
 
-- **Reference** (this directory) — how QMeshLab works *today*. Read these to
+- **Reference** (this directory) — how MeshLab works *today*. Read these to
   understand or change the code; correct them when the code changes.
 - **[Proposals](proposals/)** — design settled before the code exists. Every one
   says "not implemented" in its opening paragraph. When one ships, its content
@@ -38,10 +38,10 @@ Three kinds of document live here, and the distinction is worth keeping:
 
 | Document | Status |
 | --- | --- |
-| [LLM Integration](proposals/llm_integration.md) | Option space for driving QMeshLab from a model. Not implemented. |
+| [LLM Integration](proposals/llm_integration.md) | Option space for driving MeshLab from a model. Not implemented. |
 | [Usage Statistics](proposals/usage_statistics.md) | Aggregate usage collection, designed for privacy. Not implemented. |
 | [Gaussian Splatting](proposals/gaussian_splatting.md) | Splat loading, rendering and editing. Not implemented; some decisions taken. |
-| [Repository Rename](proposals/repository_rename.md) | Renaming QMeshLab to meshlab2, in five phases. Not started. |
+| [Repository Rename](proposals/repository_rename.md) | Renaming MeshLab to meshlab2, in five phases. Not started. |
 
 ## History
 

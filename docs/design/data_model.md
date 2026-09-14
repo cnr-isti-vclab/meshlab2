@@ -4,7 +4,7 @@ See also: [Architecture](architecture.md) · [Rendering](rendering.md) · [Memor
 
 ## Core Idea
 
-QMeshLab is **single-document, multi-view**: one `Document` owns canonical meshes and document-level state; widgets consume that state via Qt signals; the shared GPU cache lives in `Document`, while per-view rendering state stays in each `RenderWidget`.
+MeshLab is **single-document, multi-view**: one `Document` owns canonical meshes and document-level state; widgets consume that state via Qt signals; the shared GPU cache lives in `Document`, while per-view rendering state stays in each `RenderWidget`.
 
 ## `Document` Ownership
 
@@ -68,7 +68,7 @@ Execution: `runFilter(filterKey, parameters)` with callback-based progress and c
 
 Script history: modifying filter runs record a `ScriptAction` on the undo node, including filter key, invocation parameters, active layer indices, and both full and compact Python calls. The full call includes every recorded parameter; the compact call omits parameters that matched descriptor defaults at invocation time. The filter panel and action-history export share the same Python-call formatter.
 
-Render-state filters: `filter_layer` includes `render_from_render_state_json`, which consumes `QMeshLab.CameraState` and `QMeshLab.RenderState` payloads, asks `Document::renderSnapshotFromStateJson(...)` for an offscreen render, then can save the result as PNG and/or add it as a raster layer with the resulting `CameraShot`.
+Render-state filters: `filter_layer` includes `render_from_render_state_json`, which consumes `MeshLab.CameraState` and `MeshLab.RenderState` payloads, asks `Document::renderSnapshotFromStateJson(...)` for an offscreen render, then can save the result as PNG and/or add it as a raster layer with the resulting `CameraShot`.
 
 Filters can consume document-level mesh, raster, camera, texture, and render-state data when their descriptors request those parameter/input domains. Mutations stay descriptor-driven: vertex color, wedge texture, material, geometry, selection, transform, and new-layer outputs are surfaced through the normal output-modifies codes and document revision paths rather than through filter-specific data-model branches.
 
@@ -113,8 +113,8 @@ APIs: `beginUndoStep(label)`, `beginUndoStep(label, ScriptAction)`, `beginUndoSt
 
 `RenderWidget` exposes two JSON state families:
 
-- `QMeshLab.CameraState`: camera/trackball payload used by camera copy/paste and filter parameters.
-- `QMeshLab.RenderState`: sparse per-view rendering payload containing view mode, raster opacity, trackball, `GlobalRenderSettings`, per-view visibility, per-mesh render modes keyed by `mesh_id`, current mesh/raster indices, current layer kind, and viewport metadata. Default-valued fields are omitted by export; on import, omitted settings/mode maps parse from default settings, while omitted view mode and raster opacity keep the current view values.
+- `MeshLab.CameraState`: camera/trackball payload used by camera copy/paste and filter parameters.
+- `MeshLab.RenderState`: sparse per-view rendering payload containing view mode, raster opacity, trackball, `GlobalRenderSettings`, per-view visibility, per-mesh render modes keyed by `mesh_id`, current mesh/raster indices, current layer kind, and viewport metadata. Default-valued fields are omitted by export; on import, omitted settings/mode maps parse from default settings, while omitted view mode and raster opacity keep the current view values.
 
 `MainWindow` wires `Document::setRenderStateSnapshotFunction(...)` to the active `RenderWidget`. `Document::renderSnapshotFromStateJson(renderStateJson, pixelSize, outImage, outShot, error)` applies the requested render state to that view, renders an offscreen image, returns the resulting `QImage` and `CameraShot`, then restores the previous view state. This keeps filter code document-centric while leaving all GPU and per-view state inside `RenderWidget`.
 

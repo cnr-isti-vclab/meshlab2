@@ -219,7 +219,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: qmeshlab-windows-vcpkg-logs
+          name: meshlab-windows-vcpkg-logs
           path: |
             ${{ github.workspace }}\vcpkg-install.log
             ${{ env.VCPKG_ROOT_WORKSPACE }}\buildtrees\**\*.log

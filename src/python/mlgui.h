@@ -8,7 +8,7 @@ class RenderWidget;
 
 // Desktop GUI access object exposed to the embedded Python console as `mlgui`.
 // Provides view state, camera, and rendering methods that are only meaningful
-// in the context of a running QMeshLab application with a visible viewport.
+// in the context of a running MeshLab application with a visible viewport.
 //
 // In headless pymeshlab this object does not exist — only in the desktop app's
 // Python console (where QApplication + MainWindow + RenderWidget are alive).

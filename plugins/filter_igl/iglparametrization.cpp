@@ -25,7 +25,7 @@ constexpr QLatin1StringView kLscm("parametrize_by_least_squares_conformal_maps_l
 constexpr QLatin1StringView kArap("parametrize_by_as_rigid_as_possible_libigl");
 constexpr QLatin1StringView kSlim("parametrize_by_slim_libigl");
 using Mask = vcg::tri::io::Mask;
-namespace IglAdapter = qmeshlab::libigl;
+namespace IglAdapter = meshlab::libigl;
 
 MeshFilterRunResult fail(const QString &message)
 {

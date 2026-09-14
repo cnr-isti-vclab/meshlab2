@@ -19,7 +19,7 @@ extern "C" PyObject *PyInit__meshlab();
 
 namespace {
 
-// The application was called QMeshLab until 2026-09; QSettings keyed its store on that
+// The application was called MeshLab until 2026-09; QSettings keyed its store on that
 // name, so renaming it would leave every existing user looking at defaults with no error
 // to explain why. Copy the old store across once.
 //
@@ -28,10 +28,10 @@ namespace {
 // applicationName "MeshLab"), which is the intended consequence of shipping as MeshLab's
 // in-place successor -- but it means the destination may not be empty, and nothing of
 // MeshLab's should be clobbered.
-void migrateSettingsFromQMeshLab()
+void migrateSettingsFromMeshLab()
 {
     QSettings current;
-    if (current.value(QStringLiteral("settings.migratedFromQMeshLab")).toBool())
+    if (current.value(QStringLiteral("settings.migratedFromMeshLab")).toBool())
         return;
 
     // Where the old store lives is platform-dependent: QSettings keys macOS on the
@@ -39,9 +39,9 @@ void migrateSettingsFromQMeshLab()
     // different strings. Try both rather than guessing.
     int copied = 0;
     for (const QString &organization : {QCoreApplication::organizationDomain(),
-                                        QStringLiteral("QMeshLab")}) {
+                                        QStringLiteral("MeshLab")}) {
         QSettings legacy(QSettings::NativeFormat, QSettings::UserScope, organization,
-                         QStringLiteral("QMeshLab"));
+                         QStringLiteral("MeshLab"));
         const QStringList keys = legacy.allKeys();
         for (const QString &key : keys) {
             if (current.contains(key))
@@ -50,10 +50,10 @@ void migrateSettingsFromQMeshLab()
             ++copied;
         }
     }
-    current.setValue(QStringLiteral("settings.migratedFromQMeshLab"), true);
+    current.setValue(QStringLiteral("settings.migratedFromMeshLab"), true);
     current.sync();
     if (copied > 0)
-        qInfo("Migrated %d settings from the previous QMeshLab store.", copied);
+        qInfo("Migrated %d settings from the previous MeshLab store.", copied);
 }
 
 } // namespace
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
     app.setOrganizationName(QStringLiteral("MeshLab"));
     app.setOrganizationDomain(QStringLiteral("meshlab.net"));
     app.setApplicationName(QStringLiteral("MeshLab"));
-    migrateSettingsFromQMeshLab();
+    migrateSettingsFromMeshLab();
     const QIcon appIcon(QStringLiteral(":/img/MeshLab_Icon_512x512.png"));
     if (!appIcon.isNull())
         app.setWindowIcon(appIcon);

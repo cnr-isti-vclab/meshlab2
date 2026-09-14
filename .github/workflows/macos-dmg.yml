@@ -112,7 +112,7 @@ jobs:
           # that the Qt it is pointed at actually has.
           modules: qtshadertools qtimageformats
           cache: true
-          cache-key-prefix: qmeshlab-qt-macos-imgfmt
+          cache-key-prefix: meshlab-qt-macos-imgfmt
 
       - name: Expose Qt tools
         run: |
@@ -172,7 +172,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: qmeshlab-macos-vcpkg-logs
+          name: meshlab-macos-vcpkg-logs
           path: |
             ${{ github.workspace }}/vcpkg-install.log
             ${{ env.VCPKG_ROOT }}/buildtrees/**/*.log
@@ -212,8 +212,8 @@ jobs:
           MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
         run: |
-          CERTIFICATE_PATH="$RUNNER_TEMP/qmeshlab-developer-id.p12"
-          KEYCHAIN_PATH="$RUNNER_TEMP/qmeshlab-signing.keychain-db"
+          CERTIFICATE_PATH="$RUNNER_TEMP/meshlab-developer-id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/meshlab-signing.keychain-db"
           KEYCHAIN_PASSWORD="$(uuidgen)"
 
           printf '%s' "$MACOS_CERTIFICATE_P12" | base64 --decode > "$CERTIFICATE_PATH"

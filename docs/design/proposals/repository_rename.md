@@ -14,8 +14,8 @@ See also: [Architecture](../architecture.md), [Adding a Filter](../adding_a_filt
 ## Status
 
 As of 2026-09-13: Phase 0 done (repo renamed to `cnr-isti-vclab/meshlab2`).
-Phases 1 and 2 committed (`f2542a0`, `75ca2cc`); Phase 3 applied; Phase 4
-prepared (the two `mv`s are the user's to run). The measurements below were taken on
+All five phases done. Phases 1-4 committed (`f2542a0`, `75ca2cc`, `2712a6c`,
+`1bdf16c`); Phase 5 applied. The measurements below were taken on
 that date against the tracked tree.
 
 ## "The rename" is six separate things
@@ -242,7 +242,24 @@ Rename `~/Documents/devel/github/QMeshLab` to `…/meshlab2`, for local clarity
 against the new repository name. See the next section: the directory name is what
 keys the agent state, so the two moves happen together.
 
-### Phase 5 — artifacts and documentation
+### Phase 5 — comments, documentation and CI internals
+
+Three exclusions, each for a reason worth keeping:
+
+- **Vendored `upstream/` trees.** Their ~31 `QMeshLab:` adaptation markers stay, so
+  the trees remain byte-comparable with upstream and our diffs against it stay
+  minimal. The `UPSTREAM.md` files note that the marker predates the rename.
+- **`docs/design/history/`.** Records are never edited after the fact — see
+  [the design README](../README.md). `filter_names.md` keeps the two sentences that
+  contrast "filters MeshLab has and QMeshLab does not", which is what was true when
+  it was written.
+- **This document**, for the reason in the banner at the top.
+
+One sentence needed rewriting rather than substituting, the same trap as the About
+dialog: `plugins/io_3mf/README.md` said the plugin "ports the original MeshLab
+`io_3mf` functionality to QMeshLab's I/O API".
+
+### Phase 5 (original note) — artifacts and documentation
 
 `APP_NAME: QMeshLab` in `macos-dmg.yml:43` and the hard-coded stem in
 `windows-portable.yml:246` produce `QMeshLab-<date>-<sha>-<platform>`. Renaming

@@ -3,7 +3,7 @@
 #include <QtGlobal>
 
 // OS-reported process metrics. These values deliberately remain separate because
-// their accounting semantics differ between platforms and from QMeshLab's owned
+// their accounting semantics differ between platforms and from MeshLab's owned
 // resource counters.
 struct ProcessMemoryInfo {
     qint64 physicalFootprintBytes = -1;

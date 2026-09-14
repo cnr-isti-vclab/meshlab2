@@ -70,7 +70,7 @@ static void writeHtmlReport(const QVector<FilterTestResult> &results, const QStr
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Filter Creation Test Report — QMeshLab</title>
+<title>Filter Creation Test Report — MeshLab</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f4f6f9;color:#222}
@@ -102,7 +102,7 @@ code{font-family:"SF Mono",Consolas,monospace;font-size:.83em;background:#f0f2f5
 
     // ---- header -----------------------------------------------------------
     o << "<div class=\"hdr\">\n"
-      << "  <h1>Filter Creation Test Report &mdash; QMeshLab</h1>\n"
+      << "  <h1>Filter Creation Test Report &mdash; MeshLab</h1>\n"
       << "  <div class=\"meta\">Generated: " << htmlEscape(timestamp) << "</div>\n"
       << "</div>\n";
 

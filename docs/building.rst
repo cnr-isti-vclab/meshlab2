@@ -6,7 +6,7 @@ Building the documentation
 Prerequisites
 -------------
 
-* QMeshLab compiled with ``MESHLAB2_PYTHON_CONSOLE=ON`` (default).
+* MeshLab compiled with ``MESHLAB2_PYTHON_CONSOLE=ON`` (default).
 * Python packages from ``docs/requirements.txt``.
 
 Step 1 — Generate the API source files
@@ -25,7 +25,7 @@ Step 1 — Generate the API source files
      -DMESHLAB2_PLUGIN_FILTER_FUNC=OFF \
      -DMESHLAB2_PLUGIN_FILTER_EMBREE=OFF
    cmake --build build --target MeshLab2 -j8
-   QT_QPA_PLATFORM=offscreen ./build/QMeshLab --generate-docs docs
+   QT_QPA_PLATFORM=offscreen ./build/MeshLab --generate-docs docs
 
 This introspects the ``_meshlab`` module from within the running app,
 reads all ``filters.json`` files, and writes the reStructuredText and MyST

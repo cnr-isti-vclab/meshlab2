@@ -7,7 +7,7 @@ usage()
     cat <<'EOF'
 Usage: tools/memory_probe_macos.sh [PID|process-name] [output-directory]
 
-Interactively captures repeatable QMeshLab memory checkpoints on macOS.
+Interactively captures repeatable MeshLab memory checkpoints on macOS.
 Before each checkpoint, open Help > Memory Info and click Copy JSON. Then enter
 a short label such as baseline, one-mesh, two-mesh, or undo-cleared.
 EOF
@@ -23,7 +23,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     exit 0
 fi
 
-target="${1:-QMeshLab}"
+target="${1:-MeshLab}"
 output_dir="${2:-memory-probe-$(date -u +%Y%m%dT%H%M%SZ)}"
 
 if [[ "$target" =~ ^[0-9]+$ ]]; then
@@ -75,12 +75,12 @@ while true; do
     prefix="$(printf '%02d-%s' "$index" "$safe_label")"
 
     clipboard="$(pbpaste 2>/dev/null || true)"
-    if printf '%s' "$clipboard" | grep -q 'org.qmeshlab.memory-report.v1'; then
-        printf '%s\n' "$clipboard" >"$output_dir/$prefix-qmeshlab.json"
+    if printf '%s' "$clipboard" | grep -q 'org.meshlab.memory-report.v1'; then
+        printf '%s\n' "$clipboard" >"$output_dir/$prefix-meshlab.json"
     else
         printf '%s\n' \
-            "No QMeshLab memory-report JSON was present on the clipboard." \
-            >"$output_dir/$prefix-qmeshlab-missing.txt"
+            "No MeshLab memory-report JSON was present on the clipboard." \
+            >"$output_dir/$prefix-meshlab-missing.txt"
     fi
 
     capture_command "$output_dir/$prefix-footprint.txt" \

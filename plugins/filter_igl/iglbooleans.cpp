@@ -25,7 +25,7 @@ constexpr QLatin1StringView kUnion("mesh_union_libigl");
 constexpr QLatin1StringView kDifference("mesh_difference_libigl");
 constexpr QLatin1StringView kXor("mesh_symmetric_difference_libigl");
 using Mask = vcg::tri::io::Mask;
-namespace IglAdapter = qmeshlab::libigl;
+namespace IglAdapter = meshlab::libigl;
 
 struct Operand
 {
