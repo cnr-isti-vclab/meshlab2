@@ -263,9 +263,9 @@ same namespace for the current MeshLab session.</p>
 <h3><code class="docutils literal notranslate"><span class="pre">ms</span></code><a class="headerlink" href="#ms" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">ms</span></code> is the live document, exposed as a <code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet</span></code>-compatible object. This is the
 main entry point for document and filter operations.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Meshes:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">())</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Meshes:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">())</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh</span><span class="p">())</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">"Rasters:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">raster_count</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Rasters:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">raster_number</span><span class="p">())</span>
 </pre></div>
 </div>
 <p>Important: <code class="docutils literal notranslate"><span class="pre">ms</span></code> borrows the live MeshLab <code class="docutils literal notranslate"><span class="pre">Document</span></code>. Calling modifying methods
@@ -294,9 +294,8 @@ the same private <code class="docutils literal notranslate"><span class="pre">_m
 document.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pymeshlab</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="n">pymeshlab</span><span class="o">.</span><span class="n">filter_list</span><span class="p">()[:</span><span class="mi">5</span><span class="p">])</span>
 <span class="n">other</span> <span class="o">=</span> <span class="n">pymeshlab</span><span class="o">.</span><span class="n">MeshSet</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">"Standalone mesh set:"</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Standalone mesh set:"</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">())</span>
 </pre></div>
 </div>
 <p>Most scripts inside MeshLab should use the predefined <code class="docutils literal notranslate"><span class="pre">ms</span></code> object. Import
@@ -325,20 +324,18 @@ defaults at the time each action was recorded.</p>
 <h2>Available Module Objects<a class="headerlink" href="#available-module-objects" title="Link to this heading">¶</a></h2>
 <p>The public <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> facade exposes:</p>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.Mesh</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.FilterInfo</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.FilterRunResult</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.MlGui</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.filter_list()</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.print_filter_list()</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.load_default_plugins()</span></code></p></li>
 </ul>
 </section>
 <section id="meshset-basics">
 <h2>MeshSet Basics<a class="headerlink" href="#meshset-basics" title="Link to this heading">¶</a></h2>
 <p>The live <code class="docutils literal notranslate"><span class="pre">ms</span></code> object supports the following core methods:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">mesh_count()</span></code>, <code class="docutils literal notranslate"><span class="pre">mesh_number()</span></code>, <code class="docutils literal notranslate"><span class="pre">number_meshes()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mesh_number()</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">current_mesh()</span></code>, <code class="docutils literal notranslate"><span class="pre">current_mesh_id()</span></code>, <code class="docutils literal notranslate"><span class="pre">set_current_mesh(index)</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">mesh_id_exists(index)</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">set_current_mesh_visibility(visible)</span></code></p></li>
@@ -346,9 +343,9 @@ defaults at the time each action was recorded.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">is_current_mesh_visible()</span></code>, <code class="docutils literal notranslate"><span class="pre">is_mesh_visible(index)</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">load_new_mesh(path)</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">save_current_mesh(path)</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">raster_count()</span></code>, <code class="docutils literal notranslate"><span class="pre">raster_number()</span></code>, <code class="docutils literal notranslate"><span class="pre">number_rasters()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">raster_number()</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">current_raster()</span></code>, <code class="docutils literal notranslate"><span class="pre">set_current_raster(index)</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">load_raster_image(path)</span></code>, <code class="docutils literal notranslate"><span class="pre">load_new_raster(path)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">load_new_raster(path)</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">clear()</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">load_project(path)</span></code>, <code class="docutils literal notranslate"><span class="pre">save_project(path)</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">filter_list()</span></code>, <code class="docutils literal notranslate"><span class="pre">list_filters()</span></code></p></li>
@@ -356,9 +353,9 @@ defaults at the time each action was recorded.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">render_snapshot(render_state_json,</span> <span class="pre">width,</span> <span class="pre">height)</span></code></p></li>
 </ul>
 <p>Example:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Mesh count:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">())</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Mesh count:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">())</span>
 
-<span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+<span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh index:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh</span><span class="p">())</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh id:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh_id</span><span class="p">())</span>
 </pre></div>
@@ -497,8 +494,8 @@ processing and batch-style scripts.</p>
 <section id="minimal-useful-scripts">
 <h2>Minimal Useful Scripts<a class="headerlink" href="#minimal-useful-scripts" title="Link to this heading">¶</a></h2>
 <p>Print a short document report:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Meshes:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">())</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">"Rasters:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">raster_count</span><span class="p">())</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Meshes:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Rasters:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">raster_number</span><span class="p">())</span>
 
 <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">ms</span><span class="o">.</span><span class="n">list_filters</span><span class="p">()[:</span><span class="mi">10</span><span class="p">]:</span>
     <span class="nb">print</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">python_name</span><span class="p">,</span> <span class="s2">"-"</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>

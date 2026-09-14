@@ -87,20 +87,10 @@ Methods
 
    load_project(self, file_name: str) -> None
 
-.. py:method:: MeshSet.load_raster_image(...)
-   :module: _meshlab
-
-   load_raster_image(self, path: str) -> None
-
 .. py:method:: MeshSet.mesh(...)
    :module: _meshlab
 
    mesh(self, index: int) -> object
-
-.. py:method:: MeshSet.mesh_count(...)
-   :module: _meshlab
-
-   mesh_count(self) -> int
 
 .. py:method:: MeshSet.mesh_id_exists(...)
    :module: _meshlab
@@ -111,21 +101,6 @@ Methods
    :module: _meshlab
 
    mesh_number(self) -> int
-
-.. py:method:: MeshSet.number_meshes(...)
-   :module: _meshlab
-
-   number_meshes(self) -> int
-
-.. py:method:: MeshSet.number_rasters(...)
-   :module: _meshlab
-
-   number_rasters(self) -> int
-
-.. py:method:: MeshSet.raster_count(...)
-   :module: _meshlab
-
-   raster_count(self) -> int
 
 .. py:method:: MeshSet.raster_number(...)
    :module: _meshlab
