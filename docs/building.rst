@@ -15,15 +15,15 @@ Step 1 — Generate the API source files
 .. code-block:: bash
 
    cmake -S . -B build -G Ninja \
-     -DQMESH_REQUIRE_VCPKG_DEPS=OFF \
-     -DQMESH_MACOS_BUNDLE_ICON=OFF \
-     -DQMESHLAB_PYTHON_CONSOLE=ON \
+     -DMESHLAB2_REQUIRE_VCPKG_DEPS=OFF \
+     -DMESHLAB2_MACOS_BUNDLE_ICON=OFF \
+     -DMESHLAB2_PYTHON_CONSOLE=ON \
      -Dnanobind_DIR="$(python -m nanobind --cmake_dir)" \
-     -DQMESH_PLUGIN_OBJ_RAPIDOBJ=OFF \
-     -DQMESH_PLUGIN_E57=OFF \
-     -DQMESH_PLUGIN_GLTF=OFF \
-     -DQMESH_PLUGIN_FILTER_FUNC=OFF \
-     -DQMESH_PLUGIN_FILTER_EMBREE=OFF
+     -DMESHLAB2_PLUGIN_OBJ_RAPIDOBJ=OFF \
+     -DMESHLAB2_PLUGIN_E57=OFF \
+     -DMESHLAB2_PLUGIN_GLTF=OFF \
+     -DMESHLAB2_PLUGIN_FILTER_FUNC=OFF \
+     -DMESHLAB2_PLUGIN_FILTER_EMBREE=OFF
    cmake --build build --target MeshLab2 -j8
    QT_QPA_PLATFORM=offscreen ./build/QMeshLab --generate-docs docs
 

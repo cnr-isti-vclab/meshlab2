@@ -186,9 +186,9 @@ cmake --build --preset local-no-vcpkg
 ./build-local/QMeshLab
 ```
 
-The local minimal preset disables dependency-heavy plugins (`io_gltf`, `io_e57`, `io_obj_rapidobj`). Because the embedded Python console is enabled by default, this path still needs local Python development files and nanobind. If you want a lean viewer-only build without those, configure with `-DQMESHLAB_PYTHON_CONSOLE=OFF`.
+The local minimal preset disables dependency-heavy plugins (`io_gltf`, `io_e57`, `io_obj_rapidobj`). Because the embedded Python console is enabled by default, this path still needs local Python development files and nanobind. If you want a lean viewer-only build without those, configure with `-DMESHLAB2_PYTHON_CONSOLE=OFF`.
 LaTeX rendering in filter help can likewise be disabled with
-`-DQMESHLAB_MATH_HELP=OFF`.
+`-DMESHLAB2_MATH_HELP=OFF`.
 
 ## GitHub Actions: macOS DMG
 

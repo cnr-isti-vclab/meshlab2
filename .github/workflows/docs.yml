@@ -36,15 +36,15 @@ jobs:
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DQMESH_REQUIRE_VCPKG_DEPS=OFF \
-            -DQMESH_MACOS_BUNDLE_ICON=OFF \
-            -DQMESHLAB_PYTHON_CONSOLE=ON \
+            -DMESHLAB2_REQUIRE_VCPKG_DEPS=OFF \
+            -DMESHLAB2_MACOS_BUNDLE_ICON=OFF \
+            -DMESHLAB2_PYTHON_CONSOLE=ON \
             -Dnanobind_DIR="$(python -m nanobind --cmake_dir)" \
-            -DQMESH_PLUGIN_OBJ_RAPIDOBJ=OFF \
-            -DQMESH_PLUGIN_E57=OFF \
-            -DQMESH_PLUGIN_GLTF=OFF \
-            -DQMESH_PLUGIN_FILTER_EXPRESSION=OFF \
-            -DQMESH_PLUGIN_FILTER_EMBREE=OFF
+            -DMESHLAB2_PLUGIN_OBJ_RAPIDOBJ=OFF \
+            -DMESHLAB2_PLUGIN_E57=OFF \
+            -DMESHLAB2_PLUGIN_GLTF=OFF \
+            -DMESHLAB2_PLUGIN_FILTER_EXPRESSION=OFF \
+            -DMESHLAB2_PLUGIN_FILTER_EMBREE=OFF
           cmake --build build --target MeshLab2 -j4
 
       - name: Generate API documentation

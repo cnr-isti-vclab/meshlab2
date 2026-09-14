@@ -14,7 +14,8 @@ See also: [Architecture](../architecture.md), [Adding a Filter](../adding_a_filt
 ## Status
 
 As of 2026-09-13: Phase 0 done (repo renamed to `cnr-isti-vclab/meshlab2`).
-Phases 1 and 2 committed (`f2542a0`, `75ca2cc`); Phase 3 applied. The measurements below were taken on
+Phases 1 and 2 committed (`f2542a0`, `75ca2cc`); Phase 3 applied; Phase 4
+prepared (the two `mv`s are the user's to run). The measurements below were taken on
 that date against the tracked tree.
 
 ## "The rename" is six separate things
@@ -192,6 +193,13 @@ existing clones keep working and no one has to do anything. Then:
 
 This phase is free and reversible, and it is worth doing first so the name is
 settled before any code churns.
+
+> **A regex with `\b` before the prefix is not enough.** Phase 1 used `\bQMESH_`
+> and missed every `-DQMESH_PLUGIN_...` in CI and docs, because `-D` leaves no word
+> boundary. CMake accepts an unknown `-D` silently, so `.github/workflows/docs.yml`
+> would have built with defaults instead of the flags it names — a silent behaviour
+> change, not a failure. Found and fixed during Phase 4. Verify option renames by
+> grepping the `-D` call sites too, not just `option()` declarations.
 
 ### Phase 1 — build identifiers
 
