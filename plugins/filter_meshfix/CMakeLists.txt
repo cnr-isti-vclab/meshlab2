@@ -5,7 +5,7 @@ if (NOT MESHLAB2_PLUGIN_FILTER_MESHFIX)
     return()
 endif()
 
-set(MESHFIX_ROOT "${CMAKE_SOURCE_DIR}/external/meshfix")
+set(MESHFIX_ROOT "${MESHLAB2_SOURCE_DIR}/external/meshfix")
 if (NOT EXISTS "${MESHFIX_ROOT}/CMakeLists.txt")
     message(FATAL_ERROR
         "MeshFix submodule is missing. Run: git submodule update --init external/meshfix")
@@ -52,7 +52,7 @@ add_library(MeshLab2PluginFilterMeshFix STATIC
 
 target_include_directories(MeshLab2PluginFilterMeshFix
     PUBLIC
-        ${CMAKE_SOURCE_DIR}
+        ${MESHLAB2_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

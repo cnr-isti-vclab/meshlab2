@@ -10,7 +10,7 @@ if (NOT MESHLAB2_PLUGIN_IO_TRUEFORM)
     return()
 endif()
 
-set(_trueform_include "${CMAKE_SOURCE_DIR}/external/trueform/include")
+set(_trueform_include "${MESHLAB2_SOURCE_DIR}/external/trueform/include")
 if (NOT EXISTS "${_trueform_include}/trueform/io.hpp")
     message(STATUS
         "Skipping io_trueform - external/trueform not present. "
@@ -31,10 +31,10 @@ add_library(MeshLab2PluginIOTrueForm STATIC
 
 target_include_directories(MeshLab2PluginIOTrueForm
     PUBLIC
-        ${CMAKE_SOURCE_DIR}
+        ${MESHLAB2_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/vcglib
-        ${CMAKE_SOURCE_DIR}/vcglib/eigenlib
+        ${MESHLAB2_SOURCE_DIR}/vcglib
+        ${MESHLAB2_SOURCE_DIR}/vcglib/eigenlib
         ${_trueform_include}
 )
 

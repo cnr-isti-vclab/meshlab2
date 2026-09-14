@@ -26,10 +26,10 @@ add_library(MeshLab2PluginIOE57 STATIC
 
 target_include_directories(MeshLab2PluginIOE57
     PUBLIC
-        ${CMAKE_SOURCE_DIR}
+        ${MESHLAB2_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/vcglib
-        ${CMAKE_SOURCE_DIR}/vcglib/eigenlib
+        ${MESHLAB2_SOURCE_DIR}/vcglib
+        ${MESHLAB2_SOURCE_DIR}/vcglib/eigenlib
 )
 
 target_link_libraries(MeshLab2PluginIOE57

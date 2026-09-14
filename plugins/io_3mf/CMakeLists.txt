@@ -16,7 +16,7 @@ add_library(MeshLab2PluginIO3MF STATIC
     threemfplugin.cpp
 )
 target_include_directories(MeshLab2PluginIO3MF PUBLIC
-    ${CMAKE_SOURCE_DIR}
+    ${MESHLAB2_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 target_link_libraries(MeshLab2PluginIO3MF PUBLIC

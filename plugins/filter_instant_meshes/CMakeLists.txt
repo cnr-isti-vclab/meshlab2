@@ -34,7 +34,7 @@ target_link_libraries(MeshLab2InstantMeshesCore PUBLIC Eigen3::Eigen TBB::tbb)
 # this plugin disagree on Eigen's internals and the matrices the adapter builds are
 # reinterpreted with a different layout by the core.
 target_include_directories(MeshLab2InstantMeshesCore BEFORE PUBLIC
-    ${CMAKE_SOURCE_DIR}/vcglib/eigenlib)
+    ${MESHLAB2_SOURCE_DIR}/vcglib/eigenlib)
 target_compile_features(MeshLab2InstantMeshesCore PUBLIC cxx_std_17)
 if (MSVC)
     # MSVC hides the non-standard M_PI constant used by the upstream sources
@@ -55,7 +55,7 @@ add_library(MeshLab2PluginFilterInstantMeshes STATIC
     instantmeshesfilterplugin.cpp
 )
 target_include_directories(MeshLab2PluginFilterInstantMeshes PUBLIC
-    ${CMAKE_SOURCE_DIR}
+    ${MESHLAB2_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 target_link_libraries(MeshLab2PluginFilterInstantMeshes PUBLIC

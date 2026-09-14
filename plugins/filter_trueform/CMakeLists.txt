@@ -9,7 +9,7 @@ if (NOT MESHLAB2_PLUGIN_FILTER_TRUEFORM)
     return()
 endif()
 
-set(_trueform_include "${CMAKE_SOURCE_DIR}/external/trueform/include")
+set(_trueform_include "${MESHLAB2_SOURCE_DIR}/external/trueform/include")
 if (NOT EXISTS "${_trueform_include}/trueform/trueform.hpp")
     message(STATUS
         "Skipping filter_trueform - external/trueform not present. "
@@ -30,10 +30,10 @@ add_library(MeshLab2PluginFilterTrueForm STATIC
 
 target_include_directories(MeshLab2PluginFilterTrueForm
     PUBLIC
-        ${CMAKE_SOURCE_DIR}
+        ${MESHLAB2_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/vcglib
-        ${CMAKE_SOURCE_DIR}/vcglib/eigenlib
+        ${MESHLAB2_SOURCE_DIR}/vcglib
+        ${MESHLAB2_SOURCE_DIR}/vcglib/eigenlib
         ${_trueform_include}
 )
 

@@ -31,7 +31,7 @@ add_library(MeshLab2PluginFilterTextureDefragmentation STATIC
 
 target_include_directories(MeshLab2PluginFilterTextureDefragmentation
     PUBLIC
-        ${CMAKE_SOURCE_DIR}
+        ${MESHLAB2_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${TEXTURE_DEFRAG_UPSTREAM_DIR}
 )

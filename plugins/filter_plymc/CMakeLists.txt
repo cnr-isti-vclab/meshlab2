@@ -8,14 +8,14 @@ endif()
 add_library(MeshLab2PluginFilterPlyMC STATIC
     plymcfilterplugin.h
     plymcfilterplugin.cpp
-    ${CMAKE_SOURCE_DIR}/vcglib/wrap/ply/plylib.cpp
+    ${MESHLAB2_SOURCE_DIR}/vcglib/wrap/ply/plylib.cpp
 )
 
 target_include_directories(MeshLab2PluginFilterPlyMC
     PUBLIC
-        ${CMAKE_SOURCE_DIR}
+        ${MESHLAB2_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/vcglib
+        ${MESHLAB2_SOURCE_DIR}/vcglib
 )
 
 target_link_libraries(MeshLab2PluginFilterPlyMC

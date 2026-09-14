@@ -5,7 +5,7 @@ if (NOT MESHLAB2_PLUGIN_FILTER_QSLIM)
     return()
 endif()
 
-set(QSLIM_ROOT "${CMAKE_SOURCE_DIR}/external/qslim")
+set(QSLIM_ROOT "${MESHLAB2_SOURCE_DIR}/external/qslim")
 if (NOT EXISTS "${QSLIM_ROOT}/mixkit/src/MxQSlim.h")
     message(FATAL_ERROR
         "QSlim submodule is missing. Run: git submodule update --init external/qslim")
@@ -44,7 +44,7 @@ add_library(MeshLab2PluginFilterQSlim STATIC
     qslimfilterplugin.cpp
 )
 target_include_directories(MeshLab2PluginFilterQSlim PUBLIC
-    ${CMAKE_SOURCE_DIR}
+    ${MESHLAB2_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 target_link_libraries(MeshLab2PluginFilterQSlim PUBLIC

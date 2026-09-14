@@ -5,7 +5,7 @@ if(NOT MESHLAB2_PLUGIN_FILTER_QUADWILD)
     return()
 endif()
 
-set(QUADWILD_ROOT "${CMAKE_SOURCE_DIR}/external/quadwild-bimdf")
+set(QUADWILD_ROOT "${MESHLAB2_SOURCE_DIR}/external/quadwild-bimdf")
 if(NOT EXISTS "${QUADWILD_ROOT}/quadwild/CMakeLists.txt")
     message(FATAL_ERROR
         "QuadWild-BiMDF submodule is missing. Run: git submodule update --init --recursive external/quadwild-bimdf")
@@ -71,7 +71,7 @@ add_library(MeshLab2PluginFilterQuadWild STATIC
 )
 add_dependencies(MeshLab2PluginFilterQuadWild MeshLab2QuadWildHelpers)
 target_include_directories(MeshLab2PluginFilterQuadWild PUBLIC
-    ${CMAKE_SOURCE_DIR}
+    ${MESHLAB2_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 target_link_libraries(MeshLab2PluginFilterQuadWild PUBLIC
@@ -88,7 +88,7 @@ qt_add_resources(MeshLab2PluginFilterQuadWild "filter_quadwild_descriptors"
 # stay verbatim so updating the upstream submodule automatically updates them.
 function(meshlab2_bundle_quadwild target)
     add_dependencies(${target} MeshLab2QuadWildHelpers)
-    set(_quadwild_root "${CMAKE_SOURCE_DIR}/external/quadwild-bimdf")
+    set(_quadwild_root "${MESHLAB2_SOURCE_DIR}/external/quadwild-bimdf")
     set(_quadwild_bin_dir "${CMAKE_BINARY_DIR}/quadwild-bimdf/Build/bin")
     set(_quadwild_executable
         "${_quadwild_bin_dir}/quadwild${CMAKE_EXECUTABLE_SUFFIX}")

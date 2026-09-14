@@ -13,7 +13,7 @@ add_library(MeshLab2PluginFilterXAtlas STATIC
 
 target_include_directories(MeshLab2PluginFilterXAtlas
     PUBLIC
-        ${CMAKE_SOURCE_DIR}
+        ${MESHLAB2_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/upstream
 )

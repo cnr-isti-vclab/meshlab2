@@ -25,7 +25,7 @@ if (NOT _rapidobj_target)
     if (DEFINED VCPKG_TARGET_TRIPLET)
         list(APPEND _vcpkg_include_hints
             "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/include"
-            "${CMAKE_SOURCE_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/include"
+            "${MESHLAB2_SOURCE_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/include"
         )
     endif()
 
@@ -52,10 +52,10 @@ add_library(MeshLab2PluginIORapidObj STATIC
 
 target_include_directories(MeshLab2PluginIORapidObj
     PUBLIC
-        ${CMAKE_SOURCE_DIR}
+        ${MESHLAB2_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/vcglib
-        ${CMAKE_SOURCE_DIR}/vcglib/eigenlib
+        ${MESHLAB2_SOURCE_DIR}/vcglib
+        ${MESHLAB2_SOURCE_DIR}/vcglib/eigenlib
 )
 
 if (RAPIDOBJ_INCLUDE_DIR)
