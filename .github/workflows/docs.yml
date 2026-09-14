@@ -50,7 +50,7 @@ jobs:
       - name: Generate API documentation
         run: |
           QT_QPA_PLATFORM=offscreen \
-          ./build/QMeshLab.app/Contents/MacOS/QMeshLab \
+          ./build/MeshLab.app/Contents/MacOS/MeshLab \
             --generate-docs docs
 
       - name: Build Sphinx site

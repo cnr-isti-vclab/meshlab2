@@ -40,7 +40,7 @@ jobs:
     runs-on: macos-15
     env:
       HOMEBREW_NO_AUTO_UPDATE: 1
-      APP_NAME: QMeshLab
+      APP_NAME: MeshLab
       BUILD_DIR: build-release
       QT_VERSION: 6.11.*
       QT_ARCH: clang_64

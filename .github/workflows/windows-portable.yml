@@ -243,7 +243,7 @@ jobs:
         run: |
           $releaseDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
           $shortSha = $env:GITHUB_SHA.Substring(0, 8)
-          $artifactStem = "QMeshLab-$releaseDate-$shortSha-windows-x86_64"
+          $artifactStem = "MeshLab-$releaseDate-$shortSha-windows-x86_64"
           "artifact_stem=$artifactStem" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Create portable package
@@ -251,16 +251,16 @@ jobs:
         env:
           RELEASE_ARTIFACT_STEM: ${{ steps.release-metadata.outputs.artifact_stem }}
         run: |
-          $exePath = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\QMeshLab.exe"
+          $exePath = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\MeshLab.exe"
           if (!(Test-Path $exePath)) {
-            $exePath = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\Release\QMeshLab.exe"
+            $exePath = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\Release\MeshLab.exe"
           }
           if (!(Test-Path $exePath)) {
-            throw "QMeshLab.exe not found in build output"
+            throw "MeshLab.exe not found in build output"
           }
 
           $distRoot = Join-Path $env:GITHUB_WORKSPACE "dist"
-          $portableDir = Join-Path $distRoot "QMeshLab-portable-win64"
+          $portableDir = Join-Path $distRoot "MeshLab-portable-win64"
           Remove-Item -Recurse -Force $portableDir -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
 
@@ -268,11 +268,11 @@ jobs:
 
           $quadWildDir = Join-Path (Split-Path $exePath -Parent) "quadwild-bimdf"
           if (!(Test-Path $quadWildDir)) {
-            throw "Bundled QuadWild-BiMDF directory not found beside QMeshLab.exe"
+            throw "Bundled QuadWild-BiMDF directory not found beside MeshLab.exe"
           }
           Copy-Item $quadWildDir (Join-Path $portableDir "quadwild-bimdf") -Recurse
 
-          & windeployqt --release --compiler-runtime (Join-Path $portableDir "QMeshLab.exe")
+          & windeployqt --release --compiler-runtime (Join-Path $portableDir "MeshLab.exe")
 
           $vcpkgBin = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\vcpkg_installed\$env:VCPKG_TARGET_TRIPLET\bin"
           if (Test-Path $vcpkgBin) {

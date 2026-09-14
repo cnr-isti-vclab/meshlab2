@@ -27,7 +27,7 @@ Step 1 — Generate the API source files
    cmake --build build --target MeshLab2 -j8
    QT_QPA_PLATFORM=offscreen ./build/QMeshLab --generate-docs docs
 
-This introspects the ``_qmeshlab`` module from within the running app,
+This introspects the ``_meshlab`` module from within the running app,
 reads all ``filters.json`` files, and writes the reStructuredText and MyST
 Markdown sources into ``docs/api/``.
 

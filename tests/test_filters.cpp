@@ -434,6 +434,7 @@ private slots:
     void atlasedMeshPacksOneUvSpaceForEveryChartShape();
     void abstractDomainMeasureReportsItsStructureAndCatchesABrokenOne();
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
+    void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToConnectedComponents();
     void islandMergeCanTakeItsIslandsFromTheSelection();
     void islandMergeSurvivesATextureItCannotDecode();
@@ -6241,6 +6242,46 @@ void FilterTests::islandMergeCanTakeItsIslandsFromTheSelection()
 // pan/zoom/aspect, so which faces the rectangle hits is exact rather than inferred from a
 // camera. Three triangles form one component, a fourth stands alone, and the rectangle is
 // aimed at a single triangle of the first.
+void FilterTests::stateJsonAcceptsBothNameSpellings()
+{
+    // The "kind" tag on camera and render state was "QMeshLab.*" until the 2026-09
+    // rename. It is embedded in saved snapshots, copied state, and any script that
+    // pins a cameraState parameter, so both spellings have to keep validating --
+    // otherwise the rename silently invalidates state people already have.
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply")) >= 0);
+    doc.setCurrentMeshIndex(0);
+    const QString key = filterKeyForId(doc, QStringLiteral("select_by_screen_rectangle"));
+    QVERIFY(!key.isEmpty());
+
+    const auto runWithKind = [&](const QString &kind) -> QString {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("space"), QStringLiteral("uv"));
+        params.insert(QStringLiteral("camera_state"),
+                      QStringLiteral(R"({"kind":"%1","version":1})").arg(kind));
+        params.insert(QStringLiteral("aspect"), 1.0);
+        params.insert(QStringLiteral("uv_pan_x"), 0.0);
+        params.insert(QStringLiteral("uv_pan_y"), 0.0);
+        params.insert(QStringLiteral("uv_zoom"), 1.0);
+        params.insert(QStringLiteral("rect_min_x"), 0.45);
+        params.insert(QStringLiteral("rect_max_x"), 0.55);
+        params.insert(QStringLiteral("rect_min_y"), 0.45);
+        params.insert(QStringLiteral("rect_max_y"), 0.55);
+        params.insert(QStringLiteral("element"), QStringLiteral("face"));
+        params.insert(QStringLiteral("mode"), QStringLiteral("replace"));
+        return doc.runFilter(key, params).errorMessage;
+    };
+
+    for (const QString &kind : {QStringLiteral("MeshLab.CameraState"),
+                                QStringLiteral("QMeshLab.CameraState")}) {
+        const QString error = runWithKind(kind);
+        QVERIFY2(!error.contains(QStringLiteral("invalid kind")),
+                 qPrintable(QStringLiteral("%1 was rejected: %2").arg(kind, error)));
+    }
+    // And the check is still a check.
+    QVERIFY(runWithKind(QStringLiteral("Something.Else")).contains(QStringLiteral("invalid kind")));
+}
+
 void FilterTests::rubberBandExpandsToConnectedComponents()
 {
     VCGMesh mesh;

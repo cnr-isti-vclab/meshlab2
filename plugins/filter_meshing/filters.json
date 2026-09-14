@@ -1922,7 +1922,7 @@
       "name": "Compute Principal Curvature Directions (vcglib)",
       "pythonName": "compute_principal_curvature_directions_vcglib",
       "shortDescription": "Compute principal curvature directions.",
-      "longDescriptionMarkdown": "Compute the principal directions of curvature with different algorithms. The selected curvature scalar is stored in vertex quality; the filter does not bake colors, and QMeshLab switches the view to vertex-quality color visualization after it runs.",
+      "longDescriptionMarkdown": "Compute the principal directions of curvature with different algorithms. The selected curvature scalar is stored in vertex quality; the filter does not bake colors, and MeshLab switches the view to vertex-quality color visualization after it runs.",
       "tags": [
         "meshing"
       ],

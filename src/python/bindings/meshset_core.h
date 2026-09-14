@@ -51,7 +51,7 @@ struct FilterRunRecord
 //
 // Two construction modes:
 //  - MeshSetCore()          — standalone: creates and owns its own Document.
-//                             Used by the pymeshlab2 standalone library.
+//                             Used by the pymeshlab standalone library.
 //  - MeshSetCore(Document*) — embedded: borrows a live Document owned by
 //                             MainWindow.  Does NOT delete the document on
 //                             destruction.  Used by the in-app Python console.

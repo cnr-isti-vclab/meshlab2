@@ -1,5 +1,5 @@
 {
-  "kind": "QMeshLab.Preferences",
+  "kind": "MeshLab.Preferences",
   "version": 1,
   "_comment": [
     "Application preferences, declared with exactly the parameter schema used by",

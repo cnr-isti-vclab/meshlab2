@@ -70,7 +70,7 @@ void PythonHost::initialize(Document *doc, RenderWidget *view)
     if (m_initialized)
         return;
 
-    // PyImport_AppendInittab("_qmeshlab", ...) must already have been called
+    // PyImport_AppendInittab("_meshlab", ...) must already have been called
     // from main() before this point.
     if (!Py_IsInitialized()) {
         PyConfig config;
@@ -107,9 +107,9 @@ void PythonHost::initialize(Document *doc, RenderWidget *view)
 
 void PythonHost::setupConsole(Document *doc)
 {
-    // Import _qmeshlab (registered via PyImport_AppendInittab).  This triggers
-    // PyInit__qmeshlab which populates the nanobind type registry.
-    PyObject *mod = PyImport_ImportModule("_qmeshlab");
+    // Import _meshlab (registered via PyImport_AppendInittab).  This triggers
+    // PyInit__meshlab which populates the nanobind type registry.
+    PyObject *mod = PyImport_ImportModule("_meshlab");
     if (!mod) {
         PyErr_Print();
         return;
@@ -160,20 +160,20 @@ void PythonHost::setupConsole(Document *doc)
 import sys
 import types
 
-import _qmeshlab as _qml
+import _meshlab as _qml
 
-pymeshlab2 = types.ModuleType("pymeshlab2")
-pymeshlab2.__doc__ = "Public QMeshLab/PyMeshLab2 scripting facade backed by _qmeshlab."
-pymeshlab2.Mesh = _qml.Mesh
-pymeshlab2.MeshSet = _qml.MeshSet
-pymeshlab2.FilterInfo = _qml.FilterInfo
-pymeshlab2.FilterRunResult = _qml.FilterRunResult
-pymeshlab2.MlGui = _qml.MlGui
-pymeshlab2.filter_list = _qml.filter_list
-pymeshlab2.print_filter_list = _qml.print_filter_list
-pymeshlab2.load_default_plugins = _qml.load_default_plugins
-pymeshlab2.__all__ = ["Mesh", "MeshSet", "FilterInfo", "FilterRunResult", "MlGui"]
-sys.modules["pymeshlab2"] = pymeshlab2
+pymeshlab = types.ModuleType("pymeshlab")
+pymeshlab.__doc__ = "Public MeshLab scripting facade backed by _meshlab."
+pymeshlab.Mesh = _qml.Mesh
+pymeshlab.MeshSet = _qml.MeshSet
+pymeshlab.FilterInfo = _qml.FilterInfo
+pymeshlab.FilterRunResult = _qml.FilterRunResult
+pymeshlab.MlGui = _qml.MlGui
+pymeshlab.filter_list = _qml.filter_list
+pymeshlab.print_filter_list = _qml.print_filter_list
+pymeshlab.load_default_plugins = _qml.load_default_plugins
+pymeshlab.__all__ = ["Mesh", "MeshSet", "FilterInfo", "FilterRunResult", "MlGui"]
+sys.modules["pymeshlab"] = pymeshlab
 
 def _bind_filter_methods():
     def _make_filter(python_name):
@@ -203,7 +203,7 @@ void PythonHost::finalize()
         return;
 
     // Remove the MeshSet wrapper from __main__ BEFORE Py_Finalize so that
-    // nanobind's module cleanup (triggered when _qmeshlab is unloaded) finds
+    // nanobind's module cleanup (triggered when _meshlab is unloaded) finds
     // no live instances and does not print "leaked instance/type/function"
     // warnings to stderr.
     if (PyObject *mainModule = PyImport_AddModule("__main__")) {

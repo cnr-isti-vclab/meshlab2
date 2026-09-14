@@ -90,7 +90,7 @@ void ensureQCoreApplication()
         return;
 
     static int argc = 1;
-    static char arg0[] = "qmeshlab_python";
+    static char arg0[] = "meshlab_python";
     static char *argv[] = { arg0, nullptr };
     static QCoreApplication app(argc, argv);
     (void) app;

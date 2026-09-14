@@ -51,7 +51,7 @@ CI — see [GitHub Actions: macOS DMG](#github-actions-macos-dmg) below.
 - Filter parameters include mesh, texture, point/vector, camera-state, and render-state values; parameter panels can reset to descriptor defaults and source state JSON from the active view
 - Raster projection filters can transfer current/all visible raster colors to vertex colors or bake visible rasters into a mesh texture atlas using existing wedge UVs
 - Remeshing filters include layer-aware mesh parameters such as an alternate reference surface for isotropic remeshing reprojection/distance checks
-- Embedded Python bindings when `MESHLAB2_PYTHON_CONSOLE=ON`; the in-app Python dock exposes the live document as `ms`, the live view helper as `mlgui`, and the public standalone facade as `pymeshlab2`
+- Embedded Python bindings when `MESHLAB2_PYTHON_CONSOLE=ON`; the in-app Python dock exposes the live document as `ms`, the live view helper as `mlgui`, and the public standalone facade as `pymeshlab`
 - Tree-shaped undo/redo integrated with mesh operations, filter runs, selection-delta storage, camera/render-style snapshots, script-action history, branch pruning/linearization, and opt-in byte-budget/system-pressure purging
 - Structured logging for app/VCG/error messages, load/filter progress, GPU buffer rebuild timing, and automatic undo-prune events; `Help > Memory Info` separates OS footprint, tracked CPU ownership, and logical GPU-cache sizes and can copy exact JSON for external profiling
 - PNG snapshot export from the active view (custom resolution + embedded camera/trackball JSON metadata), plus snapshot-to-raster workflows
@@ -118,7 +118,7 @@ This repository contains `vcpkg.json`; non-Qt dependencies are installed via vcp
 Qt6 and Python are intentionally kept outside vcpkg. `vcglib`, selected
 algorithm archives such as MeshFix and QSlim, and the math-only JKQTMathText
 dependency are git submodules. `nanobind` is provided through vcpkg and is used
-for the private `_qmeshlab` extension behind the embedded `pymeshlab2` facade.
+for the private `_meshlab` extension behind the embedded `pymeshlab` facade.
 
 ### Dependency Installation
 

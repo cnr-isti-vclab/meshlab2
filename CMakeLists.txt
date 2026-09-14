@@ -16,7 +16,7 @@ project(MeshLab2 LANGUAGES CXX)
 # resources/Info.plist.in) and anywhere else the app names itself.
 # Version follows the MeshLab date scheme (YYYY.MM); CI may override it.
 set(MESHLAB2_VERSION "2026.11" CACHE STRING "Product version, YYYY.MM")
-set(MESHLAB2_BUNDLE_NAME "QMeshLab")
+set(MESHLAB2_BUNDLE_NAME "MeshLab")
 # Deliberately distinct from classic MeshLab's com.vcg.meshlab so both can be
 # installed side by side. Changing this invalidates code-signing identity and
 # the user's TCC privacy grants, so treat it as stable.
@@ -38,7 +38,7 @@ if (MESHLAB2_REQUIRE_VCPKG_DEPS)
             "-DCMAKE_TOOLCHAIN_FILE=$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake, "
             "or use the 'vcpkg-manifest' preset.")
     endif()
-    message(STATUS "QMeshLab external dependency mode: vcpkg (triplet: ${VCPKG_TARGET_TRIPLET})")
+    message(STATUS "MeshLab external dependency mode: vcpkg (triplet: ${VCPKG_TARGET_TRIPLET})")
 endif()
 
 find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets GuiPrivate ShaderTools Test)
@@ -86,7 +86,7 @@ if(MESHLAB2_PYTHON_CONSOLE)
     find_package(Python REQUIRED COMPONENTS Interpreter Development.Embed Development.Module)
     # nanobind is provided by the local vcpkg ports (vcpkg/ports/nanobind).
     find_package(nanobind CONFIG REQUIRED)
-    message(STATUS "QMeshLab: Python console enabled (Python ${Python_VERSION})")
+    message(STATUS "MeshLab: Python console enabled (Python ${Python_VERSION})")
 endif()
 
 add_library(MeshLab2Core STATIC
@@ -245,11 +245,9 @@ qt_add_executable(MeshLab2
     src/ui/undographwidget.h src/ui/undographwidget.cpp
 )
 
-# Phase 1 renames build identifiers only. The shipped binary and bundle keep their
-# current name until Phase 3 settles the product name; see
-# docs/design/proposals/repository_rename.md.
+# The target is MeshLab2 (following the repository); the product is MeshLab.
 set_target_properties(MeshLab2 PROPERTIES
-    OUTPUT_NAME "QMeshLab"
+    OUTPUT_NAME "MeshLab"
     MACOSX_BUNDLE TRUE
     # Also set as target properties, not only in the plist: the Xcode generator and
     # some Qt deployment tooling read these rather than the generated Info.plist.
@@ -262,7 +260,7 @@ set_target_properties(MeshLab2 PROPERTIES
 option(MESHLAB2_MACOS_BUNDLE_ICON "Generate and embed the macOS app bundle icon" ON)
 if (APPLE AND MESHLAB2_MACOS_BUNDLE_ICON)
     set(MESHLAB2_APP_ICON_PNG "${CMAKE_SOURCE_DIR}/img/MeshLab_Icon_512x512.png")
-    set(MESHLAB2_APP_ICON_ICNS "${CMAKE_CURRENT_BINARY_DIR}/QMeshLab.icns")
+    set(MESHLAB2_APP_ICON_ICNS "${CMAKE_CURRENT_BINARY_DIR}/MeshLab.icns")
     add_custom_command(
         OUTPUT "${MESHLAB2_APP_ICON_ICNS}"
         COMMAND "${CMAKE_COMMAND}"
@@ -277,7 +275,7 @@ if (APPLE AND MESHLAB2_MACOS_BUNDLE_ICON)
     set_source_files_properties("${MESHLAB2_APP_ICON_ICNS}" PROPERTIES
         MACOSX_PACKAGE_LOCATION "Resources"
     )
-    set(MESHLAB2_BUNDLE_ICON_NAME "QMeshLab.icns")
+    set(MESHLAB2_BUNDLE_ICON_NAME "MeshLab.icns")
     set_target_properties(MeshLab2 PROPERTIES
         MACOSX_BUNDLE_ICON_FILE "${MESHLAB2_BUNDLE_ICON_NAME}"
     )

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build a QMeshLab .dmg locally, mirroring .github/workflows/macos-dmg.yml.
+# Build a MeshLab .dmg locally, mirroring .github/workflows/macos-dmg.yml.
 #
 #   scripts/package-macos-dmg.sh [--build-dir DIR] [--no-build] [--jobs N]
 #       [--sign-identity "Developer ID Application: ..."]
@@ -10,7 +10,7 @@
 #
 set -euo pipefail
 
-APP_NAME=QMeshLab
+APP_NAME=MeshLab
 BUILD_DIR=build-release
 DO_BUILD=1
 JOBS=""

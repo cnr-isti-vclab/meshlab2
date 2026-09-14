@@ -959,7 +959,7 @@ void DocumentTests::fileDialogsRememberWhereYouWere()
     // QSettings is process-wide, so give this test its own application name and put it back
     // afterwards rather than trampling whatever the rest of the suite relies on.
     const QString savedApp = QCoreApplication::applicationName();
-    QCoreApplication::setApplicationName(QStringLiteral("QMeshLabFileDialogDirectoryTest"));
+    QCoreApplication::setApplicationName(QStringLiteral("MeshLabFileDialogDirectoryTest"));
     const auto restore = qScopeGuard([&] {
         QSettings settings;
         settings.clear();

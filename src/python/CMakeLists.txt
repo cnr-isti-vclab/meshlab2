@@ -5,7 +5,7 @@
 # _meshlab2_bindings — static library containing the nanobind binding code.
 # Because we embed the module via PyImport_AppendInittab (not dlopen), we
 # build it as a regular STATIC library so the linker can pull in the
-# PyInit__qmeshlab symbol.  We use nanobind_build_library to get the
+# PyInit__meshlab symbol.  We use nanobind_build_library to get the
 # nanobind-static runtime (no shared libnanobind needed), then compile our
 # binding sources against it.
 # ---------------------------------------------------------------------------

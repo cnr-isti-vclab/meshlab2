@@ -58,7 +58,7 @@ public:
             QStringLiteral("str"),  QStringLiteral("bool"),  QStringLiteral("type"),
             QStringLiteral("open"), QStringLiteral("enumerate"),QStringLiteral("zip"),
             QStringLiteral("map"),  QStringLiteral("filter"),QStringLiteral("sorted"),
-            QStringLiteral("ms"),   QStringLiteral("mlgui"),   QStringLiteral("pymeshlab2"),
+            QStringLiteral("ms"),   QStringLiteral("mlgui"),   QStringLiteral("pymeshlab"),
             QStringLiteral("help"),
         };
         for (const QString &b : builtins) {

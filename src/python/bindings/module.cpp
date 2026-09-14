@@ -36,9 +36,9 @@ void loadDefaultPlugins()
 
 } // namespace
 
-NB_MODULE(_qmeshlab, m)
+NB_MODULE(_meshlab, m)
 {
-    m.doc() = "QMeshLab Python bindings — MeshSet wraps the QMeshLab Document.";
+    m.doc() = "MeshLab Python bindings — MeshSet wraps the MeshLab Document.";
 
     m.def("load_default_plugins", &loadDefaultPlugins);
     m.def("filter_list", &moduleFilterList);

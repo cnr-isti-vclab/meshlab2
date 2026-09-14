@@ -18,7 +18,7 @@ added together or expected to match one another exactly:
   granularity, command/staging resources, or all graphics memory charged to the process.
 
 The dialog uses binary units (`KiB`, `MiB`, `GiB`) and provides exact bytes in tooltips.
-`Copy JSON` exports the same snapshot as `org.qmeshlab.memory-report.v1`, including the
+`Copy JSON` exports the same snapshot as `org.meshlab.memory-report.v1`, including the
 process id, timestamp, and the separate CPU/GPU subtotals.
 
 ## Tracked CPU Data

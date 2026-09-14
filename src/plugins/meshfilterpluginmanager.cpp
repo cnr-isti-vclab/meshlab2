@@ -47,7 +47,10 @@ bool validateStateJsonPayload(
 
     const QJsonObject root = doc.object();
     const QString kind = root.value(QStringLiteral("kind")).toString().trimmed();
-    if (kind != requiredKind) {
+    // State captured before the 2026-09 rename carries the "QMeshLab." prefix.
+    const QString legacyKind =
+        QStringLiteral("Q") + requiredKind;
+    if (kind != requiredKind && kind != legacyKind) {
         errorMessage = QObject::tr("%1 has invalid kind '%2' (expected '%3').")
                            .arg(prefix)
                            .arg(kind)
@@ -1069,14 +1072,14 @@ bool MeshFilterPluginManager::convertParameterValue(
     }
     case MeshFilterParameterType::CameraState: {
         const QString value = inputValue.toString().trimmed();
-        if (!validateStateJsonPayload(value, QStringLiteral("QMeshLab.CameraState"), prefix, errorMessage))
+        if (!validateStateJsonPayload(value, QStringLiteral("MeshLab.CameraState"), prefix, errorMessage))
             return false;
         outputValue = value;
         return true;
     }
     case MeshFilterParameterType::RenderState: {
         const QString value = inputValue.toString().trimmed();
-        if (!validateStateJsonPayload(value, QStringLiteral("QMeshLab.RenderState"), prefix, errorMessage))
+        if (!validateStateJsonPayload(value, QStringLiteral("MeshLab.RenderState"), prefix, errorMessage))
             return false;
         outputValue = value;
         return true;

@@ -900,7 +900,7 @@ QString RenderWidget::cameraStateJson() const
     const QJsonObject trackball = trackballStateToJsonObject(state, &defaultState);
 
     QJsonObject root;
-    root.insert(QStringLiteral("kind"), QStringLiteral("QMeshLab.CameraState"));
+    root.insert(QStringLiteral("kind"), QStringLiteral("MeshLab.CameraState"));
     root.insert(QStringLiteral("version"), 1);
     if (!trackball.isEmpty())
         root.insert(QStringLiteral("trackball"), trackball);
@@ -931,7 +931,10 @@ bool RenderWidget::applyCameraStateJson(const QString &jsonText, QString *errorM
     const QJsonObject root = doc.object();
     if (root.contains(QStringLiteral("kind"))) {
         const QString kind = root.value(QStringLiteral("kind")).toString();
+        // Both spellings: state written before the 2026-09 rename says "QMeshLab.".
         if (!kind.isEmpty()
+            && kind != QStringLiteral("MeshLab.CameraState")
+            && kind != QStringLiteral("MeshLab.CameraTrackballState")
             && kind != QStringLiteral("QMeshLab.CameraState")
             && kind != QStringLiteral("QMeshLab.CameraTrackballState")) {
             return fail(tr("Unsupported camera JSON kind: %1").arg(kind));
@@ -972,7 +975,7 @@ QString RenderWidget::renderStateJson() const
     const PerMeshRenderSettings defaultPerMeshSettings;
 
     QJsonObject root;
-    root.insert(QStringLiteral("kind"), QStringLiteral("QMeshLab.RenderState"));
+    root.insert(QStringLiteral("kind"), QStringLiteral("MeshLab.RenderState"));
     root.insert(QStringLiteral("version"), 1);
     if (m_viewMode != ViewMode::Scene3D)
         root.insert(QStringLiteral("view_mode"), viewModeToJson(m_viewMode));
@@ -1069,7 +1072,8 @@ bool RenderWidget::applyRenderStateJson(const QString &jsonText, QString *errorM
     const QJsonObject root = doc.object();
     if (root.contains(QStringLiteral("kind"))) {
         const QString kind = root.value(QStringLiteral("kind")).toString();
-        if (!kind.isEmpty() && kind != QStringLiteral("QMeshLab.RenderState"))
+        if (!kind.isEmpty() && kind != QStringLiteral("MeshLab.RenderState")
+            && kind != QStringLiteral("QMeshLab.RenderState"))
             return fail(tr("Unsupported render-state JSON kind: %1").arg(kind));
     }
 

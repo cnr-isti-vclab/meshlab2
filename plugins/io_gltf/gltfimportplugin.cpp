@@ -1027,7 +1027,7 @@ public:
             reportProgress(
                 cb,
                 0,
-                QObject::tr("glTF uses KHR_draco_mesh_compression but this QMeshLab build has no Draco support."));
+                QObject::tr("glTF uses KHR_draco_mesh_compression but this MeshLab build has no Draco support."));
         }
 #endif
 
@@ -1700,7 +1700,7 @@ public:
 
         tinygltf::Model model;
         model.asset.version = "2.0";
-        model.asset.generator = "QMeshLab";
+        model.asset.generator = "MeshLab";
 
         // Prepare texture/material mapping (only for triangle groups with valid texture slots).
         std::unordered_map<int, int> textureSlotToMaterial;
@@ -1852,7 +1852,7 @@ public:
                 reportProgress(
                     cb,
                     0,
-                    QObject::tr("glTF export warning: Draco compression requested but this QMeshLab build has no Draco support."));
+                    QObject::tr("glTF export warning: Draco compression requested but this MeshLab build has no Draco support."));
                 warnedDracoUnavailable = true;
             }
 #endif

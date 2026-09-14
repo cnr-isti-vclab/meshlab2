@@ -1,8 +1,12 @@
 # Repository Rename: QMeshLab → meshlab2
 
-A plan for renaming the project. **Nothing described here has been done.** It
-exists so the rename happens in reviewable pieces with the traps identified
-first, rather than as one large find-and-replace.
+A plan for renaming the project, and the record of it being carried out. See
+[Status](#status) for how far it has got.
+
+> **Exclude this file from any rename sweep.** It quotes the old identifiers on
+> purpose — the "Current" column below is the only surviving record of what the
+> names used to be. The Phase 1 and Phase 2 sweeps rewrote it once and the
+> mapping had to be restored from `git show 8fe38b7`.
 
 See also: [Architecture](../architecture.md), [Adding a Filter](../adding_a_filter.md)
 (the plugin-id convention), [Preferences](../preferences.md) (where user settings live).
@@ -10,7 +14,7 @@ See also: [Architecture](../architecture.md), [Adding a Filter](../adding_a_filt
 ## Status
 
 As of 2026-09-13: Phase 0 done (repo renamed to `cnr-isti-vclab/meshlab2`).
-Phases 1 and 2 applied, not yet committed. The measurements below were taken on
+Phases 1 and 2 committed (`f2542a0`, `75ca2cc`); Phase 3 applied. The measurements below were taken on
 that date against the tracked tree.
 
 ## "The rename" is six separate things
@@ -21,7 +25,7 @@ Only the first is the GitHub repository name, and they can be done — or declin
 | # | Surface | Measured extent | Reversible? |
 |---|---|---|---|
 | 1 | GitHub repository name | 1 setting; 7 in-tree URLs | Yes — GitHub redirects the old path indefinitely |
-| 2 | Build identifiers (CMake targets, options, macros) | `QMeshLab*` 918, `MESHLAB2_*` 251, `MESHLAB2_*` 157 | Yes, it is all internal |
+| 2 | Build identifiers (CMake targets, options, macros) | `QMeshLab*` 918, `QMESH_*` 251, `QMESHLAB_*` 157 | Yes, it is all internal |
 | 3 | Plugin ids and Qt resource prefixes | 34 ids, 222 `qmeshlab.` occurrences | Mostly — one user setting keys off them |
 | 4 | User-facing app identity (name, QSettings, bundle id) | 3 lines, but they own user data | **No** without a migration shim |
 | 5 | Local working-copy directory | 1 `mv` | Yes, but it moves the agent state — see below |
@@ -70,13 +74,13 @@ Every family, with its measured extent. This is the table the sweep works from.
 | Family | Current | Target | Extent |
 |---|---|---|---|
 | Application target and bundle | `QMeshLab` | `MeshLab2` (target) / `MeshLab` (display) | 27 target refs |
-| Core library | `MeshLab2Core` | `MeshLab2Core` | 64 |
-| Plugin aggregate | `MeshLab2Plugins` | `MeshLab2Plugins` | 93 |
-| Plugin targets | `MeshLab2PluginFilter*`, `MeshLab2PluginIO*` | `MeshLab2PluginFilter*`, `MeshLab2PluginIO*` | 358 |
-| Test targets | `MeshLab2Tests`, `MeshLab2FilterTests`, … | `MeshLab2Tests`, … | in the 918 |
-| CMake options | `MESHLAB2_PLUGIN_*`, `MESHLAB2_IGL_*`, `MESHLAB2_MACOS_*` | `MESHLAB2_PLUGIN_*`, … | 251 |
-| Macros and env vars | `MESHLAB2_PYTHON_CONSOLE`, `MESHLAB2_BUILD_ID`, … | `MESHLAB2_*` | 157 |
-| Plugin ids and resource prefixes | `meshlab2.filter.*`, `meshlab2.io.*`, `meshlab2.test.*` | `meshlab2.*` | 34 ids, 222 refs |
+| Core library | `QMeshLabCore` | `MeshLab2Core` | 64 |
+| Plugin aggregate | `QMeshLabPlugins` | `MeshLab2Plugins` | 93 |
+| Plugin targets | `QMeshLabPluginFilter*`, `QMeshLabPluginIO*` | `MeshLab2PluginFilter*`, `MeshLab2PluginIO*` | 358 |
+| Test targets | `QMeshLabTests`, `QMeshLabFilterTests`, … | `MeshLab2Tests`, … | in the 918 |
+| CMake options | `QMESH_PLUGIN_*`, `QMESH_IGL_*`, `QMESH_MACOS_*` | `MESHLAB2_PLUGIN_*`, … | 251 |
+| Macros and env vars | `QMESHLAB_PYTHON_CONSOLE`, `QMESHLAB_BUILD_ID`, … | `MESHLAB2_*` | 157 |
+| Plugin ids and resource prefixes | `qmeshlab.filter.*`, `qmeshlab.io.*`, `qmeshlab.test.*` | `meshlab2.*` | 34 ids, 222 refs |
 | Native Python module | `_qmeshlab` | `_meshlab` | 56 |
 | Python facade module | `pymeshlab2` | `pymeshlab` | 51 |
 | Qt application name | `QMeshLab` | `MeshLab` + settings migration | 3 lines |
@@ -103,7 +107,7 @@ That decision is worth taking in the other repo, explicitly.
 
 ### The bundle identifier: no longer a bug, now a choice
 
-`CMakeLists.txt:23` sets `MESHLAB2_BUNDLE_IDENTIFIER "net.meshlab.MeshLab"` — the
+`CMakeLists.txt:23` sets `QMESHLAB_BUNDLE_IDENTIFIER "net.meshlab.MeshLab"` — the
 same bundle id as the released MeshLab. Before the display name was settled that
 read as a collision. With the product named **MeshLab and replacing the old one**,
 it becomes defensible: macOS treats the new build as the *same application*, so
@@ -156,10 +160,16 @@ it is an export format for other tools to consume. A third is the memory report'
 schema string `org.qmeshlab.memory-report.v1` (`mainwindow.cpp:2936`), which is
 versioned and read by whatever consumes the exported JSON.
 
-All three were deliberately **excluded from Phases 1 and 2**, along with the
-QSettings application name `QMeshLabFileDialogDirectoryTest` used to isolate a
-test. They are a single Phase 3 decision: rename and accept both spellings on
-read, or leave them as the historical format names.
+Phase 3 found two more of the same shape: `QMeshLab.CameraState` and
+`QMeshLab.RenderState`, the `kind` tag on camera and render state JSON, which is
+**validated on read** (`renderwidget.cpp`, `meshfilterpluginmanager.cpp`) and
+travels in saved snapshots, copied state and any script pinning a `cameraState`
+parameter.
+
+All five were renamed in Phase 3 with the writers emitting the new spelling and
+the readers accepting both. `stateJsonAcceptsBothNameSpellings` in
+`tests/test_filters.cpp` holds that compatibility in place, since a promise of
+this kind is otherwise deleted by the next cleanup.
 
 ## Sequencing
 
@@ -185,21 +195,21 @@ settled before any code churns.
 
 ### Phase 1 — build identifiers
 
-`QMeshLab*` targets, `MESHLAB2_*` options, `MESHLAB2_*` macros and env vars. Purely
+`QMeshLab*` targets, `QMESH_*` options, `QMESHLAB_*` macros and env vars. Purely
 internal: nothing here is visible to a user or persisted anywhere.
 
 Mechanical, but do it as **three commits**, one per family, each verified by a
 clean configure-and-build. The option rename in particular touches 55
-`CMakeLists.txt` files and a stale `MESHLAB2_PLUGIN_*` name fails silently by simply
+`CMakeLists.txt` files and a stale `QMESH_PLUGIN_*` name fails silently by simply
 not enabling a plugin — so after this phase, diff the built plugin list against
 the list from before.
 
-`MESHLAB2_PYTHON_CONSOLE` is documented in `readme.md` and used in CI; rename it
+`QMESHLAB_PYTHON_CONSOLE` is documented in `readme.md` and used in CI; rename it
 in the same commit as its documentation.
 
 ### Phase 2 — plugin ids and resource prefixes
 
-34 ids of the form `meshlab2.filter.foo` → `meshlab2.filter.foo`. Each appears in
+34 ids of the form `qmeshlab.filter.foo` → `meshlab2.filter.foo`. Each appears in
 its `filters.json`, in the plugin's `pluginId()`, and as the `qt_add_resources`
 PREFIX — and [Adding a Filter](../adding_a_filter.md) states the invariant that
 the prefix must match the id, so all three move together or the descriptors fail

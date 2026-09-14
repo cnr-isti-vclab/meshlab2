@@ -7,7 +7,7 @@ the canonical mesh list, raster list, undo tree, and shared `MeshGpuResourceCach
 Multiple `RenderWidget` views observe it via Qt signals. Per-view state
 (mesh render modes, camera, visibility vector) lives in each `RenderWidget`.
 
-The optional embedded Python console exposes `_qmeshlab.MeshSet` (nanobind) that
+The optional embedded Python console exposes `_meshlab.MeshSet` (nanobind) that
 wraps a `Document` and calls the same filter manager used by the GUI.
 
 See `docs/design/architecture.md`, `docs/design/data_model.md`, `docs/design/rendering.md`.
@@ -97,7 +97,7 @@ See `docs/design/architecture.md`, `docs/design/data_model.md`, `docs/design/ren
 
 ## Python Bindings
 
-- `_qmeshlab.MeshSet.apply_filter(name, **kwargs)` → `FilterRunRecord`
+- `_meshlab.MeshSet.apply_filter(name, **kwargs)` → `FilterRunRecord`
 - Dictionary keys map to filter parameter `id` fields (not labels).
 - `FilterRunRecord.output_values` is a Python dict (converted from `QVariantMap`).
 - Supports `bool`, `int`, `float`, `str`, `QVector3D` → `tuple`, and `QList<double>` → `list`.

@@ -385,7 +385,7 @@ MainWindow::~MainWindow() = default;
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    setWindowTitle(QStringLiteral("QMeshLab"));
+    setWindowTitle(QStringLiteral("MeshLab"));
     setAcceptDrops(true);
     if (QScreen *screen = QGuiApplication::primaryScreen()) {
         const QRect avail = screen->availableGeometry();
@@ -918,7 +918,7 @@ MainWindow::MainWindow(QWidget *parent)
         }
 
         QStringList lines;
-        lines << QStringLiteral("# Uses the embedded QMeshLab scripting session.");
+        lines << QStringLiteral("# Uses the embedded MeshLab scripting session.");
         lines << QStringLiteral("# `ms` already refers to the current document MeshSet.");
         lines << QStringLiteral("");
 
@@ -1893,8 +1893,8 @@ void MainWindow::newInstance()
     const QString program = QCoreApplication::applicationFilePath();
     const bool started = QProcess::startDetached(program, QStringList());
     statusBar()->showMessage(
-        started ? tr("Started new QMeshLab instance")
-                : tr("Failed to start a new QMeshLab instance"),
+        started ? tr("Started new MeshLab instance")
+                : tr("Failed to start a new MeshLab instance"),
         started ? 2000 : 4000);
 }
 
@@ -2583,7 +2583,7 @@ void MainWindow::saveSnapshotPng()
     }
 
     QImage outImage = snapshot.convertToFormat(QImage::Format_RGBA8888);
-    outImage.setText(QStringLiteral("QMeshLab.CameraTrackballState"), view->cameraStateJson());
+    outImage.setText(QStringLiteral("MeshLab.CameraTrackballState"), view->cameraStateJson());
 
     QImageWriter writer(targetPath, "png");
     if (!writer.write(outImage)) {
@@ -2619,7 +2619,7 @@ void MainWindow::addSnapshotRaster()
     }
 
     snapshot = snapshot.convertToFormat(QImage::Format_RGBA8888);
-    snapshot.setText(QStringLiteral("QMeshLab.CameraTrackballState"), view->cameraStateJson());
+    snapshot.setText(QStringLiteral("MeshLab.CameraTrackballState"), view->cameraStateJson());
 
     const CameraShot shot = view->cameraShotForViewport(snapshotSize);
     const QString name = tr("Snapshot %1").arg(m_doc->rasterCount() + 1);
@@ -2933,7 +2933,7 @@ void MainWindow::showMemoryInfo()
     gpuJson.insert(QStringLiteral("meshCacheTotalBytes"), double(gpuTotal));
 
     QJsonObject report;
-    report.insert(QStringLiteral("schema"), QStringLiteral("org.qmeshlab.memory-report.v1"));
+    report.insert(QStringLiteral("schema"), QStringLiteral("org.meshlab.memory-report.v1"));
     report.insert(QStringLiteral("timestampUtc"),
                   QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
     report.insert(QStringLiteral("pid"), double(QCoreApplication::applicationPid()));
@@ -3040,7 +3040,7 @@ void MainWindow::showImportPlugins()
     };
 
     layout->addWidget(explanation(
-        tr("Every format QMeshLab opens or saves is handled by a plugin, and some formats "
+        tr("Every format MeshLab opens or saves is handled by a plugin, and some formats "
            "are handled by more than one -- three plugins read .obj. This is where you "
            "choose which of them opens each kind of file, and see what each plugin can "
            "carry.")));

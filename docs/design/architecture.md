@@ -15,7 +15,7 @@ See also: [Data Model](data_model.md) · [Rendering](rendering.md) · [Memory Ac
 3. Plugin interfaces/managers (`src/plugins`) and built-in plugin registration (`plugins/`)
 4. Shared mesh GPU cache (`src/render/MeshGpuResourceCache`)
 5. Per-view rendering and interaction (`RenderWidget`, `ViewTrackball`, `ViewAxisGizmo`, `RenderOverlayPanel`, `InteractiveTool`)
-6. Optional embedded Python layer (`src/python`, `_qmeshlab`, `PythonHost`)
+6. Optional embedded Python layer (`src/python`, `_meshlab`, `PythonHost`)
 7. Auxiliary views (`LayerWidget` tree/table layer dock, `MeshFilterPanel`, log dock, undo graph, Python console, status-bar stats/progress)
 
 ## Core Components
@@ -88,9 +88,9 @@ Filter browser/runner: search box, parameter form from `MeshFilterDescriptor`, o
 
 Orchestrates the central splitter (one or more `RenderWidget`s), right-column docks (`LayerWidget` + `MeshFilterPanel`), bottom log/Python docks, status bar (progress bars, frame-time stats), undo graph panel, tool toolbar/menu, and menus (file, edit, filters, view, help). Manages mesh/project/raster file open/save/drop flows, split/close, active-view highlight border, optional camera synchronization across 3D views, camera-state copy/paste, center-on-selection, document visibility proxy synchronization from the current view, view PNG snapshots, snapshot-to-raster creation, render-state snapshot callbacks for filters, undo-node thumbnails/snapshots, action-history Python script generation into the script editor, and embedded Python console visibility when enabled. It also presents the separated OS/CPU/GPU memory report and connects the platform `MemoryPressureMonitor` to opt-in undo purging.
 
-### `PythonHost` and `_qmeshlab`
+### `PythonHost` and `_meshlab`
 
-When `MESHLAB2_PYTHON_CONSOLE` is enabled, `src/app/main.cpp` registers the statically linked nanobind module `_qmeshlab` with `PyImport_AppendInittab` before `QApplication` starts. `PythonHost` owns the embedded CPython interpreter, redirects `stdout`/`stderr` to Qt signals, creates the combined script editor/interactive console, injects the live document as `ms`, injects the live view helper as `mlgui`, and installs the public `pymeshlab2` facade backed by the private extension. `_qmeshlab.MeshSet`/`MeshSetCore` wraps either a borrowed live `Document` (embedded console) or an owned standalone `Document`, exposes mesh/raster/project load/save helpers, lists filters, applies filters by key/id/Python name, and renders snapshots through the live view or `HeadlessRenderContext`.
+When `MESHLAB2_PYTHON_CONSOLE` is enabled, `src/app/main.cpp` registers the statically linked nanobind module `_meshlab` with `PyImport_AppendInittab` before `QApplication` starts. `PythonHost` owns the embedded CPython interpreter, redirects `stdout`/`stderr` to Qt signals, creates the combined script editor/interactive console, injects the live document as `ms`, injects the live view helper as `mlgui`, and installs the public `pymeshlab` facade backed by the private extension. `_meshlab.MeshSet`/`MeshSetCore` wraps either a borrowed live `Document` (embedded console) or an owned standalone `Document`, exposes mesh/raster/project load/save helpers, lists filters, applies filters by key/id/Python name, and renders snapshots through the live view or `HeadlessRenderContext`.
 
 ## Render Planning Types
 
@@ -180,5 +180,5 @@ MainWindow (menus, docks, split-view orchestration)
 4. Undo/redo or undo-graph jumps restore mesh snapshots and the active view snapshot (`ViewState`).
 5. Interactive tools either update transient view feedback or commit one durable filter-backed change.
 6. Filter runs through the filter manager with progress/cancel, typed parameters, render-state capture when requested, undo integration, and compact/full Python action records.
-7. Optional Python console/script-editor calls route through `pymeshlab2.MeshSet`/`_qmeshlab` back into the same `Document` and filter manager, or into an owned standalone document for headless-style scripts.
+7. Optional Python console/script-editor calls route through `pymeshlab.MeshSet`/`_meshlab` back into the same `Document` and filter manager, or into an owned standalone document for headless-style scripts.
 8. Status bar shows load/filter progress and rolling CPU/GPU frame timings.

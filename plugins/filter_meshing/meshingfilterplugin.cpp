@@ -1841,7 +1841,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             }
 
             if (params.getBool(QStringLiteral("splitSurfaceWithSection"))) {
-                return fail(QObject::tr("splitSurfaceWithSection is not yet supported in QMeshLab port."));
+                return fail(QObject::tr("splitSurfaceWithSection is not yet supported in MeshLab port."));
             }
 
             if (created.isEmpty())

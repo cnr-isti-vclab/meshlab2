@@ -6,7 +6,7 @@ choices explicit before any code is written, and to record which of QMeshLab's
 existing mechanisms are already load-bearing for this purpose.
 
 See also: [Architecture](../architecture.md) (layers and ownership),
-[Python Scripting](../../python_scripting.md) (the current `ms` / `pymeshlab2` surface),
+[Python Scripting](../../python_scripting.md) (the current `ms` / `pymeshlab` surface),
 [Vocabulary](../vocabulary.md) (the naming grammar that makes filters machine-legible),
 [Filter Organization](../filter_organization.md) and [Adding a Filter](../adding_a_filter.md)
 (descriptor schema).
@@ -40,10 +40,10 @@ QMeshLab is closer to being model-drivable than it looks. The relevant assets:
 Two gaps, of very different size.
 
 1. **The headless distribution is a separate, much smaller build.** Inside the
-   app, `_qmeshlab` is a *static* library (`src/python/CMakeLists.txt`)
-   registered via `PyImport_AppendInittab`, and `pymeshlab2` is a shim module
+   app, `_meshlab` is a *static* library (`src/python/CMakeLists.txt`)
+   registered via `PyImport_AppendInittab`, and `pymeshlab` is a shim module
    synthesized at runtime in `PythonHost.cpp`. A real wheel does exist, in the
-   sibling repository `cignoni/pymeshlab2` (scikit-build-core + nanobind), which
+   sibling repository `cignoni/pymeshlab` (scikit-build-core + nanobind), which
    consumes QMeshLab as a submodule. Three kinds of drift separate them, and
    only the third is substantial:
 
@@ -51,7 +51,7 @@ Two gaps, of very different size.
      `src/python/bindings/{module,meshset_core}.cpp` directly out of the
      QMeshLab submodule — the same sources the app compiles.
    - *Facade*: two hand-maintained name lists. `PythonHost.cpp` exposes seven
-     names; the wheel's `python/pymeshlab2/__init__.py` exposes three. Small,
+     names; the wheel's `python/pymeshlab/__init__.py` exposes three. Small,
      already drifted, and best fixed by giving it a single source of truth.
    - *Build graph*: the wheel's `CMakeLists.txt` hand-enumerates QMeshLab
      sources and enables **2 plugins out of the 40** wired in
@@ -103,7 +103,7 @@ chosen separately.
 ### C. How it is wired
 
 - **Out-of-process, headless.** An MCP (or similar) server over an importable
-  `_qmeshlab`. No GUI, no C++ changes beyond the extension-module packaging.
+  `_meshlab`. No GUI, no C++ changes beyond the extension-module packaging.
   Testable in CI, safe to iterate on, works with existing model clients.
 - **Out-of-process, live document.** The same server attached to a running
   QMeshLab over `QLocalServer`. Substantially more valuable — the user watches
@@ -122,7 +122,7 @@ The use case should drive the three axes above, not the reverse.
 
 1. **Filter discovery** — "which filter removes these spikes?" Retrieval over
    descriptors. No mesh mutation, no agent loop. Lowest risk, immediate value.
-2. **Script authoring** — natural language to a `pymeshlab2` script.
+2. **Script authoring** — natural language to a `pymeshlab` script.
 3. **Pipeline execution** — "clean this scan, decimate to 50k, preserve
    boundaries." Needs the act/observe loop.
 4. **Closed-loop quality** — "simplify until Hausdorff stays under 0.1%." The
