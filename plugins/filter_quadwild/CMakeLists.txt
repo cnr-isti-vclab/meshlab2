@@ -19,9 +19,14 @@ include(ExternalProject)
 
 # Upstream pins this archive by hash but still downloads it over plain HTTP.
 # Prefetching the same archive over HTTPS lets the pristine submodule find GMM
-# immediately and avoids a fragile network fallback in its configure step.
+# immediately and avoids a fragile network fallback in its configure step. Some
+# Savannah mirrors are occasionally unreachable from CI runners, so provide
+# redundant HTTPS mirrors for the same pinned archive.
 FetchContent_Declare(meshlab2_quadwild_gmm
-    URL https://download-mirror.savannah.gnu.org/releases/getfem/stable/gmm-5.4.2.tar.gz
+    URL
+        https://download-mirror.savannah.gnu.org/releases/getfem/stable/gmm-5.4.2.tar.gz
+        https://download.savannah.gnu.org/releases/getfem/stable/gmm-5.4.2.tar.gz
+        https://ftp.gnu.org/gnu/getfem/stable/gmm-5.4.2.tar.gz
     URL_HASH SHA224=8f4951901a55a1d1987d8199ed0e0b36ff2da26c870a4c3d55694a14
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
