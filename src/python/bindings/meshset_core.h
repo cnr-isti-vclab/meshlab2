@@ -15,6 +15,7 @@
 
 #include <QString>
 #include <QVariant>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -62,11 +63,17 @@ public:
     explicit MeshSetCore(Document *doc);
     ~MeshSetCore();
 
+    // Layers are addressed two ways, and the two must not be confused.
+    //  - index: 0-based position in the layer list. What every operation below takes,
+    //    and what the GUI writes into exported scripts. Shifts when a layer is removed.
+    //  - id: Document's persistent MeshEntry::meshId, minted from 1 and never reused.
+    //    An opaque handle: fetch it, hand it to the render-state JSON, compare it.
     int meshCount() const;
     int currentMeshIndex() const;
-    int currentMeshId() const;
+    std::uint64_t currentMeshId() const;
+    std::uint64_t meshId(int index) const;
     void setCurrentMesh(int index);
-    bool meshIdExists(int index) const;
+    bool meshIdExists(std::uint64_t id) const;
     nanobind::object currentMesh() const;
     nanobind::object mesh(int index) const;
     void setCurrentMeshVisibility(bool visible);
@@ -99,6 +106,9 @@ public:
 
 private:
     QString resolveFilterKey(const QString &filterNameOrKey) const;
+    // Bounds-check an index / the current index, or throw the Python-visible error.
+    int requireMeshIndex(int index) const;
+    int requireCurrentMeshIndex() const;
 
     Document *m_document = nullptr;
     bool m_ownsDocument = false;

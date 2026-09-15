@@ -79,17 +79,38 @@ NB_MODULE(_meshlab, m)
         .def(nb::init<>())
         .def("__len__",            &MeshSetCore::meshCount)
         .def("mesh_number",        &MeshSetCore::meshCount)
-        .def("current_mesh",       &MeshSetCore::currentMesh)
-        .def("mesh",               &MeshSetCore::mesh,            nb::arg("index"))
-        .def("current_mesh_id",    &MeshSetCore::currentMeshId)
-        .def("set_current_mesh",   &MeshSetCore::setCurrentMesh,   nb::arg("index"))
-        .def("mesh_id_exists",     &MeshSetCore::meshIdExists,     nb::arg("id"))
+        // Meshes are addressed by *index* (0-based position in the layer list, what
+        // every operation here takes) or by *id* (a persistent opaque handle, minted
+        // from 1 and never reused, which the render-state JSON keys mesh_render_modes
+        // by). They are not interchangeable: the first mesh loaded has index 0 and id 1.
+        .def("current_mesh",       &MeshSetCore::currentMesh,
+             "The current Mesh object. Raises if the MeshSet has no current mesh.")
+        .def("mesh",               &MeshSetCore::mesh,            nb::arg("index"),
+             "Mesh at this 0-based position in the layer list.")
+        .def("current_mesh_index", &MeshSetCore::currentMeshIndex,
+             "0-based position of the current mesh in the layer list, or -1 if there "
+             "is none.")
+        .def("current_mesh_id",    &MeshSetCore::currentMeshId,
+             "Persistent id of the current mesh -- NOT its index. Raises if the MeshSet "
+             "has no current mesh. Render-state JSON wants this value as a string: "
+             "{'mesh_id': str(ms.current_mesh_id()), 'settings': {...}}.")
+        .def("mesh_id",            &MeshSetCore::meshId,          nb::arg("index"),
+             "Persistent id of the mesh at this 0-based position, for building "
+             "render-state JSON covering meshes other than the current one.")
+        .def("set_current_mesh",   &MeshSetCore::setCurrentMesh,   nb::arg("index"),
+             "Make the mesh at this 0-based position current.")
+        .def("mesh_id_exists",     &MeshSetCore::meshIdExists,     nb::arg("id"),
+             "Whether a mesh with this persistent id is still in the document. Takes an "
+             "id, not an index: ids are never reused, so a stale one is simply False.")
         .def("set_current_mesh_visibility",
              &MeshSetCore::setCurrentMeshVisibility, nb::arg("visibility"))
         .def("set_mesh_visibility",
-             &MeshSetCore::setMeshVisibility, nb::arg("id"), nb::arg("visibility"))
+             &MeshSetCore::setMeshVisibility, nb::arg("index"), nb::arg("visibility"),
+             "Show or hide the mesh at this 0-based position. Takes an index, matching "
+             "the positional 'mesh_visibility' array in render-state JSON.")
         .def("is_current_mesh_visible", &MeshSetCore::isCurrentMeshVisible)
-        .def("is_mesh_visible",         &MeshSetCore::isMeshVisible, nb::arg("id"))
+        .def("is_mesh_visible",         &MeshSetCore::isMeshVisible, nb::arg("index"),
+             "Whether the mesh at this 0-based position is visible.")
         .def("load_new_mesh",      &MeshSetCore::loadNewMesh,       nb::arg("path"))
         .def("save_current_mesh",  &MeshSetCore::saveCurrentMesh,   nb::arg("path"))
         .def("raster_number",      &MeshSetCore::rasterCount)

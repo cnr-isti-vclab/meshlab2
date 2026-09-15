@@ -23,7 +23,7 @@ in the current MeshLab document.
    if ms.mesh_number() == 0:
        print("No meshes are currently loaded.")
    else:
-       print("Current mesh index:", ms.current_mesh())
+       print("Current mesh index:", ms.current_mesh_index())
        print("Current mesh id:", ms.current_mesh_id())
        print()
        print("Available filters (first 10):")

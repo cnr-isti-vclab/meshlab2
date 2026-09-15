@@ -5,6 +5,17 @@
 
 using namespace DocumentInternal;
 
+int Document::indexOfMeshId(std::uint64_t id) const
+{
+    if (id == 0)
+        return -1;
+    for (int i = 0; i < meshCount(); ++i) {
+        if (mesh(i).meshId == id)
+            return i;
+    }
+    return -1;
+}
+
 void Document::removeMesh(int index)
 {
     if (index < 0 || index >= meshCount())

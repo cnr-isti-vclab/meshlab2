@@ -183,7 +183,14 @@ int MeshSetCore::currentMeshIndex() const
     return m_document->currentMeshIndex();
 }
 
-int MeshSetCore::currentMeshId() const
+int MeshSetCore::requireMeshIndex(int index) const
+{
+    if (index < 0 || index >= m_document->meshCount())
+        throw std::runtime_error("Mesh index out of range.");
+    return index;
+}
+
+int MeshSetCore::requireCurrentMeshIndex() const
 {
     const int index = m_document->currentMeshIndex();
     if (index < 0 || index >= m_document->meshCount())
@@ -191,54 +198,54 @@ int MeshSetCore::currentMeshId() const
     return index;
 }
 
-void MeshSetCore::setCurrentMesh(int index)
+std::uint64_t MeshSetCore::currentMeshId() const
 {
-    if (index < 0 || index >= m_document->meshCount())
-        throw std::runtime_error("Mesh index out of range.");
-    m_document->setCurrentMeshIndex(index);
+    return m_document->mesh(requireCurrentMeshIndex()).meshId;
 }
 
-bool MeshSetCore::meshIdExists(int index) const
+std::uint64_t MeshSetCore::meshId(int index) const
 {
-    return index >= 0 && index < m_document->meshCount();
+    return m_document->mesh(requireMeshIndex(index)).meshId;
+}
+
+void MeshSetCore::setCurrentMesh(int index)
+{
+    m_document->setCurrentMeshIndex(requireMeshIndex(index));
+}
+
+bool MeshSetCore::meshIdExists(std::uint64_t id) const
+{
+    return m_document->indexOfMeshId(id) >= 0;
 }
 
 nanobind::object MeshSetCore::currentMesh() const
 {
-    const int idx = currentMeshId();
-    return nb::cast(PyMesh(m_document, idx));
+    return nb::cast(PyMesh(m_document, requireCurrentMeshIndex()));
 }
 
 nanobind::object MeshSetCore::mesh(int index) const
 {
-    if (index < 0 || index >= m_document->meshCount())
-        throw std::runtime_error("Mesh index out of range.");
-    return nb::cast(PyMesh(m_document, index));
+    return nb::cast(PyMesh(m_document, requireMeshIndex(index)));
 }
 
 void MeshSetCore::setCurrentMeshVisibility(bool visible)
 {
-    const int index = currentMeshId();
-    m_document->setMeshVisible(index, visible);
+    m_document->setMeshVisible(requireCurrentMeshIndex(), visible);
 }
 
 void MeshSetCore::setMeshVisibility(int index, bool visible)
 {
-    if (!meshIdExists(index))
-        throw std::runtime_error("Mesh index out of range.");
-    m_document->setMeshVisible(index, visible);
+    m_document->setMeshVisible(requireMeshIndex(index), visible);
 }
 
 bool MeshSetCore::isCurrentMeshVisible() const
 {
-    return isMeshVisible(currentMeshId());
+    return m_document->mesh(requireCurrentMeshIndex()).visible;
 }
 
 bool MeshSetCore::isMeshVisible(int index) const
 {
-    if (!meshIdExists(index))
-        throw std::runtime_error("Mesh index out of range.");
-    return m_document->mesh(index).visible;
+    return m_document->mesh(requireMeshIndex(index)).visible;
 }
 
 void MeshSetCore::loadNewMesh(const std::string &path)

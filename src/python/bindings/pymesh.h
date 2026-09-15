@@ -15,7 +15,8 @@ class PyMesh
 public:
     PyMesh(Document *doc, int index);
 
-    int id() const;
+    std::uint64_t id() const;
+    int index() const;
     bool isVisible() const;
     int vertexNumber() const;
     int faceNumber() const;

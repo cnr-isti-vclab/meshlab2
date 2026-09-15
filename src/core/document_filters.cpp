@@ -112,13 +112,6 @@ Document::MultiMeshFilterResult Document::runFilterOnVisibleMeshes(
     const auto info = m_filterPluginManager->filterInfo(filterKey, *this);
     const QString filterName = info ? info->descriptor.name : filterKey;
 
-    auto indexOfMeshId = [this](std::uint64_t id) {
-        for (int i = 0; i < meshCount(); ++i)
-            if (mesh(i).meshId == id)
-                return i;
-        return -1;
-    };
-
     // The sweep covers the layers visible when it starts, identified by mesh id rather
     // than by index. A filter may add or remove layers underneath us -- 55 of them take a
     // single mesh and emit new ones -- so a live meshCount() bound would feed the sweep

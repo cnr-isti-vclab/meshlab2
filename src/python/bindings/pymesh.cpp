@@ -131,7 +131,11 @@ PyMesh::PyMesh(Document *doc, int index)
 {
 }
 
-int PyMesh::id() const { return m_index; }
+// Document's persistent MeshEntry::meshId -- not the layer's position. This is the
+// handle the render-state JSON keys mesh_render_modes by; index() is the position.
+std::uint64_t PyMesh::id() const { return m_doc->mesh(m_index).meshId; }
+
+int PyMesh::index() const { return m_index; }
 
 bool PyMesh::isVisible() const { return m_doc->mesh(m_index).visible; }
 
@@ -263,7 +267,12 @@ bool PyMesh::hasVertexCurvature() const { return this->cm().vert.IsCurvatureDirE
 void registerPyMesh(nb::module_ &m)
 {
     nb::class_<PyMesh>(m, "Mesh")
-        .def("id", &PyMesh::id)
+        .def("id", &PyMesh::id,
+             "Persistent mesh id (an opaque handle, minted from 1 and never reused). "
+             "Stable across layer removals; use it to key render-state JSON.")
+        .def("index", &PyMesh::index,
+             "0-based position of this mesh in the layer list. Shifts when a layer "
+             "below it is removed; pass it to MeshSet.mesh()/set_current_mesh().")
         .def("is_visible", &PyMesh::isVisible)
         .def("vertex_number", &PyMesh::vertexNumber)
         .def("face_number", &PyMesh::faceNumber)

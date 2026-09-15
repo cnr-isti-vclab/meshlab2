@@ -332,6 +332,11 @@ public:
     int meshCount() const { return static_cast<int>(m_meshes.size()); }
     MeshEntry &mesh(int i) { return *m_meshes[i]; }
     const MeshEntry &mesh(int i) const { return *m_meshes[i]; }
+    // Index of the layer carrying this persistent MeshEntry::meshId, or -1 if no layer
+    // does. Ids are minted from 1 and never reused, so a stale handle resolves to -1
+    // instead of silently naming whichever layer now sits at that position -- which is
+    // what indices do, since every removal shifts the ones above it.
+    int indexOfMeshId(std::uint64_t id) const;
     int rasterCount() const { return static_cast<int>(m_rasters.size()); }
     RasterEntry &raster(int i) { return *m_rasters[i]; }
     const RasterEntry &raster(int i) const { return *m_rasters[i]; }
