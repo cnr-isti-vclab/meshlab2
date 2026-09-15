@@ -336,8 +336,9 @@ defaults at the time each action was recorded.</p>
 <p>The live <code class="docutils literal notranslate"><span class="pre">ms</span></code> object supports the following core methods:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">mesh_number()</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">current_mesh()</span></code>, <code class="docutils literal notranslate"><span class="pre">current_mesh_id()</span></code>, <code class="docutils literal notranslate"><span class="pre">set_current_mesh(index)</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">mesh_id_exists(index)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">current_mesh()</span></code>, <code class="docutils literal notranslate"><span class="pre">current_mesh_index()</span></code>, <code class="docutils literal notranslate"><span class="pre">set_current_mesh(index)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mesh(index)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">current_mesh_id()</span></code>, <code class="docutils literal notranslate"><span class="pre">mesh_id(index)</span></code>, <code class="docutils literal notranslate"><span class="pre">mesh_id_exists(id)</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">set_current_mesh_visibility(visible)</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">set_mesh_visibility(index,</span> <span class="pre">visible)</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">is_current_mesh_visible()</span></code>, <code class="docutils literal notranslate"><span class="pre">is_mesh_visible(index)</span></code></p></li>
@@ -352,14 +353,43 @@ defaults at the time each action was recorded.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">apply_filter(filter,</span> <span class="pre">params={})</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">render_snapshot(render_state_json,</span> <span class="pre">width,</span> <span class="pre">height)</span></code></p></li>
 </ul>
+<section id="mesh-index-vs-mesh-id">
+<h3>Mesh index vs mesh id<a class="headerlink" href="#mesh-index-vs-mesh-id" title="Link to this heading">¶</a></h3>
+<p>A mesh is addressed two ways, and they are not interchangeable:</p>
+<ul class="simple">
+<li><p><strong>index</strong> – the 0-based position in the layer list. Every operation above
+(<code class="docutils literal notranslate"><span class="pre">mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">set_current_mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">set_mesh_visibility</span></code>, <code class="docutils literal notranslate"><span class="pre">is_mesh_visible</span></code>) takes
+an index, and it is what the GUI writes into exported scripts. An index
+shifts whenever a layer below it is removed.</p></li>
+<li><p><strong>id</strong> – a persistent opaque handle, minted from 1 and never reused. It
+survives removals and reordering, and it is what the render-state JSON keys
+<code class="docutils literal notranslate"><span class="pre">mesh_render_modes</span></code> by. Obtain one with <code class="docutils literal notranslate"><span class="pre">current_mesh_id()</span></code>, <code class="docutils literal notranslate"><span class="pre">mesh_id(index)</span></code>
+or <code class="docutils literal notranslate"><span class="pre">Mesh.id()</span></code>; check it is still live with <code class="docutils literal notranslate"><span class="pre">mesh_id_exists(id)</span></code>.</p></li>
+</ul>
+<p>The first mesh loaded therefore has <strong>index 0</strong> and <strong>id 1</strong>. Passing an index
+where an id is wanted is the common mistake, so note that <code class="docutils literal notranslate"><span class="pre">mesh_render_modes</span></code>
+wants the id, <strong>as a string</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">load_new_mesh</span><span class="p">(</span><span class="s2">"bunny.ply"</span><span class="p">)</span>
+<span class="n">state</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"mesh_render_modes"</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s2">"mesh_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">current_mesh_id</span><span class="p">()),</span> <span class="s2">"settings"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"show_fill"</span><span class="p">:</span> <span class="kc">True</span><span class="p">}},</span>
+<span class="p">]}</span>
+<span class="n">png</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">render_snapshot</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">state</span><span class="p">),</span> <span class="mi">800</span><span class="p">,</span> <span class="mi">600</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">mesh_visibility</span></code> in the same JSON is, by contrast, a positional array, which
+is why <code class="docutils literal notranslate"><span class="pre">set_mesh_visibility</span></code> takes an index.</p>
 <p>Example:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Mesh count:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">())</span>
 
 <span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh index:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh</span><span class="p">())</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh index:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh_index</span><span class="p">())</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh id:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh_id</span><span class="p">())</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh label:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh</span><span class="p">()</span><span class="o">.</span><span class="n">label</span><span class="p">())</span>
 </pre></div>
 </div>
+</section>
 </section>
 <section id="listing-filters">
 <h2>Listing Filters<a class="headerlink" href="#listing-filters" title="Link to this heading">¶</a></h2>
@@ -580,7 +610,10 @@ when you need exact parameter names.</p></li>
 </li>
 <li><a class="reference internal" href="#console-and-script-editor">Console and Script Editor</a></li>
 <li><a class="reference internal" href="#available-module-objects">Available Module Objects</a></li>
-<li><a class="reference internal" href="#meshset-basics">MeshSet Basics</a></li>
+<li><a class="reference internal" href="#meshset-basics">MeshSet Basics</a><ul>
+<li><a class="reference internal" href="#mesh-index-vs-mesh-id">Mesh index vs mesh id</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#listing-filters">Listing Filters</a></li>
 <li><a class="reference internal" href="#running-filters">Running Filters</a></li>
 <li><a class="reference internal" href="#filter-parameters">Filter Parameters</a></li>

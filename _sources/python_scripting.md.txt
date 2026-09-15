@@ -102,8 +102,9 @@ The public `pymeshlab` facade exposes:
 The live `ms` object supports the following core methods:
 
 - `mesh_number()`
-- `current_mesh()`, `current_mesh_id()`, `set_current_mesh(index)`
-- `mesh_id_exists(index)`
+- `current_mesh()`, `current_mesh_index()`, `set_current_mesh(index)`
+- `mesh(index)`
+- `current_mesh_id()`, `mesh_id(index)`, `mesh_id_exists(id)`
 - `set_current_mesh_visibility(visible)`
 - `set_mesh_visibility(index, visible)`
 - `is_current_mesh_visible()`, `is_mesh_visible(index)`
@@ -118,14 +119,45 @@ The live `ms` object supports the following core methods:
 - `apply_filter(filter, params={})`
 - `render_snapshot(render_state_json, width, height)`
 
+### Mesh index vs mesh id
+
+A mesh is addressed two ways, and they are not interchangeable:
+
+- **index** -- the 0-based position in the layer list. Every operation above
+  (`mesh`, `set_current_mesh`, `set_mesh_visibility`, `is_mesh_visible`) takes
+  an index, and it is what the GUI writes into exported scripts. An index
+  shifts whenever a layer below it is removed.
+- **id** -- a persistent opaque handle, minted from 1 and never reused. It
+  survives removals and reordering, and it is what the render-state JSON keys
+  `mesh_render_modes` by. Obtain one with `current_mesh_id()`, `mesh_id(index)`
+  or `Mesh.id()`; check it is still live with `mesh_id_exists(id)`.
+
+The first mesh loaded therefore has **index 0** and **id 1**. Passing an index
+where an id is wanted is the common mistake, so note that `mesh_render_modes`
+wants the id, **as a string**:
+
+```python
+import json
+
+ms.load_new_mesh("bunny.ply")
+state = {"mesh_render_modes": [
+    {"mesh_id": str(ms.current_mesh_id()), "settings": {"show_fill": True}},
+]}
+png = ms.render_snapshot(json.dumps(state), 800, 600)
+```
+
+`mesh_visibility` in the same JSON is, by contrast, a positional array, which
+is why `set_mesh_visibility` takes an index.
+
 Example:
 
 ```python
 print("Mesh count:", ms.mesh_number())
 
 if ms.mesh_number() > 0:
-    print("Current mesh index:", ms.current_mesh())
+    print("Current mesh index:", ms.current_mesh_index())
     print("Current mesh id:", ms.current_mesh_id())
+    print("Current mesh label:", ms.current_mesh().label())
 ```
 
 ## Listing Filters

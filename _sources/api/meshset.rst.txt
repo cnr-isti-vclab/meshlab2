@@ -41,11 +41,22 @@ Methods
    :module: _meshlab
 
    current_mesh(self) -> object
+   
+   The current Mesh object. Raises if the MeshSet has no current mesh.
 
 .. py:method:: MeshSet.current_mesh_id(...)
    :module: _meshlab
 
    current_mesh_id(self) -> int
+   
+   Persistent id of the current mesh -- NOT its index. Raises if the MeshSet has no current mesh. Render-state JSON wants this value as a string: {'mesh_id': str(ms.current_mesh_id()), 'settings': {...}}.
+
+.. py:method:: MeshSet.current_mesh_index(...)
+   :module: _meshlab
+
+   current_mesh_index(self) -> int
+   
+   0-based position of the current mesh in the layer list, or -1 if there is none.
 
 .. py:method:: MeshSet.current_raster(...)
    :module: _meshlab
@@ -65,7 +76,9 @@ Methods
 .. py:method:: MeshSet.is_mesh_visible(...)
    :module: _meshlab
 
-   is_mesh_visible(self, id: int) -> bool
+   is_mesh_visible(self, index: int) -> bool
+   
+   Whether the mesh at this 0-based position is visible.
 
 .. py:method:: MeshSet.list_filters(...)
    :module: _meshlab
@@ -91,11 +104,22 @@ Methods
    :module: _meshlab
 
    mesh(self, index: int) -> object
+   
+   Mesh at this 0-based position in the layer list.
+
+.. py:method:: MeshSet.mesh_id(...)
+   :module: _meshlab
+
+   mesh_id(self, index: int) -> int
+   
+   Persistent id of the mesh at this 0-based position, for building render-state JSON covering meshes other than the current one.
 
 .. py:method:: MeshSet.mesh_id_exists(...)
    :module: _meshlab
 
    mesh_id_exists(self, id: int) -> bool
+   
+   Whether a mesh with this persistent id is still in the document. Takes an id, not an index: ids are never reused, so a stale one is simply False.
 
 .. py:method:: MeshSet.mesh_number(...)
    :module: _meshlab
@@ -126,6 +150,8 @@ Methods
    :module: _meshlab
 
    set_current_mesh(self, index: int) -> None
+   
+   Make the mesh at this 0-based position current.
 
 .. py:method:: MeshSet.set_current_mesh_visibility(...)
    :module: _meshlab
@@ -140,5 +166,7 @@ Methods
 .. py:method:: MeshSet.set_mesh_visibility(...)
    :module: _meshlab
 
-   set_mesh_visibility(self, id: int, visibility: bool) -> None
+   set_mesh_visibility(self, index: int, visibility: bool) -> None
+   
+   Show or hide the mesh at this 0-based position. Takes an index, matching the positional 'mesh_visibility' array in render-state JSON.
 

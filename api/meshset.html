@@ -283,12 +283,21 @@ duplicating the full filter list here.</p>
 <dt class="sig sig-object py" id="meshlab.MeshSet.current_mesh">
 <span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">current_mesh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.current_mesh" title="Link to this definition">¶</a></dt>
 <dd><p>current_mesh(self) -&gt; object</p>
+<p>The current Mesh object. Raises if the MeshSet has no current mesh.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="meshlab.MeshSet.current_mesh_id">
 <span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">current_mesh_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.current_mesh_id" title="Link to this definition">¶</a></dt>
 <dd><p>current_mesh_id(self) -&gt; int</p>
+<p>Persistent id of the current mesh – NOT its index. Raises if the MeshSet has no current mesh. Render-state JSON wants this value as a string: {‘mesh_id’: str(ms.current_mesh_id()), ‘settings’: {…}}.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="meshlab.MeshSet.current_mesh_index">
+<span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">current_mesh_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.current_mesh_index" title="Link to this definition">¶</a></dt>
+<dd><p>current_mesh_index(self) -&gt; int</p>
+<p>0-based position of the current mesh in the layer list, or -1 if there is none.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -312,7 +321,8 @@ duplicating the full filter list here.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="meshlab.MeshSet.is_mesh_visible">
 <span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">is_mesh_visible</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.is_mesh_visible" title="Link to this definition">¶</a></dt>
-<dd><p>is_mesh_visible(self, id: int) -&gt; bool</p>
+<dd><p>is_mesh_visible(self, index: int) -&gt; bool</p>
+<p>Whether the mesh at this 0-based position is visible.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -343,12 +353,21 @@ duplicating the full filter list here.</p>
 <dt class="sig sig-object py" id="meshlab.MeshSet.mesh">
 <span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">mesh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.mesh" title="Link to this definition">¶</a></dt>
 <dd><p>mesh(self, index: int) -&gt; object</p>
+<p>Mesh at this 0-based position in the layer list.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="meshlab.MeshSet.mesh_id">
+<span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">mesh_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.mesh_id" title="Link to this definition">¶</a></dt>
+<dd><p>mesh_id(self, index: int) -&gt; int</p>
+<p>Persistent id of the mesh at this 0-based position, for building render-state JSON covering meshes other than the current one.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="meshlab.MeshSet.mesh_id_exists">
 <span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">mesh_id_exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.mesh_id_exists" title="Link to this definition">¶</a></dt>
 <dd><p>mesh_id_exists(self, id: int) -&gt; bool</p>
+<p>Whether a mesh with this persistent id is still in the document. Takes an id, not an index: ids are never reused, so a stale one is simply False.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -385,6 +404,7 @@ duplicating the full filter list here.</p>
 <dt class="sig sig-object py" id="meshlab.MeshSet.set_current_mesh">
 <span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">set_current_mesh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.set_current_mesh" title="Link to this definition">¶</a></dt>
 <dd><p>set_current_mesh(self, index: int) -&gt; None</p>
+<p>Make the mesh at this 0-based position current.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -402,7 +422,8 @@ duplicating the full filter list here.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="meshlab.MeshSet.set_mesh_visibility">
 <span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">set_mesh_visibility</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.set_mesh_visibility" title="Link to this definition">¶</a></dt>
-<dd><p>set_mesh_visibility(self, id: int, visibility: bool) -&gt; None</p>
+<dd><p>set_mesh_visibility(self, index: int, visibility: bool) -&gt; None</p>
+<p>Show or hide the mesh at this 0-based position. Takes an index, matching the positional ‘mesh_visibility’ array in render-state JSON.</p>
 </dd></dl>
 
 </section>
@@ -472,6 +493,7 @@ duplicating the full filter list here.</p>
 <li><a class="reference internal" href="#meshlab.MeshSet.clear"><code class="docutils literal notranslate"><span class="pre">MeshSet.clear()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.current_mesh"><code class="docutils literal notranslate"><span class="pre">MeshSet.current_mesh()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.current_mesh_id"><code class="docutils literal notranslate"><span class="pre">MeshSet.current_mesh_id()</span></code></a></li>
+<li><a class="reference internal" href="#meshlab.MeshSet.current_mesh_index"><code class="docutils literal notranslate"><span class="pre">MeshSet.current_mesh_index()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.current_raster"><code class="docutils literal notranslate"><span class="pre">MeshSet.current_raster()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.filter_list"><code class="docutils literal notranslate"><span class="pre">MeshSet.filter_list()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.is_current_mesh_visible"><code class="docutils literal notranslate"><span class="pre">MeshSet.is_current_mesh_visible()</span></code></a></li>
@@ -481,6 +503,7 @@ duplicating the full filter list here.</p>
 <li><a class="reference internal" href="#meshlab.MeshSet.load_new_raster"><code class="docutils literal notranslate"><span class="pre">MeshSet.load_new_raster()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.load_project"><code class="docutils literal notranslate"><span class="pre">MeshSet.load_project()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.mesh"><code class="docutils literal notranslate"><span class="pre">MeshSet.mesh()</span></code></a></li>
+<li><a class="reference internal" href="#meshlab.MeshSet.mesh_id"><code class="docutils literal notranslate"><span class="pre">MeshSet.mesh_id()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.mesh_id_exists"><code class="docutils literal notranslate"><span class="pre">MeshSet.mesh_id_exists()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.mesh_number"><code class="docutils literal notranslate"><span class="pre">MeshSet.mesh_number()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.raster_number"><code class="docutils literal notranslate"><span class="pre">MeshSet.raster_number()</span></code></a></li>
