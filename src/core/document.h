@@ -171,6 +171,7 @@ public:
     };
 
     using FillGpuVariant = MeshGpuResourceCache::FillVariant;
+    using EdgeGpuVariant = MeshGpuResourceCache::EdgeVariant;
     using PointGpuVariant = MeshGpuResourceCache::PointVariant;
     using FillBatchGpuView = MeshGpuResourceCache::FillBatchView;
     using FillPassGpuView = MeshGpuResourceCache::FillPassView;
@@ -412,11 +413,14 @@ public:
                                 bool needSelection = false,
                                 bool wireRespectFaux = true,
                                 bool qualityCenterOnZero = false,
-                                float qualityPercentileCrop = 0.0f);
+                                float qualityPercentileCrop = 0.0f,
+                                EdgeGpuVariant edgeVariant = EdgeGpuVariant::Constant);
     FillPassGpuView fillPassGpuView(QRhi *rhi, int meshIndex, FillGpuVariant variant) const;
     WirePassGpuView wirePassGpuView(QRhi *rhi, int meshIndex) const;
-    EdgePassGpuView edgePassGpuView(QRhi *rhi, int meshIndex) const;
-    EdgeFatPassGpuView edgeFatPassGpuView(QRhi *rhi, int meshIndex) const;
+    EdgePassGpuView edgePassGpuView(QRhi *rhi, int meshIndex,
+                                        EdgeGpuVariant variant = EdgeGpuVariant::Constant) const;
+    EdgeFatPassGpuView edgeFatPassGpuView(QRhi *rhi, int meshIndex,
+                                        EdgeGpuVariant variant = EdgeGpuVariant::Constant) const;
     PointsPassGpuView pointsPassGpuView(QRhi *rhi, int meshIndex, PointGpuVariant variant) const;
     BBoxPassGpuView bboxPassGpuView(QRhi *rhi, int meshIndex) const;
     SelectionPassGpuView selectionPassGpuView(QRhi *rhi, int meshIndex) const;

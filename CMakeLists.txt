@@ -377,6 +377,10 @@ qt_add_shaders(MeshLab2 "shaders"
         shaders/overlay_edges.frag
         shaders/overlay_fat_edges.vert
         shaders/overlay_fat_edges.frag
+        shaders/overlay_edges_colored.vert
+        shaders/overlay_edges_colored.frag
+        shaders/overlay_fat_edges_colored.vert
+        shaders/overlay_fat_edges_colored.frag
         shaders/overlay_fat_decorator.vert
         shaders/overlay_fat_decorator.frag
         shaders/overlay_points.vert
@@ -478,6 +482,22 @@ target_compile_definitions(MeshLab2Tests PRIVATE
 )
 
 add_test(NAME MeshLab2Tests COMMAND MeshLab2Tests)
+
+qt_add_executable(MeshLab2EdgeColorTests tests/test_edgecolors.cpp)
+target_include_directories(MeshLab2EdgeColorTests PRIVATE ${MESHLAB2_SOURCE_DIR})
+target_compile_definitions(MeshLab2EdgeColorTests PRIVATE TEST_SOURCE_DIR="${MESHLAB2_SOURCE_DIR}")
+target_link_libraries(MeshLab2EdgeColorTests PRIVATE MeshLab2Plugins Qt6::Test)
+add_test(NAME MeshLab2EdgeColorTests COMMAND MeshLab2EdgeColorTests)
+
+qt_add_executable(MeshLab2EdgeColorUiTests
+    tests/test_edgecolor_ui.cpp
+    src/render/renderoverlaypanel.h src/render/renderoverlaypanel.cpp
+)
+target_include_directories(MeshLab2EdgeColorUiTests PRIVATE ${MESHLAB2_SOURCE_DIR}/src/render)
+target_link_libraries(MeshLab2EdgeColorUiTests PRIVATE MeshLab2Plugins Qt6::Test)
+add_test(NAME MeshLab2EdgeColorUiTests COMMAND MeshLab2EdgeColorUiTests)
+
+
 
 qt_add_executable(MeshLab2ColorMapTests
     tests/test_colormap.cpp

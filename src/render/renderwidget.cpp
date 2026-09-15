@@ -1770,6 +1770,7 @@ void RenderWidget::createOverlayButtons()
                 dst.showEdges      = meshSettings.showEdges;
                 dst.edgeColor      = meshSettings.edgeColor;
                 dst.edgeSize       = meshSettings.edgeSize;
+                dst.edgeColorSource = meshSettings.edgeColorSource;
                 break;
             case RenderPass::Wireframe:
                 dst.showWire       = meshSettings.showWire;

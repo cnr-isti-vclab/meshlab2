@@ -132,6 +132,7 @@ One instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds:
 - fill material: `fillMaterial` (`Plain` / `Pbr` / `RadianceScaling`) + sub-structs `fillPlain` (`PlainFillParams`), `fillPbr` (`PbrFillParams`, including PBR texture sources, normal-map space, normal scale, AO strength, roughness factor), `fillRs` (`RsFillParams`, including RS shading mode)
 - colors and sizes: `fillColor`, `wireColor`/`wireSize`, `edgeColor`/`edgeSize`, `pointColor`/`pointSize`, `bboxWireColor`, decorator colors, `decoratorBoundaryWidth`
 - `pointColorSource`: `Constant` / `PerVertex` / `PerVertexQuality`
+- `edgeColorSource`: `Constant` / `PerEdge`, serialized as `edge_color_source`; omitted fields retain the constant default for older render states. Explicit edges store RGBA in `VCGEdge::C()` and advertise populated colors with `IOM_EDGECOLOR`. PLY import/export and document copies preserve this data.
 
 ### `GlobalRenderSettings`
 

@@ -622,7 +622,13 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_edgeSizeSpin->setPrefix(QStringLiteral("px "));
     m_edgeSizeSpin->setSuffix(QString());
     m_edgeSizeSpin->setValue(m_meshSettings.edgeSize);
+    m_edgeColorSourceCombo = new QComboBox(edgesPage);
+    m_edgeColorSourceCombo->setObjectName(QStringLiteral("edgeColorSource"));
+    m_edgeColorSourceCombo->addItem(tr("Constant"), int(EdgeColorSource::Constant));
+    m_edgeColorSourceCombo->addItem(tr("Per-Edge"), int(EdgeColorSource::PerEdge));
+    edgesForm->addRow(tr("Color source"), m_edgeColorSourceCombo);
     m_edgeColorButton = makeColorButton(edgesPage);
+    m_edgeColorButton->setObjectName(QStringLiteral("edgeColor"));
     edgesForm->addRow(
         tr("Edge color"),
         makeCenteredFieldContainer(m_edgeColorButton, edgesPage));
@@ -1115,17 +1121,17 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
             }
         });
     };
-    auto bindMeshEnumCombo = [this, setMeshField](QComboBox *combo, auto member) {
+    auto bindMeshEnumCombo = [this, setMeshField](QComboBox *combo, auto member, bool syncUi = false) {
         using EnumType = std::decay_t<decltype(m_meshSettings.*member)>;
         connect(
             combo,
             qOverload<int>(&QComboBox::currentIndexChanged),
             this,
-            [this, setMeshField, combo, member](int idx) {
+            [this, setMeshField, combo, member, syncUi](int idx) {
                 const QVariant data = combo->itemData(idx);
                 if (!data.isValid())
                     return;
-                setMeshField(member, static_cast<EnumType>(data.toInt()));
+                setMeshField(member, static_cast<EnumType>(data.toInt()), syncUi);
             });
         m_meshSyncers.push_back([this, combo, member] {
             const int wanted = static_cast<int>(m_meshSettings.*member);
@@ -1273,6 +1279,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
 
     bindMeshEnumCombo(m_bboxStyleCombo, &PerMeshRenderSettings::boundingBoxStyle);
     bindMeshEnumCombo(m_pointColorSourceCombo, &PerMeshRenderSettings::pointColorSource);
+    bindMeshEnumCombo(m_edgeColorSourceCombo, &PerMeshRenderSettings::edgeColorSource, true);
     bindMeshColorButton(m_pointsColorButton, &PerMeshRenderSettings::pointColor, tr("Point Color"));
     bindMeshFloatSpin(m_pointSizeSpin, &PerMeshRenderSettings::pointSize);
     bindMeshCheckBox(m_pointLightingCheck, &PerMeshRenderSettings::pointLighting);
@@ -1779,6 +1786,8 @@ void RenderOverlayPanel::setViewerModeUv(bool uvMode)
     if (m_viewerModeUv == uvMode)
         return;
     m_viewerModeUv = uvMode;
+    m_edgeColorSourceCombo->setEnabled(!uvMode);
+    m_edgeColorButton->setEnabled(uvMode || m_meshSettings.edgeColorSource == EdgeColorSource::Constant);
     syncViewerSettingsModeUi();
     // If currently showing the fill pass, switch between the 3D and UV fill pages.
     if (m_globalSettings.currentPass == RenderPass::Fill && m_settingsStack) {
@@ -2007,6 +2016,13 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
         QSignalBlocker blocker(m_edgeSizeSpin);
         m_edgeSizeSpin->setValue(m_meshSettings.edgeSize);
     }
+    if (m_edgeColorSourceCombo) {
+        QSignalBlocker blocker(m_edgeColorSourceCombo);
+        m_edgeColorSourceCombo->setCurrentIndex(
+            m_edgeColorSourceCombo->findData(int(m_meshSettings.edgeColorSource)));
+    }
+    if (m_edgeColorButton)
+        m_edgeColorButton->setEnabled(m_viewerModeUv || m_meshSettings.edgeColorSource == EdgeColorSource::Constant);
     if (m_pointColorSourceCombo) {
         QSignalBlocker blocker(m_pointColorSourceCombo);
         const int value = static_cast<int>(m_meshSettings.pointColorSource);
@@ -2086,6 +2102,13 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
     }
     syncFillPbrUiState();
 
+}
+
+void RenderOverlayPanel::setEdgeColorSourceAvailability(bool hasEdgeColors)
+{
+    const int index = m_edgeColorSourceCombo->findData(int(EdgeColorSource::PerEdge));
+    m_edgeColorSourceCombo->setItemData(index, hasEdgeColors ? QVariant() : QVariant(0),
+                                      Qt::UserRole - 1);
 }
 
 void RenderOverlayPanel::setPointColorSourceAvailability(

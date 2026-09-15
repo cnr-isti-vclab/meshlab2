@@ -69,7 +69,7 @@ Cached outputs:
 
 - **fill**: one or more batches — vertex/index buffers, optional base/normal/occlusion/roughness textures and per-batch PBR factors. Variants: `Constant`, `PerVertex`, `PerFace`, `PerVertexQuality`, `PerFaceQuality`, `Texture`. Texture lookup can use legacy texture paths, `MeshIOTextureAsset` entries, and material slots. PBR normal textures can be interpreted as tangent-space maps or object-space maps according to `fillPbr.normalMapSpace`.
 - **wire**: barycentric-expanded triangle buffer, optionally honoring faux-edge bits for polygonal faces.
-- **edges**: line buffer + fat-line buffer from explicit mesh edges.
+- **edges**: line buffer + fat-line buffer from explicit mesh edges. Variants: `Constant`, `PerEdge`. Each colored segment repeats its RGBA at both endpoints and across its fat-line triangles. The geometry-only variant remains available for highlight/depth masks; color variants also track material revisions and edge-color availability.
 - **points**: position/color/normal payload + normal-valid flag. Variants: `Constant`, `PerVertex`, `PerVertexQuality`.
 - **bbox**: line buffer.
 - **selection**: selected-face triangles, selected-vertex points, keyed on `selectionRevision` so selection overlays rebuild without invalidating fill/wire/point resources.
@@ -92,7 +92,7 @@ Boundary extraction: topological edge incidence (`incidentCount == 1`). Non-mani
 
 Default mode for new meshes:
 - surfaces (`FN > 0`): fill on, wire on for `FN < 10000`
-- edge-only meshes: edges on (`edgeSize = 4.0`)
+- edge-only meshes: edges on (`edgeSize = 4.0`); with vertex colors, points are also on (`pointSize = 8.0`, per-vertex color)
 - point-only: points on
 
 Default fill color source preference: texture → per-vertex → per-face → per-vertex-quality → per-face-quality → constant, clamped to mesh `ioMask` + texture availability. Texture availability is based on `Document::meshTextureAssociationCount(...)`.
@@ -121,7 +121,7 @@ Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfac
 
 **Wireframe**: barycentric triangles + fragment edge test; depth `LessOrEqual`, no depth write; alpha blending; `wireBackfaceCulling`; optional `wireRespectFaux` controls faux polygon edge handling in the cached wire data.
 
-**Edges**: fat-edge triangles when available, line fallback; depth `LessOrEqual`; alpha blending; width from `edgeSize`.
+**Edges**: fat-edge triangles when available, line fallback; depth `LessOrEqual`; alpha blending; width from `edgeSize`. `edgeColorSource` chooses a constant color or the edge RGBA imported from PLY (RGB defaults to opaque alpha). New meshes prefer per-edge colors when present. With points enabled, edges do not write biased depth, keeping the subsequently drawn vertex markers visible while surfaces still occlude them. UV face outlines use constant color.
 
 **Bounding box**: line topology; depth on, no depth write.
 

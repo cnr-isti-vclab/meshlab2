@@ -29,6 +29,7 @@ public:
     void setGlobalSettings(const RenderSettings &settings);
     void setMeshSettings(const PerMeshRenderSettings &settings);
     void setViewerModeUv(bool uvMode);
+    void setEdgeColorSourceAvailability(bool hasEdgeColors);
     void setPointColorSourceAvailability(bool hasVertexColors, bool hasVertexQuality);
     void setPointLightingAvailability(bool hasVertexNormals);
     void setFillColorSourceAvailability(
@@ -146,6 +147,7 @@ private:
     QDoubleSpinBox *m_edgeSizeSpin = nullptr;
     QDoubleSpinBox *m_wireSizeSpin = nullptr;
     QComboBox *m_pointColorSourceCombo = nullptr;
+    QComboBox *m_edgeColorSourceCombo = nullptr;
     QCheckBox *m_pointLightingCheck = nullptr;
     QCheckBox *m_wireLightingCheck = nullptr;
     QCheckBox *m_wireBackfaceCullingCheck = nullptr;

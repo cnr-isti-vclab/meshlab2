@@ -136,6 +136,7 @@ class RenderSettingsJsonTests : public QObject
 {
     Q_OBJECT
 private slots:
+    void edgeColorSourceRoundTripAndLegacyDefault();
     void globalSettingsSerialiseEveryField();
     void perMeshSettingsSerialiseEveryField();
     void globalSettingsRoundTrip();
@@ -148,6 +149,24 @@ private slots:
 // The count is the tie between the struct and the writer: add a field without adding
 // it to globalSettingsToJson and this fails instead of the field quietly vanishing
 // from every stored render state.
+void RenderSettingsJsonTests::edgeColorSourceRoundTripAndLegacyDefault()
+{
+    PerMeshRenderSettings settings;
+    settings.edgeColorSource = EdgeColorSource::PerEdge;
+    const QJsonObject json = perMeshSettingsToJson(settings, nullptr);
+    QCOMPARE(json.value(QStringLiteral("edge_color_source")).toInt(), 1);
+    PerMeshRenderSettings parsed;
+    QString error;
+    QVERIFY2(parsePerMeshSettings(json, parsed, &error), qPrintable(error));
+    QCOMPARE(parsed.edgeColorSource, EdgeColorSource::PerEdge);
+    QCOMPARE(parsed, settings);
+    QJsonObject legacy = json;
+    legacy.remove(QStringLiteral("edge_color_source"));
+    PerMeshRenderSettings oldSettings;
+    QVERIFY2(parsePerMeshSettings(legacy, oldSettings, &error), qPrintable(error));
+    QCOMPARE(oldSettings.edgeColorSource, EdgeColorSource::Constant);
+}
+
 void RenderSettingsJsonTests::globalSettingsSerialiseEveryField()
 {
     const QJsonObject all = globalSettingsToJson(GlobalRenderSettings{}, nullptr);

@@ -109,7 +109,9 @@ void RenderWidget::prepareDirtyBuffers(
             meshRequest.selection,
             meshSettings.wireRespectFaux,
             m_renderSettings.qualityHistogramCenterOnZero,
-            m_renderSettings.qualityHistogramPercentileCrop);
+            m_renderSettings.qualityHistogramPercentileCrop,
+            meshSettings.edgeColorSource == EdgeColorSource::PerEdge
+                ? Document::EdgeGpuVariant::PerEdge : Document::EdgeGpuVariant::Constant);
     }
 }
 

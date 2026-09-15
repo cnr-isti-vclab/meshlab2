@@ -14,6 +14,7 @@ class LineGeometryTests : public QObject
     Q_OBJECT
 
 private slots:
+    void coloredSegmentsKeepIndependentEndpointColors();
     void theBufferHoldsBothStylesBackToBack();
     void theFirstRangeIsTheTwelveEdgesOfTheBox();
     void everyCornerGrowsOneArmAlongEachAxis();
@@ -61,6 +62,42 @@ int cornerIndex(const Vec &v, const float mx[3])
 }
 
 } // namespace
+
+void LineGeometryTests::coloredSegmentsKeepIndependentEndpointColors()
+{
+    const float origin[3] = {0, 0, 0};
+    const float x[3] = {1, 0, 0};
+    const float y[3] = {0, 1, 0};
+    const float yellow[4] = {1, 1, 0, 1};
+    const float cyan[4] = {0, 1, 1, 0.5f};
+    std::vector<float> lines, fat;
+    LineRenderer::appendColoredLineSegmentVertices(lines, origin, x, yellow);
+    LineRenderer::appendColoredLineSegmentVertices(lines, origin, y, cyan);
+    LineRenderer::appendColoredFatLineSegmentVertices(fat, origin, x, yellow);
+    LineRenderer::appendColoredFatLineSegmentVertices(fat, origin, y, cyan);
+    QCOMPARE(lines.size(), size_t(4 * LineRenderer::kColoredLineVertexStrideFloats));
+    QCOMPARE(fat.size(), size_t(12 * LineRenderer::kColoredFatLineStrideFloats));
+    for (int segment = 0; segment < 2; ++segment) {
+        const float *color = segment == 0 ? yellow : cyan;
+        const float *end = segment == 0 ? x : y;
+        for (int endpoint = 0; endpoint < 2; ++endpoint) {
+            const int offset = (segment * 2 + endpoint) * LineRenderer::kColoredLineVertexStrideFloats;
+            for (int axis = 0; axis < 3; ++axis)
+                QCOMPARE(lines[offset + axis], endpoint == 0 ? origin[axis] : end[axis]);
+            for (int channel = 0; channel < 4; ++channel)
+                QCOMPARE(lines[offset + 3 + channel], color[channel]);
+        }
+        for (int vertex = 0; vertex < 6; ++vertex) {
+            const int offset = (segment * 6 + vertex) * LineRenderer::kColoredFatLineStrideFloats;
+            for (int axis = 0; axis < 3; ++axis) {
+                QCOMPARE(fat[offset + axis], origin[axis]);
+                QCOMPARE(fat[offset + 3 + axis], end[axis]);
+            }
+            for (int channel = 0; channel < 4; ++channel)
+                QCOMPARE(fat[offset + 8 + channel], color[channel]);
+        }
+    }
+}
 
 void LineGeometryTests::theBufferHoldsBothStylesBackToBack()
 {

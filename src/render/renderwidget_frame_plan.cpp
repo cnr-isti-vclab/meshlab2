@@ -365,9 +365,11 @@ void RenderWidget::planSimpleBufferPasses(
         }
 
         if (meshRequest.edges) {
+            const auto edgeVariant = meshSettings.edgeColorSource == EdgeColorSource::PerEdge
+                ? Document::EdgeGpuVariant::PerEdge : Document::EdgeGpuVariant::Constant;
             bool edgeItemAppended = false;
             const MeshGpuResourceCache::EdgeFatPassView fatView =
-                m_doc->edgeFatPassGpuView(m_rhi, mi);
+                m_doc->edgeFatPassGpuView(m_rhi, mi, edgeVariant);
             if (fatView.valid) {
                 const size_t before = plan.edgeItems.size();
                 appendBufferDrawItem(
@@ -382,7 +384,7 @@ void RenderWidget::planSimpleBufferPasses(
 
             if (!edgeItemAppended) {
                 const MeshGpuResourceCache::EdgePassView lineView =
-                    m_doc->edgePassGpuView(m_rhi, mi);
+                    m_doc->edgePassGpuView(m_rhi, mi, edgeVariant);
                 if (lineView.valid) {
                     appendBufferDrawItem(
                         plan.edgeItems,

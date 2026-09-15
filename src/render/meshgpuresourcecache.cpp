@@ -144,6 +144,8 @@ struct MeshGpuResourceCache::CacheState
 
     struct EdgeGpu {
         std::uint64_t geometryRevision = 0;
+        std::uint64_t materialRevision = 0;
+        bool hasColors = false;
         bool valid = false;
         std::unique_ptr<QRhiBuffer> vbuf;
         int vertexCount = 0;
@@ -217,7 +219,7 @@ struct MeshGpuResourceCache::CacheState
         std::array<FillVariantGpu, 6> fill;
         std::array<PointsVariantGpu, 3> points;
         WireGpu wire;
-        EdgeGpu edges;
+        std::array<EdgeGpu, 2> edges;
         BBoxGpu bbox;
         SelectionGpu selection;
         DecoratorNormalsGpu decoratorNormals;
@@ -247,7 +249,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     bool needBoundingBox,
     bool needSelection,
     bool needDecoratorNormals,
-    bool needDecoratorBoundaries)
+    bool needDecoratorBoundaries,
+    EdgeVariant edgeVariant)
 {
     EnsureStats stats;
     if (!m_state || !rhi || !cb || !source.mesh || source.meshId == 0)
@@ -1202,73 +1205,74 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             return true;
         };
 
-    auto rebuildEdges = [&](CacheState::EdgeGpu &dst) -> bool {
-        if (dst.valid && dst.geometryRevision == source.geometryRevision)
+    auto rebuildEdges = [&](CacheState::EdgeGpu &dst, EdgeVariant variant) -> bool {
+        const bool colored = variant == EdgeVariant::PerEdge;
+        const bool hasColors = (source.ioMask & vcg::tri::io::Mask::IOM_EDGECOLOR) != 0;
+        if (dst.valid && dst.geometryRevision == source.geometryRevision
+            && (!colored || (dst.materialRevision == source.materialRevision
+                             && dst.hasColors == hasColors)))
             return false;
 
         dst.valid = true;
         dst.geometryRevision = source.geometryRevision;
+        dst.materialRevision = source.materialRevision;
+        dst.hasColors = hasColors;
         dst.vbuf.reset();
         dst.vertexCount = 0;
         dst.fatVbuf.reset();
         dst.fatVertexCount = 0;
 
-        if (meshData.EN() <= 0)
+        if (meshData.EN() <= 0 || (colored && !hasColors))
             return true;
 
+        const int lineStride = colored ? LineRenderer::kColoredLineVertexStrideFloats : 3;
+        const int fatStride = colored ? LineRenderer::kColoredFatLineStrideFloats
+                                      : LineRenderer::kFatLineStrideFloats;
         std::vector<float> vdata;
         std::vector<float> fatVdata;
-        vdata.reserve(static_cast<size_t>(meshData.EN()) * 6);
-        fatVdata.reserve(static_cast<size_t>(meshData.EN()) * 6 * LineRenderer::kFatLineStrideFloats);
-        for (int ei = 0; ei < meshData.EN(); ++ei) {
-            const auto &e = meshData.edge[ei];
+        vdata.reserve(static_cast<size_t>(meshData.EN()) * 2 * lineStride);
+        fatVdata.reserve(static_cast<size_t>(meshData.EN()) * 6 * fatStride);
+        for (const auto &e : meshData.edge) {
             if (e.IsD())
                 continue;
             const auto *v0 = e.cV(0);
             const auto *v1 = e.cV(1);
-            if (!v0 || !v1)
+            if (!v0 || !v1 || v0->IsD() || v1->IsD())
                 continue;
             const auto &p0 = v0->cP();
             const auto &p1 = v1->cP();
-            vdata.push_back(p0[0]);
-            vdata.push_back(p0[1]);
-            vdata.push_back(p0[2]);
-            vdata.push_back(p1[0]);
-            vdata.push_back(p1[1]);
-            vdata.push_back(p1[2]);
-            LineRenderer::appendFatLineSegmentVertices(
-                fatVdata, p0[0], p0[1], p0[2], p1[0], p1[1], p1[2]);
+            if (colored) {
+                const auto &c = e.cC();
+                const float rgba[4] = {c[0] / 255.0f, c[1] / 255.0f, c[2] / 255.0f, c[3] / 255.0f};
+                LineRenderer::appendColoredLineSegmentVertices(vdata, p0.V(), p1.V(), rgba);
+                LineRenderer::appendColoredFatLineSegmentVertices(fatVdata, p0.V(), p1.V(), rgba);
+            } else {
+                vdata.insert(vdata.end(), p0.V(), p0.V() + 3);
+                vdata.insert(vdata.end(), p1.V(), p1.V() + 3);
+                LineRenderer::appendFatLineSegmentVertices(
+                    fatVdata, p0[0], p0[1], p0[2], p1[0], p1[1], p1[2]);
+            }
         }
 
         if (vdata.empty())
             return true;
 
-        dst.vbuf.reset(
-            rhi->newBuffer(
-                QRhiBuffer::Immutable,
-                QRhiBuffer::VertexBuffer,
-                static_cast<quint32>(vdata.size() * sizeof(float))));
+        dst.vbuf.reset(rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer,
+                                     static_cast<quint32>(vdata.size() * sizeof(float))));
         if (!dst.vbuf || !dst.vbuf->create()) {
             dst.vbuf.reset();
             return true;
         }
-
         ensureUpdates()->uploadStaticBuffer(dst.vbuf.get(), vdata.data());
-        dst.vertexCount = static_cast<int>(vdata.size() / 3);
+        dst.vertexCount = static_cast<int>(vdata.size() / lineStride);
 
-        if (!fatVdata.empty()) {
-            dst.fatVbuf.reset(
-                rhi->newBuffer(
-                    QRhiBuffer::Immutable,
-                    QRhiBuffer::VertexBuffer,
-                    static_cast<quint32>(fatVdata.size() * sizeof(float))));
-            if (!dst.fatVbuf || !dst.fatVbuf->create()) {
-                dst.fatVbuf.reset();
-            } else {
-                ensureUpdates()->uploadStaticBuffer(dst.fatVbuf.get(), fatVdata.data());
-                dst.fatVertexCount =
-                    static_cast<int>(fatVdata.size() / LineRenderer::kFatLineStrideFloats);
-            }
+        dst.fatVbuf.reset(rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer,
+                                        static_cast<quint32>(fatVdata.size() * sizeof(float))));
+        if (!dst.fatVbuf || !dst.fatVbuf->create()) {
+            dst.fatVbuf.reset();
+        } else {
+            ensureUpdates()->uploadStaticBuffer(dst.fatVbuf.get(), fatVdata.data());
+            dst.fatVertexCount = static_cast<int>(fatVdata.size() / fatStride);
         }
         return true;
     };
@@ -1822,8 +1826,12 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     }
     if (needWire)
         stats.rebuiltWire = rebuildWire(meshCache.wire);
-    if (needEdges)
-        stats.rebuiltEdges = rebuildEdges(meshCache.edges);
+    if (needEdges) {
+        // Highlight and depth masks retain their position-only vertex layouts.
+        stats.rebuiltEdges = rebuildEdges(meshCache.edges[0], EdgeVariant::Constant);
+        if (edgeVariant == EdgeVariant::PerEdge)
+            stats.rebuiltEdges = rebuildEdges(meshCache.edges[1], edgeVariant) || stats.rebuiltEdges;
+    }
     if (needPoints) {
         auto &points = meshCache.points[pointVariantIndex(pointVariant)];
         stats.rebuiltPoints = rebuildPointsVariant(points, pointVariant);
@@ -1933,7 +1941,7 @@ MeshGpuResourceCache::WirePassView MeshGpuResourceCache::wirePassView(QRhi *rhi,
 }
 
 MeshGpuResourceCache::EdgePassView MeshGpuResourceCache::edgePassView(
-    QRhi *rhi, std::uint64_t meshId) const
+    QRhi *rhi, std::uint64_t meshId, EdgeVariant variant) const
 {
     if (!m_state || !rhi || meshId == 0)
         return {};
@@ -1945,7 +1953,7 @@ MeshGpuResourceCache::EdgePassView MeshGpuResourceCache::edgePassView(
     if (meshIt == rhiIt->second.end())
         return {};
 
-    const auto &edges = meshIt->second.edges;
+    const auto &edges = meshIt->second.edges[variant == EdgeVariant::PerEdge ? 1 : 0];
     if (!edges.valid)
         return {};
 
@@ -1953,7 +1961,7 @@ MeshGpuResourceCache::EdgePassView MeshGpuResourceCache::edgePassView(
 }
 
 MeshGpuResourceCache::EdgeFatPassView MeshGpuResourceCache::edgeFatPassView(
-    QRhi *rhi, std::uint64_t meshId) const
+    QRhi *rhi, std::uint64_t meshId, EdgeVariant variant) const
 {
     if (!m_state || !rhi || meshId == 0)
         return {};
@@ -1965,7 +1973,7 @@ MeshGpuResourceCache::EdgeFatPassView MeshGpuResourceCache::edgeFatPassView(
     if (meshIt == rhiIt->second.end())
         return {};
 
-    const auto &edges = meshIt->second.edges;
+    const auto &edges = meshIt->second.edges[variant == EdgeVariant::PerEdge ? 1 : 0];
     if (!edges.valid)
         return {};
 
@@ -2138,8 +2146,9 @@ std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> MeshGpuResourceCache::gpuM
             }
             if (meshGpu.wire.valid)
                 s.wireBufferBytes += bufBytes(meshGpu.wire.vbuf);
-            if (meshGpu.edges.valid)
-                s.edgeBufferBytes += bufBytes(meshGpu.edges.vbuf) + bufBytes(meshGpu.edges.fatVbuf);
+            for (const auto &edges : meshGpu.edges)
+                if (edges.valid)
+                    s.edgeBufferBytes += bufBytes(edges.vbuf) + bufBytes(edges.fatVbuf);
             for (const auto &pv : meshGpu.points) {
                 if (pv.valid)
                     s.pointsBufferBytes += bufBytes(pv.vbuf);

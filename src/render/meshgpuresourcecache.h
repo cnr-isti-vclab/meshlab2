@@ -24,6 +24,11 @@ public:
         Texture = 5
     };
 
+    enum class EdgeVariant : int {
+        Constant = 0,
+        PerEdge = 1
+    };
+
     enum class PointVariant : int {
         Constant = 0,
         PerVertex = 1,
@@ -188,12 +193,15 @@ public:
                                     bool needBoundingBox,
                                     bool needSelection,
                                     bool needDecoratorNormals,
-                                    bool needDecoratorBoundaries);
+                                    bool needDecoratorBoundaries,
+                                    EdgeVariant edgeVariant = EdgeVariant::Constant);
 
     FillPassView fillPassView(QRhi *rhi, std::uint64_t meshId, FillVariant variant) const;
     WirePassView wirePassView(QRhi *rhi, std::uint64_t meshId) const;
-    EdgePassView edgePassView(QRhi *rhi, std::uint64_t meshId) const;
-    EdgeFatPassView edgeFatPassView(QRhi *rhi, std::uint64_t meshId) const;
+    EdgePassView edgePassView(QRhi *rhi, std::uint64_t meshId,
+                                EdgeVariant variant = EdgeVariant::Constant) const;
+    EdgeFatPassView edgeFatPassView(QRhi *rhi, std::uint64_t meshId,
+                                EdgeVariant variant = EdgeVariant::Constant) const;
     PointsPassView pointsPassView(QRhi *rhi, std::uint64_t meshId, PointVariant variant) const;
     BBoxPassView bboxPassView(QRhi *rhi, std::uint64_t meshId) const;
     SelectionPassView selectionPassView(QRhi *rhi, std::uint64_t meshId) const;

@@ -109,6 +109,11 @@ enum class PointColorSource {
     PerVertexQuality
 };
 
+enum class EdgeColorSource {
+    Constant = 0,
+    PerEdge
+};
+
 enum class QualityHistogramSource {
     Auto = 0,
     VertexQuality,
@@ -176,6 +181,7 @@ struct PerMeshRenderSettings {
     RsFillParams  fillRs;
     PlainFillParams fillPlain;
     PointColorSource pointColorSource = PointColorSource::Constant;
+    EdgeColorSource edgeColorSource = EdgeColorSource::Constant;
     QColor decoratorVertexNormalColor = QColor(70, 200, 255);
     QColor decoratorFaceNormalColor = QColor(70, 255, 120);
     QColor decoratorBoundaryEdgeColor = QColor(0, 255, 0);

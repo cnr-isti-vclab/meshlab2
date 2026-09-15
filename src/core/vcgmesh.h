@@ -34,6 +34,7 @@ class VCGVertex : public vcg::Vertex<VCGUsedTypes,
 
 class VCGEdge : public vcg::Edge<VCGUsedTypes,
     vcg::edge::VertexRef,
+    vcg::edge::Color4b,
     vcg::edge::BitFlags> {};
 
 // Fixed (always allocated): VertexRef, Normal, Color, Quality, BitFlags

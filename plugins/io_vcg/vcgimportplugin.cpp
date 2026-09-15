@@ -112,7 +112,7 @@ int loadMaskCapabilityForExtension(const QString &ext)
     if (ext == QLatin1String("ply"))
         return M::IOM_VERTCOORD | M::IOM_VERTFLAGS | M::IOM_VERTCOLOR
             | M::IOM_VERTQUALITY | M::IOM_VERTNORMAL | M::IOM_VERTTEXCOORD
-            | M::IOM_VERTRADIUS | M::IOM_EDGEINDEX | M::IOM_FACEINDEX
+            | M::IOM_VERTRADIUS | M::IOM_EDGEINDEX | M::IOM_EDGECOLOR | M::IOM_FACEINDEX
             | M::IOM_FACEFLAGS | M::IOM_FACECOLOR | M::IOM_FACEQUALITY
             | M::IOM_FACENORMAL | M::IOM_WEDGCOLOR | M::IOM_WEDGTEXCOORD
             | M::IOM_CAMERA | M::IOM_BITPOLYGONAL;

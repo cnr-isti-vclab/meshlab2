@@ -1,4 +1,5 @@
 #include "renderwidget.h"
+#include "linerenderer.h"
 #include "document.h"
 #include "preferences.h"
 #include "renderoverlaypanel.h"
@@ -111,6 +112,8 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
     const int mask = entry.ioMask;
     const bool hasVertexColors = (mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
     const bool hasFaceColors = (mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
+    mode.edgeColorSource = (mask & vcg::tri::io::Mask::IOM_EDGECOLOR)
+        ? EdgeColorSource::PerEdge : EdgeColorSource::Constant;
     const bool hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0 && hasSignificantVertexQuality(entry.mesh);
     const bool hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0 && hasSignificantFaceQuality(entry.mesh);
     const bool hasVertexNormals = (mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
@@ -187,8 +190,11 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
         mode.showFill = false;
         mode.showWire = false;
         mode.showEdges = true;
-        mode.showPoints = false;
+        mode.showPoints = hasVertexColors;
+        mode.pointColorSource = hasVertexColors ? PointColorSource::PerVertex : PointColorSource::Constant;
         mode.edgeSize = 4.0f;
+        if (hasVertexColors)
+            mode.pointSize = 8.0f;
         mode.fillLighting = false;
         mode.pointLighting = false;
         mode.wireLighting = false;
@@ -247,6 +253,8 @@ void RenderWidget::syncPerMeshRenderModesWithDocument()
             continue;
         }
 
+        if (!(entry.ioMask & vcg::tri::io::Mask::IOM_EDGECOLOR))
+            it->second.edgeColorSource = EdgeColorSource::Constant;
         auto revIt = m_meshRenderModeRevisions.find(meshId);
         if (revIt == m_meshRenderModeRevisions.end()) {
             m_meshRenderModeRevisions[meshId] = revisions;
@@ -276,8 +284,12 @@ RenderWidget::MeshRenderMode RenderWidget::renderModeForMesh(int meshIndex) cons
         return MeshRenderMode {};
     const std::uint64_t meshId = m_doc->mesh(meshIndex).meshId;
     const auto it = m_meshRenderModes.find(meshId);
-    if (it != m_meshRenderModes.end())
-        return it->second;
+    if (it != m_meshRenderModes.end()) {
+        MeshRenderMode mode = it->second;
+        if (!(m_doc->mesh(meshIndex).ioMask & vcg::tri::io::Mask::IOM_EDGECOLOR))
+            mode.edgeColorSource = EdgeColorSource::Constant;
+        return mode;
+    }
     return defaultRenderModeForMesh(meshIndex);
 }
 
@@ -378,6 +390,7 @@ void RenderWidget::syncOverlaySettingsToCurrentMesh()
 
 void RenderWidget::refreshColorSourceAvailability()
 {
+    bool hasEdgeColors = false;
     bool hasVertexColors = false;
     bool hasFaceColors = false;
     bool hasVertexQuality = false;
@@ -394,6 +407,7 @@ void RenderWidget::refreshColorSourceAvailability()
         const bool hasTextureCoords =
             (mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
             || (mask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
+        hasEdgeColors = (mask & vcg::tri::io::Mask::IOM_EDGECOLOR) != 0;
         hasVertexColors = (mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
         hasFaceColors = (mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
         hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
@@ -405,6 +419,8 @@ void RenderWidget::refreshColorSourceAvailability()
                        || meshEntry.mesh.C()[2] != 0;
     }
 
+    if (m_overlayPanel)
+        m_overlayPanel->setEdgeColorSourceAvailability(hasEdgeColors);
     if (m_overlayPanel)
         m_overlayPanel->setPointColorSourceAvailability(hasVertexColors, hasVertexQuality);
     if (m_overlayPanel)
@@ -428,6 +444,8 @@ void RenderWidget::refreshColorSourceAvailability()
     // Correct per-mesh settings for the current mesh.
     PerMeshRenderSettings meshCorrected =
         hasCurrentMesh ? renderModeForMesh(meshIndex) : PerMeshRenderSettings{};
+    if (meshCorrected.edgeColorSource == EdgeColorSource::PerEdge && !hasEdgeColors)
+        meshCorrected.edgeColorSource = EdgeColorSource::Constant;
     if (meshCorrected.pointColorSource == PointColorSource::PerVertex && !hasVertexColors)
         meshCorrected.pointColorSource = PointColorSource::Constant;
     if (meshCorrected.pointColorSource == PointColorSource::PerVertexQuality && !hasVertexQuality)
@@ -699,14 +717,18 @@ QRhiGraphicsPipeline *RenderWidget::edgesPipelineForSettings(const PerMeshRender
 {
     if (!m_rhi || !m_srb || !renderTarget())
         return nullptr;
-    const int key = int(std::lround(qMax(1.0f, settings.edgeSize) * 10.0f));
+    const bool colored = settings.edgeColorSource == EdgeColorSource::PerEdge;
+    const int key = int(std::lround(qMax(1.0f, settings.edgeSize) * 10.0f)) * 4
+        + int(colored) + 2 * int(settings.showPoints);
     auto it = m_edgesPipelinesByKey.find(key);
     if (it != m_edgesPipelinesByKey.end())
         return it->second.get();
 
     auto pipeline = std::unique_ptr<QRhiGraphicsPipeline>(m_rhi->newGraphicsPipeline());
-    QShader vs = loadShader(QStringLiteral(":/shaders/overlay_edges.vert.qsb"));
-    QShader fs = loadShader(QStringLiteral(":/shaders/overlay_edges.frag.qsb"));
+    QShader vs = loadShader(colored ? QStringLiteral(":/shaders/overlay_edges_colored.vert.qsb")
+                                    : QStringLiteral(":/shaders/overlay_edges.vert.qsb"));
+    QShader fs = loadShader(colored ? QStringLiteral(":/shaders/overlay_edges_colored.frag.qsb")
+                                    : QStringLiteral(":/shaders/overlay_edges.frag.qsb"));
     if (!vs.isValid() || !fs.isValid())
         return nullptr;
 
@@ -716,7 +738,9 @@ QRhiGraphicsPipeline *RenderWidget::edgesPipelineForSettings(const PerMeshRender
     });
     pipeline->setTopology(QRhiGraphicsPipeline::Lines);
     pipeline->setDepthTest(true);
-    pipeline->setDepthWrite(true);
+    // Points are drawn afterwards: avoid biased edge depth hiding their centers.
+    // Depth testing still lets foreground surfaces occlude the edges and points.
+    pipeline->setDepthWrite(!settings.showPoints);
     pipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
     pipeline->setDepthBias(-1);
     pipeline->setSlopeScaledDepthBias(-1.0f);
@@ -733,8 +757,16 @@ QRhiGraphicsPipeline *RenderWidget::edgesPipelineForSettings(const PerMeshRender
     pipeline->setTargetBlends({ blend });
 
     QRhiVertexInputLayout edgesLayout;
-    edgesLayout.setBindings({ { 3 * sizeof(float) } });
-    edgesLayout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+    const int stride = colored ? LineRenderer::kColoredLineVertexStrideFloats : 3;
+    edgesLayout.setBindings({ { quint32(stride * sizeof(float)) } });
+    if (colored) {
+        edgesLayout.setAttributes({
+            { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
+            { 0, 1, QRhiVertexInputAttribute::Float4, 3 * sizeof(float) }
+        });
+    } else {
+        edgesLayout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+    }
     pipeline->setVertexInputLayout(edgesLayout);
     pipeline->setShaderResourceBindings(m_srb.get());
     pipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
@@ -749,14 +781,18 @@ QRhiGraphicsPipeline *RenderWidget::fatEdgesPipelineForSettings(const PerMeshRen
 {
     if (!m_rhi || !m_srb || !renderTarget())
         return nullptr;
-    const int key = int(std::lround(qMax(1.0f, settings.edgeSize) * 10.0f));
+    const bool colored = settings.edgeColorSource == EdgeColorSource::PerEdge;
+    const int key = int(std::lround(qMax(1.0f, settings.edgeSize) * 10.0f)) * 4
+        + int(colored) + 2 * int(settings.showPoints);
     auto it = m_fatEdgesPipelinesByKey.find(key);
     if (it != m_fatEdgesPipelinesByKey.end())
         return it->second.get();
 
     auto pipeline = std::unique_ptr<QRhiGraphicsPipeline>(m_rhi->newGraphicsPipeline());
-    QShader vs = loadShader(QStringLiteral(":/shaders/overlay_fat_edges.vert.qsb"));
-    QShader fs = loadShader(QStringLiteral(":/shaders/overlay_fat_edges.frag.qsb"));
+    QShader vs = loadShader(colored ? QStringLiteral(":/shaders/overlay_fat_edges_colored.vert.qsb")
+                                    : QStringLiteral(":/shaders/overlay_fat_edges.vert.qsb"));
+    QShader fs = loadShader(colored ? QStringLiteral(":/shaders/overlay_fat_edges_colored.frag.qsb")
+                                    : QStringLiteral(":/shaders/overlay_fat_edges.frag.qsb"));
     if (!vs.isValid() || !fs.isValid())
         return nullptr;
 
@@ -766,7 +802,9 @@ QRhiGraphicsPipeline *RenderWidget::fatEdgesPipelineForSettings(const PerMeshRen
     });
     pipeline->setTopology(QRhiGraphicsPipeline::Triangles);
     pipeline->setDepthTest(true);
-    pipeline->setDepthWrite(true);
+    // Points are drawn afterwards: avoid biased edge depth hiding their centers.
+    // Depth testing still lets foreground surfaces occlude the edges and points.
+    pipeline->setDepthWrite(!settings.showPoints);
     pipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
     pipeline->setDepthBias(-1);
     pipeline->setSlopeScaledDepthBias(-1.0f);
@@ -782,13 +820,25 @@ QRhiGraphicsPipeline *RenderWidget::fatEdgesPipelineForSettings(const PerMeshRen
     pipeline->setTargetBlends({ blend });
 
     QRhiVertexInputLayout edgesLayout;
-    edgesLayout.setBindings({ { 8 * sizeof(float) } });
-    edgesLayout.setAttributes({
-        { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
-        { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) },
-        { 0, 2, QRhiVertexInputAttribute::Float, 6 * sizeof(float) },
-        { 0, 3, QRhiVertexInputAttribute::Float, 7 * sizeof(float) }
-    });
+    const int stride = colored ? LineRenderer::kColoredFatLineStrideFloats
+                               : LineRenderer::kFatLineStrideFloats;
+    edgesLayout.setBindings({ { quint32(stride * sizeof(float)) } });
+    if (colored) {
+        edgesLayout.setAttributes({
+            { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
+            { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) },
+            { 0, 2, QRhiVertexInputAttribute::Float, 6 * sizeof(float) },
+            { 0, 3, QRhiVertexInputAttribute::Float, 7 * sizeof(float) },
+            { 0, 4, QRhiVertexInputAttribute::Float4, 8 * sizeof(float) }
+        });
+    } else {
+        edgesLayout.setAttributes({
+            { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
+            { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) },
+            { 0, 2, QRhiVertexInputAttribute::Float, 6 * sizeof(float) },
+            { 0, 3, QRhiVertexInputAttribute::Float, 7 * sizeof(float) }
+        });
+    }
     pipeline->setVertexInputLayout(edgesLayout);
     pipeline->setShaderResourceBindings(m_srb.get());
     pipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());

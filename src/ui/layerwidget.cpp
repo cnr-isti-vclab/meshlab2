@@ -351,6 +351,8 @@ QString meshDataSummary(const Document::MeshEntry &entry)
 
     if ((mask & Mask::IOM_VERTCOLOR) != 0)
         tokens << QObject::tr("VC");
+    if ((mask & Mask::IOM_EDGECOLOR) != 0)
+        tokens << QObject::tr("EC");
     if ((mask & Mask::IOM_FACECOLOR) != 0)
         tokens << QObject::tr("FC");
     if (hasFaces || (mask & Mask::IOM_VERTNORMAL) != 0)

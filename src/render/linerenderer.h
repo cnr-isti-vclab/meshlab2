@@ -6,6 +6,14 @@ namespace LineRenderer {
 
 constexpr int kLineStrideFloats = 6;    // p0.xyz + p1.xyz
 constexpr int kFatLineStrideFloats = 8; // p0.xyz + p1.xyz + along + side
+constexpr int kColoredLineVertexStrideFloats = 7; // position.xyz + rgba
+constexpr int kColoredFatLineStrideFloats = 12;   // fat line vertex + rgba
+
+// One color per segment, including segments that share an endpoint.
+void appendColoredLineSegmentVertices(std::vector<float> &dst,
+                                     const float p0[3], const float p1[3], const float rgba[4]);
+void appendColoredFatLineSegmentVertices(std::vector<float> &dst,
+                                        const float p0[3], const float p1[3], const float rgba[4]);
 
 void appendFatLineSegmentVertices(std::vector<float> &dst,
                                   float p0x,
@@ -41,4 +49,3 @@ std::vector<float> buildBoundingBoxVertices(
     float bracketFraction);
 
 } // namespace LineRenderer
-

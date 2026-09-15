@@ -19,6 +19,7 @@ struct OptionalMaskItem {
 const OptionalMaskItem kOptionalMaskItems[] = {
     { vcg::tri::io::Mask::IOM_VERTFLAGS, QT_TR_NOOP("Vertex Flags") },
     { vcg::tri::io::Mask::IOM_VERTCOLOR, QT_TR_NOOP("Vertex Color") },
+    { vcg::tri::io::Mask::IOM_EDGECOLOR, QT_TR_NOOP("Edge Color") },
     { vcg::tri::io::Mask::IOM_VERTQUALITY, QT_TR_NOOP("Vertex Quality") },
     { vcg::tri::io::Mask::IOM_VERTNORMAL, QT_TR_NOOP("Vertex Normal") },
     { vcg::tri::io::Mask::IOM_VERTTEXCOORD, QT_TR_NOOP("Vertex Texcoord") },

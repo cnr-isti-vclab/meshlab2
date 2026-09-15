@@ -17,6 +17,27 @@ constexpr std::array<std::array<float, 2>, 6> kFatTriTemplate = {{
 }};
 } // namespace
 
+void appendColoredLineSegmentVertices(std::vector<float> &dst,
+                                     const float p0[3], const float p1[3], const float rgba[4])
+{
+    for (const float *p : {p0, p1}) {
+        dst.insert(dst.end(), p, p + 3);
+        dst.insert(dst.end(), rgba, rgba + 4);
+    }
+}
+
+void appendColoredFatLineSegmentVertices(std::vector<float> &dst,
+                                        const float p0[3], const float p1[3], const float rgba[4])
+{
+    for (const auto &tpl : kFatTriTemplate) {
+        dst.insert(dst.end(), p0, p0 + 3);
+        dst.insert(dst.end(), p1, p1 + 3);
+        dst.push_back(tpl[0]);
+        dst.push_back(tpl[1]);
+        dst.insert(dst.end(), rgba, rgba + 4);
+    }
+}
+
 void appendFatLineSegmentVertices(std::vector<float> &dst,
                                   float p0x,
                                   float p0y,

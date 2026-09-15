@@ -20,7 +20,8 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
                                       bool needSelection,
                                       bool wireRespectFaux,
                                       bool qualityCenterOnZero,
-                                      float qualityPercentileCrop)
+                                      float qualityPercentileCrop,
+                                      EdgeGpuVariant edgeVariant)
 {
     if (!m_gpuCache || !rhi || !cb)
         return;
@@ -60,7 +61,8 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
         needBoundingBox,
         needSelection,
         needDecoratorNormals,
-        needDecoratorBoundaries);
+        needDecoratorBoundaries,
+        edgeVariant);
 
     if (stats.anyRebuilt()) {
         QStringList rebuiltPasses;
@@ -108,22 +110,22 @@ Document::WirePassGpuView Document::wirePassGpuView(QRhi *rhi, int meshIndex) co
     return m_gpuCache->wirePassView(rhi, meshEntry.meshId);
 }
 
-Document::EdgePassGpuView Document::edgePassGpuView(QRhi *rhi, int meshIndex) const
+Document::EdgePassGpuView Document::edgePassGpuView(QRhi *rhi, int meshIndex, EdgeGpuVariant variant) const
 {
     if (!m_gpuCache || !rhi || meshIndex < 0 || meshIndex >= meshCount())
         return {};
 
     const MeshEntry &meshEntry = mesh(meshIndex);
-    return m_gpuCache->edgePassView(rhi, meshEntry.meshId);
+    return m_gpuCache->edgePassView(rhi, meshEntry.meshId, variant);
 }
 
-Document::EdgeFatPassGpuView Document::edgeFatPassGpuView(QRhi *rhi, int meshIndex) const
+Document::EdgeFatPassGpuView Document::edgeFatPassGpuView(QRhi *rhi, int meshIndex, EdgeGpuVariant variant) const
 {
     if (!m_gpuCache || !rhi || meshIndex < 0 || meshIndex >= meshCount())
         return {};
 
     const MeshEntry &meshEntry = mesh(meshIndex);
-    return m_gpuCache->edgeFatPassView(rhi, meshEntry.meshId);
+    return m_gpuCache->edgeFatPassView(rhi, meshEntry.meshId, variant);
 }
 
 Document::PointsPassGpuView Document::pointsPassGpuView(

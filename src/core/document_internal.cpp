@@ -15,6 +15,7 @@ QString summarizeLoadMask(int mask)
     };
 
     addIf(Mask::IOM_VERTCOLOR, QStringLiteral("vertex color"));
+    addIf(Mask::IOM_EDGECOLOR, QStringLiteral("edge color"));
     addIf(Mask::IOM_FACECOLOR, QStringLiteral("face color"));
     addIf(Mask::IOM_VERTNORMAL, QStringLiteral("vertex normal"));
     addIf(Mask::IOM_FACENORMAL, QStringLiteral("face normal"));
@@ -609,6 +610,7 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
                 de.V(k) = dv;
             }
             de.Flags() = se.Flags();
+            de.C() = se.cC();
             ++dstEdgeIndex;
         }
     }
