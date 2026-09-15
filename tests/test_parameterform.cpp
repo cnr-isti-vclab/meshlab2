@@ -76,6 +76,7 @@ private slots:
     void enabledWhenGatesOnABool();
     void enabledWhenSupportsNegation();
     void enabledWhenIgnoresBadReferences();
+    void point3fRoleChoosesThePresetList();
 };
 
 void ParameterFormTests::buildsEditorsFromDefaults()
@@ -320,6 +321,36 @@ void ParameterFormTests::enabledWhenIgnoresBadReferences()
 
     QVERIFY(builder.bindingById(QStringLiteral("a"))->editor->isEnabled());
     QVERIFY(builder.bindingById(QStringLiteral("b"))->editor->isEnabled());
+}
+
+// The three roles offer different presets, and an axis deliberately drops the sign:
+// a cylinder along +X is the same cylinder as one along -X, so listing both is noise.
+// Roles that do care about the sign (camera directions) keep the full list.
+void ParameterFormTests::point3fRoleChoosesThePresetList()
+{
+    const auto presetsFor = [](const QString &role) {
+        QWidget host;
+        auto *layout = new QFormLayout(&host);
+        ParameterFormBuilder builder(layout, &host);
+        auto p = makeParam(QStringLiteral("dir"), MeshFilterParameterType::Point3f,
+                           QVector3D(0, 1, 0));
+        p.point3fRole = role;
+        builder.build({ p });
+        QStringList labels;
+        auto *combo = builder.bindingById(QStringLiteral("dir"))
+                          ->editor->findChild<QComboBox *>();
+        for (int i = 0; combo && i < combo->count(); ++i)
+            labels << combo->itemText(i);
+        return labels;
+    };
+
+    QCOMPARE(presetsFor(QStringLiteral("axis")),
+             QStringList({ QStringLiteral("Custom"), QStringLiteral("X Axis"),
+                           QStringLiteral("Y Axis"), QStringLiteral("Z Axis"),
+                           QStringLiteral("View Direction") }));
+    QVERIFY(presetsFor(QStringLiteral("direction")).contains(QStringLiteral("-X Axis")));
+    // Unspecified means "point", which offers places rather than orientations.
+    QVERIFY(presetsFor(QString()).contains(QStringLiteral("Mesh BBox Center")));
 }
 
 QTEST_MAIN(ParameterFormTests)

@@ -29,6 +29,7 @@ constexpr QLatin1StringView kFilterCreateDodecahedronSym("create_symmetric_dodec
 constexpr QLatin1StringView kFilterCreateTetrahedron("create_tetrahedron");
 constexpr QLatin1StringView kFilterCreateOctahedron("create_octahedron");
 constexpr QLatin1StringView kFilterCreateCone("create_cone");
+constexpr QLatin1StringView kFilterCreateCylinder("create_cylinder");
 constexpr QLatin1StringView kFilterCreateTorus("create_torus");
 constexpr QLatin1StringView kFilterFitPlane("create_plane_from_selection");
 constexpr QLatin1StringView kFilterConvexHull("create_convex_hull");
@@ -230,6 +231,30 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
         const int idx = doc.addMesh(m, QStringLiteral("Cone"), vcg::tri::io::Mask::IOM_VERTNORMAL);
+        return success(doc.mesh(idx).name, idx);
+    }
+
+    if (filterId == QString::fromLatin1(kFilterCreateCylinder)) {
+        const float radius = float(params.getDouble(QStringLiteral("radius")));
+        const float height = float(params.getDouble(QStringLiteral("height")));
+        const int sides    = params.getInt(QStringLiteral("sides"));
+        const int stacks   = params.getInt(QStringLiteral("stacks"));
+        const bool capped  = params.getBool(QStringLiteral("capped"));
+        const QVector3D a  = params.getPoint3f(QStringLiteral("axis"));
+        vcg::Point3f axis(a.x(), a.y(), a.z());
+        if (axis.SquaredNorm() <= 1e-20f)
+            return { false, false, QObject::tr("Axis must be non-zero.") };
+        axis.Normalize();
+
+        // Centred on the origin and spanning half the height either side, which is what
+        // vcg::tri::Cone does — a cylinder and a cone of the same height should occupy
+        // the same space.
+        const vcg::Point3f half = axis * (height / 2.0f);
+        VCGMesh m;
+        vcg::tri::OrientedCylinder<VCGMesh>(m, -half, half, radius, capped, sides, stacks);
+        vcg::tri::UpdateBounding<VCGMesh>::Box(m);
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
+        const int idx = doc.addMesh(m, QStringLiteral("Cylinder"), vcg::tri::io::Mask::IOM_VERTNORMAL);
         return success(doc.mesh(idx).name, idx);
     }
 

@@ -441,6 +441,83 @@
       ]
     },
     {
+      "id": "create_cylinder",
+      "categories": ["Creation/Primitives"],
+      "name": "Create Cylinder",
+      "pythonName": "create_cylinder",
+      "shortDescription": "Creates a cylinder of the given radius and height around an arbitrary axis.",
+      "longDescriptionMarkdown": "Creates a cylinder centred on the origin, like **Create Cone** with equal radii but with a choice of axis and a tessellation that can be refined along its length.\n\n*Sides* sets the angular tessellation; *Stacks* cuts the side wall into rings along the axis. One stack is enough for a cylinder that will only be rendered — add more when something downstream needs to deform or resample the side wall, since a single quad strip has no interior vertices to move.\n\n*Axis* need not be normalized; only its direction is used, and the cylinder is always centred on the origin, spanning half the height either side.",
+      "tags": [
+        "create",
+        "cylinder",
+        "primitive"
+      ],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": [
+        {
+          "id": "radius",
+          "label": "Radius",
+          "help": "Radius of the cylinder.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 1e-08,
+          "max": 100000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "height",
+          "label": "Height",
+          "help": "Length of the cylinder along its axis.",
+          "group": "main",
+          "type": "double",
+          "default": 3.0,
+          "min": 1e-08,
+          "max": 100000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "sides",
+          "label": "Sides",
+          "help": "Number of sides of the polygonal approximation.",
+          "group": "main",
+          "type": "int",
+          "default": 36,
+          "min": 3,
+          "max": 1024
+        },
+        {
+          "id": "stacks",
+          "label": "Stacks",
+          "help": "Number of segments along the axis. One leaves the side wall as a single band of quads; raise it when the mesh will be deformed or resampled.",
+          "group": "main",
+          "type": "int",
+          "default": 1,
+          "min": 1,
+          "max": 1024
+        },
+        {
+          "id": "capped",
+          "label": "Close the ends",
+          "help": "Add a flat cap at each end. Without them the result is an open tube.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "axis",
+          "label": "Axis",
+          "help": "Direction of the cylinder's axis. Need not be normalized, and its sign makes no difference: the cylinder is centred on the origin.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "axis",
+          "default": [0.0, 1.0, 0.0]
+        }
+      ]
+    },
+    {
       "id": "create_torus",
       "categories": ["Creation/Primitives"],
       "name": "Create Torus",

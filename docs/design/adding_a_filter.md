@@ -91,6 +91,22 @@ an empty group is "Main".
 option may also carry its own `help`. Numeric parameters take `min`, `max` and
 `decimals` (default 3).
 
+`point3f` parameters take an optional `point3fRole`, which decides what the
+editor's preset combo offers beside the three spin boxes:
+
+| role | presets |
+|---|---|
+| `point` (default) | Origin, Mesh BBox Center, Camera Eye Position, Trackball Center |
+| `direction` | ±X, ±Y, ±Z, View Direction |
+| `axis` | X, Y, Z, View Direction — for an axis, where the sign means nothing |
+
+`point3fDefaultPreset` opens the combo already on a context-derived preset. It
+takes one of the tokens `cameraEye`, `trackballCenter`, `bboxCenter`,
+`viewDirection` or `origin`, and only those — the fixed-axis entries have none.
+A token the role does not offer, or one whose context is unavailable, silently
+leaves the descriptor's literal `default` in place. An unknown role falls back
+to `point`.
+
 `inputRequirements` declares preconditions the framework checks *before* your
 code runs, so the filter is greyed out with a reason instead of failing inside
 `runFilter`. All are optional booleans: `requireVertices`, `requireFaces`,

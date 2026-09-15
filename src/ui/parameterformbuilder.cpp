@@ -784,7 +784,15 @@ private:
         m_presets.push_back({ QObject::tr("Custom"), {}, false });
         m_combo->addItem(m_presets.back().label);
 
-        if (m_role == QStringLiteral("direction")) {
+        if (m_role == QStringLiteral("axis")) {
+            // An axis has no sign: a cylinder built along +X and one along -X are the
+            // same cylinder, so offering both halves of each pair is noise. Roles that
+            // do care about the sign use "direction" below and keep the full list.
+            m_presets.push_back({ QObject::tr("X Axis"), QVector3D(1, 0, 0), false });
+            m_presets.push_back({ QObject::tr("Y Axis"), QVector3D(0, 1, 0), false });
+            m_presets.push_back({ QObject::tr("Z Axis"), QVector3D(0, 0, 1), false });
+            m_presets.push_back({ QObject::tr("View Direction"),  {}, true });
+        } else if (m_role == QStringLiteral("direction")) {
             m_presets.push_back({ QObject::tr("+X Axis"),  QVector3D( 1, 0, 0), false });
             m_presets.push_back({ QObject::tr("-X Axis"),  QVector3D(-1, 0, 0), false });
             m_presets.push_back({ QObject::tr("+Y Axis"),  QVector3D( 0, 1, 0), false });
@@ -852,7 +860,7 @@ private:
             && m_doc->currentMeshIndex() >= 0
             && m_doc->currentMeshIndex() < m_doc->meshCount();
 
-        if (m_role == QStringLiteral("direction")) {
+        if (m_role == QStringLiteral("direction") || m_role == QStringLiteral("axis")) {
             if (p.label == QObject::tr("View Direction") && m_viewContextProvider) {
                 setSpinsQuiet(m_viewContextProvider().viewDirection);
                 return;

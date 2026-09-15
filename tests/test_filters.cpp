@@ -434,6 +434,7 @@ private slots:
     void atlasedMeshPacksOneUvSpaceForEveryChartShape();
     void abstractDomainMeasureReportsItsStructureAndCatchesABrokenOne();
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
+    void createdCylinderHonoursRadiusHeightAndAxis();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToConnectedComponents();
     void islandMergeCanTakeItsIslandsFromTheSelection();
@@ -6242,6 +6243,56 @@ void FilterTests::islandMergeCanTakeItsIslandsFromTheSelection()
 // pan/zoom/aspect, so which faces the rectangle hits is exact rather than inferred from a
 // camera. Three triangles form one component, a fourth stands alone, and the rectangle is
 // aimed at a single triangle of the first.
+void FilterTests::createdCylinderHonoursRadiusHeightAndAxis()
+{
+    // The three things a caller can get wrong independently: the radius (distance from
+    // the axis), the height (extent along it), and whether the axis is obeyed at all.
+    // Measuring in the axis's own frame catches a cylinder that is the right size but
+    // still pointing at Y, which a bounding-box check would pass.
+    const vcg::Point3f axis = vcg::Point3f(1.0f, 2.0f, -2.0f).Normalize(); // length 3, so
+    const float radius = 0.75f;                                           // this also
+    const float height = 4.0f;                                            // tests normalizing
+
+    for (bool capped : {true, false}) {
+        Document doc;
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("radius"), double(radius));
+        params.insert(QStringLiteral("height"), double(height));
+        params.insert(QStringLiteral("sides"), 24);
+        params.insert(QStringLiteral("stacks"), 2);
+        params.insert(QStringLiteral("capped"), capped);
+        params.insert(QStringLiteral("axis"), QVector3D(1.0f, 2.0f, -2.0f));
+
+        const QString key = filterKeyForId(doc, QStringLiteral("create_cylinder"));
+        QVERIFY(!key.isEmpty());
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QCOMPARE(r.newMeshIndices.size(), std::size_t(1));
+
+        const VCGMesh &m = doc.mesh(r.newMeshIndices.front()).mesh;
+        QVERIFY(m.VN() > 0);
+        QVERIFY(m.FN() > 0);
+
+        float maxAlong = -1e9f, minAlong = 1e9f, maxRadial = 0.0f;
+        for (const VCGVertex &v : m.vert) {
+            if (v.IsD()) continue;
+            const float along = v.cP() * axis;
+            maxAlong = std::max(maxAlong, along);
+            minAlong = std::min(minAlong, along);
+            maxRadial = std::max(maxRadial, (v.cP() - axis * along).Norm());
+        }
+        const QString what = capped ? QStringLiteral("capped") : QStringLiteral("open");
+        // Centred on the origin, like vcg::tri::Cone.
+        QVERIFY2(std::abs(maxAlong - height / 2.0f) < 1e-4f
+                     && std::abs(minAlong + height / 2.0f) < 1e-4f,
+                 qPrintable(QStringLiteral("%1: axial extent [%2, %3], expected +/-%4")
+                                .arg(what).arg(minAlong).arg(maxAlong).arg(height / 2.0f)));
+        QVERIFY2(std::abs(maxRadial - radius) < 1e-4f,
+                 qPrintable(QStringLiteral("%1: radius %2, expected %3")
+                                .arg(what).arg(maxRadial).arg(radius)));
+    }
+}
+
 void FilterTests::stateJsonAcceptsBothNameSpellings()
 {
     // The "kind" tag on camera and render state was "MeshLab.*" until the 2026-09
