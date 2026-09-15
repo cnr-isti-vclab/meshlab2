@@ -21,7 +21,7 @@ MeshLab is **single-document, multi-view**: one `Document` owns canonical meshes
 
 ## Mesh Data Type
 
-`VCGMesh` is a `vcg::tri::TriMesh` specialization carrying the VCG attributes enabled by the imported data.
+`VCGMesh` is a `vcg::tri::TriMesh` specialization. `VCGVertex` has fixed coordinate, normal, color, quality, and flag components plus optional OCF texture-coordinate and curvature-direction data. `VCGFace` has fixed vertex references, normal, color, quality, and flags plus optional OCF wedge texture coordinates and algorithm-only adjacency/mark data. `VCGEdge` has fixed endpoint references, RGBA color, and flags. Because edge color storage is always allocated, `MeshEntry::ioMask & IOM_EDGECOLOR` is the semantic indication that meaningful per-edge colors are available.
 
 ## Raster Data Type
 
@@ -48,13 +48,13 @@ MeshLab is **single-document, multi-view**: one `Document` owns canonical meshes
 
 ## I/O Model
 
-`Document::loadMesh()`: resolves import plugin, runs plugin load, compacts imported mesh storage, updates bbox/normals, initializes transform and material set, resolves texture paths/assets, logs stats, appends entry, clears the `modified` flag, emits signals. `reloadMesh(index)` follows the same path while preserving mesh identity.
+`Document::loadMesh()`: resolves import plugin, runs plugin load, compacts imported mesh storage, updates bbox/normals, initializes transform and material set, resolves texture paths/assets, logs stats, appends entry, clears the `modified` flag, emits signals. `reloadMesh(index)` follows the same path while preserving mesh identity. The VCG PLY path recognizes edge endpoint indices plus `red`/`green`/`blue` and optional `alpha` properties (including `diffuse_*` aliases), sets `IOM_EDGECOLOR`, and defaults missing edge alpha to 255.
 
 `Document::loadRasterImage()`: loads a `QImage`, creates a `RasterEntry` with an RGBA `RasterPlane`, appends the raster layer, makes it current, and emits raster/current-layer signals. Ordinary image loads do not synthesize a calibrated camera; callers such as snapshot capture can pass a `CameraShot` through `addRasterImage(...)`, and raster-mode mesh projection is enabled only when that shot is valid.
 
 `Document::loadMeshLabProject()`: parses MeshLab project (`.mlp`) files directly, loads referenced meshes through the normal mesh plugin path, applies project labels/transforms, creates raster entries from project raster planes, stores project `CameraShot` data, records a `load_project` script action, and groups the operation under one undo step. Missing mesh files are logged and skipped; missing raster plane images are logged but still kept as plane metadata with a viewport-size fallback when possible.
 
-`Document::saveMesh(...)`: resolves export plugin, passes `MeshIOSaveOptions` (mask, binary, embed textures, copy associated textures, Draco options).
+`Document::saveMesh(...)`: resolves export plugin, passes `MeshIOSaveOptions` (mask, binary, embed textures, copy associated textures, Draco options). PLY export exposes edge indices and edge color in the save mask and writes per-edge RGBA in both ASCII and binary modes when requested.
 
 `Document::saveMeshLabProject(...)`: writes `.mlp` project files directly from the current document. Save options can restrict export to visible meshes, re-save modified meshes, and copy external mesh/raster files into the project directory. Generated or source-less meshes are written under `meshes/`, raster snapshot images under `images/`, and the project XML preserves mesh transforms plus raster camera and plane metadata.
 
@@ -132,6 +132,7 @@ One instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds:
 - fill material: `fillMaterial` (`Plain` / `Pbr` / `RadianceScaling`) + sub-structs `fillPlain` (`PlainFillParams`), `fillPbr` (`PbrFillParams`, including PBR texture sources, normal-map space, normal scale, AO strength, roughness factor), `fillRs` (`RsFillParams`, including RS shading mode)
 - colors and sizes: `fillColor`, `wireColor`/`wireSize`, `edgeColor`/`edgeSize`, `pointColor`/`pointSize`, `bboxWireColor`, decorator colors, `decoratorBoundaryWidth`
 - `pointColorSource`: `Constant` / `PerVertex` / `PerVertexQuality`
+- `edgeColorSource`: `Constant` / `PerVertex` / `PerEdge`; this applies to explicit mesh edges, not triangle wireframe or topology decorators
 
 ### `GlobalRenderSettings`
 
@@ -178,7 +179,7 @@ Renderer-facing APIs on `Document`: `ensureMeshGpuResources(...)`, `fillPassGpuV
 
 Scene3D resource preparation is driven by `RenderFramePassRequests`, not by a second ad-hoc scan of per-mesh render modes. For each visible mesh, the request says which cache products are needed; current-mesh highlighting can additionally request fill/edge/point resources for the highlighted mesh.
 
-Cache keyed by `(QRhi*, meshId, variant, revision, quality-range mode/min/max, center-on-zero flag, percentile crop, wire faux-edge mode where relevant)`. Fill/wire/point variants use geometry/material revisions as appropriate, while selection resources include `selectionRevision` so selection overlays can refresh independently. `MeshSource` carries legacy texture paths, `textureAssets`, material metadata, and quality-range options. Invalidatable per-RHI or globally. Selection and decorator buffers are first-class cache outputs, including normals, boundary/seam lines, non-manifold edge/vertex markers, and curvature direction lines when the mesh provides the required data.
+Cache keyed by `(QRhi*, meshId, variant, revision, quality-range mode/min/max, center-on-zero flag, percentile crop, wire faux-edge mode where relevant)`. Fill/wire/point variants use geometry/material revisions as appropriate, while selection resources include `selectionRevision` so selection overlays can refresh independently. `MeshSource` carries legacy texture paths, `textureAssets`, material metadata, and quality-range options. Invalidatable per-RHI or globally. Explicit-edge buffers carry both endpoint vertex RGBA and edge RGBA so changing `edgeColorSource` is a settings/UBO change rather than a cache rebuild. Selection and decorator buffers are first-class cache outputs, including normals, boundary/seam lines, non-manifold edge/vertex markers, and curvature direction lines when the mesh provides the required data.
 
 ## Memory Diagnostics
 

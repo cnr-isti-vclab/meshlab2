@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 337 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 338 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -2027,6 +2027,37 @@ Create a Cone
 - **r1** (*double*, default: `2.0`) — Radius of the top circle.
 - **h** (*double*, default: `3.0`) — Height of the cone.
 - **subdiv** (*int*, default: `36`) — Number of sides of the polygonal approximation.
+```
+
+---
+
+(filter-create-cylinder)=
+
+## Create Cylinder
+
+**Categories:** `Creation/Primitives`
+
+**Plugin:** meshlab2.filter.create
+
+Creates a cylinder of the given radius and height around an arbitrary axis.
+
+```{py:function} ms.create_cylinder(**params)
+:module: _meshlab
+
+Creates a cylinder centred on the origin, like **Create Cone** with equal radii but with a choice of axis and a tessellation that can be refined along its length.
+
+*Sides* sets the angular tessellation; *Stacks* cuts the side wall into rings along the axis. One stack is enough for a cylinder that will only be rendered — add more when something downstream needs to deform or resample the side wall, since a single quad strip has no interior vertices to move.
+
+*Axis* need not be normalized; only its direction is used, and the cylinder is always centred on the origin, spanning half the height either side.
+
+**Parameters:**
+
+- **radius** (*double*, default: `1.0`) — Radius of the cylinder.
+- **height** (*double*, default: `3.0`) — Length of the cylinder along its axis.
+- **sides** (*int*, default: `36`) — Number of sides of the polygonal approximation.
+- **stacks** (*int*, default: `1`) — Number of segments along the axis. One leaves the side wall as a single band of quads; raise it when the mesh will be deformed or resampled.
+- **capped** (*bool*, default: `True`) — Add a flat cap at each end. Without them the result is an open tube.
+- **axis** (*point3f*, default: `[0.0, 1.0, 0.0]`) — Direction of the cylinder's axis. Need not be normalized, and its sign makes no difference: the cylinder is centred on the origin.
 ```
 
 ---

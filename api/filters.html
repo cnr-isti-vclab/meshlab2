@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 337 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 338 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -1845,6 +1845,30 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <li><p><strong>r1</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Radius of the top circle.</p></li>
 <li><p><strong>h</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">3.0</span></code>) — Height of the cone.</p></li>
 <li><p><strong>subdiv</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">36</span></code>) — Number of sides of the polygonal approximation.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="create-cylinder">
+<span id="filter-create-cylinder"></span><h2>Create Cylinder<a class="headerlink" href="#create-cylinder" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.create</p>
+<p>Creates a cylinder of the given radius and height around an arbitrary axis.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.create_cylinder">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_cylinder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_cylinder" title="Link to this definition">¶</a></dt>
+<dd><p>Creates a cylinder centred on the origin, like <strong>Create Cone</strong> with equal radii but with a choice of axis and a tessellation that can be refined along its length.</p>
+<p><em>Sides</em> sets the angular tessellation; <em>Stacks</em> cuts the side wall into rings along the axis. One stack is enough for a cylinder that will only be rendered — add more when something downstream needs to deform or resample the side wall, since a single quad strip has no interior vertices to move.</p>
+<p><em>Axis</em> need not be normalized; only its direction is used, and the cylinder is always centred on the origin, spanning half the height either side.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>radius</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Radius of the cylinder.</p></li>
+<li><p><strong>height</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">3.0</span></code>) — Length of the cylinder along its axis.</p></li>
+<li><p><strong>sides</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">36</span></code>) — Number of sides of the polygonal approximation.</p></li>
+<li><p><strong>stacks</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Number of segments along the axis. One leaves the side wall as a single band of quads; raise it when the mesh will be deformed or resampled.</p></li>
+<li><p><strong>capped</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Add a flat cap at each end. Without them the result is an open tube.</p></li>
+<li><p><strong>axis</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Direction of the cylinder’s axis. Need not be normalized, and its sign makes no difference: the cylinder is centred on the origin.</p></li>
 </ul>
 </dd></dl>
 
@@ -7698,6 +7722,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#create-cone">Create Cone</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.create_cone"><code class="docutils literal notranslate"><span class="pre">ms.create_cone()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-cylinder">Create Cylinder</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.create_cylinder"><code class="docutils literal notranslate"><span class="pre">ms.create_cylinder()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#create-dodecahedron">Create Dodecahedron</a><ul>
