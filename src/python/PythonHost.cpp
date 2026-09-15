@@ -13,6 +13,11 @@
 #include <nanobind/nanobind.h>
 
 #include <QByteArray>
+#include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
+
+#include <string>
 
 namespace nb = nanobind;
 
@@ -47,6 +52,46 @@ sys.stderr = _stderr_capture
 )python";
 
 // ---------------------------------------------------------------------------
+// Interpreter home.
+//
+// libpython carries the prefix of the tree that built *it*: for the vcpkg
+// dependency that is some build directory on some machine, which a binary-cache
+// hit then propagates into unrelated trees.  Left to itself the interpreter
+// looks for its standard library there and fails with "Could not find platform
+// independent libraries".  So the home is resolved from the running executable
+// instead, which covers the build tree and a deployed bundle alike.
+// ---------------------------------------------------------------------------
+static QString resolvePythonHome()
+{
+    // Python looks for its standard library under the home: Lib on Windows,
+    // lib/pythonX.Y elsewhere.  os.py is the landmark it uses itself to decide
+    // that a directory really holds one.
+#ifdef Q_OS_WIN
+    const QString landmark = QStringLiteral("/Lib/os.py");
+#else
+    const QString landmark = QStringLiteral("/lib/python%1.%2/os.py")
+                                 .arg(PY_MAJOR_VERSION)
+                                 .arg(PY_MINOR_VERSION);
+#endif
+    const QDir appDir(QCoreApplication::applicationDirPath());
+    const QStringList candidates {
+#ifdef Q_OS_MACOS
+        // Deployed bundle: MeshLab.app/Contents/Resources/python.
+        appDir.absoluteFilePath(QStringLiteral("../Resources/python")),
+#endif
+        appDir.absoluteFilePath(QStringLiteral("python")),
+        // Build tree: the prefix Python was found under when CMake configured.
+        QStringLiteral(MESHLAB2_PYTHON_HOME),
+    };
+    for (const QString &candidate : candidates) {
+        const QString home = QDir::cleanPath(candidate);
+        if (QFileInfo::exists(home + landmark))
+            return home;
+    }
+    return {};
+}
+
+// ---------------------------------------------------------------------------
 // PythonHost
 // ---------------------------------------------------------------------------
 
@@ -75,6 +120,18 @@ void PythonHost::initialize(Document *doc, RenderWidget *view)
     if (!Py_IsInitialized()) {
         PyConfig config;
         PyConfig_InitPythonConfig(&config);
+        // An explicit PYTHONHOME stays authoritative: leaving config.home unset
+        // lets the interpreter read the environment as usual.
+        if (qEnvironmentVariableIsEmpty("PYTHONHOME")) {
+            const QString home = resolvePythonHome();
+            if (home.isEmpty()) {
+                qWarning("Python: no standard library found next to the executable; "
+                         "falling back to the prefix compiled into libpython.");
+            } else {
+                const std::wstring homeW = home.toStdWString();
+                PyConfig_SetString(&config, &config.home, homeW.c_str());
+            }
+        }
         Py_InitializeFromConfig(&config);
         PyConfig_Clear(&config);
     }
