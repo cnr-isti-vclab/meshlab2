@@ -108,14 +108,14 @@ fi
 # rejects the app unless they are signed before the enclosing app is sealed.
 if [ -n "$SIGN_IDENTITY" ] && [ -d "$APP/Contents/Resources/python" ]; then
 	echo "==> signing bundled Python Mach-O binaries"
-	find "$APP/Contents/Resources/python" -type f -print0 | while IFS= read -r -d '' pybin; do
+	while IFS= read -r -d '' pybin; do
 		if file "$pybin" | grep -q 'Mach-O'; then
 			chmod u+w "$pybin"
 			codesign --force --options runtime --timestamp \
 				--sign "$SIGN_IDENTITY" "$pybin"
 			codesign --verify --strict --verbose=2 "$pybin"
 		fi
-	done
+	done < <(find "$APP/Contents/Resources/python" -type f -print0)
 fi
 
 # macdeployqt signs the main executable, frameworks, and Qt plug-ins, but it
