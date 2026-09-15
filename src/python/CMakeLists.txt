@@ -46,6 +46,22 @@ add_library(MeshLab2PythonHost STATIC
     mlgui.cpp
 )
 
+# Where this build's standard library lives, for PythonHost to fall back on when
+# it is running from the build tree rather than from a bundle that ships one.
+# The interpreter is asked for its prefix rather than deriving one from
+# Python_STDLIB: the prefix is exactly what an interpreter home is, while the
+# layout underneath it differs between platforms.
+execute_process(
+    COMMAND "${Python_EXECUTABLE}" -c "import sys; print(sys.base_prefix)"
+    OUTPUT_VARIABLE MESHLAB2_PYTHON_HOME
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+# Backslashes would not survive being pasted into a C string literal.
+file(TO_CMAKE_PATH "${MESHLAB2_PYTHON_HOME}" MESHLAB2_PYTHON_HOME)
+target_compile_definitions(MeshLab2PythonHost PRIVATE
+    MESHLAB2_PYTHON_HOME="${MESHLAB2_PYTHON_HOME}"
+)
+
 target_include_directories(MeshLab2PythonHost PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/bindings

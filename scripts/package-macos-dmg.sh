@@ -87,6 +87,22 @@ if [ -n "$OMP_LINK_PATH" ]; then
 		"@executable_path/../Frameworks/libomp.dylib" "$APP_BIN"
 fi
 
+# Ship the Python standard library. libpython is linked in statically and knows
+# only the prefix of the tree that built it, so PythonHost points the interpreter
+# at Contents/Resources/python instead — which leaves the console without a
+# standard library unless the stdlib is actually put there. Copied with -p
+# because the .pyc caches beside each module are only used while the source
+# timestamps they record still match, and a read-only bundle cannot rebuild them.
+PY_EXE="$(sed -n 's/^Python_EXECUTABLE:[^=]*=//p' "$BUILD_DIR/CMakeCache.txt")"
+if [ -x "$PY_EXE" ]; then
+	PY_STDLIB="$("$PY_EXE" -c 'import sysconfig; print(sysconfig.get_path("stdlib"))')"
+	echo "==> bundling the Python standard library ($PY_STDLIB)"
+	mkdir -p "$APP/Contents/Resources/python/lib"
+	cp -Rp "$PY_STDLIB" "$APP/Contents/Resources/python/lib/"
+else
+	echo "==> no Python interpreter in this build; the console will have no standard library"
+fi
+
 # macdeployqt signs the main executable, frameworks, and Qt plug-ins, but it
 # does not discover project-specific Mach-O executables stored in Helpers.
 # Sign those nested components before macdeployqt seals the enclosing app.
