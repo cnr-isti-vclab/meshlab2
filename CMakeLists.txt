@@ -51,6 +51,10 @@ find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets GuiPrivate ShaderTools Test)
 
 if(MESHLAB2_MATH_HELP)
     find_package(Qt6 6.11 REQUIRED COMPONENTS Xml)
+    # JKQtPlotter uses find_package(QT). Keep it on MeshLab's Qt 6 installation,
+    # even when QT_DIR is cached from a previous Qt 5 lookup.
+    set(QT_VERSION_MAJOR 6)
+    set(QT_DIR "${Qt6_DIR}")
     if(NOT EXISTS "${MESHLAB2_SOURCE_DIR}/external/jkqtplotter/CMakeLists.txt")
         message(FATAL_ERROR
             "MESHLAB2_MATH_HELP=ON but external/jkqtplotter is missing. "
