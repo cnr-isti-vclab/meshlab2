@@ -615,6 +615,13 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     edgesForm->setHorizontalSpacing(6);
     edgesForm->setVerticalSpacing(1);
     edgesForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_edgeColorSourceCombo = new QComboBox(edgesPage);
+    m_edgeColorSourceCombo->addItem(
+        tr("Constant"), static_cast<int>(EdgeColorSource::Constant));
+    m_edgeColorSourceCombo->addItem(
+        tr("Per-Vertex"), static_cast<int>(EdgeColorSource::PerVertex));
+    m_edgeColorSourceCombo->addItem(
+        tr("Per-Edge"), static_cast<int>(EdgeColorSource::PerEdge));
     m_edgeSizeSpin = new QDoubleSpinBox(edgesPage);
     m_edgeSizeSpin->setRange(0.0, 100.0);
     m_edgeSizeSpin->setDecimals(1);
@@ -623,6 +630,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_edgeSizeSpin->setSuffix(QString());
     m_edgeSizeSpin->setValue(m_meshSettings.edgeSize);
     m_edgeColorButton = makeColorButton(edgesPage);
+    edgesForm->addRow(tr("Color source"), m_edgeColorSourceCombo);
     edgesForm->addRow(
         tr("Edge color"),
         makeCenteredFieldContainer(m_edgeColorButton, edgesPage));
@@ -1277,8 +1285,14 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindMeshFloatSpin(m_pointSizeSpin, &PerMeshRenderSettings::pointSize);
     bindMeshCheckBox(m_pointLightingCheck, &PerMeshRenderSettings::pointLighting);
 
+    bindMeshEnumCombo(m_edgeColorSourceCombo, &PerMeshRenderSettings::edgeColorSource);
     bindMeshColorButton(m_edgeColorButton, &PerMeshRenderSettings::edgeColor, tr("Edge Color"));
     bindMeshFloatSpin(m_edgeSizeSpin, &PerMeshRenderSettings::edgeSize);
+    connect(
+        m_edgeColorSourceCombo,
+        qOverload<int>(&QComboBox::currentIndexChanged),
+        this,
+        [this](int) { syncEdgeColorUiState(); });
 
     bindMeshColorButton(m_wireColorButton, &PerMeshRenderSettings::wireColor, tr("Wire Color"));
     bindMeshFloatSpin(m_wireSizeSpin, &PerMeshRenderSettings::wireSize);
@@ -1666,6 +1680,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     updateColorButtonStyle(m_fillColorButton, m_meshSettings.fillColor);
     updateColorButtonStyle(m_fillPbrColorButton, m_meshSettings.fillColor);
     setPointColorSourceAvailability(false, false);
+    setEdgeColorSourceAvailability(false, false);
     setPointLightingAvailability(false);
     setFillColorSourceAvailability(false, false, false, false, false);
     setFillPbrMapAvailability(false, false, false);
@@ -2007,16 +2022,6 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
         QSignalBlocker blocker(m_edgeSizeSpin);
         m_edgeSizeSpin->setValue(m_meshSettings.edgeSize);
     }
-    if (m_pointColorSourceCombo) {
-        QSignalBlocker blocker(m_pointColorSourceCombo);
-        const int value = static_cast<int>(m_meshSettings.pointColorSource);
-        for (int i = 0; i < m_pointColorSourceCombo->count(); ++i) {
-            if (m_pointColorSourceCombo->itemData(i).toInt() == value) {
-                m_pointColorSourceCombo->setCurrentIndex(i);
-                break;
-            }
-        }
-    }
     if (m_fillShadingCombo) {
         QSignalBlocker blocker(m_fillShadingCombo);
         const int value = static_cast<int>(m_meshSettings.fillPlain.shading);
@@ -2085,6 +2090,7 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
         m_fillPlainTextureCombo->setCurrentIndex(selectIdx);
     }
     syncFillPbrUiState();
+    syncEdgeColorUiState();
 
 }
 
@@ -2110,6 +2116,37 @@ void RenderOverlayPanel::setPointColorSourceAvailability(
             hasVertexQuality ? QVariant() : QVariant(0),
             Qt::UserRole - 1);
     }
+}
+
+void RenderOverlayPanel::setEdgeColorSourceAvailability(
+    bool hasVertexColors, bool hasEdgeColors)
+{
+    if (!m_edgeColorSourceCombo)
+        return;
+
+    const int vertexIndex =
+        m_edgeColorSourceCombo->findData(static_cast<int>(EdgeColorSource::PerVertex));
+    const int edgeIndex =
+        m_edgeColorSourceCombo->findData(static_cast<int>(EdgeColorSource::PerEdge));
+    if (vertexIndex >= 0) {
+        m_edgeColorSourceCombo->setItemData(
+            vertexIndex,
+            hasVertexColors ? QVariant() : QVariant(0),
+            Qt::UserRole - 1);
+    }
+    if (edgeIndex >= 0) {
+        m_edgeColorSourceCombo->setItemData(
+            edgeIndex,
+            hasEdgeColors ? QVariant() : QVariant(0),
+            Qt::UserRole - 1);
+    }
+}
+
+void RenderOverlayPanel::syncEdgeColorUiState()
+{
+    if (m_edgeColorButton)
+        m_edgeColorButton->setEnabled(
+            m_meshSettings.edgeColorSource == EdgeColorSource::Constant);
 }
 
 void RenderOverlayPanel::setPointLightingAvailability(bool hasVertexNormals)

@@ -135,6 +135,7 @@ QString ioCapabilityText(const MeshIOCapabilities &capabilities)
     if (m & M::IOM_FACENORMAL)   out << QObject::tr("face normals");
     if (m & M::IOM_WEDGNORMAL)   out << QObject::tr("corner normals");
     if (m & M::IOM_VERTCOLOR)    out << QObject::tr("vertex colors");
+    if (m & M::IOM_EDGECOLOR)    out << QObject::tr("edge colors");
     if (m & M::IOM_FACECOLOR)    out << QObject::tr("face colors");
     if (m & M::IOM_WEDGCOLOR)    out << QObject::tr("corner colors");
     if (m & M::IOM_VERTQUALITY)  out << QObject::tr("vertex quality");

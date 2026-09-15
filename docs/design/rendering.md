@@ -69,7 +69,7 @@ Cached outputs:
 
 - **fill**: one or more batches — vertex/index buffers, optional base/normal/occlusion/roughness textures and per-batch PBR factors. Variants: `Constant`, `PerVertex`, `PerFace`, `PerVertexQuality`, `PerFaceQuality`, `Texture`. Texture lookup can use legacy texture paths, `MeshIOTextureAsset` entries, and material slots. PBR normal textures can be interpreted as tangent-space maps or object-space maps according to `fillPbr.normalMapSpace`.
 - **wire**: barycentric-expanded triangle buffer, optionally honoring faux-edge bits for polygonal faces.
-- **edges**: line buffer + fat-line buffer from explicit mesh edges.
+- **edges**: line buffer + fat-line buffer from explicit mesh edges. Each expanded vertex stores packed endpoint RGBA and packed edge RGBA; the shader selects constant, interpolated per-vertex, or flat per-edge color without rebuilding geometry.
 - **points**: position/color/normal payload + normal-valid flag. Variants: `Constant`, `PerVertex`, `PerVertexQuality`.
 - **bbox**: line buffer.
 - **selection**: selected-face triangles, selected-vertex points, keyed on `selectionRevision` so selection overlays rebuild without invalidating fill/wire/point resources.
@@ -97,6 +97,8 @@ Default mode for new meshes:
 
 Default fill color source preference: texture → per-vertex → per-face → per-vertex-quality → per-face-quality → constant, clamped to mesh `ioMask` + texture availability. Texture availability is based on `Document::meshTextureAssociationCount(...)`.
 
+Default explicit-edge color source preference: per-edge → per-vertex → constant. Availability is clamped to `IOM_EDGECOLOR` and `IOM_VERTCOLOR`; unavailable choices are disabled in the overlay panel. Edge-only PLY layers carrying edge colors therefore open with `PerEdge` selected automatically.
+
 ## `Scene3D` Frame Sequence
 
 1. Advance animation/camera state, sync per-mesh render modes, and update the camera frame when needed.
@@ -121,7 +123,7 @@ Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfac
 
 **Wireframe**: barycentric triangles + fragment edge test; depth `LessOrEqual`, no depth write; alpha blending; `wireBackfaceCulling`; optional `wireRespectFaux` controls faux polygon edge handling in the cached wire data.
 
-**Edges**: fat-edge triangles when available, line fallback; depth `LessOrEqual`; alpha blending; width from `edgeSize`.
+**Edges**: fat-edge triangles when available, line fallback; depth `LessOrEqual`; alpha blending; width from `edgeSize`. `edgeColorSource` chooses `edgeColor` (`Constant`), interpolated endpoint vertex colors (`PerVertex`), or one flat `VCGEdge` color (`PerEdge`). This pass renders explicit `VCGMesh::edge` elements and is independent of triangle **Wireframe** and boundary/seam/non-manifold decorators.
 
 **Bounding box**: line topology; depth on, no depth write.
 

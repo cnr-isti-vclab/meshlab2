@@ -1,11 +1,27 @@
 #pragma once
 
+#include <array>
 #include <vector>
 
 namespace LineRenderer {
 
 constexpr int kLineStrideFloats = 6;    // p0.xyz + p1.xyz
 constexpr int kFatLineStrideFloats = 8; // p0.xyz + p1.xyz + along + side
+
+// The six corners of the quad a fat line expands into, as (along, side) pairs: `along`
+// picks the endpoint, `side` the offset direction perpendicular to the segment. It lives
+// here rather than in the .cpp because callers that interleave their own per-vertex data
+// (the explicit-edge buffers carry vertex and edge colors) cannot go through
+// appendFatLineSegmentVertices and must expand the quad themselves -- and they have to
+// agree with it on winding, or their triangles face the other way.
+constexpr std::array<std::array<float, 2>, 6> kFatTriTemplate = {{
+    {{ 0.0f, -1.0f }},
+    {{ 0.0f, 1.0f }},
+    {{ 1.0f, -1.0f }},
+    {{ 1.0f, -1.0f }},
+    {{ 0.0f, 1.0f }},
+    {{ 1.0f, 1.0f }},
+}};
 
 void appendFatLineSegmentVertices(std::vector<float> &dst,
                                   float p0x,

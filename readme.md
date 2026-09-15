@@ -42,11 +42,11 @@ CI — see [GitHub Actions: macOS DMG](#github-actions-macos-dmg) below.
 - PBR fill with albedo/normal/occlusion/roughness maps, tangent-space or object-space normal-map interpretation, plus Radiance Scaling
 - Scene3D rendering organized as lightweight `RenderFrameRequest` pass requests -> GPU resource preparation -> concrete `RenderFramePlan` draw items -> pass executors
 - Fill rendering modes (`Plain`, `Pbr`, `RadianceScaling`) isolated behind material renderers with shared fill services and an RS pre-pass hook
-- Fat-edge rendering for edge meshes and decorator boundaries/seams/non-manifold edges (configurable width)
+- Fat-edge rendering for explicit edge meshes with constant, interpolated per-vertex, or flat per-edge color; decorator boundaries/seams/non-manifold edges have independently configurable styling
 - UV mode support for boundary-edge, texture-seam, and selection overlays on the current mesh; rubber-band selection can operate in UV space, while UV rendering remains a separate renderer with convergence toward the Scene3D material path planned next
 - Raster mode displays the current raster as the view reference with aspect-preserving fit, pan/zoom navigation, and opacity control; rasters with camera shots reuse the Scene3D mesh pass pipeline through the raster camera
 - Versioned camera/render-state JSON supports copy/paste, capture/apply, active-view snapshots, and headless offscreen snapshot workflows; concrete GPU `RenderFramePlan` objects remain internal and are not serialized
-- Plugin-based mesh import/export with per-extension preferred import plugin, plus direct MeshLab project (`.mlp`) loading and saving for mesh/raster layer sets
+- Plugin-based mesh import/export with per-extension preferred import plugin, including PLY per-edge RGBA round trips, plus direct MeshLab project (`.mlp`) loading and saving for mesh/raster layer sets
 - Plugin-based filter framework with searchable category tree, generated parameter dialogs, `pythonName` metadata, structured provenance/references, markdown descriptions, default reset, and compact/full Python call generation
 - Filter parameters include mesh, texture, point/vector, camera-state, and render-state values; parameter panels can reset to descriptor defaults and source state JSON from the active view
 - Raster projection filters can transfer current/all visible raster colors to vertex colors or bake visible rasters into a mesh texture atlas using existing wedge UVs

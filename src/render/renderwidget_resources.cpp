@@ -1847,7 +1847,7 @@ void RenderWidget::ensureRenderResources()
             m_currentMaskEdgesPipeline->setCullMode(QRhiGraphicsPipeline::None);
             m_currentMaskEdgesPipeline->setLineWidth(1.0f);
             QRhiVertexInputLayout layout;
-            layout.setBindings({ { 3 * sizeof(float) } });
+            layout.setBindings({ { MeshGpuResourceCache::kEdgeVertexStrideBytes } });
             layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
             m_currentMaskEdgesPipeline->setVertexInputLayout(layout);
             m_currentMaskEdgesPipeline->setShaderResourceBindings(m_srb.get());
@@ -1880,7 +1880,7 @@ void RenderWidget::ensureRenderResources()
             m_currentMaskEdgesDepthPipeline->setCullMode(QRhiGraphicsPipeline::None);
             m_currentMaskEdgesDepthPipeline->setLineWidth(1.0f);
             QRhiVertexInputLayout layout;
-            layout.setBindings({ { 3 * sizeof(float) } });
+            layout.setBindings({ { MeshGpuResourceCache::kEdgeVertexStrideBytes } });
             layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
             m_currentMaskEdgesDepthPipeline->setVertexInputLayout(layout);
             m_currentMaskEdgesDepthPipeline->setShaderResourceBindings(m_srb.get());
@@ -1911,7 +1911,7 @@ void RenderWidget::ensureRenderResources()
             m_currentMaskEdgesDepthOnlyPipeline->setCullMode(QRhiGraphicsPipeline::None);
             m_currentMaskEdgesDepthOnlyPipeline->setLineWidth(1.0f);
             QRhiVertexInputLayout layout;
-            layout.setBindings({ { 3 * sizeof(float) } });
+            layout.setBindings({ { MeshGpuResourceCache::kEdgeVertexStrideBytes } });
             layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
             m_currentMaskEdgesDepthOnlyPipeline->setVertexInputLayout(layout);
             m_currentMaskEdgesDepthOnlyPipeline->setShaderResourceBindings(m_srb.get());
@@ -1943,12 +1943,16 @@ void RenderWidget::ensureRenderResources()
             m_currentMaskFatEdgesDepthOnlyPipeline->setSlopeScaledDepthBias(-1.0f);
             m_currentMaskFatEdgesDepthOnlyPipeline->setCullMode(QRhiGraphicsPipeline::None);
             QRhiVertexInputLayout layout;
-            layout.setBindings({ { 8 * sizeof(float) } });
+            layout.setBindings({ { MeshGpuResourceCache::kFatEdgeVertexStrideBytes } });
             layout.setAttributes({
                 { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
                 { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) },
                 { 0, 2, QRhiVertexInputAttribute::Float, 6 * sizeof(float) },
-                { 0, 3, QRhiVertexInputAttribute::Float, 7 * sizeof(float) }
+                { 0, 3, QRhiVertexInputAttribute::Float, 7 * sizeof(float) },
+                { 0, 4, QRhiVertexInputAttribute::UNormByte4,
+                    MeshGpuResourceCache::kFatEdgeVertexColorOffsetBytes },
+                { 0, 5, QRhiVertexInputAttribute::UNormByte4,
+                    MeshGpuResourceCache::kFatEdgeColorOffsetBytes }
             });
             m_currentMaskFatEdgesDepthOnlyPipeline->setVertexInputLayout(layout);
             m_currentMaskFatEdgesDepthOnlyPipeline->setShaderResourceBindings(m_srb.get());

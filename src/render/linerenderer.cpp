@@ -2,20 +2,7 @@
 
 #include <algorithm>
 
-#include <array>
-
 namespace LineRenderer {
-
-namespace {
-constexpr std::array<std::array<float, 2>, 6> kFatTriTemplate = {{
-    {{ 0.0f, -1.0f }},
-    {{ 0.0f, 1.0f }},
-    {{ 1.0f, -1.0f }},
-    {{ 1.0f, -1.0f }},
-    {{ 0.0f, 1.0f }},
-    {{ 1.0f, 1.0f }},
-}};
-} // namespace
 
 void appendFatLineSegmentVertices(std::vector<float> &dst,
                                   float p0x,

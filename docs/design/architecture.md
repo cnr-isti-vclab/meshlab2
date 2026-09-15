@@ -34,7 +34,7 @@ Core camera model (`src/core/camerashot.*`) used by raster layers and snapshot r
 
 ### `MeshGpuResourceCache`
 
-Central cache for mesh GPU resources, keyed by `(QRhi*, meshId, variant, revision, quality-range mode/min/max/center/crop where applicable)`. Caches fill batches (vertex/index buffers + PBR textures), wire, edge, points, bbox, selection, and decorator buffers (normals, boundaries, seams, non-manifold markers, curvature directions). Allows GPU buffer reuse across render-mode changes and across views sharing the same `QRhi`.
+Central cache for mesh GPU resources, keyed by `(QRhi*, meshId, variant, revision, quality-range mode/min/max/center/crop where applicable)`. Caches fill batches (vertex/index buffers + PBR textures), wire, explicit-edge, points, bbox, selection, and decorator buffers (normals, boundaries, seams, non-manifold markers, curvature directions). Explicit-edge buffers retain both endpoint vertex colors and flat edge colors, allowing color-source switches without geometry rebuilds. The cache allows GPU buffer reuse across render-mode changes and across views sharing the same `QRhi`.
 
 ### `LineRenderer`
 
@@ -74,7 +74,7 @@ Built-in tools are registered by `createBuiltinInteractiveTools()`:
 
 ### `RenderOverlayPanel`
 
-Compact pass/settings panel: pass toggles, mode-specific world settings page (Scene vs UV), per-pass style controls (colors, widths, lighting/culling, quality histogram), PBR texture/normal-space controls, decorator info overlay toggle, apply-current-settings-to-visible-meshes actions, and `PerMeshRenderSettings`/`GlobalRenderSettings` sync.
+Compact pass/settings panel: pass toggles, mode-specific world settings page (Scene vs UV), per-pass style controls (colors, color sources, widths, lighting/culling, quality histogram), PBR texture/normal-space controls, decorator info overlay toggle, apply-current-settings-to-visible-meshes actions, and `PerMeshRenderSettings`/`GlobalRenderSettings` sync. Explicit-edge color choices are constrained by the current mesh's vertex/edge color mask.
 
 ### `LayerWidget`
 
@@ -125,7 +125,7 @@ fill/simple/decorator/selection pass executors
 
 Defined in `renderingsettings.h`:
 
-- **`PerMeshRenderSettings`** — one instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds pass toggles, decorator toggles (normals, boundary/seams, non-manifold markers, curvature directions), lighting/culling flags, wire faux-edge handling, fill material and sub-structs (`PlainFillParams`, `PbrFillParams`, `RsFillParams`), PBR normal-map space, colors, sizes, and point color source.
+- **`PerMeshRenderSettings`** — one instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds pass toggles, decorator toggles (normals, boundary/seams, non-manifold markers, curvature directions), lighting/culling flags, wire faux-edge handling, fill material and sub-structs (`PlainFillParams`, `PbrFillParams`, `RsFillParams`), PBR normal-map space, colors, sizes, point color source, and explicit-edge color source (`Constant`, `PerVertex`, or `PerEdge`).
 - **`GlobalRenderSettings`** — one instance per view in `m_renderSettings`. Holds scene highlight parameters, background colors, UV viewer options, quality histogram/range/isolines options, and overlay panel state. `using RenderSettings = GlobalRenderSettings` is provided as an alias.
 - **`MeshRenderMode`** — widget-local alias for `PerMeshRenderSettings`.
 

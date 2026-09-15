@@ -278,8 +278,9 @@ inline void writeMainStyleToUbuf(
     ubufData[kUbufFillColorOffset + 2] = settings.fillColor.blueF();
     ubufData[kUbufFillColorOffset + 3] = settings.fillColor.alphaF();
 
-    // bbox lighting removed: slot 0 intentionally unused/reserved.
-    ubufData[kUbufLightingParamsOffset + 0] = 0.0f;
+    // x selects explicit-edge color: 0=constant, 1=per-vertex, 2=per-edge.
+    ubufData[kUbufLightingParamsOffset + 0] =
+        static_cast<float>(static_cast<int>(settings.edgeColorSource));
     ubufData[kUbufLightingParamsOffset + 1] = (enableLighting && settings.pointLighting) ? 1.0f : 0.0f;
     ubufData[kUbufLightingParamsOffset + 2] = (enableLighting && settings.wireLighting) ? 1.0f : 0.0f;
     ubufData[kUbufLightingParamsOffset + 3] = (enableLighting && settings.fillLighting) ? 1.0f : 0.0f;

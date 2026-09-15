@@ -30,6 +30,13 @@ public:
         PerVertexQuality = 2
     };
 
+    static constexpr int kEdgeVertexStrideBytes = 20;
+    static constexpr int kEdgeVertexColorOffsetBytes = 12;
+    static constexpr int kEdgeColorOffsetBytes = 16;
+    static constexpr int kFatEdgeVertexStrideBytes = 40;
+    static constexpr int kFatEdgeVertexColorOffsetBytes = 32;
+    static constexpr int kFatEdgeColorOffsetBytes = 36;
+
     struct MeshSource {
         std::uint64_t meshId = 0;
         std::uint64_t geometryRevision = 0;

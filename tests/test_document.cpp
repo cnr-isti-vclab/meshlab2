@@ -86,6 +86,7 @@ private slots:
     void trueFormRoundTripsObjAndStl();
     void polygonalOffExportKeepsEveryWellFormedQuad();
     void plyWithLongPerVertexListLoads();
+    void plyEdgeColorsLoadAndRoundTrip();
     void polygonalOffExportSurvivesMalformedFaces();
     void saveAndLoadEmbeddedGLBTexture();
     void savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist();
@@ -1717,6 +1718,74 @@ void DocumentTests::polygonalOffExportKeepsEveryWellFormedQuad()
     QCOMPARE(reloaded.mesh(0).polygonFaceCount, kQuads);
     QCOMPARE(reloaded.mesh(0).mesh.FN(), kQuads * 2);
     QCOMPARE(reloaded.mesh(0).mesh.VN(), kSide * kSide);
+}
+
+void DocumentTests::plyEdgeColorsLoadAndRoundTrip()
+{
+    using Mask = vcg::tri::io::Mask;
+
+    const QString fixture =
+        QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/EdgeColor.ply");
+    Document doc;
+    const int index = doc.loadMesh(fixture);
+    QVERIFY2(index >= 0, "Edge-colored PLY failed to load");
+
+    const auto verifyColors = [](const Document::MeshEntry &entry) {
+        QCOMPARE(entry.mesh.VN(), 3);
+        QCOMPARE(entry.mesh.EN(), 2);
+        QVERIFY(entry.ioMask & Mask::IOM_VERTCOLOR);
+        QVERIFY(entry.ioMask & Mask::IOM_EDGEINDEX);
+        QVERIFY(entry.ioMask & Mask::IOM_EDGECOLOR);
+        QVERIFY(vcg::tri::HasPerEdgeColor(entry.mesh));
+
+        const vcg::Color4b expected[] = {
+            vcg::Color4b(255, 255, 0, 255),
+            vcg::Color4b(0, 255, 255, 255)
+        };
+        for (int i = 0; i < entry.mesh.EN(); ++i) {
+            const vcg::Color4b actual = entry.mesh.edge[size_t(i)].cC();
+            for (int channel = 0; channel < 4; ++channel)
+                QCOMPARE(int(actual[channel]), int(expected[i][channel]));
+        }
+    };
+    verifyColors(doc.mesh(index));
+
+    const int duplicate = doc.duplicateMesh(index, QStringLiteral("Edge colors copy"));
+    QVERIFY(duplicate >= 0);
+    verifyColors(doc.mesh(duplicate));
+
+    doc.clearUndoHistory();
+    doc.beginUndoStep(QStringLiteral("Change edge color"));
+    doc.mesh(index).mesh.edge[0].C() = vcg::Color4b(1, 2, 3, 4);
+    doc.markMeshGeometryChanged(index);
+    doc.endUndoStep(true);
+    QCOMPARE(int(doc.mesh(index).mesh.edge[0].cC()[0]), 1);
+    QVERIFY(doc.undo());
+    verifyColors(doc.mesh(index));
+    QVERIFY(doc.redo());
+    QCOMPARE(int(doc.mesh(index).mesh.edge[0].cC()[0]), 1);
+    QVERIFY(doc.undo());
+    verifyColors(doc.mesh(index));
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    for (const bool binary : { false, true }) {
+        const QString outputPath = dir.filePath(
+            binary ? QStringLiteral("edge_colors_binary.ply")
+                   : QStringLiteral("edge_colors_ascii.ply"));
+        MeshIOSaveOptions options;
+        options.binary = binary;
+        options.mask = Mask::IOM_VERTCOORD
+            | Mask::IOM_VERTCOLOR
+            | Mask::IOM_EDGEINDEX
+            | Mask::IOM_EDGECOLOR;
+        QCOMPARE(doc.saveMesh(index, outputPath, options), 0);
+
+        Document reloaded;
+        const int reloadedIndex = reloaded.loadMesh(outputPath);
+        QVERIFY2(reloadedIndex >= 0, qPrintable(outputPath));
+        verifyColors(reloaded.mesh(reloadedIndex));
+    }
 }
 
 void DocumentTests::plyWithLongPerVertexListLoads()

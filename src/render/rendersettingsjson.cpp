@@ -202,7 +202,7 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("quality_isolines_enabled", qualityIsolinesEnabled) \
     F("quality_isoline_count", qualityIsolineCount)
 
-// 43 flat fields; the three fill_* sub-objects are listed separately
+// 44 flat fields; the three fill_* sub-objects are listed separately
 #define MESHLAB2_PER_MESH_SETTINGS_FIELDS(F) \
     F("show_bounding_box", showBoundingBox) \
     F("bounding_box_style", boundingBoxStyle) \
@@ -230,6 +230,7 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("fill_backface_culling", fillBackfaceCulling) \
     F("fill_material", fillMaterial) \
     F("point_color_source", pointColorSource) \
+    F("edge_color_source", edgeColorSource) \
     F("decorator_vertex_normal_color", decoratorVertexNormalColor) \
     F("decorator_face_normal_color", decoratorFaceNormalColor) \
     F("decorator_boundary_edge_color", decoratorBoundaryEdgeColor) \

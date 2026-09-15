@@ -19,6 +19,7 @@
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <cstddef>
 #include <cstring>
 #include <limits>
 #include <map>
@@ -26,6 +27,36 @@
 #include <unordered_set>
 
 namespace {
+struct EdgeVertexGpu {
+    float position[3];
+    std::uint8_t vertexColor[4];
+    std::uint8_t edgeColor[4];
+};
+
+struct FatEdgeVertexGpu {
+    float p0[3];
+    float p1[3];
+    float along;
+    float side;
+    std::uint8_t vertexColor[4];
+    std::uint8_t edgeColor[4];
+};
+
+static_assert(sizeof(EdgeVertexGpu) == MeshGpuResourceCache::kEdgeVertexStrideBytes);
+static_assert(
+    offsetof(EdgeVertexGpu, vertexColor)
+    == MeshGpuResourceCache::kEdgeVertexColorOffsetBytes);
+static_assert(
+    offsetof(EdgeVertexGpu, edgeColor)
+    == MeshGpuResourceCache::kEdgeColorOffsetBytes);
+static_assert(sizeof(FatEdgeVertexGpu) == MeshGpuResourceCache::kFatEdgeVertexStrideBytes);
+static_assert(
+    offsetof(FatEdgeVertexGpu, vertexColor)
+    == MeshGpuResourceCache::kFatEdgeVertexColorOffsetBytes);
+static_assert(
+    offsetof(FatEdgeVertexGpu, edgeColor)
+    == MeshGpuResourceCache::kFatEdgeColorOffsetBytes);
+
 constexpr int kFillVertexStrideFloats = 13;
 constexpr int kPointsVertexStrideFloats = 11;
 constexpr size_t kMaxExpandedFillBatchBytes = 256u * 1024u * 1024u;
@@ -1216,10 +1247,16 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         if (meshData.EN() <= 0)
             return true;
 
-        std::vector<float> vdata;
-        std::vector<float> fatVdata;
-        vdata.reserve(static_cast<size_t>(meshData.EN()) * 6);
-        fatVdata.reserve(static_cast<size_t>(meshData.EN()) * 6 * LineRenderer::kFatLineStrideFloats);
+        std::vector<EdgeVertexGpu> vdata;
+        std::vector<FatEdgeVertexGpu> fatVdata;
+        vdata.reserve(static_cast<size_t>(meshData.EN()) * 2);
+        fatVdata.reserve(static_cast<size_t>(meshData.EN()) * 6);
+
+        const auto rgba = [](const vcg::Color4b &color) {
+            return std::array<std::uint8_t, 4> {
+                color[0], color[1], color[2], color[3]
+            };
+        };
         for (int ei = 0; ei < meshData.EN(); ++ei) {
             const auto &e = meshData.edge[ei];
             if (e.IsD())
@@ -1228,16 +1265,35 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             const auto *v1 = e.cV(1);
             if (!v0 || !v1)
                 continue;
+
             const auto &p0 = v0->cP();
             const auto &p1 = v1->cP();
-            vdata.push_back(p0[0]);
-            vdata.push_back(p0[1]);
-            vdata.push_back(p0[2]);
-            vdata.push_back(p1[0]);
-            vdata.push_back(p1[1]);
-            vdata.push_back(p1[2]);
-            LineRenderer::appendFatLineSegmentVertices(
-                fatVdata, p0[0], p0[1], p0[2], p1[0], p1[1], p1[2]);
+            const auto vertexColor0 = rgba(v0->cC());
+            const auto vertexColor1 = rgba(v1->cC());
+            const auto edgeColor = rgba(e.cC());
+
+            const auto appendThinVertex =
+                [&](const auto &point, const std::array<std::uint8_t, 4> &vertexColor) {
+                    EdgeVertexGpu vertex {};
+                    std::copy_n(point.V(), 3, vertex.position);
+                    std::copy(vertexColor.begin(), vertexColor.end(), vertex.vertexColor);
+                    std::copy(edgeColor.begin(), edgeColor.end(), vertex.edgeColor);
+                    vdata.push_back(vertex);
+                };
+            appendThinVertex(p0, vertexColor0);
+            appendThinVertex(p1, vertexColor1);
+
+            for (const auto &tpl : LineRenderer::kFatTriTemplate) {
+                FatEdgeVertexGpu vertex {};
+                std::copy_n(p0.V(), 3, vertex.p0);
+                std::copy_n(p1.V(), 3, vertex.p1);
+                vertex.along = tpl[0];
+                vertex.side = tpl[1];
+                const auto &vertexColor = tpl[0] < 0.5f ? vertexColor0 : vertexColor1;
+                std::copy(vertexColor.begin(), vertexColor.end(), vertex.vertexColor);
+                std::copy(edgeColor.begin(), edgeColor.end(), vertex.edgeColor);
+                fatVdata.push_back(vertex);
+            }
         }
 
         if (vdata.empty())
@@ -1247,27 +1303,26 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             rhi->newBuffer(
                 QRhiBuffer::Immutable,
                 QRhiBuffer::VertexBuffer,
-                static_cast<quint32>(vdata.size() * sizeof(float))));
+                static_cast<quint32>(vdata.size() * sizeof(EdgeVertexGpu))));
         if (!dst.vbuf || !dst.vbuf->create()) {
             dst.vbuf.reset();
             return true;
         }
 
         ensureUpdates()->uploadStaticBuffer(dst.vbuf.get(), vdata.data());
-        dst.vertexCount = static_cast<int>(vdata.size() / 3);
+        dst.vertexCount = static_cast<int>(vdata.size());
 
         if (!fatVdata.empty()) {
             dst.fatVbuf.reset(
                 rhi->newBuffer(
                     QRhiBuffer::Immutable,
                     QRhiBuffer::VertexBuffer,
-                    static_cast<quint32>(fatVdata.size() * sizeof(float))));
+                    static_cast<quint32>(fatVdata.size() * sizeof(FatEdgeVertexGpu))));
             if (!dst.fatVbuf || !dst.fatVbuf->create()) {
                 dst.fatVbuf.reset();
             } else {
                 ensureUpdates()->uploadStaticBuffer(dst.fatVbuf.get(), fatVdata.data());
-                dst.fatVertexCount =
-                    static_cast<int>(fatVdata.size() / LineRenderer::kFatLineStrideFloats);
+                dst.fatVertexCount = static_cast<int>(fatVdata.size());
             }
         }
         return true;

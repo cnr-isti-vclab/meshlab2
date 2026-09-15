@@ -4,6 +4,8 @@ layout(location = 0) in vec3 inP0;
 layout(location = 1) in vec3 inP1;
 layout(location = 2) in float inAlong;
 layout(location = 3) in float inSide;
+layout(location = 4) in vec4 inVertexColor;
+layout(location = 5) in vec4 inEdgeColor;
 
 layout(std140, binding = 0) uniform buf {
     mat4 mvp;
@@ -20,6 +22,7 @@ layout(std140, binding = 0) uniform buf {
 } ub;
 
 layout(location = 0) out float vSide;
+layout(location = 1) out vec4 vColor;
 
 void main()
 {
@@ -44,4 +47,8 @@ void main()
 
     gl_Position = baseClip;
     vSide = inSide;
+    float source = ub.lightingParams.x;
+    vColor = source < 0.5
+        ? ub.edgeColor
+        : (source < 1.5 ? inVertexColor : inEdgeColor);
 }

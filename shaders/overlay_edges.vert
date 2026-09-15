@@ -1,6 +1,8 @@
 #version 440
 
 layout(location = 0) in vec3 inPos;
+layout(location = 1) in vec4 inVertexColor;
+layout(location = 2) in vec4 inEdgeColor;
 
 layout(std140, binding = 0) uniform buf {
     mat4 mvp;
@@ -16,7 +18,13 @@ layout(std140, binding = 0) uniform buf {
     vec4 edgeColor;
 } ub;
 
+layout(location = 0) out vec4 vColor;
+
 void main()
 {
     gl_Position = ub.mvp * vec4(inPos, 1.0);
+    float source = ub.lightingParams.x;
+    vColor = source < 0.5
+        ? ub.edgeColor
+        : (source < 1.5 ? inVertexColor : inEdgeColor);
 }
