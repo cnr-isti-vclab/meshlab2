@@ -25,7 +25,11 @@ The smoke sweep gained a `polyline` fixture, which also gave
 overlay, for both kinds of edge, behind an *Edges* checkbox beside *Vertices*
 and *Faces*.
 
-Stages 3-5 are not implemented, and nothing in [Interactive selection of
+**Stage 3 is implemented** for the isocontours: each edge of a multi-level
+contour layer now carries the value of the contour it belongs to, so the levels
+can be told apart.
+
+Stages 4-5 are not implemented, and nothing in [Interactive selection of
 edges](#interactive-selection-of-edges) has changed — no tool can select an edge
 by pointing at it, in either sense.
 
@@ -243,17 +247,32 @@ vertex pair) plus roughly 40 lines per filter in the existing `runFilter` chain.
 
 ### Tier 3 — give the producers something worth colouring
 
-This is what turns the feature from a toy into something that earns its place.
+**Implemented 2026-09-16 for the isocontours**, which was the case that
+motivated it. `create_polyline_from_scalar_isocontour_trueform` takes a
+`contourCount` and puts every level into a single layer; it now stamps each edge
+with the value of the contour it belongs to, so `colorize_edges_by_scalar` turns
+the result into readable isolines with no new UI at all.
 
-`create_polyline_from_scalar_isocontour_trueform` takes a `contourCount` and
-puts **every level into a single layer**. A twenty-contour extraction is
-currently one uniform hairball, and the scalar that generated it is discarded.
-Have it stamp the isovalue into per-edge quality and `colorize_edges_by_scalar`
-turns it into properly coloured isolines with no new UI at all.
+The awkward part is that TrueForm's multi-value `make_isocontours` merges every
+level into one `curves_buffer` and keeps no record of which path came from which
+level, and the per-point provenance is not exposed by the public API either. So
+the filter now calls the **single-value** overload once per level and labels the
+segments as it appends them. That trades one mesh walk for N, which sounded
+expensive and measured as nothing: on a 327k-face sphere, 50 levels cost 43 ms
+total, and going from 5 levels to 20 on an 82k-face sphere moved 13.5 ms to
+18.5 ms — the fixed setup dominates, not the per-level extraction.
 
-The same argument applies to `create_polyline_from_planar_section` (section
-height, once it can cut at several offsets) and to the trueform intersection
-polylines (which surface each piece came from).
+The shared `addPolylineLayer` helper split into `appendCurvesToMesh` (which
+takes the scalar to stamp) and `finishPolylineLayer`, with `addPolylineLayer`
+kept as a one-line wrapper so the other five producers are untouched.
+
+**The other producers were considered and deliberately left alone.**
+`create_polyline_from_planar_section` cuts at one offset, so a per-edge value
+would be the same number on every edge; it would become worth doing if the
+filter ever cut at several offsets at once. The intersection polylines
+(`create_polyline_from_self_intersections_trueform`,
+`create_polyline_from_mesh_intersection_trueform`) lie on *both* input surfaces
+by construction, so "which surface it came from" has no answer to record.
 
 ### One distinctive idea, deliberately deferred
 
@@ -274,7 +293,8 @@ in the first slice.
    `select_crease_edges_trueform` and friends stop being invisible. Landed as
    one *Edges* checkbox covering both kinds of edge rather than as the
    mesh-only decorator originally sketched here.
-3. Producers stamping quality (Tier 3), starting with the isocontours.
+3. **Done (2026-09-16).** Producers stamping quality (Tier 3) — the isocontours,
+   which were the only producer with a per-curve value worth recording.
 4. The remaining colorize filters.
 5. An edge mode for `Rubber-band Select`, on top of the existing depth-mask
    machinery.

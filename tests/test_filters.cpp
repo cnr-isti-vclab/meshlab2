@@ -9,6 +9,7 @@
 #include <QSet>
 
 #include <map>
+#include <set>
 #include <vcg/complex/algorithms/bitquad_support.h>
 #include <random>
 
@@ -436,6 +437,7 @@ private slots:
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
     void createdCylinderHonoursRadiusHeightAndAxis();
     void edgeExpressionsSelectColorAndScaleAPolyline();
+    void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToConnectedComponents();
     void islandMergeCanTakeItsIslandsFromTheSelection();
@@ -6248,6 +6250,75 @@ void FilterTests::islandMergeCanTakeItsIslandsFromTheSelection()
 // that reads both endpoints and a derived quantity, then write a scalar and ramp it
 // into colour. Built on a polyline whose edges have deliberately different lengths,
 // because every interesting edge expression is a function of length or direction.
+// The isocontour filter puts every level into one layer, so without a per-edge value
+// the levels are indistinguishable. Each edge must carry the value of the contour it
+// belongs to, and the distinct values must be exactly the levels that were asked for.
+void FilterTests::isocontourEdgesCarryTheirContourValue()
+{
+    Document doc;
+    const QString sphereKey = filterKeyForId(doc, QStringLiteral("create_sphere"));
+    const QString scalarKey =
+        filterKeyForId(doc, QStringLiteral("compute_vertex_scalar_by_expression"));
+    const QString isoKey =
+        filterKeyForId(doc, QStringLiteral("create_polyline_from_scalar_isocontour_trueform"));
+    QVERIFY(!sphereKey.isEmpty());
+    QVERIFY(!scalarKey.isEmpty());
+    if (isoKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+
+    // A height field on the unit sphere, so the contours are circles of latitude and
+    // the range is a known [-1, 1].
+    MeshFilterParameterValues scalarParams;
+    scalarParams.insert(QStringLiteral("q"), QStringLiteral("z"));
+    scalarParams.insert(QStringLiteral("normalize"), false);
+    scalarParams.insert(QStringLiteral("map"), false);
+    scalarParams.insert(QStringLiteral("onselected"), false);
+    QVERIFY2(doc.runFilter(scalarKey, scalarParams).success, "vertex scalar failed");
+
+    constexpr int kCount = 5;
+    MeshFilterParameterValues isoParams;
+    isoParams.insert(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    isoParams.insert(QStringLiteral("contourCount"), kCount);
+    isoParams.insert(QStringLiteral("useCustomRange"), true);
+    isoParams.insert(QStringLiteral("minValue"), -1.0);
+    isoParams.insert(QStringLiteral("maxValue"), 1.0);
+    const MeshFilterRunResult r = doc.runFilter(isoKey, isoParams);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.newMeshIndices.size(), std::size_t(1));
+
+    const VCGMesh &curves = doc.mesh(r.newMeshIndices.front()).mesh;
+    QVERIFY(curves.EN() > 0);
+    QCOMPARE(curves.FN(), 0);
+
+    // The levels the filter documents: strictly inside the range, evenly spaced.
+    std::vector<float> expected;
+    for (int i = 0; i < kCount; ++i)
+        expected.push_back(float(-1.0 + 2.0 * (double(i) + 1.0) / (double(kCount) + 1.0)));
+
+    std::set<float> seen;
+    for (const auto &e : curves.edge) {
+        if (!e.IsD())
+            seen.insert(e.cQ());
+    }
+    QCOMPARE(int(seen.size()), kCount);
+
+    auto it = seen.begin();
+    for (int i = 0; i < kCount; ++i, ++it)
+        QVERIFY2(std::abs(*it - expected[std::size_t(i)]) < 1e-5f,
+                 qPrintable(QStringLiteral("level %1: got %2, expected %3")
+                                .arg(i).arg(*it).arg(expected[std::size_t(i)])));
+
+    // Every edge of one contour must share a single value -- a contour split across
+    // values would mean the labelling followed the buffer rather than the level.
+    for (const auto &e : curves.edge) {
+        if (e.IsD())
+            continue;
+        QVERIFY(seen.count(e.cQ()) == 1);
+    }
+}
+
 void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()
 {
     Document doc;

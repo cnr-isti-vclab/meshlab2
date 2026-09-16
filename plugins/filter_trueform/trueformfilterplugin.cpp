@@ -1064,40 +1064,51 @@ MeshFilterRunResult runSplitComponents(const FilterParams &params, Document &doc
 
 // Turn a TrueForm curves_buffer into a MeshLab polyline layer: an edge mesh, which is
 // what the Create Polyline family already produces.
+// Append one curves_buffer into an edge mesh, stamping `edgeQuality` on every segment
+// it produces. Isocontours are the reason this takes a scalar: TrueForm's multi-value
+// overload merges every level into one buffer with no way to tell which path came from
+// which level, so the caller extracts one level at a time and labels it here.
 template <typename Curves>
-MeshFilterRunResult addPolylineLayer(
-    Document &doc, const Curves &curves, const QString &layerName,
-    const QString &emptyMessage, QStringList info)
+std::size_t appendCurvesToMesh(VCGMesh &output, const Curves &curves, float edgeQuality)
 {
-    VCGMesh output;
     const auto points = curves.points();
     const std::size_t pointCount = std::size_t(points.size());
+    if (pointCount == 0)
+        return 0;
+
+    const std::size_t vertexBase = output.vert.size();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(output, int(pointCount));
+    tf::parallel_for_each(tf::enumerate(points), [&output, vertexBase](auto pair) {
+        auto &&[vi, p] = pair;
+        output.vert[vertexBase + std::size_t(vi)].P() =
+            vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
+    }, tf::checked);
 
     std::size_t segmentCount = 0;
-    if (pointCount > 0) {
-        vcg::tri::Allocator<VCGMesh>::AddVertices(output, int(pointCount));
-        tf::parallel_for_each(tf::enumerate(points), [&output](auto pair) {
-            auto &&[vi, p] = pair;
-            output.vert[std::size_t(vi)].P() =
-                vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
-        }, tf::checked);
-        for (const auto &path : curves.paths()) {
-            const std::size_t n = std::size_t(path.size());
-            for (std::size_t k = 1; k < n; ++k) {
-                const int a = int(path[k - 1]);
-                const int b = int(path[k]);
-                if (a == b || a < 0 || b < 0)
-                    continue;
-                if (std::size_t(a) >= pointCount || std::size_t(b) >= pointCount)
-                    continue;
-                auto e = vcg::tri::Allocator<VCGMesh>::AddEdges(output, 1);
-                e->V(0) = &output.vert[std::size_t(a)];
-                e->V(1) = &output.vert[std::size_t(b)];
-                ++segmentCount;
-            }
+    for (const auto &path : curves.paths()) {
+        const std::size_t n = std::size_t(path.size());
+        for (std::size_t k = 1; k < n; ++k) {
+            const int a = int(path[k - 1]);
+            const int b = int(path[k]);
+            if (a == b || a < 0 || b < 0)
+                continue;
+            if (std::size_t(a) >= pointCount || std::size_t(b) >= pointCount)
+                continue;
+            auto e = vcg::tri::Allocator<VCGMesh>::AddEdges(output, 1);
+            e->V(0) = &output.vert[vertexBase + std::size_t(a)];
+            e->V(1) = &output.vert[vertexBase + std::size_t(b)];
+            e->Q() = edgeQuality;
+            ++segmentCount;
         }
     }
+    return segmentCount;
+}
 
+// Finish an edge mesh built by one or more appendCurvesToMesh calls.
+inline MeshFilterRunResult finishPolylineLayer(
+    Document &doc, VCGMesh &output, std::size_t segmentCount, std::size_t pathCount,
+    const QString &layerName, const QString &emptyMessage, QStringList info)
+{
     if (segmentCount == 0) {
         doc.finishFilterProgress(false, emptyMessage);
         return fail(emptyMessage);
@@ -1116,13 +1127,25 @@ MeshFilterRunResult addPolylineLayer(
 
     info.prepend(QObject::tr("Created polyline '%1'.").arg(doc.mesh(newIndex).name));
     info << QObject::tr("%1 path(s), %2 segment(s).")
-                .arg(curves.paths().size()).arg(segmentCount);
+                .arg(pathCount).arg(segmentCount);
     MeshFilterRunResult result;
     result.success = true;
     result.documentModified = true;
     result.infoMessages = info;
     result.newMeshIndices.push_back(newIndex);
     return result;
+}
+
+template <typename Curves>
+MeshFilterRunResult addPolylineLayer(
+    Document &doc, const Curves &curves, const QString &layerName,
+    const QString &emptyMessage, QStringList info)
+{
+    VCGMesh output;
+    const std::size_t segmentCount = appendCurvesToMesh(output, curves, 0.0f);
+    return finishPolylineLayer(
+        doc, output, segmentCount, std::size_t(curves.paths().size()),
+        layerName, emptyMessage, std::move(info));
 }
 
 // Where a mesh passes through itself. Unlike Select Self-Intersecting Faces, which marks
@@ -1239,18 +1262,38 @@ MeshFilterRunResult runIsocurves(const FilterParams &params, Document &doc)
     doc.beginFilterProgress(QObject::tr("Create Polyline from Scalar Isocontour (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
-        auto curves = tf::make_isocontours(
-            source.polygons(),
-            tf::make_range(scalars.data(), scalars.size()),
-            tf::make_range(cutValues.data(), cutValues.size()));
-        return addPolylineLayer(
-            doc, curves, QObject::tr("Isocontours"),
+        // One extraction per level rather than the multi-value call, because that one
+        // merges every level into a single buffer and discards which is which. Taking
+        // them one at a time is what lets each contour keep its own value, which is the
+        // difference between a uniform hairball and something Colorize Edges by Scalar
+        // can turn into readable isolines.
+        VCGMesh output;
+        std::size_t segmentCount = 0;
+        std::size_t pathCount = 0;
+        int levelsWithContours = 0;
+        for (const float cutValue : cutValues) {
+            auto curves = tf::make_isocontours(
+                source.polygons(),
+                tf::make_range(scalars.data(), scalars.size()),
+                cutValue);
+            const std::size_t added = appendCurvesToMesh(output, curves, cutValue);
+            if (added > 0) {
+                ++levelsWithContours;
+                pathCount += std::size_t(curves.paths().size());
+            }
+            segmentCount += added;
+        }
+        return finishPolylineLayer(
+            doc, output, segmentCount, pathCount, QObject::tr("Isocontours"),
             QObject::tr("No contours were produced at the requested values."),
             { QObject::tr("From '%1'.").arg(doc.mesh(index).name),
-              QObject::tr("%1 contour(s) between %2 and %3.")
+              QObject::tr("%1 contour level(s) between %2 and %3; %4 produced geometry.")
                   .arg(count)
                   .arg(QString::number(minValue, 'g', 6))
-                  .arg(QString::number(maxValue, 'g', 6)) });
+                  .arg(QString::number(maxValue, 'g', 6))
+                  .arg(levelsWithContours),
+              QObject::tr("Each edge carries its contour value as its scalar. Run "
+                          "Colorize Edges by Scalar to see the levels apart.") });
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm isocurves failed: %1")
                                     .arg(QString::fromLocal8Bit(e.what()));
