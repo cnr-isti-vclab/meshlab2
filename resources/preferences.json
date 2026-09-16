@@ -94,7 +94,7 @@
       "help": "Newly loaded meshes use flat shading when they have fewer faces than this, so the tessellation stays visible; above it they use smooth shading. Independent of the wireframe threshold. Faces.",
       "group": "render",
       "type": "int",
-      "default": 10000,
+      "default": 5000000,
       "min": 0,
       "max": 100000000
     },

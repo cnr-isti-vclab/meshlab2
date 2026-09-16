@@ -795,37 +795,73 @@ constexpr unsigned int kOrientedBoxSeed = 0x5eedu;
 // then y, then z -- and that is exactly the order vcg::tri::Box lays its vertices out in.
 // So the box is built once by vcglib and the oriented case only moves the corners
 // afterwards: the faces, their winding and their faux edges all come from the same code
-// that builds Create Box, and the new layer looks like any other box primitive.
+// that builds Create Hexahedron, and the new layer looks like any other box primitive.
 MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc)
 {
     const int meshIndex = doc.currentMeshIndex();
     if (meshIndex < 0 || meshIndex >= doc.meshCount())
         return fail(QObject::tr("No current mesh selected."));
 
-    const Document::MeshEntry &entry = doc.mesh(meshIndex);
-    const VCGMesh &mesh = entry.mesh;
+    Document::MeshEntry &entry = doc.mesh(meshIndex);
+    VCGMesh &mesh = entry.mesh;
     if (mesh.VN() <= 0)
         return fail(QObject::tr("Create Bounding Box requires a layer with vertices."));
 
     const bool oriented =
         params.getEnum(QStringLiteral("alignment")) == QLatin1String("oriented");
+    // Only means anything for an oriented box: an axis-aligned one is already on the axes.
+    const bool rotateLayer =
+        oriented && params.getBool(QStringLiteral("rotateLayerToAxes"), false);
 
-    VCGMesh output;
-    vcg::tri::Box<VCGMesh>(output, mesh.bbox);
-
-    QStringList info;
-    if (oriented) {
+    const auto collectPoints = [&mesh]() {
         std::vector<CgalPoint> points;
         points.reserve(std::size_t(mesh.VN()));
         for (const auto &v : mesh.vert) {
             if (!v.IsD())
                 points.emplace_back(v.P()[0], v.P()[1], v.P()[2]);
         }
-        if (points.size() < 3) {
-            return fail(QObject::tr(
-                "An oriented bounding box needs at least three vertices; this layer has %1.")
-                    .arg(points.size()));
+        return points;
+    };
+    const QString tooFewVertices = QObject::tr(
+        "An oriented bounding box needs at least three vertices; this layer has %1.");
+
+    QStringList info;
+
+    // Turning the layer instead of the box. CGAL's transformation is the map into the frame
+    // where the tightest box is axis-aligned, so applying it to the vertices leaves the
+    // ordinary axis-aligned box below with nothing left to do -- the two paths converge.
+    if (rotateLayer) {
+        const std::vector<CgalPoint> points = collectPoints();
+        if (points.size() < 3)
+            return fail(tooFewVertices.arg(points.size()));
+
+        Kernel::Aff_transformation_3 toAxes;
+        CGAL::oriented_bounding_box(
+            points, toAxes, CGAL::parameters::random_seed(kOrientedBoxSeed));
+
+        for (auto &v : mesh.vert) {
+            if (v.IsD())
+                continue;
+            const CgalPoint turned = toAxes.transform(CgalPoint(v.P()[0], v.P()[1], v.P()[2]));
+            v.P() = VCGMesh::CoordType(
+                float(turned.x()), float(turned.y()), float(turned.z()));
         }
+        vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+        doc.markMeshGeometryChanged(
+            meshIndex,
+            QObject::tr("Rotated '%1' onto the axes of its tightest bounding box")
+                .arg(entry.name));
+        info << QObject::tr("Rotated the layer onto the axes of its tightest box.");
+    }
+
+    VCGMesh output;
+    vcg::tri::Box<VCGMesh>(output, mesh.bbox);
+
+    if (oriented && !rotateLayer) {
+        const std::vector<CgalPoint> points = collectPoints();
+        if (points.size() < 3)
+            return fail(tooFewVertices.arg(points.size()));
 
         std::array<CgalPoint, 8> obb;
         CGAL::oriented_bounding_box(
@@ -861,7 +897,11 @@ MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc)
                     .arg(double(sides[0]) * double(sides[1]) * double(sides[2]));
     } else {
         const vcg::Point3f diagonal = mesh.bbox.max - mesh.bbox.min;
-        info << QObject::tr("Axis-aligned box: %1 x %2 x %3, volume %4.")
+        // After a rotation this is the tightest box, now sitting on the axes; without one
+        // it is the plain axis-aligned box. Same numbers either way, different meaning.
+        info << (rotateLayer
+                     ? QObject::tr("Oriented box, now axis-aligned: %1 x %2 x %3, volume %4.")
+                     : QObject::tr("Axis-aligned box: %1 x %2 x %3, volume %4."))
                     .arg(diagonal[0]).arg(diagonal[1]).arg(diagonal[2])
                     .arg(double(diagonal[0]) * double(diagonal[1]) * double(diagonal[2]));
     }

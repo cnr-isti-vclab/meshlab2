@@ -230,12 +230,12 @@
     },
     {
       "id": "set_random_layer_color",
-      "categories": ["Attribute/Color"],
+      "categories": ["Attribute/Color", "Document/Layer"],
       "name": "Set Random Layer Color",
       "pythonName": "set_random_layer_color",
-      "shortDescription": "Assign a distinct random color to each visible mesh layer.",
-      "longDescriptionMarkdown": "Assigns a random color to each visible mesh layer in the document. Colors change every time the filter is executed, but are always chosen so that they differ as much as possible.",
-      "tags": ["color", "layer"],
+      "shortDescription": "Scatter a distinct color across the visible layers, one each.",
+      "longDescriptionMarkdown": "Gives every visible layer its own **mesh color**, picked by *scattering* over the available hues so that layers close together in the list are as far apart in color as their number allows \u2014 the same scatter used to tell connected components apart.\n\nThe layers are also switched to draw in that per-mesh color, so the result is visible without changing the color source by hand.\n\nColors differ on every run unless a **Random seed** is given. The usual reason to want this is to tell layers apart at a glance after a split, an import of many files, or an alignment.",
+      "tags": ["color", "layer", "scatter", "random", "per-mesh"],
       "inputDomain": "WholeDocument",
       "outputDomain": "ModifyCurrentMesh",
       "parameters": [

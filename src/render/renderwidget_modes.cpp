@@ -374,6 +374,28 @@ void RenderWidget::showEdgeColorVisualization(int meshIndex)
     update();
 }
 
+void RenderWidget::showPerMeshColorVisualization(int meshIndex)
+{
+    if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())
+        return;
+
+    MeshRenderMode *mode = mutableRenderModeForMesh(meshIndex);
+    if (!mode)
+        return;
+
+    // Every mesh has a colour, so unlike the other visualizations there is nothing to
+    // check for first -- the filter that asked has just written it.
+    mode->showFill = true;
+    mode->fillMaterial = FillMaterial::Plain;
+    mode->fillPlain.colorSource = FillColorSource::PerMesh;
+
+    if (meshIndex == m_doc->currentMeshIndex()) {
+        refreshColorSourceAvailability();
+        syncOverlaySettingsToCurrentMesh();
+    }
+    update();
+}
+
 void RenderWidget::showTextureVisualization(int meshIndex)
 {
     if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())

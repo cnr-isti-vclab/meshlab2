@@ -315,7 +315,11 @@ enum class MeshFilterVisualizationAttribute
     // Per-edge colour on a polyline layer. Needed because the automatic choice in
     // defaultRenderModeForMesh only runs for newly created layers -- a filter that
     // colours the edges of an existing one would otherwise change nothing on screen.
-    EdgeColor
+    EdgeColor,
+    // The single colour stored on the mesh itself. Same reason as EdgeColor: a filter that
+    // writes it is asking for the layer to be *shown* in it, and nothing else would switch
+    // a layer already being drawn from its per-vertex or constant colour.
+    PerMeshColor
 };
 
 struct MeshFilterVisualizationHint

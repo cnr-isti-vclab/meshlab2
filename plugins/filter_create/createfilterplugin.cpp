@@ -17,7 +17,7 @@
 #include <vcg/space/fitting3.h>
 
 namespace {
-constexpr QLatin1StringView kFilterCreateBox("create_box");
+constexpr QLatin1StringView kFilterCreateHexahedron("create_hexahedron");
 constexpr QLatin1StringView kFilterCreateAnnulus("create_annulus");
 constexpr QLatin1StringView kFilterCreateSphere("create_sphere");
 constexpr QLatin1StringView kFilterCreateSphereCap("create_sphere_cap");
@@ -112,7 +112,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         return success(doc.mesh(idx).name, idx);
     }
 
-    if (filterId == QString::fromLatin1(kFilterCreateBox)) {
+    if (filterId == QString::fromLatin1(kFilterCreateHexahedron)) {
         const double sz = params.getDouble(QStringLiteral("size"));
         const float hsz = float(sz) * 0.5f;
         VCGMesh m;

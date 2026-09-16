@@ -107,6 +107,7 @@ public:
     void showQualityVisualization(int meshIndex, bool faceQuality);
     void showTextureVisualization(int meshIndex);
     void showEdgeColorVisualization(int meshIndex);
+    void showPerMeshColorVisualization(int meshIndex);
 
     ViewState captureViewState() const;
     void restoreViewState(const ViewState &vs, bool restoreCamera = true);

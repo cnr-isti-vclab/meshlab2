@@ -352,10 +352,17 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             ++colorIndex;
             colorIndex %= int(visibleMeshes.size());
         }
-        return success({
+        MeshFilterRunResult result = success({
             QObject::tr("Assigned scattered colors to %1 visible mesh layers.").arg(visibleMeshes.size()),
             seed.message()
         });
+        // Writing the colour is only half the job: a layer already on screen keeps whatever
+        // colour source it had, so the scatter would be invisible without asking for it.
+        for (int meshIndex : visibleMeshes) {
+            result.visualizationHints.push_back(
+                { meshIndex, MeshFilterVisualizationAttribute::PerMeshColor });
+        }
+        return result;
     }
 
     QString errorMessage;

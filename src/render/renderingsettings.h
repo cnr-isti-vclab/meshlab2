@@ -198,7 +198,9 @@ struct PerMeshRenderSettings {
     QColor bboxWireColor = QColor(245, 190, 60);
     QColor pointColor = QColor(255, 191, 51);
     float pointSize = 4.0f;
-    QColor edgeColor = QColor(25, 25, 28);
+    // The edges pass draws polyline layers, which usually sit against the dark end of the
+    // background gradient; near-black made them all but invisible on arrival.
+    QColor edgeColor = QColor(255, 255, 255);
     float edgeSize = 1.0f;
     QColor wireColor = QColor(15, 15, 20);
     float wireSize = 1.5f;

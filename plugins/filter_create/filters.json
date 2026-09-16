@@ -82,16 +82,18 @@
       "parameters": []
     },
     {
-      "id": "create_box",
+      "id": "create_hexahedron",
       "categories": ["Creation/Primitives"],
-      "name": "Create Box",
-      "pythonName": "create_box",
-      "shortDescription": "Creates a Box or Cube.",
-      "longDescriptionMarkdown": "Create a Box, Cube, Hexahedron. You can specify the side length.",
+      "name": "Create Hexahedron",
+      "pythonName": "create_hexahedron",
+      "shortDescription": "Create a box: a cube, or a hexahedron with a side length you choose.",
+      "longDescriptionMarkdown": "Creates a new layer holding an axis-aligned **hexahedron** centred on the origin \u2014 a **box**, and with equal sides a **cube**.\n\n**Side Length** sets the length of every edge, so the result is always a cube; scale it afterwards for a box with unequal sides.\n\nThe six faces are quads, kept as pairs of triangles with the diagonal marked faux, so the box displays as six faces rather than twelve.",
       "tags": [
         "create",
+        "hexahedron",
         "box",
-        "cube"
+        "cube",
+        "primitive"
       ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",

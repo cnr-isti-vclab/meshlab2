@@ -1895,7 +1895,7 @@ void FilterTests::kineticReconstructsABox()
     QString subdivideKey;
     QString kineticKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("create_box"))
+        if (info.descriptor.id == QStringLiteral("create_hexahedron"))
             boxKey = info.key;
         else if (info.descriptor.id == QStringLiteral("subdivide_by_midpoint"))
             subdivideKey = info.key;
@@ -1907,7 +1907,7 @@ void FilterTests::kineticReconstructsABox()
     if (kineticKey.isEmpty())
         QSKIP("CGAL plugin is not available in this build.");
 
-    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_box failed");
+    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_hexahedron failed");
     const int index = doc.currentMeshIndex();
 
     // Densify so each face carries enough samples to be detected as a planar region.
@@ -2052,7 +2052,7 @@ void FilterTests::trueFormBooleansAgreeWithVolume()
     QString boxKey, unionKey, interKey, diffKey, xorKey, shellKey;
     for (const auto &info : doc.filterInfos()) {
         const QString id = info.descriptor.id;
-        if (id == QStringLiteral("create_box")) boxKey = info.key;
+        if (id == QStringLiteral("create_hexahedron")) boxKey = info.key;
         else if (id == QStringLiteral("mesh_union_trueform")) unionKey = info.key;
         else if (id == QStringLiteral("mesh_intersection_trueform")) interKey = info.key;
         else if (id == QStringLiteral("mesh_difference_trueform")) diffKey = info.key;
@@ -2063,7 +2063,7 @@ void FilterTests::trueFormBooleansAgreeWithVolume()
     if (unionKey.isEmpty())
         QSKIP("TrueForm filter plugin is not available in this build.");
 
-    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_box failed");
+    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_hexahedron failed");
     const int a = doc.currentMeshIndex();
     const float side = doc.mesh(a).mesh.bbox.DimX();
     QVERIFY(side > 0.0f);
@@ -2118,7 +2118,7 @@ void FilterTests::trueFormCsgExpressionMatchesPairwiseBooleans()
     QString boxKey, csgKey, unionKey;
     for (const auto &info : doc.filterInfos()) {
         const QString id = info.descriptor.id;
-        if (id == QStringLiteral("create_box")) boxKey = info.key;
+        if (id == QStringLiteral("create_hexahedron")) boxKey = info.key;
         else if (id == QStringLiteral("mesh_csg_expression_trueform")) csgKey = info.key;
         else if (id == QStringLiteral("mesh_union_trueform")) unionKey = info.key;
     }
@@ -2126,7 +2126,7 @@ void FilterTests::trueFormCsgExpressionMatchesPairwiseBooleans()
     if (csgKey.isEmpty())
         QSKIP("TrueForm filter plugin is not available in this build.");
 
-    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_box failed");
+    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_hexahedron failed");
     const int a = doc.currentMeshIndex();
     const float side = doc.mesh(a).mesh.bbox.DimX();
     const double unit = double(side) * double(side) * double(side);
@@ -2549,7 +2549,7 @@ void FilterTests::trueFormCurveFamilyProducesPolylines()
     QString boxKey, sphereKey, interKey, selfKey, isoKey, tubeKey, borderKey;
     for (const auto &info : doc.filterInfos()) {
         const QString id = info.descriptor.id;
-        if (id == QStringLiteral("create_box")) boxKey = info.key;
+        if (id == QStringLiteral("create_hexahedron")) boxKey = info.key;
         else if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
         else if (id == QStringLiteral("create_polyline_from_mesh_intersection_trueform")) interKey = info.key;
         else if (id == QStringLiteral("create_polyline_from_self_intersections_trueform")) selfKey = info.key;
@@ -2561,7 +2561,7 @@ void FilterTests::trueFormCurveFamilyProducesPolylines()
     if (interKey.isEmpty())
         QSKIP("TrueForm filter plugin is not available in this build.");
 
-    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_box failed");
+    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_hexahedron failed");
     const int a = doc.currentMeshIndex();
     const float side = doc.mesh(a).mesh.bbox.DimX();
     const int b = doc.addMesh(doc.mesh(a).mesh, QStringLiteral("shifted"));
@@ -2636,7 +2636,7 @@ void FilterTests::newMeshFiltersReportTheirLayers()
         for (const auto &info : doc.filterInfos()) {
             const QString id = info.descriptor.id;
             if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
-            else if (id == QStringLiteral("create_box")) boxKey = info.key;
+            else if (id == QStringLiteral("create_hexahedron")) boxKey = info.key;
             else if (id == QStringLiteral("compute_geodesic_distance_from_border")) borderKey = info.key;
             else if (id == QStringLiteral("create_polyline_from_planar_section")) sectionKey = info.key;
         }
@@ -2747,7 +2747,7 @@ void FilterTests::trueFormDistanceAndContainment()
     QString boxKey, sphereKey, distKey, insideKey, chamferKey;
     for (const auto &info : doc.filterInfos()) {
         const QString id = info.descriptor.id;
-        if (id == QStringLiteral("create_box")) boxKey = info.key;
+        if (id == QStringLiteral("create_hexahedron")) boxKey = info.key;
         else if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
         else if (id == QStringLiteral("compute_signed_distance_to_mesh_trueform")) distKey = info.key;
         else if (id == QStringLiteral("select_vertices_inside_mesh_trueform")) insideKey = info.key;
@@ -2757,7 +2757,7 @@ void FilterTests::trueFormDistanceAndContainment()
     if (distKey.isEmpty())
         QSKIP("TrueForm filter plugin is not available in this build.");
 
-    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_box failed");
+    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_hexahedron failed");
     const int box = doc.currentMeshIndex();
     const float side = doc.mesh(box).mesh.bbox.DimX();
 
@@ -3046,7 +3046,7 @@ void FilterTests::trueFormOrientationAndEdgeSelection()
     QString boxKey, sphereKey, coherentKey, outwardKey, creaseKey, nonManifoldKey;
     for (const auto &info : doc.filterInfos()) {
         const QString id = info.descriptor.id;
-        if (id == QStringLiteral("create_box")) boxKey = info.key;
+        if (id == QStringLiteral("create_hexahedron")) boxKey = info.key;
         else if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
         else if (id == QStringLiteral("orient_faces_consistently_trueform")) coherentKey = info.key;
         else if (id == QStringLiteral("orient_faces_outward_trueform")) outwardKey = info.key;
@@ -3075,7 +3075,7 @@ void FilterTests::trueFormOrientationAndEdgeSelection()
     // An inside-out box must come back with positive volume.
     {
         Document d;
-        QVERIFY2(d.runFilter(boxKey, {}).success, "create_box failed");
+        QVERIFY2(d.runFilter(boxKey, {}).success, "create_hexahedron failed");
         const int s = d.currentMeshIndex();
         // Invert every face so the solid is wound inwards.
         for (VCGFace &f : d.mesh(s).mesh.face) {
@@ -3093,7 +3093,7 @@ void FilterTests::trueFormOrientationAndEdgeSelection()
     // direction, so a directed edge seen twice the same way is an inconsistency.
     {
         Document d;
-        QVERIFY2(d.runFilter(boxKey, {}).success, "create_box failed");
+        QVERIFY2(d.runFilter(boxKey, {}).success, "create_hexahedron failed");
         const int s = d.currentMeshIndex();
 
         const auto inconsistentEdges = [](const VCGMesh &m) {
@@ -3141,7 +3141,7 @@ void FilterTests::trueFormOrientationAndEdgeSelection()
     // A box has twelve ninety-degree creases, and none above ninety.
     {
         Document d;
-        QVERIFY2(d.runFilter(boxKey, {}).success, "create_box failed");
+        QVERIFY2(d.runFilter(boxKey, {}).success, "create_hexahedron failed");
         const int s = d.currentMeshIndex();
 
         MeshFilterParameterValues p;
@@ -3175,7 +3175,7 @@ void FilterTests::trueFormRepairAndIsobands()
     QString boxKey, sphereKey, cleanKey, resolveKey, cutKey, borderKey, unweldKey;
     for (const auto &info : doc.filterInfos()) {
         const QString id = info.descriptor.id;
-        if (id == QStringLiteral("create_box")) boxKey = info.key;
+        if (id == QStringLiteral("create_hexahedron")) boxKey = info.key;
         else if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
         else if (id == QStringLiteral("remove_duplicate_vertices_trueform")) cleanKey = info.key;
         else if (id == QStringLiteral("repair_self_intersections_trueform")) resolveKey = info.key;
@@ -3190,7 +3190,7 @@ void FilterTests::trueFormRepairAndIsobands()
     // Welding: split every face into its own vertices, then weld them back.
     {
         Document d;
-        QVERIFY2(d.runFilter(boxKey, {}).success, "create_box failed");
+        QVERIFY2(d.runFilter(boxKey, {}).success, "create_hexahedron failed");
         const int s = d.currentMeshIndex();
         const int weldedV = d.mesh(s).mesh.VN();
 
@@ -3222,7 +3222,7 @@ void FilterTests::trueFormRepairAndIsobands()
     // the arrangement must split faces and produce more of them than it started with.
     {
         Document d;
-        QVERIFY2(d.runFilter(boxKey, {}).success, "create_box failed");
+        QVERIFY2(d.runFilter(boxKey, {}).success, "create_hexahedron failed");
         const int a = d.currentMeshIndex();
         const float side = d.mesh(a).mesh.bbox.DimX();
 
@@ -3895,8 +3895,8 @@ void FilterTests::voronoiAtlasHandlesCoarseMeshes()
 {
     struct Case { const char *primitive; int regions; bool expectSuccess; };
     const Case cases[] = {
-        { "create_box", 2, false },          // 12 faces: too coarse to partition
-        { "create_box", 10, false },
+        { "create_hexahedron", 2, false },          // 12 faces: too coarse to partition
+        { "create_hexahedron", 10, false },
         { "create_tetrahedron", 2, false },  // 4 faces: coarser still
         { "create_sphere", 2, true },
         { "create_sphere", 10, true },
