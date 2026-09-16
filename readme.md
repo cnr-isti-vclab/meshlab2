@@ -28,10 +28,11 @@ CI — see [GitHub Actions: macOS DMG](#github-actions-macos-dmg) below.
   - Proposals: [LLM Integration](docs/design/proposals/llm_integration.md) ·
     [Usage Statistics](docs/design/proposals/usage_statistics.md) ·
     [Gaussian Splatting](docs/design/proposals/gaussian_splatting.md) ·
-    [Repository Rename](docs/design/proposals/repository_rename.md)
+    [Edge Support](docs/design/proposals/edge_support.md)
   - History: [Filter Classification](docs/design/history/filter_classification.md) ·
     [Filter Names](docs/design/history/filter_names.md) ·
-    [Pass 2 Identifier Map](docs/design/history/pass2_identifier_map.md)
+    [Pass 2 Identifier Map](docs/design/history/pass2_identifier_map.md) ·
+    [Repository Rename](docs/design/history/repository_rename.md)
 
 ## Current Features
 - Single `Document` shared by one or more `RenderWidget` views
