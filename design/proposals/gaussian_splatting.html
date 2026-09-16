@@ -463,7 +463,7 @@ by design does not — it is dropped wholesale when geometry changes.</p>
 <h2>Prerequisite: named attributes in the undo pipeline<a class="headerlink" href="#prerequisite-named-attributes-in-the-undo-pipeline" title="Link to this heading">¶</a></h2>
 <p>This is the one piece of core work that must land before anything else, and it
 is worth doing on its own merits.</p>
-<p><code class="docutils literal notranslate"><span class="pre">deepCopyMesh()</span></code> at <a class="reference internal" href="#../../src/core/document_internal.cpp"><span class="xref myst"><code class="docutils literal notranslate"><span class="pre">src/core/document_internal.cpp:525</span></code></span></a>
+<p><code class="docutils literal notranslate"><span class="pre">deepCopyMesh()</span></code> at <a class="reference download internal" download="" href="../../_downloads/af62eed5fba2afe80b7cc162025dc6ed/document_internal.cpp"><span class="xref download myst"><code class="docutils literal notranslate"><span class="pre">src/core/document_internal.cpp:526</span></code></span></a>
 copies a hand-listed set of fields — coordinates, normals, colour, quality,
 flags, OCF texcoords, curvature directions, wedge texcoords. It carries <strong>no vcg
 named attributes</strong>, so today an attribute-bearing mesh would lose its attributes

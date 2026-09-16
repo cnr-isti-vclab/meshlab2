@@ -491,40 +491,50 @@ out (<code class="docutils literal notranslate"><span class="pre">FilterPresenta
 <tr class="row-odd"><th class="head"><p></p></th>
 <th class="head"><p>vertex</p></th>
 <th class="head"><p>face</p></th>
+<th class="head"><p>edge</p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>geometry / connectivity</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">VG</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">FV</span></code></p></td>
+<td><p>—</p></td>
 </tr>
 <tr class="row-odd"><td><p>normals</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">VN</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">FN</span></code></p></td>
+<td><p>—</p></td>
 </tr>
 <tr class="row-even"><td><p>color</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">VC</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">FC</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">EC</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>scalar (quality)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">VQ</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">FQ</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">EQ</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>texcoords</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">VT</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">WT</span></code> (per wedge)</p></td>
+<td><p>—</p></td>
 </tr>
 <tr class="row-odd"><td><p>named attributes</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">VA</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">FA</span></code></p></td>
+<td><p>—</p></td>
 </tr>
 <tr class="row-even"><td><p>selection</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">VS</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">FS</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ES</span></code></p></td>
 </tr>
 </tbody>
 </table>
 </div>
+<p>The edge codes refer to the real <code class="docutils literal notranslate"><span class="pre">VCGEdge</span></code> elements of a polyline layer, not to
+the sides of triangles — see <a class="reference internal" href="proposals/edge_support.html"><span class="std std-doc">Edge Support</span></a>.</p>
 <p>plus <code class="docutils literal notranslate"><span class="pre">FP</span></code> (face polygon bits), <code class="docutils literal notranslate"><span class="pre">TX</span></code> (texture images) and <code class="docutils literal notranslate"><span class="pre">TM</span></code> (per-mesh
 transform).</p>
 </li>

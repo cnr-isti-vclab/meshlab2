@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 338 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 342 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -323,6 +323,29 @@
 <ul class="simple">
 <li><p><strong>color</strong> (<em>color</em>, default: <code class="docutils literal notranslate"><span class="pre">#ffffff</span></code>) — The color that is supposed to be white.</p></li>
 <li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only affects selected vertices.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="colorize-edges-by-scalar">
+<span id="filter-colorize-edges-by-scalar"></span><h2>Colorize Edges by Scalar<a class="headerlink" href="#colorize-edges-by-scalar" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.colorproc</p>
+<p>Map the per-edge scalar of a polyline into per-edge colors.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.colorize_edges_by_scalar">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">colorize_edges_by_scalar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.colorize_edges_by_scalar" title="Link to this definition">¶</a></dt>
+<dd><p>Color the <strong>real edges of a polyline layer</strong> according to their scalar, the way <em>Colorize Vertices by Scalar</em> does for vertices. Write the scalar first with <em>Compute Edge Scalar by Expression</em>.</p>
+<p>By default the full range of values present is mapped onto the color map; tick <em>Use Custom Range</em> to pin the ends instead, which is what makes two polylines directly comparable. Unlike the vertex and face versions there is no percentile crop, because VCGLib provides no per-edge quality histogram.</p>
+<p>Set the edge color source to <em>Per-Edge</em> in the render panel to see the result.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>useCustomRange</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Map the range below instead of the smallest and largest values actually present.</p></li>
+<li><p><strong>minVal</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — The value mapped to the lower end of the scale.</p></li>
+<li><p><strong>maxVal</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — The value mapped to the upper end of the scale.</p></li>
+<li><p><strong>zeroSym</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If true the min/max range is enlarged to be symmetric around zero.</p></li>
+<li><p><strong>colorMap</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">rgb</span></code>) — The color map to use. RGB is the VCGLib default, other colormaps are sampled from Matplotlib.</p></li>
 </ul>
 </dd></dl>
 
@@ -428,6 +451,29 @@
 <li><p><strong>ColoredMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh whose surface will be colored.</p></li>
 <li><p><strong>VertexMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The point cloud whose vertices are used as Voronoi seeds.</p></li>
 <li><p><strong>backward</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Color according to the distance from the Voronoi frontier instead of from the seed.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="compute-edge-color-by-expression">
+<span id="filter-compute-edge-color-by-expression"></span><h2>Compute Edge Color by Expression<a class="headerlink" href="#compute-edge-color-by-expression" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.expression</p>
+<p>Computes per-edge RGBA colors from expressions.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.compute_edge_color_by_expression">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_edge_color_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_edge_color_by_expression" title="Link to this definition">¶</a></dt>
+<dd><p>Color function using muparser lib to generate a new RGBA color for every edge of a <strong>polyline layer</strong>. Each edge takes one flat color, which is what distinguishes this from interpolating the endpoint vertex colors — pick <em>Per-Edge</em> as the edge color source in the render panel to see it.</p>
+<p>Endpoint values use the same names as the first two corners of a face: <code class="docutils literal notranslate"><span class="pre">x0,y0,z0</span></code>/<code class="docutils literal notranslate"><span class="pre">x1,y1,z1</span></code>, <code class="docutils literal notranslate"><span class="pre">nx0</span></code>..<code class="docutils literal notranslate"><span class="pre">nz1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0,g0,b0,a0</span></code>/<code class="docutils literal notranslate"><span class="pre">r1</span></code>..<code class="docutils literal notranslate"><span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">q0,q1</span></code>, <code class="docutils literal notranslate"><span class="pre">vi0,vi1</span></code>, <code class="docutils literal notranslate"><span class="pre">vsel0,vsel1</span></code>. The edge itself gives <code class="docutils literal notranslate"><span class="pre">er,eg,eb,ea</span></code> (current color), <code class="docutils literal notranslate"><span class="pre">eq</span></code> (scalar), <code class="docutils literal notranslate"><span class="pre">ei</span></code> (index) and <code class="docutils literal notranslate"><span class="pre">esel</span></code>, plus the derived <code class="docutils literal notranslate"><span class="pre">elen</span></code> (length), <code class="docutils literal notranslate"><span class="pre">emx,emy,emz</span></code> (midpoint) and <code class="docutils literal notranslate"><span class="pre">edx,edy,edz</span></code> (unit direction; zero for a degenerate edge). Bounding-box values <code class="docutils literal notranslate"><span class="pre">xmin</span></code>..<code class="docutils literal notranslate"><span class="pre">bbdiag</span></code> are available as everywhere else.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>r</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for red output in range [0, 255].</p></li>
+<li><p><strong>g</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Expression for green output in range [0, 255].</p></li>
+<li><p><strong>b</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for blue output in range [0, 255].</p></li>
+<li><p><strong>a</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for alpha output in range [0, 255].</p></li>
+<li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected edges.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -1251,6 +1297,29 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <ul class="simple">
 <li><p><strong>gradientThr</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — The maximum value admitted for the quality gradient (in absolute value).</p></li>
 <li><p><strong>updateColor</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also write a per-vertex color ramp after saturating quality. Disabled by default because MeshLab automatically switches to vertex-quality visualization.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="compute-edge-scalar-by-expression">
+<span id="filter-compute-edge-scalar-by-expression"></span><h2>Compute Edge Scalar by Expression<a class="headerlink" href="#compute-edge-scalar-by-expression" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.expression</p>
+<p>Computes a per-edge scalar from an expression.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.compute_edge_scalar_by_expression">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_edge_scalar_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_edge_scalar_by_expression" title="Link to this definition">¶</a></dt>
+<dd><p>Scalar function using muparser lib to write one value per edge of a <strong>polyline layer</strong>. Feed the result to <em>Colorize Edges by Scalar</em>, or tick <em>Map into Color</em> here to do both in one step.</p>
+<p>Edge scalars are held in memory only: no mesh format carries them, so they are lost on save. Map them into color to keep the result.</p>
+<p>Endpoint values use the same names as the first two corners of a face: <code class="docutils literal notranslate"><span class="pre">x0,y0,z0</span></code>/<code class="docutils literal notranslate"><span class="pre">x1,y1,z1</span></code>, <code class="docutils literal notranslate"><span class="pre">nx0</span></code>..<code class="docutils literal notranslate"><span class="pre">nz1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0,g0,b0,a0</span></code>/<code class="docutils literal notranslate"><span class="pre">r1</span></code>..<code class="docutils literal notranslate"><span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">q0,q1</span></code>, <code class="docutils literal notranslate"><span class="pre">vi0,vi1</span></code>, <code class="docutils literal notranslate"><span class="pre">vsel0,vsel1</span></code>. The edge itself gives <code class="docutils literal notranslate"><span class="pre">er,eg,eb,ea</span></code> (current color), <code class="docutils literal notranslate"><span class="pre">eq</span></code> (scalar), <code class="docutils literal notranslate"><span class="pre">ei</span></code> (index) and <code class="docutils literal notranslate"><span class="pre">esel</span></code>, plus the derived <code class="docutils literal notranslate"><span class="pre">elen</span></code> (length), <code class="docutils literal notranslate"><span class="pre">emx,emy,emz</span></code> (midpoint) and <code class="docutils literal notranslate"><span class="pre">edx,edy,edz</span></code> (unit direction; zero for a degenerate edge). Bounding-box values <code class="docutils literal notranslate"><span class="pre">xmin</span></code>..<code class="docutils literal notranslate"><span class="pre">bbdiag</span></code> are available as everywhere else.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>q</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">elen</span></code>) — Expression evaluated per edge; its value becomes the edge scalar.</p></li>
+<li><p><strong>normalize</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Rescale the computed values into [0, 1] once every edge has been evaluated.</p></li>
+<li><p><strong>map</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also map the resulting scalar into per-edge color, using the full value range.</p></li>
+<li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected edges.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -6553,6 +6622,25 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
+<section id="select-edges-by-expression">
+<span id="filter-select-edges-by-expression"></span><h2>Select Edges by Expression<a class="headerlink" href="#select-edges-by-expression" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Attribute</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.expression</p>
+<p>Selects polyline edges for which a boolean expression evaluates true.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.select_edges_by_expression">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_edges_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_edges_by_expression" title="Link to this definition">¶</a></dt>
+<dd><p>Boolean function using muparser lib to select the <strong>real edges of a polyline layer</strong> — the kind produced by the <em>Create Polyline</em> filters — not the sides of triangles.</p>
+<p>Endpoint values use the same names as the first two corners of a face: <code class="docutils literal notranslate"><span class="pre">x0,y0,z0</span></code>/<code class="docutils literal notranslate"><span class="pre">x1,y1,z1</span></code>, <code class="docutils literal notranslate"><span class="pre">nx0</span></code>..<code class="docutils literal notranslate"><span class="pre">nz1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0,g0,b0,a0</span></code>/<code class="docutils literal notranslate"><span class="pre">r1</span></code>..<code class="docutils literal notranslate"><span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">q0,q1</span></code>, <code class="docutils literal notranslate"><span class="pre">vi0,vi1</span></code>, <code class="docutils literal notranslate"><span class="pre">vsel0,vsel1</span></code>. The edge itself gives <code class="docutils literal notranslate"><span class="pre">er,eg,eb,ea</span></code> (current color), <code class="docutils literal notranslate"><span class="pre">eq</span></code> (scalar), <code class="docutils literal notranslate"><span class="pre">ei</span></code> (index) and <code class="docutils literal notranslate"><span class="pre">esel</span></code>, plus the derived <code class="docutils literal notranslate"><span class="pre">elen</span></code> (length), <code class="docutils literal notranslate"><span class="pre">emx,emy,emz</span></code> (midpoint) and <code class="docutils literal notranslate"><span class="pre">edx,edy,edz</span></code> (unit direction; zero for a degenerate edge). Bounding-box values <code class="docutils literal notranslate"><span class="pre">xmin</span></code>..<code class="docutils literal notranslate"><span class="pre">bbdiag</span></code> are available as everywhere else.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>condSelect</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">(elen</span> <span class="pre">&gt;</span> <span class="pre">0)</span></code>) — Boolean expression evaluated per edge.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="select-faces-by-color">
 <span id="filter-select-faces-by-color"></span><h2>Select Faces by Color<a class="headerlink" href="#select-faces-by-color" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Attribute</span></code></p>
@@ -7424,6 +7512,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#meshlab.ms.adjust_vertex_color_white_balance"><code class="docutils literal notranslate"><span class="pre">ms.adjust_vertex_color_white_balance()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#colorize-edges-by-scalar">Colorize Edges by Scalar</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.colorize_edges_by_scalar"><code class="docutils literal notranslate"><span class="pre">ms.colorize_edges_by_scalar()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#colorize-faces-by-scalar">Colorize Faces by Scalar</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.colorize_faces_by_scalar"><code class="docutils literal notranslate"><span class="pre">ms.colorize_faces_by_scalar()</span></code></a></li>
 </ul>
@@ -7442,6 +7534,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#colorize-vertices-by-voronoi-regions">Colorize Vertices by Voronoi Regions</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.colorize_vertices_by_voronoi_regions"><code class="docutils literal notranslate"><span class="pre">ms.colorize_vertices_by_voronoi_regions()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compute-edge-color-by-expression">Compute Edge Color by Expression</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.compute_edge_color_by_expression"><code class="docutils literal notranslate"><span class="pre">ms.compute_edge_color_by_expression()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#compute-face-color-by-expression">Compute Face Color by Expression</a><ul>
@@ -7614,6 +7710,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#clamp-vertex-scalar-gradient">Clamp Vertex Scalar Gradient</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.clamp_vertex_scalar_gradient"><code class="docutils literal notranslate"><span class="pre">ms.clamp_vertex_scalar_gradient()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compute-edge-scalar-by-expression">Compute Edge Scalar by Expression</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.compute_edge_scalar_by_expression"><code class="docutils literal notranslate"><span class="pre">ms.compute_edge_scalar_by_expression()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#compute-exact-geodesic-distance-from-selection-libigl">Compute Exact Geodesic Distance from Selection (libigl)</a><ul>
@@ -8590,6 +8690,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#select-none">Select None</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.select_none"><code class="docutils literal notranslate"><span class="pre">ms.select_none()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#select-edges-by-expression">Select Edges by Expression</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.select_edges_by_expression"><code class="docutils literal notranslate"><span class="pre">ms.select_edges_by_expression()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#select-faces-by-color">Select Faces by Color</a><ul>

@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 338 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 342 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -104,6 +104,36 @@ The filter provides a standard white balance transformation. It is done correcti
 
 - **color** (*color*, default: `#ffffff`) — The color that is supposed to be white.
 - **onSelected** (*bool*, default: `False`) — If checked, only affects selected vertices.
+```
+
+---
+
+(filter-colorize-edges-by-scalar)=
+
+## Colorize Edges by Scalar
+
+**Categories:** `Attribute/Color`, `Attribute/Scalar`
+
+**Plugin:** meshlab2.filter.colorproc
+
+Map the per-edge scalar of a polyline into per-edge colors.
+
+```{py:function} ms.colorize_edges_by_scalar(**params)
+:module: _meshlab
+
+Color the **real edges of a polyline layer** according to their scalar, the way *Colorize Vertices by Scalar* does for vertices. Write the scalar first with *Compute Edge Scalar by Expression*.
+
+By default the full range of values present is mapped onto the color map; tick *Use Custom Range* to pin the ends instead, which is what makes two polylines directly comparable. Unlike the vertex and face versions there is no percentile crop, because VCGLib provides no per-edge quality histogram.
+
+Set the edge color source to *Per-Edge* in the render panel to see the result.
+
+**Parameters:**
+
+- **useCustomRange** (*bool*, default: `False`) — Map the range below instead of the smallest and largest values actually present.
+- **minVal** (*double*, default: `0.0`) — The value mapped to the lower end of the scale.
+- **maxVal** (*double*, default: `1.0`) — The value mapped to the upper end of the scale.
+- **zeroSym** (*bool*, default: `False`) — If true the min/max range is enlarged to be symmetric around zero.
+- **colorMap** (*enum*, default: `rgb`) — The color map to use. RGB is the VCGLib default, other colormaps are sampled from Matplotlib.
 ```
 
 ---
@@ -234,6 +264,35 @@ Given a Mesh <b>M</b> and a Pointset <b>P</b>, The filter project each vertex of
 - **ColoredMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh whose surface will be colored.
 - **VertexMesh** (*mesh*, default: `@otherMeshIndex`) — The point cloud whose vertices are used as Voronoi seeds.
 - **backward** (*bool*, default: `False`) — Color according to the distance from the Voronoi frontier instead of from the seed.
+```
+
+---
+
+(filter-compute-edge-color-by-expression)=
+
+## Compute Edge Color by Expression
+
+**Categories:** `Attribute/Color`
+
+**Plugin:** meshlab2.filter.expression
+
+Computes per-edge RGBA colors from expressions.
+
+```{py:function} ms.compute_edge_color_by_expression(**params)
+:module: _meshlab
+
+Color function using muparser lib to generate a new RGBA color for every edge of a **polyline layer**. Each edge takes one flat color, which is what distinguishes this from interpolating the endpoint vertex colors — pick *Per-Edge* as the edge color source in the render panel to see it.
+
+Endpoint values use the same names as the first two corners of a face: `x0,y0,z0`/`x1,y1,z1`, `nx0`..`nz1`, `r0,g0,b0,a0`/`r1`..`a1`, `q0,q1`, `vi0,vi1`, `vsel0,vsel1`. The edge itself gives `er,eg,eb,ea` (current color), `eq` (scalar), `ei` (index) and `esel`, plus the derived `elen` (length), `emx,emy,emz` (midpoint) and `edx,edy,edz` (unit direction; zero for a degenerate edge). Bounding-box values `xmin`..`bbdiag` are available as everywhere else.
+
+**Parameters:**
+
+- **r** (*string*, default: `255`) — Expression for red output in range [0, 255].
+- **g** (*string*, default: `0`) — Expression for green output in range [0, 255].
+- **b** (*string*, default: `255`) — Expression for blue output in range [0, 255].
+- **a** (*string*, default: `255`) — Expression for alpha output in range [0, 255].
+- **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected edges.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -1290,6 +1349,36 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 - **gradientThr** (*double*, default: `1.0`) — The maximum value admitted for the quality gradient (in absolute value).
 - **updateColor** (*bool*, default: `False`) — Also write a per-vertex color ramp after saturating quality. Disabled by default because MeshLab automatically switches to vertex-quality visualization.
+```
+
+---
+
+(filter-compute-edge-scalar-by-expression)=
+
+## Compute Edge Scalar by Expression
+
+**Categories:** `Attribute/Scalar`
+
+**Plugin:** meshlab2.filter.expression
+
+Computes a per-edge scalar from an expression.
+
+```{py:function} ms.compute_edge_scalar_by_expression(**params)
+:module: _meshlab
+
+Scalar function using muparser lib to write one value per edge of a **polyline layer**. Feed the result to *Colorize Edges by Scalar*, or tick *Map into Color* here to do both in one step.
+
+Edge scalars are held in memory only: no mesh format carries them, so they are lost on save. Map them into color to keep the result.
+
+Endpoint values use the same names as the first two corners of a face: `x0,y0,z0`/`x1,y1,z1`, `nx0`..`nz1`, `r0,g0,b0,a0`/`r1`..`a1`, `q0,q1`, `vi0,vi1`, `vsel0,vsel1`. The edge itself gives `er,eg,eb,ea` (current color), `eq` (scalar), `ei` (index) and `esel`, plus the derived `elen` (length), `emx,emy,emz` (midpoint) and `edx,edy,edz` (unit direction; zero for a degenerate edge). Bounding-box values `xmin`..`bbdiag` are available as everywhere else.
+
+**Parameters:**
+
+- **q** (*string*, default: `elen`) — Expression evaluated per edge; its value becomes the edge scalar.
+- **normalize** (*bool*, default: `False`) — Rescale the computed values into [0, 1] once every edge has been evaluated.
+- **map** (*bool*, default: `False`) — Also map the resulting scalar into per-edge color, using the full value range.
+- **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected edges.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -7932,6 +8021,31 @@ Clear the current set of selected faces/vertices.
 
 - **allFaces** (*bool*, default: `True`) — If true the filter will de-select all the faces.
 - **allVerts** (*bool*, default: `True`) — If true the filter will de-select all the vertices.
+```
+
+---
+
+(filter-select-edges-by-expression)=
+
+## Select Edges by Expression
+
+**Categories:** `Selection/by Attribute`
+
+**Plugin:** meshlab2.filter.expression
+
+Selects polyline edges for which a boolean expression evaluates true.
+
+```{py:function} ms.select_edges_by_expression(**params)
+:module: _meshlab
+
+Boolean function using muparser lib to select the **real edges of a polyline layer** — the kind produced by the *Create Polyline* filters — not the sides of triangles.
+
+Endpoint values use the same names as the first two corners of a face: `x0,y0,z0`/`x1,y1,z1`, `nx0`..`nz1`, `r0,g0,b0,a0`/`r1`..`a1`, `q0,q1`, `vi0,vi1`, `vsel0,vsel1`. The edge itself gives `er,eg,eb,ea` (current color), `eq` (scalar), `ei` (index) and `esel`, plus the derived `elen` (length), `emx,emy,emz` (midpoint) and `edx,edy,edz` (unit direction; zero for a degenerate edge). Bounding-box values `xmin`..`bbdiag` are available as everywhere else.
+
+**Parameters:**
+
+- **condSelect** (*string*, default: `(elen > 0)`) — Boolean expression evaluated per edge.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---

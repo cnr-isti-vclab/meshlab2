@@ -117,7 +117,7 @@ by design does not — it is dropped wholesale when geometry changes.
 This is the one piece of core work that must land before anything else, and it
 is worth doing on its own merits.
 
-`deepCopyMesh()` at [`src/core/document_internal.cpp:525`](../../src/core/document_internal.cpp)
+`deepCopyMesh()` at [`src/core/document_internal.cpp:526`](../../../src/core/document_internal.cpp)
 copies a hand-listed set of fields — coordinates, normals, colour, quality,
 flags, OCF texcoords, curvature directions, wedge texcoords. It carries **no vcg
 named attributes**, so today an attribute-bearing mesh would lose its attributes

@@ -41,7 +41,7 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [LLM Integration](proposals/llm_integration.md) | Option space for driving MeshLab from a model. Not implemented. |
 | [Usage Statistics](proposals/usage_statistics.md) | Aggregate usage collection, designed for privacy. Not implemented. |
 | [Gaussian Splatting](proposals/gaussian_splatting.md) | Splat loading, rendering and editing. Not implemented; some decisions taken. |
-| [Repository Rename](proposals/repository_rename.md) | Renaming MeshLab to meshlab2, in five phases. Not started. |
+| [Edge Support](proposals/edge_support.md) | The two kinds of edge, what is missing in selection and rendering, and filters that would generate per-edge colour. Per-edge colour implemented; the rest not. |
 
 ## History
 
@@ -50,3 +50,4 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [Filter Classification](history/filter_classification.md) | The 2026-07-29 pass-1 migration of 272 filters. |
 | [Filter Names](history/filter_names.md) | The pass-1 renaming rounds, verb by verb, with the rulings made along the way. |
 | [Pass 2 Identifier Map](history/pass2_identifier_map.md) | The `id` / `pythonName` mapping applied 2026-09-03. |
+| [Repository Rename](history/repository_rename.md) | The QMeshLab → meshlab2 rename, six surfaces in five phases, applied 2026-09-13. |

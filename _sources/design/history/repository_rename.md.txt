@@ -1,7 +1,9 @@
-# Repository Rename: QMeshLab → meshlab2
+# Repository Rename: QMeshLab → meshlab2 — record
 
-A plan for renaming the project, and the record of it being carried out. See
-[Status](#status) for how far it has got.
+> **Completed 2026-09-13.** All six surfaces were renamed and every phase is
+> committed. This is a dated record of the plan and its execution, not a current
+> description of the tree — the names in the "Current" column no longer exist.
+> See [Outcome](#outcome).
 
 > **Exclude this file from any rename sweep.** It quotes the old identifiers on
 > purpose — the "Current" column below is the only surviving record of what the
@@ -11,12 +13,21 @@ A plan for renaming the project, and the record of it being carried out. See
 See also: [Architecture](../architecture.md), [Adding a Filter](../adding_a_filter.md)
 (the plugin-id convention), [Preferences](../preferences.md) (where user settings live).
 
-## Status
+## Outcome
 
-As of 2026-09-13: Phase 0 done (repo renamed to `cnr-isti-vclab/meshlab2`).
-All five phases done. Phases 1-4 committed (`f2542a0`, `75ca2cc`, `2712a6c`,
-`1bdf16c`); Phase 5 applied. The measurements below were taken on
-that date against the tracked tree.
+**Status: APPLIED** (2026-09-13). Phase 0 renamed the repository to
+`cnr-isti-vclab/meshlab2`; Phases 1-4 are committed (`f2542a0`, `75ca2cc`,
+`2712a6c`, `1bdf16c`) and Phase 5 followed. The measurements throughout this
+document were taken on that date against the then-current tree and are not
+re-checked.
+
+Verified 2026-09-16: no tracked file outside this record still contains
+`QMESHLAB_`, `QMESH_` or `qmeshlab`. The `QMeshLab` spelling survives in exactly
+three places, all deliberate — [history/filter_names.md](filter_names.md), which
+is a dated record like this one; the vendored `upstream/` trees, which stay
+pristine; and the `QMeshLab:` in-source patch markers documented by
+`plugins/filter_isoparam/UPSTREAM.md`, whose value is that they match the
+literal string in the vendored sources.
 
 ## "The rename" is six separate things
 
