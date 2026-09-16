@@ -2364,6 +2364,9 @@ void MainWindow::applyFilterVisualizationHints(const MeshFilterRunResult &result
             case MeshFilterVisualizationAttribute::VertexQuality:
                 view->showQualityVisualization(meshIndex, false);
                 break;
+            case MeshFilterVisualizationAttribute::EdgeColor:
+                view->showEdgeColorVisualization(meshIndex);
+                break;
             }
         }
     }

@@ -12,6 +12,8 @@
 
 #include <wrap/io_trimesh/io_mask.h>
 
+#include <cmath>
+
 // Smoke sweep: every SingleMesh filter, run with its default parameters, one row
 // per filter.  The contract is not "produces the right answer" -- that is what
 // the behavioural tests in test_filters.cpp are for -- it is the weaker but
@@ -45,14 +47,16 @@ enum class Fixture {
     Textured,      // + an associated texture image
     Selected,      // + every vertex and face selected
     Open,          // a bounded grid instead of a closed sphere, otherwise as Selected
-    Rasters        // a real photogrammetry project: scan mesh + four calibrated views
+    Rasters,       // a real photogrammetry project: scan mesh + four calibrated views
+    Polyline       // an edge mesh: vertices and edges, no faces
 };
 
-const std::array<Fixture, 7> &fixtureLadder()
+const std::array<Fixture, 8> &fixtureLadder()
 {
-    static const std::array<Fixture, 7> ladder = {
+    static const std::array<Fixture, 8> ladder = {
         Fixture::Bare, Fixture::Attributed, Fixture::Parametrized,
-        Fixture::Textured, Fixture::Selected, Fixture::Open, Fixture::Rasters
+        Fixture::Textured, Fixture::Selected, Fixture::Open, Fixture::Rasters,
+        Fixture::Polyline
     };
     return ladder;
 }
@@ -67,6 +71,7 @@ QString fixtureName(Fixture f)
     case Fixture::Selected:     return QStringLiteral("selected");
     case Fixture::Open:         return QStringLiteral("open");
     case Fixture::Rasters:      return QStringLiteral("rasters");
+    case Fixture::Polyline:     return QStringLiteral("polyline");
     }
     return QStringLiteral("?");
 }
@@ -74,6 +79,13 @@ QString fixtureName(Fixture f)
 int ioMaskFor(Fixture f)
 {
     using vcg::tri::io::Mask;
+    // Not a rung of the ladder but a different shape of mesh, so it declares its own
+    // set rather than extending the surface one: no faces, but real edges carrying
+    // colour of their own.
+    if (f == Fixture::Polyline) {
+        return Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_VERTCOLOR
+             | Mask::IOM_VERTQUALITY | Mask::IOM_EDGEINDEX | Mask::IOM_EDGECOLOR;
+    }
     int mask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL
              | Mask::IOM_FACEINDEX | Mask::IOM_FACENORMAL;
     if (f == Fixture::Bare)
@@ -94,6 +106,35 @@ void decorateFixtureMesh(VCGMesh &mesh, Fixture f);
 void buildFixtureMesh(VCGMesh &mesh, Fixture f)
 {
     mesh.Clear();
+    if (f == Fixture::Polyline) {
+        // Two disjoint chains, because a single one cannot tell a filter that walks
+        // connected components from one that just iterates edges. The helix keeps
+        // every edge a different length and direction, so length- and
+        // direction-based expressions produce a range rather than one value.
+        constexpr int kPerChain = 12;
+        for (int chain = 0; chain < 2; ++chain) {
+            const int base = int(mesh.vert.size());
+            vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, kPerChain);
+            for (int i = 0; i < kPerChain; ++i) {
+                const float t = float(i) / float(kPerChain - 1);
+                const float angle = t * 3.0f * float(M_PI) + float(chain);
+                mesh.vert[std::size_t(base + i)].P() = vcg::Point3f(
+                    std::cos(angle) * (0.4f + 0.6f * t),
+                    std::sin(angle) * (0.4f + 0.6f * t),
+                    -1.0f + 2.0f * t + 0.3f * float(chain));
+            }
+            vcg::tri::Allocator<VCGMesh>::AddEdges(mesh, kPerChain - 1);
+            for (int i = 0; i < kPerChain - 1; ++i) {
+                auto &e = mesh.edge[std::size_t(mesh.edge.size()) - std::size_t(kPerChain - 1 - i)];
+                e.V(0) = &mesh.vert[std::size_t(base + i)];
+                e.V(1) = &mesh.vert[std::size_t(base + i + 1)];
+                e.C() = vcg::Color4b(40 + 15 * i, 90, 200 - 10 * i, 255);
+                e.Q() = float(i) / float(kPerChain - 2);
+            }
+        }
+        decorateFixtureMesh(mesh, f);
+        return;
+    }
     if (f == Fixture::Open) {
         vcg::tri::Grid<VCGMesh>(mesh, 12, 12, 2.0f, 2.0f);
         // Domed rather than flat. A perfectly coplanar patch is a degenerate input
@@ -170,6 +211,9 @@ void decorateFixtureMesh(VCGMesh &mesh, Fixture f)
     if (f >= Fixture::Selected) {
         vcg::tri::UpdateSelection<VCGMesh>::VertexAll(mesh);
         vcg::tri::UpdateSelection<VCGMesh>::FaceAll(mesh);
+        // Edge elements carry their own selection bit, so the "only on selection"
+        // path of the edge filters is unreachable without this.
+        vcg::tri::UpdateSelection<VCGMesh>::EdgeAll(mesh);
         // Per-face edge selection is a separate set of bits from face selection, and
         // the filters that read it (polyline extraction, crease handling) see nothing
         // if only faces are selected.
@@ -180,6 +224,7 @@ void decorateFixtureMesh(VCGMesh &mesh, Fixture f)
     } else {
         vcg::tri::UpdateSelection<VCGMesh>::VertexClear(mesh);
         vcg::tri::UpdateSelection<VCGMesh>::FaceClear(mesh);
+        vcg::tri::UpdateSelection<VCGMesh>::EdgeClear(mesh);
     }
 }
 
@@ -269,7 +314,6 @@ const QHash<QString, QString> &expectedRefusals()
     static const QHash<QString, QString> table = {
 
         // Needs a mesh shape the ladder does not build.
-        {QStringLiteral("create_tube_from_polyline_trueform"),             QStringLiteral("needs an edge mesh")},
         {QStringLiteral("create_polyline_from_self_intersections_trueform"), QStringLiteral("needs a self-intersecting mesh")},
 
         // Needs a value no default can supply: a formula, a name, a viewport.

@@ -250,15 +250,18 @@ void registerFooFilterPlugin(MeshFilterPluginManager &pm);
   compaction, and cache invalidation off it. The codes, as the UI spells them
   out (`FilterPresentation::modifiedDataLabels`):
 
-  | | vertex | face |
-  | --- | --- | --- |
-  | geometry / connectivity | `VG` | `FV` |
-  | normals | `VN` | `FN` |
-  | color | `VC` | `FC` |
-  | scalar (quality) | `VQ` | `FQ` |
-  | texcoords | `VT` | `WT` (per wedge) |
-  | named attributes | `VA` | `FA` |
-  | selection | `VS` | `FS` |
+  | | vertex | face | edge |
+  | --- | --- | --- | --- |
+  | geometry / connectivity | `VG` | `FV` | — |
+  | normals | `VN` | `FN` | — |
+  | color | `VC` | `FC` | `EC` |
+  | scalar (quality) | `VQ` | `FQ` | `EQ` |
+  | texcoords | `VT` | `WT` (per wedge) | — |
+  | named attributes | `VA` | `FA` | — |
+  | selection | `VS` | `FS` | `ES` |
+
+  The edge codes refer to the real `VCGEdge` elements of a polyline layer, not to
+  the sides of triangles — see [Edge Support](proposals/edge_support.md).
 
   plus `FP` (face polygon bits), `TX` (texture images) and `TM` (per-mesh
   transform).

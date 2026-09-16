@@ -32,9 +32,16 @@ class VCGVertex : public vcg::Vertex<VCGUsedTypes,
     vcg::vertex::VFAdjOcf,
     vcg::vertex::MarkOcf> {};
 
+// Polyline elements. Unlike a triangle mesh -- whose edges exist only as sides of
+// faces and can carry nothing but a few bits -- these are real elements, so colour
+// and quality are stored here. Both are always allocated: an edge mesh has orders
+// of magnitude fewer edges than a mesh has faces, so 8 bytes each is not worth an
+// OCF vector. `ioMask & IOM_EDGECOLOR` is what says the colour is *meaningful*;
+// quality has no such bit because no format carries it.
 class VCGEdge : public vcg::Edge<VCGUsedTypes,
     vcg::edge::VertexRef,
     vcg::edge::Color4b,
+    vcg::edge::Qualityf,
     vcg::edge::BitFlags> {};
 
 // Fixed (always allocated): VertexRef, Normal, Color, Quality, BitFlags

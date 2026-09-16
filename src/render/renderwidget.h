@@ -106,6 +106,7 @@ public:
     void toggleHelpOverlayVisible() { setHelpOverlayVisible(!m_helpOverlayVisible); }
     void showQualityVisualization(int meshIndex, bool faceQuality);
     void showTextureVisualization(int meshIndex);
+    void showEdgeColorVisualization(int meshIndex);
 
     ViewState captureViewState() const;
     void restoreViewState(const ViewState &vs, bool restoreCamera = true);

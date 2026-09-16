@@ -309,7 +309,11 @@ enum class MeshFilterVisualizationAttribute
 {
     VertexQuality,
     FaceQuality,
-    Texture
+    Texture,
+    // Per-edge colour on a polyline layer. Needed because the automatic choice in
+    // defaultRenderModeForMesh only runs for newly created layers -- a filter that
+    // colours the edges of an existing one would otherwise change nothing on screen.
+    EdgeColor
 };
 
 struct MeshFilterVisualizationHint

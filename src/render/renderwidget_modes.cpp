@@ -347,6 +347,33 @@ void RenderWidget::showQualityVisualization(int meshIndex, bool faceQuality)
     update();
 }
 
+// Turn on the edge pass and read the colour from the edges themselves. Mirrors
+// showQualityVisualization, and like it does nothing when the mesh has no such data,
+// so a filter can hint unconditionally.
+void RenderWidget::showEdgeColorVisualization(int meshIndex)
+{
+    if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())
+        return;
+
+    const auto &entry = m_doc->mesh(meshIndex);
+    if (entry.mesh.EN() <= 0
+        || (entry.ioMask & vcg::tri::io::Mask::IOM_EDGECOLOR) == 0)
+        return;
+
+    MeshRenderMode *mode = mutableRenderModeForMesh(meshIndex);
+    if (!mode)
+        return;
+
+    mode->showEdges = true;
+    mode->edgeColorSource = EdgeColorSource::PerEdge;
+
+    if (meshIndex == m_doc->currentMeshIndex()) {
+        refreshColorSourceAvailability();
+        syncOverlaySettingsToCurrentMesh();
+    }
+    update();
+}
+
 void RenderWidget::showTextureVisualization(int meshIndex)
 {
     if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())

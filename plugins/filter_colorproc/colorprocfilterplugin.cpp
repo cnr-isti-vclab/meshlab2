@@ -52,6 +52,7 @@ constexpr QLatin1StringView kFilterClampQuality("clamp_vertex_scalar");
 constexpr QLatin1StringView kFilterSaturateQuality("clamp_vertex_scalar_gradient");
 constexpr QLatin1StringView kFilterMapVQuality("colorize_vertices_by_scalar");
 constexpr QLatin1StringView kFilterMapFQuality("colorize_faces_by_scalar");
+constexpr QLatin1StringView kFilterMapEQuality("colorize_edges_by_scalar");
 constexpr QLatin1StringView kFilterDiscreteCurvature("compute_curvature_discrete");
 constexpr QLatin1StringView kFilterGeometricQuality("compute_face_scalar_from_geometry");
 constexpr QLatin1StringView kFilterTextureDistortion("compute_uv_distortion");
@@ -228,6 +229,11 @@ void ensureVertexColor(Document::MeshEntry &entry)
 void ensureFaceColor(Document::MeshEntry &entry)
 {
     entry.ioMask |= Mask::IOM_FACECOLOR;
+}
+
+void ensureEdgeColor(Document::MeshEntry &entry)
+{
+    entry.ioMask |= Mask::IOM_EDGECOLOR;
 }
 
 void ensureVertexQuality(Document::MeshEntry &entry)
@@ -570,6 +576,38 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         ensureVertexQuality(entry);
         markGeometry(doc, meshIndex, QObject::tr("Clamped vertex quality of '%1'").arg(meshLabel(entry, meshIndex)));
         return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::VertexQuality);
+    }
+
+    if (filterId == QString::fromLatin1(kFilterMapEQuality)) {
+        // VCGLib has ComputePerEdgeQualityMinMax but no per-edge histogram, so the
+        // percentile crop the vertex and face versions offer has nothing to stand on.
+        // A custom range covers the case it was mostly used for -- making two layers
+        // comparable -- without pretending to a statistic we cannot compute.
+        const auto minmax = vcg::tri::Stat<VCGMesh>::ComputePerEdgeQualityMinMax(mesh);
+        Scalar rangeMin = minmax.first;
+        Scalar rangeMax = minmax.second;
+        if (params.getBool(QStringLiteral("useCustomRange"), false)) {
+            rangeMin = Scalar(params.getDouble(QStringLiteral("minVal"), 0.0));
+            rangeMax = Scalar(params.getDouble(QStringLiteral("maxVal"), 1.0));
+        }
+        if (params.getBool(QStringLiteral("zeroSym"), false)) {
+            rangeMin = std::min(rangeMin, -vcg::math::Abs(rangeMax));
+            rangeMax = std::max(vcg::math::Abs(rangeMin), rangeMax);
+        }
+        if (!(rangeMax > rangeMin)) {
+            return fail(QObject::tr(
+                "Every edge has the same scalar (%1), so there is no range to map. "
+                "Write varying values with Compute Edge Scalar by Expression first.")
+                    .arg(rangeMin));
+        }
+        const vcg::ColorMap cmap = colorMapFromId(params.getEnum(QStringLiteral("colorMap"), QStringLiteral("rgb")));
+        vcg::tri::UpdateColor<VCGMesh>::PerEdgeQualityRamp(mesh, rangeMin, rangeMax, false, cmap);
+        ensureEdgeColor(entry);
+        markGeometry(doc, meshIndex, QObject::tr("Mapped edge scalar into color on '%1'").arg(meshLabel(entry, meshIndex)));
+        return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::EdgeColor, {
+            QObject::tr("Mapped scalar range %1 .. %2 onto %3 edges.")
+                .arg(rangeMin).arg(rangeMax).arg(mesh.EN())
+        });
     }
 
     if (filterId == QString::fromLatin1(kFilterMapFQuality)) {

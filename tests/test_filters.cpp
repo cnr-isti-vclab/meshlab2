@@ -435,6 +435,7 @@ private slots:
     void abstractDomainMeasureReportsItsStructureAndCatchesABrokenOne();
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
     void createdCylinderHonoursRadiusHeightAndAxis();
+    void edgeExpressionsSelectColorAndScaleAPolyline();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToConnectedComponents();
     void islandMergeCanTakeItsIslandsFromTheSelection();
@@ -6243,6 +6244,127 @@ void FilterTests::islandMergeCanTakeItsIslandsFromTheSelection()
 // pan/zoom/aspect, so which faces the rectangle hits is exact rather than inferred from a
 // camera. Three triangles form one component, a fourth stands alone, and the rectangle is
 // aimed at a single triangle of the first.
+// The stage-1 edge pipeline end to end: select some edges, colour by an expression
+// that reads both endpoints and a derived quantity, then write a scalar and ramp it
+// into colour. Built on a polyline whose edges have deliberately different lengths,
+// because every interesting edge expression is a function of length or direction.
+void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()
+{
+    Document doc;
+
+    // A chain of four edges with lengths 1, 2, 3, 4 along +X.
+    VCGMesh polyline;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(polyline, 5);
+    float x = 0.0f;
+    for (int i = 0; i < 5; ++i) {
+        polyline.vert[std::size_t(i)].P() = vcg::Point3f(x, 0.0f, 0.0f);
+        polyline.vert[std::size_t(i)].C() = vcg::Color4b(10 * i, 0, 0, 255);
+        polyline.vert[std::size_t(i)].Q() = float(i);
+        x += float(i + 1);
+    }
+    vcg::tri::Allocator<VCGMesh>::AddEdges(polyline, 4);
+    for (int i = 0; i < 4; ++i) {
+        polyline.edge[std::size_t(i)].V(0) = &polyline.vert[std::size_t(i)];
+        polyline.edge[std::size_t(i)].V(1) = &polyline.vert[std::size_t(i + 1)];
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(polyline);
+    const int index = doc.addMesh(polyline, QStringLiteral("chain"),
+                                  vcg::tri::io::Mask::IOM_EDGEINDEX);
+    QVERIFY(index >= 0);
+    doc.setCurrentMeshIndex(index);
+
+    // Returns void so the QVERIFY macros -- which expand to a bare `return` -- can be
+    // used inside it.
+    const auto runWith = [&](const QString &id, const MeshFilterParameterValues &params) {
+        const QString key = filterKeyForId(doc, id);
+        QVERIFY2(!key.isEmpty(), qPrintable(id));
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+    };
+
+    // 1. Selection. Edges 2 and 3 are the ones longer than 2.5.
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("condSelect"), QStringLiteral("elen > 2.5"));
+        runWith(QStringLiteral("select_edges_by_expression"), p);
+    }
+    const VCGMesh &m = doc.mesh(index).mesh;
+    QCOMPARE(int(vcg::tri::UpdateSelection<VCGMesh>::EdgeCount(m)), 2);
+    QVERIFY(!m.edge[0].IsS());
+    QVERIFY(!m.edge[1].IsS());
+    QVERIFY(m.edge[2].IsS());
+    QVERIFY(m.edge[3].IsS());
+
+    // 2. Colour from an expression reading an endpoint, a derived value and the index.
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("r"), QStringLiteral("elen * 10"));
+        p.insert(QStringLiteral("g"), QStringLiteral("r0"));      // endpoint colour
+        p.insert(QStringLiteral("b"), QStringLiteral("ei * 3"));
+        p.insert(QStringLiteral("a"), QStringLiteral("255"));
+        p.insert(QStringLiteral("onselected"), false);
+        runWith(QStringLiteral("compute_edge_color_by_expression"), p);
+    }
+    for (int i = 0; i < 4; ++i) {
+        const vcg::Color4b c = doc.mesh(index).mesh.edge[std::size_t(i)].cC();
+        QCOMPARE(int(c[0]), (i + 1) * 10);   // elen * 10
+        QCOMPARE(int(c[1]), i * 10);         // the first endpoint's red
+        QCOMPARE(int(c[2]), i * 3);          // edge index
+    }
+    QVERIFY(doc.mesh(index).ioMask & vcg::tri::io::Mask::IOM_EDGECOLOR);
+
+    // 3. Only-on-selection must leave the unselected edges alone.
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("r"), QStringLiteral("7"));
+        p.insert(QStringLiteral("g"), QStringLiteral("7"));
+        p.insert(QStringLiteral("b"), QStringLiteral("7"));
+        p.insert(QStringLiteral("a"), QStringLiteral("255"));
+        p.insert(QStringLiteral("onselected"), true);
+        runWith(QStringLiteral("compute_edge_color_by_expression"), p);
+    }
+    QCOMPARE(int(doc.mesh(index).mesh.edge[0].cC()[0]), 10);   // untouched
+    QCOMPARE(int(doc.mesh(index).mesh.edge[2].cC()[0]), 7);    // rewritten
+    QCOMPARE(int(doc.mesh(index).mesh.edge[3].cC()[0]), 7);
+
+    // 4. Scalar, then the colour ramp over its range. The shortest edge lands at one
+    // end of the map and the longest at the other; what matters is that they differ
+    // and that the ramp used the real range rather than a degenerate one.
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("q"), QStringLiteral("elen"));
+        p.insert(QStringLiteral("normalize"), false);
+        p.insert(QStringLiteral("map"), false);
+        p.insert(QStringLiteral("onselected"), false);
+        runWith(QStringLiteral("compute_edge_scalar_by_expression"), p);
+    }
+    for (int i = 0; i < 4; ++i)
+        QCOMPARE(doc.mesh(index).mesh.edge[std::size_t(i)].cQ(), float(i + 1));
+
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("useCustomRange"), false);
+        p.insert(QStringLiteral("zeroSym"), false);
+        p.insert(QStringLiteral("colorMap"), QStringLiteral("rgb"));
+        runWith(QStringLiteral("colorize_edges_by_scalar"), p);
+    }
+    const vcg::Color4b lo = doc.mesh(index).mesh.edge[0].cC();
+    const vcg::Color4b hi = doc.mesh(index).mesh.edge[3].cC();
+    QVERIFY2(lo != hi, "the shortest and longest edge got the same ramp color");
+
+    // 5. Normalizing rescales into [0, 1] whatever the input range was.
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("q"), QStringLiteral("elen * 100 + 5"));
+        p.insert(QStringLiteral("normalize"), true);
+        p.insert(QStringLiteral("map"), false);
+        p.insert(QStringLiteral("onselected"), false);
+        runWith(QStringLiteral("compute_edge_scalar_by_expression"), p);
+    }
+    QCOMPARE(doc.mesh(index).mesh.edge[0].cQ(), 0.0f);
+    QCOMPARE(doc.mesh(index).mesh.edge[3].cQ(), 1.0f);
+}
+
 void FilterTests::createdCylinderHonoursRadiusHeightAndAxis()
 {
     // The three things a caller can get wrong independently: the radius (distance from

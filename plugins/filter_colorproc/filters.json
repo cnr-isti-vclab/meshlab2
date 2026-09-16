@@ -336,6 +336,75 @@
       "outputModifies": ["VC"]
     },
     {
+      "id": "colorize_edges_by_scalar",
+      "categories": ["Attribute/Color", "Attribute/Scalar"],
+      "name": "Colorize Edges by Scalar",
+      "pythonName": "colorize_edges_by_scalar",
+      "shortDescription": "Map the per-edge scalar of a polyline into per-edge colors.",
+      "longDescriptionMarkdown": "Color the **real edges of a polyline layer** according to their scalar, the way *Colorize Vertices by Scalar* does for vertices. Write the scalar first with *Compute Edge Scalar by Expression*.\n\nBy default the full range of values present is mapped onto the color map; tick *Use Custom Range* to pin the ends instead, which is what makes two polylines directly comparable. Unlike the vertex and face versions there is no percentile crop, because VCGLib provides no per-edge quality histogram.\n\nSet the edge color source to *Per-Edge* in the render panel to see the result.",
+      "tags": ["quality", "scalar", "edge", "polyline", "color"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireEdges": true
+      },
+      "parameters": [
+        {
+          "id": "useCustomRange",
+          "label": "Use Custom Range",
+          "help": "Map the range below instead of the smallest and largest values actually present.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "minVal",
+          "label": "Min",
+          "help": "The value mapped to the lower end of the scale.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "decimals": 6,
+          "enabledWhen": "useCustomRange"
+        },
+        {
+          "id": "maxVal",
+          "label": "Max",
+          "help": "The value mapped to the upper end of the scale.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "decimals": 6,
+          "enabledWhen": "useCustomRange"
+        },
+        {
+          "id": "zeroSym",
+          "label": "Zero Symmetric",
+          "help": "If true the min/max range is enlarged to be symmetric around zero.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "colorMap",
+          "label": "Color Map",
+          "help": "The color map to use. RGB is the VCGLib default, other colormaps are sampled from Matplotlib.",
+          "group": "advanced",
+          "type": "enum",
+          "default": "rgb",
+          "enumOptions": [
+            { "id": "rgb", "label": "RGB" },
+            { "id": "viridis", "label": "Viridis" },
+            { "id": "plasma", "label": "Plasma" },
+            { "id": "cividis", "label": "Cividis" },
+            { "id": "turbo", "label": "Turbo" },
+            { "id": "rdpu", "label": "RdPu" }
+          ]
+        }
+      ],
+      "outputModifies": ["EC"]
+    },
+    {
       "id": "colorize_faces_by_scalar",
       "categories": ["Attribute/Color", "Attribute/Scalar"],
       "name": "Colorize Faces by Scalar",

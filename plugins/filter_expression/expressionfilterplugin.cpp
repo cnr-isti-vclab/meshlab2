@@ -30,6 +30,9 @@
 namespace {
 constexpr QLatin1StringView kFilterVertSelection("select_vertices_by_expression");
 constexpr QLatin1StringView kFilterFaceSelection("select_faces_by_expression");
+constexpr QLatin1StringView kFilterEdgeSelection("select_edges_by_expression");
+constexpr QLatin1StringView kFilterEdgeColor("compute_edge_color_by_expression");
+constexpr QLatin1StringView kFilterEdgeQuality("compute_edge_scalar_by_expression");
 constexpr QLatin1StringView kFilterGeomFunc("compute_vertex_coordinates_by_expression");
 constexpr QLatin1StringView kFilterFaceColor("compute_face_color_by_expression");
 constexpr QLatin1StringView kFilterFaceQuality("compute_face_scalar_by_expression");
@@ -291,6 +294,25 @@ struct ParserRuntime
     double vsel1 = 0.0;
     double vsel2 = 0.0;
     double ti = 0.0;
+
+    // Edge context. The two endpoints reuse the face context's corner slots
+    // (x0..z1, nx0..nz1, r0..a1, q0/q1, vi0/vi1, vsel0/vsel1) because a parser is
+    // only ever configured for one element kind, so there is nothing to collide
+    // with. Only the edge's own data and the derived conveniences are new.
+    double er = 255.0;
+    double eg = 255.0;
+    double eb = 255.0;
+    double ea = 255.0;
+    double eq = 0.0;
+    double ei = 0.0;
+    double esel = 0.0;
+    double elen = 0.0;
+    double emx = 0.0;
+    double emy = 0.0;
+    double emz = 0.0;
+    double edx = 0.0;
+    double edy = 0.0;
+    double edz = 0.0;
 
     double xmin = 0.0;
     double ymin = 0.0;
@@ -555,6 +577,58 @@ void setPerFaceVariables(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &me
     bindFaceCustomAttributes(parser, runtime, mesh);
 }
 
+// An edge's endpoints are exposed with the same names the face context gives its
+// first two corners, so an expression written against one reads the same way in the
+// other. What edges add is their own colour and scalar, plus length, midpoint and
+// direction -- all derivable from the endpoints, but they are what anyone actually
+// reaches for on a polyline.
+void setPerEdgeVariables(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &mesh)
+{
+    (void)mesh;
+    parser.DefineVar("x0", &runtime.x0);
+    parser.DefineVar("y0", &runtime.y0);
+    parser.DefineVar("z0", &runtime.z0);
+    parser.DefineVar("x1", &runtime.x1);
+    parser.DefineVar("y1", &runtime.y1);
+    parser.DefineVar("z1", &runtime.z1);
+    parser.DefineVar("nx0", &runtime.nx0);
+    parser.DefineVar("ny0", &runtime.ny0);
+    parser.DefineVar("nz0", &runtime.nz0);
+    parser.DefineVar("nx1", &runtime.nx1);
+    parser.DefineVar("ny1", &runtime.ny1);
+    parser.DefineVar("nz1", &runtime.nz1);
+    parser.DefineVar("r0", &runtime.r0);
+    parser.DefineVar("g0", &runtime.g0);
+    parser.DefineVar("b0", &runtime.b0);
+    parser.DefineVar("a0", &runtime.a0);
+    parser.DefineVar("r1", &runtime.r1);
+    parser.DefineVar("g1", &runtime.g1);
+    parser.DefineVar("b1", &runtime.b1);
+    parser.DefineVar("a1", &runtime.a1);
+    parser.DefineVar("q0", &runtime.q0);
+    parser.DefineVar("q1", &runtime.q1);
+    parser.DefineVar("vi0", &runtime.vi0);
+    parser.DefineVar("vi1", &runtime.vi1);
+    parser.DefineVar("vsel0", &runtime.vsel0);
+    parser.DefineVar("vsel1", &runtime.vsel1);
+    parser.DefineVar("er", &runtime.er);
+    parser.DefineVar("eg", &runtime.eg);
+    parser.DefineVar("eb", &runtime.eb);
+    parser.DefineVar("ea", &runtime.ea);
+    parser.DefineVar("eq", &runtime.eq);
+    parser.DefineVar("ei", &runtime.ei);
+    parser.DefineVar("esel", &runtime.esel);
+    parser.DefineVar("elen", &runtime.elen);
+    parser.DefineVar("emx", &runtime.emx);
+    parser.DefineVar("emy", &runtime.emy);
+    parser.DefineVar("emz", &runtime.emz);
+    parser.DefineVar("edx", &runtime.edx);
+    parser.DefineVar("edy", &runtime.edy);
+    parser.DefineVar("edz", &runtime.edz);
+    defineCommonBBoxVars(parser, runtime);
+    meshlab::filters::defineParserCustomFunctions(parser);
+}
+
 void setVertexRuntime(
     ParserRuntime &runtime,
     VCGMesh::VertexIterator vi,
@@ -678,6 +752,74 @@ void setFaceRuntime(
         runtime.fPointValues[i * 3 + 1] = p.Y();
         runtime.fPointValues[i * 3 + 2] = p.Z();
     }
+}
+
+void setEdgeRuntime(
+    ParserRuntime &runtime,
+    VCGMesh::EdgeIterator ei,
+    VCGMesh &mesh)
+{
+    const VCGVertex *v0 = ei->cV(0);
+    const VCGVertex *v1 = ei->cV(1);
+    const vcg::Point3f p0 = v0 ? v0->cP() : vcg::Point3f(0.0f, 0.0f, 0.0f);
+    const vcg::Point3f p1 = v1 ? v1->cP() : vcg::Point3f(0.0f, 0.0f, 0.0f);
+
+    runtime.x0 = p0[0];
+    runtime.y0 = p0[1];
+    runtime.z0 = p0[2];
+    runtime.x1 = p1[0];
+    runtime.y1 = p1[1];
+    runtime.z1 = p1[2];
+    runtime.nx0 = v0 ? v0->cN()[0] : 0.0;
+    runtime.ny0 = v0 ? v0->cN()[1] : 0.0;
+    runtime.nz0 = v0 ? v0->cN()[2] : 0.0;
+    runtime.nx1 = v1 ? v1->cN()[0] : 0.0;
+    runtime.ny1 = v1 ? v1->cN()[1] : 0.0;
+    runtime.nz1 = v1 ? v1->cN()[2] : 0.0;
+    runtime.r0 = v0 ? v0->cC()[0] : 255.0;
+    runtime.g0 = v0 ? v0->cC()[1] : 255.0;
+    runtime.b0 = v0 ? v0->cC()[2] : 255.0;
+    runtime.a0 = v0 ? v0->cC()[3] : 255.0;
+    runtime.r1 = v1 ? v1->cC()[0] : 255.0;
+    runtime.g1 = v1 ? v1->cC()[1] : 255.0;
+    runtime.b1 = v1 ? v1->cC()[2] : 255.0;
+    runtime.a1 = v1 ? v1->cC()[3] : 255.0;
+    runtime.q0 = v0 ? v0->cQ() : 0.0;
+    runtime.q1 = v1 ? v1->cQ() : 0.0;
+    runtime.vi0 = v0 ? double(vcg::tri::Index(mesh, v0)) : -1.0;
+    runtime.vi1 = v1 ? double(vcg::tri::Index(mesh, v1)) : -1.0;
+    runtime.vsel0 = (v0 && v0->IsS()) ? 1.0 : 0.0;
+    runtime.vsel1 = (v1 && v1->IsS()) ? 1.0 : 0.0;
+
+    runtime.er = ei->cC()[0];
+    runtime.eg = ei->cC()[1];
+    runtime.eb = ei->cC()[2];
+    runtime.ea = ei->cC()[3];
+    runtime.eq = ei->cQ();
+    runtime.ei = double(ei - mesh.edge.begin());
+    runtime.esel = ei->IsS() ? 1.0 : 0.0;
+
+    const vcg::Point3f delta = p1 - p0;
+    const double len = double(delta.Norm());
+    runtime.elen = len;
+    runtime.emx = 0.5 * (double(p0[0]) + double(p1[0]));
+    runtime.emy = 0.5 * (double(p0[1]) + double(p1[1]));
+    runtime.emz = 0.5 * (double(p0[2]) + double(p1[2]));
+    // A zero-length edge has no direction; report the zero vector rather than a NaN,
+    // so an expression using edx still evaluates instead of poisoning the whole run.
+    const double inv = len > 0.0 ? 1.0 / len : 0.0;
+    runtime.edx = double(delta[0]) * inv;
+    runtime.edy = double(delta[1]) * inv;
+    runtime.edz = double(delta[2]) * inv;
+}
+
+bool ensureEdgeSelectionReady(VCGMesh &mesh, QString &error)
+{
+    if (vcg::tri::UpdateSelection<VCGMesh>::EdgeCount(mesh) == 0) {
+        error = QObject::tr("Cannot apply only on selection: there is no edge selection.");
+        return false;
+    }
+    return true;
 }
 
 bool ensureVertexSelectionReady(VCGMesh &mesh, QString &error)
@@ -903,6 +1045,171 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
     vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
     ParserRuntime runtime;
     setBBoxRuntime(runtime, mesh);
+
+    if (filterId == QString::fromLatin1(kFilterEdgeSelection)) {
+        const QString expr = params.getString(QStringLiteral("condSelect"));
+        mu::Parser parser;
+        setPerEdgeVariables(parser, runtime, mesh);
+        try {
+            parser.SetExpr(expr.toStdString());
+        } catch (mu::Parser::exception_type &e) {
+            return fail(parserErrorString(e));
+        }
+
+        int selectedCount = 0;
+        int totalCount = 0;
+        for (auto ei = mesh.edge.begin(); ei != mesh.edge.end(); ++ei) {
+            if (ei->IsD())
+                continue;
+            ++totalCount;
+            setEdgeRuntime(runtime, ei, mesh);
+            bool selected = false;
+            try {
+                selected = (parser.Eval() != 0.0);
+            } catch (mu::Parser::exception_type &e) {
+                return fail(parserErrorString(e));
+            }
+            if (selected) {
+                ei->SetS();
+                ++selectedCount;
+            } else {
+                ei->ClearS();
+            }
+        }
+        doc.markMeshSelectionChanged(
+            meshIndex,
+            QObject::tr("Conditional edge selection on '%1': selected %2 / %3 edges.")
+                .arg(entry.name)
+                .arg(selectedCount)
+                .arg(totalCount));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages = {
+            QObject::tr("Selected %1 / %2 edges.").arg(selectedCount).arg(totalCount)
+        };
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterEdgeColor)) {
+        const QString exprR = params.getString(QStringLiteral("r"));
+        const QString exprG = params.getString(QStringLiteral("g"));
+        const QString exprB = params.getString(QStringLiteral("b"));
+        const QString exprA = params.getString(QStringLiteral("a"));
+        const bool onSelected = params.getBool(QStringLiteral("onselected"));
+        if (onSelected && !ensureEdgeSelectionReady(mesh, meshError))
+            return fail(meshError);
+
+        mu::Parser pr;
+        mu::Parser pg;
+        mu::Parser pb;
+        mu::Parser pa;
+        setPerEdgeVariables(pr, runtime, mesh);
+        setPerEdgeVariables(pg, runtime, mesh);
+        setPerEdgeVariables(pb, runtime, mesh);
+        setPerEdgeVariables(pa, runtime, mesh);
+        try {
+            pr.SetExpr(exprR.toStdString());
+            pg.SetExpr(exprG.toStdString());
+            pb.SetExpr(exprB.toStdString());
+            pa.SetExpr(exprA.toStdString());
+        } catch (mu::Parser::exception_type &e) {
+            return fail(parserErrorString(e));
+        }
+
+        int processed = 0;
+        for (auto ei = mesh.edge.begin(); ei != mesh.edge.end(); ++ei) {
+            if (ei->IsD())
+                continue;
+            if (onSelected && !ei->IsS())
+                continue;
+            setEdgeRuntime(runtime, ei, mesh);
+            try {
+                ei->C() = vcg::Color4b(
+                    clampToByte(pr.Eval()),
+                    clampToByte(pg.Eval()),
+                    clampToByte(pb.Eval()),
+                    clampToByte(pa.Eval()));
+            } catch (mu::Parser::exception_type &e) {
+                return fail(parserErrorString(e));
+            }
+            ++processed;
+        }
+        entry.ioMask |= Mask::IOM_EDGECOLOR;
+        doc.markMeshGeometryChanged(
+            meshIndex,
+            QObject::tr("Applied per-edge color function to '%1'.").arg(entry.name));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages = { QObject::tr("Processed %1 edges.").arg(processed) };
+        result.visualizationHints.push_back({
+            meshIndex,
+            MeshFilterVisualizationAttribute::EdgeColor
+        });
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterEdgeQuality)) {
+        const QString exprQ = params.getString(QStringLiteral("q"));
+        const bool normalize = params.getBool(QStringLiteral("normalize"));
+        const bool mapToColor = params.getBool(QStringLiteral("map"));
+        const bool onSelected = params.getBool(QStringLiteral("onselected"));
+        if (onSelected && !ensureEdgeSelectionReady(mesh, meshError))
+            return fail(meshError);
+
+        mu::Parser parser;
+        setPerEdgeVariables(parser, runtime, mesh);
+        try {
+            parser.SetExpr(exprQ.toStdString());
+        } catch (mu::Parser::exception_type &e) {
+            return fail(parserErrorString(e));
+        }
+
+        int processed = 0;
+        for (auto ei = mesh.edge.begin(); ei != mesh.edge.end(); ++ei) {
+            if (ei->IsD())
+                continue;
+            if (onSelected && !ei->IsS())
+                continue;
+            setEdgeRuntime(runtime, ei, mesh);
+            try {
+                ei->Q() = float(parser.Eval());
+            } catch (mu::Parser::exception_type &e) {
+                return fail(parserErrorString(e));
+            }
+            ++processed;
+        }
+
+        // vcglib has no EdgeNormalize, and the one-liner is clearer than adding one.
+        if (normalize) {
+            const auto minmax = vcg::tri::Stat<VCGMesh>::ComputePerEdgeQualityMinMax(mesh);
+            const float span = minmax.second - minmax.first;
+            for (auto ei = mesh.edge.begin(); ei != mesh.edge.end(); ++ei) {
+                if (ei->IsD())
+                    continue;
+                ei->Q() = span > 0.0f ? (ei->Q() - minmax.first) / span : 0.0f;
+            }
+        }
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages = { QObject::tr("Processed %1 edges.").arg(processed) };
+        if (mapToColor) {
+            vcg::tri::UpdateColor<VCGMesh>::PerEdgeQualityRamp(mesh);
+            entry.ioMask |= Mask::IOM_EDGECOLOR;
+            result.visualizationHints.push_back({
+                meshIndex,
+                MeshFilterVisualizationAttribute::EdgeColor
+            });
+        }
+        doc.markMeshGeometryChanged(
+            meshIndex,
+            QObject::tr("Applied per-edge scalar function to '%1'.").arg(entry.name));
+        return result;
+    }
 
     if (filterId == QString::fromLatin1(kFilterVertSelection)) {
         const QString expr = params.getString(QStringLiteral("condSelect"));

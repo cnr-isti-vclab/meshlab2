@@ -41,7 +41,9 @@ const QSet<QString> &outputModifyCodes()
         QStringLiteral("VS"), QStringLiteral("FV"), QStringLiteral("FN"),
         QStringLiteral("FC"), QStringLiteral("FQ"), QStringLiteral("FA"),
         QStringLiteral("FS"), QStringLiteral("FP"), QStringLiteral("WT"),
-        QStringLiteral("TX"), QStringLiteral("TM")
+        QStringLiteral("TX"), QStringLiteral("TM"),
+        // Polyline edge elements, not the sides of triangles.
+        QStringLiteral("EC"), QStringLiteral("EQ"), QStringLiteral("ES")
     };
     return codes;
 }

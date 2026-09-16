@@ -12,9 +12,26 @@ See also: [Data Model](../data_model.md) (layers, `VCGMesh`, revisions),
 
 ## Status
 
-As of 2026-09-16: per-edge colour works end to end — storage on `VCGEdge`, PLY
-read/write, three render colour sources, undo and duplication. Nothing else
-below is implemented or scheduled.
+As of 2026-09-16, **stage 1 of the staging below is implemented**: per-edge
+colour and scalar storage on `VCGEdge`, PLY colour read/write, three render
+colour sources, undo and duplication, and five filters —
+`select_edges_by_expression`, `compute_edge_color_by_expression`,
+`compute_edge_scalar_by_expression` and `colorize_edges_by_scalar`, plus the
+`EdgeColor` visualization hint that makes them visible on an existing layer.
+The smoke sweep gained a `polyline` fixture, which also gave
+`create_tube_from_polyline_trueform` its first real input.
+
+Stages 2-5 are not implemented. Nothing in [Rendering of selected
+edges](#rendering-of-selected-edges) or [Interactive selection of
+edges](#interactive-selection-of-edges) has changed.
+
+One limitation surfaced while implementing: **edge scalars have no `ioMask`
+bit.** `IOM_EDGECOLOR` is what says a layer's edge colour is meaningful, but
+VCGLib's mask has no edge-quality equivalent (`0x40000` is the one free bit), and
+no mesh format carries per-edge scalars anyway. So edge scalars live in memory
+only, are lost on save, and no filter can declare `requireEdgeScalar`. Map them
+into colour to keep them. Adding `IOM_EDGEQUALITY` upstream is the fix if that
+ever bites.
 
 ## Two different things are called an edge
 
@@ -179,7 +196,7 @@ nothing on screen without a hint.
 | `select_edges_by_expression` | The keystone. Gives `IsS()` its first writer and makes `onselected` meaningful on everything else. |
 | `compute_edge_color_by_expression` | `r`/`g`/`b`/`a`, twin of the vertex and face pair. |
 | `compute_edge_scalar_by_expression` | Needs Tier 0. |
-| `define_custom_edge_scalar_attribute`, `define_custom_edge_point_attribute` | Completes the custom-attribute trio. |
+| `define_custom_edge_scalar_attribute`, `define_custom_edge_point_attribute` | Completes the custom-attribute trio. **Not implemented** — not part of stage 1. |
 
 The design work is the **edge variable context**, where edges should earn their
 own vocabulary rather than copy the face one. Following `setPerFaceVariables`:
@@ -236,7 +253,7 @@ in the first slice.
 
 ## Staging
 
-1. `vcg::edge::Qualityf`; `select_edges_by_expression`;
+1. **Done (2026-09-16).** `vcg::edge::Qualityf`; `select_edges_by_expression`;
    `compute_edge_color_by_expression`; `compute_edge_scalar_by_expression`;
    `colorize_edges_by_scalar`. The smallest set that closes the loop — select,
    compute a number, map it to colour — and makes the feature usable end to end.

@@ -610,6 +610,7 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
                 de.V(k) = dv;
             }
             de.C() = se.cC();
+            de.Q() = se.cQ();
             de.Flags() = se.Flags();
             ++dstEdgeIndex;
         }
