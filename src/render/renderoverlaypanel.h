@@ -170,6 +170,7 @@ private:
     QComboBox *m_fillPbrRoughnessCombo = nullptr;
     QCheckBox *m_selectionShowVerticesCheck = nullptr;
     QCheckBox *m_selectionShowFacesCheck = nullptr;
+    QCheckBox *m_selectionShowEdgesCheck = nullptr;
     QCheckBox *m_uvShowReferenceFrameCheck = nullptr;
     QCheckBox *m_uvShowFullTextureCheck = nullptr;
     QComboBox *m_uvTextureChannelCombo = nullptr;

@@ -141,6 +141,8 @@ public:
         int selectedFacesVertexCount = 0;
         QRhiBuffer *selectedVerticesBuffer = nullptr;
         int selectedVerticesVertexCount = 0;
+        QRhiBuffer *selectedEdgesBuffer = nullptr;
+        int selectedEdgesVertexCount = 0;
         bool valid = false;
     };
 

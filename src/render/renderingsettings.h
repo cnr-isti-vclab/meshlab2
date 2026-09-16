@@ -154,6 +154,9 @@ struct PerMeshRenderSettings {
     bool showSelection = true;
     bool showSelectionVertices = true;
     bool showSelectionFaces = true;
+    // Covers both kinds of edge: the per-face edge bits of a triangle mesh, which
+    // nothing else draws, and the selected VCGEdge elements of a polyline layer.
+    bool showSelectionEdges = true;
     // Master switch for the normal decorator pass, driven by its toolbar button. As with
     // the boundary pass below, the button owns only this flag; the three sub-options are
     // the panel's own state.

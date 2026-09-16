@@ -21,9 +21,13 @@ colour sources, undo and duplication, and five filters —
 The smoke sweep gained a `polyline` fixture, which also gave
 `create_tube_from_polyline_trueform` its first real input.
 
-Stages 2-5 are not implemented. Nothing in [Rendering of selected
-edges](#rendering-of-selected-edges) or [Interactive selection of
-edges](#interactive-selection-of-edges) has changed.
+**Stage 2 is also implemented**: selected edges now draw in the selection
+overlay, for both kinds of edge, behind an *Edges* checkbox beside *Vertices*
+and *Faces*.
+
+Stages 3-5 are not implemented, and nothing in [Interactive selection of
+edges](#interactive-selection-of-edges) has changed — no tool can select an edge
+by pointing at it, in either sense.
 
 One limitation surfaced while implementing: **edge scalars have no `ioMask`
 bit.** `IOM_EDGECOLOR` is what says a layer's edge colour is meaningful, but
@@ -96,37 +100,46 @@ it is also the *only way to see* a face-edge selection at all.
 
 ## Rendering of selected edges
 
-**Neither kind of edge selection is rendered.**
+**Implemented 2026-09-16.** The selection overlay -- the last pass of the frame,
+which drew semi-transparent red triangles for selected faces and red points for
+selected vertices -- now also draws red lines for selected edges, controlled by
+an *Edges* checkbox beside the existing *Vertices* and *Faces* ones.
 
-The selection overlay is the last pass of the frame and draws exactly two
-things: semi-transparent red triangles for selected faces, and red points for
-selected vertices. `PerMeshRenderSettings` has `showSelection`,
-`showSelectionFaces` and `showSelectionVertices` — there is no edge equivalent,
-and the mesh GPU cache builds no selected-edge buffer.
+One checkbox covers **both** kinds of edge, because from the user's side there is
+only one question, "show me what is selected". The buffer is filled from the
+per-face edge bits when the layer is a triangle mesh and from `VCGEdge::IsS()`
+when it is a polyline; a layer is one or the other. The per-face path has to
+de-duplicate, since an interior edge carries the bit on both of its faces and
+would otherwise be drawn twice.
+
+It lives in the **selection** cache rather than the decorator cache, which
+matters: selection buffers are keyed on `selectionRevision` as well as
+`geometryRevision`, while every decorator is keyed on geometry alone. A
+selected-edge decorator would have gone stale the moment the user changed the
+selection without touching geometry, which is the normal case.
+
+The rest of this section describes what that has fixed, and is kept because the
+reasoning still applies to the decorator-shaped gaps below.
 
 The decorator pass is the other place edges get drawn, and it covers boundary
 edges, texture seams, non-manifold edges, non-manifold vertices, normals and
 curvature directions. There is **no decorator for selected edges and none for
 crease edges**.
 
-The practical consequence: running `select_crease_edges_trueform` on a model
-appears to do nothing. The bits are set, the log says how many, and the viewport
+The practical consequence, before the change above: running
+`select_crease_edges_trueform` on a model appeared to do nothing. The bits are set, the log says how many, and the viewport
 is unchanged. The user has to run `create_polyline_from_selected_edges` and
 inspect the resulting layer to confirm the filter worked at all — and the
 filter's own help says so, telling the reader to build a polyline "to see
 exactly where the trouble is". A filter documenting a workaround for the fact
 that its output is invisible is the clearest statement of the gap.
 
-Two separate pieces of work follow, and they should not be confused:
-
-1. **A selected-edge decorator for meshes.** Reads `IsFaceEdgeS(e)`, builds a
-   line buffer, draws it like the boundary decorator does. The boundary
-   decorator is the template: it already walks faces, collects edges by a
-   predicate, and has its own colour and width settings. This is the cheaper and
-   more valuable of the two.
-2. **Selected edges in the selection overlay for polylines.** Reads
-   `VCGEdge::IsS()`, keyed on `selectionRevision` like the existing selection
-   buffers. Pointless until something can select polyline edges — see below.
+What is *not* covered, and would still be separate work: a **crease-edge
+decorator**. Crease filters currently write to the same per-face selection bits
+they share with everything else, so their output now shows up in the selection
+overlay -- but that means a crease selection and a rectangle selection are
+indistinguishable, and running one clears the other. Giving creases their own
+bits or their own decorator is a real design question, not a rendering one.
 
 ## Interactive selection of edges
 
@@ -257,11 +270,12 @@ in the first slice.
    `compute_edge_color_by_expression`; `compute_edge_scalar_by_expression`;
    `colorize_edges_by_scalar`. The smallest set that closes the loop — select,
    compute a number, map it to colour — and makes the feature usable end to end.
-2. A selected-edge decorator for meshes, so `select_crease_edges_trueform` and
-   friends stop being invisible. Independent of everything else here and
-   arguably the highest value-per-line item in the document.
+2. **Done (2026-09-16).** Selected edges in the selection overlay, so
+   `select_crease_edges_trueform` and friends stop being invisible. Landed as
+   one *Edges* checkbox covering both kinds of edge rather than as the
+   mesh-only decorator originally sketched here.
 3. Producers stamping quality (Tier 3), starting with the isocontours.
-4. The remaining colorize filters, and the polyline selection overlay.
+4. The remaining colorize filters.
 5. An edge mode for `Rubber-band Select`, on top of the existing depth-mask
    machinery.
 

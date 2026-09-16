@@ -193,5 +193,17 @@ void RenderWidget::renderSceneSelectionItems(
             cb->setVertexInput(0, 1, &vv);
             cb->draw(selectionView.selectedVerticesVertexCount);
         }
+
+        if (item.drawEdges
+            && m_selectionEdgesPipeline
+            && selectionView.selectedEdgesBuffer
+            && selectionView.selectedEdgesVertexCount > 0) {
+            cb->setGraphicsPipeline(m_selectionEdgesPipeline.get());
+            setShaderResourcesWithOffset(cb, m_selectionSrb.get(), ubufOffset);
+            const QRhiCommandBuffer::VertexInput ev(
+                selectionView.selectedEdgesBuffer, 0);
+            cb->setVertexInput(0, 1, &ev);
+            cb->draw(selectionView.selectedEdgesVertexCount);
+        }
     }
 }

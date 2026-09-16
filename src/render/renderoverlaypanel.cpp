@@ -846,9 +846,14 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_selectionShowVerticesCheck->setChecked(m_meshSettings.showSelectionVertices);
     m_selectionShowFacesCheck = new QCheckBox(selectionPage);
     m_selectionShowFacesCheck->setChecked(m_meshSettings.showSelectionFaces);
+    m_selectionShowEdgesCheck = new QCheckBox(selectionPage);
+    m_selectionShowEdgesCheck->setChecked(m_meshSettings.showSelectionEdges);
     selectionForm->addRow(
         tr("Vertices"),
         makeCenteredFieldContainer(m_selectionShowVerticesCheck, selectionPage));
+    selectionForm->addRow(
+        tr("Edges"),
+        makeCenteredFieldContainer(m_selectionShowEdgesCheck, selectionPage));
     selectionForm->addRow(
         tr("Faces"),
         makeCenteredFieldContainer(m_selectionShowFacesCheck, selectionPage));
@@ -1490,6 +1495,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         [this](int) { syncFillPbrUiState(); });
     bindMeshCheckBox(m_selectionShowVerticesCheck, &PerMeshRenderSettings::showSelectionVertices);
     bindMeshCheckBox(m_selectionShowFacesCheck, &PerMeshRenderSettings::showSelectionFaces);
+    bindMeshCheckBox(m_selectionShowEdgesCheck, &PerMeshRenderSettings::showSelectionEdges);
     bindGlobalCheckBox(m_uvShowReferenceFrameCheck, &GlobalRenderSettings::uvShowReferenceFrame);
     bindGlobalCheckBox(m_uvShowFullTextureCheck, &GlobalRenderSettings::uvShowFullTexture);
     bindGlobalCheckBox(m_uvTextureNearestCheck, &GlobalRenderSettings::uvTextureNearestSampling);

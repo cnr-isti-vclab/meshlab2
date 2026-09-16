@@ -10,7 +10,8 @@ namespace {
 bool requestsSelectionPass(const PerMeshRenderSettings &settings)
 {
     return settings.showSelection
-        && (settings.showSelectionVertices || settings.showSelectionFaces);
+        && (settings.showSelectionVertices || settings.showSelectionFaces
+            || settings.showSelectionEdges);
 }
 
 bool requestsDecoratorNormalPass(const PerMeshRenderSettings &settings)
@@ -699,7 +700,8 @@ void RenderWidget::planSelectionPasses(
     if (!requests.selection
         || !m_selectionUbuf
         || !m_selectionSrb
-        || (!m_selectionFacesPipeline && !m_selectionVerticesPipeline)) {
+        || (!m_selectionFacesPipeline && !m_selectionVerticesPipeline
+             && !m_selectionEdgesPipeline)) {
         return;
     }
 
@@ -725,13 +727,19 @@ void RenderWidget::planSelectionPasses(
             && m_selectionVerticesPipeline
             && selectionView.selectedVerticesBuffer
             && selectionView.selectedVerticesVertexCount > 0;
-        if (!drawFaces && !drawVertices)
+        const bool drawEdges =
+            meshSettings.showSelectionEdges
+            && m_selectionEdgesPipeline
+            && selectionView.selectedEdgesBuffer
+            && selectionView.selectedEdgesVertexCount > 0;
+        if (!drawFaces && !drawVertices && !drawEdges)
             continue;
 
         plan.selectionItems.push_back(SceneSelectionDrawItem {
             mi,
             drawFaces,
             drawVertices,
+            drawEdges,
             selectionView
         });
     }

@@ -210,6 +210,8 @@ struct MeshGpuResourceCache::CacheState
         int selectedFacesVertexCount = 0;
         std::unique_ptr<QRhiBuffer> selectedVerticesVbuf;
         int selectedVerticesVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> selectedEdgesVbuf;
+        int selectedEdgesVertexCount = 0;
     };
 
     struct DecoratorNormalsGpu {
@@ -1344,6 +1346,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         dst.selectedFacesVertexCount = 0;
         dst.selectedVerticesVbuf.reset();
         dst.selectedVerticesVertexCount = 0;
+        dst.selectedEdgesVbuf.reset();
+        dst.selectedEdgesVertexCount = 0;
 
         if (meshData.VN() <= 0)
             return true;
@@ -1404,6 +1408,68 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     dst.selectedVerticesVbuf.get(), selectedVertices.data());
                 dst.selectedVerticesVertexCount =
                     static_cast<int>(selectedVertices.size() / 3);
+            }
+        }
+
+        // Selected edges come from two unrelated places. A triangle mesh keeps them as
+        // per-face bits, duplicated on both faces of an interior edge, so they have to
+        // be de-duplicated or every shared edge is drawn twice. A polyline layer keeps
+        // real edge elements with a selection bit of their own. A layer is one or the
+        // other, so both feed the same buffer.
+        std::vector<float> selectedEdgeLines;
+        std::unordered_set<std::uint64_t> seenEdges;
+        const auto pushSegment = [&](const VCGVertex *a, const VCGVertex *b) {
+            if (!a || !b)
+                return;
+            selectedEdgeLines.push_back(a->cP()[0]);
+            selectedEdgeLines.push_back(a->cP()[1]);
+            selectedEdgeLines.push_back(a->cP()[2]);
+            selectedEdgeLines.push_back(b->cP()[0]);
+            selectedEdgeLines.push_back(b->cP()[1]);
+            selectedEdgeLines.push_back(b->cP()[2]);
+        };
+
+        for (int fi = 0; fi < meshData.FN(); ++fi) {
+            const auto &f = meshData.face[fi];
+            if (f.IsD())
+                continue;
+            for (int corner = 0; corner < 3; ++corner) {
+                if (!f.IsFaceEdgeS(corner))
+                    continue;
+                const auto *a = f.cV(corner);
+                const auto *b = f.cV((corner + 1) % 3);
+                if (!a || !b)
+                    continue;
+                const std::uint32_t ia = std::uint32_t(vcg::tri::Index(meshData, a));
+                const std::uint32_t ib = std::uint32_t(vcg::tri::Index(meshData, b));
+                const std::uint64_t key = ia < ib
+                    ? (std::uint64_t(ia) << 32) | ib
+                    : (std::uint64_t(ib) << 32) | ia;
+                if (!seenEdges.insert(key).second)
+                    continue;
+                pushSegment(a, b);
+            }
+        }
+
+        for (const auto &e : meshData.edge) {
+            if (e.IsD() || !e.IsS())
+                continue;
+            pushSegment(e.cV(0), e.cV(1));
+        }
+
+        if (!selectedEdgeLines.empty()) {
+            dst.selectedEdgesVbuf.reset(
+                rhi->newBuffer(
+                    QRhiBuffer::Immutable,
+                    QRhiBuffer::VertexBuffer,
+                    static_cast<quint32>(selectedEdgeLines.size() * sizeof(float))));
+            if (!dst.selectedEdgesVbuf || !dst.selectedEdgesVbuf->create()) {
+                dst.selectedEdgesVbuf.reset();
+            } else {
+                ensureUpdates()->uploadStaticBuffer(
+                    dst.selectedEdgesVbuf.get(), selectedEdgeLines.data());
+                dst.selectedEdgesVertexCount =
+                    static_cast<int>(selectedEdgeLines.size() / 3);
             }
         }
 
@@ -2091,6 +2157,8 @@ MeshGpuResourceCache::SelectionPassView MeshGpuResourceCache::selectionPassView(
     view.selectedFacesVertexCount = selection.selectedFacesVertexCount;
     view.selectedVerticesBuffer = selection.selectedVerticesVbuf.get();
     view.selectedVerticesVertexCount = selection.selectedVerticesVertexCount;
+    view.selectedEdgesBuffer = selection.selectedEdgesVbuf.get();
+    view.selectedEdgesVertexCount = selection.selectedEdgesVertexCount;
     return view;
 }
 

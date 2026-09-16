@@ -206,6 +206,7 @@ struct SceneRasterProjectedDrawItem {
         int meshIndex = -1;
         bool drawFaces = false;
         bool drawVertices = false;
+        bool drawEdges = false;
         MeshGpuResourceCache::SelectionPassView selectionView;
     };
     enum class SceneDecoratorDrawKind {
@@ -701,6 +702,7 @@ struct SceneRasterProjectedDrawItem {
     std::unique_ptr<QRhiShaderResourceBindings> m_selectionSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_selectionFacesPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_selectionVerticesPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_selectionEdgesPipeline;
     std::unique_ptr<QRhiBuffer> m_decoratorFatUbuf;
     DynamicUbufAllocator m_decoratorFatUbufAllocator;
     std::unique_ptr<QRhiShaderResourceBindings> m_decoratorFatSrb;

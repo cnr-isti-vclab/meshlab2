@@ -569,6 +569,7 @@ void RenderWidget::ensureRenderResources()
         m_selectionSrb.reset();
         m_selectionFacesPipeline.reset();
         m_selectionVerticesPipeline.reset();
+        m_selectionEdgesPipeline.reset();
         m_decoratorFatUbuf.reset();
         m_decoratorFatSrb.reset();
         m_decoratorFatPipeline.reset();
@@ -1615,6 +1616,47 @@ void RenderWidget::ensureRenderResources()
             if (!m_selectionVerticesPipeline->create()) {
                 qWarning("Failed to create selection vertex pipeline");
                 m_selectionVerticesPipeline.reset();
+            }
+        }
+    }
+    // Same shader, blend and layout as the selected vertices; only the topology
+    // differs, since selected edges arrive as a plain list of segment endpoints.
+    if (!m_selectionEdgesPipeline && m_selectionSrb) {
+        m_selectionEdgesPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_decorator.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_decorator.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load selection edge shaders");
+            m_selectionEdgesPipeline.reset();
+        } else {
+            m_selectionEdgesPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_selectionEdgesPipeline->setTopology(QRhiGraphicsPipeline::Lines);
+            m_selectionEdgesPipeline->setDepthTest(true);
+            m_selectionEdgesPipeline->setDepthWrite(false);
+            m_selectionEdgesPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_selectionEdgesPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            m_selectionEdgesPipeline->setLineWidth(1.0f);
+            QRhiGraphicsPipeline::TargetBlend blend;
+            blend.enable = true;
+            blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+            blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opColor = QRhiGraphicsPipeline::Add;
+            blend.srcAlpha = QRhiGraphicsPipeline::One;
+            blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opAlpha = QRhiGraphicsPipeline::Add;
+            m_selectionEdgesPipeline->setTargetBlends({ blend });
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { 3 * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_selectionEdgesPipeline->setVertexInputLayout(layout);
+            m_selectionEdgesPipeline->setShaderResourceBindings(m_selectionSrb.get());
+            m_selectionEdgesPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_selectionEdgesPipeline->create()) {
+                qWarning("Failed to create selection edge pipeline");
+                m_selectionEdgesPipeline.reset();
             }
         }
     }
