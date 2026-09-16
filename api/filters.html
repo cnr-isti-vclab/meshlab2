@@ -625,13 +625,15 @@
 </section>
 <section id="set-random-layer-color">
 <span id="filter-set-random-layer-color"></span><h2>Set Random Layer Color<a class="headerlink" href="#set-random-layer-color" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code>, <code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.colorproc</p>
-<p>Assign a distinct random color to each visible mesh layer.</p>
+<p>Scatter a distinct color across the visible layers, one each.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.set_random_layer_color">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">set_random_layer_color</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.set_random_layer_color" title="Link to this definition">¶</a></dt>
-<dd><p>Assigns a random color to each visible mesh layer in the document. Colors change every time the filter is executed, but are always chosen so that they differ as much as possible.</p>
+<dd><p>Gives every visible layer its own <strong>mesh color</strong>, picked by <em>scattering</em> over the available hues so that layers close together in the list are as far apart in color as their number allows — the same scatter used to tell connected components apart.</p>
+<p>The layers are also switched to draw in that per-mesh color, so the result is visible without changing the color source by hand.</p>
+<p>Colors differ on every run unless a <strong>Random seed</strong> is given. The usual reason to want this is to tell layers apart at a glance after a split, an import of many files, or an alignment.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the color assignment exactly reproducible.</p></li>
@@ -1311,7 +1313,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <dt class="sig sig-object py" id="meshlab.ms.compute_edge_scalar_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_edge_scalar_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_edge_scalar_by_expression" title="Link to this definition">¶</a></dt>
 <dd><p>Scalar function using muparser lib to write one value per edge of a <strong>polyline layer</strong>. Feed the result to <em>Colorize Edges by Scalar</em>, or tick <em>Map into Color</em> here to do both in one step.</p>
-<p>Edge scalars are held in memory only: no mesh format carries them, so they are lost on save. Map them into color to keep the result.</p>
+<p>Edge scalars survive a PLY round trip as a <code class="docutils literal notranslate"><span class="pre">quality</span></code> property on the edge element; tick <em>Edge Scalar</em> in the save dialog to keep them.</p>
 <p>Endpoint values use the same names as the first two corners of a face: <code class="docutils literal notranslate"><span class="pre">x0,y0,z0</span></code>/<code class="docutils literal notranslate"><span class="pre">x1,y1,z1</span></code>, <code class="docutils literal notranslate"><span class="pre">nx0</span></code>..<code class="docutils literal notranslate"><span class="pre">nz1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0,g0,b0,a0</span></code>/<code class="docutils literal notranslate"><span class="pre">r1</span></code>..<code class="docutils literal notranslate"><span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">q0,q1</span></code>, <code class="docutils literal notranslate"><span class="pre">vi0,vi1</span></code>, <code class="docutils literal notranslate"><span class="pre">vsel0,vsel1</span></code>. The edge itself gives <code class="docutils literal notranslate"><span class="pre">er,eg,eb,ea</span></code> (current color), <code class="docutils literal notranslate"><span class="pre">eq</span></code> (scalar), <code class="docutils literal notranslate"><span class="pre">ei</span></code> (index) and <code class="docutils literal notranslate"><span class="pre">esel</span></code>, plus the derived <code class="docutils literal notranslate"><span class="pre">elen</span></code> (length), <code class="docutils literal notranslate"><span class="pre">emx,emy,emz</span></code> (midpoint) and <code class="docutils literal notranslate"><span class="pre">edx,edy,edz</span></code> (unit direction; zero for a degenerate edge). Bounding-box values <code class="docutils literal notranslate"><span class="pre">xmin</span></code>..<code class="docutils literal notranslate"><span class="pre">bbdiag</span></code> are available as everywhere else.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -1874,26 +1876,11 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <p>The oriented box is computed with CGAL’s Optimal Bounding Box package.</p>
 <p>Reference:
 Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</strong>, CGAL User and Reference Manual, CGAL Editorial Board.</p>
+<p><strong>Rotate Layer to Axes</strong> turns the object rather than the box. The oriented box is found as usual, but instead of building a tilted box around an untouched layer, the layer’s vertices are rotated into the box’s frame and the box comes out axis-aligned. Use it to straighten an object that was digitised or exported at an arbitrary angle; the layer is modified, so it is undoable like any other edit.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>alignment</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">axis_aligned</span></code>) — Axis aligned is the box the viewport draws, parallel to the layer’s own axes. Oriented searches for the smallest box in any orientation, which is much tighter for an object lying at an angle but costs time to find.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="create-box">
-<span id="filter-create-box"></span><h2>Create Box<a class="headerlink" href="#create-box" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
-<p><strong>Plugin:</strong> meshlab2.filter.create</p>
-<p>Creates a Box or Cube.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="meshlab.ms.create_box">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_box</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_box" title="Link to this definition">¶</a></dt>
-<dd><p>Create a Box, Cube, Hexahedron. You can specify the side length.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>size</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Length of each side of the box.</p></li>
+<li><p><strong>rotateLayerToAxes</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Turn the layer instead of the box: rotate its vertices so the tightest box lines up with the coordinate axes, then create that box axis-aligned. The layer’s own coordinates change, which is the point — it is how you put an object that was digitised at an angle back onto its axes. Ignored when Alignment is Axis Aligned, which has nothing to rotate to.</p></li>
 </ul>
 </dd></dl>
 
@@ -1973,6 +1960,25 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <li><p><strong>absScaleX</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.3</span></code>) — Absolute scale along X.</p></li>
 <li><p><strong>absScaleY</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.3</span></code>) — Absolute scale along Y.</p></li>
 <li><p><strong>center</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Centers the generated grid on origin.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="create-hexahedron">
+<span id="filter-create-hexahedron"></span><h2>Create Hexahedron<a class="headerlink" href="#create-hexahedron" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.create</p>
+<p>Create a box: a cube, or a hexahedron with a side length you choose.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.create_hexahedron">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_hexahedron</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_hexahedron" title="Link to this definition">¶</a></dt>
+<dd><p>Creates a new layer holding an axis-aligned <strong>hexahedron</strong> centred on the origin — a <strong>box</strong>, and with equal sides a <strong>cube</strong>.</p>
+<p><strong>Side Length</strong> sets the length of every edge, so the result is always a cube; scale it afterwards for a box with unequal sides.</p>
+<p>The six faces are quads, kept as pairs of triangles with the diagonal marked faux, so the box displays as six faces rather than twelve.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>size</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Length of each side of the box.</p></li>
 </ul>
 </dd></dl>
 
@@ -2155,6 +2161,7 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <dt class="sig sig-object py" id="meshlab.ms.create_polyline_from_scalar_isocontour_trueform">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_polyline_from_scalar_isocontour_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_polyline_from_scalar_isocontour_trueform" title="Link to this definition">¶</a></dt>
 <dd><p>Extracts level sets of the <strong>per-vertex scalar field</strong> as polylines lying exactly on the surface.\n\nThis turns every scalar MeshLab can compute into something with extractable contours: geodesic distance from a point or a border, curvature, ambient occlusion, shape diameter, raster coverage, or anything written by <em>Compute Vertex Scalar by Expression</em>. Contours of a geodesic distance are isodistance rings; of a height field, topographic contour lines.\n\n<strong>Contours</strong> sets how many levels are extracted. They are spaced evenly and placed strictly <em>inside</em> the range, never at its extremes, where a contour is either empty or the whole boundary.\n\nBy default the range is the field’s own minimum and maximum. Enable <strong>Use Custom Range</strong> to contour a chosen band instead — useful when a few outliers would otherwise compress every contour into a corner of the model.\n\nA constant field has no contours, and the filter says so rather than returning an empty layer.</p>
+<p>All the levels land in one layer, so every edge carries <strong>the value of the contour it belongs to</strong> as its scalar. Run <em>Colorize Edges by Scalar</em> on the result to tell the levels apart; without that they draw in one flat colour. The scalars survive a PLY round trip, so the layer can be saved and re-colored later.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose scalar field is contoured.</p></li>
@@ -7816,10 +7823,6 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#meshlab.ms.create_bounding_box"><code class="docutils literal notranslate"><span class="pre">ms.create_bounding_box()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#create-box">Create Box</a><ul>
-<li><a class="reference internal" href="#meshlab.ms.create_box"><code class="docutils literal notranslate"><span class="pre">ms.create_box()</span></code></a></li>
-</ul>
-</li>
 <li><a class="reference internal" href="#create-cone">Create Cone</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.create_cone"><code class="docutils literal notranslate"><span class="pre">ms.create_cone()</span></code></a></li>
 </ul>
@@ -7834,6 +7837,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#create-grid">Create Grid</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.create_grid"><code class="docutils literal notranslate"><span class="pre">ms.create_grid()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-hexahedron">Create Hexahedron</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.create_hexahedron"><code class="docutils literal notranslate"><span class="pre">ms.create_hexahedron()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#create-icosahedron">Create Icosahedron</a><ul>

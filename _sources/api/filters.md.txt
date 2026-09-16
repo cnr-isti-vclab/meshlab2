@@ -487,16 +487,20 @@ This filter has no parameters.
 
 ## Set Random Layer Color
 
-**Categories:** `Attribute/Color`
+**Categories:** `Attribute/Color`, `Document/Layer`
 
 **Plugin:** meshlab2.filter.colorproc
 
-Assign a distinct random color to each visible mesh layer.
+Scatter a distinct color across the visible layers, one each.
 
 ```{py:function} ms.set_random_layer_color(**params)
 :module: _meshlab
 
-Assigns a random color to each visible mesh layer in the document. Colors change every time the filter is executed, but are always chosen so that they differ as much as possible.
+Gives every visible layer its own **mesh color**, picked by *scattering* over the available hues so that layers close together in the list are as far apart in color as their number allows — the same scatter used to tell connected components apart.
+
+The layers are also switched to draw in that per-mesh color, so the result is visible without changing the color source by hand.
+
+Colors differ on every run unless a **Random seed** is given. The usual reason to want this is to tell layers apart at a glance after a split, an import of many files, or an alignment.
 
 **Parameters:**
 
@@ -1368,7 +1372,7 @@ Computes a per-edge scalar from an expression.
 
 Scalar function using muparser lib to write one value per edge of a **polyline layer**. Feed the result to *Colorize Edges by Scalar*, or tick *Map into Color* here to do both in one step.
 
-Edge scalars are held in memory only: no mesh format carries them, so they are lost on save. Map them into color to keep the result.
+Edge scalars survive a PLY round trip as a `quality` property on the edge element; tick *Edge Scalar* in the save dialog to keep them.
 
 Endpoint values use the same names as the first two corners of a face: `x0,y0,z0`/`x1,y1,z1`, `nx0`..`nz1`, `r0,g0,b0,a0`/`r1`..`a1`, `q0,q1`, `vi0,vi1`, `vsel0,vsel1`. The edge itself gives `er,eg,eb,ea` (current color), `eq` (scalar), `ei` (index) and `esel`, plus the derived `elen` (length), `emx,emy,emz` (midpoint) and `edx,edy,edz` (unit direction; zero for a degenerate edge). Bounding-box values `xmin`..`bbdiag` are available as everywhere else.
 
@@ -2066,31 +2070,12 @@ The oriented box is computed with CGAL's Optimal Bounding Box package.
 Reference:
 Konstantinos Katrioplas, Mael Rouxel-Labbé, **Optimal Bounding Box**, CGAL User and Reference Manual, CGAL Editorial Board.
 
+**Rotate Layer to Axes** turns the object rather than the box. The oriented box is found as usual, but instead of building a tilted box around an untouched layer, the layer's vertices are rotated into the box's frame and the box comes out axis-aligned. Use it to straighten an object that was digitised or exported at an arbitrary angle; the layer is modified, so it is undoable like any other edit.
+
 **Parameters:**
 
 - **alignment** (*enum*, default: `axis_aligned`) — Axis aligned is the box the viewport draws, parallel to the layer's own axes. Oriented searches for the smallest box in any orientation, which is much tighter for an object lying at an angle but costs time to find.
-```
-
----
-
-(filter-create-box)=
-
-## Create Box
-
-**Categories:** `Creation/Primitives`
-
-**Plugin:** meshlab2.filter.create
-
-Creates a Box or Cube.
-
-```{py:function} ms.create_box(**params)
-:module: _meshlab
-
-Create a Box, Cube, Hexahedron. You can specify the side length.
-
-**Parameters:**
-
-- **size** (*double*, default: `1.0`) — Length of each side of the box.
+- **rotateLayerToAxes** (*bool*, default: `False`) — Turn the layer instead of the box: rotate its vertices so the tightest box lines up with the coordinate axes, then create that box axis-aligned. The layer's own coordinates change, which is the point — it is how you put an object that was digitised at an angle back onto its axes. Ignored when Alignment is Axis Aligned, which has nothing to rotate to.
 ```
 
 ---
@@ -2193,6 +2178,32 @@ Generate a new 2D Grid mesh with number of vertices on X and Y axis specified by
 - **absScaleX** (*double*, default: `0.3`) — Absolute scale along X.
 - **absScaleY** (*double*, default: `0.3`) — Absolute scale along Y.
 - **center** (*bool*, default: `False`) — Centers the generated grid on origin.
+```
+
+---
+
+(filter-create-hexahedron)=
+
+## Create Hexahedron
+
+**Categories:** `Creation/Primitives`
+
+**Plugin:** meshlab2.filter.create
+
+Create a box: a cube, or a hexahedron with a side length you choose.
+
+```{py:function} ms.create_hexahedron(**params)
+:module: _meshlab
+
+Creates a new layer holding an axis-aligned **hexahedron** centred on the origin — a **box**, and with equal sides a **cube**.
+
+**Side Length** sets the length of every edge, so the result is always a cube; scale it afterwards for a box with unequal sides.
+
+The six faces are quads, kept as pairs of triangles with the diagonal marked faux, so the box displays as six faces rather than twelve.
+
+**Parameters:**
+
+- **size** (*double*, default: `1.0`) — Length of each side of the box.
 ```
 
 ---
@@ -2426,6 +2437,8 @@ Extract contour lines of the per-vertex scalar field as polylines on the surface
 :module: _meshlab
 
 Extracts level sets of the **per-vertex scalar field** as polylines lying exactly on the surface.\n\nThis turns every scalar MeshLab can compute into something with extractable contours: geodesic distance from a point or a border, curvature, ambient occlusion, shape diameter, raster coverage, or anything written by *Compute Vertex Scalar by Expression*. Contours of a geodesic distance are isodistance rings; of a height field, topographic contour lines.\n\n**Contours** sets how many levels are extracted. They are spaced evenly and placed strictly *inside* the range, never at its extremes, where a contour is either empty or the whole boundary.\n\nBy default the range is the field's own minimum and maximum. Enable **Use Custom Range** to contour a chosen band instead — useful when a few outliers would otherwise compress every contour into a corner of the model.\n\nA constant field has no contours, and the filter says so rather than returning an empty layer.
+
+All the levels land in one layer, so every edge carries **the value of the contour it belongs to** as its scalar. Run *Colorize Edges by Scalar* on the result to tell the levels apart; without that they draw in one flat colour. The scalars survive a PLY round trip, so the layer can be saved and re-colored later.
 
 **Parameters:**
 
