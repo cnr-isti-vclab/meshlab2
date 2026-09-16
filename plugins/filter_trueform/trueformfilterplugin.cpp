@@ -1107,7 +1107,8 @@ std::size_t appendCurvesToMesh(VCGMesh &output, const Curves &curves, float edge
 // Finish an edge mesh built by one or more appendCurvesToMesh calls.
 inline MeshFilterRunResult finishPolylineLayer(
     Document &doc, VCGMesh &output, std::size_t segmentCount, std::size_t pathCount,
-    const QString &layerName, const QString &emptyMessage, QStringList info)
+    const QString &layerName, const QString &emptyMessage, QStringList info,
+    int extraMask = 0)
 {
     if (segmentCount == 0) {
         doc.finishFilterProgress(false, emptyMessage);
@@ -1117,7 +1118,7 @@ inline MeshFilterRunResult finishPolylineLayer(
     vcg::tri::Allocator<VCGMesh>::CompactEveryVector(output);
     vcg::tri::UpdateBounding<VCGMesh>::Box(output);
 
-    const int newIndex = doc.addMesh(output, layerName, Mask::IOM_EDGEINDEX);
+    const int newIndex = doc.addMesh(output, layerName, Mask::IOM_EDGEINDEX | extraMask);
     if (newIndex < 0) {
         const QString message = QObject::tr("Failed to add the %1 layer.").arg(layerName);
         doc.finishFilterProgress(false, message);
@@ -1293,7 +1294,8 @@ MeshFilterRunResult runIsocurves(const FilterParams &params, Document &doc)
                   .arg(QString::number(maxValue, 'g', 6))
                   .arg(levelsWithContours),
               QObject::tr("Each edge carries its contour value as its scalar. Run "
-                          "Colorize Edges by Scalar to see the levels apart.") });
+                          "Colorize Edges by Scalar to see the levels apart.") },
+            Mask::IOM_EDGEQUALITY);
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm isocurves failed: %1")
                                     .arg(QString::fromLocal8Bit(e.what()));

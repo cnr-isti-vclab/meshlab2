@@ -346,7 +346,8 @@
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
-        "requireEdges": true
+        "requireEdges": true,
+        "requireEdgeQuality": true
       },
       "parameters": [
         {

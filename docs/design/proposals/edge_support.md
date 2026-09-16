@@ -33,13 +33,13 @@ Stages 4-5 are not implemented, and nothing in [Interactive selection of
 edges](#interactive-selection-of-edges) has changed — no tool can select an edge
 by pointing at it, in either sense.
 
-One limitation surfaced while implementing: **edge scalars have no `ioMask`
-bit.** `IOM_EDGECOLOR` is what says a layer's edge colour is meaningful, but
-VCGLib's mask has no edge-quality equivalent (`0x40000` is the one free bit), and
-no mesh format carries per-edge scalars anyway. So edge scalars live in memory
-only, are lost on save, and no filter can declare `requireEdgeScalar`. Map them
-into colour to keep them. Adding `IOM_EDGEQUALITY` upstream is the fix if that
-ever bites.
+A limitation that surfaced during stage 1 — edge scalars having no `ioMask` bit,
+so they were memory-only and lost on save — was **fixed on 2026-09-16** by adding
+`IOM_EDGEQUALITY = 0x40000` to VCGLib, taking the one bit that was still free
+under `IOM_ALL`. Per-edge scalars now round-trip through PLY as a `quality`
+property on the edge element, in both ASCII and binary and whether the file
+stores it as `float` or `double`, and filters can declare
+`requireEdgeQuality` — `colorize_edges_by_scalar` does.
 
 ## Two different things are called an edge
 
@@ -78,11 +78,14 @@ per-edge colour was added to. Today:
 class VCGEdge : public vcg::Edge<VCGUsedTypes,
     vcg::edge::VertexRef,
     vcg::edge::Color4b,     // added 2026-09
+    vcg::edge::Qualityf,    // added 2026-09
     vcg::edge::BitFlags> {};
 ```
 
-No quality, no normal, no adjacency. By comparison `VCGVertex` carries coord,
-normal, colour, quality and flags as fixed components plus four OCF ones.
+`vcg::edge::Qualityf` joined it in stage 1, so an edge now carries colour and a
+scalar; there is still no normal and no adjacency. By comparison `VCGVertex`
+carries coord, normal, colour, quality and flags as fixed components plus four
+OCF ones.
 
 Polyline layers are produced by a growing family of filters:
 

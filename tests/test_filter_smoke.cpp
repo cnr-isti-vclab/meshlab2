@@ -84,7 +84,8 @@ int ioMaskFor(Fixture f)
     // colour of their own.
     if (f == Fixture::Polyline) {
         return Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_VERTCOLOR
-             | Mask::IOM_VERTQUALITY | Mask::IOM_EDGEINDEX | Mask::IOM_EDGECOLOR;
+             | Mask::IOM_VERTQUALITY | Mask::IOM_EDGEINDEX | Mask::IOM_EDGECOLOR
+             | Mask::IOM_EDGEQUALITY;
     }
     int mask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL
              | Mask::IOM_FACEINDEX | Mask::IOM_FACENORMAL;

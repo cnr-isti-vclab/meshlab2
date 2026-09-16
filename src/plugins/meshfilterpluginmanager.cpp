@@ -262,6 +262,8 @@ bool validateMeshRequirements(
         return fail(QObject::tr("Filter '%1' requires %2 to have vertex color.").arg(filterName, subject));
     if (req.requireFaceColor && (meshEntry.ioMask & Mask::IOM_FACECOLOR) == 0)
         return fail(QObject::tr("Filter '%1' requires %2 to have face color.").arg(filterName, subject));
+    if (req.requireEdgeQuality && (meshEntry.ioMask & Mask::IOM_EDGEQUALITY) == 0)
+        return fail(QObject::tr("Filter '%1' requires %2 to have an edge scalar.").arg(filterName, subject));
     if (req.requirePerVertexTexCoords && (meshEntry.ioMask & Mask::IOM_VERTTEXCOORD) == 0)
         return fail(QObject::tr("Filter '%1' requires %2 to have per-vertex texture coordinates.").arg(filterName, subject));
     if (req.requirePerWedgeTexCoords && (meshEntry.ioMask & Mask::IOM_WEDGTEXCOORD) == 0)

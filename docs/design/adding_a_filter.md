@@ -110,7 +110,7 @@ to `point`.
 `inputRequirements` declares preconditions the framework checks *before* your
 code runs, so the filter is greyed out with a reason instead of failing inside
 `runFilter`. All are optional booleans: `requireVertices`, `requireFaces`,
-`requireEdges`, `requireVertexQuality`, `requireFaceQuality`, `requireVertexColor`,
+`requireEdges`, `requireVertexQuality`, `requireFaceQuality`, `requireEdgeQuality`, `requireVertexColor`,
 `requireFaceColor`, `requireTextureCoordinates`, `requirePerVertexTexCoords`,
 `requirePerWedgeTexCoords`, `requireTextures`. Declare them instead of
 re-checking by hand — 291 of 337 filters do.

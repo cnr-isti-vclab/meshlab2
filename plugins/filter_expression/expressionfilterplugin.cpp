@@ -1193,6 +1193,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
                 ei->Q() = span > 0.0f ? (ei->Q() - minmax.first) / span : 0.0f;
             }
         }
+        entry.ioMask |= Mask::IOM_EDGEQUALITY;
         MeshFilterRunResult result;
         result.success = true;
         result.documentModified = true;

@@ -162,6 +162,7 @@ MeshFilterParameterDescriptor parseParameter(const QJsonObject &obj)
     p.meshRequirements.requirePerWedgeTexCoords = meshReq.value(QStringLiteral("requirePerWedgeTexCoords")).toBool(false);
     p.meshRequirements.requireTextures = meshReq.value(QStringLiteral("requireTextures")).toBool(false);
     p.meshRequirements.requireVertexQuality = meshReq.value(QStringLiteral("requireVertexQuality")).toBool(false);
+    p.meshRequirements.requireEdgeQuality = meshReq.value(QStringLiteral("requireEdgeQuality")).toBool(false);
     p.meshRequirements.requireFaceQuality = meshReq.value(QStringLiteral("requireFaceQuality")).toBool(false);
 
     const QJsonArray meshPrep = obj.value(QStringLiteral("meshPrepare")).toArray();
@@ -240,6 +241,7 @@ MeshFilterDescriptor parseFilter(const QJsonObject &obj)
     d.inputRequirements.requirePerWedgeTexCoords  = req.value(QStringLiteral("requirePerWedgeTexCoords")).toBool(false);
     d.inputRequirements.requireTextures           = req.value(QStringLiteral("requireTextures")).toBool(false);
     d.inputRequirements.requireVertexQuality      = req.value(QStringLiteral("requireVertexQuality")).toBool(false);
+    d.inputRequirements.requireEdgeQuality      = req.value(QStringLiteral("requireEdgeQuality")).toBool(false);
     d.inputRequirements.requireFaceQuality        = req.value(QStringLiteral("requireFaceQuality")).toBool(false);
 
     auto parseCleanupArray = [](const QJsonArray &actions) {

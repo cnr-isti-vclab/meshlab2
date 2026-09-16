@@ -58,6 +58,7 @@ struct MeshFilterMeshRequirements
     bool requireTextures = false;
     bool requireVertexQuality = false;
     bool requireFaceQuality = false;
+    bool requireEdgeQuality = false;
 
     bool hasAnyRequirement() const
     {
@@ -71,7 +72,8 @@ struct MeshFilterMeshRequirements
             || requirePerWedgeTexCoords
             || requireTextures
             || requireVertexQuality
-            || requireFaceQuality;
+            || requireFaceQuality
+            || requireEdgeQuality;
     }
 };
 

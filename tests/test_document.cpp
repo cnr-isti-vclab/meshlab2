@@ -87,6 +87,7 @@ private slots:
     void polygonalOffExportKeepsEveryWellFormedQuad();
     void plyWithLongPerVertexListLoads();
     void plyEdgeColorsLoadAndRoundTrip();
+    void plyEdgeScalarsRoundTrip();
     void polygonalOffExportSurvivesMalformedFaces();
     void saveAndLoadEmbeddedGLBTexture();
     void savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist();
@@ -1718,6 +1719,70 @@ void DocumentTests::polygonalOffExportKeepsEveryWellFormedQuad()
     QCOMPARE(reloaded.mesh(0).polygonFaceCount, kQuads);
     QCOMPARE(reloaded.mesh(0).mesh.FN(), kQuads * 2);
     QCOMPARE(reloaded.mesh(0).mesh.VN(), kSide * kSide);
+}
+
+// Per-edge scalars had no place in the PLY mask until IOM_EDGEQUALITY existed, so they
+// were memory-only and lost on save. This is the proof that they now survive a file.
+void DocumentTests::plyEdgeScalarsRoundTrip()
+{
+    using Mask = vcg::tri::io::Mask;
+
+    VCGMesh polyline;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(polyline, 4);
+    for (int i = 0; i < 4; ++i)
+        polyline.vert[std::size_t(i)].P() = vcg::Point3f(float(i), 0.0f, 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddEdges(polyline, 3);
+    // Deliberately awkward values: negative, zero, and fractional.
+    const float expected[3] = { -2.5f, 0.0f, 17.25f };
+    for (int i = 0; i < 3; ++i) {
+        polyline.edge[std::size_t(i)].V(0) = &polyline.vert[std::size_t(i)];
+        polyline.edge[std::size_t(i)].V(1) = &polyline.vert[std::size_t(i + 1)];
+        polyline.edge[std::size_t(i)].Q() = expected[i];
+        polyline.edge[std::size_t(i)].C() = vcg::Color4b(9 * i, 1, 2, 255);
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(polyline);
+
+    Document doc;
+    const int index = doc.addMesh(
+        polyline, QStringLiteral("scalars"),
+        Mask::IOM_EDGEINDEX | Mask::IOM_EDGECOLOR | Mask::IOM_EDGEQUALITY);
+    QVERIFY(index >= 0);
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    for (const bool binary : { false, true }) {
+        const QString path = dir.filePath(
+            binary ? QStringLiteral("edge_scalars_binary.ply")
+                   : QStringLiteral("edge_scalars_ascii.ply"));
+        MeshIOSaveOptions options;
+        options.binary = binary;
+        options.mask = Mask::IOM_VERTCOORD | Mask::IOM_EDGEINDEX
+            | Mask::IOM_EDGECOLOR | Mask::IOM_EDGEQUALITY;
+        QCOMPARE(doc.saveMesh(index, path, options), 0);
+
+        Document reloaded;
+        const int reloadedIndex = reloaded.loadMesh(path);
+        QVERIFY2(reloadedIndex >= 0, qPrintable(path));
+        const Document::MeshEntry &entry = reloaded.mesh(reloadedIndex);
+        QVERIFY(entry.ioMask & Mask::IOM_EDGEQUALITY);
+        QCOMPARE(entry.mesh.EN(), 3);
+        for (int i = 0; i < 3; ++i)
+            QCOMPARE(entry.mesh.edge[std::size_t(i)].cQ(), expected[i]);
+        // Colour must still survive alongside it.
+        QVERIFY(entry.ioMask & Mask::IOM_EDGECOLOR);
+        QCOMPARE(int(entry.mesh.edge[1].cC()[0]), 9);
+    }
+
+    // Saving without the bit must leave it out of the file, not write it anyway.
+    const QString bare = dir.filePath(QStringLiteral("edge_no_scalars.ply"));
+    MeshIOSaveOptions plain;
+    plain.binary = false;
+    plain.mask = Mask::IOM_VERTCOORD | Mask::IOM_EDGEINDEX;
+    QCOMPARE(doc.saveMesh(index, bare, plain), 0);
+    Document bareDoc;
+    const int bareIndex = bareDoc.loadMesh(bare);
+    QVERIFY(bareIndex >= 0);
+    QVERIFY(!(bareDoc.mesh(bareIndex).ioMask & Mask::IOM_EDGEQUALITY));
 }
 
 void DocumentTests::plyEdgeColorsLoadAndRoundTrip()
