@@ -46,6 +46,12 @@ struct RuntimePaths
 
 RuntimePaths runtimePaths()
 {
+    const QString packagedRoot = qEnvironmentVariable("MESHLAB2_QUADWILD_ROOT");
+    if (!packagedRoot.isEmpty()) {
+        const QDir root(packagedRoot);
+        return {root.filePath(QStringLiteral("bin")), root.absolutePath()};
+    }
+
     const QDir appDir(QCoreApplication::applicationDirPath());
 #ifdef Q_OS_MACOS
     return {
