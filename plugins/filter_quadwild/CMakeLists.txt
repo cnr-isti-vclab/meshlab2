@@ -33,7 +33,11 @@ FetchContent_Declare(meshlab2_quadwild_gmm
 FetchContent_MakeAvailable(meshlab2_quadwild_gmm)
 
 set(QUADWILD_BUILD_DIR "${PROJECT_BINARY_DIR}/quadwild-bimdf")
-set(QUADWILD_BIN_DIR "${QUADWILD_BUILD_DIR}/Build/bin")
+if(CMAKE_CONFIGURATION_TYPES)
+    set(QUADWILD_BIN_DIR "${QUADWILD_BUILD_DIR}/Build/bin/$<CONFIG>")
+else()
+    set(QUADWILD_BIN_DIR "${QUADWILD_BUILD_DIR}/Build/bin")
+endif()
 
 # The two helper paths are the one definition in the file. They are CACHE INTERNAL
 # because meshlab2_bundle_quadwild() below is invoked from the root CMakeLists, a
