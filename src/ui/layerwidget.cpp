@@ -24,6 +24,8 @@
 #include <QContextMenuEvent>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QQuaternion>
+#include <QMatrix3x3>
 #include <QPainter>
 #include <QSignalBlocker>
 #include <QStyledItemDelegate>
@@ -317,10 +319,46 @@ QString meshTransformSummary(const QMatrix4x4 &m)
     const float sx = cx.length();
     const float sy = cy.length();
     const float sz = cz.length();
-    return QObject::tr("T(%1, %2, %3)  S(%4, %5, %6)")
+
+    // The rotation has to be reported too, and it is the one part the column lengths throw
+    // away: a layer turned onto its axes carries no translation and unit scale, so without
+    // this it read exactly like a layer with no transform at all.
+    QString rotation;
+    const bool scalable = (sx > 1e-8f && sy > 1e-8f && sz > 1e-8f);
+    if (scalable) {
+        const QVector3D ux = cx / sx;
+        const QVector3D uy = cy / sy;
+        const QVector3D uz = cz / sz;
+        // A negative determinant is a mirror, and no axis-and-angle describes one. Say so
+        // rather than print the rotation of the flipped frame as if it were the whole story.
+        const bool mirrored = QVector3D::dotProduct(QVector3D::crossProduct(ux, uy), uz) < 0.0f;
+        QMatrix3x3 basis;
+        for (int r = 0; r < 3; ++r) {
+            basis(r, 0) = ux[r];
+            basis(r, 1) = uy[r];
+            basis(r, 2) = mirrored ? -uz[r] : uz[r];
+        }
+        QVector3D axis;
+        float angle = 0.0f;
+        QQuaternion::fromRotationMatrix(basis).getAxisAndAngle(&axis, &angle);
+        if (angle > 180.0f)
+            angle -= 360.0f;
+        if (std::abs(angle) > 1e-3f) {
+            rotation = QObject::tr("  R(%1° @ %2, %3, %4)")
+                           .arg(angle, 0, 'g', 4)
+                           .arg(axis.x(), 0, 'g', 3)
+                           .arg(axis.y(), 0, 'g', 3)
+                           .arg(axis.z(), 0, 'g', 3);
+        }
+        if (mirrored)
+            rotation += QObject::tr("  mirrored");
+    }
+
+    return QObject::tr("T(%1, %2, %3)%4  S(%5, %6, %7)")
         .arg(t.x(), 0, 'g', 4)
         .arg(t.y(), 0, 'g', 4)
         .arg(t.z(), 0, 'g', 4)
+        .arg(rotation)
         .arg(sx, 0, 'g', 4)
         .arg(sy, 0, 'g', 4)
         .arg(sz, 0, 'g', 4);

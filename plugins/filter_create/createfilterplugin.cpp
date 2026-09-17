@@ -122,7 +122,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
         const int idx = doc.addMesh(
             m,
-            QStringLiteral("Box"),
+            QStringLiteral("Hexahedron"),
             vcg::tri::io::Mask::IOM_BITPOLYGONAL);
         return success(doc.mesh(idx).name, idx);
     }

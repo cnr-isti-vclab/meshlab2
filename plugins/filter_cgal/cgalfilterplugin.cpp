@@ -807,11 +807,9 @@ MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc)
     if (mesh.VN() <= 0)
         return fail(QObject::tr("Create Bounding Box requires a layer with vertices."));
 
-    const bool oriented =
-        params.getEnum(QStringLiteral("alignment")) == QLatin1String("oriented");
-    // Only means anything for an oriented box: an axis-aligned one is already on the axes.
-    const bool rotateLayer =
-        oriented && params.getBool(QStringLiteral("rotateLayerToAxes"), false);
+    const QString alignment = params.getEnum(QStringLiteral("alignment"));
+    const bool oriented = (alignment == QLatin1String("oriented"));
+    const bool rotateLayer = (alignment == QLatin1String("oriented_rotate_layer"));
 
     const auto collectPoints = [&mesh]() {
         std::vector<CgalPoint> points;
@@ -827,9 +825,13 @@ MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc)
 
     QStringList info;
 
-    // Turning the layer instead of the box. CGAL's transformation is the map into the frame
-    // where the tightest box is axis-aligned, so applying it to the vertices leaves the
-    // ordinary axis-aligned box below with nothing left to do -- the two paths converge.
+    // Turning the layer rather than the box. CGAL's transformation is the map into the frame
+    // where the tightest box is axis-aligned; putting it in the layer's matrix leaves the
+    // vertices untouched and moves the object instead, which is the same picture a baked
+    // rotation would give and is undoable without rewriting any geometry.
+    const QMatrix4x4 originalTransform = entry.transform;
+    QMatrix4x4 rotatedTransform = entry.transform;
+    vcg::Box3f rotatedBox;
     if (rotateLayer) {
         const std::vector<CgalPoint> points = collectPoints();
         if (points.size() < 3)
@@ -839,24 +841,27 @@ MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc)
         CGAL::oriented_bounding_box(
             points, toAxes, CGAL::parameters::random_seed(kOrientedBoxSeed));
 
-        for (auto &v : mesh.vert) {
+        QMatrix4x4 rotation;  // identity, then the 3x4 CGAL carries
+        for (int row = 0; row < 3; ++row) {
+            for (int col = 0; col < 4; ++col)
+                rotation(row, col) = float(toAxes.m(row, col));
+        }
+        rotatedTransform = entry.transform * rotation;
+
+        // The box is axis-aligned in that rotated frame, so it is simply the bounds of the
+        // turned points -- no corner bookkeeping, and no dependence on CGAL's corner order.
+        rotatedBox.SetNull();
+        for (const auto &v : mesh.vert) {
             if (v.IsD())
                 continue;
             const CgalPoint turned = toAxes.transform(CgalPoint(v.P()[0], v.P()[1], v.P()[2]));
-            v.P() = VCGMesh::CoordType(
-                float(turned.x()), float(turned.y()), float(turned.z()));
+            rotatedBox.Add(VCGMesh::CoordType(
+                float(turned.x()), float(turned.y()), float(turned.z())));
         }
-        vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
-        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
-        doc.markMeshGeometryChanged(
-            meshIndex,
-            QObject::tr("Rotated '%1' onto the axes of its tightest bounding box")
-                .arg(entry.name));
-        info << QObject::tr("Rotated the layer onto the axes of its tightest box.");
     }
 
     VCGMesh output;
-    vcg::tri::Box<VCGMesh>(output, mesh.bbox);
+    vcg::tri::Box<VCGMesh>(output, rotateLayer ? rotatedBox : mesh.bbox);
 
     if (oriented && !rotateLayer) {
         const std::vector<CgalPoint> points = collectPoints();
@@ -896,11 +901,12 @@ MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc)
                     .arg(sides[0]).arg(sides[1]).arg(sides[2])
                     .arg(double(sides[0]) * double(sides[1]) * double(sides[2]));
     } else {
-        const vcg::Point3f diagonal = mesh.bbox.max - mesh.bbox.min;
+        const vcg::Box3f &measured = rotateLayer ? rotatedBox : mesh.bbox;
+        const vcg::Point3f diagonal = measured.max - measured.min;
         // After a rotation this is the tightest box, now sitting on the axes; without one
-        // it is the plain axis-aligned box. Same numbers either way, different meaning.
+        // it is the plain axis-aligned box. Different meaning, same arithmetic.
         info << (rotateLayer
-                     ? QObject::tr("Oriented box, now axis-aligned: %1 x %2 x %3, volume %4.")
+                     ? QObject::tr("Tightest box, put on the axes: %1 x %2 x %3, volume %4.")
                      : QObject::tr("Axis-aligned box: %1 x %2 x %3, volume %4."))
                     .arg(diagonal[0]).arg(diagonal[1]).arg(diagonal[2])
                     .arg(double(diagonal[0]) * double(diagonal[1]) * double(diagonal[2]));
@@ -915,9 +921,19 @@ MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc)
     if (newIndex < 0)
         return fail(QObject::tr("Failed to add the %1 layer.").arg(layerName));
 
-    // The box is computed in the source layer's own coordinates, as the bounding box the
-    // viewport draws is, so it needs the source layer's matrix to sit on the object.
-    doc.setMeshTransform(newIndex, entry.transform);
+    // The box always takes the layer's *original* matrix. Its own coordinates are already
+    // expressed in the frame it was measured in -- the layer's own for the first two
+    // alignments, the turned one for the third -- so handing it the turned matrix as well
+    // would rotate it a second time and slide it off the object it is meant to hug.
+    doc.setMeshTransform(newIndex, originalTransform);
+    if (rotateLayer) {
+        doc.setMeshTransform(
+            meshIndex,
+            rotatedTransform,
+            QObject::tr("Turned '%1' onto the axes of its tightest bounding box")
+                .arg(entry.name));
+        info << QObject::tr("Stored the rotation in the layer's transformation.");
+    }
 
     info.prepend(QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name));
     return success(info, newIndex);

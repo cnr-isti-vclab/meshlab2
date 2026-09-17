@@ -519,7 +519,7 @@
       "name": "Create Bounding Box",
       "pythonName": "create_bounding_box",
       "shortDescription": "Turn the current layer's bounding box into a mesh of its own.",
-      "longDescriptionMarkdown": "Creates a new layer holding the bounding box of the current layer as an actual eight-vertex, twelve-triangle box, rather than as an annotation drawn over the viewport. Useful whenever the box has to be *operated on* — measured, exported, intersected, used as a crop volume or as a stand-in for the object in a larger scene.\n\n**Alignment** chooses between the two boxes worth having:\n\n- **Axis aligned** is the box the viewport draws: the smallest box whose sides are parallel to the layer's own axes. It is exact, instant, and depends on how the object happens to be oriented.\n- **Oriented** is the smallest box in *any* orientation, found by searching the space of rotations. For an object lying at an angle it is dramatically tighter than the axis-aligned one; for an object already aligned to its axes the two coincide. The search is an approximation, not a proven optimum, and it costs time on large inputs — it runs on the convex hull, so cost follows the hull rather than the vertex count.\n\nThe new layer inherits the source layer's matrix, so the box sits on the object wherever the object has been moved to.\n\nThe oriented box is computed with CGAL's Optimal Bounding Box package.\n\nReference:\nKonstantinos Katrioplas, Mael Rouxel-Labbé, **Optimal Bounding Box**, CGAL User and Reference Manual, CGAL Editorial Board.\n\n**Rotate Layer to Axes** turns the object rather than the box. The oriented box is found as usual, but instead of building a tilted box around an untouched layer, the layer's vertices are rotated into the box's frame and the box comes out axis-aligned. Use it to straighten an object that was digitised or exported at an arbitrary angle; the layer is modified, so it is undoable like any other edit.",
+      "longDescriptionMarkdown": "Creates a new layer holding the bounding box of the current layer as an actual eight-vertex, twelve-triangle box, rather than as an annotation drawn over the viewport. Useful whenever the box has to be *operated on* — measured, exported, intersected, used as a crop volume or as a stand-in for the object in a larger scene.\n\n**Alignment** chooses between the two boxes worth having:\n\n- **Axis aligned** is the box the viewport draws: the smallest box whose sides are parallel to the layer's own axes. It is exact, instant, and depends on how the object happens to be oriented.\n- **Oriented** is the smallest box in *any* orientation, found by searching the space of rotations. For an object lying at an angle it is dramatically tighter than the axis-aligned one; for an object already aligned to its axes the two coincide. The search is an approximation, not a proven optimum, and it costs time on large inputs — it runs on the convex hull, so cost follows the hull rather than the vertex count.\n\nThe new layer inherits the source layer's matrix, so the box sits on the object wherever the object has been moved to.\n\nThe oriented box is computed with CGAL's Optimal Bounding Box package.\n\nReference:\nKonstantinos Katrioplas, Mael Rouxel-Labbé, **Optimal Bounding Box**, CGAL User and Reference Manual, CGAL Editorial Board.\n- **Oriented, turning the layer** finds the same box and then turns the object instead of the box: the rotation is written into the layer's transformation, so the layer comes to rest on the axes and the box is created axis-aligned alongside it. The vertices are not touched \u2014 only the matrix \u2014 which is how you straighten an object that was digitised or exported at an arbitrary angle.",
       "tags": [
         "cgal",
         "bounding box",
@@ -553,16 +553,12 @@
             {
               "id": "oriented",
               "label": "Oriented (minimum volume)"
+            },
+            {
+              "id": "oriented_rotate_layer",
+              "label": "Oriented, turning the layer"
             }
           ]
-        },
-        {
-          "id": "rotateLayerToAxes",
-          "label": "Rotate Layer to Axes",
-          "help": "Turn the layer instead of the box: rotate its vertices so the tightest box lines up with the coordinate axes, then create that box axis-aligned. The layer's own coordinates change, which is the point — it is how you put an object that was digitised at an angle back onto its axes. Ignored when Alignment is Axis Aligned, which has nothing to rotate to.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ]
     }
