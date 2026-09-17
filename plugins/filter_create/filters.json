@@ -163,6 +163,102 @@
       ]
     },
     {
+      "id": "create_circle",
+      "categories": ["Creation/Primitives"],
+      "name": "Create Circle",
+      "pythonName": "create_circle",
+      "shortDescription": "Creates a circle, or any regular polygon, as a closed polyline.",
+      "longDescriptionMarkdown": "Creates a new layer holding a **circle** as a closed **polyline**: a ring of vertices joined by edges, with no faces. Polylines are the edge-based curves MeshLab uses for sections, contours and outlines — this makes one from nothing, to measure against, to sweep along, or to project onto a surface.\n\n**Sides** is how many segments approximate the curve, which also makes this a general regular-polygon generator: 3 draws a triangle, 5 a pentagon, 6 a hexagon, and a couple of hundred a circle no viewport will show as faceted.\n\n**Normal** turns the circle to face any direction. It is always centred on the origin and lies in the plane at right angles to that direction.\n\nFor a *filled* flat ring with faces rather than a curve, use **Create Annulus**.",
+      "tags": [
+        "create",
+        "circle",
+        "polyline",
+        "curve",
+        "polygon",
+        "ring",
+        "edge mesh",
+        "primitive"
+      ],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": [
+        {
+          "id": "radius",
+          "label": "Radius",
+          "help": "Distance from the centre to each vertex.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 1e-08,
+          "max": 100000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "sides",
+          "label": "Sides",
+          "help": "Number of segments the circle is approximated by. Small values give a regular polygon: 3 a triangle, 6 a hexagon.",
+          "group": "main",
+          "type": "int",
+          "default": 64,
+          "min": 3,
+          "max": 100000
+        },
+        {
+          "id": "axis",
+          "label": "Normal",
+          "help": "Direction the polyline faces. It lies in the plane through the origin at right angles to this. Need not be normalized.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [0.0, 0.0, 1.0]
+        }
+      ]
+    },
+    {
+      "id": "create_square",
+      "categories": ["Creation/Primitives"],
+      "name": "Create Square",
+      "pythonName": "create_square",
+      "shortDescription": "Creates a square as a closed polyline.",
+      "longDescriptionMarkdown": "Creates a new layer holding a **square** as a closed **polyline**: four vertices, four edges, no faces. Polylines are the edge-based curves MeshLab uses for sections, contours and outlines — this makes one from nothing, as a frame, a footprint, or a path to measure against.\n\n**Side Length** is the length of each of the four edges; the square is centred on the origin, so it reaches half of that either side along each of its in-plane directions.\n\n**Normal** turns the square to face any direction. Its sides stay square to the two in-plane axes rather than its corners, which is the difference between this and asking **Create Circle** for four sides.\n\nFor a *filled* square with faces rather than a curve, use **Create Grid**, or scale a **Create Hexahedron** flat.",
+      "tags": [
+        "create",
+        "square",
+        "rectangle",
+        "polyline",
+        "curve",
+        "frame",
+        "edge mesh",
+        "primitive"
+      ],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": [
+        {
+          "id": "size",
+          "label": "Side Length",
+          "help": "Length of each of the four edges.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 1e-08,
+          "max": 100000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "axis",
+          "label": "Normal",
+          "help": "Direction the polyline faces. It lies in the plane through the origin at right angles to this. Need not be normalized.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [0.0, 0.0, 1.0]
+        }
+      ]
+    },
+    {
       "id": "create_sphere",
       "categories": ["Creation/Primitives"],
       "name": "Create Sphere",

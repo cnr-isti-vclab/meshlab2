@@ -510,6 +510,11 @@ bool validateNamedMeshParameters(
         const int meshIndex = meshIndexFromVariant(
             parameterValues.value(parameter.id, parameter.defaultValue),
             doc.currentMeshIndex());
+        // An optional reference left empty is the one case where a negative index is
+        // the answer rather than a mistake, so it must not be rejected here: the filter
+        // has to stay runnable on a document with no layers to point at.
+        if (meshIndex < 0 && parameter.meshAllowsNone)
+            continue;
         if (meshIndex < 0 || meshIndex >= doc.meshCount()) {
             errorMessage = QObject::tr("Filter '%1' requires a valid mesh selection for '%2'.")
                                .arg(descriptor.name, meshSubjectLabel(parameter.label));

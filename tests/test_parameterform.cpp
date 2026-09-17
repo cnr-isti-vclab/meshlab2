@@ -4,6 +4,9 @@
 // only Document + Qt Widgets and can be exercised directly.
 #include "parameterformbuilder.h"
 
+#include "document.h"
+#include "vcgmesh.h"
+
 #include <QFormLayout>
 #include <QCheckBox>
 #include <QComboBox>
@@ -77,6 +80,7 @@ private slots:
     void enabledWhenSupportsNegation();
     void enabledWhenIgnoresBadReferences();
     void point3fRoleChoosesThePresetList();
+    void optionalMeshReferenceOffersNone();
 };
 
 void ParameterFormTests::buildsEditorsFromDefaults()
@@ -351,6 +355,66 @@ void ParameterFormTests::point3fRoleChoosesThePresetList()
     QVERIFY(presetsFor(QStringLiteral("direction")).contains(QStringLiteral("-X Axis")));
     // Unspecified means "point", which offers places rather than orientations.
     QVERIFY(presetsFor(QString()).contains(QStringLiteral("Mesh BBox Center")));
+}
+
+// A mesh reference marked meshAllowsNone offers an explicit empty choice and can default
+// to it. Without the flag a mesh parameter can never be left unset, which would stop a
+// filter like Create Grid -- whose layer reference is only there to take a size from --
+// running at all on a document with no layers to point at.
+void ParameterFormTests::optionalMeshReferenceOffersNone()
+{
+    const auto comboFor = [](ParameterFormBuilder &b, const QString &id) {
+        const ParameterFormBuilder::Binding *binding = b.bindingById(id);
+        return binding ? qobject_cast<QComboBox *>(binding->editor) : nullptr;
+    };
+
+    Document empty;
+    QWidget host;
+    auto *layout = new QFormLayout(&host);
+    ParameterFormBuilder builder(layout, &host);
+    builder.setContext({ &empty, {}, {}, {} });
+
+    auto optional = makeParam(QStringLiteral("fitLayer"), MeshFilterParameterType::Mesh, -1);
+    optional.meshAllowsNone = true;
+    builder.build({ optional,
+                    makeParam(QStringLiteral("srcMesh"), MeshFilterParameterType::Mesh, -1) });
+
+    QComboBox *optionalCombo = comboFor(builder, QStringLiteral("fitLayer"));
+    QVERIFY(optionalCombo != nullptr);
+    QCOMPARE(optionalCombo->count(), 1);
+    QCOMPARE(optionalCombo->itemData(0).toInt(), -1);
+    QCOMPARE(builder.value(QStringLiteral("fitLayer")).toInt(), -1);
+
+    // The mandatory one gets no empty row, so an empty document leaves it with nothing to
+    // offer -- which is exactly why the optional flag has to exist.
+    QComboBox *mandatoryCombo = comboFor(builder, QStringLiteral("srcMesh"));
+    QVERIFY(mandatoryCombo != nullptr);
+    QCOMPARE(mandatoryCombo->count(), 0);
+
+    // With layers present the empty row is still first, still the default, and the layers
+    // follow it at their own indices.
+    Document doc;
+    doc.addMesh(VCGMesh(), QStringLiteral("first"));
+    doc.addMesh(VCGMesh(), QStringLiteral("second"));
+    doc.setCurrentMeshIndex(1);
+
+    QWidget host2;
+    auto *layout2 = new QFormLayout(&host2);
+    ParameterFormBuilder builder2(layout2, &host2);
+    builder2.setContext({ &doc, {}, {}, {} });
+
+    auto pinned = makeParam(QStringLiteral("pinned"), MeshFilterParameterType::Mesh, 0);
+    pinned.meshAllowsNone = true;
+    builder2.build({ optional, pinned,
+                     makeParam(QStringLiteral("srcMesh"), MeshFilterParameterType::Mesh, -1) });
+
+    QComboBox *withLayers = comboFor(builder2, QStringLiteral("fitLayer"));
+    QVERIFY(withLayers != nullptr);
+    QCOMPARE(withLayers->count(), 3);
+    QCOMPARE(builder2.value(QStringLiteral("fitLayer")).toInt(), -1);
+    QCOMPARE(builder2.value(QStringLiteral("pinned")).toInt(), 0);
+    // A mandatory reference with a nonsense default still falls back to the current layer.
+    QCOMPARE(builder2.value(QStringLiteral("srcMesh")).toInt(), 1);
 }
 
 QTEST_MAIN(ParameterFormTests)

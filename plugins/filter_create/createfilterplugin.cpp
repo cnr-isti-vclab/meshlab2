@@ -4,6 +4,8 @@
 #include "meshfilterpluginmanager.h"
 #include "vcgmesh.h"
 #include <QVector3D>
+#include <cmath>
+#include <vector>
 #include <vcg/complex/algorithms/convex_hull.h>
 #include <vcg/complex/algorithms/create/platonic.h>
 #include <vcg/complex/algorithms/point_sampling.h>
@@ -13,12 +15,15 @@
 #include <vcg/complex/algorithms/update/selection.h>
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/math/gen_normal.h>
+#include <vcg/math/matrix33.h>
 #include <vcg/math/random_generator.h>
 #include <vcg/space/fitting3.h>
 
 namespace {
 constexpr QLatin1StringView kFilterCreateHexahedron("create_hexahedron");
 constexpr QLatin1StringView kFilterCreateAnnulus("create_annulus");
+constexpr QLatin1StringView kFilterCreateCircle("create_circle");
+constexpr QLatin1StringView kFilterCreateSquare("create_square");
 constexpr QLatin1StringView kFilterCreateSphere("create_sphere");
 constexpr QLatin1StringView kFilterCreateSphereCap("create_sphere_cap");
 constexpr QLatin1StringView kFilterCreateSpherePoints("create_points_on_sphere");
@@ -33,6 +38,26 @@ constexpr QLatin1StringView kFilterCreateCylinder("create_cylinder");
 constexpr QLatin1StringView kFilterCreateTorus("create_torus");
 constexpr QLatin1StringView kFilterFitPlane("create_plane_from_selection");
 constexpr QLatin1StringView kFilterConvexHull("create_convex_hull");
+
+// A closed polyline through the given points: one vertex each, one edge each, the last
+// joined back to the first. What makes a polyline a polyline rather than a point cloud is
+// that the edge container is populated, so that is all this does.
+void buildClosedPolyline(VCGMesh &m, const std::vector<vcg::Point3f> &points)
+{
+    m.Clear();
+    const int n = int(points.size());
+    auto vi = vcg::tri::Allocator<VCGMesh>::AddVertices(m, n);
+    for (const vcg::Point3f &p : points) {
+        vi->P() = p;
+        ++vi;
+    }
+    auto ei = vcg::tri::Allocator<VCGMesh>::AddEdges(m, n);
+    for (int i = 0; i < n; ++i) {
+        ei->V(0) = &m.vert[i];
+        ei->V(1) = &m.vert[(i + 1) % n];
+        ++ei;
+    }
+}
 
 MeshFilterRunResult success(const QString &name, int newIndex, const QStringList &extraInfo = {})
 {
@@ -137,6 +162,47 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
         const int idx = doc.addMesh(m, QStringLiteral("Annulus"));
         return success(doc.mesh(idx).name, idx);
+    }
+
+    const bool circle = filterId == QString::fromLatin1(kFilterCreateCircle);
+    const bool square = filterId == QString::fromLatin1(kFilterCreateSquare);
+    if (circle || square) {
+        const QVector3D a = params.getPoint3f(QStringLiteral("axis"));
+        vcg::Point3f normal(a.x(), a.y(), a.z());
+        if (normal.SquaredNorm() <= 1e-20f)
+            return { false, false, QObject::tr("Normal must be non-zero.") };
+        normal.Normalize();
+
+        // A square is the four-sided member of the same family, turned an eighth of a turn:
+        // its corners sit on a circle of half its diagonal, and that phase is what puts its
+        // sides square to the in-plane axes instead of its corners.
+        const int sides = circle ? params.getInt(QStringLiteral("sides")) : 4;
+        const float radius = circle
+            ? float(params.getDouble(QStringLiteral("radius")))
+            : float(params.getDouble(QStringLiteral("size"))) * float(M_SQRT1_2);
+        const float phase = circle ? 0.0f : float(M_PI) * 0.25f;
+
+        const vcg::Matrix33f turn =
+            vcg::RotationMatrix(vcg::Point3f(0.0f, 0.0f, 1.0f), normal, true);
+        std::vector<vcg::Point3f> ring;
+        ring.reserve(std::size_t(sides));
+        for (int i = 0; i < sides; ++i) {
+            const float t = phase + 2.0f * float(M_PI) * float(i) / float(sides);
+            ring.push_back(
+                turn * vcg::Point3f(radius * std::cos(t), radius * std::sin(t), 0.0f));
+        }
+
+        VCGMesh m;
+        buildClosedPolyline(m, ring);
+        vcg::tri::UpdateBounding<VCGMesh>::Box(m);
+        const int idx = doc.addMesh(
+            m,
+            circle ? QStringLiteral("Circle") : QStringLiteral("Square"),
+            vcg::tri::io::Mask::IOM_EDGEINDEX);
+        return success(
+            doc.mesh(idx).name,
+            idx,
+            { QObject::tr("Closed polyline: %1 vertices, %2 edges.").arg(sides).arg(sides) });
     }
 
     if (filterId == QString::fromLatin1(kFilterCreateSphere)) {

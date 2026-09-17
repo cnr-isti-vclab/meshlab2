@@ -165,6 +165,8 @@ MeshFilterParameterDescriptor parseParameter(const QJsonObject &obj)
     p.meshRequirements.requireEdgeQuality = meshReq.value(QStringLiteral("requireEdgeQuality")).toBool(false);
     p.meshRequirements.requireFaceQuality = meshReq.value(QStringLiteral("requireFaceQuality")).toBool(false);
 
+    p.meshAllowsNone = obj.value(QStringLiteral("meshAllowsNone")).toBool(false);
+
     const QJsonArray meshPrep = obj.value(QStringLiteral("meshPrepare")).toArray();
     for (const QJsonValue &pv : meshPrep)
         p.meshPrepare << pv.toString();

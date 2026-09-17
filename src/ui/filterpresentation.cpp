@@ -20,7 +20,10 @@ bool matches(const Document::FilterInfo &info, const QStringList &terms)
 
     const MeshFilterDescriptor &d = info.descriptor;
     // Categories are searchable so a filter can be found by the family it belongs to
-    // even though names deliberately do not repeat their category.
+    // even though names deliberately do not repeat their category. Tags are searchable
+    // because that is the whole point of them: they carry the synonyms a name cannot
+    // ("plane" for a grid, "cube" for a hexahedron, "aabb" for a bounding box), and
+    // leaving them out of the haystack forced those words into descriptions instead.
     const QString haystack = (QStringList {
                                   d.name,
                                   d.effectivePythonName(),
@@ -29,6 +32,7 @@ bool matches(const Document::FilterInfo &info, const QStringList &terms)
                                   d.provenance.project,
                                   info.pluginName,
                                   d.categories.join(QLatin1Char(' ')),
+                                  d.tags.join(QLatin1Char(' ')),
                               }).join(QLatin1Char('\n')).toLower();
 
     for (const QString &term : terms) {

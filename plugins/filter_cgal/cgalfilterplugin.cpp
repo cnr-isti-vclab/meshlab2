@@ -53,7 +53,8 @@ constexpr QLatin1StringView kFilterAdvancingFront("reconstruct_surface_by_advanc
 constexpr QLatin1StringView kFilterOrientNormals("orient_point_cloud_normals");
 constexpr QLatin1StringView kFilterPoisson("reconstruct_surface_by_poisson_cgal");
 constexpr QLatin1StringView kFilterKinetic("reconstruct_surface_by_kinetic_partition");
-constexpr QLatin1StringView kFilterBoundingBox("create_bounding_box");
+constexpr QLatin1StringView kFilterMeshBoundingBox("create_mesh_bounding_box");
+constexpr QLatin1StringView kFilterSceneBoundingBox("create_scene_bounding_box");
 using Mask = vcg::tri::io::Mask;
 using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
 using CgalPoint = Kernel::Point_3;
@@ -780,48 +781,133 @@ std::vector<OrientedPoint> collectOrientedPoints(const VCGMesh &mesh)
     return points;
 }
 
-// Orient an unoriented normal field with a minimum spanning tree of the Riemannian graph
-// (Hoppe et al.). This is the missing step between "Compute Point Cloud Normals", which
-// gives normals with arbitrary sign, and the reconstructions that need them oriented —
-// Screened Poisson, SSD, CGAL Poisson and the kinetic pipeline all require it.
 // Fixed because the oriented box is found by an evolutionary optimizer: an unseeded run
 // gives a slightly different box every time, which would make the filter unreplayable from
 // the action history for no benefit anyone wants from a bounding box.
 constexpr unsigned int kOrientedBoxSeed = 0x5eedu;
 
-// The bounding box of the current layer, as a mesh of its own.
+// What a bounding-box filter measures: one layer in its own frame, or every visible layer
+// in world space. Gathering the two subjects through the same struct is what lets the two
+// filters share every line below -- they differ in which points go in and which matrix the
+// resulting layer comes out with, and in nothing else.
+struct BoxSubject
+{
+    QString name;
+    QMatrix4x4 transform;    // matrix given to the new box layer
+    // The layer the box was measured from, remembered here because addMesh() moves the
+    // current index onto the new box and the rotation has to go to the source.
+    int sourceIndex = -1;
+    vcg::Box3f aabb;         // bounds of the measured points, in the frame they were measured in
+    int vertexCount = 0;
+    int layerCount = 0;
+    // Filled only when an oriented box was actually asked for. CGAL needs every point;
+    // the axis-aligned path already has its whole answer in `aabb`, and on a large scene
+    // this vector is the expensive part.
+    std::vector<CgalPoint> points;
+};
+
+bool gatherBoxSubject(
+    Document &doc, bool wholeScene, bool wantPoints, BoxSubject &subject, QString &error)
+{
+    subject.aabb.SetNull();
+
+    const auto addLayer = [&](const Document::MeshEntry &entry, bool toWorld) {
+        const VCGMesh &mesh = entry.mesh;
+        int live = 0;
+        for (const auto &v : mesh.vert) {
+            if (v.IsD())
+                continue;
+            ++live;
+            vcg::Point3f q = v.P();
+            if (toWorld) {
+                const QVector3D w = entry.transform.map(QVector3D(q[0], q[1], q[2]));
+                q = vcg::Point3f(w.x(), w.y(), w.z());
+            }
+            subject.aabb.Add(q);
+            if (wantPoints)
+                subject.points.emplace_back(q[0], q[1], q[2]);
+        }
+        if (live > 0)
+            ++subject.layerCount;
+        subject.vertexCount += live;
+    };
+
+    if (wholeScene) {
+        int reserve = 0;
+        for (int i = 0; i < doc.meshCount(); ++i) {
+            if (doc.mesh(i).visible)
+                reserve += doc.mesh(i).mesh.VN();
+        }
+        if (wantPoints)
+            subject.points.reserve(std::size_t(std::max(0, reserve)));
+        for (int i = 0; i < doc.meshCount(); ++i) {
+            const Document::MeshEntry &entry = doc.mesh(i);
+            if (entry.visible)
+                addLayer(entry, true);
+        }
+        if (subject.layerCount == 0) {
+            error = QObject::tr(
+                "Create Scene Bounding Box needs at least one visible layer with vertices.");
+            return false;
+        }
+        subject.name = QObject::tr("Scene");
+        // World space, so the box keeps its place whatever the layers it was measured
+        // from are moved to afterwards.
+        subject.transform.setToIdentity();
+        return true;
+    }
+
+    const int meshIndex = doc.currentMeshIndex();
+    if (meshIndex < 0 || meshIndex >= doc.meshCount()) {
+        error = QObject::tr("No current mesh selected.");
+        return false;
+    }
+    const Document::MeshEntry &entry = doc.mesh(meshIndex);
+    if (entry.mesh.VN() <= 0) {
+        error = QObject::tr("Create Mesh Bounding Box requires a layer with vertices.");
+        return false;
+    }
+    if (wantPoints) {
+        subject.points.reserve(std::size_t(entry.mesh.VN()));
+        addLayer(entry, false);
+    } else {
+        // This filter declares "BBox" preparation, so the layer's own box is current and
+        // the axis-aligned answer is already sitting there: no pass over the vertices, which
+        // is what lets the description call that alignment instant. The scene has no such
+        // shortcut -- a rotated layer's world extent is not its local box transformed.
+        subject.aabb = entry.mesh.bbox;
+        subject.vertexCount = entry.mesh.VN();
+        subject.layerCount = 1;
+    }
+    subject.name = entry.name;
+    subject.transform = entry.transform;
+    subject.sourceIndex = meshIndex;
+    return true;
+}
+
+// The bounding box of a layer, or of the whole scene, as a mesh of its own.
 //
 // Both alignments end up describing the same eight corners in the same order -- x fastest,
 // then y, then z -- and that is exactly the order vcg::tri::Box lays its vertices out in.
 // So the box is built once by vcglib and the oriented case only moves the corners
 // afterwards: the faces, their winding and their faux edges all come from the same code
 // that builds Create Hexahedron, and the new layer looks like any other box primitive.
-MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc)
+MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc, bool wholeScene)
 {
-    const int meshIndex = doc.currentMeshIndex();
-    if (meshIndex < 0 || meshIndex >= doc.meshCount())
-        return fail(QObject::tr("No current mesh selected."));
-
-    Document::MeshEntry &entry = doc.mesh(meshIndex);
-    VCGMesh &mesh = entry.mesh;
-    if (mesh.VN() <= 0)
-        return fail(QObject::tr("Create Bounding Box requires a layer with vertices."));
-
     const QString alignment = params.getEnum(QStringLiteral("alignment"));
     const bool oriented = (alignment == QLatin1String("oriented"));
-    const bool rotateLayer = (alignment == QLatin1String("oriented_rotate_layer"));
+    // Only the single-layer filter declares this option; the scene has no one layer to turn.
+    const bool rotateLayer = !wholeScene && (alignment == QLatin1String("oriented_rotate_layer"));
 
-    const auto collectPoints = [&mesh]() {
-        std::vector<CgalPoint> points;
-        points.reserve(std::size_t(mesh.VN()));
-        for (const auto &v : mesh.vert) {
-            if (!v.IsD())
-                points.emplace_back(v.P()[0], v.P()[1], v.P()[2]);
-        }
-        return points;
-    };
-    const QString tooFewVertices = QObject::tr(
-        "An oriented bounding box needs at least three vertices; this layer has %1.");
+    BoxSubject subject;
+    QString error;
+    if (!gatherBoxSubject(doc, wholeScene, oriented || rotateLayer, subject, error))
+        return fail(error);
+    if ((oriented || rotateLayer) && subject.points.size() < 3) {
+        return fail(QObject::tr(
+            "An oriented bounding box needs at least three vertices; this has %1.")
+                        .arg(subject.points.size()));
+    }
 
     QStringList info;
 
@@ -829,48 +915,37 @@ MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc)
     // where the tightest box is axis-aligned; putting it in the layer's matrix leaves the
     // vertices untouched and moves the object instead, which is the same picture a baked
     // rotation would give and is undoable without rewriting any geometry.
-    const QMatrix4x4 originalTransform = entry.transform;
-    QMatrix4x4 rotatedTransform = entry.transform;
+    QMatrix4x4 rotatedTransform = subject.transform;
     vcg::Box3f rotatedBox;
     if (rotateLayer) {
-        const std::vector<CgalPoint> points = collectPoints();
-        if (points.size() < 3)
-            return fail(tooFewVertices.arg(points.size()));
-
         Kernel::Aff_transformation_3 toAxes;
         CGAL::oriented_bounding_box(
-            points, toAxes, CGAL::parameters::random_seed(kOrientedBoxSeed));
+            subject.points, toAxes, CGAL::parameters::random_seed(kOrientedBoxSeed));
 
         QMatrix4x4 rotation;  // identity, then the 3x4 CGAL carries
         for (int row = 0; row < 3; ++row) {
             for (int col = 0; col < 4; ++col)
                 rotation(row, col) = float(toAxes.m(row, col));
         }
-        rotatedTransform = entry.transform * rotation;
+        rotatedTransform = subject.transform * rotation;
 
         // The box is axis-aligned in that rotated frame, so it is simply the bounds of the
         // turned points -- no corner bookkeeping, and no dependence on CGAL's corner order.
         rotatedBox.SetNull();
-        for (const auto &v : mesh.vert) {
-            if (v.IsD())
-                continue;
-            const CgalPoint turned = toAxes.transform(CgalPoint(v.P()[0], v.P()[1], v.P()[2]));
+        for (const CgalPoint &q : subject.points) {
+            const CgalPoint turned = toAxes.transform(q);
             rotatedBox.Add(VCGMesh::CoordType(
                 float(turned.x()), float(turned.y()), float(turned.z())));
         }
     }
 
     VCGMesh output;
-    vcg::tri::Box<VCGMesh>(output, rotateLayer ? rotatedBox : mesh.bbox);
+    vcg::tri::Box<VCGMesh>(output, rotateLayer ? rotatedBox : subject.aabb);
 
-    if (oriented && !rotateLayer) {
-        const std::vector<CgalPoint> points = collectPoints();
-        if (points.size() < 3)
-            return fail(tooFewVertices.arg(points.size()));
-
+    if (oriented) {
         std::array<CgalPoint, 8> obb;
         CGAL::oriented_bounding_box(
-            points, obb, CGAL::parameters::random_seed(kOrientedBoxSeed));
+            subject.points, obb, CGAL::parameters::random_seed(kOrientedBoxSeed));
 
         // CGAL numbers its corners for make_hexahedron; vcglib numbers them by which side
         // of each axis they lie on. This is that relabelling, nothing more.
@@ -901,7 +976,7 @@ MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc)
                     .arg(sides[0]).arg(sides[1]).arg(sides[2])
                     .arg(double(sides[0]) * double(sides[1]) * double(sides[2]));
     } else {
-        const vcg::Box3f &measured = rotateLayer ? rotatedBox : mesh.bbox;
+        const vcg::Box3f &measured = rotateLayer ? rotatedBox : subject.aabb;
         const vcg::Point3f diagonal = measured.max - measured.min;
         // After a rotation this is the tightest box, now sitting on the axes; without one
         // it is the plain axis-aligned box. Different meaning, same arithmetic.
@@ -912,26 +987,33 @@ MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc)
                     .arg(double(diagonal[0]) * double(diagonal[1]) * double(diagonal[2]));
     }
 
+    if (wholeScene) {
+        info << QObject::tr("Measured %1 visible layers, %2 vertices in world space.")
+                    .arg(subject.layerCount)
+                    .arg(subject.vertexCount);
+    }
+
     vcg::tri::UpdateBounding<VCGMesh>::Box(output);
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
 
-    const QString layerName = QObject::tr("%1 bounding box").arg(entry.name);
+    const QString layerName = QObject::tr("%1 bounding box").arg(subject.name);
     const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
     const int newIndex = doc.addMesh(output, layerName, ioMask);
     if (newIndex < 0)
         return fail(QObject::tr("Failed to add the %1 layer.").arg(layerName));
 
-    // The box always takes the layer's *original* matrix. Its own coordinates are already
-    // expressed in the frame it was measured in -- the layer's own for the first two
-    // alignments, the turned one for the third -- so handing it the turned matrix as well
-    // would rotate it a second time and slide it off the object it is meant to hug.
-    doc.setMeshTransform(newIndex, originalTransform);
+    // The box always takes the matrix of the frame it was measured in: the layer's own for
+    // the first two alignments, the layer's own again for the third (its coordinates are
+    // already in the turned frame, so handing it the turned matrix as well would rotate it
+    // a second time and slide it off the object it is meant to hug), and identity for the
+    // scene, whose points were gathered in world space to begin with.
+    doc.setMeshTransform(newIndex, subject.transform);
     if (rotateLayer) {
         doc.setMeshTransform(
-            meshIndex,
+            subject.sourceIndex,
             rotatedTransform,
             QObject::tr("Turned '%1' onto the axes of its tightest bounding box")
-                .arg(entry.name));
+                .arg(subject.name));
         info << QObject::tr("Stored the rotation in the layer's transformation.");
     }
 
@@ -939,6 +1021,10 @@ MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc)
     return success(info, newIndex);
 }
 
+// Orient an unoriented normal field with a minimum spanning tree of the Riemannian graph
+// (Hoppe et al.). This is the missing step between "Compute Point Cloud Normals", which
+// gives normals with arbitrary sign, and the reconstructions that need them oriented —
+// Screened Poisson, SSD, CGAL Poisson and the kinetic pipeline all require it.
 MeshFilterRunResult runOrientNormals(const FilterParams &params, Document &doc)
 {
     const int meshIndex = doc.currentMeshIndex();
@@ -1250,8 +1336,10 @@ MeshFilterRunResult CgalFilterPlugin::runFilter(
         return runAdvancingFront(params, doc);
     if (filterId == QString::fromLatin1(kFilterOrientNormals))
         return runOrientNormals(params, doc);
-    if (filterId == QString::fromLatin1(kFilterBoundingBox))
-        return runBoundingBox(params, doc);
+    if (filterId == QString::fromLatin1(kFilterMeshBoundingBox))
+        return runBoundingBox(params, doc, false);
+    if (filterId == QString::fromLatin1(kFilterSceneBoundingBox))
+        return runBoundingBox(params, doc, true);
     if (filterId == QString::fromLatin1(kFilterPoisson))
         return runPoisson(params, doc);
     if (filterId == QString::fromLatin1(kFilterKinetic))

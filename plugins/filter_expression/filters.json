@@ -1112,11 +1112,16 @@
       "categories": ["Creation/Primitives"],
       "name": "Create Grid",
       "pythonName": "create_grid",
-      "shortDescription": "Generates a regular 2D grid mesh.",
-      "longDescriptionMarkdown": "Generate a new 2D Grid mesh with number of vertices on X and Y axis specified by user with absolute length/height.<br>It's possible to center Grid on origin.",
+      "shortDescription": "Creates a regular grid of quads: a plane, subdivided, in any orientation.",
+      "longDescriptionMarkdown": "Creates a new layer holding a regular grid of quads: a **plane** cut into `Vertices U` × `Vertices V` samples, which is the usual starting point for a ground plane, a cutting plane, a backdrop, or a height field to displace.\n\nThe two in-plane directions are called **U** and **V** rather than X and Y, because the grid no longer has to lie in the XY plane: **Normal** turns it to face any direction, and U and V are then whatever two perpendicular directions come with it.\n\n**Fit to Layer** sizes and places the grid from an existing layer instead of from the size boxes: the grid is made as wide as that layer's bounding-box diagonal, square, and centred on the box centre, so it always cuts clean through the object whichever way it is turned. The layer's own transformation is taken into account. Leave it on *None* to use the sizes below.\n\nWithout a fit layer, **Center on Origin** decides whether the grid straddles the origin or starts there and runs out along +U and +V.",
       "tags": [
         "create",
         "grid",
+        "plane",
+        "planar",
+        "quad",
+        "ground",
+        "height field",
         "mesh"
       ],
       "inputDomain": "None",
@@ -1124,9 +1129,9 @@
       "inputRequirements": {},
       "parameters": [
         {
-          "id": "numVertX",
-          "label": "Vertices X",
-          "help": "Number of vertices along X.",
+          "id": "numVertU",
+          "label": "Vertices U",
+          "help": "Number of vertices along the first in-plane direction.",
           "group": "main",
           "type": "int",
           "default": 10,
@@ -1134,9 +1139,9 @@
           "max": 100000
         },
         {
-          "id": "numVertY",
-          "label": "Vertices Y",
-          "help": "Number of vertices along Y.",
+          "id": "numVertV",
+          "label": "Vertices V",
+          "help": "Number of vertices along the second in-plane direction.",
           "group": "main",
           "type": "int",
           "default": 10,
@@ -1144,9 +1149,9 @@
           "max": 100000
         },
         {
-          "id": "absScaleX",
-          "label": "Scale X",
-          "help": "Absolute scale along X.",
+          "id": "sizeU",
+          "label": "Size U",
+          "help": "Total extent of the grid along U. Ignored when a fit layer is chosen.",
           "group": "main",
           "type": "double",
           "default": 0.3,
@@ -1155,20 +1160,41 @@
           "decimals": 6
         },
         {
-          "id": "absScaleY",
-          "label": "Scale Y",
-          "help": "Absolute scale along Y.",
+          "id": "sizeV",
+          "label": "Size V",
+          "help": "Total extent of the grid along V. Ignored when a fit layer is chosen.",
           "group": "main",
           "type": "double",
           "default": 0.3,
           "min": 1e-09,
           "max": 1000000000.0,
           "decimals": 6
+        },
+        {
+          "id": "axis",
+          "label": "Normal",
+          "help": "Direction the grid faces. U and V are two perpendicular directions in the plane at right angles to it. Need not be normalized.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [0.0, 0.0, 1.0]
+        },
+        {
+          "id": "fitLayer",
+          "label": "Fit to Layer",
+          "help": "Size the grid as that layer's bounding-box diagonal and centre it on the box centre, taking the layer's transformation into account. None uses the sizes above.",
+          "group": "main",
+          "type": "mesh",
+          "default": -1,
+          "meshAllowsNone": true,
+          "meshPrepare": [
+            "BBox"
+          ]
         },
         {
           "id": "center",
-          "label": "Center On Origin",
-          "help": "Centers the generated grid on origin.",
+          "label": "Center on Origin",
+          "help": "Straddle the origin instead of starting there and running out along +U and +V. Ignored when a fit layer is chosen, which centres the grid on that layer instead.",
           "group": "main",
           "type": "bool",
           "default": false

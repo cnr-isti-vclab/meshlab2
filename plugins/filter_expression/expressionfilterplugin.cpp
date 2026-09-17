@@ -3,11 +3,13 @@
 #include "document.h"
 #include "filter_refine.h"
 #include "meshfilterpluginmanager.h"
+#include <QVector3D>
 #include <muParser.h>
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
 #include <vcg/complex/algorithms/create/marching_cubes.h>
 #include <vcg/complex/algorithms/create/mc_trivial_walker.h>
+#include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/create/platonic.h>
 #include <vcg/complex/algorithms/refine.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -18,6 +20,7 @@
 #include <vcg/complex/algorithms/update/quality.h>
 #include <vcg/complex/algorithms/update/selection.h>
 #include <vcg/complex/algorithms/update/topology.h>
+#include <vcg/math/matrix33.h>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -895,31 +898,69 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
     meshlab::filters::seedParserRandom(params.getRandomSeed().value);
 
     if (filterId == QString::fromLatin1(kFilterGrid)) {
-        const int w = params.getInt(QStringLiteral("numVertX"));
-        const int h = params.getInt(QStringLiteral("numVertY"));
-        const double sx = params.getDouble(QStringLiteral("absScaleX"));
-        const double sy = params.getDouble(QStringLiteral("absScaleY"));
+        const int w = params.getInt(QStringLiteral("numVertU"));
+        const int h = params.getInt(QStringLiteral("numVertV"));
+        double su = params.getDouble(QStringLiteral("sizeU"));
+        double sv = params.getDouble(QStringLiteral("sizeV"));
+        const QVector3D a = params.getPoint3f(QStringLiteral("axis"));
+        const int fitLayer = params.getMesh(QStringLiteral("fitLayer"), -1);
         const bool center = params.getBool(QStringLiteral("center"));
         if (w <= 1 || h <= 1)
             return fail(QObject::tr("Grid vertex counts must be greater than 1."));
-        if (!std::isfinite(sx) || !std::isfinite(sy) || sx <= 0.0 || sy <= 0.0)
-            return fail(QObject::tr("Grid scale values must be finite and greater than zero."));
+        if (!std::isfinite(su) || !std::isfinite(sv) || su <= 0.0 || sv <= 0.0)
+            return fail(QObject::tr("Grid sizes must be finite and greater than zero."));
+
+        vcg::Point3f normal(a.x(), a.y(), a.z());
+        if (normal.SquaredNorm() <= 1e-20f)
+            return fail(QObject::tr("The grid normal must be non-zero."));
+        normal.Normalize();
+
+        QStringList notes;
+
+        // Fitting to a layer answers both questions at once -- how big, and where -- from
+        // the box the viewport draws around that layer, which is its local box carried
+        // through its matrix. Hence the centre through map() and the diagonal through
+        // mapVector(): a rotation leaves the diagonal's length alone, a scale does not.
+        vcg::Point3f origin(0.0f, 0.0f, 0.0f);
+        bool centred = center;
+        if (fitLayer >= 0 && fitLayer < doc.meshCount()) {
+            const Document::MeshEntry &ref = doc.mesh(fitLayer);
+            if (ref.mesh.VN() <= 0)
+                return fail(QObject::tr("Fit layer '%1' has no vertices.").arg(ref.name));
+            const vcg::Point3f c = ref.mesh.bbox.Center();
+            const vcg::Point3f d = ref.mesh.bbox.max - ref.mesh.bbox.min;
+            const QVector3D wc = ref.transform.map(QVector3D(c[0], c[1], c[2]));
+            const float diag = ref.transform.mapVector(QVector3D(d[0], d[1], d[2])).length();
+            if (!(diag > 0.0f))
+                return fail(QObject::tr("Fit layer '%1' has an empty bounding box.").arg(ref.name));
+            su = sv = double(diag);
+            origin = vcg::Point3f(wc.x(), wc.y(), wc.z());
+            centred = true;
+            notes << QObject::tr("Sized %1 and centred on the bounding box of '%2'.")
+                         .arg(diag)
+                         .arg(ref.name);
+        }
 
         VCGMesh generated;
-        vcg::tri::Grid(generated, w, h, float(sx), float(sy));
-        if (center) {
-            const float halfW = float(w - 1) * 0.5f;
-            const float halfH = float(h - 1) * 0.5f;
-            const float stepX = float(sx) / float(w);
-            const float stepY = float(sy) / float(h);
-            for (auto vi = generated.vert.begin(); vi != generated.vert.end(); ++vi) {
-                vi->P()[0] -= stepX * halfW;
-                vi->P()[1] -= stepY * halfH;
-            }
-        }
-        vcg::Matrix44f flip;
-        flip.SetScale(-1.0f, 1.0f, -1.0f);
-        vcg::tri::UpdatePosition<VCGMesh>::Matrix(generated, flip, false);
+        vcg::tri::Grid(generated, w, h, float(su), float(sv));
+        // vcg::tri::Grid winds its faces so that they look away from +Z. The old code hid
+        // that behind a 180-degree turn about Y, which also flipped the grid onto -X; now
+        // that the plane's facing is a parameter, the winding is corrected at the source so
+        // the faces end up pointing along the requested normal and U, V stay +X, +Y.
+        vcg::tri::Clean<VCGMesh>::FlipMesh(generated);
+
+        // vcg::tri::Grid lays the samples out over [0,su] x [0,sv] in the XY plane, so
+        // centring is a shift by half the extent -- not by half a step, which is what the
+        // previous arithmetic did and which left the grid a few percent off centre.
+        const vcg::Point3f shift = centred
+            ? vcg::Point3f(float(-su) * 0.5f, float(-sv) * 0.5f, 0.0f)
+            : vcg::Point3f(0.0f, 0.0f, 0.0f);
+        // The shortest rotation taking +Z to the requested normal, so U and V stay as close
+        // as they can to X and Y and the grid does not spin for no reason.
+        const vcg::Matrix33f turn =
+            vcg::RotationMatrix(vcg::Point3f(0.0f, 0.0f, 1.0f), normal, true);
+        for (auto &v : generated.vert)
+            v.P() = origin + turn * (v.P() + shift);
         vcg::tri::UpdateBounding<VCGMesh>::Box(generated);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(generated);
 
@@ -940,6 +981,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
                 .arg(doc.mesh(newIndex).mesh.VN())
                 .arg(doc.mesh(newIndex).mesh.FN())
         };
+        result.infoMessages += notes;
         return result;
     }
 

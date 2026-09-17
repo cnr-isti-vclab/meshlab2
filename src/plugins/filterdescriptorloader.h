@@ -56,6 +56,8 @@ class Document;
 //                               // condition is false. '!' inverts.
 //         "meshRequirements": { ...same requirement keys as inputRequirements... },
 //         "meshPrepare": ["FF", "BBox"], // only for type=="mesh"
+//         "meshAllowsNone": true, // only for type=="mesh": the selection may be
+//                               // left empty, and the filter then reads -1
 //         "sourceMeshParameter": "sourceMesh", // only for textureref/textureoutputref
 //         "allowAutomatic": true,               // only for textureref
 //         "enumOptions": [      // only for enum type

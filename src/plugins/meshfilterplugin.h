@@ -109,6 +109,11 @@ struct MeshFilterParameterDescriptor
     // applied to the selected mesh parameter before runFilter().
     MeshFilterMeshRequirements meshRequirements;
     QStringList meshPrepare;
+    // Only used when type == Mesh: the selection may be left empty, in which case the
+    // filter receives -1. For references that genuinely are optional -- a layer to take
+    // a size from, say -- without which the filter still has something to do, and which
+    // must therefore not stop it running on a document that has no layers at all.
+    bool meshAllowsNone = false;
     // Only used when type == Point3f: "point" (position) or "direction" (unit vector).
     QString point3fRole = QStringLiteral("point");
     // Optional named preset the Point3f editor starts on, instead of the literal

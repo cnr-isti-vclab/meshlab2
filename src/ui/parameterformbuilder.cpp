@@ -1021,16 +1021,18 @@ QWidget *ParameterFormBuilder::createEditor(const MeshFilterParameterDescriptor 
         if (!doc)
             return nullptr;
         auto *w = new QComboBox(m_parentWidget);
+        if (param.meshAllowsNone)
+            w->addItem(QObject::tr("None"), -1);
         for (int mi = 0; mi < doc->meshCount(); ++mi)
             w->addItem(meshComboLabel(*doc, mi), mi);
         int defaultIndex = param.defaultValue.isValid() ? param.defaultValue.toInt() : doc->currentMeshIndex();
-        if (defaultIndex < 0 || defaultIndex >= doc->meshCount())
+        if (defaultIndex < 0 && !param.meshAllowsNone)
             defaultIndex = doc->currentMeshIndex();
-        if (defaultIndex >= 0) {
-            const int pos = w->findData(defaultIndex);
-            if (pos >= 0)
-                w->setCurrentIndex(pos);
-        }
+        if (defaultIndex >= doc->meshCount())
+            defaultIndex = param.meshAllowsNone ? -1 : doc->currentMeshIndex();
+        const int pos = w->findData(defaultIndex);
+        if (pos >= 0)
+            w->setCurrentIndex(pos);
         return w;
     }
     case MeshFilterParameterType::Double: {

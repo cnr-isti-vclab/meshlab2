@@ -590,6 +590,10 @@ target_include_directories(MeshLab2ParameterFormTests PRIVATE
 )
 
 target_link_libraries(MeshLab2ParameterFormTests PRIVATE
+    # The document-coupled editors (the layer pickers) can only be exercised against a
+    # real Document, whose constructor registers the built-in plugins -- so this widgets
+    # test has to link them even though it never runs a filter.
+    MeshLab2Plugins
     MeshLab2Core
     Qt6::Test
     Qt6::Widgets
