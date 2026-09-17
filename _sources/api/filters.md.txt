@@ -2069,13 +2069,11 @@ The oriented box is computed with CGAL's Optimal Bounding Box package.
 
 Reference:
 Konstantinos Katrioplas, Mael Rouxel-Labbé, **Optimal Bounding Box**, CGAL User and Reference Manual, CGAL Editorial Board.
-
-**Rotate Layer to Axes** turns the object rather than the box. The oriented box is found as usual, but instead of building a tilted box around an untouched layer, the layer's vertices are rotated into the box's frame and the box comes out axis-aligned. Use it to straighten an object that was digitised or exported at an arbitrary angle; the layer is modified, so it is undoable like any other edit.
+- **Oriented, turning the layer** finds the same box and then turns the object instead of the box: the rotation is written into the layer's transformation, so the layer comes to rest on the axes and the box is created axis-aligned alongside it. The vertices are not touched — only the matrix — which is how you straighten an object that was digitised or exported at an arbitrary angle.
 
 **Parameters:**
 
 - **alignment** (*enum*, default: `axis_aligned`) — Axis aligned is the box the viewport draws, parallel to the layer's own axes. Oriented searches for the smallest box in any orientation, which is much tighter for an object lying at an angle but costs time to find.
-- **rotateLayerToAxes** (*bool*, default: `False`) — Turn the layer instead of the box: rotate its vertices so the tightest box lines up with the coordinate axes, then create that box axis-aligned. The layer's own coordinates change, which is the point — it is how you put an object that was digitised at an angle back onto its axes. Ignored when Alignment is Axis Aligned, which has nothing to rotate to.
 ```
 
 ---
