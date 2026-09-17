@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 342 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 345 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -1858,30 +1858,23 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="create-bounding-box">
-<span id="filter-create-bounding-box"></span><h2>Create Bounding Box<a class="headerlink" href="#create-bounding-box" title="Link to this heading">¶</a></h2>
+<section id="create-circle">
+<span id="filter-create-circle"></span><h2>Create Circle<a class="headerlink" href="#create-circle" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
-<p><strong>Plugin:</strong> meshlab2.filter.cgal</p>
-<p>Turn the current layer’s bounding box into a mesh of its own.</p>
+<p><strong>Plugin:</strong> meshlab2.filter.create</p>
+<p>Creates a circle, or any regular polygon, as a closed polyline.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="meshlab.ms.create_bounding_box">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_bounding_box</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_bounding_box" title="Link to this definition">¶</a></dt>
-<dd><p>Creates a new layer holding the bounding box of the current layer as an actual eight-vertex, twelve-triangle box, rather than as an annotation drawn over the viewport. Useful whenever the box has to be <em>operated on</em> — measured, exported, intersected, used as a crop volume or as a stand-in for the object in a larger scene.</p>
-<p><strong>Alignment</strong> chooses between the two boxes worth having:</p>
-<ul class="simple">
-<li><p><strong>Axis aligned</strong> is the box the viewport draws: the smallest box whose sides are parallel to the layer’s own axes. It is exact, instant, and depends on how the object happens to be oriented.</p></li>
-<li><p><strong>Oriented</strong> is the smallest box in <em>any</em> orientation, found by searching the space of rotations. For an object lying at an angle it is dramatically tighter than the axis-aligned one; for an object already aligned to its axes the two coincide. The search is an approximation, not a proven optimum, and it costs time on large inputs — it runs on the convex hull, so cost follows the hull rather than the vertex count.</p></li>
-</ul>
-<p>The new layer inherits the source layer’s matrix, so the box sits on the object wherever the object has been moved to.</p>
-<p>The oriented box is computed with CGAL’s Optimal Bounding Box package.</p>
-<p>Reference:
-Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</strong>, CGAL User and Reference Manual, CGAL Editorial Board.</p>
-<ul class="simple">
-<li><p><strong>Oriented, turning the layer</strong> finds the same box and then turns the object instead of the box: the rotation is written into the layer’s transformation, so the layer comes to rest on the axes and the box is created axis-aligned alongside it. The vertices are not touched — only the matrix — which is how you straighten an object that was digitised or exported at an arbitrary angle.</p></li>
-</ul>
+<dt class="sig sig-object py" id="meshlab.ms.create_circle">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_circle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_circle" title="Link to this definition">¶</a></dt>
+<dd><p>Creates a new layer holding a <strong>circle</strong> as a closed <strong>polyline</strong>: a ring of vertices joined by edges, with no faces. Polylines are the edge-based curves MeshLab uses for sections, contours and outlines — this makes one from nothing, to measure against, to sweep along, or to project onto a surface.</p>
+<p><strong>Sides</strong> is how many segments approximate the curve, which also makes this a general regular-polygon generator: 3 draws a triangle, 5 a pentagon, 6 a hexagon, and a couple of hundred a circle no viewport will show as faceted.</p>
+<p><strong>Normal</strong> turns the circle to face any direction. It is always centred on the origin and lies in the plane at right angles to that direction.</p>
+<p>For a <em>filled</em> flat ring with faces rather than a curve, use <strong>Create Annulus</strong>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>alignment</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">axis_aligned</span></code>) — Axis aligned is the box the viewport draws, parallel to the layer’s own axes. Oriented searches for the smallest box in any orientation, which is much tighter for an object lying at an angle but costs time to find.</p></li>
+<li><p><strong>radius</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Distance from the centre to each vertex.</p></li>
+<li><p><strong>sides</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of segments the circle is approximated by. Small values give a regular polygon: 3 a triangle, 6 a hexagon.</p></li>
+<li><p><strong>axis</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">1.0]</span></code>) — Direction the polyline faces. It lies in the plane through the origin at right angles to this. Need not be normalized.</p></li>
 </ul>
 </dd></dl>
 
@@ -1949,18 +1942,23 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <span id="filter-create-grid"></span><h2>Create Grid<a class="headerlink" href="#create-grid" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.expression</p>
-<p>Generates a regular 2D grid mesh.</p>
+<p>Creates a regular grid of quads: a plane, subdivided, in any orientation.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.create_grid">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_grid" title="Link to this definition">¶</a></dt>
-<dd><p>Generate a new 2D Grid mesh with number of vertices on X and Y axis specified by user with absolute length/height.<br>It’s possible to center Grid on origin.</p>
+<dd><p>Creates a new layer holding a regular grid of quads: a <strong>plane</strong> cut into <code class="docutils literal notranslate"><span class="pre">Vertices</span> <span class="pre">U</span></code> × <code class="docutils literal notranslate"><span class="pre">Vertices</span> <span class="pre">V</span></code> samples, which is the usual starting point for a ground plane, a cutting plane, a backdrop, or a height field to displace.</p>
+<p>The two in-plane directions are called <strong>U</strong> and <strong>V</strong> rather than X and Y, because the grid no longer has to lie in the XY plane: <strong>Normal</strong> turns it to face any direction, and U and V are then whatever two perpendicular directions come with it.</p>
+<p><strong>Fit to Layer</strong> sizes and places the grid from an existing layer instead of from the size boxes: the grid is made as wide as that layer’s bounding-box diagonal, square, and centred on the box centre, so it always cuts clean through the object whichever way it is turned. The layer’s own transformation is taken into account. Leave it on <em>None</em> to use the sizes below.</p>
+<p>Without a fit layer, <strong>Center on Origin</strong> decides whether the grid straddles the origin or starts there and runs out along +U and +V.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>numVertX</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Number of vertices along X.</p></li>
-<li><p><strong>numVertY</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Number of vertices along Y.</p></li>
-<li><p><strong>absScaleX</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.3</span></code>) — Absolute scale along X.</p></li>
-<li><p><strong>absScaleY</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.3</span></code>) — Absolute scale along Y.</p></li>
-<li><p><strong>center</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Centers the generated grid on origin.</p></li>
+<li><p><strong>numVertU</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Number of vertices along the first in-plane direction.</p></li>
+<li><p><strong>numVertV</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Number of vertices along the second in-plane direction.</p></li>
+<li><p><strong>sizeU</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.3</span></code>) — Total extent of the grid along U. Ignored when a fit layer is chosen.</p></li>
+<li><p><strong>sizeV</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.3</span></code>) — Total extent of the grid along V. Ignored when a fit layer is chosen.</p></li>
+<li><p><strong>axis</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">1.0]</span></code>) — Direction the grid faces. U and V are two perpendicular directions in the plane at right angles to it. Need not be normalized.</p></li>
+<li><p><strong>fitLayer</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">-1</span></code>) — Size the grid as that layer’s bounding-box diagonal and centre it on the box centre, taking the layer’s transformation into account. None uses the sizes above.</p></li>
+<li><p><strong>center</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Straddle the origin instead of starting there and running out along +U and +V. Ignored when a fit layer is chosen, which centres the grid on that layer instead.</p></li>
 </ul>
 </dd></dl>
 
@@ -2036,6 +2034,34 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>resolution</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Resolution of the side of the cubic grid used for volume creation.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="create-mesh-bounding-box">
+<span id="filter-create-mesh-bounding-box"></span><h2>Create Mesh Bounding Box<a class="headerlink" href="#create-mesh-bounding-box" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.cgal</p>
+<p>Turn the current layer’s bounding box into a mesh of its own.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.create_mesh_bounding_box">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_mesh_bounding_box</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_mesh_bounding_box" title="Link to this definition">¶</a></dt>
+<dd><p>Creates a new layer holding the bounding box of the current layer as an actual eight-vertex, twelve-triangle box, rather than as an annotation drawn over the viewport. Useful whenever the box has to be <em>operated on</em> — measured, exported, intersected, used as a crop volume or as a stand-in for the object in a larger scene.</p>
+<p><strong>Alignment</strong> chooses between the three boxes worth having:</p>
+<ul class="simple">
+<li><p><strong>Axis aligned</strong> is the box the viewport draws: the smallest box whose sides are parallel to the layer’s own axes. It is exact, instant, and depends on how the object happens to be oriented.</p></li>
+<li><p><strong>Oriented</strong> is the smallest box in <em>any</em> orientation, found by searching the space of rotations. For an object lying at an angle it is dramatically tighter than the axis-aligned one; for an object already aligned to its axes the two coincide. The search is an approximation, not a proven optimum, and it costs time on large inputs — it runs on the convex hull, so cost follows the hull rather than the vertex count.</p></li>
+<li><p><strong>Oriented, turning the layer</strong> finds the same box and then turns the object instead of the box: the rotation is written into the layer’s transformation, so the layer comes to rest on the axes and the box is created axis-aligned alongside it. The vertices are not touched — only the matrix — which is how you straighten an object that was digitised or exported at an arbitrary angle.</p></li>
+</ul>
+<p>The new layer inherits the source layer’s matrix, so the box sits on the object wherever the object has been moved to.</p>
+<p>To box the whole scene rather than one layer, use <strong>Create Scene Bounding Box</strong>.</p>
+<p>The oriented box is computed with CGAL’s Optimal Bounding Box package.</p>
+<p>Reference:
+Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</strong>, CGAL User and Reference Manual, CGAL Editorial Board.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>alignment</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">axis_aligned</span></code>) — Axis aligned is the box the viewport draws, parallel to the layer’s own axes. Oriented searches for the smallest box in any orientation, which is much tighter for an object lying at an angle but costs time to find.</p></li>
 </ul>
 </dd></dl>
 
@@ -2220,6 +2246,33 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 
 <hr class="docutils" />
 </section>
+<section id="create-scene-bounding-box">
+<span id="filter-create-scene-bounding-box"></span><h2>Create Scene Bounding Box<a class="headerlink" href="#create-scene-bounding-box" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.cgal</p>
+<p>Turn the bounding box of every visible layer into a mesh of its own.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.create_scene_bounding_box">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_scene_bounding_box</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_scene_bounding_box" title="Link to this definition">¶</a></dt>
+<dd><p>Creates a new layer holding the bounding box of the <strong>whole scene</strong>: one box around every <em>visible</em> layer, measured in world space so each layer’s own transformation is taken into account. Hidden layers are ignored, which is how you box a subset — hide what should not count and run it again.</p>
+<p>The box is created in world space with an identity transformation, so it stays put whatever the layers it was measured from do afterwards.</p>
+<p><strong>Alignment</strong> chooses between the two boxes worth having:</p>
+<ul class="simple">
+<li><p><strong>Axis aligned</strong> is the smallest box whose sides are parallel to the world axes — the extent the viewport frames to.</p></li>
+<li><p><strong>Oriented</strong> is the smallest box in <em>any</em> orientation. For a scene laid out at an angle it is much tighter; for one already square to the axes the two coincide. The search is an approximation, not a proven optimum, and it costs time on large scenes — it runs on the convex hull, so cost follows the hull rather than the total vertex count.</p></li>
+</ul>
+<p>There is deliberately no <em>turning the scene</em> option: straightening is a per-layer operation, and <strong>Create Mesh Bounding Box</strong> offers it for the current layer.</p>
+<p>The oriented box is computed with CGAL’s Optimal Bounding Box package.</p>
+<p>Reference:
+Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</strong>, CGAL User and Reference Manual, CGAL Editorial Board.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>alignment</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">axis_aligned</span></code>) — Axis aligned is the smallest box parallel to the world axes. Oriented searches for the smallest box in any orientation, which is much tighter for a scene laid out at an angle but costs time to find.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="create-solid-wireframe">
 <span id="filter-create-solid-wireframe"></span><h2>Create Solid Wireframe<a class="headerlink" href="#create-solid-wireframe" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
@@ -2279,6 +2332,27 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <ul class="simple">
 <li><p><strong>half_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Polar angle in degrees from the cap axis to its boundary, i.e. half the full angular diameter. A hemisphere would be 90°, where this construction degenerates.</p></li>
 <li><p><strong>subdiv</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of recursive refinements of the initial six triangles. Level n creates 6 × 4^n faces.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="create-square">
+<span id="filter-create-square"></span><h2>Create Square<a class="headerlink" href="#create-square" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.create</p>
+<p>Creates a square as a closed polyline.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.create_square">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_square</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_square" title="Link to this definition">¶</a></dt>
+<dd><p>Creates a new layer holding a <strong>square</strong> as a closed <strong>polyline</strong>: four vertices, four edges, no faces. Polylines are the edge-based curves MeshLab uses for sections, contours and outlines — this makes one from nothing, as a frame, a footprint, or a path to measure against.</p>
+<p><strong>Side Length</strong> is the length of each of the four edges; the square is centred on the origin, so it reaches half of that either side along each of its in-plane directions.</p>
+<p><strong>Normal</strong> turns the square to face any direction. Its sides stay square to the two in-plane axes rather than its corners, which is the difference between this and asking <strong>Create Circle</strong> for four sides.</p>
+<p>For a <em>filled</em> square with faces rather than a curve, use <strong>Create Grid</strong>, or scale a <strong>Create Hexahedron</strong> flat.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>size</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Length of each of the four edges.</p></li>
+<li><p><strong>axis</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">1.0]</span></code>) — Direction the polyline faces. It lies in the plane through the origin at right angles to this. Need not be normalized.</p></li>
 </ul>
 </dd></dl>
 
@@ -7820,8 +7894,8 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#meshlab.ms.create_annulus"><code class="docutils literal notranslate"><span class="pre">ms.create_annulus()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#create-bounding-box">Create Bounding Box</a><ul>
-<li><a class="reference internal" href="#meshlab.ms.create_bounding_box"><code class="docutils literal notranslate"><span class="pre">ms.create_bounding_box()</span></code></a></li>
+<li><a class="reference internal" href="#create-circle">Create Circle</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.create_circle"><code class="docutils literal notranslate"><span class="pre">ms.create_circle()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#create-cone">Create Cone</a><ul>
@@ -7854,6 +7928,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#create-isosurface-from-perlin-noise">Create Isosurface from Perlin Noise</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.create_isosurface_from_perlin_noise"><code class="docutils literal notranslate"><span class="pre">ms.create_isosurface_from_perlin_noise()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-mesh-bounding-box">Create Mesh Bounding Box</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.create_mesh_bounding_box"><code class="docutils literal notranslate"><span class="pre">ms.create_mesh_bounding_box()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#create-octahedron">Create Octahedron</a><ul>
@@ -7896,6 +7974,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#meshlab.ms.create_polyline_from_self_intersections_trueform"><code class="docutils literal notranslate"><span class="pre">ms.create_polyline_from_self_intersections_trueform()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#create-scene-bounding-box">Create Scene Bounding Box</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.create_scene_bounding_box"><code class="docutils literal notranslate"><span class="pre">ms.create_scene_bounding_box()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#create-solid-wireframe">Create Solid Wireframe</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.create_solid_wireframe"><code class="docutils literal notranslate"><span class="pre">ms.create_solid_wireframe()</span></code></a></li>
 </ul>
@@ -7906,6 +7988,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#create-sphere-cap">Create Sphere Cap</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.create_sphere_cap"><code class="docutils literal notranslate"><span class="pre">ms.create_sphere_cap()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-square">Create Square</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.create_square"><code class="docutils literal notranslate"><span class="pre">ms.create_square()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#create-symmetric-dodecahedron">Create Symmetric Dodecahedron</a><ul>

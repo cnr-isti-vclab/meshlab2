@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 342 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 345 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -2043,37 +2043,32 @@ Create an Annulus e.g. a flat region bounded by two concentric circles, or a hol
 
 ---
 
-(filter-create-bounding-box)=
+(filter-create-circle)=
 
-## Create Bounding Box
+## Create Circle
 
 **Categories:** `Creation/Primitives`
 
-**Plugin:** meshlab2.filter.cgal
+**Plugin:** meshlab2.filter.create
 
-Turn the current layer's bounding box into a mesh of its own.
+Creates a circle, or any regular polygon, as a closed polyline.
 
-```{py:function} ms.create_bounding_box(**params)
+```{py:function} ms.create_circle(**params)
 :module: _meshlab
 
-Creates a new layer holding the bounding box of the current layer as an actual eight-vertex, twelve-triangle box, rather than as an annotation drawn over the viewport. Useful whenever the box has to be *operated on* — measured, exported, intersected, used as a crop volume or as a stand-in for the object in a larger scene.
+Creates a new layer holding a **circle** as a closed **polyline**: a ring of vertices joined by edges, with no faces. Polylines are the edge-based curves MeshLab uses for sections, contours and outlines — this makes one from nothing, to measure against, to sweep along, or to project onto a surface.
 
-**Alignment** chooses between the two boxes worth having:
+**Sides** is how many segments approximate the curve, which also makes this a general regular-polygon generator: 3 draws a triangle, 5 a pentagon, 6 a hexagon, and a couple of hundred a circle no viewport will show as faceted.
 
-- **Axis aligned** is the box the viewport draws: the smallest box whose sides are parallel to the layer's own axes. It is exact, instant, and depends on how the object happens to be oriented.
-- **Oriented** is the smallest box in *any* orientation, found by searching the space of rotations. For an object lying at an angle it is dramatically tighter than the axis-aligned one; for an object already aligned to its axes the two coincide. The search is an approximation, not a proven optimum, and it costs time on large inputs — it runs on the convex hull, so cost follows the hull rather than the vertex count.
+**Normal** turns the circle to face any direction. It is always centred on the origin and lies in the plane at right angles to that direction.
 
-The new layer inherits the source layer's matrix, so the box sits on the object wherever the object has been moved to.
-
-The oriented box is computed with CGAL's Optimal Bounding Box package.
-
-Reference:
-Konstantinos Katrioplas, Mael Rouxel-Labbé, **Optimal Bounding Box**, CGAL User and Reference Manual, CGAL Editorial Board.
-- **Oriented, turning the layer** finds the same box and then turns the object instead of the box: the rotation is written into the layer's transformation, so the layer comes to rest on the axes and the box is created axis-aligned alongside it. The vertices are not touched — only the matrix — which is how you straighten an object that was digitised or exported at an arbitrary angle.
+For a *filled* flat ring with faces rather than a curve, use **Create Annulus**.
 
 **Parameters:**
 
-- **alignment** (*enum*, default: `axis_aligned`) — Axis aligned is the box the viewport draws, parallel to the layer's own axes. Oriented searches for the smallest box in any orientation, which is much tighter for an object lying at an angle but costs time to find.
+- **radius** (*double*, default: `1.0`) — Distance from the centre to each vertex.
+- **sides** (*int*, default: `64`) — Number of segments the circle is approximated by. Small values give a regular polygon: 3 a triangle, 6 a hexagon.
+- **axis** (*point3f*, default: `[0.0, 0.0, 1.0]`) — Direction the polyline faces. It lies in the plane through the origin at right angles to this. Need not be normalized.
 ```
 
 ---
@@ -2162,20 +2157,28 @@ This filter has no parameters.
 
 **Plugin:** meshlab2.filter.expression
 
-Generates a regular 2D grid mesh.
+Creates a regular grid of quads: a plane, subdivided, in any orientation.
 
 ```{py:function} ms.create_grid(**params)
 :module: _meshlab
 
-Generate a new 2D Grid mesh with number of vertices on X and Y axis specified by user with absolute length/height.<br>It's possible to center Grid on origin.
+Creates a new layer holding a regular grid of quads: a **plane** cut into `Vertices U` × `Vertices V` samples, which is the usual starting point for a ground plane, a cutting plane, a backdrop, or a height field to displace.
+
+The two in-plane directions are called **U** and **V** rather than X and Y, because the grid no longer has to lie in the XY plane: **Normal** turns it to face any direction, and U and V are then whatever two perpendicular directions come with it.
+
+**Fit to Layer** sizes and places the grid from an existing layer instead of from the size boxes: the grid is made as wide as that layer's bounding-box diagonal, square, and centred on the box centre, so it always cuts clean through the object whichever way it is turned. The layer's own transformation is taken into account. Leave it on *None* to use the sizes below.
+
+Without a fit layer, **Center on Origin** decides whether the grid straddles the origin or starts there and runs out along +U and +V.
 
 **Parameters:**
 
-- **numVertX** (*int*, default: `10`) — Number of vertices along X.
-- **numVertY** (*int*, default: `10`) — Number of vertices along Y.
-- **absScaleX** (*double*, default: `0.3`) — Absolute scale along X.
-- **absScaleY** (*double*, default: `0.3`) — Absolute scale along Y.
-- **center** (*bool*, default: `False`) — Centers the generated grid on origin.
+- **numVertU** (*int*, default: `10`) — Number of vertices along the first in-plane direction.
+- **numVertV** (*int*, default: `10`) — Number of vertices along the second in-plane direction.
+- **sizeU** (*double*, default: `0.3`) — Total extent of the grid along U. Ignored when a fit layer is chosen.
+- **sizeV** (*double*, default: `0.3`) — Total extent of the grid along V. Ignored when a fit layer is chosen.
+- **axis** (*point3f*, default: `[0.0, 0.0, 1.0]`) — Direction the grid faces. U and V are two perpendicular directions in the plane at right angles to it. Need not be normalized.
+- **fitLayer** (*mesh*, default: `-1`) — Size the grid as that layer's bounding-box diagonal and centre it on the box centre, taking the layer's transformation into account. None uses the sizes above.
+- **center** (*bool*, default: `False`) — Straddle the origin instead of starting there and running out along +U and +V. Ignored when a fit layer is chosen, which centres the grid on that layer instead.
 ```
 
 ---
@@ -2274,6 +2277,43 @@ Generates a scalar field over a cubic grid and extracts an isosurface using marc
 **Parameters:**
 
 - **resolution** (*int*, default: `64`) — Resolution of the side of the cubic grid used for volume creation.
+```
+
+---
+
+(filter-create-mesh-bounding-box)=
+
+## Create Mesh Bounding Box
+
+**Categories:** `Creation/Primitives`
+
+**Plugin:** meshlab2.filter.cgal
+
+Turn the current layer's bounding box into a mesh of its own.
+
+```{py:function} ms.create_mesh_bounding_box(**params)
+:module: _meshlab
+
+Creates a new layer holding the bounding box of the current layer as an actual eight-vertex, twelve-triangle box, rather than as an annotation drawn over the viewport. Useful whenever the box has to be *operated on* — measured, exported, intersected, used as a crop volume or as a stand-in for the object in a larger scene.
+
+**Alignment** chooses between the three boxes worth having:
+
+- **Axis aligned** is the box the viewport draws: the smallest box whose sides are parallel to the layer's own axes. It is exact, instant, and depends on how the object happens to be oriented.
+- **Oriented** is the smallest box in *any* orientation, found by searching the space of rotations. For an object lying at an angle it is dramatically tighter than the axis-aligned one; for an object already aligned to its axes the two coincide. The search is an approximation, not a proven optimum, and it costs time on large inputs — it runs on the convex hull, so cost follows the hull rather than the vertex count.
+- **Oriented, turning the layer** finds the same box and then turns the object instead of the box: the rotation is written into the layer's transformation, so the layer comes to rest on the axes and the box is created axis-aligned alongside it. The vertices are not touched — only the matrix — which is how you straighten an object that was digitised or exported at an arbitrary angle.
+
+The new layer inherits the source layer's matrix, so the box sits on the object wherever the object has been moved to.
+
+To box the whole scene rather than one layer, use **Create Scene Bounding Box**.
+
+The oriented box is computed with CGAL's Optimal Bounding Box package.
+
+Reference:
+Konstantinos Katrioplas, Mael Rouxel-Labbé, **Optimal Bounding Box**, CGAL User and Reference Manual, CGAL Editorial Board.
+
+**Parameters:**
+
+- **alignment** (*enum*, default: `axis_aligned`) — Axis aligned is the box the viewport draws, parallel to the layer's own axes. Oriented searches for the smallest box in any orientation, which is much tighter for an object lying at an angle but costs time to find.
 ```
 
 ---
@@ -2511,6 +2551,42 @@ Extracts the exact curve along which the layer intersects **itself**, as a new p
 
 ---
 
+(filter-create-scene-bounding-box)=
+
+## Create Scene Bounding Box
+
+**Categories:** `Creation/Primitives`
+
+**Plugin:** meshlab2.filter.cgal
+
+Turn the bounding box of every visible layer into a mesh of its own.
+
+```{py:function} ms.create_scene_bounding_box(**params)
+:module: _meshlab
+
+Creates a new layer holding the bounding box of the **whole scene**: one box around every *visible* layer, measured in world space so each layer's own transformation is taken into account. Hidden layers are ignored, which is how you box a subset — hide what should not count and run it again.
+
+The box is created in world space with an identity transformation, so it stays put whatever the layers it was measured from do afterwards.
+
+**Alignment** chooses between the two boxes worth having:
+
+- **Axis aligned** is the smallest box whose sides are parallel to the world axes — the extent the viewport frames to.
+- **Oriented** is the smallest box in *any* orientation. For a scene laid out at an angle it is much tighter; for one already square to the axes the two coincide. The search is an approximation, not a proven optimum, and it costs time on large scenes — it runs on the convex hull, so cost follows the hull rather than the total vertex count.
+
+There is deliberately no *turning the scene* option: straightening is a per-layer operation, and **Create Mesh Bounding Box** offers it for the current layer.
+
+The oriented box is computed with CGAL's Optimal Bounding Box package.
+
+Reference:
+Konstantinos Katrioplas, Mael Rouxel-Labbé, **Optimal Bounding Box**, CGAL User and Reference Manual, CGAL Editorial Board.
+
+**Parameters:**
+
+- **alignment** (*enum*, default: `axis_aligned`) — Axis aligned is the smallest box parallel to the world axes. Oriented searches for the smallest box in any orientation, which is much tighter for a scene laid out at an angle but costs time to find.
+```
+
+---
+
 (filter-create-solid-wireframe)=
 
 ## Create Solid Wireframe
@@ -2587,6 +2663,35 @@ Creates a unit-radius spherical cap above the XY plane, with its circular bounda
 
 - **half_angle** (*double*, default: `30.0`) — Polar angle in degrees from the cap axis to its boundary, i.e. half the full angular diameter. A hemisphere would be 90°, where this construction degenerates.
 - **subdiv** (*int*, default: `3`) — Number of recursive refinements of the initial six triangles. Level n creates 6 × 4^n faces.
+```
+
+---
+
+(filter-create-square)=
+
+## Create Square
+
+**Categories:** `Creation/Primitives`
+
+**Plugin:** meshlab2.filter.create
+
+Creates a square as a closed polyline.
+
+```{py:function} ms.create_square(**params)
+:module: _meshlab
+
+Creates a new layer holding a **square** as a closed **polyline**: four vertices, four edges, no faces. Polylines are the edge-based curves MeshLab uses for sections, contours and outlines — this makes one from nothing, as a frame, a footprint, or a path to measure against.
+
+**Side Length** is the length of each of the four edges; the square is centred on the origin, so it reaches half of that either side along each of its in-plane directions.
+
+**Normal** turns the square to face any direction. Its sides stay square to the two in-plane axes rather than its corners, which is the difference between this and asking **Create Circle** for four sides.
+
+For a *filled* square with faces rather than a curve, use **Create Grid**, or scale a **Create Hexahedron** flat.
+
+**Parameters:**
+
+- **size** (*double*, default: `1.0`) — Length of each of the four edges.
+- **axis** (*point3f*, default: `[0.0, 0.0, 1.0]`) — Direction the polyline faces. It lies in the plane through the origin at right angles to this. Need not be normalized.
 ```
 
 ---
