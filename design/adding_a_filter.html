@@ -534,9 +534,15 @@ out (<code class="docutils literal notranslate"><span class="pre">FilterPresenta
 </table>
 </div>
 <p>The edge codes refer to the real <code class="docutils literal notranslate"><span class="pre">VCGEdge</span></code> elements of a polyline layer, not to
-the sides of triangles — see <a class="reference internal" href="proposals/edge_support.html"><span class="std std-doc">Edge Support</span></a>.</p>
+the sides of triangles — see <a class="reference internal" href="proposals/edge_support.html"><span class="std std-doc">Edge Support</span></a>. For the
+sides of triangles, which are a fourth element class rather than a column of this
+grid, selection is <code class="docutils literal notranslate"><span class="pre">FES</span></code>: the three face-edge bits each face carries, which is what
+the crease and non-manifold-edge filters mark.</p>
 <p>plus <code class="docutils literal notranslate"><span class="pre">FP</span></code> (face polygon bits), <code class="docutils literal notranslate"><span class="pre">TX</span></code> (texture images) and <code class="docutils literal notranslate"><span class="pre">TM</span></code> (per-mesh
 transform).</p>
+<p>Declaring a selection code is what makes the framework append the
+<code class="docutils literal notranslate"><span class="pre">Selection</span> <span class="pre">now</span> <span class="pre">contains</span> <span class="pre">…</span></code> line to a filter’s log output, so a filter that marks
+face edges and declares only <code class="docutils literal notranslate"><span class="pre">FS</span></code> will report the wrong counts.</p>
 </li>
 <li><p><strong>Reuse vcglib</strong> — the <code class="docutils literal notranslate"><span class="pre">vcglib/</span></code> submodule at the repo root — for all 3D
 computation.</p></li>
