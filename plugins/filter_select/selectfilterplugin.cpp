@@ -98,14 +98,10 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         return result;
     };
 
-    auto selectionSummary = [](const VCGMesh &mesh) {
-        return QObject::tr("Selection now contains %1 / %2 vertices and %3 / %4 faces.")
-            .arg(Sel::VertexCount(mesh))
-            .arg(mesh.VN())
-            .arg(Sel::FaceCount(mesh))
-            .arg(mesh.FN());
-    };
-
+    // The "Selection now contains ..." line every selection filter ends on is appended by
+    // MeshFilterPluginManager, which reads the counts back from the layer once the run is
+    // over. It used to be built here, which is why the twenty-two filters below agreed with
+    // each other and with nothing in any other plugin.
     auto selectionResult = [&](int meshIndex, Document::MeshEntry &entry, const QString &changeMsg, QStringList extra = {}) {
         entry.ioMask |= (Mask::IOM_VERTFLAGS | Mask::IOM_FACEFLAGS);
         doc.markMeshSelectionChanged(meshIndex, changeMsg);
@@ -113,7 +109,6 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         result.success = true;
         result.documentModified = true;
         result.infoMessages = std::move(extra);
-        result.infoMessages.push_back(selectionSummary(entry.mesh));
         return result;
     };
 

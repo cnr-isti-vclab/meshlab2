@@ -69,6 +69,7 @@ QStringList modifiedDataLabels(const QStringList &codes)
         { QStringLiteral("FA"), QObject::tr("face attributes") },
         { QStringLiteral("FS"), QObject::tr("face selection") },
         { QStringLiteral("FP"), QObject::tr("face polygon bits") },
+        { QStringLiteral("FES"), QObject::tr("face-edge selection") },
         { QStringLiteral("EC"), QObject::tr("edge color") },
         { QStringLiteral("EQ"), QObject::tr("edge scalar") },
         { QStringLiteral("ES"), QObject::tr("edge selection") },

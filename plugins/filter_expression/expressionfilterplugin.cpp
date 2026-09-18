@@ -1098,12 +1098,9 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             return fail(parserErrorString(e));
         }
 
-        int selectedCount = 0;
-        int totalCount = 0;
         for (auto ei = mesh.edge.begin(); ei != mesh.edge.end(); ++ei) {
             if (ei->IsD())
                 continue;
-            ++totalCount;
             setEdgeRuntime(runtime, ei, mesh);
             bool selected = false;
             try {
@@ -1111,26 +1108,20 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             } catch (mu::Parser::exception_type &e) {
                 return fail(parserErrorString(e));
             }
-            if (selected) {
+            if (selected)
                 ei->SetS();
-                ++selectedCount;
-            } else {
+            else
                 ei->ClearS();
-            }
         }
         doc.markMeshSelectionChanged(
             meshIndex,
-            QObject::tr("Conditional edge selection on '%1': selected %2 / %3 edges.")
-                .arg(entry.name)
-                .arg(selectedCount)
-                .arg(totalCount));
+            QObject::tr("Conditional edge selection on '%1'").arg(entry.name));
 
+        // The counts are appended by the framework, so that this filter says the same thing
+        // in the same shape as every other selection filter.
         MeshFilterRunResult result;
         result.success = true;
         result.documentModified = true;
-        result.infoMessages = {
-            QObject::tr("Selected %1 / %2 edges.").arg(selectedCount).arg(totalCount)
-        };
         return result;
     }
 
@@ -1264,10 +1255,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             return fail(parserErrorString(e));
         }
 
-        int selectedCount = 0;
-        int totalCount = 0;
         for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-            ++totalCount;
             setVertexRuntime(runtime, vi, mesh);
             bool selected = false;
             try {
@@ -1275,29 +1263,19 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             } catch (mu::Parser::exception_type &e) {
                 return fail(parserErrorString(e));
             }
-            if (selected) {
+            if (selected)
                 vi->SetS();
-                ++selectedCount;
-            } else {
+            else
                 vi->ClearS();
-            }
         }
         entry.ioMask |= Mask::IOM_VERTFLAGS;
         doc.markMeshSelectionChanged(
             meshIndex,
-            QObject::tr("Conditional vertex selection on '%1': selected %2 / %3 vertices.")
-                .arg(entry.name)
-                .arg(selectedCount)
-                .arg(totalCount));
+            QObject::tr("Conditional vertex selection on '%1'").arg(entry.name));
 
         MeshFilterRunResult result;
         result.success = true;
         result.documentModified = true;
-        result.infoMessages = {
-            QObject::tr("Selected %1 / %2 vertices.")
-                .arg(selectedCount)
-                .arg(totalCount)
-        };
         return result;
     }
 
@@ -1311,10 +1289,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             return fail(parserErrorString(e));
         }
 
-        int selectedCount = 0;
-        int totalCount = 0;
         for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            ++totalCount;
             setFaceRuntime(runtime, fi, mesh);
             bool selected = false;
             try {
@@ -1322,29 +1297,19 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             } catch (mu::Parser::exception_type &e) {
                 return fail(parserErrorString(e));
             }
-            if (selected) {
+            if (selected)
                 fi->SetS();
-                ++selectedCount;
-            } else {
+            else
                 fi->ClearS();
-            }
         }
         entry.ioMask |= Mask::IOM_FACEFLAGS;
         doc.markMeshSelectionChanged(
             meshIndex,
-            QObject::tr("Conditional face selection on '%1': selected %2 / %3 faces.")
-                .arg(entry.name)
-                .arg(selectedCount)
-                .arg(totalCount));
+            QObject::tr("Conditional face selection on '%1'").arg(entry.name));
 
         MeshFilterRunResult result;
         result.success = true;
         result.documentModified = true;
-        result.infoMessages = {
-            QObject::tr("Selected %1 / %2 faces.")
-                .arg(selectedCount)
-                .arg(totalCount)
-        };
         return result;
     }
 

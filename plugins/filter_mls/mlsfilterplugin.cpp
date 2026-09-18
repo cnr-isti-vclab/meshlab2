@@ -379,12 +379,14 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kIdSelectSmallComponents)) {
         Document::MeshEntry &entry = doc.mesh(currentIndex);
-        const int selected = vcg::tri::SmallComponent<VCGMesh>::Select(
+        vcg::tri::SmallComponent<VCGMesh>::Select(
             entry.mesh,
             float(params.getDouble(QStringLiteral("NbFaceRatio"), 0.1)),
             params.getBool(QStringLiteral("NonClosedOnly"), false));
         doc.markMeshSelectionChanged(currentIndex, QObject::tr("Selected small disconnected components on '%1'").arg(entry.name));
-        return success(true, { QObject::tr("Selected %1 faces belonging to small disconnected components.").arg(selected) });
+        // How many faces were marked is appended by the framework, the same way for
+        // every selection filter.
+        return success(true);
     }
 
     if (filterId == QString::fromLatin1(kIdApssProjection)

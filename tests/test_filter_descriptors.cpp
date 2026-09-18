@@ -32,7 +32,9 @@
 
 namespace {
 
-// Recognised two-letter codes for MeshFilterDescriptor::outputModifies.
+// Recognised codes for MeshFilterDescriptor::outputModifies. Two letters -- element
+// class then attribute -- except FES, whose element class is the side of a triangle
+// and so has no letter of its own in the grid.
 const QSet<QString> &outputModifyCodes()
 {
     static const QSet<QString> codes = {
@@ -43,7 +45,9 @@ const QSet<QString> &outputModifyCodes()
         QStringLiteral("FS"), QStringLiteral("FP"), QStringLiteral("WT"),
         QStringLiteral("TX"), QStringLiteral("TM"),
         // Polyline edge elements, not the sides of triangles.
-        QStringLiteral("EC"), QStringLiteral("EQ"), QStringLiteral("ES")
+        QStringLiteral("EC"), QStringLiteral("EQ"), QStringLiteral("ES"),
+        // The sides of triangles: the three face-edge selection bits each face carries.
+        QStringLiteral("FES")
     };
     return codes;
 }
@@ -135,6 +139,7 @@ private slots:
     void pythonNamesAreUnique();
     void descriptorConforms_data();
     void descriptorConforms();
+    void selectionFiltersDeclareWhatTheySelect();
 
 private:
     // Parsed once: the ratified verbs of docs/design/vocabulary.md section 3.
@@ -532,6 +537,47 @@ void FilterDescriptorTests::checkReferences(const MeshFilterDescriptor &d,
         if (r.bibTeX().trimmed().isEmpty())
             problems << QStringLiteral("reference '%1' renders an empty BibTeX entry").arg(label);
     }
+}
+
+// MeshFilterPluginManager appends the shared "Selection now contains ..." line off the
+// back of outputModifies, so a selection filter that declares no selection code reports
+// nothing, and one that declares the wrong kind reports the wrong counts. Both happened:
+// Select Crease Edges (vcglib) declared FP and said nothing at all, while its TrueForm
+// twin declared FS and reported whole-face counts for an operation that marks face edges.
+void FilterDescriptorTests::selectionFiltersDeclareWhatTheySelect()
+{
+    static const QSet<QString> kSelectionCodes = {
+        QStringLiteral("VS"), QStringLiteral("FS"),
+        QStringLiteral("ES"), QStringLiteral("FES")
+    };
+
+    QStringList offenders;
+    int checked = 0;
+    for (const auto &info : m_infos) {
+        const MeshFilterDescriptor &d = info.descriptor;
+        if (d.categories.isEmpty()
+            || !d.categories.front().startsWith(QStringLiteral("Selection"))) {
+            continue;
+        }
+        ++checked;
+        bool declaresOne = false;
+        for (const QString &code : d.outputModifies) {
+            if (kSelectionCodes.contains(code)) {
+                declaresOne = true;
+                break;
+            }
+        }
+        if (!declaresOne) {
+            offenders << QStringLiteral("%1 (outputModifies: %2)")
+                             .arg(d.id, d.outputModifies.join(QLatin1Char(',')));
+        }
+    }
+
+    QVERIFY2(checked > 25,
+             qPrintable(QStringLiteral("only %1 selection filters found").arg(checked)));
+    QVERIFY2(offenders.isEmpty(),
+             qPrintable(QStringLiteral("selection filters declaring no selection code: %1")
+                            .arg(offenders.join(QStringLiteral("; ")))));
 }
 
 QTEST_MAIN(FilterDescriptorTests)

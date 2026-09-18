@@ -9,6 +9,7 @@
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/flag.h>
 #include <vcg/complex/algorithms/update/normal.h>
+#include <vcg/complex/algorithms/update/selection.h>
 #include <vcg/complex/algorithms/update/topology.h>
 #include <QColor>
 #include <QFileInfo>
@@ -24,6 +25,64 @@
 
 namespace {
 constexpr QLatin1StringView kKeySeparator("::");
+
+// One sentence, the same everywhere, saying what the selection holds now that a filter
+// has touched it. Before this lived here every plugin wrote its own -- "Selected 12
+// visible faces", "12 vertex(es) selected.", "Marked 12 face-edge(s).", and in one case
+// nothing at all -- so the same operation read differently depending on who implemented
+// it, and none of them could be compared with the next.
+//
+// Which counts appear is decided per layer, not per filter: the containers the layer
+// actually has (a polyline reports edges, a triangle mesh reports faces) plus, because
+// they are a property of faces rather than a container of their own, the face edges --
+// the three sides each face carries -- only when the filter says it marks them or some
+// are marked already.
+QString selectionSummaryFor(
+    const VCGMesh &mesh, const QStringList &outputModifies)
+{
+    using Sel = vcg::tri::UpdateSelection<VCGMesh>;
+
+    QStringList parts;
+    const auto add = [&parts](size_t selected, size_t total, const QString &noun) {
+        parts << QObject::tr("%1 / %2 %3")
+                     .arg(selected)
+                     .arg(total)
+                     .arg(noun);
+    };
+
+    if (mesh.VN() > 0)
+        add(Sel::VertexCount(mesh), size_t(mesh.VN()), QObject::tr("vertices"));
+    if (mesh.FN() > 0)
+        add(Sel::FaceCount(mesh), size_t(mesh.FN()), QObject::tr("faces"));
+    if (mesh.EN() > 0)
+        add(Sel::EdgeCount(mesh), size_t(mesh.EN()), QObject::tr("edges"));
+
+    // FaceEdgeCount needs FF adjacency, and so does the matching total: both count every
+    // face edge twice bar the ones on a border, then halve. Without adjacency there is no
+    // way to tell a shared edge from two separate ones, so the line is left out rather
+    // than reported wrong -- the filters that mark face edges declare "FF" preparation.
+    const bool wantsFaceEdges = outputModifies.contains(QStringLiteral("FES"));
+    if (mesh.FN() > 0 && vcg::tri::HasFFAdjacency(mesh)) {
+        const size_t selected = Sel::FaceEdgeCount(mesh);
+        if (wantsFaceEdges || selected > 0) {
+            size_t total = 0;
+            for (const auto &f : mesh.face) {
+                if (f.IsD())
+                    continue;
+                for (int i = 0; i < f.VN(); ++i)
+                    total += vcg::face::IsBorder(f, i) ? 2 : 1;
+            }
+            add(selected, total / 2, QObject::tr("face edges"));
+        }
+    }
+
+    if (parts.isEmpty())
+        return {};
+    QString listed = parts.takeLast();
+    if (!parts.isEmpty())
+        listed = QObject::tr("%1 and %2").arg(parts.join(QStringLiteral(", ")), listed);
+    return QObject::tr("Selection now contains %1.").arg(listed);
+}
 
 bool validateStateJsonPayload(
     const QString &value,
@@ -775,6 +834,16 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
         }
     }
 
+    // Which layers had their selection touched is read back from selectionRevision rather
+    // than assumed to be the current one: a filter may select into a layer named by a
+    // parameter instead, as Select Vertices Inside Mesh does. Keyed by mesh id, because a
+    // filter is free to add or remove layers and shift every index along.
+    QHash<std::uint64_t, std::uint64_t> selectionRevisionBefore;
+    for (int i = 0; i < doc.meshCount(); ++i) {
+        const Document::MeshEntry &entry = doc.mesh(i);
+        selectionRevisionBefore.insert(entry.meshId, entry.selectionRevision);
+    }
+
     MeshFilterRunResult result;
     {
         // Enable OCF components, compute topology/normals, and keep them alive
@@ -803,6 +872,35 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
                         m.vert[i].SetS();
                 }
             }
+        }
+
+        // Still inside the preparation scope on purpose: its destructor hands back the OCF
+        // components it enabled, and counting face edges needs the FF adjacency among them.
+        // After the incremental OR-back, too, so the figures are the selection the user is
+        // left holding rather than the one the filter computed.
+        QList<std::pair<QString, QString>> selectionSummaries;
+        for (int i = 0; i < doc.meshCount(); ++i) {
+            const Document::MeshEntry &entry = doc.mesh(i);
+            const auto previous = selectionRevisionBefore.constFind(entry.meshId);
+            // A layer the filter created is not a layer whose selection it changed, so an
+            // unknown id is skipped: otherwise Split into Connected Components would end
+            // with forty summaries nobody asked for.
+            if (previous == selectionRevisionBefore.constEnd()
+                || previous.value() == entry.selectionRevision) {
+                continue;
+            }
+            const QString summary =
+                selectionSummaryFor(entry.mesh, targetDescriptor->outputModifies);
+            if (!summary.isEmpty())
+                selectionSummaries.push_back({ entry.name, summary });
+        }
+        // The layer is named only when there is more than one to tell apart; the ordinary
+        // case is a single line about the layer the user was already looking at.
+        for (const auto &[name, summary] : std::as_const(selectionSummaries)) {
+            result.infoMessages.push_back(
+                selectionSummaries.size() > 1
+                    ? QObject::tr("'%1': %2").arg(name, summary)
+                    : summary);
         }
     }
 

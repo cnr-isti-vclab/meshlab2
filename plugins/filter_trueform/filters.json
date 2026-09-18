@@ -1452,7 +1452,10 @@
         "Selection/by Topology"
       ],
       "outputModifies": [
-        "FS"
+        "FES"
+      ],
+      "inputPrepare": [
+        "FF"
       ],
       "shortDescription": "Select edges whose dihedral angle exceeds a threshold.",
       "longDescriptionMarkdown": "Marks every edge where the two incident faces meet at more than the given angle — the sharp features of the model.\\n\\nThe selection lands on the **per-face edge flags**, which is the same place the other crease filters write, so the result feeds straight into *Create Polyline from Selected Edges*, *Cut Along Crease Edges*, or a feature-preserving remesh.\\n\\nCompeting implementation: *Select Crease Edges* does the same with vcglib, with separate thresholds for convex and concave angles; this one uses a single unsigned threshold.",
@@ -1499,7 +1502,10 @@
         "Selection/by Topology"
       ],
       "outputModifies": [
-        "FS"
+        "FES"
+      ],
+      "inputPrepare": [
+        "FF"
       ],
       "shortDescription": "Select edges shared by more than two faces.",
       "longDescriptionMarkdown": "Marks every edge with more than two incident faces. Such edges have no well-defined surface either side, which is why they break booleans, offsetting, orientation and most reconstruction — so finding them is usually the first step in diagnosing a mesh that misbehaves for no visible reason.\\n\\nThe selection lands on the per-face edge flags, so it can be turned into a polyline with *Create Polyline from Selected Edges* to see exactly where the trouble is.\\n\\nCompeting implementation: *Select non Manifold Edges* does the same with vcglib.",

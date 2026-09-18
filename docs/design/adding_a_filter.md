@@ -261,10 +261,17 @@ void registerFooFilterPlugin(MeshFilterPluginManager &pm);
   | selection | `VS` | `FS` | `ES` |
 
   The edge codes refer to the real `VCGEdge` elements of a polyline layer, not to
-  the sides of triangles — see [Edge Support](proposals/edge_support.md).
+  the sides of triangles — see [Edge Support](proposals/edge_support.md). For the
+  sides of triangles, which are a fourth element class rather than a column of this
+  grid, selection is `FES`: the three face-edge bits each face carries, which is what
+  the crease and non-manifold-edge filters mark.
 
   plus `FP` (face polygon bits), `TX` (texture images) and `TM` (per-mesh
   transform).
+
+  Declaring a selection code is what makes the framework append the
+  `Selection now contains …` line to a filter's log output, so a filter that marks
+  face edges and declares only `FS` will report the wrong counts.
 - **Reuse vcglib** — the `vcglib/` submodule at the repo root — for all 3D
   computation.
 - **Parallelize heavy per-element loops** with `std::thread` when independent.

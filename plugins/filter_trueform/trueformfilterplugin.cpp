@@ -1504,7 +1504,6 @@ MeshFilterRunResult runSelectInsideMesh(const FilterParams &params, Document &do
     const QString mode = params.getEnum(QStringLiteral("mode"));
 
     doc.beginFilterProgress(QObject::tr("Select Vertices Inside Mesh (TrueForm)"));
-    int selected = 0;
     try {
         const TfMesh reference = tfMeshFromLayer(doc.mesh(referenceIndex));
         SignedDistanceContext ctx(reference);
@@ -1532,8 +1531,6 @@ MeshFilterRunResult runSelectInsideMesh(const FilterParams &params, Document &do
                 v.SetS();
             else if (mode == QStringLiteral("subtract") && hit)
                 v.ClearS();
-            if (v.IsS())
-                ++selected;
         }
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm containment test failed: %1")
@@ -1551,7 +1548,7 @@ MeshFilterRunResult runSelectInsideMesh(const FilterParams &params, Document &do
     MeshFilterRunResult result;
     result.success = true;
     result.documentModified = true;
-    result.infoMessages << QObject::tr("%1 vertex(es) selected.").arg(selected);
+    // The count comes from the framework, in the wording shared by every selection filter.
     return result;
 }
 
@@ -2148,7 +2145,6 @@ MeshFilterRunResult runSelectEdges(const QString &filterId, const FilterParams &
 
     doc.beginFilterProgress(crease ? QObject::tr("Select Crease Edges (TrueForm)")
                                    : QObject::tr("Select Non-Manifold Edges (TrueForm)"));
-    int marked = 0;
     try {
         Document::MeshEntry &entry = doc.mesh(index);
         const TfMesh source = tfMeshFromLayer(entry);
@@ -2164,7 +2160,7 @@ MeshFilterRunResult runSelectEdges(const QString &filterId, const FilterParams &
                 pairs.emplace_back(int(e[0]), int(e[1]));
         }
 
-        marked = selectFaceEdges(entry.mesh, liveVertexIndices(entry.mesh), pairs, clearFirst);
+        selectFaceEdges(entry.mesh, liveVertexIndices(entry.mesh), pairs, clearFirst);
         entry.ioMask |= Mask::IOM_FACEFLAGS;
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm edge selection failed: %1")
@@ -2180,7 +2176,9 @@ MeshFilterRunResult runSelectEdges(const QString &filterId, const FilterParams &
     MeshFilterRunResult result;
     result.success = true;
     result.documentModified = true;
-    result.infoMessages << QObject::tr("Marked %1 face-edge(s).").arg(marked);
+    // The count comes from the framework, which reads the face-edge bits back off the
+    // layer -- this filter declares "FES", so they are reported rather than the whole-face
+    // selection it does not touch.
     return result;
 }
 

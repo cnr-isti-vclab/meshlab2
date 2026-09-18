@@ -276,23 +276,16 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
         if (doc.isOperationCancelRequested())
             return interruptedResult();
 
-        int selectedFaces = 0;
-        for (const VCGFace &f : entry.mesh.face) {
-            if (f.IsS())
-                ++selectedFaces;
-        }
-
         entry.ioMask |= Mask::IOM_FACEFLAGS;
         doc.markMeshSelectionChanged(
             current->index,
             QObject::tr("Selected visible faces for '%1'").arg(entry.name));
 
+        // The count is appended by the framework, in the wording every selection filter
+        // shares; counting the faces here as well would only say it a second way.
         MeshFilterRunResult result;
         result.success = true;
         result.documentModified = true;
-        result.infoMessages = {
-            QObject::tr("Selected %1 visible faces").arg(selectedFaces)
-        };
         return result;
     }
 
