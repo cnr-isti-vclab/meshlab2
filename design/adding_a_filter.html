@@ -547,11 +547,30 @@ face edges and declares only <code class="docutils literal notranslate"><span cl
 <li><p><strong>Reuse vcglib</strong> — the <code class="docutils literal notranslate"><span class="pre">vcglib/</span></code> submodule at the repo root — for all 3D
 computation.</p></li>
 <li><p><strong>Parallelize heavy per-element loops</strong> with <code class="docutils literal notranslate"><span class="pre">std::thread</span></code> when independent.</p></li>
+<li><p><strong>Do not name the layers you create.</strong> Pass whatever you like to <code class="docutils literal notranslate"><span class="pre">addMesh</span></code>; the
+framework renames every layer a <code class="docutils literal notranslate"><span class="pre">NewMeshes</span></code> filter produces from the descriptor’s
+<code class="docutils literal notranslate"><span class="pre">outputTag</span></code>, so that provenance reads the same everywhere — see
+<a class="reference internal" href="vocabulary.html"><span class="std std-doc">vocabulary.md</span></a> section 7 for the rule and the two escape hatches
+(<code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult::outputTags</span></code>, <code class="docutils literal notranslate"><span class="pre">::sourceMeshIndices</span></code>). Do not emit a
+“Created mesh …” message either: the framework emits one, after the rename, so it
+names the layer as it will actually appear.</p></li>
+<li><p><strong>Report every layer you add in <code class="docutils literal notranslate"><span class="pre">newMeshIndices</span></code>.</strong> Naming, undo accounting and
+compaction all key off it, and a layer missing from the list is invisible to all three.</p></li>
 <li><p><strong>Return useful <code class="docutils literal notranslate"><span class="pre">infoMessages</span></code></strong> — they appear in the log; keep <code class="docutils literal notranslate"><span class="pre">errorMessage</span></code>
 actionable and return <code class="docutils literal notranslate"><span class="pre">success</span> <span class="pre">=</span> <span class="pre">false</span></code> on bad input rather than asserting.</p></li>
 <li><p><strong>Suggest a view change</strong> (optional) via <code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult::visualizationHints</span></code>
 (e.g. switch to textured/quality shading) — see the visualization-hint path in
 <code class="docutils literal notranslate"><span class="pre">MainWindow::applyFilterVisualizationHints</span></code>.</p></li>
+<li><p><strong>A Compute filter never bakes color.</strong> Mapping a scalar to a color is the render
+pass’s job: it is applied at draw time from the active colormap, so writing a ramp
+into <code class="docutils literal notranslate"><span class="pre">VC</span></code>/<code class="docutils literal notranslate"><span class="pre">FC</span></code> is both redundant and destructive — it overwrites whatever color the
+layer already carried, and the user cannot get it back. Compute the scalar, declare
+<code class="docutils literal notranslate"><span class="pre">VQ</span></code>/<code class="docutils literal notranslate"><span class="pre">FQ</span></code>, and ask for the shading you want with <code class="docutils literal notranslate"><span class="pre">visualizationHints</span></code>. This binds
+filters that compute a scalar and then color it as a courtesy; a filter whose declared
+purpose <em>is</em> color (<code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code>) is not affected. A few older filters still
+expose an opt-in <code class="docutils literal notranslate"><span class="pre">map</span></code> / <code class="docutils literal notranslate"><span class="pre">colorize</span></code> parameter, all defaulting to false — they are
+waiting to be removed (a parameter is script-visible, so it needs its own pass), not
+precedent to copy.</p></li>
 <li><p><strong>Randomized filters declare <code class="docutils literal notranslate"><span class="pre">randomSeed</span></code></strong> — <code class="docutils literal notranslate"><span class="pre">int</span></code>, default <code class="docutils literal notranslate"><span class="pre">0</span></code>, minimum <code class="docutils literal notranslate"><span class="pre">0</span></code>,
 resolved through <code class="docutils literal notranslate"><span class="pre">FilterParams::getRandomSeed()</span></code>, with the drawn value reported
 in the result messages so a run can be pinned afterwards. 39 parameters follow

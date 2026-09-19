@@ -1328,6 +1328,90 @@ is still accepted by the loader for descriptors that predate it.</p>
 algorithm-archive model needs — typing <em>qslim</em> finds the QSlim implementations.</p>
 </section>
 </section>
+<section id="naming-the-layers-a-filter-creates">
+<h2>7. Naming the layers a filter creates<a class="headerlink" href="#naming-the-layers-a-filter-creates" title="Link to this heading">¶</a></h2>
+<p>Section 6 governs what a <em>filter</em> is called. This governs what the <em>layer</em> it produces is
+called, which until 2026-09-19 nothing governed at all: 87 filters created layers, in six
+incompatible shapes — <code class="docutils literal notranslate"><span class="pre">Convex</span> <span class="pre">Hull</span></code>, <code class="docutils literal notranslate"><span class="pre">QSlim</span> <span class="pre">-</span> <span class="pre">bunny</span></code>, <code class="docutils literal notranslate"><span class="pre">bunny_sect</span></code>, <code class="docutils literal notranslate"><span class="pre">texdefrag_bunny</span></code>,
+<code class="docutils literal notranslate"><span class="pre">CC</span> <span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">voro</span></code> — and roughly half of them recorded no provenance whatsoever, so three
+convex hulls were three layers all called <code class="docutils literal notranslate"><span class="pre">Convex</span> <span class="pre">Hull</span></code>.</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>source (tag)
+</pre></div>
+</div>
+<p><strong>The source comes first</strong> because the layer panel sorts by name, so every layer derived
+from <code class="docutils literal notranslate"><span class="pre">bunny</span></code> files under <code class="docutils literal notranslate"><span class="pre">bunny</span></code>. <code class="docutils literal notranslate"><span class="pre">QSlim</span> <span class="pre">-</span> <span class="pre">bunny</span></code> sorts under Q, away from everything it
+was made from.</p>
+<p><strong>Chains collapse into one bracket</strong>, newest last: the hull of a simplified bunny is
+<code class="docutils literal notranslate"><span class="pre">bunny</span> <span class="pre">(simplified,</span> <span class="pre">hull)</span></code>, not <code class="docutils literal notranslate"><span class="pre">bunny</span> <span class="pre">(simplified)</span> <span class="pre">(hull)</span></code>. The bracket is the layer’s
+pipeline history in compact form. Past three operations the oldest give way to an
+ellipsis, so a long pipeline cannot outgrow the panel. A tag therefore <strong>may not contain a
+comma or a bracket</strong>: both are read back when the next operation is applied.</p>
+<p><strong>Tags are untranslated.</strong> Layer names are written into <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> project files, so a
+translated tag would mean an Italian user’s project carries Italian layer names that an
+English user then reads. Tags are lowercase for derived layers.</p>
+<p><strong>A filter with no input has no provenance.</strong> <code class="docutils literal notranslate"><span class="pre">inputDomain:</span> <span class="pre">None</span></code> means the tag stands
+alone as the whole name, capitalised as written: <code class="docutils literal notranslate"><span class="pre">Sphere</span></code>, <code class="docutils literal notranslate"><span class="pre">Points</span> <span class="pre">on</span> <span class="pre">Spherical</span> <span class="pre">Cap</span></code>.</p>
+<p><strong>One contributing layer is named; several are counted.</strong> A filter that consumes every
+visible layer treats them alike and has no reason to promote one of their names, so:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>every layer contributed</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Scene</span> <span class="pre">(merged)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>some did</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Scene</span> <span class="pre">(6</span> <span class="pre">of</span> <span class="pre">7)</span> <span class="pre">(merged)</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>one did</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">bunny</span> <span class="pre">(merged)</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The count is <em>contributed of layers in the document</em>, so what it tells you is that
+something was left out. Its bracket is a qualifier on the source, not an operation, and
+is not extended by the next tag.</p>
+<p><strong>Two operands are both named</strong> where both are half the identity of the result — which in
+practice means the booleans: <code class="docutils literal notranslate"><span class="pre">bunny</span> <span class="pre">(difference</span> <span class="pre">cube)</span></code>. Order reads correctly, <code class="docutils literal notranslate"><span class="pre">a</span></code>
+minus <code class="docutils literal notranslate"><span class="pre">b</span></code>. This is the same criterion pointed the other way: name the contributors when
+they are individually meaningful, count them when they are interchangeable.</p>
+<p><strong>Names are unique.</strong> <code class="docutils literal notranslate"><span class="pre">Document::addMesh</span></code> appends <code class="docutils literal notranslate"> <span class="pre">2</span></code>, <code class="docutils literal notranslate"> <span class="pre">3</span></code> … when a name is taken, so
+three hulls of one layer are <code class="docutils literal notranslate"><span class="pre">bunny</span> <span class="pre">(hull)</span></code>, <code class="docutils literal notranslate"><span class="pre">bunny</span> <span class="pre">(hull)</span> <span class="pre">2</span></code>, <code class="docutils literal notranslate"><span class="pre">bunny</span> <span class="pre">(hull)</span> <span class="pre">3</span></code>.</p>
+<section id="how-a-filter-declares-it">
+<h3>How a filter declares it<a class="headerlink" href="#how-a-filter-declares-it" title="Link to this heading">¶</a></h3>
+<p>Naming happens once, in <code class="docutils literal notranslate"><span class="pre">MeshFilterPluginManager::runFilter</span></code>, never in the filter. A
+descriptor declares the tag and, where the source is not the current layer, which
+parameter names it:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">"outputTag"</span><span class="p">:</span><span class="w"> </span><span class="s2">"hull"</span><span class="p">,</span>
+<span class="nt">"outputTag"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"section"</span><span class="p">,</span><span class="w"> </span><span class="s2">"section filled"</span><span class="p">],</span>
+<span class="nt">"outputTag"</span><span class="p">:</span><span class="w"> </span><span class="s2">"part %1"</span><span class="p">,</span>
+<span class="nt">"outputSource"</span><span class="p">:</span><span class="w"> </span><span class="s2">"first_mesh"</span><span class="p">,</span>
+<span class="nt">"outputSecondSource"</span><span class="p">:</span><span class="w"> </span><span class="s2">"second_mesh"</span>
+</pre></div>
+</div>
+<p>One entry per output layer in the order the filter adds them; the last entry is reused
+for any further outputs, with <code class="docutils literal notranslate"><span class="pre">%1</span></code> as the 1-based output number. Two escape hatches exist
+for what a descriptor cannot know:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult::outputTags</span></code> overrides the declared tag for one run, for filters
+whose result is chosen by a parameter — an alpha shape or an alpha complex.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult::sourceMeshIndices</span></code> reports what a run actually consumed, for the
+five filters that eat every visible layer. <code class="docutils literal notranslate"><span class="pre">inputDomain</span></code> cannot express this: Screened
+Poisson is declared <code class="docutils literal notranslate"><span class="pre">SingleMesh</span></code> and a checkbox decides whether it ate one layer or
+eight.</p></li>
+</ul>
+<p>The framework also emits the <code class="docutils literal notranslate"><span class="pre">Created</span> <span class="pre">layer</span> <span class="pre">'...'</span></code> line, because a filter builds its
+messages before the naming pass runs and would name a layer that no longer exists under
+that name.</p>
+<p><code class="docutils literal notranslate"><span class="pre">test_filter_descriptors.cpp</span></code> enforces that every <code class="docutils literal notranslate"><span class="pre">NewMeshes</span></code> filter declares a tag, that
+no tag contains a comma or bracket, and that <code class="docutils literal notranslate"><span class="pre">outputSource</span></code> names a real mesh parameter.</p>
+</section>
+</section>
 </section>
 
         </article>
@@ -1393,6 +1477,10 @@ algorithm-archive model needs — typing <em>qslim</em> finds the QSlim implemen
 <li><a class="reference internal" href="#spelling-and-casing">5. Spelling and casing</a></li>
 <li><a class="reference internal" href="#naming-grammar">6. Naming grammar</a><ul>
 <li><a class="reference internal" href="#discoverability-prerequisite-done">Discoverability: prerequisite (done)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#naming-the-layers-a-filter-creates">7. Naming the layers a filter creates</a><ul>
+<li><a class="reference internal" href="#how-a-filter-declares-it">How a filter declares it</a></li>
 </ul>
 </li>
 </ul>

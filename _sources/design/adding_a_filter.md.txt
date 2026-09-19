@@ -275,11 +275,30 @@ void registerFooFilterPlugin(MeshFilterPluginManager &pm);
 - **Reuse vcglib** — the `vcglib/` submodule at the repo root — for all 3D
   computation.
 - **Parallelize heavy per-element loops** with `std::thread` when independent.
+- **Do not name the layers you create.** Pass whatever you like to `addMesh`; the
+  framework renames every layer a `NewMeshes` filter produces from the descriptor's
+  `outputTag`, so that provenance reads the same everywhere — see
+  [vocabulary.md](vocabulary.md) section 7 for the rule and the two escape hatches
+  (`MeshFilterRunResult::outputTags`, `::sourceMeshIndices`). Do not emit a
+  "Created mesh ..." message either: the framework emits one, after the rename, so it
+  names the layer as it will actually appear.
+- **Report every layer you add in `newMeshIndices`.** Naming, undo accounting and
+  compaction all key off it, and a layer missing from the list is invisible to all three.
 - **Return useful `infoMessages`** — they appear in the log; keep `errorMessage`
   actionable and return `success = false` on bad input rather than asserting.
 - **Suggest a view change** (optional) via `MeshFilterRunResult::visualizationHints`
   (e.g. switch to textured/quality shading) — see the visualization-hint path in
   `MainWindow::applyFilterVisualizationHints`.
+- **A Compute filter never bakes color.** Mapping a scalar to a color is the render
+  pass's job: it is applied at draw time from the active colormap, so writing a ramp
+  into `VC`/`FC` is both redundant and destructive — it overwrites whatever color the
+  layer already carried, and the user cannot get it back. Compute the scalar, declare
+  `VQ`/`FQ`, and ask for the shading you want with `visualizationHints`. This binds
+  filters that compute a scalar and then color it as a courtesy; a filter whose declared
+  purpose *is* color (`Attribute/Color`) is not affected. A few older filters still
+  expose an opt-in `map` / `colorize` parameter, all defaulting to false — they are
+  waiting to be removed (a parameter is script-visible, so it needs its own pass), not
+  precedent to copy.
 - **Randomized filters declare `randomSeed`** — `int`, default `0`, minimum `0`,
   resolved through `FilterParams::getRandomSeed()`, with the drawn value reported
   in the result messages so a run can be pinned afterwards. 39 parameters follow

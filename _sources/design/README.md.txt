@@ -24,7 +24,7 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [Memory Accounting](memory_accounting.md) | Why there are several different numbers for "size". |
 | [Preferences](preferences.md) | Application settings, sharing the filter-parameter schema. |
 | [Adding a Filter](adding_a_filter.md) | The practical how-to: descriptor schema, plugin class, wiring. |
-| [Vocabulary](vocabulary.md) | The controlled vocabulary: categories, verb lexicon, naming grammar. |
+| [Vocabulary](vocabulary.md) | The controlled vocabulary: categories, verb lexicon, naming grammar, layer naming. |
 | [Filter Organization](filter_organization.md) | Settled naming and organization principles, plus parameter conventions. |
 | [TrueForm Plugin](trueform_plugin.md) | How the TrueForm-backed plugins relate to the rest of the tree. |
 
@@ -51,3 +51,4 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [Filter Names](history/filter_names.md) | The pass-1 renaming rounds, verb by verb, with the rulings made along the way. |
 | [Pass 2 Identifier Map](history/pass2_identifier_map.md) | The `id` / `pythonName` mapping applied 2026-09-03. |
 | [Repository Rename](history/repository_rename.md) | The QMeshLab → meshlab2 rename, six surfaces in five phases, applied 2026-09-13. |
+| [Layer Naming](history/layer_naming.md) | The 87 layer-creating filters, measured before and after, applied 2026-09-19. |
