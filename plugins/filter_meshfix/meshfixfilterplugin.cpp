@@ -227,7 +227,9 @@ MeshFilterRunResult MeshFixFilterPlugin::runFilter(
         const int ioMask =
             Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
         const int newIndex = doc.addMesh(
-            output, QObject::tr("MeshFix - %1").arg(inputName), ioMask);
+            output,
+            {},
+            ioMask);
         if (newIndex < 0)
             return fail(QObject::tr("Failed to add the MeshFix result to the document."));
         doc.setMeshTransform(newIndex, inputTransform);

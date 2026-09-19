@@ -90,7 +90,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::Tetrahedron<VCGMesh>(m);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Tetrahedron"));
+        const int idx = doc.addMesh(m, {});
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -99,7 +99,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::Icosahedron<VCGMesh>(m);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Icosahedron"));
+        const int idx = doc.addMesh(m, {});
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -110,7 +110,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
         const int idx = doc.addMesh(
             m,
-            QStringLiteral("Dodecahedron"),
+            {},
             vcg::tri::io::Mask::IOM_BITPOLYGONAL);
         return success(doc.mesh(idx).name, idx);
     }
@@ -122,7 +122,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
         const int idx = doc.addMesh(
             m,
-            QStringLiteral("Dodecahedron (sym)"),
+            {},
             vcg::tri::io::Mask::IOM_BITPOLYGONAL);
         return success(doc.mesh(idx).name, idx);
     }
@@ -132,7 +132,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::Octahedron<VCGMesh>(m);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Octahedron"));
+        const int idx = doc.addMesh(m, {});
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -146,7 +146,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
         const int idx = doc.addMesh(
             m,
-            QStringLiteral("Hexahedron"),
+            {},
             vcg::tri::io::Mask::IOM_BITPOLYGONAL);
         return success(doc.mesh(idx).name, idx);
     }
@@ -159,7 +159,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::Annulus<VCGMesh>(m, inner, outer, sides);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Annulus"));
+        const int idx = doc.addMesh(m, {});
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -196,7 +196,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         const int idx = doc.addMesh(
             m,
-            circle ? QStringLiteral("Circle") : QStringLiteral("Square"),
+            {},
             vcg::tri::io::Mask::IOM_EDGEINDEX);
         return success(
             doc.mesh(idx).name,
@@ -212,7 +212,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::UpdatePosition<VCGMesh>::Scale(m, radius);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Sphere"), vcg::tri::io::Mask::IOM_VERTNORMAL);
+        const int idx = doc.addMesh(m, {}, vcg::tri::io::Mask::IOM_VERTNORMAL);
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -228,7 +228,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::SphericalCap(m, vcg::math::ToRad(2.0f * halfAngleDeg), subdiv);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Sphere Cap"), vcg::tri::io::Mask::IOM_VERTNORMAL);
+        const int idx = doc.addMesh(m, {}, vcg::tri::io::Mask::IOM_VERTNORMAL);
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -281,8 +281,8 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         }
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         const int idx = doc.addMesh(
-            m, capPoints ? QStringLiteral("Points on Spherical Cap")
-                         : QStringLiteral("Points on Sphere"));
+            m,
+            {});
         return success(doc.mesh(idx).name, idx, seedInfo);
     }
 
@@ -295,7 +295,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::Cone<VCGMesh>(m, r0, r1, h, subdiv);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Cone"), vcg::tri::io::Mask::IOM_VERTNORMAL);
+        const int idx = doc.addMesh(m, {}, vcg::tri::io::Mask::IOM_VERTNORMAL);
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -319,7 +319,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::OrientedCylinder<VCGMesh>(m, -half, half, radius, capped, sides, stacks);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Cylinder"), vcg::tri::io::Mask::IOM_VERTNORMAL);
+        const int idx = doc.addMesh(m, {}, vcg::tri::io::Mask::IOM_VERTNORMAL);
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -332,7 +332,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::Torus(m, hRadius, vRadius, hSubdiv, vSubdiv);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Torus"), vcg::tri::io::Mask::IOM_VERTNORMAL);
+        const int idx = doc.addMesh(m, {}, vcg::tri::io::Mask::IOM_VERTNORMAL);
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -427,7 +427,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
 
-        const int idx = doc.addMesh(m, QStringLiteral("Fitted Plane"));
+        const int idx = doc.addMesh(m, {});
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -460,7 +460,9 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(hull);
 
         const int idx = doc.addMesh(
-            hull, QStringLiteral("Convex Hull"), vcg::tri::io::Mask::IOM_VERTNORMAL);
+            hull,
+            {},
+            vcg::tri::io::Mask::IOM_VERTNORMAL);
         if (idx < 0)
             return { false, false, QObject::tr("Failed to add the convex hull layer.") };
         MeshFilterRunResult r = success(doc.mesh(idx).name, idx);

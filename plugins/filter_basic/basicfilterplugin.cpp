@@ -121,7 +121,7 @@ MeshFilterRunResult BasicFilterPlugin::runFilter(
         const int ioMask =
             vcg::tri::io::Mask::IOM_VERTNORMAL
             | vcg::tri::io::Mask::IOM_FACENORMAL;
-        const int newIndex = doc.addMesh(generatedMesh, QObject::tr("Noisy Isosurface"), ioMask);
+        const int newIndex = doc.addMesh(generatedMesh, {}, ioMask);
         if (newIndex < 0)
             return { false, false, QObject::tr("Failed to add generated isosurface to document.") };
 

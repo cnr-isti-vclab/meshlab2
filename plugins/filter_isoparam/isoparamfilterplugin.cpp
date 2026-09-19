@@ -279,7 +279,8 @@ MeshFilterRunResult runRemesh(const FilterParams &params, Document &doc, int ind
     vcg::tri::UpdateBounding<VCGMesh>::Box(remeshed);
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(remeshed);
     const int newIndex = doc.addMesh(
-        remeshed, QObject::tr("Remeshed - %1").arg(doc.mesh(index).name),
+        remeshed,
+        {},
         vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEINDEX
             | vcg::tri::io::Mask::IOM_VERTNORMAL | vcg::tri::io::Mask::IOM_FACENORMAL);
     if (newIndex < 0) {
@@ -360,7 +361,8 @@ MeshFilterRunResult runAtlasedMesh(const FilterParams &params, Document &doc, in
     vcg::tri::UpdateBounding<VCGMesh>::Box(atlased);
     vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(atlased);
     const int newIndex = doc.addMesh(
-        atlased, QObject::tr("Atlased - %1").arg(doc.mesh(index).name),
+        atlased,
+        {},
         vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEINDEX
             | vcg::tri::io::Mask::IOM_WEDGTEXCOORD | vcg::tri::io::Mask::IOM_FACENORMAL);
     if (newIndex < 0) {

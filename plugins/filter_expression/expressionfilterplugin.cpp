@@ -966,7 +966,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
 
         const int newIndex = doc.addMesh(
             generated,
-            QObject::tr("Grid"),
+            {},
             Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL);
         if (newIndex < 0)
             return fail(QObject::tr("Failed to add generated grid mesh."));
@@ -1057,7 +1057,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
 
         const int newIndex = doc.addMesh(
             generated,
-            QObject::tr("Implicit Surface"),
+            {},
             Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL);
         if (newIndex < 0)
             return fail(QObject::tr("Failed to add generated implicit surface mesh."));

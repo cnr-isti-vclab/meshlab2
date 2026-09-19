@@ -458,8 +458,7 @@ MeshFilterRunResult runIglBooleanFilter(
     vcg::tri::UpdateBounding<VCGMesh>::Box(output);
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
 
-    const QString resultName = QObject::tr("Boolean %1").arg(operationName);
-    const int newMeshIndex = doc.addMesh(output, resultName, outputMask);
+    const int newMeshIndex = doc.addMesh(output, {}, outputMask);
     if (newMeshIndex < 0) {
         error = QObject::tr("Failed to add the boolean result mesh to the document.");
         doc.finishFilterProgress(false, error);

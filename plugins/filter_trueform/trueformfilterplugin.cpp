@@ -452,7 +452,7 @@ TfForms tfFormsOf(const std::vector<TfMesh> &meshes)
 // into triangles. Returns -1 when the buffer carries no face the document can hold; what
 // that means is the calling filter's to say.
 template <typename Buffer>
-int addBufferLayer(Document &doc, const Buffer &buffer, const QString &layerName)
+int addBufferLayer(Document &doc, const Buffer &buffer)
 {
     VCGMesh output;
     const auto points = buffer.points();
@@ -488,7 +488,7 @@ int addBufferLayer(Document &doc, const Buffer &buffer, const QString &layerName
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
 
     const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
-    return doc.addMesh(output, layerName, ioMask);
+    return doc.addMesh(output, {}, ioMask);
 }
 
 // The single-result form: one layer, and the progress and reporting around it.
@@ -497,7 +497,7 @@ MeshFilterRunResult addResultLayer(
     Document &doc, const Buffer &buffer, const QString &layerName,
     const QString &emptyMessage, QStringList info)
 {
-    const int newIndex = addBufferLayer(doc, buffer, layerName);
+    const int newIndex = addBufferLayer(doc, buffer);
     if (newIndex < 0) {
         doc.finishFilterProgress(false, emptyMessage);
         return fail(emptyMessage);
@@ -525,7 +525,7 @@ MeshFilterRunResult addResultLayers(
     QVector<int> newIndices;
     newIndices.reserve(int(buffers.size()));
     for (std::size_t k = 0; k < buffers.size(); ++k) {
-        const int newIndex = addBufferLayer(doc, buffers[k], name_of(k));
+        const int newIndex = addBufferLayer(doc, buffers[k]);
         if (newIndex >= 0)
             newIndices.push_back(newIndex);
     }
@@ -1117,7 +1117,7 @@ inline MeshFilterRunResult finishPolylineLayer(
     vcg::tri::Allocator<VCGMesh>::CompactEveryVector(output);
     vcg::tri::UpdateBounding<VCGMesh>::Box(output);
 
-    const int newIndex = doc.addMesh(output, layerName, Mask::IOM_EDGEINDEX | extraMask);
+    const int newIndex = doc.addMesh(output, {}, Mask::IOM_EDGEINDEX | extraMask);
     if (newIndex < 0) {
         const QString message = QObject::tr("Failed to add the %1 layer.").arg(layerName);
         doc.finishFilterProgress(false, message);

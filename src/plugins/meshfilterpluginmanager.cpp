@@ -211,26 +211,42 @@ QString layerTagFor(
 
 // Rename the layers a run created. Done centrally so every filter says where its output
 // came from in the same shape, which forty hand-written name expressions did not.
+// Which layers this run brought into being: the ones holding an id the document did not
+// have before. Derived rather than taken from newMeshIndices because a filter that forgets
+// to report a layer would otherwise be left holding the placeholder addMesh gave it, and
+// one did -- Reconstruct Surface by Volumetric Merging reported nothing for years. Ids,
+// not indices, because a filter may also have deleted layers and shifted the rest along.
+QVector<int> layersCreatedBy(const Document &doc, const QSet<std::uint64_t> &idsBefore)
+{
+    QVector<int> created;
+    for (int i = 0; i < doc.meshCount(); ++i) {
+        if (!idsBefore.contains(doc.mesh(i).meshId))
+            created.push_back(i);
+    }
+    return created;
+}
+
 void applyOutputNaming(
     Document &doc,
     const MeshFilterDescriptor &descriptor,
     const FilterParams &params,
     const MeshFilterRunResult &result,
     const QStringList &namesBefore,
+    const QSet<std::uint64_t> &idsBefore,
     int currentBefore)
 {
     if (descriptor.outputTag.isEmpty() && result.outputTags.isEmpty())
         return;
-    if (result.newMeshIndices.isEmpty())
+
+    const QVector<int> created = layersCreatedBy(doc, idsBefore);
+    if (created.isEmpty())
         return;
 
     const LayerNameSource source =
         layerNameSource(descriptor, params, result.sourceMeshIndices, namesBefore, currentBefore);
 
-    for (int output = 0; output < result.newMeshIndices.size(); ++output) {
-        const int index = result.newMeshIndices.at(output);
-        if (index < 0 || index >= doc.meshCount())
-            continue;
+    for (int output = 0; output < created.size(); ++output) {
+        const int index = created.at(output);
         QString tag = layerTagFor(descriptor, result.outputTags, output);
         if (tag.isEmpty())
             continue;
@@ -248,13 +264,11 @@ void applyOutputNaming(
 // Which layers a run created, named as they ended up. The framework says this rather than
 // each filter, because a filter builds its message before the naming pass runs and would
 // name a layer that no longer exists under that name.
-QString createdLayersMessage(const Document &doc, const QVector<int> &newMeshIndices)
+QString createdLayersMessage(const Document &doc, const QSet<std::uint64_t> &idsBefore)
 {
     QStringList names;
-    for (int index : newMeshIndices) {
-        if (index >= 0 && index < doc.meshCount())
-            names << QStringLiteral("'%1'").arg(doc.mesh(index).name);
-    }
+    for (int index : layersCreatedBy(doc, idsBefore))
+        names << QStringLiteral("'%1'").arg(doc.mesh(index).name);
     if (names.isEmpty())
         return {};
     if (names.size() == 1)
@@ -1027,10 +1041,12 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     // the very layers it consumed -- Merge Visible Layers does -- and will have added at
     // least one, either of which makes a live index mean something else.
     QStringList meshNamesBefore;
+    QSet<std::uint64_t> meshIdsBefore;
     for (int i = 0; i < doc.meshCount(); ++i) {
         const Document::MeshEntry &entry = doc.mesh(i);
         selectionRevisionBefore.insert(entry.meshId, entry.selectionRevision);
         meshNamesBefore << entry.name;
+        meshIdsBefore.insert(entry.meshId);
     }
 
     MeshFilterRunResult result;
@@ -1097,8 +1113,9 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     // data -- and before anything reports what was created, so every message names the
     // layer as it will appear in the panel.
     applyOutputNaming(
-        doc, *targetDescriptor, typedParams, result, meshNamesBefore, originalCurrentMeshIndex);
-    const QString created = createdLayersMessage(doc, result.newMeshIndices);
+        doc, *targetDescriptor, typedParams, result, meshNamesBefore, meshIdsBefore,
+        originalCurrentMeshIndex);
+    const QString created = createdLayersMessage(doc, meshIdsBefore);
     if (!created.isEmpty())
         result.infoMessages.prepend(created);
 

@@ -351,7 +351,7 @@ MeshFilterRunResult runAlphaShape(const FilterParams &params, Document &doc)
         | Mask::IOM_FACEQUALITY;
     const int newIndex = doc.addMesh(
         output,
-        wantComplex ? QObject::tr("Alpha Complex") : QObject::tr("Alpha Shape"),
+        {},
         ioMask);
     if (newIndex < 0) {
         const QString message = QObject::tr("Failed to add the alpha shape layer.");
@@ -538,7 +538,7 @@ MeshFilterRunResult runVoronoiFiltering(const FilterParams &params, Document &do
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
 
     const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
-    const int newIndex = doc.addMesh(output, QObject::tr("Voronoi Filtering"), ioMask);
+    const int newIndex = doc.addMesh(output, {}, ioMask);
     if (newIndex < 0) {
         const QString message = QObject::tr("Failed to add the Voronoi filtering layer.");
         doc.finishFilterProgress(false, message);
@@ -613,7 +613,7 @@ MeshFilterRunResult finishReconstruction(
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
 
     const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
-    const int newIndex = doc.addMesh(output, layerName, ioMask);
+    const int newIndex = doc.addMesh(output, {}, ioMask);
     if (newIndex < 0) {
         const QString message = QObject::tr("Failed to add the %1 layer.").arg(layerName);
         doc.finishFilterProgress(false, message);
@@ -1008,7 +1008,7 @@ MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc, bo
 
     const QString layerName = QObject::tr("%1 bounding box").arg(subject.name);
     const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
-    const int newIndex = doc.addMesh(output, layerName, ioMask);
+    const int newIndex = doc.addMesh(output, {}, ioMask);
     if (newIndex < 0)
         return fail(QObject::tr("Failed to add the %1 layer.").arg(layerName));
 
@@ -1418,9 +1418,8 @@ MeshFilterRunResult CgalFilterPlugin::runFilter(
         return fail(error);
     }
 
-    const QString newName = QObject::tr("Alpha wrap");
     const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
-    const int newIndex = doc.addMesh(output, newName, ioMask);
+    const int newIndex = doc.addMesh(output, {}, ioMask);
     if (newIndex < 0) {
         const QString message = QObject::tr("Failed to add Alpha Wrap result to the document.");
         doc.finishFilterProgress(false, message);

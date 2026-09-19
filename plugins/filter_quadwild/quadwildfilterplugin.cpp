@@ -253,7 +253,9 @@ MeshFilterRunResult QuadWildFilterPlugin::runFilter(
         | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
 
     const int newIndex = doc.addMesh(
-        output, QObject::tr("QuadWild-BiMDF - %1").arg(inputName), loadMask);
+        output,
+        {},
+        loadMask);
     if (newIndex < 0)
         return fail(QObject::tr("Failed to add the QuadWild-BiMDF result."));
     doc.setMeshTransform(newIndex, inputTransform);

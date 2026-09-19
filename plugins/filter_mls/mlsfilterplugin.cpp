@@ -342,11 +342,6 @@ QString projectedMeshName(const Document::MeshEntry &proxyEntry, const QString &
     return QObject::tr("%1 (%2)").arg(proxyEntry.name, variant);
 }
 
-QString marchingMeshName(const Document::MeshEntry &sourceEntry, const QString &variant)
-{
-    return QObject::tr("%1 %2").arg(sourceEntry.name, variant);
-}
-
 } // namespace
 
 QString MlsFilterPlugin::pluginId() const
@@ -443,7 +438,7 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
         computeMarchingCubes(resultMesh, params.getInt(QStringLiteral("Resolution"), 200), *mls, doc.progressCallback());
         const int newIndex = doc.addMesh(
             resultMesh,
-            marchingMeshName(entry, filterId == QString::fromLatin1(kIdApssMcube) ? QStringLiteral("APSS MC") : QStringLiteral("RIMLS MC")),
+            {},
             Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL);
         if (newIndex >= 0) {
             doc.mesh(newIndex).transform.setToIdentity();

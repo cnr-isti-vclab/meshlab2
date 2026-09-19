@@ -141,7 +141,6 @@ void extractLevelSet(
 MeshFilterRunResult finalizeMeshResult(
     Document &doc,
     VCGMesh &outputMesh,
-    const QString &meshName,
     bool preserveColor,
     const QString &finishMessage,
     const QStringList &infoMessages)
@@ -159,7 +158,7 @@ MeshFilterRunResult finalizeMeshResult(
     if (preserveColor)
         ioMask |= Mask::IOM_VERTCOLOR;
 
-    const int newIndex = doc.addMesh(outputMesh, meshName, ioMask);
+    const int newIndex = doc.addMesh(outputMesh, {}, ioMask);
     if (newIndex < 0) {
         const QString message = QObject::tr("Failed to add the generated mesh to the document.");
         doc.finishFilterProgress(false, message);
@@ -907,25 +906,26 @@ MeshFilterRunResult runScreenedPoissonFilter(
     return finalizeMeshResult(
         doc,
         outputMesh,
-        QObject::tr("Poisson mesh"),
         preserveColor,
         mergeVisible
-            ? QObject::tr("Created Poisson mesh from %1 visible layers").arg(meshIndices.size())
-            : QObject::tr("Created Poisson mesh from current mesh"),
+            ? QObject::tr("Reconstructed from %1 visible layers").arg(meshIndices.size())
+            : QObject::tr("Reconstructed from the current layer"),
         {
+            // The layer is named by the framework, which reports it separately; this says
+            // what the backend did, not what the result is called.
             mergeVisible
-                ? QObject::tr("Created '%1' with PoissonRecon backend from %2 visible layers (%3 input samples, %4 vertices, %5 faces)")
-                      .arg(QObject::tr("Poisson mesh"))
+                ? QObject::tr("PoissonRecon over %1 visible layers: %2 input samples, "
+                              "%3 vertices, %4 faces.")
                       .arg(meshIndices.size())
                       .arg(inputSampleCount)
                       .arg(outputMesh.VN())
                       .arg(outputMesh.FN())
-                : QObject::tr("Created '%1' with PoissonRecon backend from current mesh (%2 input samples, %3 vertices, %4 faces)")
-                      .arg(QObject::tr("Poisson mesh"))
+                : QObject::tr("PoissonRecon: %1 input samples, %2 vertices, %3 faces.")
                       .arg(inputSampleCount)
                       .arg(outputMesh.VN())
                       .arg(outputMesh.FN()),
-            QObject::tr("Screened Poisson used %1 thread%2 for the solve and forced 1 thread for iso-surface extraction stability.")
+            QObject::tr("Screened Poisson used %1 thread%2 for the solve and forced 1 thread "
+                        "for iso-surface extraction stability.")
                 .arg(requestedThreads)
                 .arg(requestedThreads == 1 ? QString() : QStringLiteral("s"))
         });
@@ -1047,25 +1047,24 @@ MeshFilterRunResult runSSDReconFilter(
     return finalizeMeshResult(
         doc,
         outputMesh,
-        QObject::tr("SSD mesh"),
         preserveColor,
         mergeVisible
-            ? QObject::tr("Created SSD mesh from %1 visible layers").arg(meshIndices.size())
-            : QObject::tr("Created SSD mesh from current mesh"),
+            ? QObject::tr("Reconstructed from %1 visible layers").arg(meshIndices.size())
+            : QObject::tr("Reconstructed from the current layer"),
         {
             mergeVisible
-                ? QObject::tr("Created '%1' with SSDRecon from %2 visible layers (%3 input samples, %4 vertices, %5 faces)")
-                      .arg(QObject::tr("SSD mesh"))
+                ? QObject::tr("SSDRecon over %1 visible layers: %2 input samples, "
+                              "%3 vertices, %4 faces.")
                       .arg(meshIndices.size())
                       .arg(inputSampleCount)
                       .arg(outputMesh.VN())
                       .arg(outputMesh.FN())
-                : QObject::tr("Created '%1' with SSDRecon from current mesh (%2 input samples, %3 vertices, %4 faces)")
-                      .arg(QObject::tr("SSD mesh"))
+                : QObject::tr("SSDRecon: %1 input samples, %2 vertices, %3 faces.")
                       .arg(inputSampleCount)
                       .arg(outputMesh.VN())
                       .arg(outputMesh.FN()),
-            QObject::tr("SSDRecon used %1 thread%2 for the solve and forced 1 thread for iso-surface extraction stability.")
+            QObject::tr("SSDRecon used %1 thread%2 for the solve and forced 1 thread "
+                        "for iso-surface extraction stability.")
                 .arg(requestedThreads)
                 .arg(requestedThreads == 1 ? QString() : QStringLiteral("s"))
         });

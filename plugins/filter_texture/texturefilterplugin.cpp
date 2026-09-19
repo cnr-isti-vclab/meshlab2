@@ -522,7 +522,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         // atlas now inherits it rather than inventing it.
         const int ioMask = Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL
             | (entry.ioMask & Mask::IOM_VERTCOLOR);
-        const int newIndex = doc.addMesh(paraMesh, QStringLiteral("VoroAtlas"), ioMask);
+        const int newIndex = doc.addMesh(paraMesh, {}, ioMask);
         doc.finishFilterProgress(true, QObject::tr("Generated Voronoi atlas mesh."));
 
         MeshFilterRunResult result;
@@ -1515,11 +1515,10 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         }
 
         outputMesh.textures.clear();
-        const QString outputName = QObject::tr("packed_textures_%1").arg(sourceEntry.name);
         const QMatrix4x4 outputTransform = sourceEntry.transform;
         const int outputMask =
             (sourceEntry.ioMask | Mask::IOM_WEDGTEXCOORD) & ~Mask::IOM_VERTTEXCOORD;
-        const int outputIndex = doc.addMesh(outputMesh, outputName, outputMask);
+        const int outputIndex = doc.addMesh(outputMesh, {}, outputMask);
         if (outputIndex < 0) {
             const QString message = QObject::tr("Failed to add packed-texture mesh to the document.");
             doc.finishFilterProgress(false, message);

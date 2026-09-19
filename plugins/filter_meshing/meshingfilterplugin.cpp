@@ -723,8 +723,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             }
             vcg::tri::UpdateBounding<VCGMesh>::Box(output);
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
-            const QString newName = QObject::tr("%1_clustered").arg(entry.name);
-            const int newIndex = doc.addMesh(output, newName, entry.ioMask);
+            const int newIndex = doc.addMesh(output, {}, entry.ioMask);
             return success(true,
                 { QObject::tr("Clustering decimation: %1 → %2 vertices, %3 → %4 faces.")
                     .arg(srcVN).arg(output.VN()).arg(srcFN).arg(output.FN()) },
@@ -1572,7 +1571,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             vcg::tri::UpdateBounding<VCGMesh>::Box(unrolled);
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(unrolled);
             const int ioMask = entry.ioMask;
-            const int newIndex = doc.addMesh(unrolled, QObject::tr("Unrolled Mesh"), ioMask);
+            const int newIndex = doc.addMesh(unrolled, {}, ioMask);
             if (newIndex < 0)
                 return fail(QObject::tr("Failed to add unrolled mesh layer."));
             return success(true, { QObject::tr("Created unrolled mesh layer.") }, { newIndex });
@@ -1698,7 +1697,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 return fail(QObject::tr("No selected edges to build a polyline from."));
             vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(edgeMesh);
             vcg::tri::UpdateBounding<VCGMesh>::Box(edgeMesh);
-            const int idx = doc.addMesh(edgeMesh, QObject::tr("EdgeMesh"), Mask::IOM_EDGEINDEX);
+            const int idx = doc.addMesh(edgeMesh, {}, Mask::IOM_EDGEINDEX);
             if (idx < 0)
                 return fail(QObject::tr("Failed to create edge extraction layer."));
             return success(true, { QObject::tr("Created edge mesh from selected edges.") }, { idx });
@@ -1779,7 +1778,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
             vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(perimeter);
             vcg::tri::UpdateBounding<VCGMesh>::Box(perimeter);
-            const int idx = doc.addMesh(perimeter, QObject::tr("%1_perimeter").arg(entry.name), Mask::IOM_EDGEINDEX);
+            const int idx = doc.addMesh(perimeter, {}, Mask::IOM_EDGEINDEX);
             if (idx < 0)
                 return fail(QObject::tr("Failed to create perimeter polyline layer."));
             return success(true, { QObject::tr("Created perimeter polyline layer.") }, { idx });
@@ -1830,12 +1829,12 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             }
 
             QVector<int> created;
-            const int secIdx = doc.addMesh(section, QObject::tr("%1_sect").arg(entry.name), Mask::IOM_EDGEINDEX);
+            const int secIdx = doc.addMesh(section, {}, Mask::IOM_EDGEINDEX);
             if (secIdx >= 0)
                 created.push_back(secIdx);
 
             if (createSectionSurface) {
-                const int capIdx = doc.addMesh(cap, QObject::tr("%1_sect_filled").arg(entry.name), Mask::IOM_FACENORMAL | Mask::IOM_VERTNORMAL);
+                const int capIdx = doc.addMesh(cap, {}, Mask::IOM_FACENORMAL | Mask::IOM_VERTNORMAL);
                 if (capIdx >= 0)
                     created.push_back(capIdx);
             }

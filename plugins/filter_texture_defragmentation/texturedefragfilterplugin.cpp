@@ -787,10 +787,8 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     for (int i = 0; i < int(renderedTextures.size()); ++i)
         outputMesh.textures.push_back(textureAssetName(sourceEntry.name, i).toStdString());
 
-    const QString newName = (isDefrag ? QObject::tr("texdefrag_%1") : QObject::tr("texislands_%1"))
-                                .arg(sourceEntry.name);
     const int outputMask = (sourceEntry.ioMask | Mask::IOM_WEDGTEXCOORD) & ~Mask::IOM_VERTTEXCOORD;
-    const int newIndex = doc.addMesh(outputMesh, newName, outputMask);
+    const int newIndex = doc.addMesh(outputMesh, {}, outputMask);
     if (newIndex < 0) {
         const QString message = QObject::tr("%1 could not add its result to the document.").arg(filterLabel);
         doc.finishFilterProgress(false, message);

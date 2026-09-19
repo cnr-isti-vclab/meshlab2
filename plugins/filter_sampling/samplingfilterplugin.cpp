@@ -457,10 +457,9 @@ int addDerivedMesh(
     Document &doc,
     int sourceMeshIndex,
     const VCGMesh &mesh,
-    const QString &name,
     int ioMask)
 {
-    const int newIndex = doc.addMesh(mesh, name, ioMask);
+    const int newIndex = doc.addMesh(mesh, {}, ioMask);
     doc.setMeshTransform(newIndex, doc.meshTransform(sourceMeshIndex), QString());
     return newIndex;
 }
@@ -700,12 +699,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             doc,
             meshIndex,
             output,
-            QObject::tr("Element Samples"),
-            pointCloudIoMask(
-                entry,
-                sampling != QLatin1StringView("vertex"),
-                sourceHasColor,
-                sourceHasQuality));
+            pointCloudIoMask(entry, sampling != QLatin1StringView("vertex"), sourceHasColor, sourceHasQuality));
         QStringList messages{
             QObject::tr("Generated %1 samples from %2 mesh elements.")
                 .arg(output.VN())
@@ -753,7 +747,6 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             doc,
             meshIndex,
             output,
-            QObject::tr("Montecarlo Samples"),
             pointCloudIoMask(entry, true, sourceHasColor, sourceHasQuality));
         return successResult(
             { QObject::tr("Generated %1 Montecarlo samples.").arg(output.VN()),
@@ -795,7 +788,6 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             doc,
             meshIndex,
             output,
-            QObject::tr("Stratified Samples"),
             pointCloudIoMask(entry, true, sourceHasColor, sourceHasQuality));
         QStringList messages{
             QObject::tr("Generated %1 stratified samples.").arg(output.VN())
@@ -837,12 +829,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             doc,
             meshIndex,
             output,
-            QObject::tr("Cluster Samples"),
-            pointCloudIoMask(
-                entry,
-                (entry.ioMask & Mask::IOM_VERTNORMAL) != 0,
-                sourceHasColor,
-                sourceHasQuality));
+            pointCloudIoMask(entry, (entry.ioMask & Mask::IOM_VERTNORMAL) != 0, sourceHasColor, sourceHasQuality));
         return successResult(
             { QObject::tr("Generated %1 clustered samples.").arg(output.VN()) },
             { newIndex });
@@ -891,12 +878,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             doc,
             meshIndex,
             output,
-            QObject::tr("Simplified Cloud"),
-            pointCloudIoMask(
-                entry,
-                (entry.ioMask & Mask::IOM_VERTNORMAL) != 0,
-                sourceHasColor,
-                sourceHasQuality));
+            pointCloudIoMask(entry, (entry.ioMask & Mask::IOM_VERTNORMAL) != 0, sourceHasColor, sourceHasQuality));
         return successResult(
             {
                 QObject::tr("Generated %1 simplified samples.").arg(output.VN()),
@@ -974,7 +956,6 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
                     doc,
                     meshIndex,
                     montecarloMesh,
-                    QObject::tr("Montecarlo Samples"),
                     pointCloudIoMask(entry, true, sourceHasColor, sourceHasQuality));
                 newMeshIndices.push_back(montecarloIndex);
             }
@@ -1011,7 +992,6 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             doc,
             meshIndex,
             output,
-            QObject::tr("Poisson-disk Samples"),
             pointCloudIoMask(entry, true, sourceHasColor, sourceHasQuality));
         newMeshIndices.push_back(newIndex);
         infoMessages << QObject::tr("Generated %1 Poisson-disk samples.").arg(output.VN())
@@ -1077,7 +1057,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         vcg::tri::UpdateBounding<VCGMesh>::Box(output);
 
         const int ioMask = Mask::IOM_VERTNORMAL | (recoverColor ? Mask::IOM_VERTCOLOR : 0);
-        const int newIndex = doc.addMesh(output, QObject::tr("Texel Samples"), ioMask);
+        const int newIndex = doc.addMesh(output, {}, ioMask);
         if (!textureSpace)
             doc.setMeshTransform(newIndex, doc.meshTransform(meshIndex), QString());
         return successResult(
@@ -1157,11 +1137,11 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             vcg::tri::UpdateBounding<VCGMesh>::Box(closestPointCloud);
             const int sampleIdx = doc.addMesh(
                 samplePointCloud,
-                QObject::tr("Hausdorff Sample Points"),
+                {},
                 Mask::IOM_VERTQUALITY);
             const int closestIdx = doc.addMesh(
                 closestPointCloud,
-                QObject::tr("Hausdorff Closest Points"),
+                {},
                 Mask::IOM_VERTQUALITY);
             newMeshIndices << sampleIdx << closestIdx;
         }
@@ -1388,7 +1368,6 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             doc,
             meshIndex,
             output,
-            QObject::tr("Offset Mesh"),
             Mask::IOM_VERTNORMAL);
         return successResult(
             {
@@ -1524,7 +1503,6 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             doc,
             meshIndex,
             output,
-            QObject::tr("Recursive Samples"),
             0);
         return successResult(
             { QObject::tr("Generated %1 recursive samples.").arg(output.VN()) },

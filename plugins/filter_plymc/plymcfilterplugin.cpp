@@ -207,8 +207,7 @@ MeshFilterRunResult PlyMCFilterPlugin::runFilter(
             tri::UpdateBounding<VCGMesh>::Box(outMesh);
             tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(outMesh);
 
-            QString meshName = QStringLiteral("Reconstruction_%1").arg(i);
-            int newIdx = doc.addMesh(outMesh, meshName, loadMask);
+            int newIdx = doc.addMesh(outMesh, {}, loadMask);
             if (newIdx >= 0) {
                 auto &newEnt = doc.mesh(newIdx);
                 newEnt.ioMask |= Mask::IOM_VERTQUALITY;

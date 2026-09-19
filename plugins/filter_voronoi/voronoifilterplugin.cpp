@@ -76,10 +76,10 @@ void finalizeMesh(VCGMesh &mesh)
         mesh.bbox.SetNull();
 }
 
-int addDerivedMesh(Document &doc, int sourceMeshIndex, VCGMesh &mesh, const QString &name, int ioMask)
+int addDerivedMesh(Document &doc, int sourceMeshIndex, VCGMesh &mesh, int ioMask)
 {
     finalizeMesh(mesh);
-    const int newIndex = doc.addMesh(mesh, name, ioMask);
+    const int newIndex = doc.addMesh(mesh, {}, ioMask);
     if (newIndex >= 0 && sourceMeshIndex >= 0 && sourceMeshIndex < doc.meshCount())
         doc.setMeshTransform(newIndex, doc.meshTransform(sourceMeshIndex), QString());
     return newIndex;
@@ -327,13 +327,11 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
             doc,
             meshIndex,
             voronoiMesh,
-            QObject::tr("voro"),
             Mask::IOM_VERTCOLOR | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL | Mask::IOM_BITPOLYGONAL);
         const int polyIndex = addDerivedMesh(
             doc,
             meshIndex,
             voronoiPoly,
-            QObject::tr("poly"),
             Mask::IOM_VERTCOLOR | Mask::IOM_EDGEINDEX);
 
         if (voronoiIndex < 0 || polyIndex < 0) {
@@ -414,7 +412,6 @@ MeshFilterRunResult runVolumeSampling(const FilterParams &params, Document &doc)
             doc,
             meshIndex,
             montecarloVolume,
-            QObject::tr("Montecarlo Volume"),
             Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY);
         if (montecarloIndex >= 0)
             newMeshes.push_back(montecarloIndex);
@@ -428,7 +425,6 @@ MeshFilterRunResult runVolumeSampling(const FilterParams &params, Document &doc)
                 doc,
                 meshIndex,
                 poissonVolume,
-                QObject::tr("Poisson Sampling"),
                 Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY);
             if (poissonIndex >= 0)
                 newMeshes.push_back(poissonIndex);
@@ -438,7 +434,6 @@ MeshFilterRunResult runVolumeSampling(const FilterParams &params, Document &doc)
             doc,
             meshIndex,
             surfaceSampling,
-            QObject::tr("Surface Sampling"),
             Mask::IOM_VERTNORMAL | Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY);
         if (surfaceIndex >= 0)
             newMeshes.push_back(surfaceIndex);
@@ -552,7 +547,6 @@ MeshFilterRunResult runVoronoiScaffolding(const FilterParams &params, Document &
             doc,
             meshIndex,
             scaffolding,
-            QObject::tr("Scaffolding"),
             Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL);
         if (scaffoldIndex >= 0)
             newMeshes.push_back(scaffoldIndex);
@@ -561,7 +555,6 @@ MeshFilterRunResult runVoronoiScaffolding(const FilterParams &params, Document &
             doc,
             meshIndex,
             montecarloVolume,
-            QObject::tr("Montecarlo Volume"),
             Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY);
         if (montecarloIndex >= 0)
             newMeshes.push_back(montecarloIndex);
@@ -570,7 +563,6 @@ MeshFilterRunResult runVoronoiScaffolding(const FilterParams &params, Document &
             doc,
             meshIndex,
             poissonSurface,
-            QObject::tr("Poisson-disk Samples"),
             Mask::IOM_VERTNORMAL | Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY);
         if (surfaceIndex >= 0)
             newMeshes.push_back(surfaceIndex);
@@ -679,7 +671,6 @@ MeshFilterRunResult runSolidWireframe(const FilterParams &params, Document &doc)
         doc,
         meshIndex,
         output,
-        QObject::tr("Shell Mesh"),
         Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL);
     if (newIndex < 0)
         return fail(QObject::tr("Failed to add the solid wireframe mesh."));

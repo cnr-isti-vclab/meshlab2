@@ -90,7 +90,9 @@ MeshFilterRunResult InstantMeshesFilterPlugin::runFilter(
         const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL
             | Mask::IOM_FACENORMAL | Mask::IOM_BITPOLYGONAL;
         const int newIndex = doc.addMesh(
-            output, QObject::tr("Instant Meshes - %1").arg(inputName), ioMask);
+            output,
+            {},
+            ioMask);
         if (newIndex < 0)
             return fail(QObject::tr("Failed to add the Instant Meshes result."));
         doc.setMeshTransform(newIndex, inputTransform);

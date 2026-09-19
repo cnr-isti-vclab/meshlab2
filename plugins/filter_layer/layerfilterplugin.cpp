@@ -104,12 +104,11 @@ void rebuildNormalsAndBounds(VCGMesh &mesh)
 int addDerivedMesh(
     Document &doc,
     const VCGMesh &mesh,
-    const QString &name,
     int ioMask,
     const Document::MeshEntry &sourceEntry,
     const QMatrix4x4 &transform)
 {
-    const int newIndex = doc.addMesh(mesh, name, ioMask);
+    const int newIndex = doc.addMesh(mesh, {}, ioMask);
     if (newIndex < 0)
         return newIndex;
     Document::MeshEntry &newEntry = doc.mesh(newIndex);
@@ -140,11 +139,6 @@ int findMeshIndexById(const Document &doc, std::uint64_t meshId)
             return i;
     }
     return -1;
-}
-
-QString mergedLayerName()
-{
-    return QObject::tr("Merged Mesh");
 }
 
 bool mergeCameraStateIntoRenderState(
@@ -614,7 +608,6 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
         const int newIndex = addDerivedMesh(
             doc,
             subsetMesh,
-            QObject::tr("SelectedVerticesSubset"),
             entry.ioMask,
             entry,
             entry.transform);
@@ -665,7 +658,6 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
         const int newIndex = addDerivedMesh(
             doc,
             subsetMesh,
-            QObject::tr("SelectedFacesSubset"),
             entry.ioMask,
             entry,
             entry.transform);
@@ -733,7 +725,6 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
             const int newIndex = addDerivedMesh(
                 doc,
                 componentMesh,
-                QObject::tr("CC %1").arg(i),
                 entry.ioMask,
                 entry,
                 entry.transform);
@@ -794,7 +785,7 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mergedMesh);
 
         const int mergedMask = unionIoMask(doc, sourceIndices);
-        const int newIndex = doc.addMesh(mergedMesh, mergedLayerName(), mergedMask);
+        const int newIndex = doc.addMesh(mergedMesh, {}, mergedMask);
         if (newIndex < 0)
             return fail(QObject::tr("Failed to create merged layer."));
         const std::uint64_t mergedMeshId = doc.mesh(newIndex).meshId;
