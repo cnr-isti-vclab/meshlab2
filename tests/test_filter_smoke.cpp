@@ -12,6 +12,7 @@
 
 #include <wrap/io_trimesh/io_mask.h>
 
+#include <cstdint>
 #include <cmath>
 
 // Smoke sweep: every SingleMesh filter, run with its default parameters, one row
@@ -149,6 +150,22 @@ void buildFixtureMesh(VCGMesh &mesh, Fixture f)
         }
     } else {
         vcg::tri::Sphere(mesh, 3);
+        // Dithered, for the same reason the open fixture is domed rather than flat. An
+        // analytic sphere puts every vertex exactly on one sphere, which is degenerate
+        // for anything building a 3D triangulation: CGAL's Poisson surface mesher spins
+        // forever on it, taking the whole suite past its watchdog. A millionth of the
+        // radius is far below what any filter can be measuring and breaks the symmetry.
+        // Deterministic, so the fixture is the same mesh on every run.
+        for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
+            std::uint32_t h = std::uint32_t(i) * 2654435761u;
+            const auto next = [&h]() {
+                h ^= h >> 15;
+                h *= 2246822519u;
+                h ^= h >> 13;
+                return float(double(h) / 2147483647.5 - 1.0);
+            };
+            mesh.vert[i].P() += vcg::Point3f(next(), next(), next()) * 1e-6f;
+        }
     }
 
     decorateFixtureMesh(mesh, f);
@@ -322,6 +339,7 @@ const QHash<QString, QString> &expectedRefusals()
         {QStringLiteral("rename_current_mesh_layer"),                      QStringLiteral("needs a new name")},
         {QStringLiteral("project_vertices_onto_line_of_sight"),            QStringLiteral("needs an attribute name")},
         {QStringLiteral("select_by_screen_rectangle"),                     QStringLiteral("needs a live camera state")},
+        {QStringLiteral("reconstruct_surface_by_ball_pivoting_gruber"),    QStringLiteral("needs a ball radius; this backend has no guess of its own, unlike the vcglib one")},
 
 
         // Needs a prior filter's output on the layer, which the ladder does not build.

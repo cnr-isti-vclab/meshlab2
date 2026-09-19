@@ -1874,6 +1874,11 @@ void FilterTests::cgalPoissonReconstructsASphere()
     params.insert(QStringLiteral("smAngle"), 20.0);
     params.insert(QStringLiteral("smRadius"), 30.0);
     params.insert(QStringLiteral("smDistance"), 0.375);
+    // Without this the run never returns. An analytic sphere is exactly the degenerate
+    // input CGAL's surface mesher cannot finish on -- it spins at 100% CPU allocating
+    // nothing -- and this is the filter's own escape from it, exercised here because a
+    // sphere is also the only shape this test can check the result against.
+    params.insert(QStringLiteral("perturb"), true);
     const MeshFilterRunResult result = doc.runFilter(poissonKey, params);
     QVERIFY2(result.success, qPrintable(result.errorMessage));
     QCOMPARE(result.newMeshIndices.size(), 1);
@@ -2326,9 +2331,10 @@ void FilterTests::trueFormSolidDomainsSplitTheEnclosedVolume()
     }
     for (int index : overlap.newMeshIndices)
         QCOMPARE(holesIn(index), 0);
-    // Named for the domain each one carries, so the layer panel says which is which.
+    // Named for the domain each one carries, so the layer panel says which is which --
+    // as "<source> (domain N)", per docs/design/vocabulary.md section 7.
     for (int index : overlap.newMeshIndices)
-        QVERIFY2(doc.mesh(index).name.startsWith(QStringLiteral("Domain")),
+        QVERIFY2(doc.mesh(index).name.contains(QStringLiteral("(domain ")),
                  qPrintable(doc.mesh(index).name));
 
     // A solid halved by an open surface: two closed pieces, and the sheet itself is not
@@ -2432,7 +2438,7 @@ void FilterTests::trueFormComponentSplitSeparatesDisjointSurfaces()
     // Nothing is duplicated and nothing is dropped: the pieces add back up to the layer.
     QCOMPARE(faceCounts[0] + faceCounts[1] + faceCounts[2], scattered.FN());
     for (int index : result.newMeshIndices)
-        QVERIFY2(doc.mesh(index).name.startsWith(QStringLiteral("Component")),
+        QVERIFY2(doc.mesh(index).name.contains(QStringLiteral("(part ")),
                  qPrintable(doc.mesh(index).name));
 
     // One connected surface is one component, returned intact.
@@ -2698,6 +2704,13 @@ void FilterTests::newMeshFiltersReportTheirLayers()
             QStringLiteral("reconstruct_surface_by_volumetric_merging"),
         };
         if (kTooSlowForASweep.contains(info.descriptor.id))
+            continue;
+
+        // Declared NewMeshes because it does create layers -- but only when its Save
+        // Samples option is on, and this sweep runs every filter with its defaults. The
+        // output domain is an enum with no way to say "sometimes", and the alternative,
+        // declaring Information, would under-declare the runs that do create layers.
+        if (info.descriptor.id == QStringLiteral("measure_hausdorff_distance"))
             continue;
 
         Document doc;

@@ -35,6 +35,7 @@
 #include <QStringList>
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <cmath>
 #include <exception>
 #include <limits>
@@ -1129,10 +1130,36 @@ MeshFilterRunResult runPoisson(const FilterParams &params, Document &doc)
     const double smRadius = params.getDouble(QStringLiteral("smRadius"), 30.0);
     const double smDistance = params.getDouble(QStringLiteral("smDistance"), 0.375);
     const int spacingNeighbors = std::max(2, params.getInt(QStringLiteral("spacingNeighbors"), 6));
+    const bool perturb = params.getBool(QStringLiteral("perturb"), false);
 
     std::vector<OrientedPoint> points = collectOrientedPoints(mesh);
     if (points.size() < 4)
         return fail(QObject::tr("Poisson reconstruction needs at least 4 live vertices."));
+
+    // CGAL's surface mesher can fail to terminate on an exactly degenerate point set. An
+    // analytic sphere is the case we hit: every point lies exactly on one sphere, so the
+    // Delaunay triangulation is massively non-unique and the refinement never satisfies
+    // its criteria -- it spins at 100% CPU allocating nothing, rather than running slowly.
+    // A displacement of a millionth of the diagonal is enough to break it and is orders of
+    // magnitude below any modelling tolerance. Deterministic, because a filter that moved
+    // the input differently on every run would not be reproducible.
+    if (perturb) {
+        const double amount = 1e-6 * double(mesh.bbox.Diag());
+        const auto dither = [](std::size_t index, unsigned axis) {
+            std::uint32_t h = std::uint32_t(index) * 2654435761u + axis * 40503u;
+            h ^= h >> 15;
+            h *= 2246822519u;
+            h ^= h >> 13;
+            return double(h) / 2147483647.5 - 1.0;  // [-1, 1]
+        };
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            const CgalPoint &q = std::get<0>(points[i]);
+            std::get<0>(points[i]) = CgalPoint(
+                q.x() + amount * dither(i, 0),
+                q.y() + amount * dither(i, 1),
+                q.z() + amount * dither(i, 2));
+        }
+    }
 
     // A zero-length normal means the layer never had normals computed; Poisson would
     // return an unusable surface rather than fail, so say so plainly instead.
@@ -1192,6 +1219,9 @@ MeshFilterRunResult runPoisson(const FilterParams &params, Document &doc)
     QStringList info;
     info << QObject::tr("Input: %1 oriented points.").arg(points.size())
          << QObject::tr("Average spacing: %1").arg(QString::number(spacing, 'g', 6));
+    if (perturb)
+        info << QObject::tr("Input perturbed by up to %1 to break exact degeneracies.")
+                    .arg(QString::number(1e-6 * double(mesh.bbox.Diag()), 'g', 3));
     if (degenerateNormals > 0)
         info << QObject::tr("%1 point(s) had a zero-length normal.").arg(degenerateNormals);
     return finishReconstruction(

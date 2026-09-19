@@ -414,6 +414,14 @@
           "decimals": 4
         },
         {
+          "id": "perturb",
+          "label": "Perturb the input",
+          "help": "Displace every input point by about a millionth of the bounding-box diagonal before reconstructing. Far below any modelling tolerance, and invisible in the result, but it breaks the exact symmetries that can stop CGAL's surface mesher terminating -- an analytically generated sphere or cylinder, where every point lies exactly on the same surface, is the case that needs it. Leave it off for scanned or otherwise noisy data, which is never degenerate in this way. The displacement is deterministic, so a run stays reproducible.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
           "id": "spacingNeighbors",
           "label": "Spacing Neighbors",
           "help": "Number of neighbours used to estimate the average point spacing that the three settings above are relative to.",
