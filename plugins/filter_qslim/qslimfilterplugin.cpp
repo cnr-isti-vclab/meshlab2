@@ -255,8 +255,7 @@ MeshFilterRunResult QSlimFilterPlugin::runFilter(
         result.documentModified = true;
         result.newMeshIndices.push_back(newIndex);
         result.infoMessages
-            << QObject::tr("Created mesh '%1' with the original QSlim implementation.")
-                   .arg(doc.mesh(newIndex).name)
+            << QObject::tr("Simplified with the original QSlim implementation.")
             << QObject::tr("Output: %1 vertices, %2 faces.")
                    .arg(output.VN()).arg(output.FN());
         if (!reachedTarget)

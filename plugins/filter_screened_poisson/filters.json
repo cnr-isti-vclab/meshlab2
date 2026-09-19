@@ -53,6 +53,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "poisson",
       "parameters": [
         {
           "id": "visibleLayer",
@@ -189,6 +190,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "ssd",
       "parameters": [
         {
           "id": "visibleLayer",

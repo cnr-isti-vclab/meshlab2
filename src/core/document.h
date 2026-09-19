@@ -275,6 +275,15 @@ public:
     void removeRaster(int index);
     void setMeshVisible(int index, bool visible);
     void setMeshName(int index, const QString &name);
+    // Name a layer the framework has just created. Unlike setMeshName this writes no
+    // "Renamed" line and opens no undo step of its own: the placeholder it replaces
+    // was never shown to anyone, so there is nothing to rename from.
+    void setGeneratedMeshName(int index, const QString &name);
+    // The given name if no other layer holds it, otherwise the same with " 2", " 3"
+    // ... appended. addMesh() passes every name through this. `ignoreIndex` excludes
+    // one layer from the check, so renaming a layer to what it already holds is not
+    // mistaken for a clash with itself.
+    QString uniqueMeshName(const QString &desired, int ignoreIndex = -1) const;
     void setRasterVisible(int index, bool visible);
     void setRasterName(int index, const QString &name);
     void setRasterShot(int index, const CameraShot &shot, const QString &contextMessage = {});

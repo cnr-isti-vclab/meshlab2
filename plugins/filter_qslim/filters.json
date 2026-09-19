@@ -58,6 +58,7 @@
         "requireVertices": true,
         "requireFaces": true
       },
+      "outputTag": "qslim",
       "parameters": [
         {
           "id": "TargetFaceNum",

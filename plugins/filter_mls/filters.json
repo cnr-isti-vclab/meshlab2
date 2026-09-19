@@ -330,6 +330,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "apss",
       "parameters": [
         {
           "id": "FilterScale",
@@ -414,6 +415,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "rimls",
       "parameters": [
         {
           "id": "FilterScale",

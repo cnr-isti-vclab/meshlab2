@@ -284,6 +284,23 @@ struct MeshFilterDescriptor
     QVector<MeshFilterCleanupAction> preRunCleanup;
     QVector<MeshFilterCleanupAction> postRunCleanup;
 
+    // How the framework names the layers this filter creates. See
+    // docs/design/vocabulary.md section 7: a derived layer is "source (tag)", and the
+    // tag is a short untranslated phrase naming the result, not the algorithm --
+    // "hull", "simplified", "part %1". Only used when outputDomain == NewMeshes.
+    //
+    // One entry per output layer, in the order the filter adds them; when a filter
+    // creates more layers than there are entries, the last entry is reused and may
+    // carry "%1" for the 1-based output number. A filter with no source -- a primitive
+    // -- gets the tag alone as its layer name, capitalised as written.
+    QStringList outputTag;
+    // Id of the mesh parameter naming the layer this filter derives from, when it is
+    // not the current one. A second id, where a filter combines two named layers,
+    // makes the name "first (tag second)": for a boolean the other operand is half
+    // the identity of the result, so it is named rather than counted.
+    QString outputSource;
+    QString outputSecondSource;
+
     // Returns pythonName if explicitly set, otherwise auto-computes a
     // snake_case identifier from the display name.
     QString effectivePythonName() const
@@ -340,6 +357,17 @@ struct MeshFilterRunResult
     QString errorMessage;
     QStringList infoMessages;
     QVector<int> newMeshIndices;
+    // Layers this run actually consumed, for naming the ones it produced. Leave it empty
+    // -- almost every filter does -- and the framework takes the source from the
+    // descriptor: the current layer, or whatever mesh parameter `outputSource` names.
+    // Fill it only when neither is true, which in practice means the filters that eat
+    // every visible layer and so have no single source to point at.
+    QVector<int> sourceMeshIndices;
+    // Overrides the descriptor's outputTag for this run, for the handful of filters whose
+    // result is named by a parameter -- an alpha shape or an alpha complex, a section or
+    // a filled section. One entry per new layer, in the order they were added; a short
+    // list names the first few and leaves the rest to the declared tag.
+    QStringList outputTags;
     QVector<MeshFilterVisualizationHint> visualizationHints;
     QVariantMap outputValues;
 };

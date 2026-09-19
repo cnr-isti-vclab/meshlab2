@@ -1127,6 +1127,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Grid",
       "parameters": [
         {
           "id": "numVertU",
@@ -1216,6 +1217,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Implicit Surface",
       "parameters": [
         {
           "id": "voxelSize",

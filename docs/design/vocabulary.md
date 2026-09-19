@@ -670,3 +670,85 @@ is still accepted by the loader for descriptors that predate it.
 
 Worth noting `provenance.project` was *already* searched, which is exactly what the
 algorithm-archive model needs — typing *qslim* finds the QSlim implementations.
+
+## 7. Naming the layers a filter creates
+
+Section 6 governs what a *filter* is called. This governs what the *layer* it produces is
+called, which until 2026-09-19 nothing governed at all: 87 filters created layers, in six
+incompatible shapes — `Convex Hull`, `QSlim - bunny`, `bunny_sect`, `texdefrag_bunny`,
+`CC 0`, `voro` — and roughly half of them recorded no provenance whatsoever, so three
+convex hulls were three layers all called `Convex Hull`.
+
+```text
+source (tag)
+```
+
+**The source comes first** because the layer panel sorts by name, so every layer derived
+from `bunny` files under `bunny`. `QSlim - bunny` sorts under Q, away from everything it
+was made from.
+
+**Chains collapse into one bracket**, newest last: the hull of a simplified bunny is
+`bunny (simplified, hull)`, not `bunny (simplified) (hull)`. The bracket is the layer's
+pipeline history in compact form. Past three operations the oldest give way to an
+ellipsis, so a long pipeline cannot outgrow the panel. A tag therefore **may not contain a
+comma or a bracket**: both are read back when the next operation is applied.
+
+**Tags are untranslated.** Layer names are written into `.mlp` project files, so a
+translated tag would mean an Italian user's project carries Italian layer names that an
+English user then reads. Tags are lowercase for derived layers.
+
+**A filter with no input has no provenance.** `inputDomain: None` means the tag stands
+alone as the whole name, capitalised as written: `Sphere`, `Points on Spherical Cap`.
+
+**One contributing layer is named; several are counted.** A filter that consumes every
+visible layer treats them alike and has no reason to promote one of their names, so:
+
+| | |
+|---|---|
+| every layer contributed | `Scene (merged)` |
+| some did | `Scene (6 of 7) (merged)` |
+| one did | `bunny (merged)` |
+
+The count is *contributed of layers in the document*, so what it tells you is that
+something was left out. Its bracket is a qualifier on the source, not an operation, and
+is not extended by the next tag.
+
+**Two operands are both named** where both are half the identity of the result — which in
+practice means the booleans: `bunny (difference cube)`. Order reads correctly, `a`
+minus `b`. This is the same criterion pointed the other way: name the contributors when
+they are individually meaningful, count them when they are interchangeable.
+
+**Names are unique.** `Document::addMesh` appends ` 2`, ` 3` … when a name is taken, so
+three hulls of one layer are `bunny (hull)`, `bunny (hull) 2`, `bunny (hull) 3`.
+
+### How a filter declares it
+
+Naming happens once, in `MeshFilterPluginManager::runFilter`, never in the filter. A
+descriptor declares the tag and, where the source is not the current layer, which
+parameter names it:
+
+```json
+"outputTag": "hull",
+"outputTag": ["section", "section filled"],
+"outputTag": "part %1",
+"outputSource": "first_mesh",
+"outputSecondSource": "second_mesh"
+```
+
+One entry per output layer in the order the filter adds them; the last entry is reused
+for any further outputs, with `%1` as the 1-based output number. Two escape hatches exist
+for what a descriptor cannot know:
+
+- `MeshFilterRunResult::outputTags` overrides the declared tag for one run, for filters
+  whose result is chosen by a parameter — an alpha shape or an alpha complex.
+- `MeshFilterRunResult::sourceMeshIndices` reports what a run actually consumed, for the
+  five filters that eat every visible layer. `inputDomain` cannot express this: Screened
+  Poisson is declared `SingleMesh` and a checkbox decides whether it ate one layer or
+  eight.
+
+The framework also emits the `Created layer '...'` line, because a filter builds its
+messages before the naming pass runs and would name a layer that no longer exists under
+that name.
+
+`test_filter_descriptors.cpp` enforces that every `NewMeshes` filter declares a tag, that
+no tag contains a comma or bracket, and that `outputSource` names a real mesh parameter.

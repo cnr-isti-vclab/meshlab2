@@ -84,6 +84,189 @@ QString selectionSummaryFor(
     return QObject::tr("Selection now contains %1.").arg(listed);
 }
 
+// ---------------------------------------------------------------------------
+// Naming the layers a filter creates. See docs/design/vocabulary.md section 7.
+// ---------------------------------------------------------------------------
+
+// "bunny (simplified)" -> "bunny", "(simplified)". Only a bracket that closes the name
+// counts, so a layer genuinely called "scan (left)" keeps its bracket as part of the
+// stem until something is applied to it -- at which point "scan (left, hull)" is a fair
+// reading of what happened anyway.
+bool splitNameAndTags(const QString &name, QString &stem, QStringList &tags)
+{
+    const QString trimmed = name.trimmed();
+    if (!trimmed.endsWith(QLatin1Char(')')))
+        return false;
+    const int open = trimmed.lastIndexOf(QLatin1Char('('));
+    if (open <= 0)
+        return false;
+    stem = trimmed.left(open).trimmed();
+    const QString inner = trimmed.mid(open + 1, trimmed.size() - open - 2);
+    tags = inner.split(QLatin1Char(','), Qt::SkipEmptyParts);
+    for (QString &t : tags)
+        t = t.trimmed();
+    return !stem.isEmpty() && !tags.isEmpty();
+}
+
+// At most this many operations stay in the bracket; older ones give way to an ellipsis.
+// Without a cap a ten-step pipeline produces a name no layer panel can show.
+constexpr int kMaxChainedTags = 3;
+
+// `sourceCarriesTags` is false for a stem the framework built itself, which may end in a
+// bracket of its own -- "Scene (3 of 4)" -- that is a qualifier on the source and not an
+// operation applied to it. Parsing it as a tag would give "Scene (3 of 4, bbox)", reading
+// as though "3 of 4" were something done to the scene.
+QString composeLayerName(const QString &source, const QString &tag, bool sourceCarriesTags)
+{
+    if (source.isEmpty())
+        return tag;
+
+    QString stem;
+    QStringList tags;
+    if (!sourceCarriesTags || !splitNameAndTags(source, stem, tags)) {
+        stem = source.trimmed();
+        tags.clear();
+    }
+    tags << tag;
+
+    // Keep the most recent operations: what a layer last had done to it says more about
+    // what it is than where the chain started, and the stem still carries the origin.
+    bool elided = false;
+    while (tags.size() > kMaxChainedTags) {
+        tags.removeFirst();
+        elided = true;
+    }
+    if (elided)
+        tags.prepend(QString(QChar(0x2026)));
+    return QStringLiteral("%1 (%2)").arg(stem, tags.join(QStringLiteral(", ")));
+}
+
+// Where a created layer came from: what goes before the bracket, plus the other operand
+// of a two-layer operation, which belongs beside the tag inside it.
+struct LayerNameSource
+{
+    QString stem;
+    QString secondOperand;
+    // False when the stem is the framework's own "Scene (n of m)" form, whose bracket is
+    // part of the source's name rather than a chain of operations to extend.
+    bool stemCarriesTags = true;
+};
+
+// One contributing layer is named; several are counted, because a filter that eats every
+// visible layer treats them alike and has no reason to promote one of their names over
+// the others. The count appears only when it says something -- that a layer was left out.
+LayerNameSource layerNameSource(
+    const MeshFilterDescriptor &descriptor,
+    const FilterParams &params,
+    const QVector<int> &reported,
+    const QStringList &namesBefore,
+    int currentBefore)
+{
+    LayerNameSource out;
+
+    QVector<int> contributors = reported;
+    // A filter that takes no input has no provenance to record: a sphere is a sphere, not
+    // a sphere of whatever happened to be selected when it was made. Its tag stands alone.
+    if (contributors.isEmpty() && descriptor.inputDomain != MeshFilterInputDomain::None) {
+        // The layer that was current when the run started, never the one that is current
+        // now: addMesh() moves the current index onto the layer being named, which would
+        // have every derived layer take its name from itself.
+        const int primary = descriptor.outputSource.isEmpty()
+            ? currentBefore
+            : params.getMesh(descriptor.outputSource, currentBefore);
+        if (primary >= 0)
+            contributors.push_back(primary);
+    }
+
+    if (contributors.size() == 1) {
+        out.stem = namesBefore.value(contributors.front());
+    } else if (contributors.size() > 1) {
+        // Against the layer count from before the run: the filter may have added the very
+        // layer being named, and Merge Visible Layers deletes the ones it consumed.
+        out.stem = contributors.size() >= namesBefore.size()
+            ? QObject::tr("Scene")
+            : QObject::tr("Scene (%1 of %2)").arg(contributors.size()).arg(namesBefore.size());
+        out.stemCarriesTags = false;
+    }
+
+    if (!descriptor.outputSecondSource.isEmpty())
+        out.secondOperand = namesBefore.value(params.getMesh(descriptor.outputSecondSource, -1));
+    return out;
+}
+
+// The tag for the n-th layer a filter added. A runtime tag wins over the declared one --
+// an alpha shape and an alpha complex come out of the same filter -- and the last
+// declared tag is reused for any further outputs, with %1 as the 1-based output number.
+QString layerTagFor(
+    const MeshFilterDescriptor &descriptor, const QStringList &runtimeTags, int output)
+{
+    if (output < runtimeTags.size() && !runtimeTags.at(output).trimmed().isEmpty())
+        return runtimeTags.at(output).trimmed();
+    if (descriptor.outputTag.isEmpty())
+        return {};
+    const int pick = std::min(output, int(descriptor.outputTag.size()) - 1);
+    QString tag = descriptor.outputTag.at(pick).trimmed();
+    return tag.replace(QStringLiteral("%1"), QString::number(output + 1));
+}
+
+// Rename the layers a run created. Done centrally so every filter says where its output
+// came from in the same shape, which forty hand-written name expressions did not.
+void applyOutputNaming(
+    Document &doc,
+    const MeshFilterDescriptor &descriptor,
+    const FilterParams &params,
+    const MeshFilterRunResult &result,
+    const QStringList &namesBefore,
+    int currentBefore)
+{
+    if (descriptor.outputTag.isEmpty() && result.outputTags.isEmpty())
+        return;
+    if (result.newMeshIndices.isEmpty())
+        return;
+
+    const LayerNameSource source =
+        layerNameSource(descriptor, params, result.sourceMeshIndices, namesBefore, currentBefore);
+
+    for (int output = 0; output < result.newMeshIndices.size(); ++output) {
+        const int index = result.newMeshIndices.at(output);
+        if (index < 0 || index >= doc.meshCount())
+            continue;
+        QString tag = layerTagFor(descriptor, result.outputTags, output);
+        if (tag.isEmpty())
+            continue;
+        // A second operand goes inside the bracket, beside the operation it is an operand
+        // of: "a (union b)", not "a b (union)".
+        if (!source.secondOperand.isEmpty())
+            tag = QStringLiteral("%1 %2").arg(tag, source.secondOperand);
+        doc.setGeneratedMeshName(
+            index,
+            doc.uniqueMeshName(
+                composeLayerName(source.stem, tag, source.stemCarriesTags), index));
+    }
+}
+
+// Which layers a run created, named as they ended up. The framework says this rather than
+// each filter, because a filter builds its message before the naming pass runs and would
+// name a layer that no longer exists under that name.
+QString createdLayersMessage(const Document &doc, const QVector<int> &newMeshIndices)
+{
+    QStringList names;
+    for (int index : newMeshIndices) {
+        if (index >= 0 && index < doc.meshCount())
+            names << QStringLiteral("'%1'").arg(doc.mesh(index).name);
+    }
+    if (names.isEmpty())
+        return {};
+    if (names.size() == 1)
+        return QObject::tr("Created layer %1.").arg(names.front());
+    if (names.size() <= 3)
+        return QObject::tr("Created %1 layers: %2.").arg(names.size()).arg(names.join(QStringLiteral(", ")));
+    return QObject::tr("Created %1 layers: %2 and %3 more.")
+        .arg(names.size())
+        .arg(QStringList(names.mid(0, 3)).join(QStringLiteral(", ")))
+        .arg(names.size() - 3);
+}
+
 bool validateStateJsonPayload(
     const QString &value,
     const QString &requiredKind,
@@ -839,9 +1022,15 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     // parameter instead, as Select Vertices Inside Mesh does. Keyed by mesh id, because a
     // filter is free to add or remove layers and shift every index along.
     QHash<std::uint64_t, std::uint64_t> selectionRevisionBefore;
+    // Layer names as they stood before the run, for naming whatever the filter creates.
+    // Resolved from this rather than from the live document, because a filter may delete
+    // the very layers it consumed -- Merge Visible Layers does -- and will have added at
+    // least one, either of which makes a live index mean something else.
+    QStringList meshNamesBefore;
     for (int i = 0; i < doc.meshCount(); ++i) {
         const Document::MeshEntry &entry = doc.mesh(i);
         selectionRevisionBefore.insert(entry.meshId, entry.selectionRevision);
+        meshNamesBefore << entry.name;
     }
 
     MeshFilterRunResult result;
@@ -903,6 +1092,15 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
                     : summary);
         }
     }
+
+    // Naming the new layers happens here, outside the preparation scope -- it needs no OCF
+    // data -- and before anything reports what was created, so every message names the
+    // layer as it will appear in the panel.
+    applyOutputNaming(
+        doc, *targetDescriptor, typedParams, result, meshNamesBefore, originalCurrentMeshIndex);
+    const QString created = createdLayersMessage(doc, result.newMeshIndices);
+    if (!created.isEmpty())
+        result.infoMessages.prepend(created);
 
     const CleanupApplicationResult postCleanup =
         applyCleanupActions(targetDescriptor->postRunCleanup, typedParams, doc, originalCurrentMeshIndex, false);

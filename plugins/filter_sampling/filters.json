@@ -18,6 +18,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "element samples",
       "parameters": [
         {
           "id": "Sampling",
@@ -81,6 +82,7 @@
         "requireVertices": true,
         "requireFaces": true
       },
+      "outputTag": "montecarlo samples",
       "parameters": [
         {
           "id": "SampleNum",
@@ -165,6 +167,7 @@
         "requireVertices": true,
         "requireFaces": true
       },
+      "outputTag": "stratified samples",
       "parameters": [
         {
           "id": "SampleNum",
@@ -243,6 +246,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "cluster samples",
       "parameters": [
         {
           "id": "Threshold",
@@ -300,6 +304,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "poisson samples",
       "parameters": [
         {
           "id": "SampleNum",
@@ -449,7 +454,12 @@
         "analysis"
       ],
       "inputDomain": "WholeDocument",
-      "outputDomain": "Information",
+      "outputDomain": "NewMeshes",
+      "outputTag": [
+        "hausdorff samples",
+        "hausdorff closest points"
+      ],
+      "outputSource": "SampledMesh",
       "parameters": [
         {
           "id": "SampledMesh",
@@ -628,6 +638,7 @@
         "requireFaces": true,
         "requireTextureCoordinates": true
       },
+      "outputTag": "texel samples",
       "parameters": [
         {
           "id": "TextureW",
@@ -825,6 +836,7 @@
         "requireVertices": true,
         "requireFaces": true
       },
+      "outputTag": "resampled",
       "parameters": [
         {
           "id": "CellSize",
@@ -1022,6 +1034,7 @@
         "requireVertices": true,
         "requireFaces": true
       },
+      "outputTag": "offset samples",
       "parameters": [
         {
           "id": "CellSize",
@@ -1064,6 +1077,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "simplified",
       "parameters": [
         {
           "id": "SampleNum",

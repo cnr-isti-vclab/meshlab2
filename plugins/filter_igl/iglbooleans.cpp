@@ -469,8 +469,7 @@ MeshFilterRunResult runIglBooleanFilter(
     doc.finishFilterProgress(true, QObject::tr("Generated boolean result mesh."));
 
     QStringList info;
-    info << QObject::tr("Created mesh '%1'.").arg(doc.mesh(newMeshIndex).name)
-         << QObject::tr("Operation: %1").arg(operationName)
+    info << QObject::tr("Operation: %1").arg(operationName)
          << QObject::tr("First mesh: '%1' (%2 faces).").arg(first.entry->name).arg(first.eigen.faces.rows())
          << QObject::tr("Second mesh: '%1' (%2 faces).").arg(second.entry->name).arg(second.eigen.faces.rows())
          << QObject::tr("Output mesh: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());

@@ -32,6 +32,10 @@
           "kind": "removeUnreferencedVertices"
         }
       ],
+      "outputTag": [
+        "voronoi samples",
+        "voronoi cells"
+      ],
       "parameters": [
         {
           "id": "iterNum",
@@ -211,6 +215,11 @@
         "VNorm",
         "FMark"
       ],
+      "outputTag": [
+        "volume samples",
+        "poisson samples",
+        "surface samples"
+      ],
       "parameters": [
         {
           "id": "sampleSurfRadius",
@@ -288,6 +297,11 @@
         "FNorm",
         "VNorm",
         "FMark"
+      ],
+      "outputTag": [
+        "scaffolding",
+        "volume samples",
+        "poisson samples"
       ],
       "parameters": [
         {
@@ -416,6 +430,7 @@
         "FF",
         "VNorm"
       ],
+      "outputTag": "wireframe",
       "parameters": [
         {
           "id": "edgeCylFlag",

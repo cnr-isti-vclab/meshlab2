@@ -268,8 +268,7 @@ MeshFilterRunResult QuadWildFilterPlugin::runFilter(
                                        vcg::tri::io::ImporterOBJ<VCGMesh>::ErrorMsg(importError)));
     }
     result.infoMessages
-        << QObject::tr("Created mesh '%1' with QuadWild-BiMDF.")
-               .arg(doc.mesh(newIndex).name)
+        << QObject::tr("Remeshed with QuadWild-BiMDF.")
         << QObject::tr("Output: %1 vertices, %2 triangles with polygonal faux edges.")
                .arg(output.VN()).arg(output.FN());
     progress(doc, 100, "QuadWild-BiMDF remeshing complete.");

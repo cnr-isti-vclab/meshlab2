@@ -813,12 +813,17 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
         if (finalMergedIndex >= 0)
             resultNewIndices.push_back(finalMergedIndex);
 
-        return successInfo(true,
+        MeshFilterRunResult result = successInfo(true,
             {
                 QObject::tr("Merged %1 layer(s) into '%2'.").arg(sourceIndices.size()).arg(mergedName),
                 mergeVertices ? QObject::tr("Duplicate vertices were merged.") : QObject::tr("Duplicate vertices were kept.")
             },
             resultNewIndices);
+        // Flattening treats every source alike, so the framework names the result after
+        // the set rather than after whichever of them happened to be current.
+        for (int index : sourceIndices)
+            result.sourceMeshIndices.push_back(index);
+        return result;
     }
 
     return fail(QObject::tr("Unknown filter id: %1").arg(filterId));

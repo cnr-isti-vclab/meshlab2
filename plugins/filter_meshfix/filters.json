@@ -54,6 +54,7 @@
         "requireVertices": true,
         "requireFaces": true
       },
+      "outputTag": "meshfix",
       "parameters": []
     }
   ]

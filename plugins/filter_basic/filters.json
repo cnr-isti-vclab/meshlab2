@@ -45,6 +45,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Noisy Isosurface",
       "parameters": [
         {
           "id": "resolution",

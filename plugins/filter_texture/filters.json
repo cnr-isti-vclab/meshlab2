@@ -20,6 +20,7 @@
         "requireVertices": true,
         "requireFaces": true
       },
+      "outputTag": "voronoi atlas",
       "parameters": [
         {
           "id": "regionNum",
@@ -749,6 +750,7 @@
         "requirePerWedgeTexCoords": true,
         "requireTextures": true
       },
+      "outputTag": "packed textures",
       "parameters": [
         {
           "id": "containerNum",

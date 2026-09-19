@@ -65,8 +65,7 @@ MeshFilterRunResult success(const QString &name, int newIndex, const QStringList
     r.success = true;
     r.documentModified = true;
     r.newMeshIndices = { newIndex };
-    r.infoMessages = { QObject::tr("Created mesh '%1'").arg(name) };
-    r.infoMessages += extraInfo;
+    r.infoMessages = extraInfo;
     return r;
 }
 } // namespace

@@ -27,6 +27,12 @@ class Document;
 //     "tags": [ "...", ... ],
 //     "inputDomain":  "None" | "SingleMesh" | "WholeDocument",
 //     "outputDomain": "Information" | "ModifyCurrentMesh" | "NewMeshes",
+//     // Only for NewMeshes: how the framework names the layers this filter creates.
+//     // One entry per output, the last reused with %1 as the 1-based output number.
+//     // See docs/design/vocabulary.md section 7.
+//     "outputTag": "hull" | ["section", "section filled"] | "part %1",
+//     "outputSource": "first_mesh",        // mesh parameter naming the source layer
+//     "outputSecondSource": "second_mesh", // the other operand, named in the bracket
 //     "inputRequirements": {
 //       "requireVertices": bool, "requireEdges": bool, "requireFaces": bool,
 //       "requireVertexColor": bool, "requireFaceColor": bool,

@@ -140,6 +140,7 @@ private slots:
     void descriptorConforms_data();
     void descriptorConforms();
     void selectionFiltersDeclareWhatTheySelect();
+    void layerCreatingFiltersDeclareAnOutputTag();
 
 private:
     // Parsed once: the ratified verbs of docs/design/vocabulary.md section 3.
@@ -578,6 +579,59 @@ void FilterDescriptorTests::selectionFiltersDeclareWhatTheySelect()
     QVERIFY2(offenders.isEmpty(),
              qPrintable(QStringLiteral("selection filters declaring no selection code: %1")
                             .arg(offenders.join(QStringLiteral("; ")))));
+}
+
+// A filter that creates layers is named by the framework from its outputTag, so one
+// without a tag falls back to whatever placeholder the plugin passed to addMesh -- which
+// is how the tree ended up with "CC 0", "voro", "SelectedFacesSubset" and "Reconstruction_0"
+// living beside "bunny_sect" and "QSlim - bunny". See docs/design/vocabulary.md section 7.
+void FilterDescriptorTests::layerCreatingFiltersDeclareAnOutputTag()
+{
+    QStringList untagged;
+    QStringList malformed;
+    int checked = 0;
+    for (const auto &info : m_infos) {
+        const MeshFilterDescriptor &d = info.descriptor;
+        if (d.outputDomain != MeshFilterOutputDomain::NewMeshes)
+            continue;
+        ++checked;
+        if (d.outputTag.isEmpty()) {
+            untagged << d.id;
+            continue;
+        }
+        for (const QString &tag : d.outputTag) {
+            const QString t = tag.trimmed();
+            // A comma would be read back as a tag separator the next time something is
+            // applied to the layer, splitting one operation into two.
+            if (t.isEmpty() || t.contains(QLatin1Char(',')) || t.contains(QLatin1Char('('))
+                || t.contains(QLatin1Char(')'))) {
+                malformed << QStringLiteral("%1: '%2'").arg(d.id, tag);
+            }
+        }
+        // A source parameter that does not exist silently falls back to the current layer.
+        for (const QString &ref : { d.outputSource, d.outputSecondSource }) {
+            if (ref.isEmpty())
+                continue;
+            const auto it = std::find_if(
+                d.parameters.begin(), d.parameters.end(),
+                [&ref](const MeshFilterParameterDescriptor &p) {
+                    return p.id == ref && p.type == MeshFilterParameterType::Mesh;
+                });
+            if (it == d.parameters.end()) {
+                malformed << QStringLiteral("%1: outputSource '%2' is not a mesh parameter")
+                                 .arg(d.id, ref);
+            }
+        }
+    }
+
+    QVERIFY2(checked > 80,
+             qPrintable(QStringLiteral("only %1 layer-creating filters found").arg(checked)));
+    QVERIFY2(untagged.isEmpty(),
+             qPrintable(QStringLiteral("layer-creating filters with no outputTag: %1")
+                            .arg(untagged.join(QStringLiteral(", ")))));
+    QVERIFY2(malformed.isEmpty(),
+             qPrintable(QStringLiteral("malformed outputTag: %1")
+                            .arg(malformed.join(QStringLiteral("; ")))));
 }
 
 QTEST_MAIN(FilterDescriptorTests)

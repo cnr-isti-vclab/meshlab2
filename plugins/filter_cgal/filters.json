@@ -26,6 +26,7 @@
       "inputPrepare": [
         "BBox"
       ],
+      "outputTag": "alpha wrap",
       "parameters": [
         {
           "id": "Alpha",
@@ -77,6 +78,7 @@
       "inputPrepare": [
         "BBox"
       ],
+      "outputTag": "alpha shape",
       "parameters": [
         {
           "id": "alpha",
@@ -135,6 +137,7 @@
       "inputPrepare": [
         "BBox"
       ],
+      "outputTag": "crust",
       "parameters": [
         {
           "id": "threshold",
@@ -174,6 +177,7 @@
       "inputPrepare": [
         "BBox"
       ],
+      "outputTag": "scale space",
       "parameters": [
         {
           "id": "iterations",
@@ -277,6 +281,7 @@
       "inputPrepare": [
         "BBox"
       ],
+      "outputTag": "advancing front",
       "parameters": [
         {
           "id": "radiusRatioBound",
@@ -373,6 +378,7 @@
       "inputPrepare": [
         "BBox"
       ],
+      "outputTag": "poisson cgal",
       "parameters": [
         {
           "id": "smAngle",
@@ -445,6 +451,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "kinetic",
       "parameters": [
         {
           "id": "maximumDistance",
@@ -537,6 +544,7 @@
       "inputPrepare": [
         "BBox"
       ],
+      "outputTag": "bbox",
       "parameters": [
         {
           "id": "alignment",
@@ -584,6 +592,7 @@
       "inputDomain": "WholeDocument",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "bbox",
       "parameters": [
         {
           "id": "alignment",

@@ -361,11 +361,15 @@ MeshFilterRunResult runAlphaShape(const FilterParams &params, Document &doc)
     doc.finishFilterProgress(true, QObject::tr("Generated alpha shape."));
 
     QStringList info;
-    info << QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name)
-         << QObject::tr("Alpha: %1").arg(QString::number(alpha, 'g', 6))
+    info << QObject::tr("Alpha: %1").arg(QString::number(alpha, 'g', 6))
          << QObject::tr("Input: %1 points.").arg(points.size())
          << QObject::tr("Output mesh: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
-    return success(info, newIndex);
+    MeshFilterRunResult result = success(info, newIndex);
+    // Which of the two this run produced is a parameter, not a property of the filter, so
+    // the descriptor's tag cannot say it and the result overrides it.
+    result.outputTags << (wantComplex ? QStringLiteral("alpha complex")
+                                      : QStringLiteral("alpha shape"));
+    return result;
 }
 
 // Voronoi filtering — the Amenta/Bern "crust". Two Delaunay passes:
@@ -543,8 +547,7 @@ MeshFilterRunResult runVoronoiFiltering(const FilterParams &params, Document &do
     doc.finishFilterProgress(true, QObject::tr("Generated crust surface."));
 
     QStringList info;
-    info << QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name)
-         << QObject::tr("Input: %1 samples, %2 poles.").arg(samples.size()).arg(poleCount)
+    info << QObject::tr("Input: %1 samples, %2 poles.").arg(samples.size()).arg(poleCount)
          << QObject::tr("Output mesh: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
     return success(info, newIndex);
 }
@@ -618,7 +621,6 @@ MeshFilterRunResult finishReconstruction(
     }
     doc.finishFilterProgress(true, QObject::tr("Generated %1.").arg(layerName));
 
-    info.prepend(QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name));
     info << QObject::tr("Output mesh: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
     return success(info, newIndex);
 }
@@ -797,6 +799,9 @@ struct BoxSubject
     // The layer the box was measured from, remembered here because addMesh() moves the
     // current index onto the new box and the rotation has to go to the source.
     int sourceIndex = -1;
+    // Every layer that contributed a point, for naming the result. The scene box treats
+    // them all alike, so it is named after the set rather than after one of them.
+    QVector<int> contributors;
     vcg::Box3f aabb;         // bounds of the measured points, in the frame they were measured in
     int vertexCount = 0;
     int layerCount = 0;
@@ -842,8 +847,12 @@ bool gatherBoxSubject(
             subject.points.reserve(std::size_t(std::max(0, reserve)));
         for (int i = 0; i < doc.meshCount(); ++i) {
             const Document::MeshEntry &entry = doc.mesh(i);
-            if (entry.visible)
-                addLayer(entry, true);
+            if (!entry.visible)
+                continue;
+            const int before = subject.layerCount;
+            addLayer(entry, true);
+            if (subject.layerCount > before)
+                subject.contributors.push_back(i);
         }
         if (subject.layerCount == 0) {
             error = QObject::tr(
@@ -882,6 +891,7 @@ bool gatherBoxSubject(
     subject.name = entry.name;
     subject.transform = entry.transform;
     subject.sourceIndex = meshIndex;
+    subject.contributors.push_back(meshIndex);
     return true;
 }
 
@@ -1017,8 +1027,9 @@ MeshFilterRunResult runBoundingBox(const FilterParams &params, Document &doc, bo
         info << QObject::tr("Stored the rotation in the layer's transformation.");
     }
 
-    info.prepend(QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name));
-    return success(info, newIndex);
+    MeshFilterRunResult result = success(info, newIndex);
+    result.sourceMeshIndices = subject.contributors;
+    return result;
 }
 
 // Orient an unoriented normal field with a minimum spanning tree of the Riemannian graph
@@ -1419,8 +1430,7 @@ MeshFilterRunResult CgalFilterPlugin::runFilter(
     doc.finishFilterProgress(true, QObject::tr("Generated Alpha Wrap mesh."));
 
     QStringList info;
-    info << QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name)
-         << QObject::tr("Alpha: %1").arg(QString::number(alpha, 'g', 6))
+    info << QObject::tr("Alpha: %1").arg(QString::number(alpha, 'g', 6))
          << QObject::tr("Offset: %1").arg(QString::number(offset, 'g', 6))
          << (pointSetInput
                  ? QObject::tr("Input point set: %1 points.").arg(points.size())

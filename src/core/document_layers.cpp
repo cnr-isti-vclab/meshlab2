@@ -46,6 +46,49 @@ void Document::removeMesh(int index)
         endUndoStep(true);
 }
 
+// Layer names are how a person tells one layer from another, so two layers must not
+// carry the same one. Filters produced duplicates freely before this -- three convex
+// hulls were three layers all called "Convex Hull" -- and the naming scheme makes it
+// more likely still, since two hulls of the same source genuinely want the same name.
+QString Document::uniqueMeshName(const QString &desired, int ignoreIndex) const
+{
+    const QString base = desired.trimmed();
+    if (base.isEmpty())
+        return base;
+
+    const auto taken = [this, ignoreIndex](const QString &candidate) {
+        for (int i = 0; i < int(m_meshes.size()); ++i) {
+            if (i != ignoreIndex && m_meshes[std::size_t(i)]->name == candidate)
+                return true;
+        }
+        return false;
+    };
+
+    if (!taken(base))
+        return base;
+    for (int suffix = 2; suffix < 100000; ++suffix) {
+        const QString candidate = QStringLiteral("%1 %2").arg(base).arg(suffix);
+        if (!taken(candidate))
+            return candidate;
+    }
+    return base;
+}
+
+
+void Document::setGeneratedMeshName(int index, const QString &name)
+{
+    if (index < 0 || index >= meshCount())
+        return;
+    const QString trimmed = name.trimmed();
+    if (trimmed.isEmpty())
+        return;
+    MeshEntry &entry = mesh(index);
+    if (entry.name == trimmed)
+        return;
+    entry.name = trimmed;
+    emit meshDataChanged(index);
+}
+
 int Document::addMesh(const VCGMesh &meshData, const QString &name, int ioMask)
 {
     const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
@@ -64,9 +107,8 @@ int Document::addMesh(const VCGMesh &meshData, const QString &name, int ioMask)
     entry->transform.setToIdentity();
     entry->ioMask = ioMask;
     entry->sourcePath.clear();
-    entry->name = name.trimmed().isEmpty()
-        ? tr("Mesh %1").arg(meshCount() + 1)
-        : name.trimmed();
+    entry->name = uniqueMeshName(
+        name.trimmed().isEmpty() ? tr("Mesh %1").arg(meshCount() + 1) : name.trimmed());
 
     for (const std::string &rawTextureName : entry->mesh.textures) {
         const QString texturePath = QString::fromStdString(rawTextureName).trimmed();

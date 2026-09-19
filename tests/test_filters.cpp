@@ -782,7 +782,11 @@ void FilterTests::basicFiltersRunOnLoadedMesh()
         QCOMPARE(result.newMeshIndices.size(), 1);
     }
     QCOMPARE(doc.meshCount(), meshCountBeforeDuplicate + 1);
-    QVERIFY(doc.mesh(doc.currentMeshIndex()).name.endsWith(QStringLiteral(" copy")));
+    // Layer names now record provenance in a bracket -- "bunny (copy)" -- rather than
+    // with a bare suffix. See docs/design/vocabulary.md section 7.
+    QVERIFY2(
+        doc.mesh(doc.currentMeshIndex()).name.endsWith(QStringLiteral("(copy)")),
+        qPrintable(doc.mesh(doc.currentMeshIndex()).name));
 
     const int meshCountBeforeCreate = doc.meshCount();
     {

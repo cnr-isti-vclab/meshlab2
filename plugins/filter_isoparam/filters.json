@@ -175,6 +175,7 @@
         "requireFaces": true
       },
       "outputModifies": null,
+      "outputTag": "remeshed",
       "parameters": [
         {
           "id": "samplingRate",
@@ -207,6 +208,7 @@
         "requireFaces": true
       },
       "outputModifies": null,
+      "outputTag": "atlased",
       "parameters": [
         {
           "id": "chartShape",

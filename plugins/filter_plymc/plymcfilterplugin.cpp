@@ -193,6 +193,7 @@ MeshFilterRunResult PlyMCFilterPlugin::runFilter(
                 QString::fromStdString(pmc.errorMessage)));
 
         // Load results as new meshes
+        QVector<int> createdIndices;
         int loadedCount = 0;
         for (size_t i = 0; i < pmcp.OutNameVec.size(); ++i) {
             const std::string &outName = pmcp.SimplificationFlag
@@ -213,6 +214,7 @@ MeshFilterRunResult PlyMCFilterPlugin::runFilter(
                 newEnt.ioMask |= Mask::IOM_VERTQUALITY;
                 if (pmcp.MergeColor || pmcp.VertSplatFlag)
                     newEnt.ioMask |= Mask::IOM_VERTCOLOR;
+                createdIndices.push_back(newIdx);
                 ++loadedCount;
             }
         }
@@ -231,7 +233,14 @@ MeshFilterRunResult PlyMCFilterPlugin::runFilter(
 
         doc.writeLog(QObject::tr("Loaded %1 reconstructed meshes.").arg(loadedCount),
                      Document::LogSource::Application);
-        return ok({QObject::tr("Reconstructed %1 mesh(es).").arg(loadedCount)});
+        MeshFilterRunResult result = ok({QObject::tr("Reconstructed %1 mesh(es).").arg(loadedCount)});
+        // The layers this filter creates were not reported before, so the framework could
+        // neither name them nor account for them.
+        result.newMeshIndices = createdIndices;
+        // Merging treats every visible layer alike, so the result is named after the set.
+        for (int mi : visibleMeshes)
+            result.sourceMeshIndices.push_back(mi);
+        return result;
     }
 
     return fail(QObject::tr("Unknown filter: %1").arg(fid));

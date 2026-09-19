@@ -336,6 +336,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "clustered",
       "parameters": [
         {
           "id": "Threshold",
@@ -2138,6 +2139,7 @@
       "inputRequirements": {
         "requireFaces": true
       },
+      "outputTag": "unrolled",
       "parameters": [
         {
           "id": "startAngle",
@@ -2426,6 +2428,7 @@
       "inputRequirements": {
         "requireFaces": true
       },
+      "outputTag": "edges",
       "parameters": []
     },
     {
@@ -2537,6 +2540,7 @@
       "inputRequirements": {
         "requireFaces": true
       },
+      "outputTag": "perimeter",
       "parameters": [],
       "inputPrepare": [
         "FF"
@@ -2557,6 +2561,10 @@
       "inputRequirements": {
         "requireFaces": true
       },
+      "outputTag": [
+        "section",
+        "section filled"
+      ],
       "parameters": [
         {
           "id": "planeAxis",

@@ -39,6 +39,7 @@
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
       "inputRequirements": {"requireVertices": true, "requireFaces": true},
+      "outputTag": "instant quads",
       "parameters": [
         {"id":"targetEdgeLength","label":"Target edge length","help":"Approximate world-space edge length of the generated mesh.","group":"main","type":"absperc","default":"@bboxDiag01","min":1e-9,"max":"@bboxDiag","decimals":6},
         {"id":"outputTopology","label":"Output topology","help":"Pure quads subdivides exceptional faces; quad dominant permits triangles around irregular regions.","group":"main","type":"enum","default":"pure_quads","enumOptions":[{"id":"pure_quads","label":"Pure quads"},{"id":"quad_dominant","label":"Quad dominant"}]},

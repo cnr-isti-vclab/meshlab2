@@ -272,6 +272,16 @@ MeshFilterDescriptor parseFilter(const QJsonObject &obj)
     for (const QJsonValue &m : mods)
         d.outputModifies << m.toString();
 
+    const QJsonValue tagValue = obj.value(QStringLiteral("outputTag"));
+    if (tagValue.isString())
+        d.outputTag << tagValue.toString();
+    else {
+        for (const QJsonValue &t : tagValue.toArray())
+            d.outputTag << t.toString();
+    }
+    d.outputSource = obj.value(QStringLiteral("outputSource")).toString().trimmed();
+    d.outputSecondSource = obj.value(QStringLiteral("outputSecondSource")).toString().trimmed();
+
     const QJsonArray prep = obj.value(QStringLiteral("inputPrepare")).toArray();
     for (const QJsonValue &p : prep)
         d.inputPrepare << p.toString();

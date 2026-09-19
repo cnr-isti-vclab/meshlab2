@@ -134,9 +134,17 @@ MeshFilterRunResult ScreenedPoissonFilterPlugin::runFilter(
             }
         }
 
-        if (filterId == QString::fromLatin1(kFilterSSDRecon))
-            return ScreenedPoisson::runSSDReconFilter(doc, meshIndices, mergeVisible, params.rawValues());
-        return ScreenedPoisson::runScreenedPoissonFilter(doc, meshIndices, mergeVisible, params.rawValues());
+        MeshFilterRunResult result =
+            (filterId == QString::fromLatin1(kFilterSSDRecon))
+                ? ScreenedPoisson::runSSDReconFilter(doc, meshIndices, mergeVisible, params.rawValues())
+                : ScreenedPoisson::runScreenedPoissonFilter(doc, meshIndices, mergeVisible, params.rawValues());
+        // Reconstruction merges however many layers were visible, treating them alike, so
+        // the framework names the result after the set rather than after any one of them.
+        if (result.success) {
+            for (int meshIndex : meshIndices)
+                result.sourceMeshIndices.push_back(meshIndex);
+        }
+        return result;
     }
 
     return { false, false, QObject::tr("Unknown filter id: %1").arg(filterId) };

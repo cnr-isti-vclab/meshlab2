@@ -244,6 +244,9 @@
       "pythonName": "mesh_union_trueform",
       "shortDescription": "Exact boolean union of two layers.",
       "longDescriptionMarkdown": "The union of two closed solids: everything inside either one.\\n\\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\\n\\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.",
+      "outputTag": "union",
+      "outputSource": "firstMesh",
+      "outputSecondSource": "secondMesh",
       "parameters": [
         {
           "id": "firstMesh",
@@ -284,6 +287,9 @@
       "pythonName": "mesh_intersection_trueform",
       "shortDescription": "Exact boolean intersection of two layers.",
       "longDescriptionMarkdown": "The intersection of two closed solids: only what lies inside both.\\n\\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\\n\\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.",
+      "outputTag": "intersection",
+      "outputSource": "firstMesh",
+      "outputSecondSource": "secondMesh",
       "parameters": [
         {
           "id": "firstMesh",
@@ -324,6 +330,9 @@
       "pythonName": "mesh_difference_trueform",
       "shortDescription": "Exact boolean difference of two layers.",
       "longDescriptionMarkdown": "The first solid with the second removed from it. Order matters: swap the two layers to get the opposite difference.\\n\\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\\n\\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.",
+      "outputTag": "difference",
+      "outputSource": "firstMesh",
+      "outputSecondSource": "secondMesh",
       "parameters": [
         {
           "id": "firstMesh",
@@ -364,6 +373,9 @@
       "pythonName": "mesh_symmetric_difference_trueform",
       "shortDescription": "Exact boolean symmetric difference of two layers.",
       "longDescriptionMarkdown": "Everything inside exactly one of the two solids, and nothing inside both.\\n\\nTrueForm's boolean primitive offers union, intersection and difference but not this one, so it is evaluated through the CSG evaluator as `(A - B) | (B - A)`. The result is the same; only the route differs.\\n\\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\\n\\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.",
+      "outputTag": "xor",
+      "outputSource": "firstMesh",
+      "outputSecondSource": "secondMesh",
       "parameters": [
         {
           "id": "firstMesh",
@@ -405,6 +417,7 @@
       "pythonName": "mesh_csg_expression_trueform",
       "shortDescription": "Evaluate a boolean expression over any number of layers in one exact pass.",
       "longDescriptionMarkdown": "Evaluates an arbitrary constructive-solid-geometry expression over the document's layers, in a **single arrangement** rather than a chain of pairwise booleans. That matters for more than convenience: chaining booleans re-meshes and re-intersects at every step, accumulating error and cost, while one arrangement resolves all the surfaces together and classifies each region once.\\n\\n**Operands are layer numbers**, as shown in the layer panel. Operators, loosest-binding first:\\n\\n| Operator | Meaning |\\n|---|---|\\n| `\\\\|` | union |\\n| `-` | difference |\\n| `&` | intersection |\\n| `~` | complement |\\n\\n`|` and `-` share the lowest precedence and associate to the left; `&` binds tighter; `~` binds tightest. Parentheses group.\\n\\nExamples:\\n\\n- `0 | 1 | 2` — the union of three layers\\n- `(0 | 1) - 2` — two layers joined, then a third drilled out of them\\n- `0 & ~1` — the part of layer 0 outside layer 1, i.e. the difference\\n\\nA layer may appear more than once; it becomes a single operand. Every referenced layer is taken in world space.\n\n**Sheets.** A layer listed in *Sheets* enters the expression as an **open oriented surface** rather than a solid: it cuts the other operands without enclosing any volume of its own, and its operand bit means *behind the surface*, on the far side of its normals. Anything can be a sheet — a plane, a curved terrain, a trimmed patch — and it need not be closed or even reach past the solid it divides.\n\nFor a cube as layer 0 and a surface through it as layer 1, `0 - 1` is the piece in front of the surface and `0 & 1` the piece behind it, each capped along the cut and watertight. Leave *Sheets* empty and every operand is a solid, which is what a closed mesh should be.",
+      "outputTag": "csg",
       "parameters": [
         {
           "id": "expression",
@@ -447,6 +460,7 @@
       "pythonName": "split_into_solid_domains_trueform",
       "shortDescription": "Split the volume the layers enclose into one watertight layer per region.",
       "longDescriptionMarkdown": "Builds one arrangement of the listed layers and emits **every region of space they enclose** as its own watertight layer. Two overlapping solids give three: what only the first encloses, what only the second encloses, and what both do. A self-intersecting layer decomposes on its own, into the regions its surface actually bounds.\n\nThis has no equivalent anywhere else in MeshLab. A boolean answers one question about one region and merges everything else away; *Split into Connected Components* separates surfaces that are already apart. Neither can hand you the pieces a set of overlapping solids cuts space into, which is what a bill of materials, a contact analysis or a volumetric mesh generator needs.\n\n**Layers** are layer numbers as shown in the layer panel, separated by spaces or commas; a single number is a valid answer. **Sheets** names those of them that are open cutting surfaces rather than solids, exactly as in *Mesh CSG Expression* — a solid crossed by a sheet decomposes into the pieces on either side of it.\n\nEach output layer is closed and named for the domain it carries. The unbounded outside is not one of them, and the layer matrices are baked in, so every layer is world-space geometry. Reads TrueForm's `make_csg_domains`.",
+      "outputTag": "domain %1",
       "parameters": [
         {
           "id": "layers",
@@ -487,6 +501,7 @@
       "pythonName": "split_into_connected_components_trueform",
       "shortDescription": "Split a layer into one layer per connected surface, computed in parallel.",
       "longDescriptionMarkdown": "Splits the layer into one new layer per connected surface, exactly as *Split into Connected Components* does — this is the same operation through TrueForm, which labels the faces in parallel and emits the components in one pass. On a million-face mesh that is the difference worth having; on a small one the two are indistinguishable.\n\n**Connectivity** chooses what counts as joining two faces, and all three standards are one call each.\n\n| Setting | Two faces are joined when |\n|---|---|\n| Manifold edges | a chain of shared edges links them, counting only edges that exactly two faces use |\n| Any shared edge | a chain of shared edges links them, however many faces use each |\n| Any shared vertex | a chain of shared vertices links them |\n\nThe default separates at seams: a **boundary** edge joins nothing, and neither does an edge three or more faces meet along, so sheets passing through a shared seam come back as separate layers. *Any shared edge* walks through such a seam and reproduces what *Split into Connected Components* does there; *any shared vertex* additionally joins pieces that only touch at a single point. On a manifold mesh all three agree.\n\nWeld first with *Remove Duplicate Vertices (TrueForm)* if a layer arrived as a triangle soup: unwelded faces share nothing at all, and every one of them is its own component under any setting.\n\nThe source layer is kept, and the layer matrix is baked into the results. Reads TrueForm's `make_manifold_edge_connected_component_labels`, `make_edge_connected_component_labels` or `make_vertex_connected_component_labels`, then `split_into_components`.",
+      "outputTag": "part %1",
       "parameters": [
         {
           "id": "sourceMesh",
@@ -542,6 +557,7 @@
       "pythonName": "extract_outer_shell_trueform",
       "shortDescription": "Keep only the outermost surface of a layer, discarding internal shells.",
       "longDescriptionMarkdown": "Resolves the layer's self-intersections and keeps only the **outermost** boundary, dropping every internal shell and any surface enclosed by another.\\n\\nThis is the repair step for geometry assembled from overlapping parts — kitbashed models, scans merged from several pieces, or anything destined for 3D printing, where interior walls are invisible but still slow slicing and can confuse a slicer about what is solid.\\n\\nThe input should be solid rather than an open sheet: an open surface has no inside, so there is no outer shell to extract.",
+      "outputTag": "outer shell",
       "parameters": [
         {
           "id": "sourceMesh",
@@ -575,6 +591,7 @@
         "polyline",
         "diagnostic"
       ],
+      "outputTag": "self-intersections",
       "parameters": [
         {
           "id": "sourceMesh",
@@ -608,6 +625,9 @@
         "polyline",
         "exact"
       ],
+      "outputTag": "intersection curve",
+      "outputSource": "firstMesh",
+      "outputSecondSource": "secondMesh",
       "parameters": [
         {
           "id": "firstMesh",
@@ -650,6 +670,7 @@
         "polyline",
         "level set"
       ],
+      "outputTag": "isocontours",
       "parameters": [
         {
           "id": "sourceMesh",
@@ -719,6 +740,7 @@
         "polyline",
         "curve"
       ],
+      "outputTag": "tube",
       "parameters": [
         {
           "id": "sourceMesh",
@@ -1549,6 +1571,7 @@
         "arrangement",
         "exact"
       ],
+      "outputTag": "resolved",
       "parameters": [
         {
           "id": "sourceMesh",
@@ -1582,6 +1605,7 @@
         "cut",
         "contour"
       ],
+      "outputTag": "isobands",
       "parameters": [
         {
           "id": "sourceMesh",

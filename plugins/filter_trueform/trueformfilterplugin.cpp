@@ -505,7 +505,6 @@ MeshFilterRunResult addResultLayer(
     doc.finishFilterProgress(true, QObject::tr("Created %1.").arg(layerName));
 
     const VCGMesh &output = doc.mesh(newIndex).mesh;
-    info.prepend(QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name));
     info << QObject::tr("Output: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
     MeshFilterRunResult result;
     result.success = true;

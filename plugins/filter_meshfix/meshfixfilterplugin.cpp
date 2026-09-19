@@ -237,7 +237,6 @@ MeshFilterRunResult MeshFixFilterPlugin::runFilter(
         result.documentModified = true;
         result.newMeshIndices.push_back(newIndex);
         result.infoMessages
-            << QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name)
             << QObject::tr("Output: %1 vertices, %2 faces.")
                    .arg(output.VN()).arg(output.FN());
         if (removedComponents > 0)

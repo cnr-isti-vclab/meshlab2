@@ -12,6 +12,7 @@
       "inputDomain": "WholeDocument",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "volumetric merge",
       "parameters": [
         {
           "id": "voxSize",

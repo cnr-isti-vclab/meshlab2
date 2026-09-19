@@ -58,6 +58,7 @@
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
       "inputRequirements": {"requireVertices": true, "requireFaces": true},
+      "outputTag": "quadwild",
       "parameters": [
         {"id":"surfacePreset","label":"Surface preset","help":"Feature-aware detects sharp creases; Organic treats the surface as smooth.","group":"main","type":"enum","default":"feature_aware","enumOptions":[{"id":"feature_aware","label":"Feature-aware"},{"id":"organic","label":"Organic"}]},
         {"id":"outputScale","label":"Output scale","help":"Dimensionless QuadWild scale factor. Larger values produce larger and fewer quads.","group":"main","type":"double","default":1.0,"min":0.05,"max":20.0,"decimals":3},

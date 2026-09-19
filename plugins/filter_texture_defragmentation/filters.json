@@ -68,6 +68,7 @@
         "FNorm",
         "VNorm"
       ],
+      "outputTag": "defragmented",
       "parameters": [
         {
           "id": "matchingThreshold",
@@ -198,6 +199,7 @@
         "FNorm",
         "VNorm"
       ],
+      "outputTag": "merged islands",
       "parameters": [
         {
           "id": "islandSource",

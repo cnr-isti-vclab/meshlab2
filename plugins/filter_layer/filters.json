@@ -15,6 +15,7 @@
         "requireVertices": true,
         "requireFaces": true
       },
+      "outputTag": "selected faces",
       "parameters": [
         {
           "id": "DeleteOriginal",
@@ -39,6 +40,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "selected vertices",
       "parameters": [
         {
           "id": "DeleteOriginal",
@@ -64,6 +66,7 @@
         "requireVertices": true,
         "requireFaces": true
       },
+      "outputTag": "part %1",
       "parameters": [
         {
           "id": "delete_source_mesh",
@@ -89,6 +92,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "copy",
       "parameters": []
     },
     {
@@ -152,6 +156,7 @@
       "tags": ["layer", "merge", "flatten", "mesh"],
       "inputDomain": "WholeDocument",
       "outputDomain": "NewMeshes",
+      "outputTag": "merged",
       "parameters": [
         {
           "id": "MergeVisible",

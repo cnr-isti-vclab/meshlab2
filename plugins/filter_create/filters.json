@@ -15,6 +15,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Tetrahedron",
       "parameters": []
     },
     {
@@ -31,6 +32,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Icosahedron",
       "parameters": []
     },
     {
@@ -47,6 +49,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Dodecahedron",
       "parameters": []
     },
     {
@@ -63,6 +66,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Symmetric Dodecahedron",
       "parameters": []
     },
     {
@@ -79,6 +83,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Octahedron",
       "parameters": []
     },
     {
@@ -98,6 +103,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Hexahedron",
       "parameters": [
         {
           "id": "size",
@@ -127,6 +133,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Annulus",
       "parameters": [
         {
           "id": "inner_radius",
@@ -182,6 +189,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Circle",
       "parameters": [
         {
           "id": "radius",
@@ -235,6 +243,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Square",
       "parameters": [
         {
           "id": "size",
@@ -272,6 +281,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Sphere",
       "parameters": [
         {
           "id": "radius",
@@ -311,6 +321,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Sphere Cap",
       "parameters": [
         {
           "id": "half_angle",
@@ -351,6 +362,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Points on Sphere",
       "parameters": [
         {
           "id": "point_num",
@@ -417,6 +429,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Points on Spherical Cap",
       "parameters": [
         {
           "id": "point_num",
@@ -492,6 +505,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Cone",
       "parameters": [
         {
           "id": "r0",
@@ -553,6 +567,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Cylinder",
       "parameters": [
         {
           "id": "radius",
@@ -629,6 +644,7 @@
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
+      "outputTag": "Torus",
       "parameters": [
         {
           "id": "h_radius",
@@ -692,6 +708,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "fitted plane",
       "parameters": [
         {
           "id": "extent",
@@ -735,6 +752,7 @@
       "inputRequirements": {
         "requireVertices": true
       },
+      "outputTag": "hull",
       "parameters": []
     }
   ]
