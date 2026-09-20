@@ -7,6 +7,7 @@
 #include <QMatrix4x4>
 #include <QString>
 #include <QStringList>
+#include <array>
 #include <vector>
 
 namespace meshlab::geogram {
@@ -58,5 +59,14 @@ bool meshToGeo(
     int dimension = 3);
 
 bool geoToMesh(const ::GEO::Mesh &in, VCGMesh &out, QString &error);
+
+// Reads back a two-component vertex attribute, which is how geogram's
+// flatteners return a parametrization ("tex_coord"). Indexed by GEO vertex
+// row, so the caller maps through GeoMesh::vertexToSourceIndex.
+bool readVertexTexCoords(
+    const ::GEO::Mesh &in,
+    std::vector<std::array<float, 2>> &uv,
+    QString &error,
+    const char *attributeName = "tex_coord");
 
 } // namespace meshlab::geogram

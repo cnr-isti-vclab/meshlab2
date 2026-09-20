@@ -23,6 +23,7 @@ endif()
 add_library(MeshLab2PluginFilterGeogram STATIC
     geogramfilterplugin.h geogramfilterplugin.cpp
     geogrambooleans.h geogrambooleans.cpp
+    geogramparametrization.h geogramparametrization.cpp
     geogrammeshadapter.h geogrammeshadapter.cpp
 )
 

@@ -370,6 +370,7 @@ private slots:
     void trueFormAlignmentRecoversAKnownTransform();
     void trueFormBooleansAgreeWithVolume();
     void geogramBooleansAgreeWithVolume();
+    void geogramAbfBeatsLscmOnAngleDistortion();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
     void trueFormCsgSheetsCutWithoutEnclosing();
     void trueFormSolidDomainsSplitTheEnclosedVolume();
@@ -2192,6 +2193,115 @@ void FilterTests::geogramBooleansAgreeWithVolume()
                  qPrintable(QStringLiteral("%1: %2 non-manifold edge(s)")
                                 .arg(c.name).arg(nonManifoldEdges)));
     }
+}
+
+namespace {
+
+// Mean absolute difference, over every corner of every face, between the corner's
+// angle on the surface and its angle in the UV layout. Zero for a developable
+// surface flattened perfectly; the number both conformal methods are trying to keep
+// small. Returns -1 if no corner could be measured.
+double meanAngleDistortion(const VCGMesh &mesh)
+{
+    const auto cornerAngle = [](const auto &at, const auto &b, const auto &c) {
+        const auto u = b - at;
+        const auto v = c - at;
+        const double nu = double(u.Norm());
+        const double nv = double(v.Norm());
+        if (nu <= 0.0 || nv <= 0.0)
+            return -1.0;
+        const double cosine = std::clamp(double(u * v) / (nu * nv), -1.0, 1.0);
+        return std::acos(cosine);
+    };
+
+    double total = 0.0;
+    int counted = 0;
+    for (const VCGFace &face : mesh.face) {
+        if (face.IsD())
+            continue;
+        vcg::Point3f p[3];
+        vcg::Point2f q[3];
+        for (int k = 0; k < 3; ++k) {
+            const VCGVertex *v = face.cV(k);
+            p[k] = v->cP();
+            q[k] = vcg::Point2f(v->cT().U(), v->cT().V());
+        }
+        for (int k = 0; k < 3; ++k) {
+            const double a3 = cornerAngle(p[k], p[(k + 1) % 3], p[(k + 2) % 3]);
+            const double a2 = cornerAngle(q[k], q[(k + 1) % 3], q[(k + 2) % 3]);
+            if (a3 < 0.0 || a2 < 0.0 || !std::isfinite(a3) || !std::isfinite(a2))
+                continue;
+            total += std::abs(a3 - a2);
+            ++counted;
+        }
+    }
+    return counted > 0 ? total / double(counted) : -1.0;
+}
+
+} // namespace
+
+// ABF++ solves for the flattened angles directly while LSCM solves for positions and
+// takes the angles it gets, so on a surface that cannot be flattened without some
+// distortion ABF++ should distribute it better. A sphere cap is the cheapest such
+// surface: curved everywhere, so no isometric layout exists, but open, so both methods
+// apply. This is the claim the whole geogram parametrization family rests on -- if it
+// does not hold there is no reason to prefer ABF++ over the libigl LSCM already shipped.
+// Measured 2026-09-20: ABF++ 0.00805 rad, LSCM 0.00882 rad, so ABF++ is ~9% better. The
+// margin is modest because both methods are conformal and a finely subdivided cap is
+// locally near-developable; it is deterministic, so the comparison is stable.
+void FilterTests::geogramAbfBeatsLscmOnAngleDistortion()
+{
+    Document probe;
+    const QString lscmKey = filterKeyForId(
+        probe, QStringLiteral("parametrize_by_least_squares_conformal_maps_geogram"));
+    if (lscmKey.isEmpty())
+        QSKIP("geogram filter plugin is not available in this build.");
+    const QString abfKey = filterKeyForId(
+        probe, QStringLiteral("parametrize_by_angle_based_flattening_geogram"));
+    const QString capKey = filterKeyForId(probe, QStringLiteral("create_sphere_cap"));
+    QVERIFY(!abfKey.isEmpty());
+    QVERIFY(!capKey.isEmpty());
+
+    // A deep cap, so there is real Gaussian curvature to fight with.
+    MeshFilterParameterValues capParams;
+    capParams.insert(QStringLiteral("half_angle"), 70.0);
+    capParams.insert(QStringLiteral("subdiv"), 4);
+
+    const auto distortionOf = [&](const QString &key) {
+        Document doc;
+        const MeshFilterRunResult cap = doc.runFilter(capKey, capParams);
+        if (!cap.success)
+            return -2.0;
+        const MeshFilterRunResult flat = doc.runFilter(key, {});
+        if (!flat.success) {
+            qWarning("%s", qPrintable(flat.errorMessage));
+            return -3.0;
+        }
+        const VCGMesh &mesh = doc.mesh(doc.currentMeshIndex()).mesh;
+
+        // A layout a textured view can actually show: finite, and not collapsed.
+        vcg::Box2f uvBox;
+        for (const VCGVertex &v : mesh.vert) {
+            if (v.IsD())
+                continue;
+            if (!std::isfinite(v.cT().U()) || !std::isfinite(v.cT().V()))
+                return -4.0;
+            uvBox.Add(vcg::Point2f(v.cT().U(), v.cT().V()));
+        }
+        if (!(uvBox.DimX() > 0.0f) || !(uvBox.DimY() > 0.0f))
+            return -5.0;
+
+        return meanAngleDistortion(mesh);
+    };
+
+    const double lscm = distortionOf(lscmKey);
+    const double abf = distortionOf(abfKey);
+    QVERIFY2(lscm >= 0.0, qPrintable(QStringLiteral("LSCM produced no usable layout (%1)").arg(lscm)));
+    QVERIFY2(abf >= 0.0, qPrintable(QStringLiteral("ABF++ produced no usable layout (%1)").arg(abf)));
+
+    QVERIFY2(abf < lscm,
+             qPrintable(QStringLiteral("ABF++ mean angle distortion %1 rad, LSCM %2 rad")
+                            .arg(abf).arg(lscm)));
 }
 
 // The CSG evaluator and the pairwise booleans must agree where they overlap, and the

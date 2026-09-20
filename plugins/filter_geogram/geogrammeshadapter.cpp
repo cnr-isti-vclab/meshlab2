@@ -1,6 +1,7 @@
 #include "geogrammeshadapter.h"
 
 #include <geogram/basic/common.h>
+#include <geogram/basic/attributes.h>
 #include <geogram/basic/logger.h>
 
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -240,6 +241,37 @@ bool geoToMesh(const ::GEO::Mesh &in, VCGMesh &out, QString &error)
     vcg::tri::Allocator<VCGMesh>::CompactEveryVector(out);
     vcg::tri::UpdateBounding<VCGMesh>::Box(out);
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(out);
+    return true;
+}
+
+bool readVertexTexCoords(
+    const ::GEO::Mesh &in,
+    std::vector<std::array<float, 2>> &uv,
+    QString &error,
+    const char *attributeName)
+{
+    uv.clear();
+
+    ::GEO::Attribute<double> texCoord;
+    if (!texCoord.bind_if_is_defined(
+            const_cast<::GEO::Mesh &>(in).vertices.attributes(), attributeName)) {
+        error = QObject::tr("geogram did not produce a '%1' vertex attribute.")
+                    .arg(QString::fromLatin1(attributeName));
+        return false;
+    }
+    if (texCoord.dimension() != 2) {
+        error = QObject::tr("The '%1' vertex attribute has %2 components, expected 2.")
+                    .arg(QString::fromLatin1(attributeName))
+                    .arg(texCoord.dimension());
+        return false;
+    }
+
+    const ::GEO::index_t vertexCount = in.vertices.nb();
+    uv.resize(size_t(vertexCount));
+    for (::GEO::index_t v = 0; v < vertexCount; ++v) {
+        uv[size_t(v)][0] = float(texCoord[2 * v]);
+        uv[size_t(v)][1] = float(texCoord[2 * v + 1]);
+    }
     return true;
 }
 

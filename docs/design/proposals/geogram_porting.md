@@ -563,6 +563,39 @@ machinery beyond `readVertexTexCoords`.
 behavioural assertion in `test_filters.cpp` that ABF++ on a disk produces lower angle
 distortion than LSCM on the same input — the claim the whole family rests on.
 
+#### Results — 2026-09-20
+
+Done. `geogramparametrization.{h,cpp}`, two filters, all three tiers green.
+
+- **Adapter gained `readVertexTexCoords`** — binds the `tex_coord` vertex attribute,
+  checks it is two-component, and returns it indexed by GEO vertex row for the caller
+  to map through `vertexToSourceIndex`. Phase 3 reuses the same shape for facet corners.
+- **Write-back mirrors `iglparametrization`** exactly: per-vertex UVs always, per-wedge
+  refreshed from them when the layer already carried some, `IOM_VERTTEXCOORD` set,
+  `markMeshGeometryChanged` called. Both backends therefore leave a layer in the same
+  state.
+- **Behavioural test** — `FilterTests::geogramAbfBeatsLscmOnAngleDistortion`. A sphere
+  cap at 70° half-angle, subdivision 4: curved everywhere so no isometric layout
+  exists, open so both methods apply. Mean absolute per-corner angle difference between
+  surface and layout: **ABF++ 0.00805 rad against LSCM's 0.00882**, about 9 % better.
+  The test also rejects a non-finite or collapsed layout, which is the
+  "a textured view can show it" criterion.
+
+Two things worth recording, both discovered by measurement:
+
+- **`facets.connect()` is required, and colocating is not allowed.** A `GEO::Mesh`
+  built by `create_triangles` + `set_vertex` has no facet adjacency, and the flatteners
+  navigate through it — without the call every triangle is its own chart. geogram's own
+  pipelines reach for `mesh_repair(MESH_REPAIR_COLOCATE)`, which would renumber
+  vertices and silently invalidate `vertexToSourceIndex`. `facets.connect()` derives
+  adjacency from vertex indices alone and leaves numbering untouched, so it is the only
+  correct choice here. The cost is that coincident-but-distinct vertices stay split;
+  the filters' help says so rather than welding behind the user's back.
+- **The boundary check is ours, not geogram's.** Neither flattener refuses a closed
+  surface — they return a degenerate layout. Both filters therefore count border edges
+  first and refuse with an actionable message, which is what lets the smoke tier drive
+  them: both land on the `open` rung, and neither needs an `expectedRefusals()` row.
+
 ### Phase 3 — atlas, packing, segmentation
 
 Facet-corner attributes, which is the second half of the adapter.

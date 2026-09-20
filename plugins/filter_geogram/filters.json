@@ -300,6 +300,76 @@
           "max": 100
         }
       ]
+    },
+    {
+      "id": "parametrize_by_least_squares_conformal_maps_geogram",
+      "categories": [
+        "Parametrization/UV Creation"
+      ],
+      "name": "Parametrize by Least Squares Conformal Maps (geogram)",
+      "pythonName": "parametrize_by_least_squares_conformal_maps_geogram",
+      "referenceIds": [
+        "geogram"
+      ],
+      "shortDescription": "Compute a Least Squares Conformal Maps UV parametrization using geogram.",
+      "longDescriptionMarkdown": "Computes a Least Squares Conformal Maps parametrization of the current mesh and stores the result as per-vertex texture coordinates. LSCM minimizes conformal (angle) distortion with two fixed points, so the mesh must have a boundary. If the mesh already carries per-wedge texture coordinates they are synchronized from the new per-vertex ones, so the result is immediately visible in the texture and UV views.\n\nThis is the reference implementation, by the authors of the original paper.\n\nThe flattening follows the mesh's existing vertex connectivity: coincident but distinct vertices stay split and appear as a seam, so run *Remove Duplicate Vertices* first on a mesh loaded from a format that does not share them, such as STL.",
+      "tags": [
+        "texture",
+        "uv",
+        "parametrization",
+        "lscm",
+        "conformal",
+        "geogram"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "VTex"
+      ],
+      "parameters": [],
+      "outputModifies": [
+        "VT",
+        "WT"
+      ]
+    },
+    {
+      "id": "parametrize_by_angle_based_flattening_geogram",
+      "categories": [
+        "Parametrization/UV Creation"
+      ],
+      "name": "Parametrize by Angle-Based Flattening (geogram)",
+      "pythonName": "parametrize_by_angle_based_flattening_geogram",
+      "referenceIds": [
+        "geogram"
+      ],
+      "shortDescription": "Compute an ABF++ angle-based UV parametrization using geogram.",
+      "longDescriptionMarkdown": "Computes an ABF++ (Angle-Based Flattening) parametrization of the current mesh and stores the result as per-vertex texture coordinates. ABF++ solves for the flattened *angles* rather than the vertex positions, which generally yields noticeably lower angle distortion than LSCM on the same input, at a higher cost. The mesh must have a boundary. If the mesh already carries per-wedge texture coordinates they are synchronized from the new per-vertex ones.\n\nThis is the reference implementation, by the authors of the original paper.\n\nThe flattening follows the mesh's existing vertex connectivity: coincident but distinct vertices stay split and appear as a seam, so run *Remove Duplicate Vertices* first on a mesh loaded from a format that does not share them, such as STL.",
+      "tags": [
+        "texture",
+        "uv",
+        "parametrization",
+        "abf",
+        "angle based flattening",
+        "geogram"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "VTex"
+      ],
+      "parameters": [],
+      "outputModifies": [
+        "VT",
+        "WT"
+      ]
     }
   ]
 }
