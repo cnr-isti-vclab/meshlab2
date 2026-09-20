@@ -140,6 +140,46 @@ else
 	echo "==> no Python interpreter in this build; the console will have no standard library"
 fi
 
+# Strip build-tree rpaths. Three sources leave absolute LC_RPATH entries pointing
+# into somebody's build directory, none of which can resolve on a user's machine:
+# vcpkg's toolchain adds its debug lib dir to every target we link; macdeployqt
+# only rewrites the rpaths it recognises; and the bundled Python extension modules
+# were built elsewhere entirely -- theirs still name QMeshLab/build-debug, a
+# directory that stopped existing at the 2026-09 rename.
+#
+# They are dead weight rather than a fault: with geogram repointed at
+# @executable_path above, the main binary has no absolute dylib references left at
+# all. But they ship the packager's home directory inside the binary, and a stale
+# rpath that happens to exist on a developer's machine is exactly how a missing
+# bundled library goes unnoticed until someone else runs the app.
+#
+# Only build-tree paths are removed, matched on /vcpkg_installed/. Homebrew Cellar
+# rpaths on third-party dylibs macdeployqt copied are left alone: those libraries
+# resolve their own dependencies through them, and rewriting other people's
+# libraries is macdeployqt's job, not ours. Must run before the signing loops
+# below, since install_name_tool invalidates a signature.
+echo "==> stripping build-tree rpaths"
+STRIPPED_RPATHS=0
+while IFS= read -r -d '' macho; do
+	file "$macho" | grep -q 'Mach-O' || continue
+	# Collected into a variable rather than piped into the loop: this script runs
+	# under `set -o pipefail`, and a grep that matches nothing -- which is most
+	# files -- would fail the pipeline and abort the packaging run.
+	stale_list="$(
+		otool -l "$macho" 2>/dev/null \
+			| awk '/LC_RPATH/{getline; getline; sub(/^ *path /,""); sub(/ \(offset.*/,""); print}' \
+			| grep -v '^@' | grep '/vcpkg_installed/' || true
+	)"
+	[ -n "$stale_list" ] || continue
+	while IFS= read -r stale; do
+		[ -n "$stale" ] || continue
+		chmod u+w "$macho"
+		install_name_tool -delete_rpath "$stale" "$macho" 2>/dev/null || true
+		STRIPPED_RPATHS=$((STRIPPED_RPATHS + 1))
+	done <<< "$stale_list"
+done < <(find "$APP" -type f -print0)
+echo "    removed $STRIPPED_RPATHS build-tree rpath entries"
+
 # The bundled Python standard library contains native extension modules (.so) in
 # lib-dynload. macdeployqt does not discover and sign these binaries, so notarization
 # rejects the app unless they are signed before the enclosing app is sealed.

@@ -532,10 +532,36 @@ symlink is not decoration: it is the name OpenNL's ARPACK fallback opens. Nothin
 that library, so a future tidy-up would drop it without any build failing — the script
 says why it is there.
 
-Verified end to end: `MeshLab.app` copied to `/tmp` launches and stays up with no dyld
-diagnostics, and a probe built against the bundled libraries with only
-`@executable_path/../Frameworks` on its rpath reports `nlInitExtension("ARPACK") = 1`
-from that relocated copy. That closes the last of Phase 0's exit criteria.
+The same pass also strips **build-tree rpaths**, which turned out to be a bundle-wide
+problem rather than the single stale entry that prompted it — **64 `LC_RPATH` entries
+across the bundle** pointed into a build directory:
+
+| Source | Path they named |
+|---|---|
+| vcpkg's toolchain, on every target we link | `<build>/vcpkg_installed/arm64-osx/debug/lib` |
+| the bundled Python extension modules, built elsewhere | `.../QMeshLab/build-debug/vcpkg_installed/...` — a directory that stopped existing at the 2026-09 rename |
+
+None can resolve on another machine, and they ship the packager's home directory inside
+the binary. Worse, a stale rpath that *does* exist on a developer's machine is exactly
+how a missing bundled library goes unnoticed until someone else runs the app. Only
+build-tree paths are removed, matched on `/vcpkg_installed/`; Homebrew Cellar rpaths on
+third-party dylibs macdeployqt copied are left alone, because those libraries resolve
+their own dependencies through them.
+
+Verified end to end: the main binary is down to a single rpath,
+`@executable_path/../Frameworks`; no Mach-O anywhere in the bundle retains a build-tree
+rpath; no Mach-O has an `@rpath` dependency it can no longer resolve; `MeshLab.app`
+copied to `/tmp` launches and stays up with no dyld diagnostics; and a probe built
+against the bundled libraries with only `@executable_path/../Frameworks` on its rpath
+reports `nlInitExtension("ARPACK") = 1` from that relocated copy. That closes the last
+of Phase 0's exit criteria.
+
+One trap worth recording, because it cost a silent failure: the script runs under
+`set -o pipefail`, so the first version of the strip loop — which piped `grep` straight
+into a `while` — **aborted the whole packaging run** at the first file with no match,
+which is most files. It printed the one rpath it had already removed and exited, and
+the `.dmg` left on disk was the previous run's, so nothing looked wrong. The matches are
+now collected into a variable with `|| true`, and the loop reports a count.
 
 ### Phase 1 — plugin skeleton, adapter, booleans
 
@@ -773,6 +799,17 @@ All eight rulings, taken 2026-09-19. Nothing in this plan is open.
 | 6 | Parameter id casing | **New filters follow the rule; the pass comes later** | `filter_geogram` uses `lowerCamelCase` throughout, including `firstMesh` / `secondMesh` where `filter_igl` writes `first_mesh` / `second_mesh`. The 107 snake_case ids already in the registry stay as they are and are retired by a separate mechanical pass, not by this plugin |
 | 7 | Two copies of xatlas in one binary | **Not a problem** | *Parametrize by Atlas (geogram)* may expose `PACK_XATLAS` freely. The default stays Tetris on its own merits — it is the packer available nowhere else here. The link test stays in Phase 0 as measurement, not as a question |
 | 8 | The OpenSCAD script compiler | **Deferred** | Out of scope for this plugin. Recorded below rather than dropped |
+
+## See also: frame fields
+
+Geogram's quad-meshing story is a frame-field generator
+(`GlobalParam2d::frame_field`, `FrameField::create_from_surface_mesh`) and a periodic
+global parametrization (`GlobalParam2d::PGP`), with **no quad extraction** — the
+`quad:` command-line arguments it declares are never read anywhere in the open library,
+because their consumer was Vorpaline. So geogram cannot add a third quad remesher
+beside Instant Meshes and QuadWild. What it could add is the *input* to one, which is
+only worth porting if something can consume it: see
+[Frame Fields](frame_fields.md).
 
 ## Deferred: the OpenSCAD compiler
 
