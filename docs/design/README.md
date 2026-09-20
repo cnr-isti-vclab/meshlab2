@@ -42,6 +42,7 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [Usage Statistics](proposals/usage_statistics.md) | Aggregate usage collection, designed for privacy. Not implemented. |
 | [Gaussian Splatting](proposals/gaussian_splatting.md) | Splat loading, rendering and editing. Not implemented; some decisions taken. |
 | [Edge Support](proposals/edge_support.md) | The two kinds of edge, what is missing in selection and rendering, and filters that would generate per-edge colour. Per-edge colour implemented; the rest not. |
+| [Frame Fields](proposals/frame_fields.md) | Making a 4-RoSy frame field a first-class attribute, feeding it to the QuadWild and Instant Meshes remeshers, and adopting Vaxman's Directional for field processing and visualization. Not implemented; feasibility established, eight questions open. |
 | [Geogram](proposals/geogram_porting.md) | A `filter_geogram` plugin: booleans, ABF++/LSCM parametrization, atlas and CVT remeshing. **Implemented** — 12 filters including the spectral methods, all four phases done and packaged; the OpenSCAD compiler remains deferred. |
 
 ## History
