@@ -5,6 +5,7 @@
 #include <geogram/basic/command_line.h>
 #include <geogram/basic/command_line_args.h>
 #include <geogram/basic/logger.h>
+#include <geogram/NL/nl.h>
 
 #include <vcg/complex/algorithms/mesh_to_matrix.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -77,6 +78,14 @@ void ensureInitialized()
         ::GEO::Logger::instance()->register_client(new SinkLoggerClient());
         ::GEO::Logger::instance()->set_quiet(true);
     });
+}
+
+bool arpackAvailable()
+{
+    ensureInitialized();
+    // nlInitExtension caches, so this is a lookup after the first call.
+    static const bool available = nlInitExtension("ARPACK") == NL_TRUE;
+    return available;
 }
 
 LogCapture::LogCapture(QStringList &sink)

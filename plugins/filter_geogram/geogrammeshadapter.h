@@ -34,6 +34,13 @@ struct GeoMesh
 // all of which are process-wide and hostile to a running Qt application.
 void ensureInitialized();
 
+// Whether geogram's ARPACK eigensolver could be loaded. Every spectral method
+// needs it, and geogram's own behaviour when it is missing is to log a line and
+// silently fall back to the non-spectral solver -- so a filter that advertises a
+// spectral method must check this and refuse, or it would report success having
+// run something else. Implies ensureInitialized().
+bool arpackAvailable();
+
 // Redirects GEO::Logger away from stdout and into `sink` for as long as it is
 // alive. Geogram's logger is process-wide while a filter run is not, so the
 // sink is thread-local and scoped rather than a global Document pointer.

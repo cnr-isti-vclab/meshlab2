@@ -375,6 +375,8 @@ private slots:
     void geogramSegmentationWritesScalarNotColor();
     void geogramCvtRemeshHitsTargetAndImprovesTriangles();
     void geogramAnisotropicRemeshElongatesTriangles();
+    void geogramSpectralPathsResolveArpack();
+    void geogramBooleanTransfersAttributes();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
     void trueFormCsgSheetsCutWithoutEnclosing();
     void trueFormSolidDomainsSplitTheEnclosedVolume();
@@ -2536,6 +2538,151 @@ void FilterTests::geogramAnisotropicRemeshElongatesTriangles()
              qPrintable(QStringLiteral("anisotropic mean quality %1 is not below isotropic %2, "
                                        "so anisotropy changed nothing")
                             .arg(anisotropic).arg(isotropic)));
+}
+
+// Every spectral method in geogram reaches its eigensolver through OpenNL's ARPACK
+// extension, loaded by dlopen()ing the bare name "libarpack". No vcpkg port installs
+// that name; OpenNL's own NL_LINK_USE_FALLBACK retries with "libgeogram_num_3rdparty",
+// which the geogram port does install and which carries its vendored ARPACK. That file
+// is therefore load-bearing even though nothing links it -- if a packaging change ever
+// drops it, geogram logs one line and silently runs the non-spectral solver instead.
+// Our filters refuse rather than allow that, so these two calls succeeding is what
+// says the eigensolver is really there, by both routes: directly, and through
+// manifold harmonics.
+void FilterTests::geogramSpectralPathsResolveArpack()
+{
+    Document probe;
+    const QString spectralKey = filterKeyForId(
+        probe, QStringLiteral("parametrize_by_spectral_conformal_maps_geogram"));
+    if (spectralKey.isEmpty())
+        QSKIP("geogram filter plugin is not available in this build.");
+    const QString lscmKey = filterKeyForId(
+        probe, QStringLiteral("parametrize_by_least_squares_conformal_maps_geogram"));
+    const QString segmentKey = filterKeyForId(
+        probe, QStringLiteral("compute_chart_segmentation_geogram"));
+    const QString capKey = filterKeyForId(probe, QStringLiteral("create_sphere_cap"));
+    const QString sphereKey = filterKeyForId(probe, QStringLiteral("create_sphere"));
+
+    MeshFilterParameterValues capParams;
+    capParams.insert(QStringLiteral("half_angle"), 70.0);
+    capParams.insert(QStringLiteral("subdiv"), 4);
+
+    const auto flattenDistortion = [&](const QString &key) {
+        Document doc;
+        if (!doc.runFilter(capKey, capParams).success)
+            return -1.0;
+        const MeshFilterRunResult r = doc.runFilter(key, {});
+        if (!r.success) {
+            qWarning("%s", qPrintable(r.errorMessage));
+            return -2.0;
+        }
+        return meanAngleDistortion(doc.mesh(doc.currentMeshIndex()).mesh);
+    };
+
+    // Direct route: mesh_compute_LSCM(spectral=true). Success is the assertion that
+    // matters, because the filter refuses outright when the eigensolver is missing --
+    // which is the whole point of that gate. Comparing distortion against plain LSCM
+    // was tried first and is worthless here: on a sphere cap the two agree to 0.06%,
+    // since the cap is symmetric enough that it barely matters which two vertices
+    // plain LSCM pins. A near-tie would pass or fail on noise, and would not
+    // distinguish the spectral solver from a silent fallback anyway.
+    const double spectral = flattenDistortion(spectralKey);
+    const double lscm = flattenDistortion(lscmKey);
+    QVERIFY2(spectral >= 0.0,
+             "spectral LSCM failed - geogram's ARPACK eigensolver did not load");
+    QVERIFY2(lscm >= 0.0, "plain LSCM failed");
+    QVERIFY2(spectral <= lscm * 1.05,
+             qPrintable(QStringLiteral("spectral distortion %1 is far worse than plain LSCM's %2")
+                            .arg(spectral).arg(lscm)));
+
+    // Indirect route: the segmenters reach ARPACK through manifold harmonics rather
+    // than directly, which was never confirmed until now.
+    Document doc;
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    MeshFilterParameterValues segParams;
+    segParams.insert(QStringLiteral("segmenter"), QStringLiteral("spectral8"));
+    segParams.insert(QStringLiteral("segmentCount"), 6);
+    const MeshFilterRunResult seg = doc.runFilter(segmentKey, segParams);
+    QVERIFY2(seg.success, qPrintable(seg.errorMessage));
+
+    std::set<int> charts;
+    for (const VCGFace &face : doc.mesh(doc.currentMeshIndex()).mesh.face) {
+        if (!face.IsD())
+            charts.insert(int(face.cQ()));
+    }
+    QVERIFY2(charts.size() >= 2,
+             qPrintable(QStringLiteral("spectral segmentation produced %1 chart(s)")
+                            .arg(charts.size())));
+}
+
+// The geogram booleans offer the same four attribute transfers as the libigl ones, but
+// they cannot get the correspondence from geogram: copy_operand drops operand
+// attributes, and there is no birth-face array. It is recovered geometrically instead,
+// so the thing worth testing is that a result face actually inherits from the operand
+// it came from -- not merely that the checkbox runs without crashing. Two boxes are
+// painted in distinct colours; every face of the union must come back as one of them.
+void FilterTests::geogramBooleanTransfersAttributes()
+{
+    Document doc;
+    const QString unionKey = filterKeyForId(doc, QStringLiteral("mesh_union_geogram"));
+    if (unionKey.isEmpty())
+        QSKIP("geogram filter plugin is not available in this build.");
+    const QString boxKey = filterKeyForId(doc, QStringLiteral("create_hexahedron"));
+    QVERIFY(!boxKey.isEmpty());
+
+    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_hexahedron failed");
+    const int a = doc.currentMeshIndex();
+    const float side = doc.mesh(a).mesh.bbox.DimX();
+    const int b = doc.addMesh(doc.mesh(a).mesh, QStringLiteral("shifted"));
+    QVERIFY(b >= 0);
+    QMatrix4x4 shift;
+    shift.translate(side * 0.5f, 0.0f, 0.0f);
+    doc.setMeshTransform(b, shift);
+
+    const vcg::Color4b red(255, 0, 0, 255);
+    const vcg::Color4b blue(0, 0, 255, 255);
+    for (int index : { a, b }) {
+        VCGMesh &mesh = doc.mesh(index).mesh;
+        mesh.face.EnableColor();
+        mesh.face.EnableQuality();
+        for (VCGFace &face : mesh.face) {
+            face.C() = (index == a) ? red : blue;
+            face.Q() = (index == a) ? 1.0f : 2.0f;
+        }
+        doc.mesh(index).ioMask |=
+            vcg::tri::io::Mask::IOM_FACECOLOR | vcg::tri::io::Mask::IOM_FACEQUALITY;
+    }
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("firstMesh"), a);
+    params.insert(QStringLiteral("secondMesh"), b);
+    params.insert(QStringLiteral("transferFaceColor"), true);
+    params.insert(QStringLiteral("transferFaceScalar"), true);
+    const MeshFilterRunResult result = doc.runFilter(unionKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    const VCGMesh &out = doc.mesh(result.newMeshIndices.front()).mesh;
+    QVERIFY(out.FN() > 0);
+
+    int fromA = 0;
+    int fromB = 0;
+    for (const VCGFace &face : out.face) {
+        if (face.IsD())
+            continue;
+        const bool isRed = face.cC() == red;
+        const bool isBlue = face.cC() == blue;
+        QVERIFY2(isRed || isBlue,
+                 qPrintable(QStringLiteral("face colour (%1,%2,%3) came from neither operand")
+                                .arg(face.cC()[0]).arg(face.cC()[1]).arg(face.cC()[2])));
+        // The scalar must agree with the colour: both name the same source face, so a
+        // mismatch would mean the two transfers resolved to different operands.
+        QCOMPARE(face.cQ(), isRed ? 1.0f : 2.0f);
+        (isRed ? fromA : fromB) += 1;
+    }
+    // A union of two overlapping boxes keeps surface from both.
+    QVERIFY2(fromA > 0 && fromB > 0,
+             qPrintable(QStringLiteral("union drew %1 faces from A and %2 from B")
+                            .arg(fromA).arg(fromB)));
 }
 
 // The CSG evaluator and the pairwise booleans must agree where they overlap, and the

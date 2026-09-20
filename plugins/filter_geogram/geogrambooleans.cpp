@@ -8,9 +8,14 @@
 
 #include <wrap/io_trimesh/io_mask.h>
 
+#include <vcg/complex/algorithms/closest.h>
+#include <vcg/space/index/grid_static_ptr.h>
+
 #include <QObject>
 #include <QStringList>
+#include <array>
 #include <exception>
+#include <memory>
 
 namespace {
 
@@ -26,6 +31,185 @@ namespace GeoAdapter = meshlab::geogram;
 MeshFilterRunResult fail(const QString &message)
 {
     return { false, false, message };
+}
+
+// Attribute transfer, matching what the libigl booleans offer.
+//
+// geogram cannot help here: mesh_boolean_operation copies only positions and
+// connectivity out of its operands (copy_operand in
+// mesh_surface_intersection.cpp), so MESH_BOOL_OPS_ATTRIBS interpolates
+// attributes that are already on the result -- and there is no hook between
+// the copy and the intersection to put ours there. There is also no birth-face
+// array of the kind libigl returns.
+//
+// So the correspondence is recovered geometrically, which is exact rather than
+// approximate for this particular problem: every facet of a boolean result
+// lies *on* one of the two operand surfaces, so the closest operand face to a
+// result face's centroid is the face it came from. The only ambiguity is where
+// the two surfaces coincide, and there no answer is more right than the other.
+class OperandLookup
+{
+public:
+    // The query point is in world space while the operand is stored in its own
+    // local space, so points are pulled back through the inverse layer matrix
+    // rather than copying and transforming the whole mesh. Distances are then
+    // measured in each operand's local space; that only matters for tie-breaks
+    // between two operands scaled differently, where both surfaces are
+    // coincident anyway.
+    OperandLookup(const Document::MeshEntry &entry)
+        : m_mesh(const_cast<VCGMesh &>(entry.mesh))
+        , m_mark(m_mesh)
+        , m_ioMask(entry.ioMask)
+        , m_inverse(entry.transform.inverted())
+        , m_maxDist(m_mesh.bbox.Diag())
+    {
+        m_grid.Set(m_mesh.face.begin(), m_mesh.face.end());
+    }
+
+    // Closest face to `worldPoint`, with the barycentric coordinates of the
+    // closest point on it. Returns nullptr when nothing is within range.
+    const VCGFace *closest(const vcg::Point3f &worldPoint, vcg::Point3f &bary, float &distance) const
+    {
+        const QVector3D local = m_inverse
+            * QVector3D(worldPoint.X(), worldPoint.Y(), worldPoint.Z());
+        const vcg::Point3f query(local.x(), local.y(), local.z());
+
+        vcg::tri::FaceTmark<VCGMesh> marker(&m_mesh);
+        vcg::face::PointDistanceBaseFunctor<float> distFunctor;
+        float dist = m_maxDist;
+        vcg::Point3f closestPoint;
+        const VCGFace *face = m_grid.GetClosest(distFunctor, marker, query, m_maxDist, dist, closestPoint);
+        if (!face)
+            return nullptr;
+        distance = dist;
+        vcg::InterpolationParameters<VCGFace, float>(*face, face->cN(), closestPoint, bary);
+        return face;
+    }
+
+    int ioMask() const { return m_ioMask; }
+
+private:
+    VCGMesh &m_mesh;
+    VCGMeshMarkScope m_mark;
+    int m_ioMask = 0;
+    QMatrix4x4 m_inverse;
+    float m_maxDist = 0.0f;
+    mutable vcg::GridStaticPtr<VCGFace, float> m_grid;
+};
+
+struct TransferOptions
+{
+    bool faceColor = false;
+    bool faceScalar = false;
+    bool vertexColor = false;
+    bool vertexScalar = false;
+
+    bool any() const { return faceColor || faceScalar || vertexColor || vertexScalar; }
+    bool anyFace() const { return faceColor || faceScalar; }
+    bool anyVertex() const { return vertexColor || vertexScalar; }
+};
+
+vcg::Color4b interpolatedColor(const VCGFace &face, const vcg::Point3f &bary)
+{
+    float c[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    for (int k = 0; k < 3; ++k) {
+        const vcg::Color4b &src = face.cV(k)->cC();
+        for (int ch = 0; ch < 4; ++ch)
+            c[ch] += bary[k] * float(src[ch]);
+    }
+    return vcg::Color4b(
+        (unsigned char)std::clamp(c[0], 0.0f, 255.0f),
+        (unsigned char)std::clamp(c[1], 0.0f, 255.0f),
+        (unsigned char)std::clamp(c[2], 0.0f, 255.0f),
+        (unsigned char)std::clamp(c[3], 0.0f, 255.0f));
+}
+
+void transferAttributes(
+    VCGMesh &result,
+    int &ioMask,
+    const OperandLookup &first,
+    const OperandLookup &second,
+    const TransferOptions &options)
+{
+    if (!options.any())
+        return;
+
+    using Mask_ = vcg::tri::io::Mask;
+    if (options.faceColor) {
+        result.face.EnableColor();
+        ioMask |= Mask_::IOM_FACECOLOR;
+    }
+    if (options.faceScalar) {
+        result.face.EnableQuality();
+        ioMask |= Mask_::IOM_FACEQUALITY;
+    }
+    if (options.vertexColor)
+        ioMask |= Mask_::IOM_VERTCOLOR;
+    if (options.vertexScalar)
+        ioMask |= Mask_::IOM_VERTQUALITY;
+
+    // Picks whichever operand owns the surface under `point`.
+    const auto resolve = [&](const vcg::Point3f &point, vcg::Point3f &bary, const OperandLookup *&owner) {
+        vcg::Point3f baryA;
+        vcg::Point3f baryB;
+        float distA = 0.0f;
+        float distB = 0.0f;
+        const VCGFace *faceA = first.closest(point, baryA, distA);
+        const VCGFace *faceB = second.closest(point, baryB, distB);
+        if (faceA && (!faceB || distA <= distB)) {
+            bary = baryA;
+            owner = &first;
+            return faceA;
+        }
+        if (faceB) {
+            bary = baryB;
+            owner = &second;
+            return faceB;
+        }
+        owner = nullptr;
+        return static_cast<const VCGFace *>(nullptr);
+    };
+
+    if (options.anyFace()) {
+        for (VCGFace &face : result.face) {
+            if (face.IsD())
+                continue;
+            const vcg::Point3f centroid =
+                (face.cV(0)->cP() + face.cV(1)->cP() + face.cV(2)->cP()) / 3.0f;
+            vcg::Point3f bary;
+            const OperandLookup *owner = nullptr;
+            const VCGFace *source = resolve(centroid, bary, owner);
+            if (!source)
+                continue;
+            if (options.faceColor && (owner->ioMask() & Mask_::IOM_FACECOLOR) != 0)
+                face.C() = source->cC();
+            if (options.faceScalar && (owner->ioMask() & Mask_::IOM_FACEQUALITY) != 0)
+                face.Q() = source->cQ();
+        }
+    }
+
+    if (options.anyVertex()) {
+        for (VCGVertex &vertex : result.vert) {
+            if (vertex.IsD())
+                continue;
+            vcg::Point3f bary;
+            const OperandLookup *owner = nullptr;
+            const VCGFace *source = resolve(vertex.cP(), bary, owner);
+            if (!source)
+                continue;
+            // Barycentric rather than nearest-vertex: a boolean creates
+            // vertices along the intersection curve that match no operand
+            // vertex at all, and those are exactly the ones a nearest-vertex
+            // rule gets visibly wrong.
+            if (options.vertexColor && (owner->ioMask() & Mask_::IOM_VERTCOLOR) != 0)
+                vertex.C() = interpolatedColor(*source, bary);
+            if (options.vertexScalar && (owner->ioMask() & Mask_::IOM_VERTQUALITY) != 0) {
+                vertex.Q() = bary[0] * source->cV(0)->cQ()
+                    + bary[1] * source->cV(1)->cQ()
+                    + bary[2] * source->cV(2)->cQ();
+            }
+        }
+    }
 }
 
 // "A+B", "A*B", "A-B" and "B-A" are the only operations geogram's boolean
@@ -170,6 +354,12 @@ MeshFilterRunResult runGeogramBooleanFilter(
 
     const bool simplifyCoplanarFacets = params.getBool(QStringLiteral("simplifyCoplanarFacets"), true);
 
+    TransferOptions transfer;
+    transfer.faceColor = params.getBool(QStringLiteral("transferFaceColor"), false);
+    transfer.faceScalar = params.getBool(QStringLiteral("transferFaceScalar"), false);
+    transfer.vertexColor = params.getBool(QStringLiteral("transferVertexColor"), false);
+    transfer.vertexScalar = params.getBool(QStringLiteral("transferVertexScalar"), false);
+
     const Document::MeshEntry &firstEntry = doc.mesh(firstIndex);
     const Document::MeshEntry &secondEntry = doc.mesh(secondIndex);
 
@@ -226,7 +416,15 @@ MeshFilterRunResult runGeogramBooleanFilter(
         return fail(error);
     }
 
-    const int outputMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+    int outputMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+    if (transfer.any()) {
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(95, "Transferring attributes...");
+        OperandLookup firstLookup(firstEntry);
+        OperandLookup secondLookup(secondEntry);
+        transferAttributes(output, outputMask, firstLookup, secondLookup, transfer);
+    }
+
     const int newMeshIndex = doc.addMesh(output, {}, outputMask);
     if (newMeshIndex < 0) {
         error = QObject::tr("Failed to add the boolean result mesh to the document.");

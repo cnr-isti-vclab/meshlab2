@@ -35,6 +35,8 @@ MeshFilterRunResult fail(const QString &message)
         return ::GEO::PARAM_PROJECTION;
     if (id == QLatin1StringView("lscm"))
         return ::GEO::PARAM_LSCM;
+    if (id == QLatin1StringView("spectralLscm"))
+        return ::GEO::PARAM_SPECTRAL_LSCM;
     return ::GEO::PARAM_ABF;
 }
 
@@ -53,6 +55,12 @@ MeshFilterRunResult fail(const QString &message)
         return ::GEO::SEGMENT_GEOMETRIC_VSA_L12;
     if (id == QLatin1StringView("inertiaAxis"))
         return ::GEO::SEGMENT_INERTIA_AXIS;
+    if (id == QLatin1StringView("spectral8"))
+        return ::GEO::SEGMENT_SPECTRAL_8;
+    if (id == QLatin1StringView("spectral20"))
+        return ::GEO::SEGMENT_SPECTRAL_20;
+    if (id == QLatin1StringView("spectral100"))
+        return ::GEO::SEGMENT_SPECTRAL_100;
     return ::GEO::SEGMENT_GEOMETRIC_VSA_L2;
 }
 
@@ -108,6 +116,11 @@ MeshFilterRunResult runSegmentation(
     const int segmentCount = std::max(2, params.getInt(QStringLiteral("segmentCount"), 8));
 
     GeoAdapter::ensureInitialized();
+    if (segmenterId.startsWith(QLatin1StringView("spectral")) && !GeoAdapter::arpackAvailable()) {
+        return fail(QObject::tr(
+            "The spectral segmenters need geogram's ARPACK eigensolver, which could not "
+            "be loaded. Choose one of the variational shape approximation segmenters."));
+    }
 
     QString error;
     GeoAdapter::GeoMesh input;
@@ -192,6 +205,15 @@ MeshFilterRunResult runGeogramAtlasFilter(
 
     if (isSegment)
         return runSegmentation(doc, entry, meshIndex, params);
+
+    if (isAtlas
+        && params.getEnum(QStringLiteral("chartParametrizer"), QStringLiteral("abf"))
+               == QLatin1StringView("spectralLscm")
+        && !GeoAdapter::arpackAvailable()) {
+        return fail(QObject::tr(
+            "The spectral chart parametrizer needs geogram's ARPACK eigensolver, which "
+            "could not be loaded. Choose another chart parametrizer."));
+    }
 
     GeoAdapter::ensureInitialized();
 

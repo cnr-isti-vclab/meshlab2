@@ -168,9 +168,12 @@ dylib. Geogram's vendored copy at `src/lib/third_party/numerics/ARPACK` is no he
 is compiled *into* geogram, and a symbol inside `libgeogram.dylib` does not satisfy a
 `dlopen` for `libarpack.dylib`.
 
-**Decided: drop the spectral paths** (decision 2) — **but the premise was wrong, and
-the ruling is open again.** Phase 0 measured the installed tree and found ARPACK
-already in it:
+**Shipped** (decision 2, re-ruled). The first draft's cost estimate was wrong twice
+over, and both corrections are worth keeping because each was found by measurement
+after the previous conclusion looked solid.
+
+**First correction — Phase 0.** The claim that ARPACK was missing is false. Phase 0
+measured the installed tree and found it already there:
 
 - `libgeogram_num_3rdparty.dylib`, which the port installs beside `libgeogram.dylib`,
   **exports `dsaupd_`, `dseupd_`, `dnaupd_` and `dneupd_`** — the four routines
@@ -184,14 +187,35 @@ already in it:
   `dlopen("libarpack.dylib", RTLD_NOW)` from an unrelated working directory, and all
   four symbols resolve.
 
-So the cost of the spectral paths is not gfortran plus `arpack-ng` plus a dynamic-build
-override. It is **one more copy-and-rename in the packager**, next to the one that
-already has to exist for `libgeogram.dylib`, plus the signing loop both share.
+**Second correction — implementing it.** The conclusion drawn above, that the fix is a
+copy under the name `libarpack.dylib`, is *also* wrong: it is unnecessary. A name shim
+was built, and then measured against a run with the shim deleted — which produced
+byte-identical results, because `nl_arpack.c` passes `NL_LINK_USE_FALLBACK` and
+`nlOpenDLL` already retries the failed `libarpack` open with
+`libgeogram_num_3rdparty`. geogram solves its own problem. The shim was removed again.
 
-What is still untested is whether the spectral algorithms then *work* — resolving four
-symbols is not the same as producing a parametrization, and the spectral segmenters'
-route through manifold harmonics remains unconfirmed. That is a Phase 2/3 measurement,
-not a packaging one.
+So the real cost of the spectral paths is **shipping a second dylib nothing links
+against**, and knowing why. `scripts/package-macos-dmg.sh` bundles and signs both, and
+the top-level `CMakeLists.txt` carries the explanation where the shim used to be.
+
+The lesson worth keeping: `dlopen` succeeding under a name is not evidence that the
+caller uses that name. Both wrong conclusions were reached from *correct* measurements
+of the wrong thing.
+
+**They work, and both routes are confirmed.** `nlInitExtension("ARPACK")` returns true
+in the build tree and inside a bundle relocated to `/tmp`. The spectral segmenters do
+reach ARPACK through manifold harmonics and now run — the "unconfirmed" note above is
+settled. Every spectral entry point is gated on `GeoAdapter::arpackAvailable()` and
+refuses with an actionable message if the probe fails, because geogram's own behaviour
+is to log one line and quietly run the non-spectral solver instead: a filter named for a
+spectral method must not report success having run something else.
+
+One measurement that did *not* support its intended use: spectral LSCM against plain
+LSCM on a sphere cap differs by **0.06 %** (0.00881344 against 0.00881838), because the
+cap is symmetric enough that it hardly matters which two vertices plain LSCM pins. A
+comparison that close proves nothing and would pass or fail on noise, so the test
+asserts the refusal gate instead — the filter succeeding *is* the evidence ARPACK
+loaded.
 
 ### `GEO::initialize()` must be called with `GEOGRAM_INSTALL_NONE`
 
@@ -494,6 +518,25 @@ with `arm64-osx` and the overlay triplet. Geogram built from source locally (183
   empty) and not exported as a target. Bundling can ignore it — except for what
   question 1 of the decisions now has to reckon with, below.
 
+### Packaging — done 2026-09-20
+
+`scripts/package-macos-dmg.sh` now embeds and signs geogram, following the `libomp`
+block it sits beside: copy the versioned dylib into `Contents/Frameworks`,
+`install_name_tool -id @rpath/...`, recreate the unversioned symlink, and `-change` the
+main binary's reference to `@executable_path/../Frameworks/...`. A third signing loop
+covers the hand-bundled dylibs, because macdeployqt signs only what it placed itself
+and notarization rejects an unsigned Mach-O inside the bundle.
+
+**Both geogram dylibs ship**, and the unversioned `libgeogram_num_3rdparty.dylib`
+symlink is not decoration: it is the name OpenNL's ARPACK fallback opens. Nothing links
+that library, so a future tidy-up would drop it without any build failing — the script
+says why it is there.
+
+Verified end to end: `MeshLab.app` copied to `/tmp` launches and stays up with no dyld
+diagnostics, and a probe built against the bundled libraries with only
+`@executable_path/../Frameworks` on its rpath reports `nlInitExtension("ARPACK") = 1`
+from that relocated copy. That closes the last of Phase 0's exit criteria.
+
 ### Phase 1 — plugin skeleton, adapter, booleans
 
 The adapter is the whole risk, and the booleans are the smallest thing that exercises
@@ -530,12 +573,33 @@ Done. `plugins/filter_geogram/` builds as `MeshLab2PluginFilterGeogram` against
   closed and manifold (zero boundary edges, zero non-manifold edges). That is what
   confirms the composed symmetric difference is right.
 
-**Not implemented in Phase 1: attribute transfer.** The libigl booleans expose four
-`transfer*` parameters; the geogram ones expose none. `MESH_BOOL_OPS_ATTRIBS`
-interpolates *geogram* attributes, so using it means writing vcg colors and scalars
-into `GEO::Mesh` attributes beforehand and reading them back after, under interpolation
-semantics the headers do not document. That is reverse-engineering, so it is left for a
-later pass; adding the parameters later is additive.
+**Attribute transfer, added 2026-09-20** to match what the libigl booleans offer:
+`transferFaceColor`, `transferFaceScalar`, `transferVertexColor`,
+`transferVertexScalar`, all defaulting to false, in an `attributes` group. (`scalar`
+rather than libigl's `quality`, per [vocabulary](../vocabulary.md) §4 — the libigl
+spelling is pass-2 debt, not a pattern to copy.)
+
+geogram cannot supply the correspondence. Reading
+`mesh_surface_intersection.cpp` settles it: `copy_operand` copies **only positions and
+connectivity** out of each operand, so `MESH_BOOL_OPS_ATTRIBS` interpolates attributes
+that are already on the result and there is no hook between the copy and the
+intersection to put ours there. Nor is there a birth-face array of the kind libigl
+returns.
+
+It is recovered geometrically instead, and for this particular problem that is exact
+rather than approximate: **every facet of a boolean result lies on one of the two
+operand surfaces**, so the closest operand face to a result face's centroid is the face
+it came from. The only ambiguity is where the two surfaces coincide, and there neither
+answer is more right. Per-vertex values are interpolated barycentrically across the
+source face rather than copied from a nearest vertex, because the vertices created
+along the intersection curve match no operand vertex at all and are exactly the ones a
+nearest-vertex rule gets visibly wrong. Query points are pulled back through the
+inverse layer matrix rather than copying and transforming whole meshes.
+
+`FilterTests::geogramBooleanTransfersAttributes` paints two overlapping boxes in
+distinct colours and asserts that every face of the union comes back as one of them,
+with its scalar agreeing — a mismatch between the two would mean they resolved to
+different operands.
 
 #### The dynamic dependency bites the tests, not just the bundle
 
@@ -702,7 +766,7 @@ All eight rulings, taken 2026-09-19. Nothing in this plan is open.
 | # | Question | Ruling | What follows from it |
 |---|---|---|---|
 | 1 | Static overlay port, or bundle the dylib? | **Bundle the dylib** | No overlay port, and Phase 0 does not experiment with linkage. `scripts/package-macos-dmg.sh` gains a copy / `install_name_tool -id` / `-change` block for `libgeogram.dylib` following the `libomp` pattern at lines 75–87, plus a third `codesign` loop. The `minos` check becomes load-bearing: for a bundled dylib dyld enforces it, and a wrong value means the app will not launch on macOS 15 |
-| 2 | The spectral filters | **Drop them** — ⚠ **premise overturned, awaiting re-ruling** | Ruled on the estimate that shipping ARPACK meant a Fortran toolchain, a dynamic `arpack-ng` and an override of the static triplet. Phase 0 found ARPACK already installed, in `libgeogram_num_3rdparty.dylib`, reachable by a rename — see the ARPACK section. The plan still omits the spectral filter and both enum options, pending a fresh decision |
+| 2 | The spectral filters | **Ship them** (re-ruled 2026-09-20, superseding the earlier "drop them") | *Parametrize by Spectral Conformal Maps (geogram)*, the `spectralLscm` chart parametrizer and the three `spectral*` segmenters are all present. They cost nothing to enable: ARPACK was in the tree the whole time and geogram finds it by itself — see the ARPACK section, which is now a record of a wrong diagnosis followed by the right one. Every spectral path is gated on a runtime probe and refuses rather than falling back silently |
 | 3 | Symmetric difference | **Compose it, and say so** | `(A−B) ∪ (B−A)`, three boolean evaluations, with the cost stated in `longDescriptionMarkdown`. The geogram family ships the same four operations as libigl and TrueForm |
 | 4 | A category for chart segmentation | **`Parametrization/Segmentation` is a worthy addition** | [vocabulary.md](../vocabulary.md) §1 and `src/plugins/filtercategories.h`/`.cpp` gain the subcategory **before** Phase 3 declares a descriptor against it — the loader validates against the closed set, so the order is not optional. *Compute Chart Segmentation (geogram)* takes it as its primary category, and *Parametrize by Voronoi Atlas (vcglib)* is worth reviewing for a cross-listing in the same edit |
 | 5 | Renaming the incumbent `Pack UV Charts` | **Renaming shipped filters is acceptable** | `pack_uv_charts` in `filter_texture_defragmentation` takes a backend suffix in Phase 3, so the family names itself completely per §6. Its `pythonName` changes with it and no alias is added, per the standing ruling that pymeshlab compatibility does not constrain this API |

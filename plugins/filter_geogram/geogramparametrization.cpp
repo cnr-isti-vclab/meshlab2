@@ -17,6 +17,7 @@
 namespace {
 
 constexpr QLatin1StringView kLscm("parametrize_by_least_squares_conformal_maps_geogram");
+constexpr QLatin1StringView kSpectral("parametrize_by_spectral_conformal_maps_geogram");
 constexpr QLatin1StringView kAbf("parametrize_by_angle_based_flattening_geogram");
 
 using Mask = vcg::tri::io::Mask;
@@ -98,13 +99,15 @@ MeshFilterRunResult runGeogramParametrizationFilter(
     Q_UNUSED(params);
 
     const bool isLscm = filterId == QString::fromLatin1(kLscm);
+    const bool isSpectral = filterId == QString::fromLatin1(kSpectral);
     const bool isAbf = filterId == QString::fromLatin1(kAbf);
-    if (!isLscm && !isAbf)
+    if (!isLscm && !isSpectral && !isAbf)
         return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 
     const QString label = isLscm
         ? QObject::tr("least squares conformal maps")
-        : QObject::tr("angle-based flattening");
+        : isSpectral ? QObject::tr("spectral conformal maps")
+                     : QObject::tr("angle-based flattening");
 
     const int meshIndex = doc.currentMeshIndex();
     if (meshIndex < 0 || meshIndex >= doc.meshCount())
@@ -119,6 +122,12 @@ MeshFilterRunResult runGeogramParametrizationFilter(
     }
 
     GeoAdapter::ensureInitialized();
+    if (isSpectral && !GeoAdapter::arpackAvailable()) {
+        return fail(QObject::tr(
+            "Spectral conformal maps need geogram's ARPACK eigensolver, which could not "
+            "be loaded. Use Parametrize by Least Squares Conformal Maps (geogram) instead, "
+            "or reinstall the application: the eigensolver ships inside it."));
+    }
 
     QString error;
     GeoAdapter::GeoMesh input;
@@ -140,8 +149,8 @@ MeshFilterRunResult runGeogramParametrizationFilter(
     QStringList geoLog;
     try {
         GeoAdapter::LogCapture capture(geoLog);
-        if (isLscm)
-            ::GEO::mesh_compute_LSCM(input.mesh, "tex_coord", false);
+        if (isLscm || isSpectral)
+            ::GEO::mesh_compute_LSCM(input.mesh, "tex_coord", isSpectral);
         else
             ::GEO::mesh_compute_ABF_plus_plus(input.mesh, "tex_coord");
     } catch (const std::exception &e) {
@@ -189,5 +198,6 @@ MeshFilterRunResult runGeogramParametrizationFilter(
 bool isGeogramParametrizationFilter(const QString &filterId)
 {
     return filterId == QString::fromLatin1(kLscm)
+        || filterId == QString::fromLatin1(kSpectral)
         || filterId == QString::fromLatin1(kAbf);
 }

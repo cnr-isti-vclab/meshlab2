@@ -87,6 +87,43 @@ if [ -n "$OMP_LINK_PATH" ]; then
 		"@executable_path/../Frameworks/libomp.dylib" "$APP_BIN"
 fi
 
+# Bundle geogram. It is the only dynamically linked vcpkg dependency: its port
+# forces dynamic linkage on Darwin, so unlike the other 43 it cannot be absorbed
+# into the binary and macdeployqt, which only chases Qt's own libraries, leaves
+# it behind.
+#
+# BOTH dylibs are needed, even though only the first is linked. geogram's
+# spectral methods -- spectral LSCM, the spectral chart parametrizer, the
+# manifold-harmonic segmenters -- ask OpenNL for its ARPACK extension, which
+# dlopen()s "libarpack.dylib", fails, and retries with
+# "libgeogram_num_3rdparty.dylib": geogram's vendored ARPACK, which the port
+# installs as a separate library that nothing links against. Drop it and those
+# filters do not fail loudly, they refuse -- so it has to be here deliberately
+# rather than by accident. The plain-name dlopen resolves through the main
+# binary's LC_RPATH, which macdeployqt already points at Contents/Frameworks.
+VCPKG_LIB="$BUILD_DIR/vcpkg_installed/arm64-osx/lib"
+if [ -d "$VCPKG_LIB" ]; then
+	mkdir -p "$APP/Contents/Frameworks"
+	for geolib in libgeogram libgeogram_num_3rdparty; do
+		# Resolve the versioned real file behind the unversioned symlink, and
+		# copy it under the SONAME the linker recorded, not the symlink name.
+		src="$(cd "$VCPKG_LIB" && python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$geolib.dylib" 2>/dev/null || true)"
+		[ -n "$src" ] && [ -f "$src" ] || { echo "==> $geolib.dylib not found, skipping" >&2; continue; }
+		soname="$(basename "$src")"
+		echo "==> embedding $soname"
+		cp -f "$src" "$APP/Contents/Frameworks/$soname"
+		chmod u+w "$APP/Contents/Frameworks/$soname"
+		install_name_tool -id "@rpath/$soname" "$APP/Contents/Frameworks/$soname"
+		# The ARPACK fallback dlopen()s the unversioned leaf name, so it has to
+		# exist beside the versioned file.
+		ln -sf "$soname" "$APP/Contents/Frameworks/$geolib.dylib"
+		# Repoint the main binary from the build tree's absolute path.
+		old_path="$(otool -L "$APP_BIN" | awk -v n="$soname" '$1 ~ n {print $1; exit}')"
+		[ -n "$old_path" ] && install_name_tool -change "$old_path" \
+			"@executable_path/../Frameworks/$soname" "$APP_BIN"
+	done
+fi
+
 # Ship the Python standard library. libpython is linked in statically and knows
 # only the prefix of the tree that built it, so PythonHost points the interpreter
 # at Contents/Resources/python instead — which leaves the console without a
@@ -116,6 +153,21 @@ if [ -n "$SIGN_IDENTITY" ] && [ -d "$APP/Contents/Resources/python" ]; then
 			codesign --verify --strict --verbose=2 "$pybin"
 		fi
 	done < <(find "$APP/Contents/Resources/python" -type f -print0)
+fi
+
+# macdeployqt signs the frameworks it placed itself; the geogram dylibs above were
+# copied in by hand after it ran, so they carry no signature and notarization
+# rejects the app. Same pattern as the two loops around this one.
+if [ -n "$SIGN_IDENTITY" ] && [ -d "$APP/Contents/Frameworks" ]; then
+	echo "==> signing hand-bundled dylibs"
+	for dylib in "$APP/Contents/Frameworks"/libgeogram*.dylib "$APP/Contents/Frameworks/libomp.dylib"; do
+		[ -f "$dylib" ] && [ ! -L "$dylib" ] || continue
+		echo "    $(basename "$dylib")"
+		chmod u+w "$dylib"
+		codesign --force --options runtime --timestamp \
+			--sign "$SIGN_IDENTITY" "$dylib"
+		codesign --verify --strict --verbose=2 "$dylib"
+	done
 fi
 
 # macdeployqt signs the main executable, frameworks, and Qt plug-ins, but it

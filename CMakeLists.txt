@@ -21,6 +21,18 @@ project(MeshLab2 LANGUAGES CXX)
 # target is created, not when it is linked.
 if (VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
     list(APPEND CMAKE_BUILD_RPATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+
+    # geogram's spectral methods -- spectral LSCM, the spectral chart parametrizer,
+    # the manifold-harmonic segmenters -- reach their eigensolver through OpenNL's
+    # ARPACK extension, which dlopen()s "libarpack" by leaf name. No vcpkg port
+    # installs that name, but nothing has to: OpenNL passes NL_LINK_USE_FALLBACK and
+    # retries with "libgeogram_num_3rdparty", the second library the geogram port
+    # installs, which carries geogram's vendored ARPACK and exports exactly the four
+    # symbols it looks up. That file sits in the vcpkg lib directory already added to
+    # the rpath above, so the spectral paths work with no further help here.
+    #
+    # It does mean the bundle must ship BOTH geogram dylibs even though nothing links
+    # the second one -- see scripts/package-macos-dmg.sh.
 endif()
 
 # MeshLab2's own root, used by every path below and inherited by plugins/ and

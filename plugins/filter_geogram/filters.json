@@ -39,7 +39,7 @@
         "geogram"
       ],
       "shortDescription": "Create the exact union of two mesh layers using geogram.",
-      "longDescriptionMarkdown": "Computes the exact boolean union of two mesh layers and creates the result as a new layer, using geogram's exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.",
+      "longDescriptionMarkdown": "Computes the exact boolean union of two mesh layers and creates the result as a new layer, using geogram's exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.\n\nThe optional attribute transfers recover the correspondence geometrically: every face of the result lies on one of the two operand surfaces, so the nearest operand face to a result face is the face it came from. Vertices created along the intersection curve match no operand vertex, so per-vertex values are interpolated across the source face rather than copied from a nearest vertex.",
       "tags": [
         "boolean",
         "union",
@@ -83,6 +83,38 @@
           "group": "main",
           "type": "bool",
           "default": true
+        },
+        {
+          "id": "transferFaceColor",
+          "label": "Transfer face color",
+          "help": "Copy the face color of the originating operand face onto each result face.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transferFaceScalar",
+          "label": "Transfer face scalar",
+          "help": "Copy the face scalar value of the originating operand face onto each result face.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transferVertexColor",
+          "label": "Transfer vertex color",
+          "help": "Interpolate vertex color from the originating operand face onto each result vertex.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transferVertexScalar",
+          "label": "Transfer vertex scalar",
+          "help": "Interpolate the vertex scalar value from the originating operand face onto each result vertex.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
         }
       ]
     },
@@ -97,7 +129,7 @@
         "geogram"
       ],
       "shortDescription": "Create the exact intersection of two mesh layers using geogram.",
-      "longDescriptionMarkdown": "Computes the exact boolean intersection of two mesh layers and creates the result as a new layer, using geogram's exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.",
+      "longDescriptionMarkdown": "Computes the exact boolean intersection of two mesh layers and creates the result as a new layer, using geogram's exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.\n\nThe optional attribute transfers recover the correspondence geometrically: every face of the result lies on one of the two operand surfaces, so the nearest operand face to a result face is the face it came from. Vertices created along the intersection curve match no operand vertex, so per-vertex values are interpolated across the source face rather than copied from a nearest vertex.",
       "tags": [
         "boolean",
         "intersection",
@@ -141,6 +173,38 @@
           "group": "main",
           "type": "bool",
           "default": true
+        },
+        {
+          "id": "transferFaceColor",
+          "label": "Transfer face color",
+          "help": "Copy the face color of the originating operand face onto each result face.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transferFaceScalar",
+          "label": "Transfer face scalar",
+          "help": "Copy the face scalar value of the originating operand face onto each result face.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transferVertexColor",
+          "label": "Transfer vertex color",
+          "help": "Interpolate vertex color from the originating operand face onto each result vertex.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transferVertexScalar",
+          "label": "Transfer vertex scalar",
+          "help": "Interpolate the vertex scalar value from the originating operand face onto each result vertex.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
         }
       ]
     },
@@ -155,7 +219,7 @@
         "geogram"
       ],
       "shortDescription": "Create the exact difference of two mesh layers using geogram.",
-      "longDescriptionMarkdown": "Computes the exact boolean difference of two mesh layers, first minus second, and creates the result as a new layer, using geogram's exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.",
+      "longDescriptionMarkdown": "Computes the exact boolean difference of two mesh layers, first minus second, and creates the result as a new layer, using geogram's exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.\n\nThe optional attribute transfers recover the correspondence geometrically: every face of the result lies on one of the two operand surfaces, so the nearest operand face to a result face is the face it came from. Vertices created along the intersection curve match no operand vertex, so per-vertex values are interpolated across the source face rather than copied from a nearest vertex.",
       "tags": [
         "boolean",
         "difference",
@@ -200,6 +264,38 @@
           "group": "main",
           "type": "bool",
           "default": true
+        },
+        {
+          "id": "transferFaceColor",
+          "label": "Transfer face color",
+          "help": "Copy the face color of the originating operand face onto each result face.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transferFaceScalar",
+          "label": "Transfer face scalar",
+          "help": "Copy the face scalar value of the originating operand face onto each result face.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transferVertexColor",
+          "label": "Transfer vertex color",
+          "help": "Interpolate vertex color from the originating operand face onto each result vertex.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transferVertexScalar",
+          "label": "Transfer vertex scalar",
+          "help": "Interpolate the vertex scalar value from the originating operand face onto each result vertex.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
         }
       ]
     },
@@ -214,7 +310,7 @@
         "geogram"
       ],
       "shortDescription": "Create the exact symmetric difference of two mesh layers using geogram.",
-      "longDescriptionMarkdown": "Computes the exact boolean symmetric difference (XOR) of two mesh layers and creates the result as a new layer.\n\ngeogram's boolean evaluator provides union, intersection and the two differences, but not the symmetric difference, so this filter composes it as $(A \\setminus B) \\cup (B \\setminus A)$. That is **three** boolean evaluations rather than one, so expect it to take roughly three times as long as *Mesh Difference (geogram)* on the same operands. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.",
+      "longDescriptionMarkdown": "Computes the exact boolean symmetric difference (XOR) of two mesh layers and creates the result as a new layer.\n\ngeogram's boolean evaluator provides union, intersection and the two differences, but not the symmetric difference, so this filter composes it as $(A \\setminus B) \\cup (B \\setminus A)$. That is **three** boolean evaluations rather than one, so expect it to take roughly three times as long as *Mesh Difference (geogram)* on the same operands. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.\n\nThe optional attribute transfers recover the correspondence geometrically: every face of the result lies on one of the two operand surfaces, so the nearest operand face to a result face is the face it came from. Vertices created along the intersection curve match no operand vertex, so per-vertex values are interpolated across the source face rather than copied from a nearest vertex.",
       "tags": [
         "boolean",
         "xor",
@@ -259,6 +355,38 @@
           "group": "main",
           "type": "bool",
           "default": true
+        },
+        {
+          "id": "transferFaceColor",
+          "label": "Transfer face color",
+          "help": "Copy the face color of the originating operand face onto each result face.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transferFaceScalar",
+          "label": "Transfer face scalar",
+          "help": "Copy the face scalar value of the originating operand face onto each result face.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transferVertexColor",
+          "label": "Transfer vertex color",
+          "help": "Interpolate vertex color from the originating operand face onto each result vertex.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transferVertexScalar",
+          "label": "Transfer vertex scalar",
+          "help": "Interpolate the vertex scalar value from the originating operand face onto each result vertex.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
         }
       ]
     },
@@ -319,6 +447,42 @@
         "parametrization",
         "lscm",
         "conformal",
+        "geogram"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "VTex"
+      ],
+      "parameters": [],
+      "outputModifies": [
+        "VT",
+        "WT"
+      ]
+    },
+    {
+      "id": "parametrize_by_spectral_conformal_maps_geogram",
+      "categories": [
+        "Parametrization/UV Creation"
+      ],
+      "name": "Parametrize by Spectral Conformal Maps (geogram)",
+      "pythonName": "parametrize_by_spectral_conformal_maps_geogram",
+      "referenceIds": [
+        "geogram"
+      ],
+      "shortDescription": "Compute a Spectral Conformal Parameterization using geogram.",
+      "longDescriptionMarkdown": "Computes a Spectral Conformal Parameterization of the current mesh and stores the result as per-vertex texture coordinates. Where plain LSCM pins two vertices and solves a least-squares system, the spectral formulation finds the smallest non-trivial eigenvector of the conformal energy instead, so the layout does not depend on which two points were pinned and is usually less distorted. The mesh must have a boundary.\n\nThis method needs geogram's ARPACK eigensolver. It is present in a standard build; if it cannot be loaded the filter refuses rather than returning a degenerate layout.\n\nThe flattening follows the mesh's existing vertex connectivity: coincident but distinct vertices stay split and appear as a seam, so run *Remove Duplicate Vertices* first on a mesh loaded from a format that does not share them, such as STL.",
+      "tags": [
+        "texture",
+        "uv",
+        "parametrization",
+        "spectral",
+        "conformal",
+        "eigen",
         "geogram"
       ],
       "inputDomain": "SingleMesh",
@@ -432,6 +596,11 @@
               "id": "lscm",
               "label": "Least Squares Conformal Maps",
               "help": "Conformal flattening with two fixed points."
+            },
+            {
+              "id": "spectralLscm",
+              "label": "Spectral Conformal Maps",
+              "help": "Eigenvector-based conformal flattening; less distorted than plain LSCM. Needs geogram's ARPACK eigensolver."
             },
             {
               "id": "abf",
@@ -562,7 +731,7 @@
         {
           "id": "segmenter",
           "label": "Segmenter",
-          "help": "Which segmentation algorithm to use.",
+          "help": "Which segmentation algorithm to use. The spectral options need geogram's ARPACK eigensolver.",
           "group": "main",
           "type": "enum",
           "default": "vsaL2",
@@ -581,6 +750,21 @@
               "id": "inertiaAxis",
               "label": "Shortest Inertia Axis",
               "help": "Split into two segments along the shortest inertia axis. Ignores the requested chart count."
+            },
+            {
+              "id": "spectral8",
+              "label": "Spectral (8 Harmonics)",
+              "help": "Segment using the first 8 Laplacian eigenfunctions. Follows large-scale shape structure rather than local geometry."
+            },
+            {
+              "id": "spectral20",
+              "label": "Spectral (20 Harmonics)",
+              "help": "As above with 20 eigenfunctions, resolving finer structure."
+            },
+            {
+              "id": "spectral100",
+              "label": "Spectral (100 Harmonics)",
+              "help": "As above with 100 eigenfunctions. Considerably slower and memory-hungry; use with caution."
             }
           ]
         },
