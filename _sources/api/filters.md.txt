@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 345 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 357 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -3161,6 +3161,7 @@ Michael Kazhdan, Matthew Bolitho, Hugues Hoppe, **Poisson Surface Reconstruction
 - **smAngle** (*double*, default: `20.0`) — Lower bound on the angles of the output triangles. Lower values are easier to satisfy; CGAL's default is 20.
 - **smRadius** (*double*, default: `30.0`) — Largest triangle circumradius, as a multiple of the estimated average point spacing. Smaller values give a denser mesh.
 - **smDistance** (*double*, default: `0.375`) — How far the mesh may deviate from the implicit surface, as a multiple of the average point spacing. Smaller values follow the data more closely and cost more.
+- **perturb** (*bool*, default: `False`) — Displace every input point by about a millionth of the bounding-box diagonal before reconstructing. Far below any modelling tolerance, and invisible in the result, but it breaks the exact symmetries that can stop CGAL's surface mesher terminating -- an analytically generated sphere or cylinder, where every point lies exactly on the same surface, is the case that needs it. Leave it off for scanned or otherwise noisy data, which is never degenerate in this way. The displacement is deterministic, so a run stays reproducible.
 - **spacingNeighbors** (*int*, default: `6`) — Number of neighbours used to estimate the average point spacing that the three settings above are relative to.
 ```
 
@@ -5678,6 +5679,44 @@ For a cube as layer 0 and a surface through it as layer 1, `0 - 1` is the piece 
 
 ---
 
+(filter-mesh-difference-geogram)=
+
+## Mesh Difference (geogram)
+
+**Categories:** `Meshing/Boolean`
+
+**Plugin:** meshlab2.filter.geogram
+
+Create the exact difference of two mesh layers using geogram.
+
+```{py:function} ms.mesh_difference_geogram(**params)
+:module: _meshlab
+
+Computes the exact boolean difference of two mesh layers, first minus second, and creates the result as a new layer, using geogram's exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.
+
+The optional attribute transfers recover the correspondence geometrically: every face of the result lies on one of the two operand surfaces, so the nearest operand face to a result face is the face it came from. Vertices created along the intersection curve match no operand vertex, so per-vertex values are interpolated across the source face rather than copied from a nearest vertex.
+
+**Upstream:** [geogram](https://github.com/BrunoLevy/geogram)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Bruno Levy. **Geogram: a programming library of geometric algorithms** (2015). [Web](https://github.com/BrunoLevy/geogram)
+
+**Parameters:**
+
+- **firstMesh** (*mesh*, default: `@currentMeshIndex`) — First operand of the boolean operation.
+- **secondMesh** (*mesh*, default: `@otherMeshIndex`) — Second operand of the boolean operation.
+- **simplifyCoplanarFacets** (*bool*, default: `True`) — Merge facets that end up coplanar in the result. Turning this off keeps every triangle the intersection produced, which is larger but preserves the original tessellation more closely.
+- **transferFaceColor** (*bool*, default: `False`) — Copy the face color of the originating operand face onto each result face.
+- **transferFaceScalar** (*bool*, default: `False`) — Copy the face scalar value of the originating operand face onto each result face.
+- **transferVertexColor** (*bool*, default: `False`) — Interpolate vertex color from the originating operand face onto each result vertex.
+- **transferVertexScalar** (*bool*, default: `False`) — Interpolate the vertex scalar value from the originating operand face onto each result vertex.
+```
+
+---
+
 (filter-mesh-difference-libigl)=
 
 ## Mesh Difference (libigl)
@@ -5732,6 +5771,44 @@ The first solid with the second removed from it. Order matters: swap the two lay
 
 - **firstMesh** (*mesh*, default: `@currentMeshIndex`) — The first operand.
 - **secondMesh** (*mesh*, default: `@otherMeshIndex`) — The second operand.
+```
+
+---
+
+(filter-mesh-intersection-geogram)=
+
+## Mesh Intersection (geogram)
+
+**Categories:** `Meshing/Boolean`
+
+**Plugin:** meshlab2.filter.geogram
+
+Create the exact intersection of two mesh layers using geogram.
+
+```{py:function} ms.mesh_intersection_geogram(**params)
+:module: _meshlab
+
+Computes the exact boolean intersection of two mesh layers and creates the result as a new layer, using geogram's exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.
+
+The optional attribute transfers recover the correspondence geometrically: every face of the result lies on one of the two operand surfaces, so the nearest operand face to a result face is the face it came from. Vertices created along the intersection curve match no operand vertex, so per-vertex values are interpolated across the source face rather than copied from a nearest vertex.
+
+**Upstream:** [geogram](https://github.com/BrunoLevy/geogram)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Bruno Levy. **Geogram: a programming library of geometric algorithms** (2015). [Web](https://github.com/BrunoLevy/geogram)
+
+**Parameters:**
+
+- **firstMesh** (*mesh*, default: `@currentMeshIndex`) — First operand of the boolean operation.
+- **secondMesh** (*mesh*, default: `@otherMeshIndex`) — Second operand of the boolean operation.
+- **simplifyCoplanarFacets** (*bool*, default: `True`) — Merge facets that end up coplanar in the result. Turning this off keeps every triangle the intersection produced, which is larger but preserves the original tessellation more closely.
+- **transferFaceColor** (*bool*, default: `False`) — Copy the face color of the originating operand face onto each result face.
+- **transferFaceScalar** (*bool*, default: `False`) — Copy the face scalar value of the originating operand face onto each result face.
+- **transferVertexColor** (*bool*, default: `False`) — Interpolate vertex color from the originating operand face onto each result vertex.
+- **transferVertexScalar** (*bool*, default: `False`) — Interpolate the vertex scalar value from the originating operand face onto each result vertex.
 ```
 
 ---
@@ -5794,6 +5871,46 @@ The intersection of two closed solids: only what lies inside both.\n\nTrueForm e
 
 ---
 
+(filter-mesh-symmetric-difference-geogram)=
+
+## Mesh Symmetric Difference (geogram)
+
+**Categories:** `Meshing/Boolean`
+
+**Plugin:** meshlab2.filter.geogram
+
+Create the exact symmetric difference of two mesh layers using geogram.
+
+```{py:function} ms.mesh_symmetric_difference_geogram(**params)
+:module: _meshlab
+
+Computes the exact boolean symmetric difference (XOR) of two mesh layers and creates the result as a new layer.
+
+geogram's boolean evaluator provides union, intersection and the two differences, but not the symmetric difference, so this filter composes it as $(A \setminus B) \cup (B \setminus A)$. That is **three** boolean evaluations rather than one, so expect it to take roughly three times as long as *Mesh Difference (geogram)* on the same operands. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.
+
+The optional attribute transfers recover the correspondence geometrically: every face of the result lies on one of the two operand surfaces, so the nearest operand face to a result face is the face it came from. Vertices created along the intersection curve match no operand vertex, so per-vertex values are interpolated across the source face rather than copied from a nearest vertex.
+
+**Upstream:** [geogram](https://github.com/BrunoLevy/geogram)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Bruno Levy. **Geogram: a programming library of geometric algorithms** (2015). [Web](https://github.com/BrunoLevy/geogram)
+
+**Parameters:**
+
+- **firstMesh** (*mesh*, default: `@currentMeshIndex`) — First operand of the boolean operation.
+- **secondMesh** (*mesh*, default: `@otherMeshIndex`) — Second operand of the boolean operation.
+- **simplifyCoplanarFacets** (*bool*, default: `True`) — Merge facets that end up coplanar in the result. Turning this off keeps every triangle the intersection produced, which is larger but preserves the original tessellation more closely.
+- **transferFaceColor** (*bool*, default: `False`) — Copy the face color of the originating operand face onto each result face.
+- **transferFaceScalar** (*bool*, default: `False`) — Copy the face scalar value of the originating operand face onto each result face.
+- **transferVertexColor** (*bool*, default: `False`) — Interpolate vertex color from the originating operand face onto each result vertex.
+- **transferVertexScalar** (*bool*, default: `False`) — Interpolate the vertex scalar value from the originating operand face onto each result vertex.
+```
+
+---
+
 (filter-mesh-symmetric-difference-libigl)=
 
 ## Mesh Symmetric Difference (libigl)
@@ -5848,6 +5965,44 @@ Everything inside exactly one of the two solids, and nothing inside both.\n\nTru
 
 - **firstMesh** (*mesh*, default: `@currentMeshIndex`) — The first operand.
 - **secondMesh** (*mesh*, default: `@otherMeshIndex`) — The second operand.
+```
+
+---
+
+(filter-mesh-union-geogram)=
+
+## Mesh Union (geogram)
+
+**Categories:** `Meshing/Boolean`
+
+**Plugin:** meshlab2.filter.geogram
+
+Create the exact union of two mesh layers using geogram.
+
+```{py:function} ms.mesh_union_geogram(**params)
+:module: _meshlab
+
+Computes the exact boolean union of two mesh layers and creates the result as a new layer, using geogram's exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.
+
+The optional attribute transfers recover the correspondence geometrically: every face of the result lies on one of the two operand surfaces, so the nearest operand face to a result face is the face it came from. Vertices created along the intersection curve match no operand vertex, so per-vertex values are interpolated across the source face rather than copied from a nearest vertex.
+
+**Upstream:** [geogram](https://github.com/BrunoLevy/geogram)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Bruno Levy. **Geogram: a programming library of geometric algorithms** (2015). [Web](https://github.com/BrunoLevy/geogram)
+
+**Parameters:**
+
+- **firstMesh** (*mesh*, default: `@currentMeshIndex`) — First operand of the boolean operation.
+- **secondMesh** (*mesh*, default: `@otherMeshIndex`) — Second operand of the boolean operation.
+- **simplifyCoplanarFacets** (*bool*, default: `True`) — Merge facets that end up coplanar in the result. Turning this off keeps every triangle the intersection produced, which is larger but preserves the original tessellation more closely.
+- **transferFaceColor** (*bool*, default: `False`) — Copy the face color of the originating operand face onto each result face.
+- **transferFaceScalar** (*bool*, default: `False`) — Copy the face scalar value of the originating operand face onto each result face.
+- **transferVertexColor** (*bool*, default: `False`) — Interpolate vertex color from the originating operand face onto each result vertex.
+- **transferVertexScalar** (*bool*, default: `False`) — Interpolate the vertex scalar value from the originating operand face onto each result vertex.
 ```
 
 ---
@@ -6229,6 +6384,47 @@ Requires an abstract domain on the layer: run **Parametrize by Abstract Domain**
 **Parameters:**
 
 - **samplingRate** (*int*, default: `10`) — Side of the square patch sampled over each region of the domain. This is a resolution, not a target face count: the output grows with its square, and with the number of domain edges. A 200-face domain at rate 10 is about 30,000 samples.
+```
+
+---
+
+(filter-remesh-by-centroidal-voronoi-tessellation-geogram)=
+
+## Remesh by Centroidal Voronoi Tessellation (geogram)
+
+**Categories:** `Meshing/Remeshing`
+
+**Plugin:** meshlab2.filter.geogram
+
+Rebuild the surface from a centroidal Voronoi tessellation, isotropically or aligned to curvature.
+
+```{py:function} ms.remesh_by_centroidal_voronoi_tessellation_geogram(**params)
+:module: _meshlab
+
+Rebuilds the current mesh by distributing the requested number of vertices over the surface with Lloyd relaxation followed by Newton optimization, then extracting the restricted Voronoi diagram as the new tessellation.
+
+In **anisotropic** mode the optimization runs in a six-dimensional space where the extra three coordinates are the surface normal scaled by the anisotropy strength, so elements stretch along flat directions and concentrate across curved ones. No other remesher in MeshLab offers this; the isotropic mode competes with *Remesh Isotropically (vcglib)* and *(TrueForm)*.
+
+The vertex count is a target, not a guarantee: geogram may add vertices to resolve problematic configurations. Because the surface is rebuilt from scratch there is no correspondence with the original tessellation, so **per-vertex and per-face attributes are not preserved** — transfer them back afterwards with a filter from the Transfer family.
+
+**Upstream:** [geogram](https://github.com/BrunoLevy/geogram)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Bruno Levy. **Geogram: a programming library of geometric algorithms** (2015). [Web](https://github.com/BrunoLevy/geogram)
+
+**Parameters:**
+
+- **targetVertexCount** (*int*, default: `10000`) — How many vertices the result should have. geogram may exceed it to resolve problematic configurations.
+- **anisotropic** (*bool*, default: `False`) — Align elements with the surface's curvature instead of keeping them as equilateral as possible.
+- **anisotropy** (*double*, default: `0.04`) — How strongly elements follow curvature, as a fraction of the bounding box diagonal. Larger values stretch them more. Ignored unless Anisotropic is set.
+- **adjustToSource** (*bool*, default: `True`) — After remeshing, nudge the vertices so the new faces approximate the original surface more closely.
+- **adjustMaxEdgeDistance** (*double*, default: `0.5`) — How far to search for the nearest original vertex, relative to the local average edge length. Ignored unless Adjust to Source Surface is set.
+- **lloydIterations** (*int*, default: `5`) — Lloyd relaxation passes, which spread the vertices out evenly before the Newton phase refines them.
+- **newtonIterations** (*int*, default: `30`) — Newton optimization passes. More gives a better-conditioned tessellation at a higher cost.
+- **newtonHessianSamples** (*int*, default: `7`) — How many evaluations the Newton solver uses to approximate the Hessian.
 ```
 
 ---
@@ -6828,9 +7024,41 @@ Apply a plain subdivision scheme where every edge is split on its midpoint. Usef
 
 ---
 
-(filter-pack-uv-charts)=
+(filter-pack-uv-charts-geogram)=
 
-## Pack UV Charts
+## Pack UV Charts (geogram)
+
+**Categories:** `Parametrization/Atlas Packing`
+
+**Plugin:** meshlab2.filter.geogram
+
+Lay the existing UV charts out again in a single atlas, using geogram's packers.
+
+```{py:function} ms.pack_uv_charts_geogram(**params)
+:module: _meshlab
+
+Rearranges the charts of an existing parametrization in the unit square, leaving the flattening of each chart untouched. The mesh must already carry per-wedge texture coordinates.
+
+The Tetris packer is the one described in the original LSCM paper and is not available from any other MeshLab filter.
+
+**Upstream:** [geogram](https://github.com/BrunoLevy/geogram)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Bruno Levy. **Geogram: a programming library of geometric algorithms** (2015). [Web](https://github.com/BrunoLevy/geogram)
+
+**Parameters:**
+
+- **packer** (*enum*, default: `tetris`) — Which packing algorithm to apply.
+```
+
+---
+
+(filter-pack-uv-charts-vcglib)=
+
+## Pack UV Charts (vcglib)
 
 **Categories:** `Parametrization/Atlas Packing`, `Texture`
 
@@ -6838,7 +7066,7 @@ Apply a plain subdivision scheme where every edge is split on its midpoint. Usef
 
 Lay the existing UV charts out again in a single atlas, using a choice of vcglib packing algorithms.
 
-```{py:function} ms.pack_uv_charts(**params)
+```{py:function} ms.pack_uv_charts_vcglib(**params)
 :module: _meshlab
 
 Repacks the atlas without changing the charts themselves: no merging, no reparametrization, just a new layout for the islands the mesh already has.
@@ -6943,6 +7171,39 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 - **quickRun** (*bool*, default: `False`) — Speeds up the running time of the filter by never attempting again any rejected merge operation. <br> Although fast, it could lead to worst results.
 - **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas packing exactly reproducible.
 - **resampleTextures** (*bool*, default: `True`) — Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way -- the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.
+```
+
+---
+
+(filter-compute-chart-segmentation-geogram)=
+
+## Compute Chart Segmentation (geogram)
+
+**Categories:** `Parametrization/Segmentation`, `Attribute/Scalar`
+
+**Plugin:** meshlab2.filter.geogram
+
+Partition the mesh into charts and store each face's chart index in the face scalar field.
+
+```{py:function} ms.compute_chart_segmentation_geogram(**params)
+:module: _meshlab
+
+Segments the current mesh into a requested number of charts and stores the chart index of each face in the per-face scalar field, so the partition can be shown with the scalar colormap and used by later filters. No texture coordinates are created.
+
+The two VSA segmenters implement Variational Shape Approximation: the $L^2$ metric groups faces by position and the $L^{2,1}$ metric by normal, which makes the latter follow anisotropic features more closely.
+
+**Upstream:** [geogram](https://github.com/BrunoLevy/geogram)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Bruno Levy. **Geogram: a programming library of geometric algorithms** (2015). [Web](https://github.com/BrunoLevy/geogram)
+
+**Parameters:**
+
+- **segmenter** (*enum*, default: `vsaL2`) — Which segmentation algorithm to use. The spectral options need geogram's ARPACK eigensolver.
+- **segmentCount** (*int*, default: `8`) — How many charts to aim for. The segmenter may return a different number.
 ```
 
 ---
@@ -7104,6 +7365,38 @@ Based on Pietroni, Tarini and Cignoni, *Almost isometric mesh parameterization t
 
 ---
 
+(filter-parametrize-by-angle-based-flattening-geogram)=
+
+## Parametrize by Angle-Based Flattening (geogram)
+
+**Categories:** `Parametrization/UV Creation`
+
+**Plugin:** meshlab2.filter.geogram
+
+Compute an ABF++ angle-based UV parametrization using geogram.
+
+```{py:function} ms.parametrize_by_angle_based_flattening_geogram(**params)
+:module: _meshlab
+
+Computes an ABF++ (Angle-Based Flattening) parametrization of the current mesh and stores the result as per-vertex texture coordinates. ABF++ solves for the flattened *angles* rather than the vertex positions, which generally yields noticeably lower angle distortion than LSCM on the same input, at a higher cost. The mesh must have a boundary. If the mesh already carries per-wedge texture coordinates they are synchronized from the new per-vertex ones.
+
+This is the reference implementation, by the authors of the original paper.
+
+The flattening follows the mesh's existing vertex connectivity: coincident but distinct vertices stay split and appear as a seam, so run *Remove Duplicate Vertices* first on a mesh loaded from a format that does not share them, such as STL.
+
+**Upstream:** [geogram](https://github.com/BrunoLevy/geogram)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Bruno Levy. **Geogram: a programming library of geometric algorithms** (2015). [Web](https://github.com/BrunoLevy/geogram)
+
+This filter has no parameters.
+```
+
+---
+
 (filter-parametrize-by-as-rigid-as-possible-libigl)=
 
 ## Parametrize by As-Rigid-As-Possible (libigl)
@@ -7133,6 +7426,42 @@ Computes an **as-rigid-as-possible (ARAP)** UV parametrization. A harmonic map w
 **Parameters:**
 
 - **iterations** (*int*, default: `50`) — Maximum number of ARAP local-global iterations.
+```
+
+---
+
+(filter-parametrize-by-atlas-geogram)=
+
+## Parametrize by Atlas (geogram)
+
+**Categories:** `Parametrization/UV Creation`, `Parametrization/Segmentation`
+
+**Plugin:** meshlab2.filter.geogram
+
+Segment the mesh into charts, flatten each one and pack them into a single atlas, using geogram.
+
+```{py:function} ms.parametrize_by_atlas_geogram(**params)
+:module: _meshlab
+
+Runs geogram's complete atlas pipeline on the current mesh: the surface is cut into charts along sharp edges, each chart is flattened, any chart whose distortion is still too high is split further, and the charts are finally packed into the unit square. The result is stored as per-wedge texture coordinates.
+
+Unlike the single-chart flatteners, this works on a **closed** mesh, because the segmentation step creates the boundaries the flatteners need.
+
+If the mesh already carries a `chart` face attribute the pipeline uses it to seed the segmentation.
+
+**Upstream:** [geogram](https://github.com/BrunoLevy/geogram)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Bruno Levy. **Geogram: a programming library of geometric algorithms** (2015). [Web](https://github.com/BrunoLevy/geogram)
+
+**Parameters:**
+
+- **hardAngleThreshold** (*double*, default: `45.0`) — Edges whose dihedral angle exceeds this value, in degrees, become chart boundaries. Lower values cut the surface into more, flatter charts.
+- **chartParametrizer** (*enum*, default: `abf`) — How each individual chart is flattened.
+- **chartPacker** (*enum*, default: `tetris`) — How the flattened charts are arranged in the unit square.
 ```
 
 ---
@@ -7265,6 +7594,38 @@ Computes a single-patch fixed-boundary harmonic parametrization of the current m
 
 ---
 
+(filter-parametrize-by-least-squares-conformal-maps-geogram)=
+
+## Parametrize by Least Squares Conformal Maps (geogram)
+
+**Categories:** `Parametrization/UV Creation`
+
+**Plugin:** meshlab2.filter.geogram
+
+Compute a Least Squares Conformal Maps UV parametrization using geogram.
+
+```{py:function} ms.parametrize_by_least_squares_conformal_maps_geogram(**params)
+:module: _meshlab
+
+Computes a Least Squares Conformal Maps parametrization of the current mesh and stores the result as per-vertex texture coordinates. LSCM minimizes conformal (angle) distortion with two fixed points, so the mesh must have a boundary. If the mesh already carries per-wedge texture coordinates they are synchronized from the new per-vertex ones, so the result is immediately visible in the texture and UV views.
+
+This is the reference implementation, by the authors of the original paper.
+
+The flattening follows the mesh's existing vertex connectivity: coincident but distinct vertices stay split and appear as a seam, so run *Remove Duplicate Vertices* first on a mesh loaded from a format that does not share them, such as STL.
+
+**Upstream:** [geogram](https://github.com/BrunoLevy/geogram)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Bruno Levy. **Geogram: a programming library of geometric algorithms** (2015). [Web](https://github.com/BrunoLevy/geogram)
+
+This filter has no parameters.
+```
+
+---
+
 (filter-parametrize-by-least-squares-conformal-maps-libigl)=
 
 ## Parametrize by Least Squares Conformal Maps (libigl)
@@ -7323,6 +7684,38 @@ Computes a UV parametrization with **Scalable Locally Injective Mappings (SLIM)*
 
 - **energy** (*enum*, default: `symmetric_dirichlet`) — Distortion energy minimized by SLIM.
 - **iterations** (*int*, default: `10`) — Number of SLIM optimization iterations.
+```
+
+---
+
+(filter-parametrize-by-spectral-conformal-maps-geogram)=
+
+## Parametrize by Spectral Conformal Maps (geogram)
+
+**Categories:** `Parametrization/UV Creation`
+
+**Plugin:** meshlab2.filter.geogram
+
+Compute a Spectral Conformal Parameterization using geogram.
+
+```{py:function} ms.parametrize_by_spectral_conformal_maps_geogram(**params)
+:module: _meshlab
+
+Computes a Spectral Conformal Parameterization of the current mesh and stores the result as per-vertex texture coordinates. Where plain LSCM pins two vertices and solves a least-squares system, the spectral formulation finds the smallest non-trivial eigenvector of the conformal energy instead, so the layout does not depend on which two points were pinned and is usually less distorted. The mesh must have a boundary.
+
+This method needs geogram's ARPACK eigensolver. It is present in a standard build; if it cannot be loaded the filter refuses rather than returning a degenerate layout.
+
+The flattening follows the mesh's existing vertex connectivity: coincident but distinct vertices stay split and appear as a seam, so run *Remove Duplicate Vertices* first on a mesh loaded from a format that does not share them, such as STL.
+
+**Upstream:** [geogram](https://github.com/BrunoLevy/geogram)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Bruno Levy. **Geogram: a programming library of geometric algorithms** (2015). [Web](https://github.com/BrunoLevy/geogram)
+
+This filter has no parameters.
 ```
 
 ---
@@ -7982,6 +8375,38 @@ Split non Manifold vertices until it becomes 2-Manifold.
 **Parameters:**
 
 - **vert_disp_ratio** (*double*, default: `0.0`) — This parameter denotes the displacement ratio α. When a vertex is split, it is moved towards the barycenter of the FF-connected faces sharing it by (v-barycenter)*α. Reasonable values are in [0..0.1].
+```
+
+---
+
+(filter-repair-self-intersections-geogram)=
+
+## Repair Self-Intersections (geogram)
+
+**Categories:** `Repair/Topology`
+
+**Plugin:** meshlab2.filter.geogram
+
+Remove self-intersecting faces and retriangulate the holes using geogram.
+
+```{py:function} ms.repair_self_intersections_geogram(**params)
+:module: _meshlab
+
+Attempts to make a surface conformal by removing intersecting faces and retriangulating the holes they leave, using geogram's exact predicates. The result is created as a new layer.
+
+The pass is repeated until no intersection remains or the iteration limit is reached, so a mesh with deeply nested intersections may need more than the default number of iterations. This is the usual way to prepare an input for the geogram boolean filters, which require operands without self-intersections.
+
+**Upstream:** [geogram](https://github.com/BrunoLevy/geogram)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Bruno Levy. **Geogram: a programming library of geometric algorithms** (2015). [Web](https://github.com/BrunoLevy/geogram)
+
+**Parameters:**
+
+- **maxIterations** (*int*, default: `3`) — How many times to repeat the remove-and-retriangulate pass before giving up.
 ```
 
 ---

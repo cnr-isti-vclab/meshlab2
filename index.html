@@ -475,12 +475,16 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-topological-properties">Measure Topological Properties</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-topological-properties-for-quad-mesh">Measure Topological Properties for Quad Mesh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-csg-expression-trueform">Mesh CSG Expression (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-difference-geogram">Mesh Difference (geogram)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-difference-libigl">Mesh Difference (libigl)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-difference-trueform">Mesh Difference (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-intersection-geogram">Mesh Intersection (geogram)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-intersection-libigl">Mesh Intersection (libigl)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-intersection-trueform">Mesh Intersection (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-symmetric-difference-geogram">Mesh Symmetric Difference (geogram)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-symmetric-difference-libigl">Mesh Symmetric Difference (libigl)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-symmetric-difference-trueform">Mesh Symmetric Difference (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-union-geogram">Mesh Union (geogram)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-union-libigl">Mesh Union (libigl)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-union-trueform">Mesh Union (TrueForm)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#split-into-solid-domains-trueform">Split into Solid Domains (TrueForm)</a></li>
@@ -497,6 +501,7 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#flip-edges-by-curvature">Flip Edges by Curvature</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#flip-edges-by-planarity">Flip Edges by Planarity</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#remesh-by-abstract-domain">Remesh by Abstract Domain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remesh-by-centroidal-voronoi-tessellation-geogram">Remesh by Centroidal Voronoi Tessellation (geogram)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#remesh-by-edge-flipping-trueform">Remesh by Edge Flipping (TrueForm)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#remesh-isotropically-trueform">Remesh Isotropically (TrueForm)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#remesh-isotropically-vcglib">Remesh Isotropically (vcglib)</a></li>
@@ -518,20 +523,26 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#subdivide-by-loop">Subdivide by Loop</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#subdivide-by-ls3-loop">Subdivide by LS3 Loop</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#subdivide-by-midpoint">Subdivide by Midpoint</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/filters.html#pack-uv-charts">Pack UV Charts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#pack-uv-charts-geogram">Pack UV Charts (geogram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#pack-uv-charts-vcglib">Pack UV Charts (vcglib)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#defragment-texture-atlas">Defragment Texture Atlas</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#merge-texture-islands">Merge Texture Islands</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-chart-segmentation-geogram">Compute Chart Segmentation (geogram)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#convert-per-vertex-uv-to-per-wedge-uv">Convert Per-Vertex UV to Per-Wedge UV</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#convert-per-wedge-uv-to-per-vertex-uv">Convert Per-Wedge UV to Per-Vertex UV</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-atlased-mesh-from-abstract-domain">Create Atlased Mesh from Abstract Domain</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-abstract-domain">Parametrize by Abstract Domain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-angle-based-flattening-geogram">Parametrize by Angle-Based Flattening (geogram)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-as-rigid-as-possible-libigl">Parametrize by As-Rigid-As-Possible (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-atlas-geogram">Parametrize by Atlas (geogram)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-atlas-xatlas">Parametrize by Atlas (xatlas)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-cylindrical-projection">Parametrize by Cylindrical Projection</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-flat-plane">Parametrize by Flat Plane</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-harmonic-map-libigl">Parametrize by Harmonic Map (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-least-squares-conformal-maps-geogram">Parametrize by Least Squares Conformal Maps (geogram)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-least-squares-conformal-maps-libigl">Parametrize by Least Squares Conformal Maps (libigl)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-slim-libigl">Parametrize by SLIM (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-spectral-conformal-maps-geogram">Parametrize by Spectral Conformal Maps (geogram)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-trivial-per-triangle-layout">Parametrize by Trivial Per-Triangle Layout</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-voronoi-atlas-vcglib">Parametrize by Voronoi Atlas (vcglib)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-from-registered-rasters">Parametrize from Registered Rasters</a></li>
@@ -560,6 +571,7 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-t-vertices">Remove T-Vertices</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#repair-non-manifold-edges">Repair Non-Manifold Edges</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#repair-non-manifold-vertices-by-splitting">Repair Non-Manifold Vertices by Splitting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#repair-self-intersections-geogram">Repair Self-Intersections (geogram)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#repair-self-intersections-trueform">Repair Self-Intersections (TrueForm)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#repair-watertight-mesh-meshfix">Repair Watertight Mesh (MeshFix)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#dilate-selection">Dilate Selection</a></li>

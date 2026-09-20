@@ -110,7 +110,7 @@ validates against; this table mirrors it and must be updated together with it.
 | `Attribute` | `Normal` · `Scalar` · `Curvature` · `Color` · `Custom` | Computes and stores per-element attribute data |
 | `Selection` | `by Attribute` · `by Topology` · `by Visibility` · `Set Operations` | Changes selection state only |
 | `Creation` | `Primitives` · `Reconstruction` · `Sampling` | Produces a new layer |
-| `Parametrization` | `UV Creation` · `UV Conversion` · `Atlas Packing` · `Defragmentation` | Creates or edits texture coordinates and atlas layout |
+| `Parametrization` | `UV Creation` · `UV Conversion` · `Segmentation` · `Atlas Packing` · `Defragmentation` | Creates or edits texture coordinates and atlas layout |
 | `Texture` | `Assignment` · `Conversion` · `Packing` | Creates or edits texture images |
 | `Transfer` | `Within a Mesh` · `Between Layers` · `From Rasters` | Moves an attribute to another element, layer or raster. The subcategory names what supplies the correspondence: a mesh's own incidence, a computed match between two layers, or a raster's camera |
 | `Measurement` | `Geometric` · `Topological` · `Statistics` | Reports values; does **not** modify the document |
@@ -184,6 +184,13 @@ Discriminators for the borderline cases:
 - **`Creation/Primitives` vs `Reconstruction` vs `Sampling`** — all produce a new
   layer; the discriminator is the **input**: parameters, unstructured data from which
   a surface is inferred, or samples drawn from existing geometry.
+- **`Parametrization/Segmentation`** — cutting a surface into charts, before any UV
+  exists. Added 2026-09-20 for geogram's `mesh_segment`, which stores a per-face chart
+  index and creates no texture coordinates at all, so neither `UV Creation` nor
+  `Atlas Packing` fits. It is `Parametrization` rather than `Attribute/Custom` on the
+  same reasoning that puts defragmentation here: charts, islands and seams are
+  parametrization concepts, and the stored index is the by-product. A segmenter that
+  also writes the index to the scalar slot cross-lists `Attribute/Scalar`.
 - **`Parametrization` vs `Texture`** — UVs versus pixels. A filter doing both carries
   both, primary first.
 

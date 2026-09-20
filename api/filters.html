@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 345 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 357 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -2734,6 +2734,7 @@ Michael Kazhdan, Matthew Bolitho, Hugues Hoppe, <strong>Poisson Surface Reconstr
 <li><p><strong>smAngle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">20.0</span></code>) — Lower bound on the angles of the output triangles. Lower values are easier to satisfy; CGAL’s default is 20.</p></li>
 <li><p><strong>smRadius</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Largest triangle circumradius, as a multiple of the estimated average point spacing. Smaller values give a denser mesh.</p></li>
 <li><p><strong>smDistance</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.375</span></code>) — How far the mesh may deviate from the implicit surface, as a multiple of the average point spacing. Smaller values follow the data more closely and cost more.</p></li>
+<li><p><strong>perturb</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Displace every input point by about a millionth of the bounding-box diagonal before reconstructing. Far below any modelling tolerance, and invisible in the result, but it breaks the exact symmetries that can stop CGAL’s surface mesher terminating – an analytically generated sphere or cylinder, where every point lies exactly on the same surface, is the case that needs it. Leave it off for scanned or otherwise noisy data, which is never degenerate in this way. The displacement is deterministic, so a run stays reproducible.</p></li>
 <li><p><strong>spacingNeighbors</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">6</span></code>) — Number of neighbours used to estimate the average point spacing that the three settings above are relative to.</p></li>
 </ul>
 </dd></dl>
@@ -4752,6 +4753,36 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
+<section id="mesh-difference-geogram">
+<span id="filter-mesh-difference-geogram"></span><h2>Mesh Difference (geogram)<a class="headerlink" href="#mesh-difference-geogram" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.geogram</p>
+<p>Create the exact difference of two mesh layers using geogram.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.mesh_difference_geogram">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">mesh_difference_geogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.mesh_difference_geogram" title="Link to this definition">¶</a></dt>
+<dd><p>Computes the exact boolean difference of two mesh layers, first minus second, and creates the result as a new layer, using geogram’s exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; <em>Repair Self-Intersections (geogram)</em> can prepare an input that is not.</p>
+<p>The optional attribute transfers recover the correspondence geometrically: every face of the result lies on one of the two operand surfaces, so the nearest operand face to a result face is the face it came from. Vertices created along the intersection curve match no operand vertex, so per-vertex values are interpolated across the source face rather than copied from a nearest vertex.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/BrunoLevy/geogram">geogram</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Bruno Levy. <strong>Geogram: a programming library of geometric algorithms</strong> (2015). <a class="reference external" href="https://github.com/BrunoLevy/geogram">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>firstMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — First operand of the boolean operation.</p></li>
+<li><p><strong>secondMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — Second operand of the boolean operation.</p></li>
+<li><p><strong>simplifyCoplanarFacets</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Merge facets that end up coplanar in the result. Turning this off keeps every triangle the intersection produced, which is larger but preserves the original tessellation more closely.</p></li>
+<li><p><strong>transferFaceColor</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Copy the face color of the originating operand face onto each result face.</p></li>
+<li><p><strong>transferFaceScalar</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Copy the face scalar value of the originating operand face onto each result face.</p></li>
+<li><p><strong>transferVertexColor</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Interpolate vertex color from the originating operand face onto each result vertex.</p></li>
+<li><p><strong>transferVertexScalar</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Interpolate the vertex scalar value from the originating operand face onto each result vertex.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="mesh-difference-libigl">
 <span id="filter-mesh-difference-libigl"></span><h2>Mesh Difference (libigl)<a class="headerlink" href="#mesh-difference-libigl" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p>
@@ -4793,6 +4824,36 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <ul class="simple">
 <li><p><strong>firstMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The first operand.</p></li>
 <li><p><strong>secondMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The second operand.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="mesh-intersection-geogram">
+<span id="filter-mesh-intersection-geogram"></span><h2>Mesh Intersection (geogram)<a class="headerlink" href="#mesh-intersection-geogram" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.geogram</p>
+<p>Create the exact intersection of two mesh layers using geogram.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.mesh_intersection_geogram">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">mesh_intersection_geogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.mesh_intersection_geogram" title="Link to this definition">¶</a></dt>
+<dd><p>Computes the exact boolean intersection of two mesh layers and creates the result as a new layer, using geogram’s exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; <em>Repair Self-Intersections (geogram)</em> can prepare an input that is not.</p>
+<p>The optional attribute transfers recover the correspondence geometrically: every face of the result lies on one of the two operand surfaces, so the nearest operand face to a result face is the face it came from. Vertices created along the intersection curve match no operand vertex, so per-vertex values are interpolated across the source face rather than copied from a nearest vertex.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/BrunoLevy/geogram">geogram</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Bruno Levy. <strong>Geogram: a programming library of geometric algorithms</strong> (2015). <a class="reference external" href="https://github.com/BrunoLevy/geogram">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>firstMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — First operand of the boolean operation.</p></li>
+<li><p><strong>secondMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — Second operand of the boolean operation.</p></li>
+<li><p><strong>simplifyCoplanarFacets</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Merge facets that end up coplanar in the result. Turning this off keeps every triangle the intersection produced, which is larger but preserves the original tessellation more closely.</p></li>
+<li><p><strong>transferFaceColor</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Copy the face color of the originating operand face onto each result face.</p></li>
+<li><p><strong>transferFaceScalar</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Copy the face scalar value of the originating operand face onto each result face.</p></li>
+<li><p><strong>transferVertexColor</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Interpolate vertex color from the originating operand face onto each result vertex.</p></li>
+<li><p><strong>transferVertexScalar</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Interpolate the vertex scalar value from the originating operand face onto each result vertex.</p></li>
 </ul>
 </dd></dl>
 
@@ -4844,6 +4905,37 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
+<section id="mesh-symmetric-difference-geogram">
+<span id="filter-mesh-symmetric-difference-geogram"></span><h2>Mesh Symmetric Difference (geogram)<a class="headerlink" href="#mesh-symmetric-difference-geogram" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.geogram</p>
+<p>Create the exact symmetric difference of two mesh layers using geogram.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.mesh_symmetric_difference_geogram">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">mesh_symmetric_difference_geogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.mesh_symmetric_difference_geogram" title="Link to this definition">¶</a></dt>
+<dd><p>Computes the exact boolean symmetric difference (XOR) of two mesh layers and creates the result as a new layer.</p>
+<p>geogram’s boolean evaluator provides union, intersection and the two differences, but not the symmetric difference, so this filter composes it as <span class="math notranslate nohighlight">\((A \setminus B) \cup (B \setminus A)\)</span>. That is <strong>three</strong> boolean evaluations rather than one, so expect it to take roughly three times as long as <em>Mesh Difference (geogram)</em> on the same operands. Both operands should be closed, consistently oriented surfaces without self-intersections; <em>Repair Self-Intersections (geogram)</em> can prepare an input that is not.</p>
+<p>The optional attribute transfers recover the correspondence geometrically: every face of the result lies on one of the two operand surfaces, so the nearest operand face to a result face is the face it came from. Vertices created along the intersection curve match no operand vertex, so per-vertex values are interpolated across the source face rather than copied from a nearest vertex.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/BrunoLevy/geogram">geogram</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Bruno Levy. <strong>Geogram: a programming library of geometric algorithms</strong> (2015). <a class="reference external" href="https://github.com/BrunoLevy/geogram">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>firstMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — First operand of the boolean operation.</p></li>
+<li><p><strong>secondMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — Second operand of the boolean operation.</p></li>
+<li><p><strong>simplifyCoplanarFacets</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Merge facets that end up coplanar in the result. Turning this off keeps every triangle the intersection produced, which is larger but preserves the original tessellation more closely.</p></li>
+<li><p><strong>transferFaceColor</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Copy the face color of the originating operand face onto each result face.</p></li>
+<li><p><strong>transferFaceScalar</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Copy the face scalar value of the originating operand face onto each result face.</p></li>
+<li><p><strong>transferVertexColor</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Interpolate vertex color from the originating operand face onto each result vertex.</p></li>
+<li><p><strong>transferVertexScalar</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Interpolate the vertex scalar value from the originating operand face onto each result vertex.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="mesh-symmetric-difference-libigl">
 <span id="filter-mesh-symmetric-difference-libigl"></span><h2>Mesh Symmetric Difference (libigl)<a class="headerlink" href="#mesh-symmetric-difference-libigl" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p>
@@ -4885,6 +4977,36 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <ul class="simple">
 <li><p><strong>firstMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The first operand.</p></li>
 <li><p><strong>secondMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The second operand.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="mesh-union-geogram">
+<span id="filter-mesh-union-geogram"></span><h2>Mesh Union (geogram)<a class="headerlink" href="#mesh-union-geogram" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.geogram</p>
+<p>Create the exact union of two mesh layers using geogram.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.mesh_union_geogram">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">mesh_union_geogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.mesh_union_geogram" title="Link to this definition">¶</a></dt>
+<dd><p>Computes the exact boolean union of two mesh layers and creates the result as a new layer, using geogram’s exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; <em>Repair Self-Intersections (geogram)</em> can prepare an input that is not.</p>
+<p>The optional attribute transfers recover the correspondence geometrically: every face of the result lies on one of the two operand surfaces, so the nearest operand face to a result face is the face it came from. Vertices created along the intersection curve match no operand vertex, so per-vertex values are interpolated across the source face rather than copied from a nearest vertex.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/BrunoLevy/geogram">geogram</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Bruno Levy. <strong>Geogram: a programming library of geometric algorithms</strong> (2015). <a class="reference external" href="https://github.com/BrunoLevy/geogram">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>firstMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — First operand of the boolean operation.</p></li>
+<li><p><strong>secondMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — Second operand of the boolean operation.</p></li>
+<li><p><strong>simplifyCoplanarFacets</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Merge facets that end up coplanar in the result. Turning this off keeps every triangle the intersection produced, which is larger but preserves the original tessellation more closely.</p></li>
+<li><p><strong>transferFaceColor</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Copy the face color of the originating operand face onto each result face.</p></li>
+<li><p><strong>transferFaceScalar</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Copy the face scalar value of the originating operand face onto each result face.</p></li>
+<li><p><strong>transferVertexColor</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Interpolate vertex color from the originating operand face onto each result vertex.</p></li>
+<li><p><strong>transferVertexScalar</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Interpolate the vertex scalar value from the originating operand face onto each result vertex.</p></li>
 </ul>
 </dd></dl>
 
@@ -5168,6 +5290,38 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>samplingRate</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Side of the square patch sampled over each region of the domain. This is a resolution, not a target face count: the output grows with its square, and with the number of domain edges. A 200-face domain at rate 10 is about 30,000 samples.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="remesh-by-centroidal-voronoi-tessellation-geogram">
+<span id="filter-remesh-by-centroidal-voronoi-tessellation-geogram"></span><h2>Remesh by Centroidal Voronoi Tessellation (geogram)<a class="headerlink" href="#remesh-by-centroidal-voronoi-tessellation-geogram" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.geogram</p>
+<p>Rebuild the surface from a centroidal Voronoi tessellation, isotropically or aligned to curvature.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.remesh_by_centroidal_voronoi_tessellation_geogram">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remesh_by_centroidal_voronoi_tessellation_geogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.remesh_by_centroidal_voronoi_tessellation_geogram" title="Link to this definition">¶</a></dt>
+<dd><p>Rebuilds the current mesh by distributing the requested number of vertices over the surface with Lloyd relaxation followed by Newton optimization, then extracting the restricted Voronoi diagram as the new tessellation.</p>
+<p>In <strong>anisotropic</strong> mode the optimization runs in a six-dimensional space where the extra three coordinates are the surface normal scaled by the anisotropy strength, so elements stretch along flat directions and concentrate across curved ones. No other remesher in MeshLab offers this; the isotropic mode competes with <em>Remesh Isotropically (vcglib)</em> and <em>(TrueForm)</em>.</p>
+<p>The vertex count is a target, not a guarantee: geogram may add vertices to resolve problematic configurations. Because the surface is rebuilt from scratch there is no correspondence with the original tessellation, so <strong>per-vertex and per-face attributes are not preserved</strong> — transfer them back afterwards with a filter from the Transfer family.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/BrunoLevy/geogram">geogram</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Bruno Levy. <strong>Geogram: a programming library of geometric algorithms</strong> (2015). <a class="reference external" href="https://github.com/BrunoLevy/geogram">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>targetVertexCount</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10000</span></code>) — How many vertices the result should have. geogram may exceed it to resolve problematic configurations.</p></li>
+<li><p><strong>anisotropic</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Align elements with the surface’s curvature instead of keeping them as equilateral as possible.</p></li>
+<li><p><strong>anisotropy</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.04</span></code>) — How strongly elements follow curvature, as a fraction of the bounding box diagonal. Larger values stretch them more. Ignored unless Anisotropic is set.</p></li>
+<li><p><strong>adjustToSource</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — After remeshing, nudge the vertices so the new faces approximate the original surface more closely.</p></li>
+<li><p><strong>adjustMaxEdgeDistance</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — How far to search for the nearest original vertex, relative to the local average edge length. Ignored unless Adjust to Source Surface is set.</p></li>
+<li><p><strong>lloydIterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — Lloyd relaxation passes, which spread the vertices out evenly before the Newton phase refines them.</p></li>
+<li><p><strong>newtonIterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">30</span></code>) — Newton optimization passes. More gives a better-conditioned tessellation at a higher cost.</p></li>
+<li><p><strong>newtonHessianSamples</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">7</span></code>) — How many evaluations the Newton solver uses to approximate the Hessian.</p></li>
 </ul>
 </dd></dl>
 
@@ -5652,14 +5806,38 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="pack-uv-charts">
-<span id="filter-pack-uv-charts"></span><h2>Pack UV Charts<a class="headerlink" href="#pack-uv-charts" title="Link to this heading">¶</a></h2>
+<section id="pack-uv-charts-geogram">
+<span id="filter-pack-uv-charts-geogram"></span><h2>Pack UV Charts (geogram)<a class="headerlink" href="#pack-uv-charts-geogram" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/Atlas</span> <span class="pre">Packing</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.geogram</p>
+<p>Lay the existing UV charts out again in a single atlas, using geogram’s packers.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.pack_uv_charts_geogram">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">pack_uv_charts_geogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.pack_uv_charts_geogram" title="Link to this definition">¶</a></dt>
+<dd><p>Rearranges the charts of an existing parametrization in the unit square, leaving the flattening of each chart untouched. The mesh must already carry per-wedge texture coordinates.</p>
+<p>The Tetris packer is the one described in the original LSCM paper and is not available from any other MeshLab filter.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/BrunoLevy/geogram">geogram</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Bruno Levy. <strong>Geogram: a programming library of geometric algorithms</strong> (2015). <a class="reference external" href="https://github.com/BrunoLevy/geogram">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>packer</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">tetris</span></code>) — Which packing algorithm to apply.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="pack-uv-charts-vcglib">
+<span id="filter-pack-uv-charts-vcglib"></span><h2>Pack UV Charts (vcglib)<a class="headerlink" href="#pack-uv-charts-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/Atlas</span> <span class="pre">Packing</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.texture_defragmentation</p>
 <p>Lay the existing UV charts out again in a single atlas, using a choice of vcglib packing algorithms.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="meshlab.ms.pack_uv_charts">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">pack_uv_charts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.pack_uv_charts" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="meshlab.ms.pack_uv_charts_vcglib">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">pack_uv_charts_vcglib</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.pack_uv_charts_vcglib" title="Link to this definition">¶</a></dt>
 <dd><p>Repacks the atlas without changing the charts themselves: no merging, no reparametrization, just a new layout for the islands the mesh already has.</p>
 <p>Four packers are offered, and they trade quality against time very differently:</p>
 <ul class="simple">
@@ -5745,6 +5923,31 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><p><strong>quickRun</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Speeds up the running time of the filter by never attempting again any rejected merge operation. <br> Although fast, it could lead to worst results.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas packing exactly reproducible.</p></li>
 <li><p><strong>resampleTextures</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way – the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="compute-chart-segmentation-geogram">
+<span id="filter-compute-chart-segmentation-geogram"></span><h2>Compute Chart Segmentation (geogram)<a class="headerlink" href="#compute-chart-segmentation-geogram" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/Segmentation</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.geogram</p>
+<p>Partition the mesh into charts and store each face’s chart index in the face scalar field.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.compute_chart_segmentation_geogram">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_chart_segmentation_geogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_chart_segmentation_geogram" title="Link to this definition">¶</a></dt>
+<dd><p>Segments the current mesh into a requested number of charts and stores the chart index of each face in the per-face scalar field, so the partition can be shown with the scalar colormap and used by later filters. No texture coordinates are created.</p>
+<p>The two VSA segmenters implement Variational Shape Approximation: the <span class="math notranslate nohighlight">\(L^2\)</span> metric groups faces by position and the <span class="math notranslate nohighlight">\(L^{2,1}\)</span> metric by normal, which makes the latter follow anisotropic features more closely.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/BrunoLevy/geogram">geogram</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Bruno Levy. <strong>Geogram: a programming library of geometric algorithms</strong> (2015). <a class="reference external" href="https://github.com/BrunoLevy/geogram">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>segmenter</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">vsaL2</span></code>) — Which segmentation algorithm to use. The spectral options need geogram’s ARPACK eigensolver.</p></li>
+<li><p><strong>segmentCount</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — How many charts to aim for. The segmenter may return a different number.</p></li>
 </ul>
 </dd></dl>
 
@@ -5903,6 +6106,28 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
+<section id="parametrize-by-angle-based-flattening-geogram">
+<span id="filter-parametrize-by-angle-based-flattening-geogram"></span><h2>Parametrize by Angle-Based Flattening (geogram)<a class="headerlink" href="#parametrize-by-angle-based-flattening-geogram" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.geogram</p>
+<p>Compute an ABF++ angle-based UV parametrization using geogram.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.parametrize_by_angle_based_flattening_geogram">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">parametrize_by_angle_based_flattening_geogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.parametrize_by_angle_based_flattening_geogram" title="Link to this definition">¶</a></dt>
+<dd><p>Computes an ABF++ (Angle-Based Flattening) parametrization of the current mesh and stores the result as per-vertex texture coordinates. ABF++ solves for the flattened <em>angles</em> rather than the vertex positions, which generally yields noticeably lower angle distortion than LSCM on the same input, at a higher cost. The mesh must have a boundary. If the mesh already carries per-wedge texture coordinates they are synchronized from the new per-vertex ones.</p>
+<p>This is the reference implementation, by the authors of the original paper.</p>
+<p>The flattening follows the mesh’s existing vertex connectivity: coincident but distinct vertices stay split and appear as a seam, so run <em>Remove Duplicate Vertices</em> first on a mesh loaded from a format that does not share them, such as STL.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/BrunoLevy/geogram">geogram</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Bruno Levy. <strong>Geogram: a programming library of geometric algorithms</strong> (2015). <a class="reference external" href="https://github.com/BrunoLevy/geogram">Web</a></p></li>
+</ul>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="parametrize-by-as-rigid-as-possible-libigl">
 <span id="filter-parametrize-by-as-rigid-as-possible-libigl"></span><h2>Parametrize by As-Rigid-As-Possible (libigl)<a class="headerlink" href="#parametrize-by-as-rigid-as-possible-libigl" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
@@ -5923,6 +6148,33 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">50</span></code>) — Maximum number of ARAP local-global iterations.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="parametrize-by-atlas-geogram">
+<span id="filter-parametrize-by-atlas-geogram"></span><h2>Parametrize by Atlas (geogram)<a class="headerlink" href="#parametrize-by-atlas-geogram" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code>, <code class="docutils literal notranslate"><span class="pre">Parametrization/Segmentation</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.geogram</p>
+<p>Segment the mesh into charts, flatten each one and pack them into a single atlas, using geogram.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.parametrize_by_atlas_geogram">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">parametrize_by_atlas_geogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.parametrize_by_atlas_geogram" title="Link to this definition">¶</a></dt>
+<dd><p>Runs geogram’s complete atlas pipeline on the current mesh: the surface is cut into charts along sharp edges, each chart is flattened, any chart whose distortion is still too high is split further, and the charts are finally packed into the unit square. The result is stored as per-wedge texture coordinates.</p>
+<p>Unlike the single-chart flatteners, this works on a <strong>closed</strong> mesh, because the segmentation step creates the boundaries the flatteners need.</p>
+<p>If the mesh already carries a <code class="docutils literal notranslate"><span class="pre">chart</span></code> face attribute the pipeline uses it to seed the segmentation.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/BrunoLevy/geogram">geogram</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Bruno Levy. <strong>Geogram: a programming library of geometric algorithms</strong> (2015). <a class="reference external" href="https://github.com/BrunoLevy/geogram">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>hardAngleThreshold</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">45.0</span></code>) — Edges whose dihedral angle exceeds this value, in degrees, become chart boundaries. Lower values cut the surface into more, flatter charts.</p></li>
+<li><p><strong>chartParametrizer</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">abf</span></code>) — How each individual chart is flattened.</p></li>
+<li><p><strong>chartPacker</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">tetris</span></code>) — How the flattened charts are arranged in the unit square.</p></li>
 </ul>
 </dd></dl>
 
@@ -6034,6 +6286,28 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
+<section id="parametrize-by-least-squares-conformal-maps-geogram">
+<span id="filter-parametrize-by-least-squares-conformal-maps-geogram"></span><h2>Parametrize by Least Squares Conformal Maps (geogram)<a class="headerlink" href="#parametrize-by-least-squares-conformal-maps-geogram" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.geogram</p>
+<p>Compute a Least Squares Conformal Maps UV parametrization using geogram.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.parametrize_by_least_squares_conformal_maps_geogram">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">parametrize_by_least_squares_conformal_maps_geogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.parametrize_by_least_squares_conformal_maps_geogram" title="Link to this definition">¶</a></dt>
+<dd><p>Computes a Least Squares Conformal Maps parametrization of the current mesh and stores the result as per-vertex texture coordinates. LSCM minimizes conformal (angle) distortion with two fixed points, so the mesh must have a boundary. If the mesh already carries per-wedge texture coordinates they are synchronized from the new per-vertex ones, so the result is immediately visible in the texture and UV views.</p>
+<p>This is the reference implementation, by the authors of the original paper.</p>
+<p>The flattening follows the mesh’s existing vertex connectivity: coincident but distinct vertices stay split and appear as a seam, so run <em>Remove Duplicate Vertices</em> first on a mesh loaded from a format that does not share them, such as STL.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/BrunoLevy/geogram">geogram</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Bruno Levy. <strong>Geogram: a programming library of geometric algorithms</strong> (2015). <a class="reference external" href="https://github.com/BrunoLevy/geogram">Web</a></p></li>
+</ul>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="parametrize-by-least-squares-conformal-maps-libigl">
 <span id="filter-parametrize-by-least-squares-conformal-maps-libigl"></span><h2>Parametrize by Least Squares Conformal Maps (libigl)<a class="headerlink" href="#parametrize-by-least-squares-conformal-maps-libigl" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
@@ -6076,6 +6350,28 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><p><strong>energy</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">symmetric_dirichlet</span></code>) — Distortion energy minimized by SLIM.</p></li>
 <li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Number of SLIM optimization iterations.</p></li>
 </ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="parametrize-by-spectral-conformal-maps-geogram">
+<span id="filter-parametrize-by-spectral-conformal-maps-geogram"></span><h2>Parametrize by Spectral Conformal Maps (geogram)<a class="headerlink" href="#parametrize-by-spectral-conformal-maps-geogram" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.geogram</p>
+<p>Compute a Spectral Conformal Parameterization using geogram.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.parametrize_by_spectral_conformal_maps_geogram">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">parametrize_by_spectral_conformal_maps_geogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.parametrize_by_spectral_conformal_maps_geogram" title="Link to this definition">¶</a></dt>
+<dd><p>Computes a Spectral Conformal Parameterization of the current mesh and stores the result as per-vertex texture coordinates. Where plain LSCM pins two vertices and solves a least-squares system, the spectral formulation finds the smallest non-trivial eigenvector of the conformal energy instead, so the layout does not depend on which two points were pinned and is usually less distorted. The mesh must have a boundary.</p>
+<p>This method needs geogram’s ARPACK eigensolver. It is present in a standard build; if it cannot be loaded the filter refuses rather than returning a degenerate layout.</p>
+<p>The flattening follows the mesh’s existing vertex connectivity: coincident but distinct vertices stay split and appear as a seam, so run <em>Remove Duplicate Vertices</em> first on a mesh loaded from a format that does not share them, such as STL.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/BrunoLevy/geogram">geogram</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Bruno Levy. <strong>Geogram: a programming library of geometric algorithms</strong> (2015). <a class="reference external" href="https://github.com/BrunoLevy/geogram">Web</a></p></li>
+</ul>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />
@@ -6582,6 +6878,30 @@ Leave 0 for automatic calculation.</p></li>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>vert_disp_ratio</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — This parameter denotes the displacement ratio α. When a vertex is split, it is moved towards the barycenter of the FF-connected faces sharing it by (v-barycenter)*α. Reasonable values are in [0..0.1].</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="repair-self-intersections-geogram">
+<span id="filter-repair-self-intersections-geogram"></span><h2>Repair Self-Intersections (geogram)<a class="headerlink" href="#repair-self-intersections-geogram" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.geogram</p>
+<p>Remove self-intersecting faces and retriangulate the holes using geogram.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.repair_self_intersections_geogram">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">repair_self_intersections_geogram</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.repair_self_intersections_geogram" title="Link to this definition">¶</a></dt>
+<dd><p>Attempts to make a surface conformal by removing intersecting faces and retriangulating the holes they leave, using geogram’s exact predicates. The result is created as a new layer.</p>
+<p>The pass is repeated until no intersection remains or the iteration limit is reached, so a mesh with deeply nested intersections may need more than the default number of iterations. This is the usual way to prepare an input for the geogram boolean filters, which require operands without self-intersections.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/BrunoLevy/geogram">geogram</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Bruno Levy. <strong>Geogram: a programming library of geometric algorithms</strong> (2015). <a class="reference external" href="https://github.com/BrunoLevy/geogram">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>maxIterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — How many times to repeat the remove-and-retriangulate pass before giving up.</p></li>
 </ul>
 </dd></dl>
 
@@ -8418,12 +8738,20 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#meshlab.ms.mesh_csg_expression_trueform"><code class="docutils literal notranslate"><span class="pre">ms.mesh_csg_expression_trueform()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#mesh-difference-geogram">Mesh Difference (geogram)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.mesh_difference_geogram"><code class="docutils literal notranslate"><span class="pre">ms.mesh_difference_geogram()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#mesh-difference-libigl">Mesh Difference (libigl)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.mesh_difference_libigl"><code class="docutils literal notranslate"><span class="pre">ms.mesh_difference_libigl()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#mesh-difference-trueform">Mesh Difference (TrueForm)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.mesh_difference_trueform"><code class="docutils literal notranslate"><span class="pre">ms.mesh_difference_trueform()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mesh-intersection-geogram">Mesh Intersection (geogram)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.mesh_intersection_geogram"><code class="docutils literal notranslate"><span class="pre">ms.mesh_intersection_geogram()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#mesh-intersection-libigl">Mesh Intersection (libigl)</a><ul>
@@ -8434,12 +8762,20 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#meshlab.ms.mesh_intersection_trueform"><code class="docutils literal notranslate"><span class="pre">ms.mesh_intersection_trueform()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#mesh-symmetric-difference-geogram">Mesh Symmetric Difference (geogram)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.mesh_symmetric_difference_geogram"><code class="docutils literal notranslate"><span class="pre">ms.mesh_symmetric_difference_geogram()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#mesh-symmetric-difference-libigl">Mesh Symmetric Difference (libigl)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.mesh_symmetric_difference_libigl"><code class="docutils literal notranslate"><span class="pre">ms.mesh_symmetric_difference_libigl()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#mesh-symmetric-difference-trueform">Mesh Symmetric Difference (TrueForm)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.mesh_symmetric_difference_trueform"><code class="docutils literal notranslate"><span class="pre">ms.mesh_symmetric_difference_trueform()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mesh-union-geogram">Mesh Union (geogram)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.mesh_union_geogram"><code class="docutils literal notranslate"><span class="pre">ms.mesh_union_geogram()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#mesh-union-libigl">Mesh Union (libigl)</a><ul>
@@ -8504,6 +8840,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#remesh-by-abstract-domain">Remesh by Abstract Domain</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.remesh_by_abstract_domain"><code class="docutils literal notranslate"><span class="pre">ms.remesh_by_abstract_domain()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#remesh-by-centroidal-voronoi-tessellation-geogram">Remesh by Centroidal Voronoi Tessellation (geogram)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.remesh_by_centroidal_voronoi_tessellation_geogram"><code class="docutils literal notranslate"><span class="pre">ms.remesh_by_centroidal_voronoi_tessellation_geogram()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#remesh-by-edge-flipping-trueform">Remesh by Edge Flipping (TrueForm)</a><ul>
@@ -8590,8 +8930,12 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#meshlab.ms.subdivide_by_midpoint"><code class="docutils literal notranslate"><span class="pre">ms.subdivide_by_midpoint()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#pack-uv-charts">Pack UV Charts</a><ul>
-<li><a class="reference internal" href="#meshlab.ms.pack_uv_charts"><code class="docutils literal notranslate"><span class="pre">ms.pack_uv_charts()</span></code></a></li>
+<li><a class="reference internal" href="#pack-uv-charts-geogram">Pack UV Charts (geogram)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.pack_uv_charts_geogram"><code class="docutils literal notranslate"><span class="pre">ms.pack_uv_charts_geogram()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pack-uv-charts-vcglib">Pack UV Charts (vcglib)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.pack_uv_charts_vcglib"><code class="docutils literal notranslate"><span class="pre">ms.pack_uv_charts_vcglib()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#defragment-texture-atlas">Defragment Texture Atlas</a><ul>
@@ -8600,6 +8944,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#merge-texture-islands">Merge Texture Islands</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.merge_texture_islands"><code class="docutils literal notranslate"><span class="pre">ms.merge_texture_islands()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compute-chart-segmentation-geogram">Compute Chart Segmentation (geogram)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.compute_chart_segmentation_geogram"><code class="docutils literal notranslate"><span class="pre">ms.compute_chart_segmentation_geogram()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#convert-per-vertex-uv-to-per-wedge-uv">Convert Per-Vertex UV to Per-Wedge UV</a><ul>
@@ -8618,8 +8966,16 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#meshlab.ms.parametrize_by_abstract_domain"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_by_abstract_domain()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#parametrize-by-angle-based-flattening-geogram">Parametrize by Angle-Based Flattening (geogram)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.parametrize_by_angle_based_flattening_geogram"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_by_angle_based_flattening_geogram()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#parametrize-by-as-rigid-as-possible-libigl">Parametrize by As-Rigid-As-Possible (libigl)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.parametrize_by_as_rigid_as_possible_libigl"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_by_as_rigid_as_possible_libigl()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#parametrize-by-atlas-geogram">Parametrize by Atlas (geogram)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.parametrize_by_atlas_geogram"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_by_atlas_geogram()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#parametrize-by-atlas-xatlas">Parametrize by Atlas (xatlas)</a><ul>
@@ -8638,12 +8994,20 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#meshlab.ms.parametrize_by_harmonic_map_libigl"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_by_harmonic_map_libigl()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#parametrize-by-least-squares-conformal-maps-geogram">Parametrize by Least Squares Conformal Maps (geogram)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.parametrize_by_least_squares_conformal_maps_geogram"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_by_least_squares_conformal_maps_geogram()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#parametrize-by-least-squares-conformal-maps-libigl">Parametrize by Least Squares Conformal Maps (libigl)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.parametrize_by_least_squares_conformal_maps_libigl"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_by_least_squares_conformal_maps_libigl()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#parametrize-by-slim-libigl">Parametrize by SLIM (libigl)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.parametrize_by_slim_libigl"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_by_slim_libigl()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#parametrize-by-spectral-conformal-maps-geogram">Parametrize by Spectral Conformal Maps (geogram)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.parametrize_by_spectral_conformal_maps_geogram"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_by_spectral_conformal_maps_geogram()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#parametrize-by-trivial-per-triangle-layout">Parametrize by Trivial Per-Triangle Layout</a><ul>
@@ -8756,6 +9120,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#repair-non-manifold-vertices-by-splitting">Repair Non-Manifold Vertices by Splitting</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.repair_non_manifold_vertices_by_splitting"><code class="docutils literal notranslate"><span class="pre">ms.repair_non_manifold_vertices_by_splitting()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#repair-self-intersections-geogram">Repair Self-Intersections (geogram)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.repair_self_intersections_geogram"><code class="docutils literal notranslate"><span class="pre">ms.repair_self_intersections_geogram()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#repair-self-intersections-trueform">Repair Self-Intersections (TrueForm)</a><ul>

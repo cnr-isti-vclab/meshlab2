@@ -371,7 +371,7 @@ validates against; this table mirrors it and must be updated together with it.</
 <td><p>Produces a new layer</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Parametrization</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">UV</span> <span class="pre">Creation</span></code> · <code class="docutils literal notranslate"><span class="pre">UV</span> <span class="pre">Conversion</span></code> · <code class="docutils literal notranslate"><span class="pre">Atlas</span> <span class="pre">Packing</span></code> · <code class="docutils literal notranslate"><span class="pre">Defragmentation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UV</span> <span class="pre">Creation</span></code> · <code class="docutils literal notranslate"><span class="pre">UV</span> <span class="pre">Conversion</span></code> · <code class="docutils literal notranslate"><span class="pre">Segmentation</span></code> · <code class="docutils literal notranslate"><span class="pre">Atlas</span> <span class="pre">Packing</span></code> · <code class="docutils literal notranslate"><span class="pre">Defragmentation</span></code></p></td>
 <td><p>Creates or edits texture coordinates and atlas layout</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
@@ -474,6 +474,13 @@ categories.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code> vs <code class="docutils literal notranslate"><span class="pre">Reconstruction</span></code> vs <code class="docutils literal notranslate"><span class="pre">Sampling</span></code></strong> — all produce a new
 layer; the discriminator is the <strong>input</strong>: parameters, unstructured data from which
 a surface is inferred, or samples drawn from existing geometry.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Parametrization/Segmentation</span></code></strong> — cutting a surface into charts, before any UV
+exists. Added 2026-09-20 for geogram’s <code class="docutils literal notranslate"><span class="pre">mesh_segment</span></code>, which stores a per-face chart
+index and creates no texture coordinates at all, so neither <code class="docutils literal notranslate"><span class="pre">UV</span> <span class="pre">Creation</span></code> nor
+<code class="docutils literal notranslate"><span class="pre">Atlas</span> <span class="pre">Packing</span></code> fits. It is <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> rather than <code class="docutils literal notranslate"><span class="pre">Attribute/Custom</span></code> on the
+same reasoning that puts defragmentation here: charts, islands and seams are
+parametrization concepts, and the stored index is the by-product. A segmenter that
+also writes the index to the scalar slot cross-lists <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code>.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> vs <code class="docutils literal notranslate"><span class="pre">Texture</span></code></strong> — UVs versus pixels. A filter doing both carries
 both, primary first.</p>
 <p><strong>Defragmentation is <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code>, not <code class="docutils literal notranslate"><span class="pre">Texture</span></code>.</strong> <em>Texture Map
