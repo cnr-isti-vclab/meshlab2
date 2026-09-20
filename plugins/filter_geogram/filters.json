@@ -598,6 +598,122 @@
       "outputModifies": [
         "FQ"
       ]
+    },
+    {
+      "id": "remesh_by_centroidal_voronoi_tessellation_geogram",
+      "categories": [
+        "Meshing/Remeshing"
+      ],
+      "name": "Remesh by Centroidal Voronoi Tessellation (geogram)",
+      "pythonName": "remesh_by_centroidal_voronoi_tessellation_geogram",
+      "referenceIds": [
+        "geogram"
+      ],
+      "shortDescription": "Rebuild the surface from a centroidal Voronoi tessellation, isotropically or aligned to curvature.",
+      "longDescriptionMarkdown": "Rebuilds the current mesh by distributing the requested number of vertices over the surface with Lloyd relaxation followed by Newton optimization, then extracting the restricted Voronoi diagram as the new tessellation.\n\nIn **anisotropic** mode the optimization runs in a six-dimensional space where the extra three coordinates are the surface normal scaled by the anisotropy strength, so elements stretch along flat directions and concentrate across curved ones. No other remesher in MeshLab offers this; the isotropic mode competes with *Remesh Isotropically (vcglib)* and *(TrueForm)*.\n\nThe vertex count is a target, not a guarantee: geogram may add vertices to resolve problematic configurations. Because the surface is rebuilt from scratch there is no correspondence with the original tessellation, so **per-vertex and per-face attributes are not preserved** — transfer them back afterwards with a filter from the Transfer family.",
+      "tags": [
+        "remesh",
+        "cvt",
+        "voronoi",
+        "lloyd",
+        "isotropic",
+        "anisotropic",
+        "geogram"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [
+        {
+          "id": "targetVertexCount",
+          "label": "Target Vertex Count",
+          "help": "How many vertices the result should have. geogram may exceed it to resolve problematic configurations.",
+          "group": "main",
+          "type": "int",
+          "default": 10000,
+          "min": 4,
+          "max": 10000000
+        },
+        {
+          "id": "anisotropic",
+          "label": "Anisotropic",
+          "help": "Align elements with the surface's curvature instead of keeping them as equilateral as possible.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "anisotropy",
+          "label": "Anisotropy Strength",
+          "help": "How strongly elements follow curvature, as a fraction of the bounding box diagonal. Larger values stretch them more. Ignored unless Anisotropic is set.",
+          "group": "main",
+          "type": "double",
+          "default": 0.04,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 4,
+          "enabledWhen": "anisotropic"
+        },
+        {
+          "id": "adjustToSource",
+          "label": "Adjust to Source Surface",
+          "help": "After remeshing, nudge the vertices so the new faces approximate the original surface more closely.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "adjustMaxEdgeDistance",
+          "label": "Adjust Search Distance",
+          "help": "How far to search for the nearest original vertex, relative to the local average edge length. Ignored unless Adjust to Source Surface is set.",
+          "group": "main",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 10.0,
+          "decimals": 3,
+          "enabledWhen": "adjustToSource"
+        },
+        {
+          "id": "lloydIterations",
+          "label": "Lloyd Iterations",
+          "help": "Lloyd relaxation passes, which spread the vertices out evenly before the Newton phase refines them.",
+          "group": "advanced.solver",
+          "type": "int",
+          "default": 5,
+          "min": 0,
+          "max": 1000
+        },
+        {
+          "id": "newtonIterations",
+          "label": "Newton Iterations",
+          "help": "Newton optimization passes. More gives a better-conditioned tessellation at a higher cost.",
+          "group": "advanced.solver",
+          "type": "int",
+          "default": 30,
+          "min": 0,
+          "max": 1000
+        },
+        {
+          "id": "newtonHessianSamples",
+          "label": "Newton Hessian Samples",
+          "help": "How many evaluations the Newton solver uses to approximate the Hessian.",
+          "group": "advanced.solver",
+          "type": "int",
+          "default": 7,
+          "min": 1,
+          "max": 100
+        }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN",
+        "FN"
+      ]
     }
   ]
 }

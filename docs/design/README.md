@@ -42,7 +42,7 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [Usage Statistics](proposals/usage_statistics.md) | Aggregate usage collection, designed for privacy. Not implemented. |
 | [Gaussian Splatting](proposals/gaussian_splatting.md) | Splat loading, rendering and editing. Not implemented; some decisions taken. |
 | [Edge Support](proposals/edge_support.md) | The two kinds of edge, what is missing in selection and rendering, and filters that would generate per-edge colour. Per-edge colour implemented; the rest not. |
-| [Geogram](proposals/geogram_porting.md) | A `filter_geogram` plugin: booleans, ABF++/LSCM parametrization, atlas and CVT remeshing. Not implemented; plan complete and all rulings taken, ready for Phase 0. |
+| [Geogram](proposals/geogram_porting.md) | A `filter_geogram` plugin: booleans, ABF++/LSCM parametrization, atlas and CVT remeshing. **Implemented** — 11 filters, all four phases done; the OpenSCAD compiler remains deferred. |
 
 ## History
 

@@ -373,6 +373,8 @@ private slots:
     void geogramAbfBeatsLscmOnAngleDistortion();
     void geogramAtlasPacksChartsIntoUnitSquare();
     void geogramSegmentationWritesScalarNotColor();
+    void geogramCvtRemeshHitsTargetAndImprovesTriangles();
+    void geogramAnisotropicRemeshElongatesTriangles();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
     void trueFormCsgSheetsCutWithoutEnclosing();
     void trueFormSolidDomainsSplitTheEnclosedVolume();
@@ -2409,6 +2411,131 @@ void FilterTests::geogramSegmentationWritesScalarNotColor()
                              return h.attribute == MeshFilterVisualizationAttribute::FaceQuality;
                          }),
              "segmentation did not ask for face scalar shading");
+}
+
+namespace {
+
+// Standard normalized triangle quality: 1 for equilateral, approaching 0 as a triangle
+// degenerates. Averaged over the mesh it is a fair single number for "are the elements
+// well shaped", which is what a remesher is for.
+double meanTriangleQuality(const VCGMesh &mesh)
+{
+    double total = 0.0;
+    int counted = 0;
+    for (const VCGFace &face : mesh.face) {
+        if (face.IsD())
+            continue;
+        const vcg::Point3f &a = face.cV(0)->cP();
+        const vcg::Point3f &b = face.cV(1)->cP();
+        const vcg::Point3f &c = face.cV(2)->cP();
+        const double area = 0.5 * double(((b - a) ^ (c - a)).Norm());
+        const double sumSq = double((b - a).SquaredNorm())
+            + double((c - b).SquaredNorm())
+            + double((a - c).SquaredNorm());
+        if (sumSq <= 0.0)
+            continue;
+        total += 4.0 * std::sqrt(3.0) * area / sumSq;
+        ++counted;
+    }
+    return counted > 0 ? total / double(counted) : -1.0;
+}
+
+// A cylinder with a single stack: its side is tiled by very elongated triangles, so
+// there is obvious room for a remesher to improve, and it has one flat direction
+// (along the axis) and one curved (around it), which is what the anisotropic test
+// needs.
+bool makeCylinder(Document &doc)
+{
+    const QString key = filterKeyForId(doc, QStringLiteral("create_cylinder"));
+    if (key.isEmpty())
+        return false;
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("sides"), 48);
+    params.insert(QStringLiteral("stacks"), 1);
+    return doc.runFilter(key, params).success;
+}
+
+} // namespace
+
+// The two things a user asks of a remesher: the size they asked for, and better
+// elements than they started with. Measured 2026-09-20: exactly 2000 vertices for a
+// target of 2000, and mean triangle quality 0.150 -> 0.979 -- the single-stack cylinder
+// starts out as slivers, so the margin here is enormous rather than marginal.
+void FilterTests::geogramCvtRemeshHitsTargetAndImprovesTriangles()
+{
+    Document doc;
+    const QString remeshKey = filterKeyForId(
+        doc, QStringLiteral("remesh_by_centroidal_voronoi_tessellation_geogram"));
+    if (remeshKey.isEmpty())
+        QSKIP("geogram filter plugin is not available in this build.");
+    QVERIFY2(makeCylinder(doc), "create_cylinder failed");
+
+    const int meshIndex = doc.currentMeshIndex();
+    const double qualityBefore = meanTriangleQuality(doc.mesh(meshIndex).mesh);
+    QVERIFY(qualityBefore > 0.0);
+
+    const int target = 2000;
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("targetVertexCount"), target);
+    const MeshFilterRunResult result = doc.runFilter(remeshKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    const VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+    QVERIFY(mesh.FN() > 0);
+
+    // geogram documents that it may add vertices to resolve problematic
+    // configurations, so this is a band rather than an equality.
+    const double ratio = double(mesh.VN()) / double(target);
+    QVERIFY2(ratio > 0.9 && ratio < 1.25,
+             qPrintable(QStringLiteral("asked for %1 vertices, got %2")
+                            .arg(target).arg(mesh.VN())));
+
+    const double qualityAfter = meanTriangleQuality(mesh);
+    QVERIFY2(qualityAfter > qualityBefore,
+             qPrintable(QStringLiteral("mean triangle quality %1 -> %2, no improvement")
+                            .arg(qualityBefore).arg(qualityAfter)));
+}
+
+// The claim no incumbent remesher can match. On a cylinder the surface normal is
+// constant along the axis and turns around the circumference, so lifting into the
+// six-dimensional space set_anisotropy builds separates points across the curved
+// direction and not along the flat one -- elements come out stretched along the axis.
+// Measured as lower mean triangle quality than the isotropic run on the same input:
+// deliberately worse equilateral-ness is exactly what anisotropy means.
+// Measured 2026-09-20: anisotropic 0.929 against isotropic 0.979 at strength 0.2.
+void FilterTests::geogramAnisotropicRemeshElongatesTriangles()
+{
+    Document probe;
+    const QString remeshKey = filterKeyForId(
+        probe, QStringLiteral("remesh_by_centroidal_voronoi_tessellation_geogram"));
+    if (remeshKey.isEmpty())
+        QSKIP("geogram filter plugin is not available in this build.");
+
+    const auto qualityForMode = [&](bool anisotropic) {
+        Document doc;
+        if (!makeCylinder(doc))
+            return -1.0;
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("targetVertexCount"), 2000);
+        params.insert(QStringLiteral("anisotropic"), anisotropic);
+        params.insert(QStringLiteral("anisotropy"), 0.2);
+        const MeshFilterRunResult r = doc.runFilter(remeshKey, params);
+        if (!r.success) {
+            qWarning("%s", qPrintable(r.errorMessage));
+            return -2.0;
+        }
+        return meanTriangleQuality(doc.mesh(doc.currentMeshIndex()).mesh);
+    };
+
+    const double isotropic = qualityForMode(false);
+    const double anisotropic = qualityForMode(true);
+    QVERIFY2(isotropic > 0.0, "isotropic remesh failed");
+    QVERIFY2(anisotropic > 0.0, "anisotropic remesh failed");
+
+    QVERIFY2(anisotropic < isotropic,
+             qPrintable(QStringLiteral("anisotropic mean quality %1 is not below isotropic %2, "
+                                       "so anisotropy changed nothing")
+                            .arg(anisotropic).arg(isotropic)));
 }
 
 // The CSG evaluator and the pairwise booleans must agree where they overlap, and the

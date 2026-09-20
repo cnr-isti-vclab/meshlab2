@@ -25,6 +25,7 @@ add_library(MeshLab2PluginFilterGeogram STATIC
     geogrambooleans.h geogrambooleans.cpp
     geogramparametrization.h geogramparametrization.cpp
     geogramatlas.h geogramatlas.cpp
+    geogramremeshing.h geogramremeshing.cpp
     geogrammeshadapter.h geogrammeshadapter.cpp
 )
 

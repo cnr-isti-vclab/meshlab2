@@ -94,18 +94,14 @@ bool meshToGeo(
     const VCGMesh &in,
     GeoMesh &out,
     QString &error,
-    const QMatrix4x4 *transform,
-    int dimension)
+    const QMatrix4x4 *transform)
 {
+
     out.mesh.clear();
     out.vertexToSourceIndex.clear();
     out.faceToSourceIndex.clear();
     out.skippedFaces = 0;
 
-    if (dimension < 3) {
-        error = QObject::tr("A geogram mesh needs at least three coordinates per vertex.");
-        return false;
-    }
     if (in.VN() <= 0 || in.FN() <= 0) {
         error = QObject::tr("The mesh must contain vertices and triangular faces.");
         return false;
@@ -140,7 +136,7 @@ bool meshToGeo(
         return false;
     }
 
-    out.mesh.vertices.set_dimension(::GEO::index_t(dimension));
+    out.mesh.vertices.set_dimension(3);
     out.mesh.vertices.create_vertices(::GEO::index_t(out.vertexToSourceIndex.size()));
     for (size_t row = 0; row < out.vertexToSourceIndex.size(); ++row) {
         const int sourceIndex = out.vertexToSourceIndex[row];
@@ -149,8 +145,6 @@ bool meshToGeo(
         coords[0] = double(p.X());
         coords[1] = double(p.Y());
         coords[2] = double(p.Z());
-        for (int c = 3; c < dimension; ++c)
-            coords[c] = 0.0;
     }
 
     std::vector<std::array<int, 3>> faces;

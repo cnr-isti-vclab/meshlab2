@@ -279,12 +279,15 @@ What it must handle:
   same one — `VT` versus `WT` — so the mapping is exact, but it has to be chosen per
   filter rather than once in the adapter.
 
-- **Dimension is part of the mesh, not a parameter.** `set_anisotropy(M, s)` normalizes
-  the vertex normals, scales them by `s`, and **stores them in coordinates 3, 4 and 5
-  of the vertices**; `remesh_smooth(..., dim=6)` then works in that 6-dimensional
-  space. So anisotropic remeshing needs a `GEO::Mesh` created with
-  `vertices.set_dimension(6)`, not a 3D mesh with an extra attribute. The adapter must
-  take the dimension as an argument rather than hard-coding 3.
+- **Dimension is part of the mesh — but the adapter must *not* set it.**
+  `set_anisotropy(M, s)` normalizes the vertex normals, scales them by `s`, and stores
+  them in coordinates 3, 4 and 5; `remesh_smooth(..., dim=6)` then works in that space.
+  It is tempting to conclude the adapter should build a 6-dimensional mesh, and Phase 4
+  measured that this is exactly backwards: `set_anisotropy` raises the dimension itself,
+  through `compute_normals`, and it does so **only when `dimension() < 6`**. Handed a
+  mesh that is already 6-dimensional it skips the normal computation and normalizes the
+  zeros the adapter left there. The adapter therefore always builds dimension 3 and lets
+  `set_anisotropy` do the lifting, which is geogram's own documented idiom.
 
 - **Triangles only.** `mesh_compute_ABF_plus_plus`, `mesh_compute_LSCM`, `mesh_segment`
   and `mesh_make_atlas` all document "only triangulated meshes are supported".
@@ -658,6 +661,39 @@ A 6-dimensional `GEO::Mesh`, which nothing before this phase needs.
 **Exit criteria:** isotropic mode on a scan produces a mesh within a few percent of
 `targetVertexCount` with better triangle quality than the input; anisotropic mode
 visibly aligns elements to curvature — the one claim no incumbent can match.
+
+#### Results — 2026-09-20
+
+Done, and the phase needed **no new adapter machinery at all** — it removed some.
+
+- **The `dimension` argument is gone.** It existed solely for this phase, and
+  measurement showed using it would break `set_anisotropy` (see the correction in the
+  adapter section above). `meshToGeo` now always builds dimension 3. Dead parameter,
+  removed rather than left as a trap.
+- **One filter**, `geogramremeshing.{h,cpp}`, 141 lines. Isotropic and anisotropic in
+  one descriptor, as planned: `anisotropic` selects `set_anisotropy` plus `dim=6`,
+  with `anisotropy`, `adjustMaxEdgeDistance` gated by `enabledWhen` and the three
+  solver knobs under `advanced.solver`.
+- **The layer is rebuilt in place** — `geoToMesh` clears the target and refills it, so
+  no correspondence with the old tessellation survives and per-vertex and per-face
+  attributes are dropped. The help says so and points at the Transfer family.
+- **`CmdLine::import_arg_group("algo")` paid off immediately**: the CVT remesher reaches
+  `Delaunay::create()` on the same path chart segmentation did, so without Phase 3's
+  fix this filter would have aborted the process too.
+
+Behavioural tests, on a single-stack cylinder whose side is tiled by slivers:
+
+| Assertion | Measured |
+|---|---|
+| Hits the requested vertex count | asked 2000, got **exactly 2000** |
+| Improves element shape | mean triangle quality **0.150 → 0.979** |
+| Anisotropy actually does something | anisotropic **0.929** against isotropic **0.979** at strength 0.2 |
+
+The third is the interesting one and reads backwards on purpose: anisotropic elements
+are *deliberately* less equilateral, stretched along the cylinder's flat direction and
+compressed across its curved one. Lower mean quality than the isotropic run on the same
+input is what confirms the six-dimensional lift did something, rather than the parameter
+being quietly ignored.
 
 ## Decisions taken
 

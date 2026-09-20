@@ -3,6 +3,7 @@
 #include "geogramatlas.h"
 #include "geogrambooleans.h"
 #include "geogramparametrization.h"
+#include "geogramremeshing.h"
 #include "meshfilterpluginmanager.h"
 
 #include <memory>
@@ -28,6 +29,8 @@ MeshFilterRunResult GeogramFilterPlugin::runFilter(
         return runGeogramParametrizationFilter(filterId, params, doc);
     if (isGeogramAtlasFilter(filterId))
         return runGeogramAtlasFilter(filterId, params, doc);
+    if (isGeogramRemeshingFilter(filterId))
+        return runGeogramRemeshingFilter(filterId, params, doc);
 
     MeshFilterRunResult result;
     result.success = false;

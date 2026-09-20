@@ -49,14 +49,16 @@ private:
     QStringList *m_previous = nullptr;
 };
 
-// `dimension` is 3 for ordinary use. Anisotropic remeshing needs 6, where
-// coordinates 3-5 carry the scaled normals GEO::set_anisotropy writes.
+// Always builds a 3-dimensional mesh. Anisotropic remeshing works in 6
+// dimensions, but it must get there through GEO::set_anisotropy, which raises
+// the dimension *and* fills coordinates 3-5 with the normals -- and which
+// skips that work entirely if the mesh already has dimension 6. Handing it a
+// 6-dimensional mesh would leave it normalizing zero vectors.
 bool meshToGeo(
     const VCGMesh &in,
     GeoMesh &out,
     QString &error,
-    const QMatrix4x4 *transform = nullptr,
-    int dimension = 3);
+    const QMatrix4x4 *transform = nullptr);
 
 bool geoToMesh(const ::GEO::Mesh &in, VCGMesh &out, QString &error);
 
