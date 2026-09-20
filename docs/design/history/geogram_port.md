@@ -1,18 +1,51 @@
-# Geogram
+# Geogram Port — record
 
-This document plans a `filter_geogram` plugin bringing [geogram](https://github.com/BrunoLevy/geogram)'s
-boolean, parametrization and remeshing algorithms into MeshLab. **Nothing described
-here is implemented.**
+> **Completed 2026-09-20.** `filter_geogram` ships 12 filters across four families,
+> all four phases are done and the macOS bundle is packaged. This is a dated record of
+> the plan and its execution, not a current description of the tree — the load-bearing
+> constraints it discovered are documented at the places they bind (see [Outcome](#outcome)).
+
+This document planned a `filter_geogram` plugin bringing [geogram](https://github.com/BrunoLevy/geogram)'s
+boolean, parametrization and remeshing algorithms into MeshLab.
 
 See also: [Adding a Filter](../adding_a_filter.md), [Filter Organization](../filter_organization.md)
 (the one-dependency-one-plugin rule this follows), [Vocabulary](../vocabulary.md)
 (which fixes every name below), [Data Model](../data_model.md).
 
-## Status
+## Outcome
 
-As of 2026-09-19: nothing implemented, and **ready to start**. The plan is complete and
-every open ruling has been taken — see *Decisions taken* at the end. Phase 0 is
-unblocked.
+Twelve filters, 100 % of the planned set:
+
+| Family | Filters |
+|---|---|
+| `Meshing/Boolean` | Mesh Union · Intersection · Difference · Symmetric Difference (geogram) |
+| `Repair/Topology` | Repair Self-Intersections (geogram) |
+| `Parametrization/UV Creation` | Parametrize by Least Squares Conformal Maps · Spectral Conformal Maps · Angle-Based Flattening · Atlas (geogram) |
+| `Parametrization/Atlas Packing` | Pack UV Charts (geogram) |
+| `Parametrization/Segmentation` | Compute Chart Segmentation (geogram) |
+| `Meshing/Remeshing` | Remesh by Centroidal Voronoi Tessellation (geogram) |
+
+All eight rulings were taken and applied; decision 2 was re-ruled once, from *drop the
+spectral filters* to *ship them*, when the reason for dropping them turned out to be
+wrong twice over.
+
+**The constraints this port discovered live in the code, not here**, because a record
+is the wrong place for something that will break a build if forgotten:
+
+| Constraint | Where it is enforced and explained |
+|---|---|
+| The bundle must ship **both** geogram dylibs; nothing links the second | `scripts/package-macos-dmg.sh`, `CMakeLists.txt` |
+| The vcpkg lib dir must be on `CMAKE_BUILD_RPATH`, set before the first target | `CMakeLists.txt` |
+| `GEO::initialize()` must be followed by `CmdLine::import_arg_group("algo")`, or Delaunay `geo_assert`s and takes the process down | `plugins/filter_geogram/geogrammeshadapter.cpp` |
+| The adapter must build **3**-dimensional meshes; `set_anisotropy` does the lift to 6 | `plugins/filter_geogram/geogrammeshadapter.h` |
+| `facets.connect()`, never `mesh_repair(COLOCATE)` — the latter renumbers vertices and invalidates the index mapping | `plugins/filter_geogram/geogramparametrization.cpp` |
+
+**Still open:** the OpenSCAD script compiler, deferred by decision 8 and moved to its
+own proposal, [OpenSCAD CSG](../proposals/openscad_csg.md). Nothing else.
+
+## Status as planned
+
+As of 2026-09-19, when the plan was finished: nothing implemented, ready to start.
 
 Every signature quoted here was re-read from tag **v1.9.3**, which is what the vcpkg
 port pins, rather than from `main`. Two claims in the first draft did not survive that
@@ -157,7 +190,7 @@ nothing, and the spectral paths will fail at the point of use.
 |---|---|---|
 | Spectral conformal parametrization | `mesh_compute_LSCM(spectral=true)` | plain LSCM |
 | Spectral chart parametrizer in the atlas | `PARAM_SPECTRAL_LSCM` | `PARAM_LSCM` or `PARAM_ABF` |
-| Spectral segmenters | `SEGMENT_SPECTRAL_8/20/100` | the two VSA segmenters — *unconfirmed*: they reach ARPACK through manifold harmonics rather than directly, so this was never measured. Omitted with the rest |
+| Spectral segmenters | `SEGMENT_SPECTRAL_8/20/100` | the two VSA segmenters — *unconfirmed at the time*: they reach ARPACK through manifold harmonics rather than directly. Later measured and shipped; see below |
 
 Shipping ARPACK ourselves was considered and rejected. vcpkg does carry `arpack-ng`
 3.9.1, but satisfying that `dlopen` on macOS needs all three of a Fortran toolchain
@@ -642,9 +675,9 @@ library is linked by a build-relative path and no `-rpath` is emitted for it, so
 only `LC_RPATH` any binary carried was `/opt/homebrew/lib`, left over from libomp. The
 app and all fourteen test binaries were affected equally.
 
-The fix is four lines in the top-level `CMakeLists.txt`, appending the vcpkg lib
-directory to `CMAKE_BUILD_RPATH` before the first target is created (the variable is
-read at target creation, not at link). It is general rather than geogram-specific,
+The fix is a single `list(APPEND CMAKE_BUILD_RPATH ...)` in the top-level
+`CMakeLists.txt`, adding the vcpkg lib directory before the first target is created
+(the variable is read at target creation, not at link). It is general rather than geogram-specific,
 because the next shared vcpkg dependency would hit exactly the same wall.
 
 ### Phase 2 — parametrization
@@ -809,12 +842,13 @@ global parametrization (`GlobalParam2d::PGP`), with **no quad extraction** — t
 because their consumer was Vorpaline. So geogram cannot add a third quad remesher
 beside Instant Meshes and QuadWild. What it could add is the *input* to one, which is
 only worth porting if something can consume it: see
-[Frame Fields](frame_fields.md).
+[Frame Fields](../proposals/frame_fields.md).
 
 ## Deferred: the OpenSCAD compiler
 
-Not planned, and not a phase — recorded so the capability is not rediscovered from
-scratch later.
+Moved to its own proposal, [OpenSCAD CSG](../proposals/openscad_csg.md), because an
+un-implemented idea does not belong in a record of finished work. Summarised here for
+continuity.
 
 `CSGCompiler::compile_string` in `mesh/mesh_CSG.h` is a complete OpenSCAD-subset
 language: `CSGBuilder` exposes `square`, `circle`, `cube`, `sphere`, `cylinder`,

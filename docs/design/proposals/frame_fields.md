@@ -5,7 +5,7 @@ feeding it to the two quad remeshers that already ship. **Nothing described here
 implemented.**
 
 See also: [Adding a Filter](../adding_a_filter.md), [Vocabulary](../vocabulary.md),
-[Data Model](../data_model.md), [Geogram](geogram_porting.md) (one possible producer).
+[Data Model](../data_model.md), [Geogram Port](../history/geogram_port.md) (one possible producer).
 
 ## Status
 
@@ -139,7 +139,7 @@ substantially, because `combing.h` and `principal_matching.h` are that problem s
 | Producer | Status | Notes |
 |---|---|---|
 | Principal curvature directions | **ships today** | already in `PD1`; the obvious first source, and the least interesting one — see below |
-| geogram `GlobalParam2d::frame_field` | not ported | per-facet `vec3` attribute, sharp edges as constraints; see [Geogram](geogram_porting.md) |
+| geogram `GlobalParam2d::frame_field` | not ported | per-facet `vec3` attribute, sharp edges as constraints; see [Geogram Port](../history/geogram_port.md) |
 | geogram `FrameField::create_from_surface_mesh` | not ported | separate class, spatial search, handles volumetric fields too |
 | Directional (`power_field`, `polyvector_field`, `index_prescription`, …) | not ported | a whole family of designed fields nothing here can produce — see below |
 | Transferred from another layer | not implemented | a `Transfer/Between Layers` filter; needs the same rotation-into-a-common-frame care as above |
