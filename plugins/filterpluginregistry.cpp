@@ -38,6 +38,9 @@
 #if MESHLAB2_PLUGIN_FILTER_CGAL_ENABLED
 #include "plugins/filter_cgal/cgalfilterplugin.h"
 #endif
+#if MESHLAB2_PLUGIN_FILTER_GEOGRAM_ENABLED
+#include "plugins/filter_geogram/geogramfilterplugin.h"
+#endif
 #if MESHLAB2_PLUGIN_FILTER_IGL_ENABLED
 #include "plugins/filter_igl/iglfilterplugin.h"
 #endif
@@ -145,6 +148,9 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if MESHLAB2_PLUGIN_FILTER_CGAL_ENABLED
     registerCgalFilterPlugin(pluginManager);
+#endif
+#if MESHLAB2_PLUGIN_FILTER_GEOGRAM_ENABLED
+    registerGeogramFilterPlugin(pluginManager);
 #endif
 #if MESHLAB2_PLUGIN_FILTER_IGL_ENABLED
     registerIglFilterPlugin(pluginManager);

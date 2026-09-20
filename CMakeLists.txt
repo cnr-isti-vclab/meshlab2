@@ -12,6 +12,17 @@ endif()
 
 project(MeshLab2 LANGUAGES CXX)
 
+# geogram is the first vcpkg dependency that is a shared library (its port
+# forces dynamic linkage on Darwin), and its install name is @rpath-relative.
+# CMake does not add the vcpkg lib directory to the build rpath by itself
+# here, so every executable -- the app and all fourteen test binaries --
+# would link fine and then die at launch with a dyld "Library not loaded"
+# error. Must precede the first target: CMAKE_BUILD_RPATH is read when a
+# target is created, not when it is linked.
+if (VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
+    list(APPEND CMAKE_BUILD_RPATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+endif()
+
 # MeshLab2's own root, used by every path below and inherited by plugins/ and
 # src/. Deliberately not CMAKE_SOURCE_DIR: pymeshlab2 pulls this tree in with
 # add_subdirectory(), where that variable is the *outer* project's root and

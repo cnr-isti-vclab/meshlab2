@@ -369,6 +369,7 @@ private slots:
     void kineticReconstructsABox();
     void trueFormAlignmentRecoversAKnownTransform();
     void trueFormBooleansAgreeWithVolume();
+    void geogramBooleansAgreeWithVolume();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
     void trueFormCsgSheetsCutWithoutEnclosing();
     void trueFormSolidDomainsSplitTheEnclosedVolume();
@@ -2116,6 +2117,81 @@ void FilterTests::trueFormBooleansAgreeWithVolume()
     const MeshFilterRunResult shell = doc.runFilter(shellKey, shellParams);
     QVERIFY2(shell.success, qPrintable(shell.errorMessage));
     QVERIFY(std::abs(volumeOf(shell.newMeshIndices.front()) - unit) < 0.02 * unit);
+}
+
+// The same two half-overlapping boxes against the geogram backend. Volume pins the
+// operations themselves, and the closed-manifold check matters more here than for the
+// other backends: geogram merges coplanar facets by default and its output is read back
+// through a fan triangulation, either of which could leave a hole without changing the
+// volume much. The symmetric difference is the interesting row — geogram has no XOR, so
+// that one is composed from three evaluations and this is what says the composition is
+// right.
+void FilterTests::geogramBooleansAgreeWithVolume()
+{
+    Document doc;
+
+    QString boxKey, unionKey, interKey, diffKey, xorKey;
+    for (const auto &info : doc.filterInfos()) {
+        const QString id = info.descriptor.id;
+        if (id == QStringLiteral("create_hexahedron")) boxKey = info.key;
+        else if (id == QStringLiteral("mesh_union_geogram")) unionKey = info.key;
+        else if (id == QStringLiteral("mesh_intersection_geogram")) interKey = info.key;
+        else if (id == QStringLiteral("mesh_difference_geogram")) diffKey = info.key;
+        else if (id == QStringLiteral("mesh_symmetric_difference_geogram")) xorKey = info.key;
+    }
+    QVERIFY(!boxKey.isEmpty());
+    if (unionKey.isEmpty())
+        QSKIP("geogram filter plugin is not available in this build.");
+    QVERIFY(!interKey.isEmpty());
+    QVERIFY(!diffKey.isEmpty());
+    QVERIFY(!xorKey.isEmpty());
+
+    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_hexahedron failed");
+    const int a = doc.currentMeshIndex();
+    const float side = doc.mesh(a).mesh.bbox.DimX();
+    QVERIFY(side > 0.0f);
+    const double unit = double(side) * double(side) * double(side);
+
+    const int b = doc.addMesh(doc.mesh(a).mesh, QStringLiteral("shifted"));
+    QVERIFY(b >= 0);
+    QMatrix4x4 shift;
+    shift.translate(side * 0.5f, 0.0f, 0.0f);
+    doc.setMeshTransform(b, shift);
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("firstMesh"), a);
+    p.insert(QStringLiteral("secondMesh"), b);
+
+    struct Case { const QString *key; double expected; const char *name; };
+    const Case cases[] = {
+        { &unionKey,  1.5 * unit, "union" },
+        { &interKey,  0.5 * unit, "intersection" },
+        { &diffKey,   0.5 * unit, "difference" },
+        { &xorKey,    1.0 * unit, "symmetric difference" },
+    };
+    for (const Case &c : cases) {
+        const MeshFilterRunResult r = doc.runFilter(*c.key, p);
+        QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(c.name, r.errorMessage)));
+        QCOMPARE(r.newMeshIndices.size(), 1);
+
+        VCGMesh &result = doc.mesh(r.newMeshIndices.front()).mesh;
+        const double got = double(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(result)));
+        QVERIFY2(std::abs(got - c.expected) < 0.02 * unit,
+                 qPrintable(QStringLiteral("%1: volume %2, expected %3")
+                                .arg(c.name).arg(got).arg(c.expected)));
+
+        int totalEdges = 0;
+        int boundaryEdges = 0;
+        int nonManifoldEdges = 0;
+        vcg::tri::Clean<VCGMesh>::CountEdgeNum(
+            result, totalEdges, boundaryEdges, nonManifoldEdges);
+        QVERIFY2(boundaryEdges == 0,
+                 qPrintable(QStringLiteral("%1: %2 boundary edge(s), result is not closed")
+                                .arg(c.name).arg(boundaryEdges)));
+        QVERIFY2(nonManifoldEdges == 0,
+                 qPrintable(QStringLiteral("%1: %2 non-manifold edge(s)")
+                                .arg(c.name).arg(nonManifoldEdges)));
+    }
 }
 
 // The CSG evaluator and the pairwise booleans must agree where they overlap, and the

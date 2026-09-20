@@ -125,6 +125,12 @@ if (TARGET MeshLab2PluginFilterCGAL)
     target_compile_definitions(MeshLab2Plugins PRIVATE MESHLAB2_PLUGIN_FILTER_CGAL_ENABLED=1)
 endif()
 
+add_subdirectory(filter_geogram)
+if (TARGET MeshLab2PluginFilterGeogram)
+    target_link_libraries(MeshLab2Plugins PUBLIC MeshLab2PluginFilterGeogram)
+    target_compile_definitions(MeshLab2Plugins PRIVATE MESHLAB2_PLUGIN_FILTER_GEOGRAM_ENABLED=1)
+endif()
+
 add_subdirectory(filter_igl)
 if (TARGET MeshLab2PluginFilterIgl)
     target_link_libraries(MeshLab2Plugins PUBLIC MeshLab2PluginFilterIgl)

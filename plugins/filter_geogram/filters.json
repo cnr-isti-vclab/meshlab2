@@ -1,0 +1,305 @@
+{
+  "pluginId": "meshlab2.filter.geogram",
+  "provenance": {
+    "project": "geogram",
+    "repository": "https://github.com/BrunoLevy/geogram",
+    "license": "BSD-3-Clause",
+    "integration": "vcpkg:geogram"
+  },
+  "references": [
+    {
+      "id": "geogram",
+      "type": "software",
+      "title": "Geogram: a programming library of geometric algorithms",
+      "author": [
+        {
+          "family": "Levy",
+          "given": "Bruno"
+        }
+      ],
+      "issued": {
+        "date-parts": [
+          [
+            2015
+          ]
+        ]
+      },
+      "URL": "https://github.com/BrunoLevy/geogram"
+    }
+  ],
+  "filters": [
+    {
+      "id": "mesh_union_geogram",
+      "categories": [
+        "Meshing/Boolean"
+      ],
+      "name": "Mesh Union (geogram)",
+      "pythonName": "mesh_union_geogram",
+      "referenceIds": [
+        "geogram"
+      ],
+      "shortDescription": "Create the exact union of two mesh layers using geogram.",
+      "longDescriptionMarkdown": "Computes the exact boolean union of two mesh layers and creates the result as a new layer, using geogram's exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.",
+      "tags": [
+        "boolean",
+        "union",
+        "csg",
+        "geogram"
+      ],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "NewMeshes",
+      "outputTag": "union",
+      "outputSource": "firstMesh",
+      "outputSecondSource": "secondMesh",
+      "parameters": [
+        {
+          "id": "firstMesh",
+          "label": "First Mesh",
+          "help": "First operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "secondMesh",
+          "label": "Second Mesh",
+          "help": "Second operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "simplifyCoplanarFacets",
+          "label": "Simplify coplanar facets",
+          "help": "Merge facets that end up coplanar in the result. Turning this off keeps every triangle the intersection produced, which is larger but preserves the original tessellation more closely.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        }
+      ]
+    },
+    {
+      "id": "mesh_intersection_geogram",
+      "categories": [
+        "Meshing/Boolean"
+      ],
+      "name": "Mesh Intersection (geogram)",
+      "pythonName": "mesh_intersection_geogram",
+      "referenceIds": [
+        "geogram"
+      ],
+      "shortDescription": "Create the exact intersection of two mesh layers using geogram.",
+      "longDescriptionMarkdown": "Computes the exact boolean intersection of two mesh layers and creates the result as a new layer, using geogram's exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.",
+      "tags": [
+        "boolean",
+        "intersection",
+        "csg",
+        "geogram"
+      ],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "NewMeshes",
+      "outputTag": "intersection",
+      "outputSource": "firstMesh",
+      "outputSecondSource": "secondMesh",
+      "parameters": [
+        {
+          "id": "firstMesh",
+          "label": "First Mesh",
+          "help": "First operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "secondMesh",
+          "label": "Second Mesh",
+          "help": "Second operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "simplifyCoplanarFacets",
+          "label": "Simplify coplanar facets",
+          "help": "Merge facets that end up coplanar in the result. Turning this off keeps every triangle the intersection produced, which is larger but preserves the original tessellation more closely.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        }
+      ]
+    },
+    {
+      "id": "mesh_difference_geogram",
+      "categories": [
+        "Meshing/Boolean"
+      ],
+      "name": "Mesh Difference (geogram)",
+      "pythonName": "mesh_difference_geogram",
+      "referenceIds": [
+        "geogram"
+      ],
+      "shortDescription": "Create the exact difference of two mesh layers using geogram.",
+      "longDescriptionMarkdown": "Computes the exact boolean difference of two mesh layers, first minus second, and creates the result as a new layer, using geogram's exact predicates. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.",
+      "tags": [
+        "boolean",
+        "difference",
+        "subtraction",
+        "csg",
+        "geogram"
+      ],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "NewMeshes",
+      "outputTag": "difference",
+      "outputSource": "firstMesh",
+      "outputSecondSource": "secondMesh",
+      "parameters": [
+        {
+          "id": "firstMesh",
+          "label": "First Mesh",
+          "help": "First operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "secondMesh",
+          "label": "Second Mesh",
+          "help": "Second operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "simplifyCoplanarFacets",
+          "label": "Simplify coplanar facets",
+          "help": "Merge facets that end up coplanar in the result. Turning this off keeps every triangle the intersection produced, which is larger but preserves the original tessellation more closely.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        }
+      ]
+    },
+    {
+      "id": "mesh_symmetric_difference_geogram",
+      "categories": [
+        "Meshing/Boolean"
+      ],
+      "name": "Mesh Symmetric Difference (geogram)",
+      "pythonName": "mesh_symmetric_difference_geogram",
+      "referenceIds": [
+        "geogram"
+      ],
+      "shortDescription": "Create the exact symmetric difference of two mesh layers using geogram.",
+      "longDescriptionMarkdown": "Computes the exact boolean symmetric difference (XOR) of two mesh layers and creates the result as a new layer.\n\ngeogram's boolean evaluator provides union, intersection and the two differences, but not the symmetric difference, so this filter composes it as $(A \\setminus B) \\cup (B \\setminus A)$. That is **three** boolean evaluations rather than one, so expect it to take roughly three times as long as *Mesh Difference (geogram)* on the same operands. Both operands should be closed, consistently oriented surfaces without self-intersections; *Repair Self-Intersections (geogram)* can prepare an input that is not.",
+      "tags": [
+        "boolean",
+        "xor",
+        "symmetric difference",
+        "csg",
+        "geogram"
+      ],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "NewMeshes",
+      "outputTag": "xor",
+      "outputSource": "firstMesh",
+      "outputSecondSource": "secondMesh",
+      "parameters": [
+        {
+          "id": "firstMesh",
+          "label": "First Mesh",
+          "help": "First operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "secondMesh",
+          "label": "Second Mesh",
+          "help": "Second operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "simplifyCoplanarFacets",
+          "label": "Simplify coplanar facets",
+          "help": "Merge facets that end up coplanar in the result. Turning this off keeps every triangle the intersection produced, which is larger but preserves the original tessellation more closely.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        }
+      ]
+    },
+    {
+      "id": "repair_self_intersections_geogram",
+      "categories": [
+        "Repair/Topology"
+      ],
+      "name": "Repair Self-Intersections (geogram)",
+      "pythonName": "repair_self_intersections_geogram",
+      "referenceIds": [
+        "geogram"
+      ],
+      "shortDescription": "Remove self-intersecting faces and retriangulate the holes using geogram.",
+      "longDescriptionMarkdown": "Attempts to make a surface conformal by removing intersecting faces and retriangulating the holes they leave, using geogram's exact predicates. The result is created as a new layer.\n\nThe pass is repeated until no intersection remains or the iteration limit is reached, so a mesh with deeply nested intersections may need more than the default number of iterations. This is the usual way to prepare an input for the geogram boolean filters, which require operands without self-intersections.",
+      "tags": [
+        "repair",
+        "self-intersection",
+        "intersection",
+        "conformal",
+        "geogram"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "outputTag": "resolved",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [
+        {
+          "id": "maxIterations",
+          "label": "Maximum Iterations",
+          "help": "How many times to repeat the remove-and-retriangulate pass before giving up.",
+          "group": "main",
+          "type": "int",
+          "default": 3,
+          "min": 1,
+          "max": 100
+        }
+      ]
+    }
+  ]
+}
