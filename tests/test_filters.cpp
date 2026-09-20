@@ -371,6 +371,8 @@ private slots:
     void trueFormBooleansAgreeWithVolume();
     void geogramBooleansAgreeWithVolume();
     void geogramAbfBeatsLscmOnAngleDistortion();
+    void geogramAtlasPacksChartsIntoUnitSquare();
+    void geogramSegmentationWritesScalarNotColor();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
     void trueFormCsgSheetsCutWithoutEnclosing();
     void trueFormSolidDomainsSplitTheEnclosedVolume();
@@ -2302,6 +2304,111 @@ void FilterTests::geogramAbfBeatsLscmOnAngleDistortion()
     QVERIFY2(abf < lscm,
              qPrintable(QStringLiteral("ABF++ mean angle distortion %1 rad, LSCM %2 rad")
                             .arg(abf).arg(lscm)));
+}
+
+// The atlas pipeline is the one geogram filter that works on a closed mesh, because it
+// segments before it flattens. What makes its output usable is not just that UVs exist
+// but that they are packed: inside the unit square, and not piled on top of each other.
+// Total UV area above 1 would prove overlap outright, so it is checked as the cheap
+// necessary condition rather than testing every chart pair.
+void FilterTests::geogramAtlasPacksChartsIntoUnitSquare()
+{
+    Document doc;
+    const QString atlasKey = filterKeyForId(doc, QStringLiteral("parametrize_by_atlas_geogram"));
+    if (atlasKey.isEmpty())
+        QSKIP("geogram filter plugin is not available in this build.");
+    const QString sphereKey = filterKeyForId(doc, QStringLiteral("create_sphere"));
+    QVERIFY(!sphereKey.isEmpty());
+
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    const int meshIndex = doc.currentMeshIndex();
+
+    const MeshFilterRunResult result = doc.runFilter(atlasKey, {});
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    // The chart count belongs in the log: it is the one number telling the user how
+    // badly the surface had to be cut up.
+    QVERIFY2(std::any_of(result.infoMessages.begin(), result.infoMessages.end(),
+                         [](const QString &m) { return m.startsWith(QStringLiteral("Charts: ")); }),
+             qPrintable(QStringLiteral("no chart count reported; got: %1")
+                            .arg(result.infoMessages.join(QStringLiteral(" | ")))));
+
+    const VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+    QVERIFY(vcg::tri::HasPerWedgeTexCoord(mesh));
+
+    double uvArea = 0.0;
+    int corners = 0;
+    for (const VCGFace &face : mesh.face) {
+        if (face.IsD())
+            continue;
+        vcg::Point2f q[3];
+        for (int k = 0; k < 3; ++k) {
+            q[k] = vcg::Point2f(face.cWT(k).U(), face.cWT(k).V());
+            QVERIFY(std::isfinite(q[k].X()) && std::isfinite(q[k].Y()));
+            // A small tolerance: the packers place charts against the border.
+            QVERIFY2(q[k].X() >= -1e-3f && q[k].X() <= 1.0f + 1e-3f
+                         && q[k].Y() >= -1e-3f && q[k].Y() <= 1.0f + 1e-3f,
+                     qPrintable(QStringLiteral("UV (%1, %2) outside the unit square")
+                                    .arg(q[k].X()).arg(q[k].Y())));
+            ++corners;
+        }
+        uvArea += 0.5 * std::abs(double((q[1] - q[0]) ^ (q[2] - q[0])));
+    }
+    QVERIFY(corners > 0);
+    QVERIFY2(uvArea <= 1.0,
+             qPrintable(QStringLiteral("charts cover %1 of the unit square, so they overlap")
+                            .arg(uvArea)));
+    QVERIFY2(uvArea > 0.01,
+             qPrintable(QStringLiteral("charts cover only %1 of the unit square").arg(uvArea)));
+}
+
+// A Compute filter stores a scalar and asks for the shading; it never bakes the ramp
+// into the colour slot. This is the rule in adding_a_filter.md, and the segmentation
+// filter is the first geogram one it applies to.
+void FilterTests::geogramSegmentationWritesScalarNotColor()
+{
+    Document doc;
+    const QString segmentKey =
+        filterKeyForId(doc, QStringLiteral("compute_chart_segmentation_geogram"));
+    if (segmentKey.isEmpty())
+        QSKIP("geogram filter plugin is not available in this build.");
+    const QString sphereKey = filterKeyForId(doc, QStringLiteral("create_sphere"));
+    QVERIFY(!sphereKey.isEmpty());
+
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    const int meshIndex = doc.currentMeshIndex();
+
+    std::vector<vcg::Color4b> colorsBefore;
+    for (const VCGFace &face : doc.mesh(meshIndex).mesh.face)
+        colorsBefore.push_back(face.cC());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("segmentCount"), 6);
+    const MeshFilterRunResult result = doc.runFilter(segmentKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    const VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+    QVERIFY(vcg::tri::HasPerFaceQuality(mesh));
+
+    std::set<int> distinctCharts;
+    size_t faceRow = 0;
+    for (const VCGFace &face : mesh.face) {
+        if (!face.IsD())
+            distinctCharts.insert(int(face.cQ()));
+        // Colour must be exactly as the sphere left it.
+        if (faceRow < colorsBefore.size())
+            QCOMPARE(face.cC(), colorsBefore[faceRow]);
+        ++faceRow;
+    }
+    QVERIFY2(distinctCharts.size() >= 2,
+             qPrintable(QStringLiteral("segmentation produced %1 distinct chart index/es")
+                            .arg(distinctCharts.size())));
+
+    QVERIFY2(std::any_of(result.visualizationHints.begin(), result.visualizationHints.end(),
+                         [](const MeshFilterVisualizationHint &h) {
+                             return h.attribute == MeshFilterVisualizationAttribute::FaceQuality;
+                         }),
+             "segmentation did not ask for face scalar shading");
 }
 
 // The CSG evaluator and the pairwise booleans must agree where they overlap, and the
@@ -7214,7 +7321,7 @@ void FilterTests::packUvChartsSurvivesAnyRotationCount()
         params.insert(QStringLiteral("rotationNum"), rotations);
         params.insert(QStringLiteral("resampleTextures"), false);
         const MeshFilterRunResult r =
-            doc.runFilter(filterKeyForId(doc, QStringLiteral("pack_uv_charts")), params);
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("pack_uv_charts_vcglib")), params);
         QVERIFY2(r.success,
                  qPrintable(QStringLiteral("rotationNum %1: %2").arg(rotations).arg(r.errorMessage)));
     }
@@ -7254,7 +7361,7 @@ void FilterTests::packUvChartsWorksWithoutATexture()
     };
 
     const QStringList ids{
-        QStringLiteral("pack_uv_charts"),
+        QStringLiteral("pack_uv_charts_vcglib"),
         QStringLiteral("merge_texture_islands"),
         QStringLiteral("defragment_texture_atlas")
     };
@@ -7265,7 +7372,7 @@ void FilterTests::packUvChartsWorksWithoutATexture()
         // reasons recorded with the packing measurements. The no-texture handling is one
         // shared block, so running it once proves it; each filter's refusal path below is
         // cheap and still covers all three descriptors no longer demanding a texture.
-        const bool runSuccessPath = (id == QStringLiteral("pack_uv_charts"));
+        const bool runSuccessPath = (id == QStringLiteral("pack_uv_charts_vcglib"));
 
         // No texture, no resampling: works on the UVs, returns a layer with no textures.
         if (runSuccessPath) {
@@ -7353,7 +7460,7 @@ void FilterTests::packUvChartsRunsEveryAlgorithm()
         QElapsedTimer timer;
         timer.start();
         const MeshFilterRunResult r =
-            doc.runFilter(filterKeyForId(doc, QStringLiteral("pack_uv_charts")), params);
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("pack_uv_charts_vcglib")), params);
         const qint64 elapsed = timer.elapsed();
         QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(algorithm, r.errorMessage)));
         QVERIFY(!r.newMeshIndices.empty());

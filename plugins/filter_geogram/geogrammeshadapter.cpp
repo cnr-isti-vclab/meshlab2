@@ -2,8 +2,11 @@
 
 #include <geogram/basic/common.h>
 #include <geogram/basic/attributes.h>
+#include <geogram/basic/command_line.h>
+#include <geogram/basic/command_line_args.h>
 #include <geogram/basic/logger.h>
 
+#include <vcg/complex/algorithms/mesh_to_matrix.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/allocate.h>
@@ -61,6 +64,14 @@ void ensureInitialized()
     static std::once_flag once;
     std::call_once(once, [] {
         ::GEO::initialize(::GEO::GEOGRAM_INSTALL_NONE);
+        // initialize() constructs the CmdLine environment but declares no
+        // variables in it, and geogram reads its own defaults back out of that
+        // environment: Delaunay::create() asks for "algo:delaunay" and asserts
+        // when it is missing, which takes down the whole process rather than
+        // failing the call. Anything reaching CVT -- chart segmentation, and
+        // the CVT remesher later -- goes through that path. Declaring the
+        // group only installs defaults; it parses no command line.
+        ::GEO::CmdLine::import_arg_group("algo");
         // Leaked on purpose: GEO::Logger outlives every filter run, and the
         // client must stay valid for as long as it is registered.
         ::GEO::Logger::instance()->register_client(new SinkLoggerClient());
@@ -272,6 +283,90 @@ bool readVertexTexCoords(
         uv[size_t(v)][0] = float(texCoord[2 * v]);
         uv[size_t(v)][1] = float(texCoord[2 * v + 1]);
     }
+    return true;
+}
+
+bool readCornerTexCoords(
+    const ::GEO::Mesh &in,
+    std::vector<std::array<float, 2>> &uv,
+    QString &error,
+    const char *attributeName)
+{
+    uv.clear();
+
+    ::GEO::Attribute<double> texCoord;
+    if (!texCoord.bind_if_is_defined(
+            const_cast<::GEO::Mesh &>(in).facet_corners.attributes(), attributeName)) {
+        error = QObject::tr("geogram did not produce a '%1' facet corner attribute.")
+                    .arg(QString::fromLatin1(attributeName));
+        return false;
+    }
+    if (texCoord.dimension() != 2) {
+        error = QObject::tr("The '%1' facet corner attribute has %2 components, expected 2.")
+                    .arg(QString::fromLatin1(attributeName))
+                    .arg(texCoord.dimension());
+        return false;
+    }
+
+    const ::GEO::index_t cornerCount = in.facet_corners.nb();
+    uv.resize(size_t(cornerCount));
+    for (::GEO::index_t c = 0; c < cornerCount; ++c) {
+        uv[size_t(c)][0] = float(texCoord[2 * c]);
+        uv[size_t(c)][1] = float(texCoord[2 * c + 1]);
+    }
+    return true;
+}
+
+bool writeWedgeTexCoordsToGeo(
+    const VCGMesh &in,
+    GeoMesh &out,
+    QString &error,
+    const char *attributeName)
+{
+    if (!vcg::tri::HasPerWedgeTexCoord(in)) {
+        error = QObject::tr("The mesh has no per-wedge texture coordinates to pack.");
+        return false;
+    }
+
+    ::GEO::Attribute<double> texCoord;
+    texCoord.create_vector_attribute(
+        out.mesh.facet_corners.attributes(), attributeName, 2);
+
+    const ::GEO::index_t facetCount = out.mesh.facets.nb();
+    for (::GEO::index_t f = 0; f < facetCount; ++f) {
+        const int sourceFaceIndex = out.faceToSourceIndex[size_t(f)];
+        if (sourceFaceIndex < 0 || size_t(sourceFaceIndex) >= in.face.size())
+            continue;
+        const VCGFace &face = in.face[size_t(sourceFaceIndex)];
+        for (int corner = 0; corner < 3; ++corner) {
+            const ::GEO::index_t c = out.mesh.facets.corner(f, ::GEO::index_t(corner));
+            texCoord[2 * c] = double(face.cWT(corner).U());
+            texCoord[2 * c + 1] = double(face.cWT(corner).V());
+        }
+    }
+    return true;
+}
+
+bool readFacetCharts(
+    const ::GEO::Mesh &in,
+    std::vector<int> &charts,
+    QString &error,
+    const char *attributeName)
+{
+    charts.clear();
+
+    ::GEO::Attribute<::GEO::index_t> chart;
+    if (!chart.bind_if_is_defined(
+            const_cast<::GEO::Mesh &>(in).facets.attributes(), attributeName)) {
+        error = QObject::tr("geogram did not produce a '%1' facet attribute.")
+                    .arg(QString::fromLatin1(attributeName));
+        return false;
+    }
+
+    const ::GEO::index_t facetCount = in.facets.nb();
+    charts.resize(size_t(facetCount));
+    for (::GEO::index_t f = 0; f < facetCount; ++f)
+        charts[size_t(f)] = int(chart[f]);
     return true;
 }
 

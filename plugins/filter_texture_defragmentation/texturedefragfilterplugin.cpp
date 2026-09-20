@@ -40,7 +40,7 @@ namespace {
 
 constexpr QLatin1StringView kFilterTextureDefrag("defragment_texture_atlas");
 constexpr QLatin1StringView kFilterMergeIslands("merge_texture_islands");
-constexpr QLatin1StringView kFilterPackCharts("pack_uv_charts");
+constexpr QLatin1StringView kFilterPackCharts("pack_uv_charts_vcglib");
 
 using Mask = vcg::tri::io::Mask;
 namespace Tex = TextureAssociationUtils;

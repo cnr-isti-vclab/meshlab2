@@ -605,6 +605,52 @@ packed inside the unit square with no overlap; chart count from `mesh_get_charts
 reported in `infoMessages`; the segmentation filter writes `FQ` and asks for scalar
 shading rather than baking color.
 
+#### Results — 2026-09-20
+
+Done. `geogramatlas.{h,cpp}`, three filters, all three tiers green.
+
+Groundwork first, in the order decision 4 requires: `Parametrization/Segmentation`
+added to `src/plugins/filtercategories.cpp` and to
+[vocabulary.md](../vocabulary.md) §1 with its rationale, **before** any descriptor
+named it. Under decision 5, `pack_uv_charts` became `pack_uv_charts_vcglib` /
+*Pack UV Charts (vcglib)* — descriptor, the plugin's dispatch constant and four test
+references. `docs/design/history/` was deliberately left alone: it records what was
+true when written.
+
+- **Adapter** gained `readCornerTexCoords`, `readFacetCharts` and
+  `writeWedgeTexCoordsToGeo`. The last is the first write-direction attribute path: a
+  packer rearranges an atlas it is *given*, so the layer's existing per-wedge UVs have
+  to be copied into the facet-corner attribute before `pack_atlas_using_*` runs.
+- **Facet corners map to per-wedge directly**, so the atlas write-back is a straight
+  copy rather than the per-vertex plus sync dance Phase 2 needed.
+- **Behavioural tests** — `geogramAtlasPacksChartsIntoUnitSquare` asserts every UV lies
+  in the unit square, that total UV area is below 1 (overlap would exceed it) but above
+  0.01, and that the chart count reaches `infoMessages`.
+  `geogramSegmentationWritesScalarNotColor` asserts `FQ` carries at least two distinct
+  chart indices, that a `FaceQuality` visualization hint is returned, and that **every
+  face colour is byte-identical to before the run** — the compute-vs-colorize rule,
+  tested rather than asserted in prose.
+
+#### `GEO::initialize()` is not enough on its own
+
+Chart segmentation aborted the process on every fixture:
+
+```
+Assertion failed: variable_exists. File: .../basic/environment.cpp, Line: 217
+```
+
+`GEO::initialize()` constructs the CmdLine environment but declares **no variables in
+it**, and geogram reads its own algorithm defaults back out of that environment:
+`Delaunay::create()` asks for `algo:delaunay` and `geo_assert`s when it is missing.
+Anything reaching `CentroidalVoronoiTesselation` goes through that path — chart
+segmentation now, and the CVT remesher in Phase 4.
+
+`ensureInitialized()` therefore also calls `CmdLine::import_arg_group("algo")`, which
+only installs defaults and parses no command line. Worth stating plainly because the
+failure mode is bad: not an exception, a `geo_assert` that takes the application down.
+The `GEOGRAM_INSTALL_NONE` section above explains which flags must stay off; this is
+the one thing that must be switched **on**.
+
 ### Phase 4 — remeshing
 
 A 6-dimensional `GEO::Mesh`, which nothing before this phase needs.

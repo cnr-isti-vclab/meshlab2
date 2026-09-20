@@ -370,6 +370,234 @@
         "VT",
         "WT"
       ]
+    },
+    {
+      "id": "parametrize_by_atlas_geogram",
+      "categories": [
+        "Parametrization/UV Creation",
+        "Parametrization/Segmentation"
+      ],
+      "name": "Parametrize by Atlas (geogram)",
+      "pythonName": "parametrize_by_atlas_geogram",
+      "referenceIds": [
+        "geogram"
+      ],
+      "shortDescription": "Segment the mesh into charts, flatten each one and pack them into a single atlas, using geogram.",
+      "longDescriptionMarkdown": "Runs geogram's complete atlas pipeline on the current mesh: the surface is cut into charts along sharp edges, each chart is flattened, any chart whose distortion is still too high is split further, and the charts are finally packed into the unit square. The result is stored as per-wedge texture coordinates.\n\nUnlike the single-chart flatteners, this works on a **closed** mesh, because the segmentation step creates the boundaries the flatteners need.\n\nIf the mesh already carries a `chart` face attribute the pipeline uses it to seed the segmentation.",
+      "tags": [
+        "texture",
+        "uv",
+        "parametrization",
+        "atlas",
+        "chart",
+        "segmentation",
+        "packing",
+        "geogram"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "WTex"
+      ],
+      "parameters": [
+        {
+          "id": "hardAngleThreshold",
+          "label": "Hard Angle Threshold",
+          "help": "Edges whose dihedral angle exceeds this value, in degrees, become chart boundaries. Lower values cut the surface into more, flatter charts.",
+          "group": "main",
+          "type": "double",
+          "default": 45.0,
+          "min": 0.0,
+          "max": 180.0,
+          "decimals": 2
+        },
+        {
+          "id": "chartParametrizer",
+          "label": "Chart Parametrizer",
+          "help": "How each individual chart is flattened.",
+          "group": "main",
+          "type": "enum",
+          "default": "abf",
+          "enumOptions": [
+            {
+              "id": "projection",
+              "label": "Least-Squares Plane Projection",
+              "help": "Project onto the best-fitting plane. Fastest, and only reasonable for charts that are already nearly flat."
+            },
+            {
+              "id": "lscm",
+              "label": "Least Squares Conformal Maps",
+              "help": "Conformal flattening with two fixed points."
+            },
+            {
+              "id": "abf",
+              "label": "Angle-Based Flattening",
+              "help": "ABF++, the lowest distortion of the three and the default."
+            }
+          ]
+        },
+        {
+          "id": "chartPacker",
+          "label": "Chart Packer",
+          "help": "How the flattened charts are arranged in the unit square.",
+          "group": "main",
+          "type": "enum",
+          "default": "tetris",
+          "enumOptions": [
+            {
+              "id": "none",
+              "label": "None",
+              "help": "Leave each chart where its flattening put it; charts will overlap."
+            },
+            {
+              "id": "tetris",
+              "label": "Tetris",
+              "help": "The packer from the original LSCM paper."
+            },
+            {
+              "id": "xatlas",
+              "label": "xatlas",
+              "help": "geogram's bundled copy of xatlas. MeshLab also ships xatlas directly as Parametrize by Atlas (xatlas)."
+            }
+          ]
+        }
+      ],
+      "outputModifies": [
+        "WT"
+      ]
+    },
+    {
+      "id": "pack_uv_charts_geogram",
+      "categories": [
+        "Parametrization/Atlas Packing"
+      ],
+      "name": "Pack UV Charts (geogram)",
+      "pythonName": "pack_uv_charts_geogram",
+      "referenceIds": [
+        "geogram"
+      ],
+      "shortDescription": "Lay the existing UV charts out again in a single atlas, using geogram's packers.",
+      "longDescriptionMarkdown": "Rearranges the charts of an existing parametrization in the unit square, leaving the flattening of each chart untouched. The mesh must already carry per-wedge texture coordinates.\n\nThe Tetris packer is the one described in the original LSCM paper and is not available from any other MeshLab filter.",
+      "tags": [
+        "texture",
+        "uv",
+        "atlas",
+        "packing",
+        "tetris",
+        "geogram"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requirePerWedgeTexCoords": true
+      },
+      "inputPrepare": [
+        "WTex"
+      ],
+      "parameters": [
+        {
+          "id": "packer",
+          "label": "Packer",
+          "help": "Which packing algorithm to apply.",
+          "group": "main",
+          "type": "enum",
+          "default": "tetris",
+          "enumOptions": [
+            {
+              "id": "normalizeOnly",
+              "label": "Normalize Charts Only",
+              "help": "Do not pack; only rescale each chart so its texture area is proportional to its area on the surface."
+            },
+            {
+              "id": "tetris",
+              "label": "Tetris",
+              "help": "The packer from the original LSCM paper."
+            },
+            {
+              "id": "xatlas",
+              "label": "xatlas",
+              "help": "geogram's bundled copy of xatlas."
+            }
+          ]
+        }
+      ],
+      "outputModifies": [
+        "WT"
+      ]
+    },
+    {
+      "id": "compute_chart_segmentation_geogram",
+      "categories": [
+        "Parametrization/Segmentation",
+        "Attribute/Scalar"
+      ],
+      "name": "Compute Chart Segmentation (geogram)",
+      "pythonName": "compute_chart_segmentation_geogram",
+      "referenceIds": [
+        "geogram"
+      ],
+      "shortDescription": "Partition the mesh into charts and store each face's chart index in the face scalar field.",
+      "longDescriptionMarkdown": "Segments the current mesh into a requested number of charts and stores the chart index of each face in the per-face scalar field, so the partition can be shown with the scalar colormap and used by later filters. No texture coordinates are created.\n\nThe two VSA segmenters implement Variational Shape Approximation: the $L^2$ metric groups faces by position and the $L^{2,1}$ metric by normal, which makes the latter follow anisotropic features more closely.",
+      "tags": [
+        "chart",
+        "segmentation",
+        "partition",
+        "vsa",
+        "scalar",
+        "geogram"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [
+        {
+          "id": "segmenter",
+          "label": "Segmenter",
+          "help": "Which segmentation algorithm to use.",
+          "group": "main",
+          "type": "enum",
+          "default": "vsaL2",
+          "enumOptions": [
+            {
+              "id": "vsaL2",
+              "label": "Variational Shape Approximation (L2)",
+              "help": "Continuous VSA with the L2 metric; groups faces by position."
+            },
+            {
+              "id": "vsaL12",
+              "label": "Variational Shape Approximation (L2,1)",
+              "help": "Anisotropic VSA with the L2,1 metric; groups faces by normal."
+            },
+            {
+              "id": "inertiaAxis",
+              "label": "Shortest Inertia Axis",
+              "help": "Split into two segments along the shortest inertia axis. Ignores the requested chart count."
+            }
+          ]
+        },
+        {
+          "id": "segmentCount",
+          "label": "Chart Count",
+          "help": "How many charts to aim for. The segmenter may return a different number.",
+          "group": "main",
+          "type": "int",
+          "default": 8,
+          "min": 2,
+          "max": 1000
+        }
+      ],
+      "outputModifies": [
+        "FQ"
+      ]
     }
   ]
 }

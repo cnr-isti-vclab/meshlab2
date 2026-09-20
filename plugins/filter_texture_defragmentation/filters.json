@@ -302,9 +302,9 @@
       ]
     },
     {
-      "id": "pack_uv_charts",
-      "pythonName": "pack_uv_charts",
-      "name": "Pack UV Charts",
+      "id": "pack_uv_charts_vcglib",
+      "pythonName": "pack_uv_charts_vcglib",
+      "name": "Pack UV Charts (vcglib)",
       "categories": [
         "Parametrization/Atlas Packing",
         "Texture"

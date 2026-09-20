@@ -1,5 +1,6 @@
 #include "geogramfilterplugin.h"
 
+#include "geogramatlas.h"
 #include "geogrambooleans.h"
 #include "geogramparametrization.h"
 #include "meshfilterpluginmanager.h"
@@ -25,6 +26,8 @@ MeshFilterRunResult GeogramFilterPlugin::runFilter(
         return runGeogramBooleanFilter(filterId, params, doc);
     if (isGeogramParametrizationFilter(filterId))
         return runGeogramParametrizationFilter(filterId, params, doc);
+    if (isGeogramAtlasFilter(filterId))
+        return runGeogramAtlasFilter(filterId, params, doc);
 
     MeshFilterRunResult result;
     result.success = false;

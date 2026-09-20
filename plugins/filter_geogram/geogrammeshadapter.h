@@ -69,4 +69,32 @@ bool readVertexTexCoords(
     QString &error,
     const char *attributeName = "tex_coord");
 
+// The facet-corner counterpart: geogram's atlas pipeline and its packers store
+// UVs per corner rather than per vertex, which maps to MeshLab's per-wedge
+// texture coordinates. Indexed by GEO corner index, so the caller walks facets
+// through faceToSourceIndex.
+bool readCornerTexCoords(
+    const ::GEO::Mesh &in,
+    std::vector<std::array<float, 2>> &uv,
+    QString &error,
+    const char *attributeName = "tex_coord");
+
+// The other direction: copies the mesh's existing per-wedge UVs into the
+// facet-corner "tex_coord" attribute geogram's packers expect to find. A
+// packer rearranges an atlas it is given, so without this there is nothing
+// for it to pack.
+bool writeWedgeTexCoordsToGeo(
+    const VCGMesh &in,
+    GeoMesh &out,
+    QString &error,
+    const char *attributeName = "tex_coord");
+
+// Reads back an index_t facet attribute, which is how mesh_segment and
+// mesh_make_atlas report the chart each face landed in ("chart").
+bool readFacetCharts(
+    const ::GEO::Mesh &in,
+    std::vector<int> &charts,
+    QString &error,
+    const char *attributeName = "chart");
+
 } // namespace meshlab::geogram
