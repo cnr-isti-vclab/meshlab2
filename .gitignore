@@ -5,7 +5,8 @@ build-*/
 vcpkg_installed/
 vcpkg-manifest-install.log
 CMakeUserPresets.json
-
+output/
+.codex-*/
 # Local dependencies
 vcpkg/
 
