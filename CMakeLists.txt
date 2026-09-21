@@ -581,6 +581,23 @@ target_compile_definitions(MeshLab2FilterDescriptorTests PRIVATE
 
 add_test(NAME MeshLab2FilterDescriptorTests COMMAND MeshLab2FilterDescriptorTests)
 
+# Reads .gitmodules, vcpkg.json and the vendored trees back against the About dialog's
+# Libraries tab, so that list cannot go stale unnoticed. Parses sources as text, so it
+# links nothing but QtTest.
+qt_add_executable(MeshLab2ThirdPartyTests
+    tests/test_third_party.cpp
+)
+
+target_link_libraries(MeshLab2ThirdPartyTests PRIVATE
+    Qt6::Test
+)
+
+target_compile_definitions(MeshLab2ThirdPartyTests PRIVATE
+    TEST_SOURCE_DIR="${MESHLAB2_SOURCE_DIR}"
+)
+
+add_test(NAME MeshLab2ThirdPartyTests COMMAND MeshLab2ThirdPartyTests)
+
 qt_add_executable(MeshLab2FilterSmokeTests
     tests/test_filter_smoke.cpp
 )

@@ -1,5 +1,11 @@
 # External dependencies
 
+> Adding or removing anything here also means editing `kFocusedPackages` (or
+> `kGeometryLibraries`) in `src/ui/aboutdialog.cpp`: the About dialog's **Libraries** tab
+> is where these are shown to the user, and nothing generates it. See
+> [Third-party geometry code](../docs/design/architecture.md#third-party-geometry-code).
+
+
 ## JKQtPlotter
 
 MeshLab uses only JKQtPlotter's `JKQTCommon` and `JKQTMathText` libraries to
