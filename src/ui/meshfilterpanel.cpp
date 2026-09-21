@@ -802,6 +802,15 @@ void MeshFilterPanel::showSearchResultsFromUi(bool focusSearch)
         m_searchEdit->setFocus(Qt::OtherFocusReason);
 }
 
+// A press with no modifier that matters. The keypad bit is masked off because macOS
+// reports the arrow keys with Qt::KeypadModifier set, so a bare
+// `modifiers() == Qt::NoModifier` test never matches an arrow there -- which is why Down
+// in the search box did nothing and the results list had to be reached with Tab.
+bool isUnmodified(const QKeyEvent *key)
+{
+    return (key->modifiers() & ~Qt::KeypadModifier) == Qt::NoModifier;
+}
+
 bool MeshFilterPanel::eventFilter(QObject *watched, QEvent *event)
 {
     if (watched == m_searchEdit && event) {
@@ -811,7 +820,7 @@ bool MeshFilterPanel::eventFilter(QObject *watched, QEvent *event)
     }
     if (watched == m_searchEdit && event && event->type() == QEvent::KeyPress) {
         auto *keyEvent = static_cast<QKeyEvent *>(event);
-        if (keyEvent->key() == Qt::Key_Down && keyEvent->modifiers() == Qt::NoModifier) {
+        if (keyEvent->key() == Qt::Key_Down && isUnmodified(keyEvent)) {
             showSearchResultsFromUi(false);
             if (m_resultsList && m_resultsList->count() > 0) {
                 if (m_resultsList->currentRow() < 0)
@@ -824,12 +833,11 @@ bool MeshFilterPanel::eventFilter(QObject *watched, QEvent *event)
     if (watched == m_resultsList && event && event->type() == QEvent::KeyPress) {
         auto *keyEvent = static_cast<QKeyEvent *>(event);
         const int key = keyEvent->key();
-        if ((key == Qt::Key_Return || key == Qt::Key_Enter)
-            && keyEvent->modifiers() == Qt::NoModifier) {
+        if ((key == Qt::Key_Return || key == Qt::Key_Enter) && isUnmodified(keyEvent)) {
             openSelectedResult(true);
             return true;
         }
-        if (key == Qt::Key_Up && keyEvent->modifiers() == Qt::NoModifier
+        if (key == Qt::Key_Up && isUnmodified(keyEvent)
             && m_resultsList->currentRow() <= 0) {
             if (m_searchEdit)
                 m_searchEdit->setFocus(Qt::OtherFocusReason);

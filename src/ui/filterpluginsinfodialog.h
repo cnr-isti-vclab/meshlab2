@@ -32,9 +32,14 @@ public:
     explicit FilterPluginsInfoDialog(std::vector<Document::FilterInfo> filters,
                                      QWidget *parent = nullptr);
 
+protected:
+    // Down in the search box moves into the results, as it does in the Filters panel.
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     void buildUi();
     void rebuildTree();
+    QTreeWidgetItem *firstFilterItem() const;
     void updateDetail();
     void updateSummary(int shownFilters);
 

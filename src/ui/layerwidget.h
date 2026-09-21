@@ -38,6 +38,10 @@ private:
     void scheduleRebuild();
     void rebuildTree();
     void rebuildTable();
+    // Columns track their contents until the user drags one, after which they are the
+    // user's and nothing moves them again.
+    void makeColumnsResizable(QTableWidget *table, int firstResizable);
+    void fitColumnsToContents();
     int kvRoleForColumn(int col) const { return Qt::UserRole + 100 + col; }
 
     enum class LayerItemKind {
@@ -68,6 +72,10 @@ private slots:
 private:
     Document *m_doc;
     bool m_rebuilding = false;
+    // Set once the user drags a column handle, which stops the automatic fitting; the
+    // guard tells our own resizes apart from theirs, since the signal does not.
+    bool m_columnsUserSized = false;
+    bool m_adjustingColumns = false;
     bool m_rebuildPending = false;
     ViewMode m_viewMode = ViewMode::Tree;
 

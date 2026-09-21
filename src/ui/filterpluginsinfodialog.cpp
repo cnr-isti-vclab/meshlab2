@@ -16,6 +16,8 @@
 #include <QSplitter>
 #include <QTextBrowser>
 #include <QTreeWidget>
+#include <QTreeWidgetItemIterator>
+#include <QKeyEvent>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <algorithm>
@@ -372,6 +374,8 @@ void FilterPluginsInfoDialog::buildUi()
     root->addWidget(buttons);
 
     connect(m_search, &QLineEdit::textChanged, this, [this] { rebuildTree(); });
+    m_search->installEventFilter(this);
+    m_tree->installEventFilter(this);
     connect(m_groupBy, &QComboBox::currentIndexChanged, this, [this] { rebuildTree(); });
     connect(m_onlyUnavailable, &QCheckBox::toggled, this, [this] { rebuildTree(); });
     connect(m_tree, &QTreeWidget::currentItemChanged, this, [this] { updateDetail(); });
@@ -486,6 +490,50 @@ void FilterPluginsInfoDialog::rebuildTree()
         m_tree->expandAll();
     updateSummary(shown);
     updateDetail();
+}
+
+// The first actual filter, not the first row: the tree groups by category or plugin, and
+// landing on a group heading would show a summary rather than the filter the search was
+// for, costing another keypress.
+QTreeWidgetItem *FilterPluginsInfoDialog::firstFilterItem() const
+{
+    for (QTreeWidgetItemIterator it(m_tree); *it; ++it) {
+        if ((*it)->data(0, kRoleKind).toString() == QLatin1String("filter"))
+            return *it;
+    }
+    return nullptr;
+}
+
+bool FilterPluginsInfoDialog::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event && event->type() == QEvent::KeyPress) {
+        auto *key = static_cast<QKeyEvent *>(event);
+        // The keypad bit is masked off: macOS reports the arrow keys with
+        // Qt::KeypadModifier set, so a bare NoModifier test never matches one.
+        const bool plain = (key->modifiers() & ~Qt::KeypadModifier) == Qt::NoModifier;
+        if (watched == m_search && plain && key->key() == Qt::Key_Down) {
+            if (QTreeWidgetItem *first = firstFilterItem()) {
+                // A large result set is left collapsed, so the first filter can be inside
+                // a closed group. Open the way down to it rather than moving the selection
+                // somewhere the user cannot see.
+                for (QTreeWidgetItem *parent = first->parent(); parent;
+                     parent = parent->parent()) {
+                    parent->setExpanded(true);
+                }
+                m_tree->setCurrentItem(first);
+                m_tree->scrollToItem(first);
+                m_tree->setFocus(Qt::OtherFocusReason);
+                return true;
+            }
+        }
+        // ... and back, so refining the search does not need Shift+Tab.
+        if (watched == m_tree && plain && key->key() == Qt::Key_Up
+            && m_tree->currentItem() == m_tree->topLevelItem(0)) {
+            m_search->setFocus(Qt::OtherFocusReason);
+            return true;
+        }
+    }
+    return QDialog::eventFilter(watched, event);
 }
 
 void FilterPluginsInfoDialog::updateSummary(int shownFilters)
