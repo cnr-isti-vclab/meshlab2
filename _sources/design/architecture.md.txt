@@ -140,6 +140,39 @@ Defined in `renderingsettings.h`:
 Built-in I/O (when enabled at build time): `io_vcg`, `io_obj_rapidobj`, `io_3mf`, `io_gltf`, `io_e57`, `io_trueform`.
 Built-in filter plugins (when enabled at build time): `filter_basic`, `filter_camera`, `filter_cgal`, `filter_clean`, `filter_color_projection`, `filter_colorproc`, `filter_create`, `filter_embree`, `filter_expression`, `filter_geodesic`, `filter_icp`, `filter_igl`, `filter_img_patch_param`, `filter_instant_meshes`, `filter_layer`, `filter_measure`, `filter_meshfix`, `filter_meshing`, `filter_mls`, `filter_plymc`, `filter_quadwild`, `filter_qslim`, `filter_sampling`, `filter_screened_poisson`, `filter_select`, `filter_texture`, `filter_texture_defragmentation`, `filter_trioptimize`, `filter_trueform`, `filter_unsharp`, `filter_vertex_displacement`, `filter_voronoi`, `filter_xatlas`.
 
+## Third-party geometry code
+
+The geometry libraries and the vendored algorithm packages are listed to the user in the
+**Libraries** tab of the About dialog, as two lists: general-purpose libraries that many
+filters draw on, and packages vendored for one algorithm. Each entry carries a link.
+
+**Those two lists are `kGeometryLibraries` and `kFocusedPackages` in
+[`src/ui/aboutdialog.cpp`](../../src/ui/aboutdialog.cpp), and nothing generates them.**
+They are the only place either inventory is written down for the user, so they go stale
+silently. Add or remove an entry whenever any of these changes:
+
+| What changed | Where it shows |
+| --- | --- |
+| A geometry dependency added to or dropped from `vcpkg.json` | CGAL, libigl, Geogram, Embree today |
+| A submodule added to or dropped from `.gitmodules` | VCGLib, TrueForm, MeshFix, QSlim, QuadWild-BiMDF today |
+| A tree vendored under `plugins/*/upstream/` or similar | PoissonRecon, Texture Defragmentation, xatlas, BPA, Instant Meshes, Isoparametrization today |
+
+Not every dependency belongs there: the lists are about *geometry processing*, so the
+file-format, UI and numerics libraries are deliberately absent and the tab says so. A new
+dependency that only reads a file format needs no entry.
+
+`tests/test_third_party.cpp` enforces all of this. It reads the two arrays back out of the
+source and checks them against `.gitmodules`, `vcpkg.json` and the vendored trees on disk,
+in both directions: anything the build pulls in must be either listed in the dialog or
+recorded in that test's `notGeometry()` table with a reason, and anything the dialog lists
+must still come from somewhere. So the reminder above is a courtesy — the build is what
+actually stops the lists going stale.
+
+Each vendored package also records its own upstream and license next to its code — see
+[`external/README.md`](../../external/README.md) and the `UPSTREAM.md` in the plugin that
+uses it. Those are for a developer updating the package; the About lists are for a user
+asking what MeshLab is built on, and the two are maintained separately.
+
 ## State Ownership
 
 | Shared (Document) | Per-view (RenderWidget) |

@@ -379,6 +379,49 @@ fill/simple/decorator/selection pass executors
 <p>Built-in I/O (when enabled at build time): <code class="docutils literal notranslate"><span class="pre">io_vcg</span></code>, <code class="docutils literal notranslate"><span class="pre">io_obj_rapidobj</span></code>, <code class="docutils literal notranslate"><span class="pre">io_3mf</span></code>, <code class="docutils literal notranslate"><span class="pre">io_gltf</span></code>, <code class="docutils literal notranslate"><span class="pre">io_e57</span></code>, <code class="docutils literal notranslate"><span class="pre">io_trueform</span></code>.
 Built-in filter plugins (when enabled at build time): <code class="docutils literal notranslate"><span class="pre">filter_basic</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_camera</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_cgal</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_clean</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_color_projection</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_colorproc</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_create</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_embree</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_expression</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_geodesic</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_icp</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_img_patch_param</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_instant_meshes</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_layer</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_measure</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_meshfix</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_mls</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_plymc</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_quadwild</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_qslim</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_sampling</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_screened_poisson</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_select</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_texture</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_texture_defragmentation</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_trioptimize</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_trueform</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_unsharp</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_vertex_displacement</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_voronoi</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_xatlas</span></code>.</p>
 </section>
+<section id="third-party-geometry-code">
+<h2>Third-party geometry code<a class="headerlink" href="#third-party-geometry-code" title="Link to this heading">¶</a></h2>
+<p>The geometry libraries and the vendored algorithm packages are listed to the user in the
+<strong>Libraries</strong> tab of the About dialog, as two lists: general-purpose libraries that many
+filters draw on, and packages vendored for one algorithm. Each entry carries a link.</p>
+<p><strong>Those two lists are <code class="docutils literal notranslate"><span class="pre">kGeometryLibraries</span></code> and <code class="docutils literal notranslate"><span class="pre">kFocusedPackages</span></code> in
+<a class="reference download internal" download="" href="../_downloads/cb6ecfe07e4bb21f9aeffc14812c530b/aboutdialog.cpp"><span class="xref download myst"><code class="docutils literal notranslate"><span class="pre">src/ui/aboutdialog.cpp</span></code></span></a>, and nothing generates them.</strong>
+They are the only place either inventory is written down for the user, so they go stale
+silently. Add or remove an entry whenever any of these changes:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>What changed</p></th>
+<th class="head"><p>Where it shows</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>A geometry dependency added to or dropped from <code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code></p></td>
+<td><p>CGAL, libigl, Geogram, Embree today</p></td>
+</tr>
+<tr class="row-odd"><td><p>A submodule added to or dropped from <code class="docutils literal notranslate"><span class="pre">.gitmodules</span></code></p></td>
+<td><p>VCGLib, TrueForm, MeshFix, QSlim, QuadWild-BiMDF today</p></td>
+</tr>
+<tr class="row-even"><td><p>A tree vendored under <code class="docutils literal notranslate"><span class="pre">plugins/*/upstream/</span></code> or similar</p></td>
+<td><p>PoissonRecon, Texture Defragmentation, xatlas, BPA, Instant Meshes, Isoparametrization today</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Not every dependency belongs there: the lists are about <em>geometry processing</em>, so the
+file-format, UI and numerics libraries are deliberately absent and the tab says so. A new
+dependency that only reads a file format needs no entry.</p>
+<p><code class="docutils literal notranslate"><span class="pre">tests/test_third_party.cpp</span></code> enforces all of this. It reads the two arrays back out of the
+source and checks them against <code class="docutils literal notranslate"><span class="pre">.gitmodules</span></code>, <code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code> and the vendored trees on disk,
+in both directions: anything the build pulls in must be either listed in the dialog or
+recorded in that test’s <code class="docutils literal notranslate"><span class="pre">notGeometry()</span></code> table with a reason, and anything the dialog lists
+must still come from somewhere. So the reminder above is a courtesy — the build is what
+actually stops the lists going stale.</p>
+<p>Each vendored package also records its own upstream and license next to its code — see
+<span class="xref myst"><code class="docutils literal notranslate"><span class="pre">external/README.md</span></code></span> and the <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code> in the plugin that
+uses it. Those are for a developer updating the package; the About lists are for a user
+asking what MeshLab is built on, and the two are maintained separately.</p>
+</section>
 <section id="state-ownership">
 <h2>State Ownership<a class="headerlink" href="#state-ownership" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper colwidths-auto docutils container">
@@ -505,6 +548,7 @@ MainWindow (menus, docks, split-view orchestration)
 <li><a class="reference internal" href="#render-planning-types">Render Planning Types</a></li>
 <li><a class="reference internal" href="#render-settings-types">Render Settings Types</a></li>
 <li><a class="reference internal" href="#plugin-system">Plugin System</a></li>
+<li><a class="reference internal" href="#third-party-geometry-code">Third-party geometry code</a></li>
 <li><a class="reference internal" href="#state-ownership">State Ownership</a></li>
 <li><a class="reference internal" href="#data-flow">Data Flow</a></li>
 <li><a class="reference internal" href="#typical-runtime-sequence">Typical Runtime Sequence</a></li>
