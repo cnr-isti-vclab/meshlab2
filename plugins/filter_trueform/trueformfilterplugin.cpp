@@ -560,6 +560,17 @@ MeshFilterRunResult addResultLayers(
 // Booleans
 // ---------------------------------------------------------------------------
 
+// The intersection run a multi-operand filter asks for. Crossings between the
+// operands' contours are resolved unconditionally; the `within` bit is the one
+// remaining request, and it asks for each operand's own self-intersections.
+tf::intersect_config intersectConfigFrom(const FilterParams &params)
+{
+    const bool within = params.getBool(QStringLiteral("resolveSelfIntersections"), false);
+    return tf::intersect_config(
+        within ? (tf::intersect_mode::primitives | tf::intersect_mode::within)
+               : tf::intersect_mode::primitives);
+}
+
 // The two-layer preamble every boolean shares.
 bool resolveBooleanPair(const FilterParams &params, Document &doc, int &a, int &b, QString &error)
 {
@@ -606,7 +617,8 @@ MeshFilterRunResult runBoolean(const QString &filterId, const FilterParams &para
         const TfMesh a = tfMeshFromLayer(doc.mesh(aIndex));
         const TfMesh b = tfMeshFromLayer(doc.mesh(bIndex));
         auto [mesh, tagLabels, faceLabels] =
-            tf::make_boolean(a.polygons(), b.polygons(), op);
+            tf::make_boolean(a.polygons(), b.polygons(), op,
+                             intersectConfigFrom(params));
         return addResultLayer(
             doc, mesh, label,
             QObject::tr("The %1 is empty.").arg(label),
@@ -848,7 +860,8 @@ MeshFilterRunResult runCsgExpression(const FilterParams &params, Document &doc)
         if (vcg::CallBackPos *cb = doc.progressCallback())
             (*cb)(30, "Building the arrangement...");
         auto graph = tf::make_csg_graph(tf::make_range(forms.data(), forms.size()),
-                                        tf::make_range(sheets.data(), sheets.size()));
+                                        tf::make_range(sheets.data(), sheets.size()),
+                                        intersectConfigFrom(params));
 
         if (vcg::CallBackPos *cb = doc.progressCallback())
             (*cb)(70, "Evaluating the expression...");
@@ -892,7 +905,8 @@ MeshFilterRunResult runSymmetricDifference(const FilterParams &params, Document 
     try {
         const TfMesh a = tfMeshFromLayer(doc.mesh(aIndex));
         const TfMesh b = tfMeshFromLayer(doc.mesh(bIndex));
-        auto graph = tf::make_csg_graph(a.polygons(), b.polygons());
+        auto graph = tf::make_csg_graph(a.polygons(), b.polygons(),
+                                        intersectConfigFrom(params));
 
         const tf::csg::expr lhs(0);
         const tf::csg::expr rhs(1);
@@ -968,7 +982,8 @@ MeshFilterRunResult runSolidDomains(const FilterParams &params, Document &doc)
         if (vcg::CallBackPos *cb = doc.progressCallback())
             (*cb)(30, "Building the arrangement...");
         auto graph = tf::make_csg_graph(tf::make_range(forms.data(), forms.size()),
-                                        tf::make_range(sheets.data(), sheets.size()));
+                                        tf::make_range(sheets.data(), sheets.size()),
+                                        intersectConfigFrom(params));
 
         if (vcg::CallBackPos *cb = doc.progressCallback())
             (*cb)(70, "Extracting the domains...");
@@ -1189,7 +1204,8 @@ MeshFilterRunResult runIntersectionCurves(const FilterParams &params, Document &
     try {
         const TfMesh a = tfMeshFromLayer(doc.mesh(aIndex));
         const TfMesh b = tfMeshFromLayer(doc.mesh(bIndex));
-        auto curves = tf::make_intersection_curves(a.polygons(), b.polygons());
+        auto curves = tf::make_intersection_curves(a.polygons(), b.polygons(),
+                                                   intersectConfigFrom(params));
         return addPolylineLayer(
             doc, curves, QObject::tr("Intersection Curve"),
             QObject::tr("The two layers do not intersect."),

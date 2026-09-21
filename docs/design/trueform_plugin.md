@@ -27,6 +27,13 @@ result the library already returns.
   map results back through the inverse. That is the filter semantics — for
   anything involving two layers, the relative transform is the geometry — so do
   not move computation into layer-local space.
+- A filter that builds a multi-operand arrangement — the booleans, the CSG
+  expression, the solid domains, the intersection curves — takes its
+  intersection run from `intersectConfigFrom(params)`, which composes
+  `primitives | within` from that filter's *Resolve Self-Intersections*
+  checkbox. Crossings between contours resolve unconditionally as of TrueForm
+  v0.10.5, so `within` is the only request a call site has left to make. A
+  one-form entry implies it and takes no checkbox.
 - Parallel loops over vcg elements are sound only for inline components
   (`Coord`, `Normal`, `Quality`, flags). OCF components derive from
   `std::vector` and must not be written concurrently.

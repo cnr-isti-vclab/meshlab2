@@ -30,6 +30,15 @@ library's own default; a call that left the resolution at its defaults keeps its
 result byte for byte. The one artifact was a stale comment in
 `runSelfIntersectionCurves`, now restated: a one-form build implies `within`.
 
+The boolean, CSG, domain and intersection-curve filters gained a
+**Resolve Self-Intersections** checkbox (`resolveSelfIntersections`, default
+off) that composes `primitives | within` through `intersectConfigFrom`. It is
+deliberately new in this bump and not earlier: a multi-operand `within` build
+**lost every operand's domain membership in v0.10.3 and v0.10.4** — every
+bounded domain read "inside operand 0" and an expression naming any other
+operand returned nothing. v0.10.5 is the first release where that checkbox is
+sound.
+
 The step from v0.9.17 to v0.10.0 was the breaking one: the `cut` module was
 removed outright, with no compatibility shim, and its ground redistributed to
 `arrangement`, `iso` and `csg`. It cost MeshLab one call site, because both

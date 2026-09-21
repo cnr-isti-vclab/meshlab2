@@ -263,6 +263,14 @@
           "group": "main",
           "type": "mesh",
           "default": "@otherMeshIndex"
+        },
+        {
+          "id": "resolveSelfIntersections",
+          "label": "Resolve Self-Intersections",
+          "help": "Also resolve each operand's own self-intersections — TrueForm's 'within' request. Leave off for clean solids; turn it on when an operand crosses itself, at some extra cost. Without it a self-intersecting operand is not classified correctly.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         }
       ]
     },
@@ -306,6 +314,14 @@
           "group": "main",
           "type": "mesh",
           "default": "@otherMeshIndex"
+        },
+        {
+          "id": "resolveSelfIntersections",
+          "label": "Resolve Self-Intersections",
+          "help": "Also resolve each operand's own self-intersections — TrueForm's 'within' request. Leave off for clean solids; turn it on when an operand crosses itself, at some extra cost. Without it a self-intersecting operand is not classified correctly.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         }
       ]
     },
@@ -349,6 +365,14 @@
           "group": "main",
           "type": "mesh",
           "default": "@otherMeshIndex"
+        },
+        {
+          "id": "resolveSelfIntersections",
+          "label": "Resolve Self-Intersections",
+          "help": "Also resolve each operand's own self-intersections — TrueForm's 'within' request. Leave off for clean solids; turn it on when an operand crosses itself, at some extra cost. Without it a self-intersecting operand is not classified correctly.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         }
       ]
     },
@@ -392,6 +416,14 @@
           "group": "main",
           "type": "mesh",
           "default": "@otherMeshIndex"
+        },
+        {
+          "id": "resolveSelfIntersections",
+          "label": "Resolve Self-Intersections",
+          "help": "Also resolve each operand's own self-intersections — TrueForm's 'within' request. Leave off for clean solids; turn it on when an operand crosses itself, at some extra cost. Without it a self-intersecting operand is not classified correctly.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         }
       ]
     },
@@ -434,6 +466,14 @@
           "group": "main",
           "type": "string",
           "default": ""
+        },
+        {
+          "id": "resolveSelfIntersections",
+          "label": "Resolve Self-Intersections",
+          "help": "Also resolve each operand's own self-intersections — TrueForm's 'within' request. Leave off for clean solids; turn it on when an operand crosses itself, at some extra cost. Without it a self-intersecting operand is not classified correctly.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         }
       ]
     },
@@ -477,6 +517,14 @@
           "group": "main",
           "type": "string",
           "default": ""
+        },
+        {
+          "id": "resolveSelfIntersections",
+          "label": "Resolve Self-Intersections",
+          "help": "Also resolve each operand's own self-intersections — TrueForm's 'within' request. Leave off for clean solids; turn it on when an operand crosses itself, at some extra cost. Without it a self-intersecting operand is not classified correctly.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         }
       ]
     },
@@ -644,6 +692,14 @@
           "group": "main",
           "type": "mesh",
           "default": "@otherMeshIndex"
+        },
+        {
+          "id": "resolveSelfIntersections",
+          "label": "Resolve Self-Intersections",
+          "help": "Also resolve each operand's own self-intersections — TrueForm's 'within' request. Leave off for clean solids; turn it on when an operand crosses itself, at some extra cost. Without it a self-intersecting operand is not classified correctly.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         }
       ]
     },
