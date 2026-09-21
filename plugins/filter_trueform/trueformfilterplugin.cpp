@@ -76,6 +76,14 @@ constexpr QLatin1StringView kFilterOrientCoherent("orient_faces_consistently_tru
 constexpr QLatin1StringView kFilterOrientOutward("orient_faces_outward_trueform");
 constexpr QLatin1StringView kFilterSelectCrease("select_crease_edges_trueform");
 constexpr QLatin1StringView kFilterSelectNonManifold("select_non_manifold_edges_trueform");
+constexpr QLatin1StringView kFilterSelectNonManifoldVertices(
+    "select_non_manifold_vertices_trueform");
+constexpr QLatin1StringView kFilterMeshHealth("measure_mesh_health_trueform");
+constexpr QLatin1StringView kFilterSplitNonManifoldVertices(
+    "split_non_manifold_vertices_trueform");
+constexpr QLatin1StringView kFilterFaceQuality("compute_face_quality_trueform");
+constexpr QLatin1StringView kFilterBoundaryRims(
+    "create_polyline_from_boundary_rims_trueform");
 constexpr QLatin1StringView kFilterRepairSelfIntersections("repair_self_intersections_trueform");
 constexpr QLatin1StringView kFilterCutIsocontour("cut_along_scalar_isocontour_trueform");
 constexpr QLatin1StringView kFilterClean("remove_duplicate_vertices_trueform");
@@ -1134,9 +1142,8 @@ inline MeshFilterRunResult finishPolylineLayer(
 
     const int newIndex = doc.addMesh(output, {}, Mask::IOM_EDGEINDEX | extraMask);
     if (newIndex < 0) {
-        const QString message = QObject::tr("Failed to add the %1 layer.").arg(layerName);
-        doc.finishFilterProgress(false, message);
-        return fail(message);
+        doc.finishFilterProgress(false, emptyMessage);
+        return fail(emptyMessage);
     }
     doc.finishFilterProgress(true, QObject::tr("Created %1.").arg(layerName));
 
@@ -1316,6 +1323,117 @@ MeshFilterRunResult runIsocurves(const FilterParams &params, Document &doc)
         doc.finishFilterProgress(false, message);
         return fail(message);
     }
+}
+
+// One rim as a polyline: its own points in walk order, and one path over them. A closed
+// rim does not repeat its first vertex — rim edge k runs from vertex k to vertex k + 1
+// and the last edge of a closed rim runs back to vertex 0 — so the path closes here. The
+// rim names vertices of the source, which is already in world space, so nothing moves.
+template <typename Vertices>
+tf::curves_buffer<int, float, 3> rimPolyline(
+    const TfMesh &source, const Vertices &vertices, bool closed)
+{
+    tf::curves_buffer<int, float, 3> curve;
+    const auto points = source.points();
+    const std::size_t n = std::size_t(vertices.size());
+
+    auto &rimPoints = curve.points_buffer();
+    rimPoints.allocate(n);
+    for (std::size_t k = 0; k < n; ++k) {
+        const auto &p = points[std::size_t(vertices[k])];
+        rimPoints[k] = tf::make_point(p[0], p[1], p[2]);
+    }
+
+    auto &path = curve.paths_buffer().data_buffer();
+    auto &offsets = curve.paths_buffer().offsets_buffer();
+    offsets.push_back(0);
+    for (std::size_t k = 0; k < n; ++k)
+        path.push_back(int(k));
+    if (closed && n > 1)
+        path.push_back(0);
+    offsets.push_back(int(path.size()));
+    return curve;
+}
+
+// The mesh's boundary, rim by rim, one polyline layer each. A rim ends where the boundary
+// stops passing straight through, so a pinched boundary arrives as its pieces rather than
+// as one figure eight, and each layer is a simple curve that can be measured, swept into
+// a tube, or used to drive a hole fill.
+MeshFilterRunResult runBoundaryRims(const FilterParams &params, Document &doc)
+{
+    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No layer selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    doc.beginFilterProgress(QObject::tr("Create Polyline from Boundary Rims (TrueForm)"));
+    QVector<int> newIndices;
+    QStringList outputTags;
+    std::size_t closedCount = 0;
+    std::size_t rimCount = 0;
+    try {
+        const TfMesh source = tfMeshFromLayer(doc.mesh(index));
+        const auto rims = tf::make_boundary_rims(source.polygons());
+        rimCount = rims.size();
+
+        for (std::size_t k = 0; k < rimCount; ++k) {
+            const bool closed = rims.closed[k];
+            if (closed)
+                ++closedCount;
+            VCGMesh output;
+            const std::size_t added = appendCurvesToMesh(
+                output, rimPolyline(source, rims.vertices[k], closed), float(k + 1));
+            if (added == 0)
+                continue;
+            vcg::tri::Allocator<VCGMesh>::CompactEveryVector(output);
+            vcg::tri::UpdateBounding<VCGMesh>::Box(output);
+            const int newIndex = doc.addMesh(
+                output, QObject::tr("Rim %1").arg(k + 1),
+                Mask::IOM_EDGEINDEX | Mask::IOM_EDGEQUALITY);
+            if (newIndex >= 0) {
+                newIndices.push_back(newIndex);
+                outputTags << QStringLiteral("rim %1 %2")
+                                  .arg(k + 1)
+                                  .arg(closed ? QStringLiteral("closed")
+                                              : QStringLiteral("open"));
+            }
+        }
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm boundary rims failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    if (newIndices.isEmpty()) {
+        const QString message =
+            rimCount == 0
+            ? QObject::tr("The layer has no boundary, so it has no rims. A closed surface "
+                          "is the usual reason.")
+            : QObject::tr("The boundary carries no segment the document can hold.");
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+    doc.finishFilterProgress(
+        true, QObject::tr("Created %1 layer(s).").arg(newIndices.size()));
+
+    int segments = 0;
+    for (int newIndex : newIndices)
+        segments += doc.mesh(newIndex).mesh.EN();
+
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages
+        << QObject::tr("From '%1'.").arg(doc.mesh(index).name)
+        << QObject::tr("%1 rim(s): %2 closed, %3 open.")
+               .arg(rimCount).arg(closedCount).arg(rimCount - closedCount)
+        << QObject::tr("Output: %1 layer(s), %2 segment(s). Each edge carries its rim "
+                       "number as its scalar.").arg(newIndices.size()).arg(segments);
+    result.newMeshIndices = newIndices;
+    result.outputTags = outputTags;
+    return result;
 }
 
 // Sweep a circular profile along a polyline. The Create Polyline family produces edge
@@ -1773,6 +1891,73 @@ MeshFilterRunResult runCurvature(const FilterParams &params, Document &doc)
     }
 }
 
+// Per-face shape measures written into the face scalar. One TrueForm call states all four,
+// so the parameter only chooses which is stored; the angles arrive in radians and are
+// shown in degrees, the unit every angle in this plugin is stated in.
+MeshFilterRunResult runFaceQuality(const FilterParams &params, Document &doc)
+{
+    const int index = doc.currentMeshIndex();
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    const QString measure = params.getEnum(QStringLiteral("measure"));
+
+    doc.beginFilterProgress(QObject::tr("Compute Face Quality (TrueForm)"));
+    try {
+        Document::MeshEntry &entry = doc.mesh(index);
+        const TfMesh source = tfMeshFromLayer(entry);
+        const auto measured = tf::compute_face_quality(source.polygons());
+
+        const auto inDegrees = [](tf::rad<float> angle) {
+            const tf::deg<float> degrees = angle;
+            return degrees.value;
+        };
+
+        std::vector<float> values;
+        values.reserve(std::size_t(measured.quality.size()));
+        if (measure == QStringLiteral("min_angle")) {
+            for (const tf::rad<float> a : measured.min_angle)
+                values.push_back(inDegrees(a));
+        } else if (measure == QStringLiteral("max_angle")) {
+            for (const tf::rad<float> a : measured.max_angle)
+                values.push_back(inDegrees(a));
+        } else if (measure == QStringLiteral("aspect_ratio")) {
+            values.assign(measured.aspect_ratio.begin(), measured.aspect_ratio.end());
+        } else {
+            values.assign(measured.quality.begin(), measured.quality.end());
+        }
+
+        std::size_t written = 0;
+        for (VCGFace &f : entry.mesh.face) {
+            if (f.IsD())
+                continue;
+            if (written >= values.size())
+                break;
+            f.Q() = values[written++];
+        }
+        entry.ioMask |= Mask::IOM_FACEQUALITY;
+
+        doc.markMeshGeometryChanged(
+            index, QObject::tr("Computed face quality on '%1'").arg(entry.name));
+        doc.finishFilterProgress(true, QObject::tr("Computed face quality."));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages << QObject::tr("Wrote %1 per-face value(s).").arg(written);
+        result.visualizationHints.push_back(
+            { index, MeshFilterVisualizationAttribute::FaceQuality });
+        return result;
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm face quality failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
 MeshFilterRunResult runNormals(const FilterParams &params, Document &doc)
 {
     const int index = doc.currentMeshIndex();
@@ -2008,7 +2193,7 @@ MeshFilterRunResult runRemesh(const QString &filterId, const FilterParams &param
 }
 
 // ---------------------------------------------------------------------------
-// Orientation and edge selection
+// Orientation and selection
 // ---------------------------------------------------------------------------
 
 MeshFilterRunResult runOrient(const QString &filterId, const FilterParams &params, Document &doc)
@@ -2196,6 +2381,137 @@ MeshFilterRunResult runSelectEdges(const QString &filterId, const FilterParams &
     return result;
 }
 
+// The vertices whose faces are not one fan, marked on the VCG mesh's own vertex selection.
+// TrueForm reports positions in the live-vertex table, so they are mapped back through it,
+// exactly as the edge selection maps its reported pairs.
+MeshFilterRunResult runSelectNonManifoldVertices(const FilterParams &params, Document &doc)
+{
+    const int index = doc.currentMeshIndex();
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    const bool clearFirst = params.getBool(QStringLiteral("replaceSelection"), true);
+
+    doc.beginFilterProgress(QObject::tr("Select Non-Manifold Vertices (TrueForm)"));
+    int marked = 0;
+    try {
+        Document::MeshEntry &entry = doc.mesh(index);
+        const TfMesh source = tfMeshFromLayer(entry);
+        const auto vertices = tf::make_non_manifold_vertices(source.polygons());
+
+        const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
+        if (clearFirst) {
+            for (std::size_t vi : live)
+                entry.mesh.vert[vi].ClearS();
+        }
+        for (const int id : vertices) {
+            if (id < 0 || std::size_t(id) >= live.size())
+                continue;
+            entry.mesh.vert[live[std::size_t(id)]].SetS();
+            ++marked;
+        }
+        entry.ioMask |= Mask::IOM_VERTFLAGS;
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm vertex selection failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    doc.markMeshSelectionChanged(
+        index, QObject::tr("Selected vertices on '%1'").arg(doc.mesh(index).name));
+    doc.finishFilterProgress(true, QObject::tr("Updated vertex selection."));
+
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages << QObject::tr("Marked %1 vertex(es).").arg(marked);
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostics
+// ---------------------------------------------------------------------------
+
+// The connectivity every structural question is answered off. Built once per run and
+// tagged onto the form, so no entry point below rebuilds its own; the tags reference these
+// objects, so they must outlive use.
+struct MeshHealthContext
+{
+    explicit MeshHealthContext(const TfMesh &mesh)
+        : membership(mesh.polygons())
+        , edgeLink(mesh.polygons().faces(), membership)
+    {}
+
+    tf::face_membership<int> membership;
+    tf::manifold_edge_link<int, 3> edgeLink;
+};
+
+// Everything TrueForm can state about one layer's structure, in one report. Each fact has
+// its own filter elsewhere in the ecosystem; gathering them is what turns a mesh that
+// misbehaves for no visible reason into a diagnosis.
+MeshFilterRunResult runMeshHealth(const FilterParams &params, Document &doc)
+{
+    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No layer selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    doc.beginFilterProgress(QObject::tr("Measure Mesh Health (TrueForm)"));
+    const auto yesNo = [](bool value) { return value ? QObject::tr("yes") : QObject::tr("no"); };
+
+    QStringList info;
+    try {
+        const TfMesh source = tfMeshFromLayer(doc.mesh(index));
+        MeshHealthContext ctx(source);
+        auto tagged = source.polygons() | tf::tag(ctx.membership) | tf::tag(ctx.edgeLink);
+
+        const bool manifold = tf::is_manifold(tagged);
+        const bool closed = tf::is_closed(tagged);
+        const int euler = tf::euler_characteristic(tagged);
+        const auto nonManifoldEdges = tf::make_non_manifold_edges(tagged);
+        const auto nonManifoldVertices = tf::make_non_manifold_vertices(tagged);
+        const auto rims = tf::make_boundary_rims(tagged);
+
+        std::size_t closedRims = 0;
+        for (const bool rimClosed : rims.closed) {
+            if (rimClosed)
+                ++closedRims;
+        }
+
+        // The only question that needs a spatial index, and the only one that can cost
+        // real time on a large layer; it stops at the first contact it finds.
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(60, "Looking for self-intersections...");
+        const bool selfIntersecting = tf::has_self_intersections(tagged);
+
+        info << QObject::tr("Layer: '%1'.").arg(doc.mesh(index).name)
+             << QObject::tr("Manifold: %1").arg(yesNo(manifold))
+             << QObject::tr("Closed: %1").arg(yesNo(closed))
+             << QObject::tr("Self-intersecting: %1").arg(yesNo(selfIntersecting))
+             << QObject::tr("Euler characteristic: %1").arg(euler)
+             << QObject::tr("Boundary rims: %1 (%2 closed, %3 open)")
+                    .arg(rims.size()).arg(closedRims).arg(rims.size() - closedRims)
+             << QObject::tr("Non-manifold edges: %1").arg(nonManifoldEdges.size())
+             << QObject::tr("Non-manifold vertices: %1").arg(nonManifoldVertices.size());
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm mesh health failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+    doc.finishFilterProgress(true, QObject::tr("Measured mesh health."));
+
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = false;
+    result.infoMessages = info;
+    return result;
+}
+
 // ---------------------------------------------------------------------------
 // Arrangement repair, isobands and cleaning
 // ---------------------------------------------------------------------------
@@ -2222,6 +2538,46 @@ MeshFilterRunResult runRepairSelfIntersections(const FilterParams &params, Docum
             { QObject::tr("Resolved self-intersections of '%1'.").arg(doc.mesh(index).name) });
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm arrangement failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// Give every fan at a vertex a vertex of its own. Where two sheets are joined at a single
+// pinched vertex, the faces around it walk as several fans rather than one; each fan but
+// the first takes a fresh vertex carrying the same coordinates, and the surface comes
+// apart exactly where it was only ever touching. Faces keep their ids, arity and winding.
+//
+// This is a partial repair by construction: an edge three faces carry is crossed by no
+// fan, and separating the fans it holds would tear that edge into boundary copies, so such
+// a vertex is left exactly as it was.
+MeshFilterRunResult runSplitNonManifoldVertices(const FilterParams &params, Document &doc)
+{
+    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No layer selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    doc.beginFilterProgress(QObject::tr("Split Non-Manifold Vertices (TrueForm)"));
+    try {
+        const TfMesh source = tfMeshFromLayer(doc.mesh(index));
+        auto split = tf::split_non_manifold_vertices(source.polygons());
+        const std::size_t before = std::size_t(source.points().size());
+        const std::size_t after = std::size_t(split.points().size());
+        const std::size_t minted = after > before ? after - before : 0;
+
+        return addResultLayer(
+            doc, split, QObject::tr("Split Vertices"),
+            QObject::tr("The split produced no faces."),
+            { QObject::tr("From '%1'.").arg(doc.mesh(index).name),
+              minted > 0
+                  ? QObject::tr("Separated %1 fan(s) onto vertices of their own.").arg(minted)
+                  : QObject::tr("Nothing was separated: every vertex either carries one fan "
+                                "already, or holds an edge that three or more faces carry.") });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm vertex splitting failed: %1")
                                     .arg(QString::fromLocal8Bit(e.what()));
         doc.finishFilterProgress(false, message);
         return fail(message);
@@ -2416,6 +2772,8 @@ MeshFilterRunResult TrueFormFilterPlugin::runFilter(
         return runIntersectionCurves(params, doc);
     if (filterId == QString::fromLatin1(kFilterIsocurves))
         return runIsocurves(params, doc);
+    if (filterId == QString::fromLatin1(kFilterBoundaryRims))
+        return runBoundaryRims(params, doc);
     if (filterId == QString::fromLatin1(kFilterTube))
         return runTubeFromPolyline(params, doc);
     if (filterId == QString::fromLatin1(kFilterSignedDistance))
@@ -2429,6 +2787,8 @@ MeshFilterRunResult TrueFormFilterPlugin::runFilter(
         return runSmooth(filterId, params, doc);
     if (filterId == QString::fromLatin1(kFilterCurvature))
         return runCurvature(params, doc);
+    if (filterId == QString::fromLatin1(kFilterFaceQuality))
+        return runFaceQuality(params, doc);
     if (filterId == QString::fromLatin1(kFilterNormals))
         return runNormals(params, doc);
     if (filterId == QString::fromLatin1(kFilterIsotropic)
@@ -2441,8 +2801,14 @@ MeshFilterRunResult TrueFormFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterSelectCrease)
         || filterId == QString::fromLatin1(kFilterSelectNonManifold))
         return runSelectEdges(filterId, params, doc);
+    if (filterId == QString::fromLatin1(kFilterSelectNonManifoldVertices))
+        return runSelectNonManifoldVertices(params, doc);
+    if (filterId == QString::fromLatin1(kFilterMeshHealth))
+        return runMeshHealth(params, doc);
     if (filterId == QString::fromLatin1(kFilterRepairSelfIntersections))
         return runRepairSelfIntersections(params, doc);
+    if (filterId == QString::fromLatin1(kFilterSplitNonManifoldVertices))
+        return runSplitNonManifoldVertices(params, doc);
     if (filterId == QString::fromLatin1(kFilterCutIsocontour))
         return runCutAlongIsocontour(params, doc);
     if (filterId == QString::fromLatin1(kFilterClean))

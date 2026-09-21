@@ -30,6 +30,16 @@ library's own default; a call that left the resolution at its defaults keeps its
 result byte for byte. The one artifact was a stale comment in
 `runSelfIntersectionCurves`, now restated: a one-form build implies `within`.
 
+This bump is also the first the filter plugin took new *entry points* from
+rather than only new behaviour. Five filters were added on
+`tf::make_non_manifold_vertices`, `tf::split_non_manifold_vertices`,
+`tf::compute_face_quality` and `tf::make_boundary_rims` — none of which existed
+at v0.9.17 — plus `tf::is_manifold`, `tf::is_closed`,
+`tf::has_self_intersections` and `tf::euler_characteristic`, which did. All
+eight are re-exported by the umbrella `<trueform/trueform.hpp>`, so no include
+moved; see [TrueForm Plugin](../../docs/design/trueform_plugin.md) for which
+filter calls which.
+
 The boolean, CSG, domain and intersection-curve filters gained a
 **Resolve Self-Intersections** checkbox (`resolveSelfIntersections`, default
 off) that composes `primitives | within` through `intersectConfigFrom`. It is

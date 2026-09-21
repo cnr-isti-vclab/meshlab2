@@ -37,4 +37,41 @@ result the library already returns.
 - Parallel loops over vcg elements are sound only for inline components
   (`Coord`, `Normal`, `Quality`, flags). OCF components derive from
   `std::vector` and must not be written concurrently.
+- **Angles cross the boundary in degrees.** TrueForm carries them as
+  `tf::rad<T>`; every angle this plugin takes from a user or writes into a
+  channel is in degrees, so a parameter converts on the way in
+  (`tf::deg<float>(value)`) and a result converts on the way out. There is no
+  filter that shows a radian.
+- A filter that answers several structural questions about one layer builds the
+  connectivity once and tags the form with it — `MeshHealthContext` beside
+  `SignedDistanceContext` and `VertexConnectivity`. Every `topology/` entry
+  point takes the tagged form and uses what it finds, so an untagged call is a
+  silent rebuild per question, not a compile error.
 - MSVC needs `/bigobj` for the filter TU.
+
+## The diagnostics and repair family
+
+These read or repair a layer's structure rather than its shape, and each is a
+thin call onto one TrueForm entry point. The table is the map from filter to
+entry point; `filters.json` is the full inventory.
+
+| Filter | TrueForm entry point |
+|---|---|
+| Select Non-Manifold Edges (TrueForm) | `tf::make_non_manifold_edges` |
+| Select Non-Manifold Vertices (TrueForm) | `tf::make_non_manifold_vertices` |
+| Measure Mesh Health (TrueForm) | `tf::is_manifold`, `tf::is_closed`, `tf::has_self_intersections`, `tf::euler_characteristic`, `tf::make_boundary_rims`, `tf::make_non_manifold_edges`, `tf::make_non_manifold_vertices` |
+| Split Non-Manifold Vertices (TrueForm) | `tf::split_non_manifold_vertices` |
+| Compute Face Quality (TrueForm) | `tf::compute_face_quality` |
+| Create Polyline from Boundary Rims (TrueForm) | `tf::make_boundary_rims` |
+| Repair Self-Intersections (TrueForm) | `tf::make_polygon_arrangements` |
+| Extract Outer Shell (TrueForm) | `tf::make_outer_shell` |
+
+Two contracts in that table are the library's, not the plugin's, and the help
+text has to state them because a caller cannot see them:
+
+- `tf::split_non_manifold_vertices` separates only the fans that come apart
+  without cutting an edge. An edge three faces carry is crossed by no fan, so a
+  vertex holding one is left untouched and `tf::make_non_manifold_vertices`
+  still names it afterwards. The filter is a partial repair by construction.
+- `tf::compute_face_quality`'s `quality` is a *triangle* measure. A face that is
+  not a triangle reads `-1`; the angles and the aspect ratio hold at any arity.
