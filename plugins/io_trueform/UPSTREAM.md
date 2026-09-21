@@ -9,15 +9,26 @@ git -C external/trueform fetch
 git -C external/trueform checkout <reviewed-commit>
 ```
 
-Currently pinned at **v0.10.3** (2026-09-05). Everything since v0.10.0 is
-additive, so neither plugin changed to take it: v0.10.1 repaired orientation and
-the Euler count; v0.10.2 reads every OBJ in parallel — 44.5 ms to 6.5 ms on a
-million-triangle dragon, and 76.3 ms to 8.3 ms for the reader that also returns
-normals, texture coordinates and groups — decides bundle containment from face
-interiors rather than from vertices, and lets `make_cdt` return region labels;
-v0.10.3 builds its internal allocator with large pages off, so a long-lived
-session doing repeated CSG no longer retains memory toward its workers'
-high-water marks.
+Currently pinned at **v0.10.5** (2026-09-21). Everything from v0.10.0 through
+v0.10.3 was additive, so neither plugin changed to take it: v0.10.1 repaired
+orientation and the Euler count; v0.10.2 reads every OBJ in parallel — 44.5 ms
+to 6.5 ms on a million-triangle dragon, and 76.3 ms to 8.3 ms for the reader
+that also returns normals, texture coordinates and groups — decides bundle
+containment from face interiors rather than from vertices, and lets `make_cdt`
+return region labels; v0.10.3 builds its internal allocator with large pages
+off, so a long-lived session doing repeated CSG no longer retains memory toward
+its workers' high-water marks. v0.10.4 added the volume module, a compiled C++
+facade, fast winding numbers and NIfTI IO — none of which either plugin calls.
+
+v0.10.5 removed four `tf::intersect_mode` enumerators —
+`resolve_crossing_contours`, `resolve_self_crossing_contours`,
+`resolve_contours` and `self_intersections`. The enum is now exactly
+`{sos, primitives, within}`, and crossings between contours resolve
+unconditionally. **This did not cost the build a single call site**, because
+every config-taking TrueForm call here omitted the config argument and took the
+library's own default; a call that left the resolution at its defaults keeps its
+result byte for byte. The one artifact was a stale comment in
+`runSelfIntersectionCurves`, now restated: a one-form build implies `within`.
 
 The step from v0.9.17 to v0.10.0 was the breaking one: the `cut` module was
 removed outright, with no compatibility shim, and its ground redistributed to
@@ -36,6 +47,10 @@ covered by a test:
   an open operand behaves differently from v0.9.17.
 - **Tolerance is now the pitch the input's planes are quantized to.** A wall
   doubled at less than the pitch becomes one wall.
+- **Domain membership counts winding as of v0.10.5, not crossing parity.** A
+  region an operand covers twice now reads inside it, and a zero-thickness fold
+  encloses nothing. Upstream measured no deterministic delta on a thousand
+  corpus pairs, so clean input is unchanged; self-overlapping input is not.
 
 ## Licensing and permission
 

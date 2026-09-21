@@ -1161,9 +1161,8 @@ MeshFilterRunResult runSelfIntersectionCurves(const FilterParams &params, Docume
     doc.beginFilterProgress(QObject::tr("Create Polyline from Self-Intersections (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
-        // v0.10.0 replaced embedded_self_intersection_curves with this, which returns the
-        // curves themselves rather than a tuple ending in them. The default config is the
-        // same primitives | resolve_contours the old entry point used.
+        // A one-form build implies TrueForm's `within` request, and contour crossings
+        // resolve unconditionally, so the default config states everything this needs.
         auto curves = tf::make_self_intersection_curves(source.polygons());
         return addPolylineLayer(
             doc, curves, QObject::tr("Self-Intersections"),
