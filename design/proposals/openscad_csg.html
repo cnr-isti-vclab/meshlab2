@@ -1,15 +1,15 @@
 <!doctype html>
-<html class="no-js" lang="en" data-content_root="../">
+<html class="no-js" lang="en" data-content_root="../../">
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Design Documents - MeshLab 0.1 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+        <title>OpenSCAD CSG - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
     
     
 
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -180,11 +180,11 @@
   <aside class="sidebar-drawer">
     <div class="sidebar-container">
       
-      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
   
   <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
   
-</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
   <input type="hidden" name="area" value="default">
@@ -192,18 +192,18 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../api/meshset.html">MeshSet</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../api/mlgui.html">MlGui</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../api/filters.html">Filters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../api/types.html">Supporting Types</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../examples/first_steps.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../building.html">Building the documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
 </ul>
 
 </div>
@@ -224,7 +224,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../_sources/design/README.md.txt" title="View this page">
+  <a class="muted-link" href="../../_sources/design/proposals/openscad_csg.md.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -242,133 +242,100 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section class="tex2jax_ignore mathjax_ignore" id="design-documents">
-<h1>Design Documents<a class="headerlink" href="#design-documents" title="Link to this heading">¶</a></h1>
-<p>Three kinds of document live here, and the distinction is worth keeping:</p>
+          <section class="tex2jax_ignore mathjax_ignore" id="openscad-csg">
+<h1>OpenSCAD CSG<a class="headerlink" href="#openscad-csg" title="Link to this heading">¶</a></h1>
+<p>A single filter exposing geogram’s OpenSCAD-subset language compiler, so a mesh can be
+built from a script rather than from geometry already in the document. <strong>Not
+implemented.</strong></p>
+<p>Split out of the geogram port, where it was decision 8 — deferred, not dropped. See
+<a class="reference internal" href="../history/geogram_port.html"><span class="std std-doc">Geogram Port</span></a> for the port that made it available, and
+<a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a> for the naming below.</p>
+<section id="status">
+<h2>Status<a class="headerlink" href="#status" title="Link to this heading">¶</a></h2>
+<p>As of 2026-09-20: not implemented, and not scheduled. <code class="docutils literal notranslate"><span class="pre">filter_geogram</span></code> ships and the
+capability is already linked into the application — nothing needs building to reach
+it, which is why this is worth keeping on the list rather than forgetting.</p>
+</section>
+<section id="what-geogram-provides">
+<h2>What geogram provides<a class="headerlink" href="#what-geogram-provides" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">mesh/mesh_CSG.h</span></code>, part of the <code class="docutils literal notranslate"><span class="pre">geogram</span></code> vcpkg package <code class="docutils literal notranslate"><span class="pre">filter_geogram</span></code> already
+depends on:</p>
 <ul class="simple">
-<li><p><strong>Reference</strong> (this directory) — how MeshLab works <em>today</em>. Read these to
-understand or change the code; correct them when the code changes.</p></li>
-<li><p><strong><a class="reference internal" href="#proposals/"><span class="xref myst">Proposals</span></a></strong> — design settled before the code exists. Every one
-says “not implemented” in its opening paragraph. When one ships, its content
-moves into a reference document and the proposal is deleted, not left to rot.</p></li>
-<li><p><strong><a class="reference internal" href="#history/"><span class="xref myst">History</span></a></strong> — dated records of work that is finished. They are
-evidence of how something came to be, not statements about the present.
-<strong>Records are never edited after the fact</strong>; if one turns out to be wrong,
-that is itself a fact about the record. Where a record’s conclusions are still
-in force, the rule lives in a reference document and the record only shows the
-reasoning.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">CSGCompiler::compile_string(source)</span></code></strong> and <code class="docutils literal notranslate"><span class="pre">compile_file(path)</span></code> — a complete
+OpenSCAD-subset language, returning a <code class="docutils literal notranslate"><span class="pre">CSGMesh_var</span></code>.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">CSGBuilder</span></code></strong>, the same operations driven from C++: the primitives <code class="docutils literal notranslate"><span class="pre">square</span></code>,
+<code class="docutils literal notranslate"><span class="pre">circle</span></code>, <code class="docutils literal notranslate"><span class="pre">cube</span></code>, <code class="docutils literal notranslate"><span class="pre">sphere</span></code>, <code class="docutils literal notranslate"><span class="pre">cylinder</span></code>; the transforms <code class="docutils literal notranslate"><span class="pre">multmatrix</span></code>,
+<code class="docutils literal notranslate"><span class="pre">linear_extrude</span></code>, <code class="docutils literal notranslate"><span class="pre">rotate_extrude</span></code>, <code class="docutils literal notranslate"><span class="pre">projection</span></code>; <code class="docutils literal notranslate"><span class="pre">hull</span></code>; and n-ary
+<code class="docutils literal notranslate"><span class="pre">union_instr</span></code> / <code class="docutils literal notranslate"><span class="pre">intersection</span></code> / <code class="docutils literal notranslate"><span class="pre">difference</span></code> over a <code class="docutils literal notranslate"><span class="pre">CSGScope</span></code> of meshes.</p></li>
+<li><p>Tessellation controls in the OpenSCAD idiom — <code class="docutils literal notranslate"><span class="pre">set_fn</span></code>, <code class="docutils literal notranslate"><span class="pre">set_fs</span></code>, <code class="docutils literal notranslate"><span class="pre">set_fa</span></code>.</p></li>
 </ul>
-<section id="reference">
-<h2>Reference<a class="headerlink" href="#reference" title="Link to this heading">¶</a></h2>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Document</p></th>
-<th class="head"><p>What it covers</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><a class="reference internal" href="architecture.html"><span class="std std-doc">Architecture</span></a></p></td>
-<td><p>Single-document, multi-view structure; ownership and signals.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="data_model.html"><span class="std std-doc">Data Model</span></a></p></td>
-<td><p>Layers, revisions, undo, what a snapshot holds.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="rendering.html"><span class="std std-doc">Rendering</span></a></p></td>
-<td><p>The QRhi pipeline, pass planning, render modes.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="memory_accounting.html"><span class="std std-doc">Memory Accounting</span></a></p></td>
-<td><p>Why there are several different numbers for “size”.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="preferences.html"><span class="std std-doc">Preferences</span></a></p></td>
-<td><p>Application settings, sharing the filter-parameter schema.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a></p></td>
-<td><p>The practical how-to: descriptor schema, plugin class, wiring.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a></p></td>
-<td><p>The controlled vocabulary: categories, verb lexicon, naming grammar, layer naming.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="filter_organization.html"><span class="std std-doc">Filter Organization</span></a></p></td>
-<td><p>Settled naming and organization principles, plus parameter conventions.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="trueform_plugin.html"><span class="std std-doc">TrueForm Plugin</span></a></p></td>
-<td><p>How the TrueForm-backed plugins relate to the rest of the tree.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<blockquote>
-<div><p><strong><a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a> is read by the test suite at runtime.</strong>
-<code class="docutils literal notranslate"><span class="pre">test_filter_descriptors.cpp</span></code> and <code class="docutils literal notranslate"><span class="pre">test_filters.cpp</span></code> open it by path and parse
-the <code class="docutils literal notranslate"><span class="pre">##</span> <span class="pre">3.</span> <span class="pre">Verb</span> <span class="pre">lexicon</span></code> section. Renaming the file or that heading breaks the
-build. Adding or retiring a verb there changes what the tests enforce, which is
-the intent.</p>
-</div></blockquote>
 </section>
-<section id="proposals">
-<h2>Proposals<a class="headerlink" href="#proposals" title="Link to this heading">¶</a></h2>
+<section id="shape-of-the-filter">
+<h2>Shape of the filter<a class="headerlink" href="#shape-of-the-filter" title="Link to this heading">¶</a></h2>
+<p>One filter, because the language is the interface:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
-<tr class="row-odd"><th class="head"><p>Document</p></th>
-<th class="head"><p>Status</p></th>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p></p></th>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><a class="reference internal" href="proposals/llm_integration.html"><span class="std std-doc">LLM Integration</span></a></p></td>
-<td><p>Option space for driving MeshLab from a model. Not implemented.</p></td>
+<tr class="row-even"><td><p>Display name</p></td>
+<td><p><em>Create Mesh from OpenSCAD Script (geogram)</em></p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="proposals/usage_statistics.html"><span class="std std-doc">Usage Statistics</span></a></p></td>
-<td><p>Aggregate usage collection, designed for privacy. Not implemented.</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">id</span></code> / <code class="docutils literal notranslate"><span class="pre">pythonName</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_mesh_from_openscad_script_geogram</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="proposals/gaussian_splatting.html"><span class="std std-doc">Gaussian Splatting</span></a></p></td>
-<td><p>Splat loading, rendering and editing. Not implemented; some decisions taken.</p></td>
+<tr class="row-even"><td><p>Categories</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="proposals/edge_support.html"><span class="std std-doc">Edge Support</span></a></p></td>
-<td><p>The two kinds of edge, what is missing in selection and rendering, and filters that would generate per-edge colour. Per-edge colour implemented; the rest not.</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">inputDomain</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">None</span></code> — it consumes no layer</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="proposals/frame_fields.html"><span class="std std-doc">Frame Fields</span></a></p></td>
-<td><p>Making a 4-RoSy frame field a first-class attribute, feeding it to the QuadWild and Instant Meshes remeshers, and adopting Vaxman’s Directional for field processing and visualization. Not implemented; feasibility established, eight questions open.</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">outputDomain</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">NewMeshes</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="proposals/openscad_csg.html"><span class="std std-doc">OpenSCAD CSG</span></a></p></td>
-<td><p>One filter exposing geogram’s OpenSCAD-subset compiler, to build a mesh from a script. Not implemented; split out of the geogram port.</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">outputTag</span></code></p></td>
+<td><p>stands alone as the whole layer name, per <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">vocabulary</span></a> §7 for a filter with no input</p></td>
+</tr>
+<tr class="row-even"><td><p>Parameters</p></td>
+<td><p>a <code class="docutils literal notranslate"><span class="pre">string</span></code> holding the script, plus the three tessellation knobs</p></td>
 </tr>
 </tbody>
 </table>
 </div>
+<p>The verb is <code class="docutils literal notranslate"><span class="pre">Create</span></code>, which §3 reserves for producing a new layer, and the object names
+what it is made from. It belongs in <code class="docutils literal notranslate"><span class="pre">filter_geogram</span></code>: one dependency, one plugin.</p>
 </section>
-<section id="history">
-<h2>History<a class="headerlink" href="#history" title="Link to this heading">¶</a></h2>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Document</p></th>
-<th class="head"><p>Records</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><a class="reference internal" href="history/filter_classification.html"><span class="std std-doc">Filter Classification</span></a></p></td>
-<td><p>The 2026-07-29 pass-1 migration of 272 filters.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="history/filter_names.html"><span class="std std-doc">Filter Names</span></a></p></td>
-<td><p>The pass-1 renaming rounds, verb by verb, with the rulings made along the way.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="history/pass2_identifier_map.html"><span class="std std-doc">Pass 2 Identifier Map</span></a></p></td>
-<td><p>The <code class="docutils literal notranslate"><span class="pre">id</span></code> / <code class="docutils literal notranslate"><span class="pre">pythonName</span></code> mapping applied 2026-09-03.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="history/repository_rename.html"><span class="std std-doc">Repository Rename</span></a></p></td>
-<td><p>The QMeshLab → meshlab2 rename, six surfaces in five phases, applied 2026-09-13.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="history/layer_naming.html"><span class="std std-doc">Layer Naming</span></a></p></td>
-<td><p>The 87 layer-creating filters, measured before and after, applied 2026-09-19.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="history/geogram_port.html"><span class="std std-doc">Geogram Port</span></a></p></td>
-<td><p>The <code class="docutils literal notranslate"><span class="pre">filter_geogram</span></code> plugin: four phases, eight rulings and four measured corrections, completed 2026-09-20.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
+<section id="why-it-was-deferred">
+<h2>Why it was deferred<a class="headerlink" href="#why-it-was-deferred" title="Link to this heading">¶</a></h2>
+<p>It is cheap to build and unlike anything MeshLab ships — but it is a <strong>different kind
+of feature</strong> from the other twelve geogram filters. Those are operations on the current
+document; this is a modelling language that happens to be in the same library. Adding
+it during the port would have widened a plugin that was already four families wide,
+on a capability nobody had asked for.</p>
+<p>That reasoning is about <em>timing</em>, not merit. The case for doing it later is unchanged.</p>
+</section>
+<section id="open-questions">
+<h2>Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Is a script a parameter?</strong> A multi-line program in a <code class="docutils literal notranslate"><span class="pre">string</span></code> parameter is a poor
+editing experience, and the parameter UI has no code editor. The alternatives are a
+<code class="docutils literal notranslate"><span class="pre">fileopen</span></code> parameter pointing at a <code class="docutils literal notranslate"><span class="pre">.csg</span></code>/<code class="docutils literal notranslate"><span class="pre">.scad</span></code> file — which <code class="docutils literal notranslate"><span class="pre">compile_file</span></code> takes
+directly, and which lets the user keep the script in their own editor — or both.
+The file route is probably the honest default.</p></li>
+<li><p><strong>How much of OpenSCAD does the subset actually cover?</strong> Unmeasured. A filter that
+silently mis-parses a real OpenSCAD file is worse than one that refuses it, so the
+descriptor needs to state the boundary — which means someone has to find it.</p></li>
+<li><p><strong>Does it belong in <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code> at all?</strong> The category’s discriminator is
+the <em>input</em>: parameters, unstructured data, or samples of existing geometry. A
+script is arguably a fourth kind. <code class="docutils literal notranslate"><span class="pre">Primitives</span></code> is the closest fit and probably good
+enough, but it is worth a moment’s thought rather than an assumption.</p></li>
+<li><p><strong>Error reporting.</strong> A compiler has syntax errors with line numbers. <code class="docutils literal notranslate"><span class="pre">errorMessage</span></code>
+is a single string, and the log is the only other channel — enough, but the mapping
+from a parse failure to something a user can act on needs deciding.</p></li>
+</ol>
 </section>
 </section>
 
@@ -409,10 +376,12 @@ the intent.</p>
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Design Documents</a><ul>
-<li><a class="reference internal" href="#reference">Reference</a></li>
-<li><a class="reference internal" href="#proposals">Proposals</a></li>
-<li><a class="reference internal" href="#history">History</a></li>
+<li><a class="reference internal" href="#">OpenSCAD CSG</a><ul>
+<li><a class="reference internal" href="#status">Status</a></li>
+<li><a class="reference internal" href="#what-geogram-provides">What geogram provides</a></li>
+<li><a class="reference internal" href="#shape-of-the-filter">Shape of the filter</a></li>
+<li><a class="reference internal" href="#why-it-was-deferred">Why it was deferred</a></li>
+<li><a class="reference internal" href="#open-questions">Open questions</a></li>
 </ul>
 </li>
 </ul>
@@ -424,9 +393,9 @@ the intent.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=2709fde1"></script>
-    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
-    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
-    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
     </body>
 </html>
