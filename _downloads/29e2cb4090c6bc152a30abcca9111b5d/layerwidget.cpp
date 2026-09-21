@@ -1143,11 +1143,7 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     m_meshTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_meshTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
     m_meshTable->setColumnWidth(0, 24);
-    m_meshTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    m_meshTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-    m_meshTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
-    m_meshTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
-    m_meshTable->horizontalHeader()->setSectionResizeMode(5, QHeaderView::Stretch);
+    makeColumnsResizable(m_meshTable, 1);
     m_meshTable->verticalHeader()->setVisible(false);
     m_meshTable->setSortingEnabled(true);
     m_meshTable->setShowGrid(false);
@@ -1170,10 +1166,7 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     m_rasterTable->setColumnWidth(0, 24);
     m_rasterTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
     m_rasterTable->setColumnWidth(1, 56);
-    m_rasterTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-    m_rasterTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
-    m_rasterTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
-    m_rasterTable->horizontalHeader()->setSectionResizeMode(5, QHeaderView::Stretch);
+    makeColumnsResizable(m_rasterTable, 2);
     m_rasterTable->verticalHeader()->setVisible(false);
     m_rasterTable->verticalHeader()->setDefaultSectionSize(56);
     m_rasterTable->setSortingEnabled(true);
@@ -1249,6 +1242,56 @@ void LayerWidget::scheduleRebuild()
         m_rebuildPending = false;
         rebuild();
     }, Qt::QueuedConnection);
+}
+
+// Every other table in every other application lets you drag a column edge, and lets a
+// double-click on that edge fit the column to its left. Qt gives both to Interactive
+// sections and neither to any other kind -- measured on this Qt: for an Interactive
+// section the double-click emits sectionHandleDoubleClicked and Qt itself fits the column
+// (40 -> 162 px); for a Fixed one no signal arrives and the width does not move. These
+// columns were Fixed, Stretch and ResizeToContents, which is why nothing responded.
+//
+// So the mode is the fix; the handler below exists to notice that the user has taken an
+// interest, not to do the resizing. What ResizeToContents did well was keep a column
+// exactly as wide as its contents, and that is worth keeping until they do: the counts
+// here run from one digit to eight, and a width chosen while the table was empty would
+// clip most documents. Columns therefore track their contents until the user drags or
+// double-clicks a handle, and after that they are the user's and nothing moves them again.
+void LayerWidget::makeColumnsResizable(QTableWidget *table, int firstResizable)
+{
+    QHeaderView *header = table->horizontalHeader();
+    for (int column = firstResizable; column < table->columnCount(); ++column)
+        header->setSectionResizeMode(column, QHeaderView::Interactive);
+    // The last column takes up whatever is left over, so the table has no ragged edge.
+    header->setStretchLastSection(true);
+
+    connect(header, &QHeaderView::sectionHandleDoubleClicked, this,
+            [this, table](int column) {
+                m_columnsUserSized = true;
+                QSignalBlocker block(table->horizontalHeader());
+                table->resizeColumnToContents(column);
+            });
+    connect(header, &QHeaderView::sectionResized, this, [this](int, int, int) {
+        if (!m_adjustingColumns)
+            m_columnsUserSized = true;
+    });
+}
+
+void LayerWidget::fitColumnsToContents()
+{
+    if (m_columnsUserSized)
+        return;
+    m_adjustingColumns = true;
+    for (QTableWidget *table : { m_meshTable, m_rasterTable }) {
+        if (!table)
+            continue;
+        QHeaderView *header = table->horizontalHeader();
+        for (int column = 0; column < table->columnCount(); ++column) {
+            if (header->sectionResizeMode(column) == QHeaderView::Interactive)
+                table->resizeColumnToContents(column);
+        }
+    }
+    m_adjustingColumns = false;
 }
 
 void LayerWidget::rebuild()
@@ -1689,6 +1732,7 @@ void LayerWidget::rebuildTable()
             m_rasterTable->clearSelection();
     }
 
+    fitColumnsToContents();
     m_rebuilding = false;
 }
 
