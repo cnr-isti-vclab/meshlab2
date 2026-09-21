@@ -55,6 +55,8 @@ private slots:
     void helperProcessEchoesHelperOutputAndItsPid();
     void helperProcessCancelKillsTheWholeProcessGroup();
     void layerDataSurvivesUndoAndRedo();
+    void perMeshColorSurvivesUndoAndRedo();
+    void customAttributesSurviveUndoAndDuplication();
     void layerDataIsDroppedWhenGeometryChanges();
     void layerDataIsSharedByADuplicatedLayer();
     void layerDataKeyMustBeNamespaced();
@@ -506,6 +508,115 @@ void DocumentTests::layerDataSurvivesUndoAndRedo()
     // Sharing, not copying: redo must hand back the very object, since a plugin may hold
     // pointers into it and a copy would silently diverge.
     QCOMPARE(again.get(), installed.get());
+}
+
+// The per-mesh colour is a single Color4b on the mesh itself, not a per-vertex or per-face
+// attribute: Set Mesh Color and Set Random Layer Color write it, and the renderer reads it
+// for the PerMesh fill colour source. It lives inside VCGMesh, so it rides along in the
+// undo snapshot only if the copy that makes the snapshot carries it.
+void DocumentTests::perMeshColorSurvivesUndoAndRedo()
+{
+    Document doc;
+    const int index = addTinyMesh(doc, QStringLiteral("Layer"));
+    QVERIFY(index >= 0);
+
+    const vcg::Color4b red(220, 30, 40, 255);
+    doc.beginUndoStep(QStringLiteral("Set mesh color"));
+    doc.mesh(index).mesh.C() = red;
+    doc.markMeshGeometryChanged(index, QStringLiteral("set mesh color"));
+    doc.endUndoStep(true);
+    QCOMPARE(doc.mesh(index).mesh.C(), red);
+
+    // A second, unrelated step, so undo returns to the state that carries the colour
+    // rather than to the one before it was ever set.
+    const vcg::Color4b blue(20, 60, 200, 255);
+    doc.beginUndoStep(QStringLiteral("Change mesh color"));
+    doc.mesh(index).mesh.C() = blue;
+    doc.markMeshGeometryChanged(index, QStringLiteral("change mesh color"));
+    doc.endUndoStep(true);
+    QCOMPARE(doc.mesh(index).mesh.C(), blue);
+
+    QVERIFY(doc.canUndo());
+    doc.undo();
+    QVERIFY2(doc.mesh(index).mesh.C() == red,
+             qPrintable(QStringLiteral("undo left the per-mesh colour at (%1, %2, %3, %4)")
+                            .arg(doc.mesh(index).mesh.C()[0]).arg(doc.mesh(index).mesh.C()[1])
+                            .arg(doc.mesh(index).mesh.C()[2]).arg(doc.mesh(index).mesh.C()[3])));
+
+    QVERIFY(doc.canRedo());
+    doc.redo();
+    QVERIFY2(doc.mesh(index).mesh.C() == blue,
+             qPrintable(QStringLiteral("redo left the per-mesh colour at (%1, %2, %3, %4)")
+                            .arg(doc.mesh(index).mesh.C()[0]).arg(doc.mesh(index).mesh.C()[1])
+                            .arg(doc.mesh(index).mesh.C()[2]).arg(doc.mesh(index).mesh.C()[3])));
+}
+
+// Custom attributes are the other thing that lives on the mesh without being an element
+// field: a name and a type-erased buffer. deepCopyMesh rebuilds a mesh element by element,
+// so anything it does not name explicitly is left behind -- which is what happened to
+// every custom attribute, on undo, on Duplicate Layer, and on the copy addMesh makes.
+void DocumentTests::customAttributesSurviveUndoAndDuplication()
+{
+    using Alloc = vcg::tri::Allocator<VCGMesh>;
+    const std::string scalarName = "probe_scalar";
+    const std::string pointName = "probe_point";
+
+    Document doc;
+    const int index = addTinyMesh(doc, QStringLiteral("Layer"));
+    QVERIFY(index >= 0);
+    const int vertexCount = doc.mesh(index).mesh.VN();
+    QVERIFY(vertexCount > 0);
+
+    doc.beginUndoStep(QStringLiteral("Define attributes"));
+    {
+        VCGMesh &mesh = doc.mesh(index).mesh;
+        auto scalar = Alloc::AddPerVertexAttribute<float>(mesh, scalarName);
+        auto point = Alloc::AddPerVertexAttribute<vcg::Point3f>(mesh, pointName);
+        for (int i = 0; i < vertexCount; ++i) {
+            scalar[std::size_t(i)] = float(i) + 0.5f;
+            point[std::size_t(i)] = vcg::Point3f(float(i), 2.0f * float(i), 3.0f);
+        }
+    }
+    doc.markMeshGeometryChanged(index, QStringLiteral("define attributes"));
+    doc.endUndoStep(true);
+
+    // A second step, so undo returns to the state that carries the attributes.
+    doc.beginUndoStep(QStringLiteral("Touch geometry"));
+    doc.mesh(index).mesh.vert[0].P() += vcg::Point3f(0.25f, 0.0f, 0.0f);
+    doc.markMeshGeometryChanged(index, QStringLiteral("touch geometry"));
+    doc.endUndoStep(true);
+
+    const auto checkAttributes = [&](const VCGMesh &mesh, const char *where) {
+        const auto scalar = Alloc::FindPerVertexAttribute<float>(mesh, scalarName);
+        const auto point = Alloc::FindPerVertexAttribute<vcg::Point3f>(mesh, pointName);
+        QVERIFY2(Alloc::IsValidHandle<float>(mesh, scalar),
+                 qPrintable(QStringLiteral("%1: the scalar attribute is gone")
+                                .arg(QLatin1String(where))));
+        QVERIFY2(Alloc::IsValidHandle<vcg::Point3f>(mesh, point),
+                 qPrintable(QStringLiteral("%1: the point attribute is gone")
+                                .arg(QLatin1String(where))));
+        for (int i = 0; i < mesh.VN(); ++i) {
+            QVERIFY2(qFuzzyCompare(scalar[std::size_t(i)], float(i) + 0.5f),
+                     qPrintable(QStringLiteral("%1: scalar value %2 did not survive")
+                                    .arg(QLatin1String(where)).arg(i)));
+            QVERIFY2(point[std::size_t(i)] == vcg::Point3f(float(i), 2.0f * float(i), 3.0f),
+                     qPrintable(QStringLiteral("%1: point value %2 did not survive")
+                                    .arg(QLatin1String(where)).arg(i)));
+        }
+    };
+
+    QVERIFY(doc.canUndo());
+    doc.undo();
+    checkAttributes(doc.mesh(index).mesh, "after undo");
+
+    QVERIFY(doc.canRedo());
+    doc.redo();
+    checkAttributes(doc.mesh(index).mesh, "after redo");
+
+    // The same copy backs Duplicate Layer, so it is the same bug seen from the UI.
+    const int copy = doc.duplicateMesh(index, QStringLiteral("Copy"));
+    QVERIFY(copy >= 0);
+    checkAttributes(doc.mesh(copy).mesh, "in the duplicate");
 }
 
 // Derived data must not outlive the geometry it was derived from -- unless it says so.

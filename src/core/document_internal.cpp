@@ -524,6 +524,84 @@ void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &
     dst.pluginData = src.pluginData;
 }
 
+namespace {
+
+// A custom attribute is type-erased in vcglib: the mesh holds a name and a
+// std::type_index, never a C++ type, so nothing generic can copy one. A copy therefore has
+// to name the types it can carry, and these are the two MeshLab creates -- Define Custom
+// Vertex/Face Scalar Attribute (float) and the Point attribute pair (Point3f). A filter
+// that introduces a third type has to be added here, or its attribute silently fails to
+// survive undo, Duplicate Layer, and being handed to addMesh.
+//
+// Values are remapped, not copied wholesale: deepCopyMesh drops deleted elements and
+// renumbers what is left, so each value has to follow its own element.
+template <typename In, typename Out>
+void remapAttributeValues(const In &in, Out &out, const std::vector<int> &indexMap)
+{
+    for (std::size_t i = 0; i < indexMap.size(); ++i) {
+        if (indexMap[i] >= 0)
+            out[std::size_t(indexMap[i])] = in[i];
+    }
+}
+
+template <typename T>
+void copyVertexAttribute(const VCGMesh &src, VCGMesh &dst, const std::string &name,
+                         const std::vector<int> &indexMap)
+{
+    using Alloc = vcg::tri::Allocator<VCGMesh>;
+    const auto in = Alloc::template FindPerVertexAttribute<T>(src, name);
+    if (in._handle == nullptr)
+        return;
+    auto out = Alloc::template GetPerVertexAttribute<T>(dst, name);
+    remapAttributeValues(in, out, indexMap);
+}
+
+template <typename T>
+void copyFaceAttribute(const VCGMesh &src, VCGMesh &dst, const std::string &name,
+                       const std::vector<int> &indexMap)
+{
+    using Alloc = vcg::tri::Allocator<VCGMesh>;
+    const auto in = Alloc::template FindPerFaceAttribute<T>(src, name);
+    if (in._handle == nullptr)
+        return;
+    auto out = Alloc::template GetPerFaceAttribute<T>(dst, name);
+    remapAttributeValues(in, out, indexMap);
+}
+
+template <typename T>
+void copyEdgeAttribute(const VCGMesh &src, VCGMesh &dst, const std::string &name,
+                       const std::vector<int> &indexMap)
+{
+    using Alloc = vcg::tri::Allocator<VCGMesh>;
+    const auto in = Alloc::template FindPerEdgeAttribute<T>(src, name);
+    if (in._handle == nullptr)
+        return;
+    auto out = Alloc::template GetPerEdgeAttribute<T>(dst, name);
+    remapAttributeValues(in, out, indexMap);
+}
+
+// An unnamed attribute is vcglib's own transient scratch space, which no caller can ask
+// for again and which belongs to whichever algorithm is mid-run; it is deliberately left
+// behind. Per-mesh attributes are left behind for the same reason: the only ones in the
+// tree hold per-element bookkeeping owned by a vendored algorithm, and carrying that
+// across a renumbering would preserve something already wrong.
+bool isCopyableAttribute(const vcg::PointerToAttribute &attr)
+{
+    return !attr._name.empty();
+}
+
+bool isFloat(const vcg::PointerToAttribute &attr)
+{
+    return attr._type == std::type_index(typeid(float));
+}
+
+bool isPoint3f(const vcg::PointerToAttribute &attr)
+{
+    return attr._type == std::type_index(typeid(vcg::Point3f));
+}
+
+} // namespace
+
 void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
 {
     dst.Clear();
@@ -561,12 +639,15 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
     }
 
     const VCGVertex *srcVertexBase = src.vert.empty() ? nullptr : &src.vert.front();
+    std::vector<int> faceMap(src.face.size(), -1);
     if (src.FN() > 0) {
         vcg::tri::Allocator<VCGMesh>::AddFaces(dst, src.FN());
         int dstFaceIndex = 0;
-        for (const VCGFace &sf : src.face) {
+        for (size_t srcFaceIndex = 0; srcFaceIndex < src.face.size(); ++srcFaceIndex) {
+            const VCGFace &sf = src.face[srcFaceIndex];
             if (sf.IsD())
                 continue;
+            faceMap[srcFaceIndex] = dstFaceIndex;
             VCGFace &df = dst.face[static_cast<size_t>(dstFaceIndex)];
             for (int k = 0; k < 3; ++k) {
                 const VCGVertex *sv = sf.cV(k);
@@ -590,12 +671,15 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
         }
     }
 
+    std::vector<int> edgeMap(src.edge.size(), -1);
     if (src.EN() > 0) {
         vcg::tri::Allocator<VCGMesh>::AddEdges(dst, src.EN());
         int dstEdgeIndex = 0;
-        for (const VCGEdge &se : src.edge) {
+        for (size_t srcEdgeIndex = 0; srcEdgeIndex < src.edge.size(); ++srcEdgeIndex) {
+            const VCGEdge &se = src.edge[srcEdgeIndex];
             if (se.IsD())
                 continue;
+            edgeMap[srcEdgeIndex] = dstEdgeIndex;
             VCGEdge &de = dst.edge[static_cast<size_t>(dstEdgeIndex)];
             for (int k = 0; k < 2; ++k) {
                 const VCGVertex *sv = se.cV(k);
@@ -619,6 +703,37 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
 
     dst.bbox = src.bbox;
     dst.textures = src.textures;
+    // The colour of the mesh as a whole, which Set Mesh Color and Set Random Layer Color
+    // write and the renderer reads for the PerMesh fill source. It is a single Color4b on
+    // the mesh rather than an element attribute, so it is easy to miss when copying
+    // element by element -- and missing it meant any undo or redo that restored a layer
+    // reset it to VCGMesh's default grey, including an undo of something unrelated.
+    dst.C() = src.C();
+
+    for (const vcg::PointerToAttribute &attr : src.vert_attr) {
+        if (!isCopyableAttribute(attr))
+            continue;
+        if (isFloat(attr))
+            copyVertexAttribute<float>(src, dst, attr._name, vertexMap);
+        else if (isPoint3f(attr))
+            copyVertexAttribute<vcg::Point3f>(src, dst, attr._name, vertexMap);
+    }
+    for (const vcg::PointerToAttribute &attr : src.face_attr) {
+        if (!isCopyableAttribute(attr))
+            continue;
+        if (isFloat(attr))
+            copyFaceAttribute<float>(src, dst, attr._name, faceMap);
+        else if (isPoint3f(attr))
+            copyFaceAttribute<vcg::Point3f>(src, dst, attr._name, faceMap);
+    }
+    for (const vcg::PointerToAttribute &attr : src.edge_attr) {
+        if (!isCopyableAttribute(attr))
+            continue;
+        if (isFloat(attr))
+            copyEdgeAttribute<float>(src, dst, attr._name, edgeMap);
+        else if (isPoint3f(attr))
+            copyEdgeAttribute<vcg::Point3f>(src, dst, attr._name, edgeMap);
+    }
 }
 
 qint64 vcgVertexOcfBytes(const VCGMesh &mesh)
