@@ -151,6 +151,7 @@ private:
     void checkIdentity(const MeshFilterDescriptor &d, QStringList &problems) const;
     void checkClassification(const MeshFilterDescriptor &d, QStringList &problems) const;
     void checkParameters(const MeshFilterDescriptor &d, QStringList &problems) const;
+    void checkHelpText(const MeshFilterDescriptor &d, QStringList &problems) const;
     void checkCodes(const MeshFilterDescriptor &d, QStringList &problems) const;
     void checkReferences(const MeshFilterDescriptor &d, QStringList &problems) const;
 
@@ -329,6 +330,7 @@ void FilterDescriptorTests::descriptorConforms()
     checkIdentity(d, problems);
     checkClassification(d, problems);
     checkParameters(d, problems);
+    checkHelpText(d, problems);
     checkCodes(d, problems);
     checkReferences(d, problems);
 
@@ -494,6 +496,31 @@ void FilterDescriptorTests::checkParameters(const MeshFilterDescriptor &d,
         if (p.defaultValue.toInt() != 0)
             problems << QStringLiteral("randomSeed does not default to 0");
     }
+}
+
+// A literal backslash-n in help text, which the help box shows to the reader rather than
+// breaking the paragraph. It comes from over-applying the LaTeX rule in
+// docs/design/adding_a_filter.md -- "every LaTeX backslash must be escaped as \\" -- to
+// `\n`, which is JSON's own newline escape and must stay single. 148 of these had reached
+// the help box across three plugins before anyone looked.
+//
+// A LaTeX command is exempt: \nabla, \ne, \ni and \nu really are an escaped backslash
+// followed by letters, so only a \n that is not the start of a word counts.
+void FilterDescriptorTests::checkHelpText(const MeshFilterDescriptor &d,
+                                          QStringList &problems) const
+{
+    static const QRegularExpression literalBreak(QStringLiteral("\\\\n(?![A-Za-z])"));
+
+    const auto check = [&](const QString &text, const QString &where) {
+        if (text.contains(literalBreak)) {
+            problems << QStringLiteral("%1 contains a literal \\n; a paragraph break is a "
+                                       "real newline, written \\n once in JSON").arg(where);
+        }
+    };
+    check(d.shortDescription, QStringLiteral("shortDescription"));
+    check(d.longDescriptionMarkdown, QStringLiteral("longDescriptionMarkdown"));
+    for (const auto &p : d.parameters)
+        check(p.helpMarkdown, QStringLiteral("help for parameter '%1'").arg(p.id));
 }
 
 void FilterDescriptorTests::checkCodes(const MeshFilterDescriptor &d,

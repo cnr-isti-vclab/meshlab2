@@ -270,7 +270,7 @@
       "name": "Smooth Vertices by Two-Step Normal Fitting",
       "pythonName": "smooth_vertices_by_two_step_normal_fitting",
       "shortDescription": "Feature-preserving smoothing through normal smoothing and vertex fitting.",
-      "longDescriptionMarkdown": "A feature-preserving fairing filter that runs in two stages:\\n\\n1. **Normal smoothing** -- face normals that already point in similar directions are averaged together, while normals that differ sharply are left alone, so creases survive.\\n2. **Vertex repositioning** -- vertices are then moved to fit the smoothed normals.\\n\\nSmoothing the normals first and the positions second is what separates this from plain Laplacian smoothing: noise is removed without rounding off the edges that carry the shape.",
+      "longDescriptionMarkdown": "A feature-preserving fairing filter that runs in two stages:\n\n1. **Normal smoothing** -- face normals that already point in similar directions are averaged together, while normals that differ sharply are left alone, so creases survive.\n2. **Vertex repositioning** -- vertices are then moved to fit the smoothed normals.\n\nSmoothing the normals first and the positions second is what separates this from plain Laplacian smoothing: noise is removed without rounding off the edges that carry the shape.",
       "referenceIds": ["belyaev2003"],
       "tags": [
         "smoothing",
@@ -576,7 +576,7 @@
       "name": "Sharpen Face Normals by Unsharp Mask",
       "pythonName": "sharpen_face_normals_by_unsharp_mask",
       "shortDescription": "Enhance face normal variation using an unsharp mask.",
-      "longDescriptionMarkdown": "Sharpens the **per-face normals**, so that shading brings out variations in orientation that a flat rendering hides. The geometry is untouched -- only the normals change -- which makes it a rendering aid rather than a modelling operation.\\n\\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\\n\\n",
+      "longDescriptionMarkdown": "Sharpens the **per-face normals**, so that shading brings out variations in orientation that a flat rendering hides. The geometry is untouched -- only the normals change -- which makes it a rendering aid rather than a modelling operation.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n",
       "referenceIds": ["cignoni2005"],
       "tags": [
         "normals",
@@ -640,7 +640,7 @@
       "name": "Sharpen Vertices by Unsharp Mask",
       "pythonName": "sharpen_vertices_by_unsharp_mask",
       "shortDescription": "Enhance geometric ridges and valleys with an unsharp mask.",
-      "longDescriptionMarkdown": "Sharpens the **vertex positions**, deepening ridges and valleys in the surface itself. Unlike the normal variant this really moves geometry, so the effect survives export.\\n\\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\\n\\n",
+      "longDescriptionMarkdown": "Sharpens the **vertex positions**, deepening ridges and valleys in the surface itself. Unlike the normal variant this really moves geometry, so the effect survives export.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n",
       "referenceIds": ["cignoni2005"],
       "tags": [
         "smoothing",
@@ -699,7 +699,7 @@
       "name": "Sharpen Vertex Scalar by Unsharp Mask",
       "pythonName": "sharpen_vertex_scalar_by_unsharp_mask",
       "shortDescription": "Enhance per-vertex quality variations with an unsharp mask.",
-      "longDescriptionMarkdown": "Sharpens the **per-vertex scalar field**, so that gentle gradients in the values become steeper and easier to read once the field is mapped to color.\\n\\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\\n\\n",
+      "longDescriptionMarkdown": "Sharpens the **per-vertex scalar field**, so that gentle gradients in the values become steeper and easier to read once the field is mapped to color.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n",
       "referenceIds": ["cignoni2005"],
       "tags": [
         "smoothing",
@@ -757,7 +757,7 @@
       "name": "Sharpen Vertex Color by Unsharp Mask",
       "pythonName": "sharpen_vertex_color_by_unsharp_mask",
       "shortDescription": "Enhance per-vertex color variation with an unsharp mask.",
-      "longDescriptionMarkdown": "Sharpens the **per-vertex color**, pulling out variation that is hard to see in a low-contrast or noisy color field.\\n\\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\\n\\n",
+      "longDescriptionMarkdown": "Sharpens the **per-vertex color**, pulling out variation that is hard to see in a low-contrast or noisy color field.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n",
       "referenceIds": ["cignoni2005"],
       "tags": [
         "smoothing",
@@ -949,7 +949,7 @@
       "name": "Displace Vertices toward Target Mesh",
       "pythonName": "displace_vertices_toward_target_mesh",
       "shortDescription": "Linearly morph the current mesh toward another mesh.",
-      "longDescriptionMarkdown": "Morphs the current mesh toward a target mesh that has the same number of vertices in the same order. Each source vertex moves along the straight line to its counterpart:\\n\\n$$p_i^{\\mathrm{result}}=(1-\\lambda)\\,p_i^{\\mathrm{source}}+\\lambda\\,p_i^{\\mathrm{target}}.$$\\n\\n**Weight** is $\\lambda$: 0 leaves the mesh alone, 1 lands exactly on the target, and values in between interpolate. Values outside $[0,1]$ extrapolate past either end.",
+      "longDescriptionMarkdown": "Morphs the current mesh toward a target mesh that has the same number of vertices in the same order. Each source vertex moves along the straight line to its counterpart:\n\n$$p_i^{\\mathrm{result}}=(1-\\lambda)\\,p_i^{\\mathrm{source}}+\\lambda\\,p_i^{\\mathrm{target}}.$$\n\n**Weight** is $\\lambda$: 0 leaves the mesh alone, 1 lands exactly on the target, and values in between interpolate. Values outside $[0,1]$ extrapolate past either end.",
       "tags": [
         "smoothing",
         "morphing",

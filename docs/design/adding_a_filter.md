@@ -181,6 +181,25 @@ Because this is JSON, every LaTeX backslash must be escaped as `\\`. Keep
 formulas to standard LaTeX math commands supported by both JKQTMathText and
 MathJax; links and ordinary formatting should remain Markdown rather than HTML.
 
+**`\n` is not one of those backslashes.** It is JSON's own escape for a newline, and
+doubling it writes the two characters `\n` into the text, which the help box then shows
+to the reader:
+
+```json
+"longDescriptionMarkdown": "First paragraph.\n\nSecond paragraph."     // right
+"longDescriptionMarkdown": "First paragraph.\\n\\nSecond paragraph."   // shows "\n\n"
+```
+
+The rendering is `QTextBrowser::setMarkdown`, so ordinary Markdown rules apply: a blank
+line (`\n\n`) starts a paragraph, a single `\n` is a soft break that reads as a space,
+and lists and tables need the blank line before them that Markdown always needs. Write
+paragraphs; the help box is narrow and wraps, so hand-wrapping with single newlines gains
+nothing.
+
+`test_filter_descriptors.cpp` rejects a literal `\n` in any description or help text.
+That check exists because 148 of them reached the help box across three plugins before
+anyone noticed -- the `\\` rule above is easy to over-apply.
+
 Angular parameters must state their convention explicitly. Use **Half-Angle**
 for the angle from an axis to a cone boundary, and **Angular Diameter** (or
 **Full Aperture**) for the angle between opposite boundary directions. Avoid the

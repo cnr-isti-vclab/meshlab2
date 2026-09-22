@@ -56,7 +56,7 @@
       "name": "Project Vertices onto MLS Surface (APSS)",
       "pythonName": "project_vertices_onto_mls_surface_apss",
       "shortDescription": "Project a mesh or point set onto an Algebraic Point Set Surface.",
-      "longDescriptionMarkdown": "Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.\\n\\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.",
+      "longDescriptionMarkdown": "Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.\n\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.",
       "referenceIds": ["guennebaud2007", "guennebaud2008"],
       "tags": [
         "mls",
@@ -185,7 +185,7 @@
       "name": "Project Vertices onto MLS Surface (RIMLS)",
       "pythonName": "project_vertices_onto_mls_surface_rimls",
       "shortDescription": "Project a mesh or point set onto a Robust Implicit MLS surface.",
-      "longDescriptionMarkdown": "Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.\\n\\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.",
+      "longDescriptionMarkdown": "Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.\n\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.",
       "referenceIds": ["oztireli2009"],
       "tags": [
         "mls",
@@ -316,7 +316,7 @@
       "name": "Reconstruct Surface by Marching Cubes (APSS)",
       "pythonName": "reconstruct_surface_by_marching_cubes_apss",
       "shortDescription": "Extract an APSS iso-surface as a new mesh with marching cubes.",
-      "longDescriptionMarkdown": "Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.\\n\\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.",
+      "longDescriptionMarkdown": "Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.\n\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.",
       "referenceIds": ["guennebaud2007", "guennebaud2008"],
       "tags": [
         "mls",
@@ -401,7 +401,7 @@
       "name": "Reconstruct Surface by Marching Cubes (RIMLS)",
       "pythonName": "reconstruct_surface_by_marching_cubes_rimls",
       "shortDescription": "Extract a Robust Implicit MLS iso-surface as a new mesh with marching cubes.",
-      "longDescriptionMarkdown": "Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.\\n\\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.",
+      "longDescriptionMarkdown": "Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.\n\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.",
       "referenceIds": ["oztireli2009"],
       "tags": [
         "mls",
@@ -488,7 +488,7 @@
       "name": "Compute Curvature (APSS)",
       "pythonName": "compute_curvature_apss",
       "shortDescription": "Compute APSS curvature estimates and store them in vertex quality.",
-      "longDescriptionMarkdown": "Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.\\n\\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.",
+      "longDescriptionMarkdown": "Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.\n\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.",
       "referenceIds": ["guennebaud2007", "guennebaud2008"],
       "tags": [
         "mls",
@@ -598,7 +598,7 @@
       "name": "Compute Curvature (RIMLS)",
       "pythonName": "compute_curvature_rimls",
       "shortDescription": "Compute RIMLS curvature estimates and store them in vertex quality.",
-      "longDescriptionMarkdown": "Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.\\n\\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.",
+      "longDescriptionMarkdown": "Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.\n\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.",
       "referenceIds": ["oztireli2009"],
       "tags": [
         "mls",
