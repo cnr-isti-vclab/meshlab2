@@ -545,7 +545,9 @@ Enhance per-vertex color variation with an unsharp mask.
 ```{py:function} ms.sharpen_vertex_color_by_unsharp_mask(**params)
 :module: _meshlab
 
-Sharpens the **per-vertex color**, pulling out variation that is hard to see in a low-contrast or noisy color field.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \lambda\,(s - \mathrm{smooth}(s)).$$ **Weight** is $\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n
+Sharpens the **per-vertex color**, pulling out variation that is hard to see in a low-contrast or noisy color field.
+
+Unsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \lambda\,(s - \mathrm{smooth}(s)).$$ **Weight** is $\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.
 
 **References:**
 
@@ -668,7 +670,9 @@ Compute APSS curvature estimates and store them in vertex quality.
 ```{py:function} ms.compute_curvature_apss(**params)
 :module: _meshlab
 
-Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.\n\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.
+Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.
+
+This is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.
 
 **References:**
 
@@ -722,7 +726,9 @@ Compute RIMLS curvature estimates and store them in vertex quality.
 ```{py:function} ms.compute_curvature_rimls(**params)
 :module: _meshlab
 
-Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.\n\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.
+Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.
+
+This is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.
 
 **References:**
 
@@ -754,7 +760,22 @@ Estimate principal curvatures by local fitting and store one measure in vertex s
 ```{py:function} ms.compute_curvature_trueform(**params)
 :module: _meshlab
 
-Fits a local surface around each vertex over its k-ring neighbourhood and derives the two principal curvatures, then stores the chosen measure in **vertex scalar**.\n\n**Measure** selects what is written:\n\n| Measure | Meaning |\n|---|---|\n| Mean | (k1 + k2) / 2 |\n| Gaussian | k1 * k2 — positive on domes and bowls, negative on saddles |\n| Minimum / Maximum | the individual principal curvatures |\n| Shape index | scale-free descriptor of local shape, from cup through saddle to cap |\n\n**Ring** is the neighbourhood radius in rings of adjacent vertices. Larger values smooth the estimate and cost more; it is the knob to turn when noise dominates the result.\n\nThe shape index is worth knowing about: unlike the curvature values it is **independent of scale**, so it describes the *kind* of shape at a point rather than how strongly curved it is, which makes it comparable across models of different sizes.\n\nCompeting implementation: see also *Compute Curvature (Discrete)*, *(APSS)* and *(RIMLS)*.
+Fits a local surface around each vertex over its k-ring neighbourhood and derives the two principal curvatures, then stores the chosen measure in **vertex scalar**.
+
+**Measure** selects what is written:
+
+| Measure | Meaning |
+|---|---|
+| Mean | (k1 + k2) / 2 |
+| Gaussian | k1 * k2 — positive on domes and bowls, negative on saddles |
+| Minimum / Maximum | the individual principal curvatures |
+| Shape index | scale-free descriptor of local shape, from cup through saddle to cap |
+
+**Ring** is the neighbourhood radius in rings of adjacent vertices. Larger values smooth the estimate and cost more; it is the knob to turn when noise dominates the result.
+
+The shape index is worth knowing about: unlike the curvature values it is **independent of scale**, so it describes the *kind* of shape at a point rather than how strongly curved it is, which makes it comparable across models of different sizes.
+
+Competing implementation: see also *Compute Curvature (Discrete)*, *(APSS)* and *(RIMLS)*.
 
 **Parameters:**
 
@@ -1017,7 +1038,11 @@ Recompute per-vertex or per-face normals from the geometry.
 ```{py:function} ms.compute_normals_trueform(**params)
 :module: _meshlab
 
-Recomputes normals from the current geometry, either one per face or one per vertex (area-weighted from the incident faces).\n\nNormals are computed in world space and mapped back through the layer matrix, so a layer carrying a non-uniform scale gets correct normals rather than merely rotated ones.\n\nCompeting implementation: *Compute Vertex Normals* and *Compute Face Normals* do the same with vcglib. This one is parallelised.
+Recomputes normals from the current geometry, either one per face or one per vertex (area-weighted from the incident faces).
+
+Normals are computed in world space and mapped back through the layer matrix, so a layer carrying a non-uniform scale gets correct normals rather than merely rotated ones.
+
+Competing implementation: *Compute Vertex Normals* and *Compute Face Normals* do the same with vcglib. This one is parallelised.
 
 **Parameters:**
 
@@ -1249,7 +1274,9 @@ Enhance face normal variation using an unsharp mask.
 ```{py:function} ms.sharpen_face_normals_by_unsharp_mask(**params)
 :module: _meshlab
 
-Sharpens the **per-face normals**, so that shading brings out variations in orientation that a flat rendering hides. The geometry is untouched -- only the normals change -- which makes it a rendering aid rather than a modelling operation.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \lambda\,(s - \mathrm{smooth}(s)).$$ **Weight** is $\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n
+Sharpens the **per-face normals**, so that shading brings out variations in orientation that a flat rendering hides. The geometry is untouched -- only the normals change -- which makes it a rendering aid rather than a modelling operation.
+
+Unsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \lambda\,(s - \mathrm{smooth}(s)).$$ **Weight** is $\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.
 
 **References:**
 
@@ -1794,7 +1821,15 @@ Store each vertex's signed distance to another layer's surface in vertex scalar.
 ```{py:function} ms.compute_signed_distance_to_mesh_trueform(**params)
 :module: _meshlab
 
-Writes, for every vertex, its distance to the nearest point of the reference layer's surface — **negative inside, positive outside**.\n\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with *Create Polyline from Scalar Isocontour (TrueForm)* (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\n\nBoth layers are taken in world space. The reference must be a **closed surface** for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\n\nEnable **Unsigned** for absolute distance, which is what you want when only proximity matters.\n\nCompare with *Measure Hausdorff Distance*, which reports a single worst-case number, and *Measure Chamfer Distance (TrueForm)*, which reports a mean.
+Writes, for every vertex, its distance to the nearest point of the reference layer's surface — **negative inside, positive outside**.
+
+The sign is what makes this a field rather than a proximity readout. It can be contoured with *Create Polyline from Scalar Isocontour (TrueForm)* (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.
+
+Both layers are taken in world space. The reference must be a **closed surface** for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.
+
+Enable **Unsigned** for absolute distance, which is what you want when only proximity matters.
+
+Compare with *Measure Hausdorff Distance*, which reports a single worst-case number, and *Measure Chamfer Distance (TrueForm)*, which reports a mean.
 
 **Parameters:**
 
@@ -1947,7 +1982,9 @@ Enhance per-vertex quality variations with an unsharp mask.
 ```{py:function} ms.sharpen_vertex_scalar_by_unsharp_mask(**params)
 :module: _meshlab
 
-Sharpens the **per-vertex scalar field**, so that gentle gradients in the values become steeper and easier to read once the field is mapped to color.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \lambda\,(s - \mathrm{smooth}(s)).$$ **Weight** is $\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n
+Sharpens the **per-vertex scalar field**, so that gentle gradients in the values become steeper and easier to read once the field is mapped to color.
+
+Unsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \lambda\,(s - \mathrm{smooth}(s)).$$ **Weight** is $\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.
 
 **References:**
 
@@ -2424,7 +2461,11 @@ Extract the curve where two layers cross, as a polyline layer.
 ```{py:function} ms.create_polyline_from_mesh_intersection_trueform(**params)
 :module: _meshlab
 
-Extracts the exact curve along which two layers intersect, as a new polyline layer. Both are taken in world space, so their layer matrices are applied first.\n\nThe curve is computed with the same exact arrangement the booleans use, so it is the true intersection rather than a sampled approximation, and it is usable as a construction line — a seam to cut along, a profile to sweep, or a measurement.\n\nLayers that do not touch produce nothing.
+Extracts the exact curve along which two layers intersect, as a new polyline layer. Both are taken in world space, so their layer matrices are applied first.
+
+The curve is computed with the same exact arrangement the booleans use, so it is the true intersection rather than a sampled approximation, and it is usable as a construction line — a seam to cut along, a profile to sweep, or a measurement.
+
+Layers that do not touch produce nothing.
 
 **Parameters:**
 
@@ -2474,7 +2515,15 @@ Extract contour lines of the per-vertex scalar field as polylines on the surface
 ```{py:function} ms.create_polyline_from_scalar_isocontour_trueform(**params)
 :module: _meshlab
 
-Extracts level sets of the **per-vertex scalar field** as polylines lying exactly on the surface.\n\nThis turns every scalar MeshLab can compute into something with extractable contours: geodesic distance from a point or a border, curvature, ambient occlusion, shape diameter, raster coverage, or anything written by *Compute Vertex Scalar by Expression*. Contours of a geodesic distance are isodistance rings; of a height field, topographic contour lines.\n\n**Contours** sets how many levels are extracted. They are spaced evenly and placed strictly *inside* the range, never at its extremes, where a contour is either empty or the whole boundary.\n\nBy default the range is the field's own minimum and maximum. Enable **Use Custom Range** to contour a chosen band instead — useful when a few outliers would otherwise compress every contour into a corner of the model.\n\nA constant field has no contours, and the filter says so rather than returning an empty layer.
+Extracts level sets of the **per-vertex scalar field** as polylines lying exactly on the surface.
+
+This turns every scalar MeshLab can compute into something with extractable contours: geodesic distance from a point or a border, curvature, ambient occlusion, shape diameter, raster coverage, or anything written by *Compute Vertex Scalar by Expression*. Contours of a geodesic distance are isodistance rings; of a height field, topographic contour lines.
+
+**Contours** sets how many levels are extracted. They are spaced evenly and placed strictly *inside* the range, never at its extremes, where a contour is either empty or the whole boundary.
+
+By default the range is the field's own minimum and maximum. Enable **Use Custom Range** to contour a chosen band instead — useful when a few outliers would otherwise compress every contour into a corner of the model.
+
+A constant field has no contours, and the filter says so rather than returning an empty layer.
 
 All the levels land in one layer, so every edge carries **the value of the contour it belongs to** as its scalar. Run *Colorize Edges by Scalar* on the result to tell the levels apart; without that they draw in one flat colour. The scalars survive a PLY round trip, so the layer can be saved and re-colored later.
 
@@ -2542,7 +2591,11 @@ Extract the curve where a mesh passes through itself, as a polyline layer.
 ```{py:function} ms.create_polyline_from_self_intersections_trueform(**params)
 :module: _meshlab
 
-Extracts the exact curve along which the layer intersects **itself**, as a new polyline layer.\n\n*Select Self Intersecting Faces* marks the faces involved; this gives the intersection itself, which is what you need to see where the problem is rather than merely that it exists — and, being exact geometry rather than a selection, it can be measured, exported, or swept into a tube.\n\nA clean mesh produces nothing, and the filter says so.
+Extracts the exact curve along which the layer intersects **itself**, as a new polyline layer.
+
+*Select Self Intersecting Faces* marks the faces involved; this gives the intersection itself, which is what you need to see where the problem is rather than merely that it exists — and, being exact geometry rather than a selection, it can be measured, exported, or swept into a tube.
+
+A clean mesh produces nothing, and the filter says so.
 
 **Parameters:**
 
@@ -2774,7 +2827,13 @@ Sweep a circular profile along a polyline to make a solid tube.
 ```{py:function} ms.create_tube_from_polyline_trueform(**params)
 :module: _meshlab
 
-Sweeps a circular profile along each path of a polyline layer, producing a solid tube.\n\nThe *Create Polyline* filters produce edge meshes, which render as hairlines and cannot be shaded, exported to a solid format, or printed. This turns one into geometry — so a measured cross-section, an intersection seam, or a set of isocontours becomes something you can look at properly or fabricate.\n\n**Radius** is the tube radius and **Sides** the number of segments around it; 8 is smooth enough for most uses, more for close-ups.\n\nEdges are chained into paths first. A vertex where three or more edges meet cannot be swept unambiguously, so the polyline is **split** there rather than branched, and the count of such junctions is reported.
+Sweeps a circular profile along each path of a polyline layer, producing a solid tube.
+
+The *Create Polyline* filters produce edge meshes, which render as hairlines and cannot be shaded, exported to a solid format, or printed. This turns one into geometry — so a measured cross-section, an intersection seam, or a set of isocontours becomes something you can look at properly or fabricate.
+
+**Radius** is the tube radius and **Sides** the number of segments around it; 8 is smooth enough for most uses, more for close-ups.
+
+Edges are chained into paths first. A vertex where three or more edges meet cannot be swept unambiguously, so the polyline is **split** there rather than branched, and the count of such junctions is reported.
 
 **Parameters:**
 
@@ -3076,7 +3135,9 @@ Extract an APSS iso-surface as a new mesh with marching cubes.
 ```{py:function} ms.reconstruct_surface_by_marching_cubes_apss(**params)
 :module: _meshlab
 
-Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.\n\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.
+Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.
+
+This is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.
 
 **References:**
 
@@ -3108,7 +3169,9 @@ Extract a Robust Implicit MLS iso-surface as a new mesh with marching cubes.
 ```{py:function} ms.reconstruct_surface_by_marching_cubes_rimls(**params)
 :module: _meshlab
 
-Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.\n\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.
+Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.
+
+This is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.
 
 **References:**
 
@@ -4616,7 +4679,11 @@ Linearly morph the current mesh toward another mesh.
 ```{py:function} ms.displace_vertices_toward_target_mesh(**params)
 :module: _meshlab
 
-Morphs the current mesh toward a target mesh that has the same number of vertices in the same order. Each source vertex moves along the straight line to its counterpart:\n\n$$p_i^{\mathrm{result}}=(1-\lambda)\,p_i^{\mathrm{source}}+\lambda\,p_i^{\mathrm{target}}.$$\n\n**Weight** is $\lambda$: 0 leaves the mesh alone, 1 lands exactly on the target, and values in between interpolate. Values outside $[0,1]$ extrapolate past either end.
+Morphs the current mesh toward a target mesh that has the same number of vertices in the same order. Each source vertex moves along the straight line to its counterpart:
+
+$$p_i^{\mathrm{result}}=(1-\lambda)\,p_i^{\mathrm{source}}+\lambda\,p_i^{\mathrm{target}}.$$
+
+**Weight** is $\lambda$: 0 leaves the mesh alone, 1 lands exactly on the target, and values in between interpolate. Values outside $[0,1]$ extrapolate past either end.
 
 **Parameters:**
 
@@ -4670,7 +4737,9 @@ Project a mesh or point set onto an Algebraic Point Set Surface.
 ```{py:function} ms.project_vertices_onto_mls_surface_apss(**params)
 :module: _meshlab
 
-Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.\n\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.
+Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.
+
+This is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.
 
 **References:**
 
@@ -4706,7 +4775,9 @@ Project a mesh or point set onto a Robust Implicit MLS surface.
 ```{py:function} ms.project_vertices_onto_mls_surface_rimls(**params)
 :module: _meshlab
 
-Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.\n\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.
+Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.
+
+This is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.
 
 **References:**
 
@@ -4741,7 +4812,9 @@ Enhance geometric ridges and valleys with an unsharp mask.
 ```{py:function} ms.sharpen_vertices_by_unsharp_mask(**params)
 :module: _meshlab
 
-Sharpens the **vertex positions**, deepening ridges and valleys in the surface itself. Unlike the normal variant this really moves geometry, so the effect survives export.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \lambda\,(s - \mathrm{smooth}(s)).$$ **Weight** is $\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n
+Sharpens the **vertex positions**, deepening ridges and valleys in the surface itself. Unlike the normal variant this really moves geometry, so the effect survives export.
+
+Unsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \lambda\,(s - \mathrm{smooth}(s)).$$ **Weight** is $\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.
 
 **References:**
 
@@ -4818,7 +4891,15 @@ Move each vertex towards the average of its neighbours.
 ```{py:function} ms.smooth_vertices_by_laplacian_trueform(**params)
 :module: _meshlab
 
-Moves each vertex towards the average position of its linked neighbours, repeatedly.\n\n**Lambda** is how far towards that average each step travels: 1.0 goes all the way, smaller values creep. **Iterations** is how many steps.\n\nLaplacian smoothing **shrinks**: every step pulls the surface towards its own average, so a closed shape loses volume and sharp features round off. That is the price of its simplicity, and the reason for its Taubin sibling, which alternates a shrinking step with an expanding one to compensate.\n\nEnable **Selected Only** to restrict movement to the current vertex selection.\n\nCompeting implementation: MeshLab already has vcglib smoothing under *Geometry/Smoothing*. TrueForm's is parallelised through oneTBB, which shows on large meshes. Results should agree closely; where they differ the difference is in the boundary handling.
+Moves each vertex towards the average position of its linked neighbours, repeatedly.
+
+**Lambda** is how far towards that average each step travels: 1.0 goes all the way, smaller values creep. **Iterations** is how many steps.
+
+Laplacian smoothing **shrinks**: every step pulls the surface towards its own average, so a closed shape loses volume and sharp features round off. That is the price of its simplicity, and the reason for its Taubin sibling, which alternates a shrinking step with an expanding one to compensate.
+
+Enable **Selected Only** to restrict movement to the current vertex selection.
+
+Competing implementation: MeshLab already has vcglib smoothing under *Geometry/Smoothing*. TrueForm's is parallelised through oneTBB, which shows on large meshes. Results should agree closely; where they differ the difference is in the boundary handling.
 
 **Parameters:**
 
@@ -4919,7 +5000,13 @@ Smooth without the shrinkage that Laplacian smoothing causes.
 ```{py:function} ms.smooth_vertices_by_taubin_trueform(**params)
 :module: _meshlab
 
-Alternates a Laplacian shrinking step with a slightly larger expanding one, so noise is removed while the overall volume is preserved. This is the smoothing to reach for by default; plain Laplacian is the one to reach for when you *want* the shape to contract.\n\n**Lambda** is the shrinking step and **Kpb** sets the expanding one — larger Kpb pushes back harder against shrinkage. The defaults are the values from Taubin's paper and are a reasonable starting point.\n\nEnable **Selected Only** to restrict movement to the current vertex selection.\n\nCompeting implementation: MeshLab already has vcglib smoothing under *Geometry/Smoothing*. TrueForm's is parallelised through oneTBB, which shows on large meshes. Results should agree closely; where they differ the difference is in the boundary handling.
+Alternates a Laplacian shrinking step with a slightly larger expanding one, so noise is removed while the overall volume is preserved. This is the smoothing to reach for by default; plain Laplacian is the one to reach for when you *want* the shape to contract.
+
+**Lambda** is the shrinking step and **Kpb** sets the expanding one — larger Kpb pushes back harder against shrinkage. The defaults are the values from Taubin's paper and are a reasonable starting point.
+
+Enable **Selected Only** to restrict movement to the current vertex selection.
+
+Competing implementation: MeshLab already has vcglib smoothing under *Geometry/Smoothing*. TrueForm's is parallelised through oneTBB, which shows on large meshes. Results should agree closely; where they differ the difference is in the boundary handling.
 
 **References:**
 
@@ -4977,7 +5064,12 @@ Feature-preserving smoothing through normal smoothing and vertex fitting.
 ```{py:function} ms.smooth_vertices_by_two_step_normal_fitting(**params)
 :module: _meshlab
 
-A feature-preserving fairing filter that runs in two stages:\n\n1. **Normal smoothing** -- face normals that already point in similar directions are averaged together, while normals that differ sharply are left alone, so creases survive.\n2. **Vertex repositioning** -- vertices are then moved to fit the smoothed normals.\n\nSmoothing the normals first and the positions second is what separates this from plain Laplacian smoothing: noise is removed without rounding off the edges that carry the shape.
+A feature-preserving fairing filter that runs in two stages:
+
+1. **Normal smoothing** -- face normals that already point in similar directions are averaged together, while normals that differ sharply are left alone, so creases survive.
+2. **Vertex repositioning** -- vertices are then moved to fit the smoothed normals.
+
+Smoothing the normals first and the positions second is what separates this from plain Laplacian smoothing: noise is removed without rounding off the edges that carry the shape.
 
 **References:**
 
@@ -5342,7 +5434,15 @@ Report the mean nearest-point distance between two layers.
 ```{py:function} ms.measure_chamfer_distance_trueform(**params)
 :module: _meshlab
 
-Reports the **mean** distance from each vertex of one layer to the nearest vertex of the other.\n\nWhere the *Measure Hausdorff Distance* reports the single worst correspondence — and so is dominated by one stray vertex — the chamfer distance averages over all of them. That makes it the more useful number for scoring an overall fit: comparing simplification settings, judging whether a registration improved, or tracking a reconstruction against ground truth. Use Hausdorff when the worst case is what matters, and this when the typical case is.\n\nThe measure is **not symmetric**: the mean distance from A to B differs from B to A, and a subset of a surface can sit very close to it while the surface as a whole sits far from the subset. **Symmetric** measures both directions and also reports the larger, which is the honest single number.\n\n**Outlier Proportion** discards that fraction of the worst correspondences before averaging, for partial overlaps.\n\nThis measures vertex to vertex, so it is sensitive to how densely each layer is sampled.
+Reports the **mean** distance from each vertex of one layer to the nearest vertex of the other.
+
+Where the *Measure Hausdorff Distance* reports the single worst correspondence — and so is dominated by one stray vertex — the chamfer distance averages over all of them. That makes it the more useful number for scoring an overall fit: comparing simplification settings, judging whether a registration improved, or tracking a reconstruction against ground truth. Use Hausdorff when the worst case is what matters, and this when the typical case is.
+
+The measure is **not symmetric**: the mean distance from A to B differs from B to A, and a subset of a surface can sit very close to it while the surface as a whole sits far from the subset. **Symmetric** measures both directions and also reports the larger, which is the honest single number.
+
+**Outlier Proportion** discards that fraction of the worst correspondences before averaging, for partial overlaps.
+
+This measures vertex to vertex, so it is sensitive to how densely each layer is sampled.
 
 **Parameters:**
 
@@ -5665,7 +5765,26 @@ Evaluate a boolean expression over any number of layers in one exact pass.
 ```{py:function} ms.mesh_csg_expression_trueform(**params)
 :module: _meshlab
 
-Evaluates an arbitrary constructive-solid-geometry expression over the document's layers, in a **single arrangement** rather than a chain of pairwise booleans. That matters for more than convenience: chaining booleans re-meshes and re-intersects at every step, accumulating error and cost, while one arrangement resolves all the surfaces together and classifies each region once.\n\n**Operands are layer numbers**, as shown in the layer panel. Operators, loosest-binding first:\n\n| Operator | Meaning |\n|---|---|\n| `\\|` | union |\n| `-` | difference |\n| `&` | intersection |\n| `~` | complement |\n\n`|` and `-` share the lowest precedence and associate to the left; `&` binds tighter; `~` binds tightest. Parentheses group.\n\nExamples:\n\n- `0 | 1 | 2` — the union of three layers\n- `(0 | 1) - 2` — two layers joined, then a third drilled out of them\n- `0 & ~1` — the part of layer 0 outside layer 1, i.e. the difference\n\nA layer may appear more than once; it becomes a single operand. Every referenced layer is taken in world space.
+Evaluates an arbitrary constructive-solid-geometry expression over the document's layers, in a **single arrangement** rather than a chain of pairwise booleans. That matters for more than convenience: chaining booleans re-meshes and re-intersects at every step, accumulating error and cost, while one arrangement resolves all the surfaces together and classifies each region once.
+
+**Operands are layer numbers**, as shown in the layer panel. Operators, loosest-binding first:
+
+| Operator | Meaning |
+|---|---|
+| `\\|` | union |
+| `-` | difference |
+| `&` | intersection |
+| `~` | complement |
+
+`|` and `-` share the lowest precedence and associate to the left; `&` binds tighter; `~` binds tightest. Parentheses group.
+
+Examples:
+
+- `0 | 1 | 2` — the union of three layers
+- `(0 | 1) - 2` — two layers joined, then a third drilled out of them
+- `0 & ~1` — the part of layer 0 outside layer 1, i.e. the difference
+
+A layer may appear more than once; it becomes a single operand. Every referenced layer is taken in world space.
 
 **Sheets.** A layer listed in *Sheets* enters the expression as an **open oriented surface** rather than a solid: it cuts the other operands without enclosing any volume of its own, and its operand bit means *behind the surface*, on the far side of its normals. Anything can be a sheet — a plane, a curved terrain, a trimmed patch — and it need not be closed or even reach past the solid it divides.
 
@@ -5765,7 +5884,11 @@ Exact boolean difference of two layers.
 ```{py:function} ms.mesh_difference_trueform(**params)
 :module: _meshlab
 
-The first solid with the second removed from it. Order matters: swap the two layers to get the opposite difference.\n\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\n\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.
+The first solid with the second removed from it. Order matters: swap the two layers to get the opposite difference.
+
+TrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.
+
+The libigl implementation of the same operation is also available and worth comparing on difficult input.
 
 **Parameters:**
 
@@ -5861,7 +5984,11 @@ Exact boolean intersection of two layers.
 ```{py:function} ms.mesh_intersection_trueform(**params)
 :module: _meshlab
 
-The intersection of two closed solids: only what lies inside both.\n\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\n\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.
+The intersection of two closed solids: only what lies inside both.
+
+TrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.
+
+The libigl implementation of the same operation is also available and worth comparing on difficult input.
 
 **Parameters:**
 
@@ -5959,7 +6086,13 @@ Exact boolean symmetric difference of two layers.
 ```{py:function} ms.mesh_symmetric_difference_trueform(**params)
 :module: _meshlab
 
-Everything inside exactly one of the two solids, and nothing inside both.\n\nTrueForm's boolean primitive offers union, intersection and difference but not this one, so it is evaluated through the CSG evaluator as `(A - B) | (B - A)`. The result is the same; only the route differs.\n\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\n\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.
+Everything inside exactly one of the two solids, and nothing inside both.
+
+TrueForm's boolean primitive offers union, intersection and difference but not this one, so it is evaluated through the CSG evaluator as `(A - B) | (B - A)`. The result is the same; only the route differs.
+
+TrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.
+
+The libigl implementation of the same operation is also available and worth comparing on difficult input.
 
 **Parameters:**
 
@@ -6055,7 +6188,11 @@ Exact boolean union of two layers.
 ```{py:function} ms.mesh_union_trueform(**params)
 :module: _meshlab
 
-The union of two closed solids: everything inside either one.\n\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\n\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.
+The union of two closed solids: everything inside either one.
+
+TrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.
+
+The libigl implementation of the same operation is also available and worth comparing on difficult input.
 
 **Parameters:**
 
@@ -6295,7 +6432,13 @@ Split the surface along contours of the vertex scalar field.
 ```{py:function} ms.cut_along_scalar_isocontour_trueform(**params)
 :module: _meshlab
 
-Cuts the surface along evenly spaced contours of the **per-vertex scalar field**, so the band between each pair of successive contour values becomes its own set of faces, with real edges along the boundaries.\n\nWhere *Create Polyline from Scalar Isocontour (TrueForm)* draws the contour lines, this one cuts the mesh at them: the bands are geometry, so they can be coloured separately, split into layers, exported, or measured. Contour a height field and you get terraces; contour a geodesic distance and you get rings you can separate.\n\nEvery band is kept, so the result is the whole surface cut up rather than a filtered part of it.\n\nCompute a scalar first — a constant field has nothing to cut along, and the filter says so.
+Cuts the surface along evenly spaced contours of the **per-vertex scalar field**, so the band between each pair of successive contour values becomes its own set of faces, with real edges along the boundaries.
+
+Where *Create Polyline from Scalar Isocontour (TrueForm)* draws the contour lines, this one cuts the mesh at them: the bands are geometry, so they can be coloured separately, split into layers, exported, or measured. Contour a height field and you get terraces; contour a geodesic distance and you get rings you can separate.
+
+Every band is kept, so the result is the whole surface cut up rather than a filtered part of it.
+
+Compute a scalar first — a constant field has nothing to cut along, and the filter says so.
 
 **Parameters:**
 
@@ -6442,7 +6585,24 @@ Improve triangle shape by flipping edges and relaxing vertices, without changing
 ```{py:function} ms.remesh_by_edge_flipping_trueform(**params)
 :module: _meshlab
 
-Alternates rounds of **edge flipping** and **tangential relaxation** to improve triangle quality. Connectivity and vertex positions both change, but no vertex is added or removed — so this refines a tessellation you want to keep the size of, where *Remesh Isotropically* would rebuild it.\n\nThe two steps depend on each other, which is why they interleave: a flip creates room for a vertex to move somewhere useful, and a moved vertex makes a different flip worthwhile.\n\n**Objective** decides which flips are taken:\n\n| Objective | Effect |\n|---|---|\n| Valence | evens out how many edges meet at each vertex, giving a regular-looking mesh |\n| Minimum angle | maximises the smallest angle, attacking slivers directly |\n\nUse *Valence* for a tidy mesh, *Minimum angle* when thin triangles are causing numerical trouble.\n\n**Relaxation** moves each vertex along the surface towards its neighbours' centroid; **Lambda** is how far. Set **Max Deviation** above zero to bound how far the surface may drift from its starting shape — worth doing when the geometry matters more than the triangles.\n\n**Check Normals** rejects any flip or move that would fold a triangle over. Leave it on unless you know the mesh is well behaved.\n\nCompeting implementations: *Flip Edges by Curvature* and *Flip Edges by Planarity* do the flipping half with vcglib, driven by different objectives; the vcglib *Smooth* filters do the relaxation half. This does both together.
+Alternates rounds of **edge flipping** and **tangential relaxation** to improve triangle quality. Connectivity and vertex positions both change, but no vertex is added or removed — so this refines a tessellation you want to keep the size of, where *Remesh Isotropically* would rebuild it.
+
+The two steps depend on each other, which is why they interleave: a flip creates room for a vertex to move somewhere useful, and a moved vertex makes a different flip worthwhile.
+
+**Objective** decides which flips are taken:
+
+| Objective | Effect |
+|---|---|
+| Valence | evens out how many edges meet at each vertex, giving a regular-looking mesh |
+| Minimum angle | maximises the smallest angle, attacking slivers directly |
+
+Use *Valence* for a tidy mesh, *Minimum angle* when thin triangles are causing numerical trouble.
+
+**Relaxation** moves each vertex along the surface towards its neighbours' centroid; **Lambda** is how far. Set **Max Deviation** above zero to bound how far the surface may drift from its starting shape — worth doing when the geometry matters more than the triangles.
+
+**Check Normals** rejects any flip or move that would fold a triangle over. Leave it on unless you know the mesh is well behaved.
+
+Competing implementations: *Flip Edges by Curvature* and *Flip Edges by Planarity* do the flipping half with vcglib, driven by different objectives; the vcglib *Smooth* filters do the relaxation half. This does both together.
 
 **Parameters:**
 
@@ -6469,7 +6629,13 @@ Rebuild the tessellation with triangles of a uniform target edge length.
 ```{py:function} ms.remesh_isotropically_trueform(**params)
 :module: _meshlab
 
-Rebuilds the tessellation so triangles approach a uniform size and shape, by splitting long edges, collapsing short ones, flipping to improve valence and relaxing vertices along the surface.\n\n**Target Edge Length** is the size aimed for. **Iterations** is how many split/collapse/flip/relax rounds run; **Relaxation Iterations** the tangential smoothing passes inside each round.\n\n**Feature Angle** protects sharp edges: any dihedral angle above it is treated as a crease and preserved rather than smoothed away. It is off by default (negative), which is right for organic surfaces and wrong for anything with intended hard edges.\n\nCompeting implementation: *Remesh Isotropically* does the same with vcglib. TrueForm's is parallelised and has the explicit feature and boundary contracts above.
+Rebuilds the tessellation so triangles approach a uniform size and shape, by splitting long edges, collapsing short ones, flipping to improve valence and relaxing vertices along the surface.
+
+**Target Edge Length** is the size aimed for. **Iterations** is how many split/collapse/flip/relax rounds run; **Relaxation Iterations** the tangential smoothing passes inside each round.
+
+**Feature Angle** protects sharp edges: any dihedral angle above it is treated as a crease and preserved rather than smoothed away. It is off by default (negative), which is right for organic surfaces and wrong for anything with intended hard edges.
+
+Competing implementation: *Remesh Isotropically* does the same with vcglib. TrueForm's is parallelised and has the explicit feature and boundary contracts above.
 
 **Parameters:**
 
@@ -6634,7 +6800,13 @@ Reduce the triangle count to a target fraction of the original.
 ```{py:function} ms.simplify_by_decimation_trueform(**params)
 :module: _meshlab
 
-Collapses edges until the face count reaches the requested **fraction of the original**, choosing collapses by geometric error so detail is given up where it costs least.\n\nA proportion rather than an absolute count, so the filter behaves the same on any input and can be applied repeatedly: 0.5 halves the mesh each time.\n\nUse *Simplify by Error Bound (TrueForm)* when fidelity matters more than the resulting size.\n\nCompeting implementation: see also the quadric edge collapse filters under *Meshing/Simplification*.
+Collapses edges until the face count reaches the requested **fraction of the original**, choosing collapses by geometric error so detail is given up where it costs least.
+
+A proportion rather than an absolute count, so the filter behaves the same on any input and can be applied repeatedly: 0.5 halves the mesh each time.
+
+Use *Simplify by Error Bound (TrueForm)* when fidelity matters more than the resulting size.
+
+Competing implementation: see also the quadric edge collapse filters under *Meshing/Simplification*.
 
 **Parameters:**
 
@@ -6658,7 +6830,11 @@ Reduce triangle count as far as a geometric error bound allows.
 ```{py:function} ms.simplify_by_error_bound_trueform(**params)
 :module: _meshlab
 
-Collapses edges for as long as the surface stays within an **error bound**, rather than towards a face count. That is the useful difference from the other simplifiers here: you state the fidelity you will accept and get however few triangles that permits, instead of stating a triangle count and discovering the error afterwards.\n\n**Error Bound** is a distance. Type it directly in model units when you know the tolerance you have to hold -- a measurement accuracy, a printing tolerance -- or switch the field to a percentage of the bounding-box diagonal when you want the same value to mean the same thing across models of different scales. The default is 0.1% of the diagonal, which is conservative.\n\nUse *Simplify by Decimation (TrueForm)* when you need a specific face count instead.
+Collapses edges for as long as the surface stays within an **error bound**, rather than towards a face count. That is the useful difference from the other simplifiers here: you state the fidelity you will accept and get however few triangles that permits, instead of stating a triangle count and discovering the error afterwards.
+
+**Error Bound** is a distance. Type it directly in model units when you know the tolerance you have to hold -- a measurement accuracy, a printing tolerance -- or switch the field to a percentage of the bounding-box diagonal when you want the same value to mean the same thing across models of different scales. The default is 0.1% of the diagonal, which is conservative.
+
+Use *Simplify by Decimation (TrueForm)* when you need a specific face count instead.
 
 **Parameters:**
 
@@ -8055,7 +8231,15 @@ Weld coincident vertices and drop the degeneracies that welding exposes.
 ```{py:function} ms.remove_duplicate_vertices_trueform(**params)
 :module: _meshlab
 
-Welds vertices at the same position into one and removes the degenerate faces that welding leaves behind.\n\nThis is the first thing to run on a triangle soup — an STL, or anything exported face by face — because until the vertices are shared the mesh has no connectivity at all: no edges, no adjacency, and so no boundary, no components and no topology for any other filter to work with.\n\n**Tolerance** of zero welds only exactly coincident vertices, which is the safe choice. A positive tolerance also merges vertices within that distance, which closes cracks left by finite precision but will collapse genuinely small features if set too large.\n\nNote that MeshLab's own STL reader (*TrueForm OBJ/STL*) already welds on import, so this is mainly for geometry that arrived unwelded by another route.\n\nCompeting implementation: *Remove Duplicate Vertices* and *Merge Close Vertices* do the same with vcglib.
+Welds vertices at the same position into one and removes the degenerate faces that welding leaves behind.
+
+This is the first thing to run on a triangle soup — an STL, or anything exported face by face — because until the vertices are shared the mesh has no connectivity at all: no edges, no adjacency, and so no boundary, no components and no topology for any other filter to work with.
+
+**Tolerance** of zero welds only exactly coincident vertices, which is the safe choice. A positive tolerance also merges vertices within that distance, which closes cracks left by finite precision but will collapse genuinely small features if set too large.
+
+Note that MeshLab's own STL reader (*TrueForm OBJ/STL*) already welds on import, so this is mainly for geometry that arrived unwelded by another route.
+
+Competing implementation: *Remove Duplicate Vertices* and *Merge Close Vertices* do the same with vcglib.
 
 **Parameters:**
 
@@ -8191,7 +8375,11 @@ Keep only the outermost surface of a layer, discarding internal shells.
 ```{py:function} ms.extract_outer_shell_trueform(**params)
 :module: _meshlab
 
-Resolves the layer's self-intersections and keeps only the **outermost** boundary, dropping every internal shell and any surface enclosed by another.\n\nThis is the repair step for geometry assembled from overlapping parts — kitbashed models, scans merged from several pieces, or anything destined for 3D printing, where interior walls are invisible but still slow slicing and can confuse a slicer about what is solid.\n\nThe input should be solid rather than an open sheet: an open surface has no inside, so there is no outer shell to extract.
+Resolves the layer's self-intersections and keeps only the **outermost** boundary, dropping every internal shell and any surface enclosed by another.
+
+This is the repair step for geometry assembled from overlapping parts — kitbashed models, scans merged from several pieces, or anything destined for 3D printing, where interior walls are invisible but still slow slicing and can confuse a slicer about what is solid.
+
+The input should be solid rather than an open sheet: an open surface has no inside, so there is no outer shell to extract.
 
 **Parameters:**
 
@@ -8236,7 +8424,11 @@ Make neighboring faces wind the same way.
 ```{py:function} ms.orient_faces_consistently_trueform(**params)
 :module: _meshlab
 
-Propagates a consistent winding across each connected component, so neighboring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.\n\nThis makes the winding *consistent*; it does not decide which way is out. Use *Orient Faces Outward (TrueForm)* for that.\n\nCompeting implementation: *Orient Faces Consistently (vcglib)* does the same with vcglib.
+Propagates a consistent winding across each connected component, so neighboring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.
+
+This makes the winding *consistent*; it does not decide which way is out. Use *Orient Faces Outward (TrueForm)* for that.
+
+Competing implementation: *Orient Faces Consistently (vcglib)* does the same with vcglib.
 
 **Implementation note.** A single pass of the underlying routine only partly repairs a badly mixed winding, so this filter repeats it until the winding stops improving and reports how many passes were needed. If edges remain inconsistent afterwards the surface is probably non-orientable — a Möbius-like configuration has no consistent winding to find.
 
@@ -8280,7 +8472,11 @@ Make the winding consistent and pointing out of the solid.
 ```{py:function} ms.orient_faces_outward_trueform(**params)
 :module: _meshlab
 
-First makes the winding consistent, then checks the **signed volume** and flips the whole mesh if it came out negative — so normals point out of the solid rather than into it.\n\nThat second step is what distinguishes this from *Orient Faces Consistently (TrueForm)*: a consistently wound mesh can still be inside out, and nothing local can tell, because every face agrees with its neighbours either way. Only the sign of the enclosed volume settles it.\n\nThe input must therefore be **closed** for the answer to mean anything: an open sheet encloses no volume, so there is no outward.
+First makes the winding consistent, then checks the **signed volume** and flips the whole mesh if it came out negative — so normals point out of the solid rather than into it.
+
+That second step is what distinguishes this from *Orient Faces Consistently (TrueForm)*: a consistently wound mesh can still be inside out, and nothing local can tell, because every face agrees with its neighbours either way. Only the sign of the enclosed volume settles it.
+
+The input must therefore be **closed** for the answer to mean anything: an open sheet encloses no volume, so there is no outward.
 
 This filter has no parameters.
 ```
@@ -8424,7 +8620,13 @@ Resolve a mesh's self-intersections into real edges and split faces.
 ```{py:function} ms.repair_self_intersections_trueform(**params)
 :module: _meshlab
 
-Computes the **arrangement** of the layer against itself: every place the surface passes through itself becomes a real edge, and every crossed face is split along it.\n\nThis is the principled repair for self-intersecting geometry. Before it, the surface has no well-defined inside — a ray can cross the same sheet twice with nothing recording that they met — which is why self-intersections break booleans, offsetting, signed distance and printing. Afterwards the pieces are properly separated, and *Extract Outer Shell (TrueForm)* can keep the outermost one.\n\nUse *Create Polyline from Self-Intersections (TrueForm)* first to see where the problem is, and *Select Self Intersecting Faces* to see how much is affected.\n\nThe result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.
+Computes the **arrangement** of the layer against itself: every place the surface passes through itself becomes a real edge, and every crossed face is split along it.
+
+This is the principled repair for self-intersecting geometry. Before it, the surface has no well-defined inside — a ray can cross the same sheet twice with nothing recording that they met — which is why self-intersections break booleans, offsetting, signed distance and printing. Afterwards the pieces are properly separated, and *Extract Outer Shell (TrueForm)* can keep the outermost one.
+
+Use *Create Polyline from Self-Intersections (TrueForm)* first to see where the problem is, and *Select Self Intersecting Faces* to see how much is affected.
+
+The result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.
 
 **Parameters:**
 
@@ -8794,7 +8996,13 @@ Select the vertices enclosed by another layer.
 ```{py:function} ms.select_vertices_inside_mesh_trueform(**params)
 :module: _meshlab
 
-Selects every vertex that falls **inside** the enclosing layer's volume.\n\nThis is the spatial counterpart to selecting by an attribute: crop a scan to a region of interest by modelling a rough box or sphere around it, isolate the part of an assembly within a clearance envelope, or find geometry that has ended up inside a shell it should be outside of.\n\nContainment is decided by the **sign of the distance** to the enclosing surface rather than by counting ray crossings, so a vertex lying exactly on the surface is resolved consistently instead of depending on the direction a ray happens to be cast.\n\nThe enclosing layer must be **closed** for inside to be meaningful. Enable **Select Outside** to invert the test.
+Selects every vertex that falls **inside** the enclosing layer's volume.
+
+This is the spatial counterpart to selecting by an attribute: crop a scan to a region of interest by modelling a rough box or sphere around it, isolate the part of an assembly within a clearance envelope, or find geometry that has ended up inside a shell it should be outside of.
+
+Containment is decided by the **sign of the distance** to the enclosing surface rather than by counting ray crossings, so a vertex lying exactly on the surface is resolved consistently instead of depending on the direction a ray happens to be cast.
+
+The enclosing layer must be **closed** for inside to be meaningful. Enable **Select Outside** to invert the test.
 
 **Parameters:**
 
@@ -8859,7 +9067,11 @@ Select edges whose dihedral angle exceeds a threshold.
 ```{py:function} ms.select_crease_edges_trueform(**params)
 :module: _meshlab
 
-Marks every edge where the two incident faces meet at more than the given angle — the sharp features of the model.\n\nThe selection lands on the **per-face edge flags**, which is the same place the other crease filters write, so the result feeds straight into *Create Polyline from Selected Edges*, *Cut Along Crease Edges*, or a feature-preserving remesh.\n\nCompeting implementation: *Select Crease Edges* does the same with vcglib, with separate thresholds for convex and concave angles; this one uses a single unsigned threshold.
+Marks every edge where the two incident faces meet at more than the given angle — the sharp features of the model.
+
+The selection lands on the **per-face edge flags**, which is the same place the other crease filters write, so the result feeds straight into *Create Polyline from Selected Edges*, *Cut Along Crease Edges*, or a feature-preserving remesh.
+
+Competing implementation: *Select Crease Edges* does the same with vcglib, with separate thresholds for convex and concave angles; this one uses a single unsigned threshold.
 
 **Parameters:**
 
@@ -8954,7 +9166,11 @@ Select edges shared by more than two faces.
 ```{py:function} ms.select_non_manifold_edges_trueform(**params)
 :module: _meshlab
 
-Marks every edge with more than two incident faces. Such edges have no well-defined surface either side, which is why they break booleans, offsetting, orientation and most reconstruction — so finding them is usually the first step in diagnosing a mesh that misbehaves for no visible reason.\n\nThe selection lands on the per-face edge flags, so it can be turned into a polyline with *Create Polyline from Selected Edges* to see exactly where the trouble is.\n\nCompeting implementation: *Select non Manifold Edges* does the same with vcglib.
+Marks every edge with more than two incident faces. Such edges have no well-defined surface either side, which is why they break booleans, offsetting, orientation and most reconstruction — so finding them is usually the first step in diagnosing a mesh that misbehaves for no visible reason.
+
+The selection lands on the per-face edge flags, so it can be turned into a polyline with *Create Polyline from Selected Edges* to see exactly where the trouble is.
+
+Competing implementation: *Select non Manifold Edges* does the same with vcglib.
 
 **Parameters:**
 
