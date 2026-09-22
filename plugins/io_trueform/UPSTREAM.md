@@ -9,7 +9,12 @@ git -C external/trueform fetch
 git -C external/trueform checkout <reviewed-commit>
 ```
 
-Currently pinned at **v0.10.5** (2026-09-21). Everything from v0.10.0 through
+Currently pinned at **872775d0e** — v0.10.5 plus one upstream fix
+(2026-09-22): a tube swept along a closed polyline pinched at the seam,
+because the frame producer's wrap ran on the stored point count while a
+closed path stores its first point twice; the seam ring now carries the
+first ring's frame and *Create Tube from Polyline* is uniform around a
+closed loop. Everything from v0.10.0 through
 v0.10.3 was additive, so neither plugin changed to take it: v0.10.1 repaired
 orientation and the Euler count; v0.10.2 reads every OBJ in parallel — 44.5 ms
 to 6.5 ms on a million-triangle dragon, and 76.3 ms to 8.3 ms for the reader
