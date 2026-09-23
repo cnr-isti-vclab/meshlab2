@@ -427,7 +427,13 @@ line (<code class="docutils literal notranslate"><span class="pre">\n\n</span></
 and lists and tables need the blank line before them that Markdown always needs. Write
 paragraphs; the help box is narrow and wraps, so hand-wrapping with single newlines gains
 nothing.</p>
-<p><code class="docutils literal notranslate"><span class="pre">test_filter_descriptors.cpp</span></code> rejects a literal <code class="docutils literal notranslate"><span class="pre">\n</span></code> in any description or help text.
+<p><code class="docutils literal notranslate"><span class="pre">shortDescription</span></code> is the exception: it is <strong>not</strong> Markdown. It goes to a <code class="docutils literal notranslate"><span class="pre">QLabel</span></code> in the
+filter panel and to the tooltips in the Filters menu and the results list, so write it as
+one plain sentence. <code class="docutils literal notranslate"><span class="pre">**bold**</span></code> keeps its asterisks there, <code class="docutils literal notranslate"><span class="pre">$x$</span></code> its dollars, and a
+<code class="docutils literal notranslate"><span class="pre">[link](url)</span></code> shows both halves.</p>
+<p><code class="docutils literal notranslate"><span class="pre">test_filter_descriptors.cpp</span></code> rejects a literal <code class="docutils literal notranslate"><span class="pre">\n</span></code> in any description or help text, and
+rejects a newline, an emphasis marker, a backtick, a <code class="docutils literal notranslate"><span class="pre">$</span></code>, a Markdown link or an HTML tag
+in a <code class="docutils literal notranslate"><span class="pre">shortDescription</span></code>.
 That check exists because 148 of them reached the help box across three plugins before
 anyone noticed – the <code class="docutils literal notranslate"><span class="pre">\\</span></code> rule above is easy to over-apply.</p>
 <p>Angular parameters must state their convention explicitly. Use <strong>Half-Angle</strong>

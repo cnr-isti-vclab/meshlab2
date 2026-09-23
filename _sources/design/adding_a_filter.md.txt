@@ -196,7 +196,14 @@ and lists and tables need the blank line before them that Markdown always needs.
 paragraphs; the help box is narrow and wraps, so hand-wrapping with single newlines gains
 nothing.
 
-`test_filter_descriptors.cpp` rejects a literal `\n` in any description or help text.
+`shortDescription` is the exception: it is **not** Markdown. It goes to a `QLabel` in the
+filter panel and to the tooltips in the Filters menu and the results list, so write it as
+one plain sentence. `**bold**` keeps its asterisks there, `$x$` its dollars, and a
+`[link](url)` shows both halves.
+
+`test_filter_descriptors.cpp` rejects a literal `\n` in any description or help text, and
+rejects a newline, an emphasis marker, a backtick, a `$`, a Markdown link or an HTML tag
+in a `shortDescription`.
 That check exists because 148 of them reached the help box across three plugins before
 anyone noticed -- the `\\` rule above is easy to over-apply.
 
