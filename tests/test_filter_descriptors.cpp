@@ -505,11 +505,14 @@ void FilterDescriptorTests::checkParameters(const MeshFilterDescriptor &d,
 // the help box across three plugins before anyone looked.
 //
 // A LaTeX command is exempt: \nabla, \ne, \ni and \nu really are an escaped backslash
-// followed by letters, so only a \n that is not the start of a word counts.
+// followed by letters -- but only a lowercase one, because no LaTeX command starts
+// with \n and a capital. \nThe is a paragraph break before a capitalised word, and
+// exempting every letter rather than only lowercase ones is how five of these got
+// past the first sweep.
 void FilterDescriptorTests::checkHelpText(const MeshFilterDescriptor &d,
                                           QStringList &problems) const
 {
-    static const QRegularExpression literalBreak(QStringLiteral("\\\\n(?![A-Za-z])"));
+    static const QRegularExpression literalBreak(QStringLiteral("\\\\n(?![a-z])"));
 
     const auto check = [&](const QString &text, const QString &where) {
         if (text.contains(literalBreak)) {
