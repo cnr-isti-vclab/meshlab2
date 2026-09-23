@@ -270,10 +270,78 @@ fence (<code class="docutils literal notranslate"><span class="pre">push_macro(&
 map results back through the inverse. That is the filter semantics — for
 anything involving two layers, the relative transform is the geometry — so do
 not move computation into layer-local space.</p></li>
+<li><p>A filter that builds a multi-operand arrangement — the booleans, the CSG
+expression, the solid domains, the intersection curves — takes its
+intersection run from <code class="docutils literal notranslate"><span class="pre">intersectConfigFrom(params)</span></code>, which composes
+<code class="docutils literal notranslate"><span class="pre">primitives</span> <span class="pre">|</span> <span class="pre">within</span></code> from that filter’s <em>Resolve Self-Intersections</em>
+checkbox. Crossings between contours resolve unconditionally as of TrueForm
+v0.10.5, so <code class="docutils literal notranslate"><span class="pre">within</span></code> is the only request a call site has left to make. A
+one-form entry implies it and takes no checkbox.</p></li>
 <li><p>Parallel loops over vcg elements are sound only for inline components
 (<code class="docutils literal notranslate"><span class="pre">Coord</span></code>, <code class="docutils literal notranslate"><span class="pre">Normal</span></code>, <code class="docutils literal notranslate"><span class="pre">Quality</span></code>, flags). OCF components derive from
 <code class="docutils literal notranslate"><span class="pre">std::vector</span></code> and must not be written concurrently.</p></li>
+<li><p><strong>Angles cross the boundary in degrees.</strong> TrueForm carries them as
+<code class="docutils literal notranslate"><span class="pre">tf::rad&lt;T&gt;</span></code>; every angle this plugin takes from a user or writes into a
+channel is in degrees, so a parameter converts on the way in
+(<code class="docutils literal notranslate"><span class="pre">tf::deg&lt;float&gt;(value)</span></code>) and a result converts on the way out. There is no
+filter that shows a radian.</p></li>
+<li><p>A filter that answers several structural questions about one layer builds the
+connectivity once and tags the form with it — <code class="docutils literal notranslate"><span class="pre">MeshHealthContext</span></code> beside
+<code class="docutils literal notranslate"><span class="pre">SignedDistanceContext</span></code> and <code class="docutils literal notranslate"><span class="pre">VertexConnectivity</span></code>. Every <code class="docutils literal notranslate"><span class="pre">topology/</span></code> entry
+point takes the tagged form and uses what it finds, so an untagged call is a
+silent rebuild per question, not a compile error.</p></li>
 <li><p>MSVC needs <code class="docutils literal notranslate"><span class="pre">/bigobj</span></code> for the filter TU.</p></li>
+</ul>
+</section>
+<section id="the-diagnostics-and-repair-family">
+<h2>The diagnostics and repair family<a class="headerlink" href="#the-diagnostics-and-repair-family" title="Link to this heading">¶</a></h2>
+<p>These read or repair a layer’s structure rather than its shape, and each is a
+thin call onto one TrueForm entry point. The table is the map from filter to
+entry point; <code class="docutils literal notranslate"><span class="pre">filters.json</span></code> is the full inventory.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>TrueForm entry point</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Select Non-Manifold Edges (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tf::make_non_manifold_edges</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Non-Manifold Vertices (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tf::make_non_manifold_vertices</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Measure Mesh Health (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tf::is_manifold</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::is_closed</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::has_self_intersections</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::euler_characteristic</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::make_boundary_rims</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::make_non_manifold_edges</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::make_non_manifold_vertices</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Split Non-Manifold Vertices (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tf::split_non_manifold_vertices</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Face Quality (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tf::compute_face_quality</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Polyline from Boundary Rims (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tf::make_boundary_rims</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Repair Self-Intersections (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tf::make_polygon_arrangements</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Extract Outer Shell (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tf::make_outer_shell</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Two contracts in that table are the library’s, not the plugin’s, and the help
+text has to state them because a caller cannot see them:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tf::split_non_manifold_vertices</span></code> separates only the fans that come apart
+without cutting an edge. An edge three faces carry is crossed by no fan, so a
+vertex holding one is left untouched and <code class="docutils literal notranslate"><span class="pre">tf::make_non_manifold_vertices</span></code>
+still names it afterwards. The filter is a partial repair by construction.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tf::compute_face_quality</span></code>’s <code class="docutils literal notranslate"><span class="pre">quality</span></code> is a <em>triangle</em> measure. A face that is
+not a triangle reads <code class="docutils literal notranslate"><span class="pre">-1</span></code>; the angles and the aspect ratio hold at any arity.</p></li>
 </ul>
 </section>
 </section>
@@ -318,6 +386,7 @@ not move computation into layer-local space.</p></li>
 <li><a class="reference internal" href="#">TrueForm Plugin</a><ul>
 <li><a class="reference internal" href="#the-computation-layer">The computation layer</a></li>
 <li><a class="reference internal" href="#local-rules">Local rules</a></li>
+<li><a class="reference internal" href="#the-diagnostics-and-repair-family">The diagnostics and repair family</a></li>
 </ul>
 </li>
 </ul>
