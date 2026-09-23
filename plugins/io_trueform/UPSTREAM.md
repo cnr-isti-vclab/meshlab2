@@ -9,12 +9,50 @@ git -C external/trueform fetch
 git -C external/trueform checkout <reviewed-commit>
 ```
 
-Currently pinned at **v0.10.2** (2026-09-03). Everything since v0.10.0 is
-additive, so neither plugin changed to take it: v0.10.1 repaired orientation and
-the Euler count, and v0.10.2 reads every OBJ in parallel — 44.5 ms to 6.5 ms on a
-million-triangle dragon, and 76.3 ms to 8.3 ms for the reader that also returns
-normals, texture coordinates and groups — decides bundle containment from face
-interiors rather than from vertices, and lets `make_cdt` return region labels.
+Currently pinned at **872775d0e** — v0.10.5 plus one upstream fix
+(2026-09-22): a tube swept along a closed polyline pinched at the seam,
+because the frame producer's wrap ran on the stored point count while a
+closed path stores its first point twice; the seam ring now carries the
+first ring's frame and *Create Tube from Polyline* is uniform around a
+closed loop. Everything from v0.10.0 through
+v0.10.3 was additive, so neither plugin changed to take it: v0.10.1 repaired
+orientation and the Euler count; v0.10.2 reads every OBJ in parallel — 44.5 ms
+to 6.5 ms on a million-triangle dragon, and 76.3 ms to 8.3 ms for the reader
+that also returns normals, texture coordinates and groups — decides bundle
+containment from face interiors rather than from vertices, and lets `make_cdt`
+return region labels; v0.10.3 builds its internal allocator with large pages
+off, so a long-lived session doing repeated CSG no longer retains memory toward
+its workers' high-water marks. v0.10.4 added the volume module, a compiled C++
+facade, fast winding numbers and NIfTI IO — none of which either plugin calls.
+
+v0.10.5 removed four `tf::intersect_mode` enumerators —
+`resolve_crossing_contours`, `resolve_self_crossing_contours`,
+`resolve_contours` and `self_intersections`. The enum is now exactly
+`{sos, primitives, within}`, and crossings between contours resolve
+unconditionally. **This did not cost the build a single call site**, because
+every config-taking TrueForm call here omitted the config argument and took the
+library's own default; a call that left the resolution at its defaults keeps its
+result byte for byte. The one artifact was a stale comment in
+`runSelfIntersectionCurves`, now restated: a one-form build implies `within`.
+
+This bump is also the first the filter plugin took new *entry points* from
+rather than only new behaviour. Five filters were added on
+`tf::make_non_manifold_vertices`, `tf::split_non_manifold_vertices`,
+`tf::compute_face_quality` and `tf::make_boundary_rims` — none of which existed
+at v0.9.17 — plus `tf::is_manifold`, `tf::is_closed`,
+`tf::has_self_intersections` and `tf::euler_characteristic`, which did. All
+eight are re-exported by the umbrella `<trueform/trueform.hpp>`, so no include
+moved; see [TrueForm Plugin](../../docs/design/trueform_plugin.md) for which
+filter calls which.
+
+The boolean, CSG, domain and intersection-curve filters gained a
+**Resolve Self-Intersections** checkbox (`resolveSelfIntersections`, default
+off) that composes `primitives | within` through `intersectConfigFrom`. It is
+deliberately new in this bump and not earlier: a multi-operand `within` build
+**lost every operand's domain membership in v0.10.3 and v0.10.4** — every
+bounded domain read "inside operand 0" and an expression naming any other
+operand returned nothing. v0.10.5 is the first release where that checkbox is
+sound.
 
 The step from v0.9.17 to v0.10.0 was the breaking one: the `cut` module was
 removed outright, with no compatibility shim, and its ground redistributed to
@@ -33,6 +71,10 @@ covered by a test:
   an open operand behaves differently from v0.9.17.
 - **Tolerance is now the pitch the input's planes are quantized to.** A wall
   doubled at less than the pitch becomes one wall.
+- **Domain membership counts winding as of v0.10.5, not crossing parity.** A
+  region an operand covers twice now reads inside it, and a zero-thickness fold
+  encloses nothing. Upstream measured no deterministic delta on a thousand
+  corpus pairs, so clean input is unchanged; self-overlapping input is not.
 
 ## Licensing and permission
 

@@ -218,6 +218,63 @@ void makeNonManifoldFanMesh(VCGMesh &mesh)
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
 }
 
+// Two triangles meeting at one vertex and nothing else. Every edge is carried by exactly
+// one face, so no edge-based check reports anything; the pinch at vertex 2 is visible only
+// to a test that walks the fans around a vertex.
+void makeBowtieMesh(VCGMesh &mesh)
+{
+    mesh.Clear();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 5);
+    mesh.vert[0].P() = vcg::Point3f(-1.0f, -1.0f, 0.0f);
+    mesh.vert[1].P() = vcg::Point3f(-1.0f, 1.0f, 0.0f);
+    mesh.vert[2].P() = vcg::Point3f(0.0f, 0.0f, 0.0f);
+    mesh.vert[3].P() = vcg::Point3f(1.0f, -1.0f, 0.0f);
+    mesh.vert[4].P() = vcg::Point3f(1.0f, 1.0f, 0.0f);
+
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 2, 3, 4);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+}
+
+// A square annulus: eight triangles ringing a square hole, so the boundary is two separate
+// closed curves rather than one.
+void makeSquareWithHoleMesh(VCGMesh &mesh)
+{
+    mesh.Clear();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 8);
+    const std::array<vcg::Point3f, 8> vertices = {
+        vcg::Point3f(-2.0f, -2.0f, 0.0f), vcg::Point3f(2.0f, -2.0f, 0.0f),
+        vcg::Point3f(2.0f, 2.0f, 0.0f),   vcg::Point3f(-2.0f, 2.0f, 0.0f),
+        vcg::Point3f(-1.0f, -1.0f, 0.0f), vcg::Point3f(1.0f, -1.0f, 0.0f),
+        vcg::Point3f(1.0f, 1.0f, 0.0f),   vcg::Point3f(-1.0f, 1.0f, 0.0f)
+    };
+    for (std::size_t i = 0; i < vertices.size(); ++i)
+        mesh.vert[i].P() = vertices[i];
+
+    // Each side of the ring is a quad between an outer edge and its inner counterpart.
+    for (int side = 0; side < 4; ++side) {
+        const int a = side, b = (side + 1) % 4;
+        vcg::tri::Allocator<VCGMesh>::AddFace(mesh, a, b, b + 4);
+        vcg::tri::Allocator<VCGMesh>::AddFace(mesh, a, b + 4, a + 4);
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+}
+
+// One equilateral triangle: the only face whose quality measures are known in closed form.
+void makeEquilateralTriangleMesh(VCGMesh &mesh)
+{
+    mesh.Clear();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 3);
+    mesh.vert[0].P() = vcg::Point3f(0.0f, 0.0f, 0.0f);
+    mesh.vert[1].P() = vcg::Point3f(1.0f, 0.0f, 0.0f);
+    mesh.vert[2].P() = vcg::Point3f(0.5f, 0.5f * std::sqrt(3.0f), 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 2);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+}
+
 void addPolylineSegment(VCGMesh &mesh, int firstVertex, int secondVertex)
 {
     auto edge = vcg::tri::Allocator<VCGMesh>::AddEdges(mesh, 1);
@@ -454,6 +511,11 @@ private slots:
     void setMatrixComposesOnTheLeftOfTheLayerTransform();
     void bothBallPivotingsInterpolateTheirInputPoints();
     void ballPivotingRebuildsAfterDeletingTheInitialFaces();
+    void trueFormNonManifoldVertexSelectionFindsThePinch();
+    void trueFormMeshHealthReportsTheStructuralFacts();
+    void trueFormVertexSplitSeparatesTheFansItCan();
+    void trueFormFaceQualityMeasuresTheEquilateralCase();
+    void trueFormBoundaryRimsComeBackOnePerCurve();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -7957,6 +8019,338 @@ void FilterTests::quadPairingChoosesGoodDiagonals()
              qPrintable(QStringLiteral("mean quad quality %1; the quality-driven pairing "
                                        "is not being applied").arg(mean)));
     QCOMPARE(unpaired, 0);
+}
+
+// A bowtie has no non-manifold edge at all — every edge is carried by exactly one face —
+// so the edge filter reports nothing on it. This is the defect only the vertex filter sees.
+void FilterTests::trueFormNonManifoldVertexSelectionFindsThePinch()
+{
+    Document doc;
+    const QString key =
+        filterKeyForId(doc, QStringLiteral("select_non_manifold_vertices_trueform"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh bowtie;
+    makeBowtieMesh(bowtie);
+    const int index = doc.addMesh(bowtie, QStringLiteral("Bowtie"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD);
+    doc.setCurrentMeshIndex(index);
+
+    const auto selection = [&doc](int layer) {
+        const VCGMesh &m = doc.mesh(layer).mesh;
+        QString bits;
+        for (const VCGVertex &v : m.vert) {
+            if (!v.IsD())
+                bits += v.IsS() ? QLatin1Char('1') : QLatin1Char('0');
+        }
+        return bits;
+    };
+
+    QVERIFY2(doc.runFilter(key, {}).success, "non-manifold vertex selection failed");
+    // Vertex 2 is the pinch: the two triangles meet there and nowhere else.
+    QCOMPARE(selection(index), QStringLiteral("00100"));
+
+    // The edge filter, on the same mesh, finds nothing — which is the point of having both.
+    const QString edgeKey =
+        filterKeyForId(doc, QStringLiteral("select_non_manifold_edges_trueform"));
+    QVERIFY(!edgeKey.isEmpty());
+    QVERIFY2(doc.runFilter(edgeKey, {}).success, "non-manifold edge selection failed");
+    int markedEdges = 0;
+    for (const VCGFace &f : doc.mesh(index).mesh.face) {
+        if (f.IsD())
+            continue;
+        for (int k = 0; k < 3; ++k)
+            if (f.IsFaceEdgeS(k))
+                ++markedEdges;
+    }
+    QCOMPARE(markedEdges, 0);
+
+    // Adding keeps what is already marked; replacing clears it first.
+    doc.mesh(index).mesh.vert[0].SetS();
+    MeshFilterParameterValues add;
+    add.insert(QStringLiteral("replaceSelection"), false);
+    QVERIFY2(doc.runFilter(key, add).success, "non-manifold vertex selection failed");
+    QCOMPARE(selection(index), QStringLiteral("10100"));
+
+    MeshFilterParameterValues replace;
+    replace.insert(QStringLiteral("replaceSelection"), true);
+    QVERIFY2(doc.runFilter(key, replace).success, "non-manifold vertex selection failed");
+    QCOMPARE(selection(index), QStringLiteral("00100"));
+
+    // A clean closed solid has none.
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int solid = doc.addMesh(cube, QStringLiteral("Cube"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD);
+    doc.setCurrentMeshIndex(solid);
+    QVERIFY2(doc.runFilter(key, {}).success, "non-manifold vertex selection failed");
+    QCOMPARE(selection(solid), QStringLiteral("00000000"));
+}
+
+// Every line of the report against a mesh whose structure is known in closed form.
+void FilterTests::trueFormMeshHealthReportsTheStructuralFacts()
+{
+    Document doc;
+    const QString key = filterKeyForId(doc, QStringLiteral("measure_mesh_health_trueform"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    const auto valueFor = [](const MeshFilterRunResult &r, const QString &label) {
+        for (const QString &message : r.infoMessages) {
+            if (message.startsWith(label + QStringLiteral(": ")))
+                return message.mid(label.size() + 2);
+        }
+        return QString();
+    };
+
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int solid = doc.addMesh(cube, QStringLiteral("Cube"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD);
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("sourceMesh"), solid);
+    const MeshFilterRunResult r = doc.runFilter(key, p);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(!r.documentModified); // a measurement must not alter the document
+    QVERIFY(r.newMeshIndices.isEmpty());
+    QVERIFY(r.infoMessages.size() == 8);
+
+    const QString report = r.infoMessages.join(QStringLiteral("\n"));
+    QCOMPARE(valueFor(r, QStringLiteral("Manifold")), QStringLiteral("yes"));
+    QCOMPARE(valueFor(r, QStringLiteral("Closed")), QStringLiteral("yes"));
+    QCOMPARE(valueFor(r, QStringLiteral("Self-intersecting")), QStringLiteral("no"));
+    // A closed surface of genus zero: V - E + F = 8 - 18 + 12.
+    QVERIFY2(valueFor(r, QStringLiteral("Euler characteristic")) == QStringLiteral("2"),
+             qPrintable(report));
+    QCOMPARE(valueFor(r, QStringLiteral("Boundary rims")),
+             QStringLiteral("0 (0 closed, 0 open)"));
+    QCOMPARE(valueFor(r, QStringLiteral("Non-manifold edges")), QStringLiteral("0"));
+    QCOMPARE(valueFor(r, QStringLiteral("Non-manifold vertices")), QStringLiteral("0"));
+
+    // The bowtie: open, not manifold, and the pinch counted as a vertex, not an edge.
+    VCGMesh bowtie;
+    makeBowtieMesh(bowtie);
+    const int pinched = doc.addMesh(bowtie, QStringLiteral("Bowtie"),
+                                    vcg::tri::io::Mask::IOM_VERTCOORD);
+    MeshFilterParameterValues q;
+    q.insert(QStringLiteral("sourceMesh"), pinched);
+    const MeshFilterRunResult bad = doc.runFilter(key, q);
+    QVERIFY2(bad.success, qPrintable(bad.errorMessage));
+    QCOMPARE(valueFor(bad, QStringLiteral("Manifold")), QStringLiteral("no"));
+    QCOMPARE(valueFor(bad, QStringLiteral("Closed")), QStringLiteral("no"));
+    QCOMPARE(valueFor(bad, QStringLiteral("Non-manifold edges")), QStringLiteral("0"));
+    QCOMPARE(valueFor(bad, QStringLiteral("Non-manifold vertices")), QStringLiteral("1"));
+
+    // An annulus has two boundary curves, and both of them close.
+    VCGMesh annulus;
+    makeSquareWithHoleMesh(annulus);
+    const int ring = doc.addMesh(annulus, QStringLiteral("Annulus"),
+                                 vcg::tri::io::Mask::IOM_VERTCOORD);
+    MeshFilterParameterValues s;
+    s.insert(QStringLiteral("sourceMesh"), ring);
+    const MeshFilterRunResult open = doc.runFilter(key, s);
+    QVERIFY2(open.success, qPrintable(open.errorMessage));
+    QCOMPARE(valueFor(open, QStringLiteral("Boundary rims")),
+             QStringLiteral("2 (2 closed, 0 open)"));
+    QCOMPARE(valueFor(open, QStringLiteral("Closed")), QStringLiteral("no"));
+}
+
+// The split repairs the pinched case and declines the one it cannot do without tearing an
+// edge, which is the contract the help text states.
+void FilterTests::trueFormVertexSplitSeparatesTheFansItCan()
+{
+    Document doc;
+    const QString key =
+        filterKeyForId(doc, QStringLiteral("split_non_manifold_vertices_trueform"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+    const QString selectKey =
+        filterKeyForId(doc, QStringLiteral("select_non_manifold_vertices_trueform"));
+    QVERIFY(!selectKey.isEmpty());
+
+    const auto selectedVertices = [&doc](int layer) {
+        int n = 0;
+        for (const VCGVertex &v : doc.mesh(layer).mesh.vert) {
+            if (!v.IsD() && v.IsS())
+                ++n;
+        }
+        return n;
+    };
+
+    // The bowtie: the pinch comes apart, so one vertex is minted and the fans separate.
+    VCGMesh bowtie;
+    makeBowtieMesh(bowtie);
+    const int pinched = doc.addMesh(bowtie, QStringLiteral("Bowtie"),
+                                    vcg::tri::io::Mask::IOM_VERTCOORD);
+    QCOMPARE(doc.mesh(pinched).mesh.VN(), 5);
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("sourceMesh"), pinched);
+    const MeshFilterRunResult split = doc.runFilter(key, p);
+    QVERIFY2(split.success, qPrintable(split.errorMessage));
+    QCOMPARE(split.newMeshIndices.size(), 1);
+    const int repaired = split.newMeshIndices.front();
+    // One fan keeps the original id, the other takes a copy: five vertices become six.
+    QCOMPARE(doc.mesh(repaired).mesh.VN(), 6);
+    QCOMPARE(doc.mesh(repaired).mesh.FN(), 2);
+    QVERIFY2(split.infoMessages.join(QStringLiteral(" "))
+                 .contains(QStringLiteral("Separated 1 fan(s)")),
+             qPrintable(split.infoMessages.join(QStringLiteral("\n"))));
+
+    // And the defect is gone: nothing is named on the result.
+    doc.setCurrentMeshIndex(repaired);
+    QVERIFY2(doc.runFilter(selectKey, {}).success, "vertex selection failed");
+    QCOMPARE(selectedVertices(repaired), 0);
+
+    // Three fins on one edge: no fan crosses that edge, so nothing is separated and the
+    // vertices carrying it are still named afterwards.
+    VCGMesh fan;
+    makeNonManifoldFanMesh(fan);
+    const int fins = doc.addMesh(fan, QStringLiteral("Fan"),
+                                 vcg::tri::io::Mask::IOM_VERTCOORD);
+    doc.setCurrentMeshIndex(fins);
+    QVERIFY2(doc.runFilter(selectKey, {}).success, "vertex selection failed");
+    QCOMPARE(selectedVertices(fins), 2); // both ends of the shared edge
+
+    MeshFilterParameterValues q;
+    q.insert(QStringLiteral("sourceMesh"), fins);
+    const MeshFilterRunResult untouched = doc.runFilter(key, q);
+    QVERIFY2(untouched.success, qPrintable(untouched.errorMessage));
+    QCOMPARE(untouched.newMeshIndices.size(), 1);
+    const int stillPinched = untouched.newMeshIndices.front();
+    QCOMPARE(doc.mesh(stillPinched).mesh.VN(), 5); // nothing minted
+    QCOMPARE(doc.mesh(stillPinched).mesh.FN(), 3);
+    doc.setCurrentMeshIndex(stillPinched);
+    QVERIFY2(doc.runFilter(selectKey, {}).success, "vertex selection failed");
+    QCOMPARE(selectedVertices(stillPinched), 2);
+}
+
+// The equilateral triangle is the one face whose four measures are all known exactly.
+void FilterTests::trueFormFaceQualityMeasuresTheEquilateralCase()
+{
+    Document doc;
+    const QString key = filterKeyForId(doc, QStringLiteral("compute_face_quality_trueform"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh triangle;
+    makeEquilateralTriangleMesh(triangle);
+    const int index = doc.addMesh(triangle, QStringLiteral("Equilateral"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD);
+    doc.setCurrentMeshIndex(index);
+
+    double value = 0.0;
+    const auto measure = [&](const QString &name) {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("measure"), name);
+        if (!doc.runFilter(key, p).success)
+            return false;
+        value = double(doc.mesh(index).mesh.face[0].cQ());
+        return true;
+    };
+
+    // tf::triangle_quality is (2/sqrt 3) * doubled area / longest side squared, which is
+    // exactly 1 for an equilateral triangle and falls towards 0 for a sliver.
+    QVERIFY2(measure(QStringLiteral("quality")), "face quality failed");
+    QVERIFY2(std::abs(value - 1.0) < 1e-3,
+             qPrintable(QStringLiteral("quality %1, expected 1").arg(value)));
+    // Angles are reported in degrees, the unit every angle in this plugin is stated in.
+    QVERIFY2(measure(QStringLiteral("min_angle")), "face quality failed");
+    QVERIFY2(std::abs(value - 60.0) < 1e-3,
+             qPrintable(QStringLiteral("min angle %1, expected 60").arg(value)));
+    QVERIFY2(measure(QStringLiteral("max_angle")), "face quality failed");
+    QVERIFY2(std::abs(value - 60.0) < 1e-3,
+             qPrintable(QStringLiteral("max angle %1, expected 60").arg(value)));
+    QVERIFY2(measure(QStringLiteral("aspect_ratio")), "face quality failed");
+    QVERIFY2(std::abs(value - 1.0) < 1e-3,
+             qPrintable(QStringLiteral("aspect ratio %1, expected 1").arg(value)));
+
+    // A whole solid: every face is a right isoceles triangle, so every quality is the
+    // same value strictly between 0 and 1, and the channel is written for all of them.
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int solid = doc.addMesh(cube, QStringLiteral("Cube"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD);
+    doc.setCurrentMeshIndex(solid);
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("measure"), QStringLiteral("quality"));
+    const MeshFilterRunResult r = doc.runFilter(key, p);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY2(r.infoMessages.join(QStringLiteral(" "))
+                 .contains(QStringLiteral("Wrote 12 per-face value(s)")),
+             qPrintable(r.infoMessages.join(QStringLiteral("\n"))));
+    for (const VCGFace &f : doc.mesh(solid).mesh.face) {
+        QVERIFY(std::isfinite(f.cQ()));
+        QVERIFY2(f.cQ() > 0.0f && f.cQ() < 1.0f,
+                 qPrintable(QStringLiteral("cube face quality %1").arg(double(f.cQ()))));
+    }
+}
+
+// One layer per boundary curve, named for what it is, and a clear refusal when there is
+// no boundary at all.
+void FilterTests::trueFormBoundaryRimsComeBackOnePerCurve()
+{
+    Document doc;
+    const QString key =
+        filterKeyForId(doc, QStringLiteral("create_polyline_from_boundary_rims_trueform"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    // A flat square: one closed rim of four edges.
+    VCGMesh sheet;
+    makeSquareSheetMesh(sheet, 1.0f, 0.0f);
+    const int flat = doc.addMesh(sheet, QStringLiteral("Sheet"),
+                                 vcg::tri::io::Mask::IOM_VERTCOORD);
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("sourceMesh"), flat);
+    const MeshFilterRunResult one = doc.runFilter(key, p);
+    QVERIFY2(one.success, qPrintable(one.errorMessage));
+    QCOMPARE(one.newMeshIndices.size(), 1);
+    const VCGMesh &rim = doc.mesh(one.newMeshIndices.front()).mesh;
+    QCOMPARE(rim.FN(), 0);  // a polyline, not a surface
+    QCOMPARE(rim.VN(), 4);
+    // Closed, so the last edge runs back to the first vertex: four vertices, four edges.
+    QCOMPARE(rim.EN(), 4);
+    QVERIFY2(doc.mesh(one.newMeshIndices.front()).name.contains(QStringLiteral("closed")),
+             qPrintable(doc.mesh(one.newMeshIndices.front()).name));
+    QVERIFY2(one.infoMessages.join(QStringLiteral(" "))
+                 .contains(QStringLiteral("1 rim(s): 1 closed, 0 open")),
+             qPrintable(one.infoMessages.join(QStringLiteral("\n"))));
+
+    // A square with a square hole: two rims, so two layers.
+    VCGMesh annulus;
+    makeSquareWithHoleMesh(annulus);
+    const int ring = doc.addMesh(annulus, QStringLiteral("Annulus"),
+                                 vcg::tri::io::Mask::IOM_VERTCOORD);
+    MeshFilterParameterValues q;
+    q.insert(QStringLiteral("sourceMesh"), ring);
+    const MeshFilterRunResult two = doc.runFilter(key, q);
+    QVERIFY2(two.success, qPrintable(two.errorMessage));
+    QCOMPARE(two.newMeshIndices.size(), 2);
+    for (int index : two.newMeshIndices) {
+        QCOMPARE(doc.mesh(index).mesh.EN(), 4);
+        QCOMPARE(doc.mesh(index).mesh.FN(), 0);
+    }
+    QVERIFY2(two.infoMessages.join(QStringLiteral(" "))
+                 .contains(QStringLiteral("2 rim(s): 2 closed, 0 open")),
+             qPrintable(two.infoMessages.join(QStringLiteral("\n"))));
+
+    // A closed solid has no boundary, and the filter says so rather than adding a layer.
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int solid = doc.addMesh(cube, QStringLiteral("Cube"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD);
+    const int before = doc.meshCount();
+    MeshFilterParameterValues s;
+    s.insert(QStringLiteral("sourceMesh"), solid);
+    const MeshFilterRunResult none = doc.runFilter(key, s);
+    QVERIFY2(!none.success, "a closed solid has no rims to extract");
+    QVERIFY2(none.errorMessage.contains(QStringLiteral("no boundary")),
+             qPrintable(none.errorMessage));
+    QCOMPARE(doc.meshCount(), before);
 }
 
 QTEST_MAIN(FilterTests)
