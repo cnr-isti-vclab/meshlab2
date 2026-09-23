@@ -1483,7 +1483,22 @@ Measure the shape of every face and store one measure in face scalar.
 ```{py:function} ms.compute_face_quality_trueform(**params)
 :module: _meshlab
 
-Measures the shape of each face and stores the chosen number in **face scalar**, where the scalar histogram and the quality colour maps can read it.\n\n**Measure** selects what is written:\n\n| Measure | Meaning |\n|---|---|\n| Triangle quality | 1 for an equilateral triangle, approaching 0 for a sliver |\n| Minimum angle | the smallest corner angle, in degrees |\n| Maximum angle | the largest corner angle, in degrees |\n| Aspect ratio | the longest side over the shortest; 1 for equilateral, large for a needle |\n\nAll four are computed in a single pass, so the parameter only chooses which one is kept.\n\nTwo things are worth knowing. **Triangle quality is a triangle's measure**: a face that is not a triangle has none and reads **-1**, which is outside the range of every real value and so is easy to select or filter out. The angles and the aspect ratio hold at any arity. And a corner angle is **unsigned and never exceeds 180 degrees**, so a reflex corner of a non-convex face reads its explement rather than the turn you might expect.\n\nThis is the measure to drive a remesh from: sliver triangles are what break normals, curvature estimation and simplification, and colouring by quality shows immediately whether they are scattered or concentrated in one region.
+Measures the shape of each face and stores the chosen number in **face scalar**, where the scalar histogram and the quality colour maps can read it.
+
+**Measure** selects what is written:
+
+| Measure | Meaning |
+|---|---|
+| Triangle quality | 1 for an equilateral triangle, approaching 0 for a sliver |
+| Minimum angle | the smallest corner angle, in degrees |
+| Maximum angle | the largest corner angle, in degrees |
+| Aspect ratio | the longest side over the shortest; 1 for equilateral, large for a needle |
+
+All four are computed in a single pass, so the parameter only chooses which one is kept.
+
+Two things are worth knowing. **Triangle quality is a triangle's measure**: a face that is not a triangle has none and reads **-1**, which is outside the range of every real value and so is easy to select or filter out. The angles and the aspect ratio hold at any arity. And a corner angle is **unsigned and never exceeds 180 degrees**, so a reflex corner of a non-convex face reads its explement rather than the turn you might expect.
+
+This is the measure to drive a remesh from: sliver triangles are what break normals, curvature estimation and simplification, and colouring by quality shows immediately whether they are scattered or concentrated in one region.
 
 **Parameters:**
 
@@ -2483,7 +2498,13 @@ Extract each boundary curve of an open mesh as its own polyline layer.
 ```{py:function} ms.create_polyline_from_boundary_rims_trueform(**params)
 :module: _meshlab
 
-Walks the layer's boundary edges into **rims** and creates one polyline layer per rim, tagged with its number and whether it closes.\n\nA rim ends where the boundary stops passing straight through, so a boundary that pinches — one vertex the boundary reaches more than twice — comes back as its separate pieces rather than as one figure eight. Every layer this produces is therefore a **simple curve**, which is what makes it usable: measurable as a length, sweepable by *Create Tube from Polyline (TrueForm)*, or usable to drive a hole fill. A closed rim's polyline runs back to its first vertex; an open one has two loose ends.\n\nOn a consistently wound mesh each rim runs the way its faces wind their boundary, so the direction is meaningful rather than arbitrary.\n\nA closed surface has no boundary and so no rims, and the filter says so rather than creating an empty layer. *Measure Mesh Health (TrueForm)* reports the rim count without creating anything.
+Walks the layer's boundary edges into **rims** and creates one polyline layer per rim, tagged with its number and whether it closes.
+
+A rim ends where the boundary stops passing straight through, so a boundary that pinches — one vertex the boundary reaches more than twice — comes back as its separate pieces rather than as one figure eight. Every layer this produces is therefore a **simple curve**, which is what makes it usable: measurable as a length, sweepable by *Create Tube from Polyline (TrueForm)*, or usable to drive a hole fill. A closed rim's polyline runs back to its first vertex; an open one has two loose ends.
+
+On a consistently wound mesh each rim runs the way its faces wind their boundary, so the direction is meaningful rather than arbitrary.
+
+A closed surface has no boundary and so no rims, and the filter says so rather than creating an empty layer. *Measure Mesh Health (TrueForm)* reports the rim count without creating anything.
 
 **Parameters:**
 
@@ -5752,7 +5773,23 @@ Report a layer's manifoldness, closure, self-intersections, Euler characteristic
 ```{py:function} ms.measure_mesh_health_trueform(**params)
 :module: _meshlab
 
-Reports every structural fact TrueForm can state about one layer, in one place:\n\n| Line | Meaning |\n|---|---|\n| Manifold | whether the faces around every vertex form one fan, which also says no edge carries more than two |\n| Closed | whether the surface has no boundary edge, and so encloses a volume |\n| Self-intersecting | whether the surface passes through itself anywhere |\n| Euler characteristic | V - E + F, each undirected edge counted once; 2 for a sphere, 0 for a torus |\n| Boundary rims | how many separate boundary curves there are, and how many of them close |\n| Non-manifold edges | edges carried by three or more faces |\n| Non-manifold vertices | vertices whose faces are not one fan |\n\nEach fact has its own filter elsewhere, but a mesh that misbehaves for no visible reason is usually diagnosed by reading several of them together: **closed but not manifold** points at a seam three sheets share, **manifold but not closed** at holes, and **self-intersecting** at geometry that has no well-defined inside no matter how clean its topology looks.\n\nThe answers are computed off one shared connectivity structure rather than one per question. Only the self-intersection test needs a spatial index, and it stops at the first contact it finds, so a mesh that does intersect itself is answered without the rest of it being examined.\n\nNothing is modified; this filter only reports.
+Reports every structural fact TrueForm can state about one layer, in one place:
+
+| Line | Meaning |
+|---|---|
+| Manifold | whether the faces around every vertex form one fan, which also says no edge carries more than two |
+| Closed | whether the surface has no boundary edge, and so encloses a volume |
+| Self-intersecting | whether the surface passes through itself anywhere |
+| Euler characteristic | V - E + F, each undirected edge counted once; 2 for a sphere, 0 for a torus |
+| Boundary rims | how many separate boundary curves there are, and how many of them close |
+| Non-manifold edges | edges carried by three or more faces |
+| Non-manifold vertices | vertices whose faces are not one fan |
+
+Each fact has its own filter elsewhere, but a mesh that misbehaves for no visible reason is usually diagnosed by reading several of them together: **closed but not manifold** points at a seam three sheets share, **manifold but not closed** at holes, and **self-intersecting** at geometry that has no well-defined inside no matter how clean its topology looks.
+
+The answers are computed off one shared connectivity structure rather than one per question. Only the self-intersection test needs a spatial index, and it stops at the first contact it finds, so a mesh that does intersect itself is answered without the rest of it being examined.
+
+Nothing is modified; this filter only reports.
 
 **Parameters:**
 
@@ -8751,7 +8788,13 @@ Give every fan of faces at a vertex a vertex of its own.
 ```{py:function} ms.split_non_manifold_vertices_trueform(**params)
 :module: _meshlab
 
-Separates the surface where it was only ever **pinched**. When the faces around a vertex walk as several fans rather than one, each fan but the first takes a fresh vertex carrying the same coordinates, and that fan's corners are rewired onto it.\n\nThe fan holding the vertex's smallest face keeps the original id, faces keep their ids, their arity and their winding, and the output points are the input's followed by the minted copies. Nothing moves, so the surface is geometrically identical — only its connectivity changes, and two sheets that merely touched at a point come apart into the separate pieces they always were.\n\n**This is a partial repair, by construction.** An edge carried by three or more faces is crossed by no fan, and separating the fans it holds would tear that edge into boundary copies — a different operation with a different cost. Such a vertex is therefore left exactly as it was, and *Select Non-Manifold Vertices (TrueForm)* still names it afterwards. Run that filter before and after to see what was repaired and what remains.\n\nThe result is a new layer; the original is untouched.
+Separates the surface where it was only ever **pinched**. When the faces around a vertex walk as several fans rather than one, each fan but the first takes a fresh vertex carrying the same coordinates, and that fan's corners are rewired onto it.
+
+The fan holding the vertex's smallest face keeps the original id, faces keep their ids, their arity and their winding, and the output points are the input's followed by the minted copies. Nothing moves, so the surface is geometrically identical — only its connectivity changes, and two sheets that merely touched at a point come apart into the separate pieces they always were.
+
+**This is a partial repair, by construction.** An edge carried by three or more faces is crossed by no fan, and separating the fans it holds would tear that edge into boundary copies — a different operation with a different cost. Such a vertex is therefore left exactly as it was, and *Select Non-Manifold Vertices (TrueForm)* still names it afterwards. Run that filter before and after to see what was repaired and what remains.
+
+The result is a new layer; the original is untouched.
 
 **Parameters:**
 
@@ -9327,7 +9370,13 @@ Select vertices whose faces do not form a single fan.
 ```{py:function} ms.select_non_manifold_vertices_trueform(**params)
 :module: _meshlab
 
-Marks every vertex whose incident faces are not one **fan** — either an edge at it carries three or more faces, or its faces fall into several pieces that meet at that vertex alone.\n\nThe second case is the one nothing else finds. Two sheets joined at a single pinched vertex have no non-manifold *edge* at all: every edge is shared by exactly two faces, so *Select Non-Manifold Edges (TrueForm)* reports nothing. The surface still has no well-defined neighbourhood at that point, which is enough to break offsetting, subdivision, parametrization and most reconstruction — and it is exactly the defect that survives every edge-based check.\n\nWinding is a separate fact and never enters: a vertex whose faces disagree about which way they wind is not reported for that alone, and a vertex no face names is not reported either.\n\n*Split Non-Manifold Vertices (TrueForm)* repairs the pinched case by giving each fan a vertex of its own.
+Marks every vertex whose incident faces are not one **fan** — either an edge at it carries three or more faces, or its faces fall into several pieces that meet at that vertex alone.
+
+The second case is the one nothing else finds. Two sheets joined at a single pinched vertex have no non-manifold *edge* at all: every edge is shared by exactly two faces, so *Select Non-Manifold Edges (TrueForm)* reports nothing. The surface still has no well-defined neighbourhood at that point, which is enough to break offsetting, subdivision, parametrization and most reconstruction — and it is exactly the defect that survives every edge-based check.
+
+Winding is a separate fact and never enters: a vertex whose faces disagree about which way they wind is not reported for that alone, and a vertex no face names is not reported either.
+
+*Split Non-Manifold Vertices (TrueForm)* repairs the pinched case by giving each fan a vertex of its own.
 
 **Parameters:**
 
