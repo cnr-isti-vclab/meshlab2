@@ -159,6 +159,8 @@ add_library(MeshLab2Core STATIC
     src/render/rendersettingsjson.h src/render/rendersettingsjson.cpp
     src/render/viewstate.h
     src/render/viewgridlayout.h src/render/viewgridlayout.cpp
+    src/render/viewfrustumgizmo.h src/render/viewfrustumgizmo.cpp
+    src/render/clipplane.h src/render/clipplane.cpp
     src/render/viewsplitterlayout.h src/render/viewsplitterlayout.cpp
     src/render/viewaxisgizmo.h src/render/viewaxisgizmo.cpp
     src/render/viewtrackball.h src/render/viewtrackball.cpp
@@ -381,6 +383,12 @@ endif()
 
 qt_add_shaders(MeshLab2 "shaders"
     PREFIX "/"
+    # Qt would otherwise also bake GLSL 100 es and 120. Neither can express
+    # gl_ClipDistance -- SPIRV-Cross emits a global `out` that those profiles reject --
+    # and qsb does not report it, so the breakage would only appear when the OpenGL
+    # backend compiled the shader at run time. The clipping plane needs clip distances,
+    # so the OpenGL floor is 3.2 core. Metal, D3D11 and Vulkan are unaffected.
+    GLSL "150"
     FILES
         shaders/fill_smooth.vert
         shaders/fill_smooth.frag
@@ -693,6 +701,40 @@ target_link_libraries(MeshLab2ViewGridLayoutTests PRIVATE
 )
 
 add_test(NAME MeshLab2ViewGridLayoutTests COMMAND MeshLab2ViewGridLayoutTests)
+
+qt_add_executable(MeshLab2ViewFrustumGizmoTests
+    tests/test_viewfrustumgizmo.cpp
+)
+
+target_include_directories(MeshLab2ViewFrustumGizmoTests PRIVATE
+    ${MESHLAB2_SOURCE_DIR}
+    ${MESHLAB2_SOURCE_DIR}/src/render
+)
+
+# Frustum arithmetic only -- no document, no GPU, not even a widget.
+target_link_libraries(MeshLab2ViewFrustumGizmoTests PRIVATE
+    MeshLab2Core
+    Qt6::Test
+)
+
+add_test(NAME MeshLab2ViewFrustumGizmoTests COMMAND MeshLab2ViewFrustumGizmoTests)
+
+qt_add_executable(MeshLab2ClipPlaneTests
+    tests/test_clipplane.cpp
+)
+
+target_include_directories(MeshLab2ClipPlaneTests PRIVATE
+    ${MESHLAB2_SOURCE_DIR}
+    ${MESHLAB2_SOURCE_DIR}/src/render
+)
+
+# Plane arithmetic only -- no document, no GPU, not even a widget.
+target_link_libraries(MeshLab2ClipPlaneTests PRIVATE
+    MeshLab2Core
+    Qt6::Test
+)
+
+add_test(NAME MeshLab2ClipPlaneTests COMMAND MeshLab2ClipPlaneTests)
 
 qt_add_executable(MeshLab2LineGeometryTests
     tests/test_linegeometry.cpp

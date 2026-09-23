@@ -65,6 +65,11 @@ void RenderWidget::renderSceneDecoratorItems(
         decoratorData[17] = item.color.greenF();
         decoratorData[18] = item.color.blueF();
         decoratorData[19] = item.color.alphaF();
+        const QVector4D localClip = localClipPlaneFor(item.meshIndex);
+        decoratorData[20] = localClip.x();
+        decoratorData[21] = localClip.y();
+        decoratorData[22] = localClip.z();
+        decoratorData[23] = localClip.w();
         QRhiResourceUpdateBatch *uDecor = m_rhi->nextResourceUpdateBatch();
         uDecor->updateDynamicBuffer(
             decoratorUbuf, ubufOffset, kDecoratorUbufSize, decoratorData);
@@ -90,6 +95,11 @@ void RenderWidget::renderSceneDecoratorItems(
         fatData[20] = qMax(0.5f, item.width);
         fatData[21] = 1.0f / float(qMax(1, sz.width()));
         fatData[22] = 1.0f / float(qMax(1, sz.height()));
+        const QVector4D localClip = localClipPlaneFor(item.meshIndex);
+        fatData[24] = localClip.x();
+        fatData[25] = localClip.y();
+        fatData[26] = localClip.z();
+        fatData[27] = localClip.w();
         QRhiResourceUpdateBatch *uFat = m_rhi->nextResourceUpdateBatch();
         uFat->updateDynamicBuffer(
             m_decoratorFatUbuf.get(), ubufOffset, kDecoratorFatUbufSize, fatData);
@@ -165,6 +175,11 @@ void RenderWidget::renderSceneSelectionItems(
         selectionData[17] = 0.0f;
         selectionData[18] = 0.0f;
         selectionData[19] = 0.5f;
+        const QVector4D localClip = localClipPlaneFor(item.meshIndex);
+        selectionData[20] = localClip.x();
+        selectionData[21] = localClip.y();
+        selectionData[22] = localClip.z();
+        selectionData[23] = localClip.w();
         QRhiResourceUpdateBatch *uSel = m_rhi->nextResourceUpdateBatch();
         uSel->updateDynamicBuffer(
             m_selectionUbuf.get(), ubufOffset, kDecoratorUbufSize, selectionData);

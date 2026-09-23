@@ -1,6 +1,9 @@
 #include "renderwidget.h"
 #include "linerenderer.h"
+#include "clipplane.h"
+#include "viewfrustumgizmo.h"
 #include "document.h"
+#include <algorithm>
 #include <utility>
 
 using namespace RenderWidgetInternal;
@@ -170,9 +173,87 @@ void RenderWidget::planRasterProjectedPasses(
     }
 }
 
-void RenderWidget::planViewFrustumPasses(
-    RenderWidget::RenderFramePlan &plan)
+void RenderWidget::updateFrameClipPlane()
 {
+    m_frameClipPlane = QVector4D();
+    if (!m_renderSettings.clipPlaneEnabled || !m_doc)
+        return;
+    // Scene3D only: the cut is a statement about the 3D scene, and neither the UV layout
+    // nor a photograph has a place to stand in it.
+    if (m_viewMode != ViewMode::Scene3D)
+        return;
+
+    QVector3D sceneMin;
+    QVector3D sceneMax;
+    if (!computeWorldSceneBBox(sceneMin, sceneMax))
+        return;
+
+    m_frameClipPlane = ClipPlane::world(
+        m_renderSettings, sceneMin, sceneMax, m_trackball.cameraViewDirection());
+}
+
+QVector4D RenderWidget::localClipPlaneFor(int meshIndex) const
+{
+    if (m_frameClipPlane.isNull() || !m_doc
+        || meshIndex < 0 || meshIndex >= m_doc->meshCount()) {
+        return QVector4D();
+    }
+    return ClipPlane::toLocal(m_frameClipPlane, m_doc->mesh(meshIndex).transform);
+}
+
+void RenderWidget::planClipPlanePass(RenderWidget::RenderFramePlan &plan)
+{
+    m_clipPlaneGizmoVertices.clear();
+    if (m_frameClipPlane.isNull() || !m_renderSettings.clipPlaneShowPlane || !m_rhi || !m_doc)
+        return;
+
+    QVector3D sceneMin;
+    QVector3D sceneMax;
+    if (!computeWorldSceneBBox(sceneMin, sceneMax))
+        return;
+
+    m_clipPlaneGizmoVertices = ClipPlane::planeGizmo(m_frameClipPlane, sceneMin, sceneMax);
+    if (m_clipPlaneGizmoVertices.empty())
+        return;
+
+    const quint32 vbufSize = quint32(m_clipPlaneGizmoVertices.size() * sizeof(float));
+    if (!m_clipPlaneGizmoVbuf || m_clipPlaneGizmoVbuf->size() < vbufSize) {
+        m_clipPlaneGizmoVbuf.reset(m_rhi->newBuffer(
+            QRhiBuffer::Dynamic, QRhiBuffer::VertexBuffer, vbufSize));
+        m_clipPlaneGizmoVbuf->create();
+    }
+    if (!m_clipPlaneGizmoUbuf) {
+        m_clipPlaneGizmoUbuf.reset(m_rhi->newBuffer(
+            QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kRasterProjectedUbufSize));
+        m_clipPlaneGizmoUbuf->create();
+    }
+    if (!m_clipPlaneGizmoSrb) {
+        QRhiShaderResourceBindings *srb = m_rhi->newShaderResourceBindings();
+        srb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0, QRhiShaderResourceBinding::VertexStage
+                    | QRhiShaderResourceBinding::FragmentStage,
+                m_clipPlaneGizmoUbuf.get()),
+        });
+        srb->create();
+        m_clipPlaneGizmoSrb.reset(srb);
+    }
+
+    plan.rasterProjectedItems.push_back(SceneRasterProjectedDrawItem {
+        kClipPlaneGizmoRasterIndex,
+        m_clipPlaneGizmoSrb.get(),
+        m_clipPlaneGizmoVbuf.get(),
+        int(m_clipPlaneGizmoVertices.size() / 3),
+        false
+    });
+}
+
+void RenderWidget::rebuildViewFrustumGizmos()
+{
+    m_viewFrustumVertices.clear();
+    m_viewFrustumCount = 0;
+    m_viewFrustumBoundsValid = false;
+
     if (!m_peerViewCameraProvider || !m_renderSettings.showViewCameras
         || !m_doc || !m_rhi)
         return;
@@ -180,102 +261,48 @@ void RenderWidget::planViewFrustumPasses(
     auto shots = m_peerViewCameraProvider();
     if (shots.empty()) return;
 
-    // Build frustum vertices for each peer view camera
-    m_viewFrustumVertices.clear();
-    m_viewFrustumCount = 0;
-
-    // Compute a reasonable frustum depth
-    float frustumDepth = 0.0f;
-    {
-        bool hasBounds = false;
-        QVector3D sceneMin, sceneMax;
-        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-            if (!meshVisible(mi)) continue;
-            const auto &m = m_doc->mesh(mi).mesh;
-            if (m.bbox.IsNull()) continue;
-            const auto &tf = m_doc->mesh(mi).transform;
-            const QVector3D corners[8] = {
-                tf.map(QVector3D(float(m.bbox.min[0]), float(m.bbox.min[1]), float(m.bbox.min[2]))),
-                tf.map(QVector3D(float(m.bbox.max[0]), float(m.bbox.min[1]), float(m.bbox.min[2]))),
-                tf.map(QVector3D(float(m.bbox.min[0]), float(m.bbox.max[1]), float(m.bbox.min[2]))),
-                tf.map(QVector3D(float(m.bbox.max[0]), float(m.bbox.max[1]), float(m.bbox.min[2]))),
-                tf.map(QVector3D(float(m.bbox.min[0]), float(m.bbox.min[1]), float(m.bbox.max[2]))),
-                tf.map(QVector3D(float(m.bbox.max[0]), float(m.bbox.min[1]), float(m.bbox.max[2]))),
-                tf.map(QVector3D(float(m.bbox.min[0]), float(m.bbox.max[1]), float(m.bbox.max[2]))),
-                tf.map(QVector3D(float(m.bbox.max[0]), float(m.bbox.max[1]), float(m.bbox.max[2]))) };
-            if (!hasBounds) { sceneMin = corners[0]; sceneMax = corners[0]; hasBounds = true; }
-            for (int c = 0; c < 8; ++c) {
-                sceneMin.setX(std::min(sceneMin.x(), corners[c].x()));
-                sceneMin.setY(std::min(sceneMin.y(), corners[c].y()));
-                sceneMin.setZ(std::min(sceneMin.z(), corners[c].z()));
-                sceneMax.setX(std::max(sceneMax.x(), corners[c].x()));
-                sceneMax.setY(std::max(sceneMax.y(), corners[c].y()));
-                sceneMax.setZ(std::max(sceneMax.z(), corners[c].z()));
-            }
-        }
-        if (hasBounds)
-            frustumDepth = std::max(1e-3f, (sceneMax - sceneMin).length() * 0.12f);
-    }
-    if (frustumDepth <= 0.0f)
-        frustumDepth = std::max(1e-3f, m_trackball.radius() * 0.25f);
-
     for (const PeerViewCamera &pvc : shots) {
         if (pvc.viewportSize.width() <= 0 || pvc.viewportSize.height() <= 0)
             continue;
 
-        // Extract camera parameters from view/projection matrices
-        QMatrix4x4 invView = pvc.view.inverted();
-        QVector3D apex(invView(0, 3), invView(1, 3), invView(2, 3));
-        // Camera looks down -Z in view space; column 2 of invView = camera Z axis in world
-        QVector3D fwd(-invView(0, 2), -invView(1, 2), -invView(2, 2));
-        QVector3D right(invView(0, 0), invView(1, 0), invView(2, 0));
-        QVector3D up(invView(0, 1), invView(1, 1), invView(2, 1));
+        const ViewFrustumGizmo gizmo =
+            buildViewFrustumGizmo(pvc.view, pvc.proj, pvc.nearDist, pvc.farDist);
+        if (!gizmo.valid)
+            continue;
 
-        // Derive FOV and aspect from the projection matrix: proj(1,1) = cot(fovY/2)
-        float tanHalfFovY = 1.0f / pvc.proj(1, 1);
-        float aspect = pvc.proj(1, 1) / pvc.proj(0, 0);
+        m_viewFrustumVertices.insert(m_viewFrustumVertices.end(),
+                                     gizmo.vertices.begin(), gizmo.vertices.end());
+        m_viewFrustumCount += gizmo.segmentCount;
 
-        auto append = [this](const QVector3D &a, const QVector3D &b) {
-            m_viewFrustumVertices.insert(m_viewFrustumVertices.end(),
-                {a.x(), a.y(), a.z(), b.x(), b.y(), b.z()});
-            ++m_viewFrustumCount;
-        };
-
-        auto cornersAtDepth = [&](float d) {
-            struct { QVector3D bl, br, tl, tr; } r;
-            float halfH = tanHalfFovY * d;
-            float halfW = halfH * aspect;
-            QVector3D center = apex + fwd * d;
-            r.bl = center - right * halfW - up * halfH;
-            r.br = center + right * halfW - up * halfH;
-            r.tl = center - right * halfW + up * halfH;
-            r.tr = center + right * halfW + up * halfH;
-            return r;
-        };
-
-        // Main frustum at reference depth
-        {
-            auto c = cornersAtDepth(frustumDepth);
-            append(apex, c.bl); append(apex, c.br); append(apex, c.tl); append(apex, c.tr);
-            append(c.bl, c.br); append(c.br, c.tr); append(c.tr, c.tl); append(c.tl, c.bl);
-        }
-
-        // Near plane rectangle
-        if (pvc.nearDist > 0.0f) {
-            auto c = cornersAtDepth(pvc.nearDist);
-            append(c.bl, c.br); append(c.br, c.tr); append(c.tr, c.tl); append(c.tl, c.bl);
-        }
-
-        // Far plane rectangle
-        float farD = pvc.farDist > 0.0f ? pvc.farDist
-            : std::max(frustumDepth * 3.0f, m_trackball.radius() * 10.0f);
-        {
-            auto c = cornersAtDepth(farD);
-            append(c.bl, c.br); append(c.br, c.tr); append(c.tr, c.tl); append(c.tl, c.bl);
+        // Remembered so the frame can widen its own depth range to hold the gizmo.
+        // Without this the gizmo is rasterised inside a clip volume sized for the meshes
+        // and the far end of a peer frustum, which reaches well past them, is cut off.
+        if (!m_viewFrustumBoundsValid) {
+            m_viewFrustumBoundsMin = gizmo.boundsMin;
+            m_viewFrustumBoundsMax = gizmo.boundsMax;
+            m_viewFrustumBoundsValid = true;
+        } else {
+            for (int axis = 0; axis < 3; ++axis) {
+                m_viewFrustumBoundsMin[axis] =
+                    std::min(m_viewFrustumBoundsMin[axis], gizmo.boundsMin[axis]);
+                m_viewFrustumBoundsMax[axis] =
+                    std::max(m_viewFrustumBoundsMax[axis], gizmo.boundsMax[axis]);
+            }
         }
     }
+}
 
-    if (m_viewFrustumCount == 0) return;
+float RenderWidget::viewFrustumFarDistance(const QMatrix4x4 &view) const
+{
+    if (!m_viewFrustumBoundsValid)
+        return 0.0f;
+    return farthestDistanceInView(view, m_viewFrustumBoundsMin, m_viewFrustumBoundsMax);
+}
+
+void RenderWidget::planViewFrustumPasses(
+    RenderWidget::RenderFramePlan &plan)
+{
+    if (m_viewFrustumCount == 0 || !m_rhi) return;
 
     // Ensure GPU buffers
     const quint32 vbufSize = quint32(m_viewFrustumVertices.size() * sizeof(float));
@@ -766,6 +793,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
     planRasterBackplatePasses(request.passes, plan);
     planRasterProjectedPasses(request.passes, plan);
     planViewFrustumPasses(plan);
+    planClipPlanePass(plan);
     planSimpleBufferPasses(request.passes, plan);
     planDecoratorPasses(request.passes, plan);
     planSelectionPasses(request.passes, plan);

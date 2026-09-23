@@ -28,7 +28,7 @@
     {
       "id": "view.nearClipRatio",
       "label": "Near clip ratio",
-      "help": "Near clipping plane as a fraction of the scene radius. Raise it if depth precision looks poor; lower it if geometry close to the camera gets cut away.",
+      "help": "Near clipping plane, as a fraction of the distance from the camera to the point it orbits. Raise it to cut into the object from the front, or when depth precision looks poor; lower it if geometry close to the camera gets cut away.",
       "group": "view",
       "type": "double",
       "default": 0.00333,

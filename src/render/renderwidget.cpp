@@ -1690,6 +1690,25 @@ void RenderWidget::createOverlayButtons()
         m_uvScaleYTickLabels[size_t(i)] = yLabel;
     }
 
+    connect(m_overlayPanel, &RenderOverlayPanel::clipPlaneFreezeToViewRequested, this,
+            [this]() {
+        // The direction the plane has this instant, made permanent. Reading it from the
+        // resolved plane rather than from the camera keeps a frozen custom plane frozen,
+        // so pressing the button twice does not change anything.
+        QVector3D normal = m_frameClipPlane.toVector3D();
+        if (normal.isNull())
+            normal = m_trackball.cameraViewDirection();
+        if (normal.isNull())
+            return;
+        RenderSettings next = m_renderSettings;
+        // The stored axis is the unflipped one; the flip is applied on top of it, so
+        // undoing the flip here would make the button change what you see.
+        next.clipPlaneCustomAxis = next.clipPlaneFlipped ? -normal : normal;
+        next.clipPlaneAxis = ClipPlaneAxis::Custom;
+        setRenderSettings(next);
+        showInteractionStatusOverlay(tr("Clipping plane frozen to the current view"));
+    });
+
     connect(m_overlayPanel, &RenderOverlayPanel::globalSettingsChanged, this,
             [this](const RenderSettings &settings) {
         emit viewActivated(this);

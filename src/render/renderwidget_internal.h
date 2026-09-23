@@ -37,7 +37,7 @@ inline QShader loadShader(const QString &path)
     return QShader::fromSerialized(f.readAll());
 }
 
-inline constexpr int kUbufSize = 352; // expanded: added vec4 lightDir at offset 336
+inline constexpr int kUbufSize = 368; // expanded: added vec4 clipPlane at offset 352
 inline constexpr int kUbufFloatCount = kUbufSize / sizeof(float);
 inline constexpr int kUbufBBoxColorOffset = 176 / sizeof(float);
 inline constexpr int kUbufPointColorOffset = 192 / sizeof(float);
@@ -50,6 +50,11 @@ inline constexpr int kUbufEdgeColorOffset = 288 / sizeof(float);
 inline constexpr int kUbufMaterialFlagsOffset = 304 / sizeof(float);  // was kUbufPbrMapUsageOffset
 inline constexpr int kUbufMaterialParamsOffset = 320 / sizeof(float); // was kUbufPbrParamsOffset
 inline constexpr int kUbufLightDirOffset = 336 / sizeof(float);        // vec4 lightDir (view-space, w unused)
+// The clipping plane, in the drawn mesh's OWN local space -- xyz is the normal and w the
+// offset, so a vertex survives when dot(vec4(position, 1), clipPlane) >= 0. All zero means
+// no clipping. It lives in the per-mesh slice because it is per-mesh data: one world plane
+// becomes a different local plane for every layer transform.
+inline constexpr int kUbufClipPlaneOffset = 352 / sizeof(float);
 inline constexpr int kFillVertexStrideFloats = 13;
 inline constexpr int kPointsVertexStrideFloats = 11;
 inline constexpr int kMaskMorphUbufSize = 16;
@@ -60,8 +65,14 @@ inline constexpr int kRasterBackplateUbufSize = 32; // vec4 rect + vec4 params
 inline constexpr int kRasterProjectedUbufSize = 80; // mat4 mvp + vec4 color
 inline constexpr int kRasterProjectedVertexStrideFloats = 3;
 inline constexpr int kRasterProjectedFrustumVertexCount = 16;
-inline constexpr int kDecoratorUbufSize = 80; // mat4 mvp + vec4 color
-inline constexpr int kDecoratorFatUbufSize = 96; // mat4 mvp + vec4 color + vec4(width, invW, invH, _)
+// Sentinel raster indices on a SceneRasterProjectedDrawItem: the line-gizmo pipeline is
+// shared, and the index says which gizmo it is drawing and therefore what colour.
+inline constexpr int kViewFrustumGizmoRasterIndex = -1;
+inline constexpr int kClipPlaneGizmoRasterIndex = -2;
+inline constexpr int kDecoratorUbufSize = 96; // mat4 mvp + vec4 color + vec4 clipPlane
+inline constexpr int kDecoratorFatUbufSize = 112; // + vec4(width, invW, invH, _) + vec4 clipPlane
+inline constexpr int kDecoratorClipPlaneOffset = 80 / sizeof(float);
+inline constexpr int kDecoratorFatClipPlaneOffset = 96 / sizeof(float);
 inline constexpr int kToolLineUbufSize = 96;
 inline constexpr int kDecoratorSlotVertexNormals = 0;
 inline constexpr int kDecoratorSlotFaceNormals = 1;

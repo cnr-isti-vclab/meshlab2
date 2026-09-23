@@ -9,6 +9,8 @@ layout(std140, binding = 0) uniform buf {
     mat4 mvp;
     vec4 color;
     vec4 params; // width(px), 1/viewport width, 1/viewport height, dashed flag
+    // Mesh-LOCAL clipping plane; see kUbufClipPlaneOffset. All zero disables clipping.
+    vec4 clipPlane;
 } ub;
 
 layout(location = 0) out float vSide;
@@ -16,6 +18,9 @@ layout(location = 1) out float vAlongPx;
 
 void main()
 {
+    // The point on the segment this quad corner belongs to, matching baseClip below.
+    gl_ClipDistance[0] =
+        dot(vec4(mix(inP0, inP1, clamp(inAlong, 0.0, 1.0)), 1.0), ub.clipPlane);
     vec4 clip0 = ub.mvp * vec4(inP0, 1.0);
     vec4 clip1 = ub.mvp * vec4(inP1, 1.0);
 

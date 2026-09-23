@@ -3,6 +3,7 @@
 #include <QColor>
 #include <QMetaType>
 #include <QString>
+#include <QVector3D>
 
 enum class RenderPass {
     CurrentMesh = 0,
@@ -95,6 +96,27 @@ struct RsFillParams {
     // JSON conversions so the two cannot drift apart.
     bool operator==(const RsFillParams &o) const;
     bool operator!=(const RsFillParams &o) const { return !(*this == o); }
+};
+
+// Which way the clipping plane faces. `View` follows the camera, which is how the near
+// plane behaved when it was the only way to cut into an object; the rest hold still while
+// you orbit, which is the point of having a real plane.
+enum class ClipPlaneAxis {
+    X = 0,
+    Y,
+    Z,
+    View,
+    Custom
+};
+
+// What the clipping plane's offset is measured from. The same four references
+// `create_polyline_from_planar_section` offers, so the view control and the filter describe
+// a plane the same way.
+enum class ClipPlaneReference {
+    Origin = 0,
+    Center,
+    Min,
+    Max
 };
 
 // How a layer's bounding box is drawn.
@@ -255,6 +277,18 @@ struct GlobalRenderSettings {
     bool qualityHistogramInvertColorMap = false;
     bool qualityIsolinesEnabled = false;
     int qualityIsolineCount = 10;
+
+    // The clipping plane. Everything on the negative side of it is cut away, in every
+    // Scene3D pass including picking. Off by default; `view.nearClipRatio` is unaffected.
+    bool clipPlaneEnabled = false;
+    ClipPlaneAxis clipPlaneAxis = ClipPlaneAxis::View;
+    QVector3D clipPlaneCustomAxis = QVector3D(0.0f, 1.0f, 0.0f);
+    ClipPlaneReference clipPlaneRelativeTo = ClipPlaneReference::Center;
+    // A fraction of the scene's bounding-box diagonal rather than a world distance, so the
+    // slider covers a bunny and a building the same way and a saved view survives a rescale.
+    float clipPlaneOffset = 0.0f;
+    bool clipPlaneFlipped = false;
+    bool clipPlaneShowPlane = true;
 
     // Defined in rendersettingsjson.cpp, generated from the same field list as the
     // JSON conversions so the two cannot drift apart.

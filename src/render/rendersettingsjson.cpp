@@ -57,6 +57,10 @@ QJsonValue valueToJson(int v) { return v; }
 QJsonValue valueToJson(float v) { return double(v); }
 QJsonValue valueToJson(const QString &v) { return v; }
 QJsonValue valueToJson(const QColor &v) { return colorToJsonArray(v); }
+QJsonValue valueToJson(const QVector3D &v)
+{
+    return QJsonArray{double(v.x()), double(v.y()), double(v.z())};
+}
 
 template <typename E, std::enable_if_t<std::is_enum_v<E>, int> = 0>
 QJsonValue valueToJson(E v)
@@ -96,6 +100,22 @@ bool valueFromJson(const QJsonValue &j, QString &v)
 bool valueFromJson(const QJsonValue &j, QColor &v)
 {
     return parseColorArray(j, v);
+}
+
+bool valueFromJson(const QJsonValue &j, QVector3D &v)
+{
+    if (!j.isArray())
+        return false;
+    const QJsonArray arr = j.toArray();
+    if (arr.size() != 3)
+        return false;
+    float xyz[3] = {};
+    for (int i = 0; i < 3; ++i) {
+        if (!parseFloatValue(arr[i], xyz[i]))
+            return false;
+    }
+    v = QVector3D(xyz[0], xyz[1], xyz[2]);
+    return true;
 }
 
 template <typename E, std::enable_if_t<std::is_enum_v<E>, int> = 0>
@@ -165,7 +185,7 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     if (!fieldsEqual(*this, o, &SettingsType::member)) \
         return false;
 
-// 34 fields
+// 41 fields
 #define MESHLAB2_GLOBAL_SETTINGS_FIELDS(F) \
     F("layer_arrangement", layerArrangement) \
     F("highlight_current_mesh", highlightCurrentMesh) \
@@ -200,7 +220,14 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("quality_histogram_colormap_id", qualityHistogramColorMapId) \
     F("quality_histogram_invert_colormap", qualityHistogramInvertColorMap) \
     F("quality_isolines_enabled", qualityIsolinesEnabled) \
-    F("quality_isoline_count", qualityIsolineCount)
+    F("quality_isoline_count", qualityIsolineCount) \
+    F("clip_plane_enabled", clipPlaneEnabled) \
+    F("clip_plane_axis", clipPlaneAxis) \
+    F("clip_plane_custom_axis", clipPlaneCustomAxis) \
+    F("clip_plane_relative_to", clipPlaneRelativeTo) \
+    F("clip_plane_offset", clipPlaneOffset) \
+    F("clip_plane_flipped", clipPlaneFlipped) \
+    F("clip_plane_show_plane", clipPlaneShowPlane)
 
 // 45 flat fields; the three fill_* sub-objects are listed separately
 #define MESHLAB2_PER_MESH_SETTINGS_FIELDS(F) \

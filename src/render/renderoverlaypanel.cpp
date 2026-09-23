@@ -400,6 +400,51 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     currentMeshForm->addRow(
         tr("Bg bottom"),
         makeCenteredFieldContainer(m_sceneBackgroundBottomColorButton, viewer3dPage));
+
+    // The clipping plane. It cuts the scene itself, not the instruments, so it sits with
+    // the other whole-view settings rather than under any one pass.
+    m_clipPlaneEnabledCheck = new QCheckBox(viewer3dPage);
+    m_clipPlaneEnabledCheck->setChecked(m_globalSettings.clipPlaneEnabled);
+    m_clipPlaneAxisCombo = new QComboBox(viewer3dPage);
+    m_clipPlaneAxisCombo->addItem(tr("View direction"), int(ClipPlaneAxis::View));
+    m_clipPlaneAxisCombo->addItem(tr("X Axis"), int(ClipPlaneAxis::X));
+    m_clipPlaneAxisCombo->addItem(tr("Y Axis"), int(ClipPlaneAxis::Y));
+    m_clipPlaneAxisCombo->addItem(tr("Z Axis"), int(ClipPlaneAxis::Z));
+    m_clipPlaneAxisCombo->addItem(tr("Custom"), int(ClipPlaneAxis::Custom));
+    m_clipPlaneReferenceCombo = new QComboBox(viewer3dPage);
+    m_clipPlaneReferenceCombo->addItem(
+        tr("Bounding box center"), int(ClipPlaneReference::Center));
+    m_clipPlaneReferenceCombo->addItem(tr("Origin"), int(ClipPlaneReference::Origin));
+    m_clipPlaneReferenceCombo->addItem(tr("Bounding box min"), int(ClipPlaneReference::Min));
+    m_clipPlaneReferenceCombo->addItem(tr("Bounding box max"), int(ClipPlaneReference::Max));
+    m_clipPlaneOffsetSpin = new QDoubleSpinBox(viewer3dPage);
+    // A fraction of the scene diagonal, so one range fits every scene.
+    m_clipPlaneOffsetSpin->setRange(-1.0, 1.0);
+    m_clipPlaneOffsetSpin->setSingleStep(0.01);
+    m_clipPlaneOffsetSpin->setDecimals(3);
+    m_clipPlaneOffsetSpin->setValue(m_globalSettings.clipPlaneOffset);
+    m_clipPlaneFlippedCheck = new QCheckBox(viewer3dPage);
+    m_clipPlaneFlippedCheck->setChecked(m_globalSettings.clipPlaneFlipped);
+    m_clipPlaneShowPlaneCheck = new QCheckBox(viewer3dPage);
+    m_clipPlaneShowPlaneCheck->setChecked(m_globalSettings.clipPlaneShowPlane);
+    m_clipPlaneFreezeButton = new QPushButton(tr("Freeze to View"), viewer3dPage);
+    m_clipPlaneFreezeButton->setToolTip(
+        tr("Keep the plane where it is now and stop it following the camera, so the "
+           "scene can be orbited around the cut."));
+    currentMeshForm->addRow(
+        tr("Clipping plane"),
+        makeCenteredFieldContainer(m_clipPlaneEnabledCheck, viewer3dPage));
+    currentMeshForm->addRow(tr("Clip normal"), m_clipPlaneAxisCombo);
+    currentMeshForm->addRow(tr("Clip reference"), m_clipPlaneReferenceCombo);
+    currentMeshForm->addRow(tr("Clip offset"), m_clipPlaneOffsetSpin);
+    currentMeshForm->addRow(
+        tr("Clip other side"),
+        makeCenteredFieldContainer(m_clipPlaneFlippedCheck, viewer3dPage));
+    currentMeshForm->addRow(
+        tr("Show clip plane"),
+        makeCenteredFieldContainer(m_clipPlaneShowPlaneCheck, viewer3dPage));
+    currentMeshForm->addRow(QString(), m_clipPlaneFreezeButton);
+
     applyUniformFormRowHeights(currentMeshForm);
     viewer3dLayout->addLayout(currentMeshForm);
     m_viewerSettingsStack->addWidget(viewer3dPage);
@@ -1216,6 +1261,15 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindGlobalCheckBox(m_showTrackballGizmoCheck, &GlobalRenderSettings::showTrackballGizmo);
     bindGlobalCheckBox(m_showAxisGizmoCheck, &GlobalRenderSettings::showAxisGizmo);
     bindGlobalCheckBox(m_showViewCamerasCheck, &GlobalRenderSettings::showViewCameras);
+    bindGlobalCheckBox(m_clipPlaneEnabledCheck, &GlobalRenderSettings::clipPlaneEnabled);
+    bindGlobalCheckBox(m_clipPlaneFlippedCheck, &GlobalRenderSettings::clipPlaneFlipped);
+    bindGlobalCheckBox(m_clipPlaneShowPlaneCheck, &GlobalRenderSettings::clipPlaneShowPlane);
+    bindGlobalEnumCombo(m_clipPlaneAxisCombo, &GlobalRenderSettings::clipPlaneAxis);
+    bindGlobalEnumCombo(m_clipPlaneReferenceCombo, &GlobalRenderSettings::clipPlaneRelativeTo);
+    bindGlobalFloatSpin(m_clipPlaneOffsetSpin, &GlobalRenderSettings::clipPlaneOffset);
+    connect(m_clipPlaneFreezeButton, &QPushButton::clicked, this, [this]() {
+        emit clipPlaneFreezeToViewRequested();
+    });
     bindGlobalCheckBox(m_fillTextureNearestCheck, &GlobalRenderSettings::fillTextureNearestSampling);
     bindGlobalColorButton(
         m_currentMeshOutlineColorButton,

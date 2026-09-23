@@ -46,6 +46,9 @@ public:
 
 signals:
     void globalSettingsChanged(const RenderSettings &settings);
+    // The panel has no camera; the view answers this by freezing its own direction into
+    // clipPlaneCustomAxis, which is what turns "cut here" into "cut here and let me orbit".
+    void clipPlaneFreezeToViewRequested();
     void meshSettingsChanged(const PerMeshRenderSettings &settings);
     void applyToAllMeshesRequested(const PerMeshRenderSettings &settings, RenderPass pass);
     void bakeQualityMappingToVertexColorRequested();
@@ -115,6 +118,13 @@ private:
     QCheckBox *m_showTrackballGizmoCheck = nullptr;
     QCheckBox *m_showAxisGizmoCheck = nullptr;
     QCheckBox *m_showViewCamerasCheck = nullptr;
+    QCheckBox *m_clipPlaneEnabledCheck = nullptr;
+    QComboBox *m_clipPlaneAxisCombo = nullptr;
+    QComboBox *m_clipPlaneReferenceCombo = nullptr;
+    QDoubleSpinBox *m_clipPlaneOffsetSpin = nullptr;
+    QCheckBox *m_clipPlaneFlippedCheck = nullptr;
+    QCheckBox *m_clipPlaneShowPlaneCheck = nullptr;
+    QPushButton *m_clipPlaneFreezeButton = nullptr;
     QCheckBox *m_bboxShowCornersCheck = nullptr;
     QCheckBox *m_bboxShowDimensionsCheck = nullptr;
     QCheckBox *m_decoratorVertexNormalsCheck = nullptr;

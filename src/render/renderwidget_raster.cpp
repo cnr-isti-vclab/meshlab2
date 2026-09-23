@@ -349,7 +349,13 @@ void RenderWidget::renderSceneRasterProjected(
 
         float ubuf[kRasterProjectedUbufSize / sizeof(float)] = {};
         memcpy(ubuf, mvp.constData(), 64);
-        if (item.rasterIndex < 0) {
+        if (item.rasterIndex == kClipPlaneGizmoRasterIndex) {
+            // Warm, and translucent enough to read as a plane you are looking through.
+            ubuf[16] = 1.00f;
+            ubuf[17] = 0.62f;
+            ubuf[18] = 0.20f;
+            ubuf[19] = 0.55f;
+        } else if (item.rasterIndex < 0) {
             ubuf[16] = 0.85f;
             ubuf[17] = 0.85f;
             ubuf[18] = 0.85f;
@@ -369,7 +375,15 @@ void RenderWidget::renderSceneRasterProjected(
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
         quint32 ubufOffset = 0;
 
-        if (item.rasterIndex < 0) {
+        if (item.rasterIndex == kClipPlaneGizmoRasterIndex) {
+            if (!m_clipPlaneGizmoVertices.empty()) {
+                u->updateDynamicBuffer(m_clipPlaneGizmoVbuf.get(), 0,
+                    quint32(m_clipPlaneGizmoVertices.size() * sizeof(float)),
+                    m_clipPlaneGizmoVertices.data());
+            }
+            u->updateDynamicBuffer(m_clipPlaneGizmoUbuf.get(), 0,
+                kRasterProjectedUbufSize, ubuf);
+        } else if (item.rasterIndex < 0) {
             // View camera frustum: use its own ubuf at offset 0
             if (!m_viewFrustumVertices.empty()) {
                 u->updateDynamicBuffer(m_viewFrustumVbuf.get(), 0,

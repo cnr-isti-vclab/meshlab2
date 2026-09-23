@@ -168,7 +168,8 @@ quint32 RenderWidget::uploadMainUbuf(
     const QVector3D &lightDir,
     MainUbufMaterialOverrides materialOverrides,
     quint32 offset,
-    float pickId)
+    float pickId,
+    const QVector4D &localClipPlane)
 {
     if (!m_rhi || !m_ubuf || !cb)
         return 0;
@@ -195,6 +196,12 @@ quint32 RenderWidget::uploadMainUbuf(
     const QSize targetSize = renderTarget() ? renderTarget()->pixelSize() : pixelSize;
     ubufData[kUbufPointParamsOffset + 2] = 1.0f / float(qMax(1, targetSize.width()));
     ubufData[kUbufPointParamsOffset + 3] = 1.0f / float(qMax(1, targetSize.height()));
+    // All zero when there is no clipping plane, which every vertex shader reads as a clip
+    // distance of 0 -- on the plane, and kept.
+    ubufData[kUbufClipPlaneOffset + 0] = localClipPlane.x();
+    ubufData[kUbufClipPlaneOffset + 1] = localClipPlane.y();
+    ubufData[kUbufClipPlaneOffset + 2] = localClipPlane.z();
+    ubufData[kUbufClipPlaneOffset + 3] = localClipPlane.w();
 
     QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
     uMesh->updateDynamicBuffer(m_ubuf.get(), offset, kUbufSize, ubufData);
@@ -234,7 +241,8 @@ quint32 RenderWidget::uploadMainUbufForMesh(
         lightDir,
         materialOverrides,
         offset,
-        pickId);
+        pickId,
+        localClipPlaneFor(meshIndex));
 }
 
 void RenderWidget::render(QRhiCommandBuffer *cb)
@@ -374,6 +382,12 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     QMatrix4x4 proj;
     QMatrix4x4 view;
     QMatrix4x4 vp;
+    // Before the projection, because in trackball mode the far plane is opened up to hold
+    // the result: a peer frustum routinely reaches past this view's own far plane, and
+    // without that its far rectangle -- the part that says where that view stops seeing --
+    // is the first thing cut off.
+    rebuildViewFrustumGizmos();
+    updateFrameClipPlane();
     if (rasterMode) {
         const int rasterIndex = m_doc ? m_doc->currentRasterIndex() : -1;
         Document::RasterEntry *rasterEntry =
@@ -440,8 +454,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     } else {
         const float aspect =
             float(referenceViewport.width()) / float(qMax(1, referenceViewport.height()));
-        proj = m_trackball.projectionMatrix(aspect);
         view = m_trackball.viewMatrix();
+        proj = m_trackball.projectionMatrix(aspect, viewFrustumFarDistance(view));
     }
     vp = proj * view;
 
@@ -559,7 +573,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         // Tiles are congruent, so this only matters if a future layout stops making them so.
         if (!rasterMode && tile.rect.size() != referenceViewport) {
             frameRequest.proj = m_trackball.projectionMatrix(
-                float(tile.rect.width()) / float(qMax(1, tile.rect.height())));
+                float(tile.rect.width()) / float(qMax(1, tile.rect.height())),
+                viewFrustumFarDistance(view));
         }
         frameRequest.view = view;
         frameRequest.lightDir = frameLightDir;

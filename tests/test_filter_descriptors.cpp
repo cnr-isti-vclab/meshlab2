@@ -3,6 +3,7 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QRegularExpression>
+#include <utility>
 #include <QSet>
 
 #include "document.h"
@@ -524,6 +525,31 @@ void FilterDescriptorTests::checkHelpText(const MeshFilterDescriptor &d,
     check(d.longDescriptionMarkdown, QStringLiteral("longDescriptionMarkdown"));
     for (const auto &p : d.parameters)
         check(p.helpMarkdown, QStringLiteral("help for parameter '%1'").arg(p.id));
+
+    // shortDescription is the one text field that is NOT Markdown. It goes to
+    // QLabel::setText in the filter panel and to the tooltips in the Filters menu and the
+    // results list, so anything written for a renderer is shown to the reader as its own
+    // punctuation: **bold** keeps its asterisks, $x$ its dollars, a [link](url) both
+    // halves. A newline is a hard break in a label meant to hold one line.
+    //
+    // Square brackets on their own are left alone -- "maps to [0,1]" is ordinary prose --
+    // and so is a bare "<", which reads as "less than"; only a tag-shaped "<b" would make
+    // QLabel treat the whole string as rich text.
+    static const std::pair<QRegularExpression, const char *> kPlainTextRules[] = {
+        { QRegularExpression(QStringLiteral("\n")),          "a newline" },
+        { QRegularExpression(QStringLiteral("\\*")),          "a Markdown emphasis marker '*'" },
+        { QRegularExpression(QStringLiteral("`")),            "a Markdown code backtick" },
+        { QRegularExpression(QStringLiteral("\\$")),          "a LaTeX '$'" },
+        { QRegularExpression(QStringLiteral("\\]\\(")),       "a Markdown link" },
+        { QRegularExpression(QStringLiteral("<[A-Za-z/]")),   "an HTML tag" },
+    };
+    for (const auto &[pattern, what] : kPlainTextRules) {
+        if (d.shortDescription.contains(pattern)) {
+            problems << QStringLiteral("shortDescription contains %1; that field is plain "
+                                       "text, shown verbatim in a label and a tooltip")
+                            .arg(QLatin1String(what));
+        }
+    }
 }
 
 void FilterDescriptorTests::checkCodes(const MeshFilterDescriptor &d,

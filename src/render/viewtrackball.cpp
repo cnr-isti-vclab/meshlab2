@@ -428,11 +428,15 @@ QVector3D ViewTrackball::cameraUp() const
     return m_rotation.conjugated().rotatedVector(QVector3D(0.0f, 1.0f, 0.0f));
 }
 
-QMatrix4x4 ViewTrackball::projectionMatrix(float aspect) const
+QMatrix4x4 ViewTrackball::projectionMatrix(float aspect, float minFarDistance) const
 {
-    const float r = qMax(1e-4f, m_radius);
     const float nearPlane = nearClipPlaneDistance();
-    const float farPlane = farClipPlaneDistance();
+    float farPlane = farClipPlaneDistance();
+    if (std::isfinite(minFarDistance) && minFarDistance > farPlane) {
+        // Capped only to keep the matrix finite if a caller hands us something absurd;
+        // there is no precision argument for a tighter bound.
+        farPlane = qMin(minFarDistance, farPlane * 1.0e4f);
+    }
     QMatrix4x4 proj;
     proj.perspective(m_fovYDeg, aspect, nearPlane, farPlane);
     return proj;

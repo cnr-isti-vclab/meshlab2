@@ -19,6 +19,12 @@ layout(std140, binding = 0) uniform buf {
     vec4 fillColor;
     vec4 lightingParams;
     vec4 edgeColor;
+    vec4 materialFlags;
+    vec4 materialParams;
+    vec4 lightDir;
+    // Mesh-LOCAL clipping plane: a vertex survives when dot(vec4(pos,1), clipPlane) >= 0.
+    // All zero disables clipping. Written at kUbufClipPlaneOffset.
+    vec4 clipPlane;
 } ub;
 
 layout(location = 0) out float vSide;
@@ -26,6 +32,7 @@ layout(location = 1) out vec4 vColor;
 
 void main()
 {
+    gl_ClipDistance[0] = dot(vec4(mix(inP0, inP1, clamp(inAlong, 0.0, 1.0)), 1.0), ub.clipPlane);
     vec4 clip0 = ub.mvp * vec4(inP0, 1.0);
     vec4 clip1 = ub.mvp * vec4(inP1, 1.0);
 

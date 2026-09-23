@@ -16,9 +16,12 @@ layout(std140, binding = 0) uniform buf {
     vec4 fillColor;
     vec4 lightingParams;
     vec4 edgeColor;
-    vec4 materialFlags;  // x=normalMode, y=aoMode, z=roughnessMode, w=albedoMode (PBR only)
-    vec4 materialParams; // x=param0 (normalScale/enhancement), y=occlusionStrength, z=roughnessFactor, w=material-id
-    vec4 lightDir;        // view-space light direction (w unused)
+    vec4 materialFlags;
+    vec4 materialParams;
+    vec4 lightDir;
+    // Mesh-LOCAL clipping plane: a vertex survives when dot(vec4(pos,1), clipPlane) >= 0.
+    // All zero disables clipping. Written at kUbufClipPlaneOffset.
+    vec4 clipPlane;
 } ub;
 
 layout(location = 0) out vec3 vViewPos;
@@ -27,6 +30,7 @@ layout(location = 2) out vec3 v_texInfo;
 
 void main()
 {
+    gl_ClipDistance[0] = dot(vec4(inPos, 1.0), ub.clipPlane);
     vec4 vp = ub.modelView * vec4(inPos, 1.0);
     vViewPos = vp.xyz;
     v_meshColor = meshColor;

@@ -16,6 +16,7 @@
 #include <QRect>
 #include <QString>
 #include <QVector2D>
+#include <QVector4D>
 #include <array>
 #include <cstdint>
 #include <memory>
@@ -414,7 +415,9 @@ struct SceneRasterProjectedDrawItem {
         const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f),
         MainUbufMaterialOverrides materialOverrides = MainUbufMaterialOverrides{},
         quint32 offset = 0,
-        float pickId = 0.0f);
+        float pickId = 0.0f,
+        // Default zero = no clipping, which is what UV mode wants.
+        const QVector4D &localClipPlane = QVector4D());
     quint32 uploadMainUbufForMesh(
         QRhiCommandBuffer *cb,
         int meshIndex,
@@ -443,6 +446,21 @@ struct SceneRasterProjectedDrawItem {
     void planRasterProjectedPasses(
         const RenderFramePassRequests &requests,
         RenderFramePlan &plan);
+    // Resolved once per frame from the settings, the visible scene's bounds and the
+    // camera, then transformed into each layer's own space as its uniforms are written.
+    // Zero when clipping is off, which every shader reads as "keep everything".
+    void updateFrameClipPlane();
+    QVector4D localClipPlaneFor(int meshIndex) const;
+    // The plane's own wireframe. Not clipped by itself -- it is the instrument, not the
+    // scene -- so it rides the line-gizmo pipeline the peer cameras already use.
+    void planClipPlanePass(RenderFramePlan &plan);
+
+    // Built before the frame's projection is, because the projection has to be wide
+    // enough to hold the result -- see viewFrustumFarDistance.
+    void rebuildViewFrustumGizmos();
+    // Distance from the eye, along the view direction, of the farthest gizmo point;
+    // 0 when there is nothing to draw.
+    float viewFrustumFarDistance(const QMatrix4x4 &view) const;
     void planViewFrustumPasses(RenderFramePlan &plan);
     void planDecoratorPasses(
         const RenderFramePassRequests &requests,
@@ -576,6 +594,17 @@ struct SceneRasterProjectedDrawItem {
     QRhi *m_rhi = nullptr;
     std::function<std::vector<PeerViewCamera>()> m_peerViewCameraProvider;
     mutable std::vector<float> m_viewFrustumVertices;
+    // World bounds of the peer-camera gizmos planned this frame, so the frame can
+    // widen its own depth range to contain them -- otherwise the view clips the very
+    // thing it is drawing. See planViewFrustumPasses and depthRangeForFrame.
+    QVector4D m_frameClipPlane;
+    std::vector<float> m_clipPlaneGizmoVertices;
+    std::unique_ptr<QRhiBuffer> m_clipPlaneGizmoVbuf;
+    std::unique_ptr<QRhiBuffer> m_clipPlaneGizmoUbuf;
+    std::unique_ptr<QRhiShaderResourceBindings> m_clipPlaneGizmoSrb;
+    mutable QVector3D m_viewFrustumBoundsMin;
+    mutable QVector3D m_viewFrustumBoundsMax;
+    mutable bool m_viewFrustumBoundsValid = false;
     mutable size_t m_viewFrustumCount = 0;
     mutable std::unique_ptr<QRhiBuffer> m_viewFrustumVbuf;
     mutable std::unique_ptr<QRhiBuffer> m_viewFrustumUbuf;

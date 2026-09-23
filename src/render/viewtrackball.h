@@ -67,7 +67,11 @@ public:
     float gizmoWorldRadius() const;
 
     QMatrix4x4 viewMatrix() const;
-    QMatrix4x4 projectionMatrix(float aspect) const;
+    // `minFarDistance` pushes the far plane out far enough to hold something that is
+    // not part of the scene -- a peer view's camera gizmo, whose far plane can sit well
+    // outside this view's own. Widening the far plane is close to free: the depth
+    // resolution at a given distance Z goes as Z^2/near and barely depends on far.
+    QMatrix4x4 projectionMatrix(float aspect, float minFarDistance = 0.0f) const;
 
     void mousePress(const QMouseEvent *e, const QSize &viewportSize);
     void mouseRelease(const QMouseEvent *e);
