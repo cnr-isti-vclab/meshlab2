@@ -149,13 +149,65 @@ Runs when `highlightCurrentMesh` is on and the current mesh is visible.
 
 Debug views: `FullMask`, `VisibleMask`, `OccludedMask`, `DilatedMask`, `ErodedMask`. Normal path is `Outline`.
 
+## Clipping Plane
+
+A world-space plane that cuts away everything on its negative side, in every `Scene3D` pass
+including depth picking. Off by default; `GlobalRenderSettings` holds it, so it is per view,
+inherited by a split, and carried in a render state.
+
+`ClipPlane::world()` ([clipplane.h](../../src/render/clipplane.h)) resolves
+`clipPlaneAxis` (`X`/`Y`/`Z`/`View`/`Custom`), `clipPlaneRelativeTo` (`Origin`/`Center`/
+`Min`/`Max`), `clipPlaneOffset` and `clipPlaneFlipped` against the visible scene's bounding
+box into a `vec4` — xyz normal, w offset, a point surviving when `dot(vec4(p, 1), plane)`
+is at least 0. All-zero means keep everything, which is what every pass writes when clipping
+is off, so no shader branches and no pass has a second pipeline. The offset is a fraction of
+the scene's diagonal, so one range fits every model and a saved state survives a rescale.
+`View` resolves from the camera each frame; the others hold still while you orbit.
+
+Vertex shaders see **local** positions, so the world plane is transformed per layer:
+`ClipPlane::toLocal()` applies the transpose of the layer matrix, since a plane transforms
+as a row vector. That makes the plane per-mesh data with the same cadence as `mvp`, which is
+why it rides in the per-mesh uniform slice (`kUbufClipPlaneOffset`, and
+`kDecoratorClipPlaneOffset` for the two decorator blocks) rather than in a buffer of its own.
+
+Eleven vertex shaders write `gl_ClipDistance[0]`: the seven fill/wire/edge/point/bbox
+shaders and `selection_mask.vert` on `m_srb`, `depth_pick.vert` on `m_depthPickSrb`, and
+`overlay_decorator.vert` / `overlay_fat_decorator.vert` on the decorator and selection SRBs.
+The three that already redeclare `gl_PerVertex` for `gl_PointSize` list the clip distance
+there too, or `qsb` refuses the build. Gizmos, the background, raster passes and everything
+in UV mode are deliberately not clipped.
+
+> **This sets the OpenGL floor at 3.2 core.** `qt_add_shaders` passes `GLSL "150"` because
+> Qt's default set also bakes GLSL 100 es and 120, and SPIRV-Cross emits a global `out
+> float gl_ClipDistance[1]` for those profiles, which they reject. `qsb` exits 0 either way,
+> so the breakage would only appear when the GL backend compiled the shader at run time.
+> Metal, Vulkan and D3D are unaffected.
+
+**Cut rim.** `fill_smooth.vert` and `fill_flat.vert` also pass the clip distance to the
+fragment stage, where `fill_smooth.frag`, `fill_flat.frag` and `fill_radscale.frag` blend
+`clipRim.rgb` into the sliver just above zero, `clipRim.a` pixels wide:
+`smoothstep(width * fwidth(d), 0.0, d)`. `fwidth` is what keeps the band a constant number
+of pixels whatever angle the surface meets the plane at. Width 0 disables it.
+
+**Plane gizmo.** A bordered grid on the plane with a stem along the surviving side, built by
+`ClipPlane::planeGizmo()` and drawn on the line-gizmo pipeline the peer-view cameras use
+(`kClipPlaneGizmoRasterIndex`). It appears while the plane is moving and for 1200 ms after;
+`clipPlaneShowPlane` keeps it up permanently.
+
+**Interaction.** `Ctrl`+wheel slides the plane along its normal at 0.02 diagonals a notch;
+`Alt`+drag tips it, switching the axis to `Custom`. Both enable clipping if it is off, and
+the wheel starts it at `ClipPlane::offsetClearOfScene()` — the offset where the plane just
+touches the scene — so the next notch cuts. `Ctrl`+wheel used to scale `view.nearClipRatio`;
+that ratio is now a depth-precision setting reached only from the preferences. The controls
+also live behind the `RenderPass::ClipPlane` button on the pass bar.
+
 ## Depth Picking
 
 Double click schedules an offscreen depth-pick frame: depth encoded in RGB → one pixel read back → backend conventions normalized (Y flip, clip-depth range) → unprojected via inverse MVP → `trackballCenterPicked(worldPos)` emitted, animated recenter starts.
 
 ## `Scene3D` Camera and Interaction
 
-`ViewTrackball`: left drag = arcball/hyperbola rotation; middle/right drag or `Ctrl+Left` = pan; wheel = dolly; `Shift+Wheel` = vertigo (FOV + compensating dolly); double click = depth-pick + animated recenter. `Ctrl+Shift+Left` rotates the view-space headlight and shows the light gizmo while dragging. Gizmos are depth-aware and scale-stable across dolly/FOV changes. The corner `ViewAxisGizmo` uses the `view.axisGizmoSize` preference and lets axis clicks snap the 3D camera orientation. `MainWindow` can optionally synchronize camera state across 3D views and exposes a `Center on Selection` camera command; UV views keep independent pan/zoom.
+`ViewTrackball`: left drag = arcball/hyperbola rotation; middle/right drag or `Ctrl+Left` = pan; wheel = dolly; `Shift+Wheel` = vertigo (FOV + compensating dolly); double click = depth-pick + animated recenter. `Ctrl+Shift+Left` rotates the view-space headlight and shows the light gizmo while dragging. `Ctrl+Wheel` slides the clipping plane and `Alt+Left` tips it (see [Clipping Plane](#clipping-plane)). Gizmos are depth-aware and scale-stable across dolly/FOV changes. The corner `ViewAxisGizmo` uses the `view.axisGizmoSize` preference and lets axis clicks snap the 3D camera orientation. `MainWindow` can optionally synchronize camera state across 3D views and exposes a `Center on Selection` camera command; UV views keep independent pan/zoom.
 
 ## Interactive Tools
 
@@ -239,6 +291,31 @@ PBR rendering can consume normal maps directly as either tangent-space or object
 Snapshot-to-raster paths reuse the same view capture mechanics but add the resulting image to `Document` through `addRasterImage(...)` with a `CameraShot` from `RenderWidget::cameraShotForViewport(...)` or from `renderSnapshotFromStateJson(...)`. This is how manual snapshot rasters and the `Render from Render-State JSON` layer filter create raster layers.
 
 Programmatic snapshots use the same render-state JSON contract. Embedded `mlgui.render_snapshot(...)` and `mlgui.save_snapshot(...)` render through the live active `RenderWidget`; standalone `pymeshlab.MeshSet.render_snapshot(...)` uses `HeadlessRenderContext`, which owns a hidden `RenderWidget`/QRhi lifecycle for offscreen and batch rendering.
+
+## Verifying the Render Path
+
+The render path lives in the `MeshLab` executable, not a library, so a Qt test cannot link
+`RenderWidget` and there is no ctest for anything a shader decides. The route is the
+application's own `--generate-docs <dir>` hook, which execs `<dir>/generate_api.py` with the
+`_meshlab` module importable; a probe there builds a `MeshSet`, calls `render_snapshot()`
+with a render-state JSON, and asserts on the returned raw RGBA8888.
+
+`tests/render_probes/` holds these. Each is a directory with a `generate_api.py`, because
+that is the filename the hook runs:
+
+```
+build-release/MeshLab.app/Contents/MacOS/MeshLab --generate-docs tests/render_probes/clip_plane
+```
+
+They need a real GPU and a window server. Under `QT_QPA_PLATFORM=offscreen` there is no QRhi
+and every snapshot fails, which is the opposite of how the ctest suite is run.
+
+Two things to know before writing one, both of which look like bugs first: the default
+background is a gradient that passes through a band any naive "is this pixel lit" test
+scores as geometry, so render on a flat colour; and a pass that changes only hidden geometry
+must leave the image **exactly** unchanged, so equality is the assertion, not a tolerance.
+
+Moving the render sources into a linkable library would let these become real tests.
 
 ## Frame Timing
 

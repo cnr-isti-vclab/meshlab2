@@ -127,6 +127,13 @@ intrinsics in the `.mlp` must follow — `ViewportPx` and `CenterPx` scale with 
 `PixelSizeMm` inversely, `FocalMm` untouched — or every projection filter silently
 misprojects while still reporting success.
 
+**Nothing a shader decides is reachable from ctest**, because the render path lives in the
+`MeshLab` executable and a Qt test cannot link `RenderWidget`. Those checks are render
+probes: `tests/render_probes/*/generate_api.py`, run through the application's own
+`--generate-docs` hook, needing a real GPU and a window server — so `QT_QPA_PLATFORM=offscreen`
+breaks them, the opposite of the suite above. See
+[rendering.md](docs/design/rendering.md#verifying-the-render-path).
+
 ## Where things are documented
 
 `docs/design/README.md` indexes everything and separates **reference** (how MeshLab works
