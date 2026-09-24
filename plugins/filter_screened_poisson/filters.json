@@ -455,6 +455,14 @@
           "default": false
         },
         {
+          "id": "closeCut",
+          "label": "Close the cut",
+          "help": "If enabled, the boundary opened by the plane is filled with new faces, so a closed mesh stays closed. All the loops on the plane are filled together with an even-odd rule, so a cut that leaves concentric outlines is capped as a ring rather than as overlapping discs. Only those loops are filled; holes the mesh already had are left alone. It needs an edge-manifold mesh, and says so in the log if the cut had to be left open.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
           "id": "islandAreaRatio",
           "label": "Island Area Ratio",
           "help": "This floating point value specifies the relative area threshold used to detect small disconnected islands. Smaller components may be merged or removed according to the selected options.",

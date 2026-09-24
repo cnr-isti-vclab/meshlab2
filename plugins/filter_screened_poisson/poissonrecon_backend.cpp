@@ -11,7 +11,12 @@
 
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
+#include <vcg/complex/algorithms/clean.h>
+#include <vcg/complex/algorithms/hole.h>
 #include <vcg/complex/algorithms/update/bounding.h>
+#include <vcg/complex/algorithms/update/selection.h>
+#include <vcg/complex/algorithms/update/topology.h>
+#include <vcg/space/planar_polygon_tessellation.h>
 #include <vcg/complex/algorithms/update/normal.h>
 
 #include <algorithm>
@@ -19,6 +24,7 @@
 #include <limits>
 #include <list>
 #include <memory>
+#include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -698,6 +704,207 @@ void trimConnectedComponents(
     }
 }
 
+
+// Merges vertices that sit on the plane and on top of one another. They are snapped onto
+// the plane first, so what remains to compare is their position within it, and then given
+// one shared position so vcglib's exact de-duplication can do the actual welding and face
+// remapping.
+void weldCutBoundary(VCGMesh &mesh, const TrimField &field)
+{
+    const float tolerance = 1e-5f * std::max(1e-6f, mesh.bbox.Diag());
+
+    std::vector<int> onPlane;
+    for (int i = 0; i < int(mesh.vert.size()); ++i) {
+        VCGVertex &v = mesh.vert[size_t(i)];
+        if (v.IsD())
+            continue;
+        const float distance = field.normal * vcg::Point3f(v.cP()) + field.offset;
+        if (std::abs(distance) > tolerance)
+            continue;
+        v.P() -= field.normal * distance;   // exactly on the plane now
+        onPlane.push_back(i);
+    }
+    if (onPlane.size() < 2)
+        return;
+
+    // Sorted so coincident vertices are neighbours; the groups are tiny (a cut vertex has
+    // at most a handful of copies), so a linear sweep over the sorted order finds them.
+    std::sort(onPlane.begin(), onPlane.end(), [&mesh](int a, int b) {
+        const vcg::Point3f &pa = mesh.vert[size_t(a)].cP();
+        const vcg::Point3f &pb = mesh.vert[size_t(b)].cP();
+        if (pa.X() != pb.X()) return pa.X() < pb.X();
+        if (pa.Y() != pb.Y()) return pa.Y() < pb.Y();
+        return pa.Z() < pb.Z();
+    });
+
+    for (size_t i = 0; i < onPlane.size(); ++i) {
+        const vcg::Point3f anchor = mesh.vert[size_t(onPlane[i])].cP();
+        size_t j = i + 1;
+        while (j < onPlane.size()
+               && (mesh.vert[size_t(onPlane[j])].cP() - anchor).Norm() <= tolerance) {
+            mesh.vert[size_t(onPlane[j])].P() = anchor;   // exactly equal: now weldable
+            ++j;
+        }
+        i = j - 1;
+    }
+
+    vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(mesh);
+    // The slivers that spanned the two rings collapse to zero area once the rings are one.
+    vcg::tri::Clean<VCGMesh>::RemoveDegenerateFace(mesh);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+}
+
+// Fills the boundary the trim just opened, and only that one. Every vertex the cut created
+// lies on the plane, so the loops to close are exactly the border loops whose vertices all
+// do -- any other hole was in the mesh before and is not this filter's business.
+//
+// The loops go to the tessellator *together*, not one at a time. Ear-cutting each loop on
+// its own is wrong whenever the cut has more than one contour: a torus sliced through the
+// plane of its own central circle leaves two concentric circles, and filling the outer one
+// by itself paves over the hole. TessellatePlanarContours3 fills coplanar contours by the
+// even-odd rule, which is what makes that case an annulus. It is the same routine the
+// planar-section filter's cap uses.
+int closeCutBoundary(VCGMesh &mesh, const TrimField &field, QString &error)
+{
+    error.clear();
+    if (mesh.FN() <= 0)
+        return 0;
+
+    // When the plane passes through vertices the mesh already had -- a torus cut across its
+    // tube, a cube cut at a face -- the split still makes a new vertex for each crossing
+    // edge, landing a hair away from the original. The cut boundary then runs through two
+    // near-coincident rings joined by slivers, and no tessellator will accept that as an
+    // outline. Welding those pairs is what makes such cuts closable at all.
+    //
+    // Only vertices on the plane are touched, and only against each other, so a dense mesh
+    // keeps its detail everywhere else -- which a global MergeCloseVertex would not promise.
+    weldCutBoundary(mesh, field);
+
+    VCGMeshFFAdjScope ffAdj(mesh);
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+    if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh) > 0) {
+        error = QObject::tr(
+            "The cut was left open: closing it needs an edge-manifold mesh, and this one "
+            "has non-manifold edges.");
+        return 0;
+    }
+
+    // The cut vertices are placed on the plane by the split, so the tolerance only has to
+    // absorb rounding, not geometry.
+    const float tolerance = 1e-5f * std::max(1e-6f, mesh.bbox.Diag());
+    const auto onPlane = [&](const VCGVertex *v) {
+        return std::abs(field.normal * vcg::Point3f(v->cP()) + field.offset) <= tolerance;
+    };
+
+    // Walk every border loop once.
+    std::vector<bool> walked(size_t(mesh.face.size()) * 3, false);
+    std::vector<std::vector<VCGMesh::VertexPointer>> loops;
+    for (size_t fi = 0; fi < mesh.face.size(); ++fi) {
+        VCGFace &f = mesh.face[fi];
+        if (f.IsD())
+            continue;
+        for (int e = 0; e < 3; ++e) {
+            if (!vcg::face::IsBorder(f, e) || walked[fi * 3 + size_t(e)])
+                continue;
+
+            // Terminated on the visited marks rather than on returning to the starting
+            // Pos: a Pos carries a vertex as well as a face and an edge, and one circuit of
+            // a border loop comes back to the same edge with the other endpoint, so
+            // comparing against the start walks the loop twice and records every vertex
+            // twice -- which the tessellator then rejects as repeated points.
+            std::vector<VCGMesh::VertexPointer> loop;
+            bool allOnPlane = true;
+            vcg::face::Pos<VCGFace> pos(&f, e, f.V(e));
+            while (true) {
+                const size_t index = size_t(vcg::tri::Index(mesh, pos.F())) * 3 + size_t(pos.E());
+                if (walked[index])
+                    break;
+                walked[index] = true;
+                loop.push_back(pos.V());
+                allOnPlane = allOnPlane && onPlane(pos.V());
+                pos.NextB();
+            }
+
+            if (!allOnPlane || loop.size() < 3)
+                continue;
+            const std::set<VCGMesh::VertexPointer> distinct(loop.begin(), loop.end());
+            if (distinct.size() != loop.size()) {
+                error = QObject::tr(
+                    "The cut was left open: its outline passes through the same vertex more "
+                    "than once, so it is not a simple loop.");
+                return 0;
+            }
+            loops.push_back(std::move(loop));
+        }
+    }
+    if (loops.empty())
+        return 0;
+
+    // Projected into the plane's own frame rather than handed to the 3D entry point, which
+    // re-derives the plane and then demands the points sit on it to about 1e-10 of the
+    // scene size -- three orders tighter than float coordinates can express, so a cut whose
+    // vertices were interpolated in float never passes. The plane is known here, so there
+    // is nothing to re-derive.
+    vcg::Point3f basisU = std::abs(field.normal.X()) < 0.9f
+        ? vcg::Point3f(1.0f, 0.0f, 0.0f)
+        : vcg::Point3f(0.0f, 1.0f, 0.0f);
+    basisU = (basisU - field.normal * (field.normal * basisU)).Normalize();
+    const vcg::Point3f basisV = (field.normal ^ basisU).Normalize();
+
+    std::vector<std::vector<vcg::Point2d>> contours;
+    std::vector<VCGMesh::VertexPointer> flattened;
+    contours.reserve(loops.size());
+    for (const auto &loop : loops) {
+        std::vector<vcg::Point2d> contour;
+        contour.reserve(loop.size());
+        for (VCGMesh::VertexPointer v : loop) {
+            const vcg::Point3f p = v->cP();
+            contour.emplace_back(double(basisU * p), double(basisV * p));
+            flattened.push_back(v);
+        }
+        contours.push_back(std::move(contour));
+    }
+
+    std::vector<int> triangles;
+    if (!vcg::TessellatePlanarContours2(contours, triangles) || triangles.size() < 3) {
+        error = QObject::tr(
+            "The cut was left open: its outline (%1 loop(s)) could not be triangulated.")
+            .arg(loops.size());
+        return 0;
+    }
+
+    // The tessellator winds by the first contour's own normal, which need not be the way
+    // the cut faces. The cap closes the side the trim discarded, so it points against the
+    // plane normal.
+    const size_t firstNewFace = mesh.face.size();
+    for (size_t t = 0; t + 2 < triangles.size(); t += 3) {
+        const int a = triangles[t], b = triangles[t + 1], c = triangles[t + 2];
+        if (a < 0 || b < 0 || c < 0
+            || size_t(a) >= flattened.size() || size_t(b) >= flattened.size()
+            || size_t(c) >= flattened.size()
+            || a == b || b == c || a == c) {
+            continue;
+        }
+        vcg::tri::Allocator<VCGMesh>::AddFace(mesh, flattened[size_t(a)], flattened[size_t(b)],
+                                              flattened[size_t(c)]);
+    }
+    if (mesh.face.size() == firstNewFace) {
+        error = QObject::tr("The cut was left open: its outline produced no usable triangles.");
+        return 0;
+    }
+
+    vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
+    const vcg::Point3f capNormal = mesh.face[firstNewFace].cN();
+    if (capNormal * field.normal > 0.0f) {
+        for (size_t fi = firstNewFace; fi < mesh.face.size(); ++fi) {
+            if (!mesh.face[fi].IsD())
+                std::swap(mesh.face[fi].V(1), mesh.face[fi].V(2));
+        }
+    }
+    return int(loops.size());
+}
+
 template<typename Vertex, bool PreserveColor>
 MeshFilterRunResult runSurfaceTrimmerImpl(
     Document &doc,
@@ -807,6 +1014,19 @@ MeshFilterRunResult runSurfaceTrimmerImpl(
     appendTrimmedVerticesToMesh<PreserveColor>(vertices, gtPolygons, entry.mesh);
     vcg::tri::Allocator<VCGMesh>::CompactEveryVector(entry.mesh);
     vcg::tri::UpdateBounding<VCGMesh>::Box(entry.mesh);
+
+    QStringList extraMessages;
+    if (field.fromPlane && boolParameter(parameters, QStringLiteral("closeCut"), false)) {
+        reportProgress(cb, 90, QObject::tr("Closing the cut..."), true);
+        QString closeError;
+        const int filled = closeCutBoundary(entry.mesh, field, closeError);
+        if (!closeError.isEmpty())
+            extraMessages.push_back(closeError);
+        else
+            extraMessages.push_back(QObject::tr("Closed the cut with %1 loop(s).").arg(filled));
+        vcg::tri::Allocator<VCGMesh>::CompactEveryVector(entry.mesh);
+        vcg::tri::UpdateBounding<VCGMesh>::Box(entry.mesh);
+    }
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(entry.mesh);
     // The scalar written back is the mesh's own, so the mask only claims one if there was
     // one: a plane trim of a mesh with no scalar must not invent the claim that it has one.
@@ -825,6 +1045,7 @@ MeshFilterRunResult runSurfaceTrimmerImpl(
 
     QStringList infoMessages;
     infoMessages.push_back(contextMessage);
+    infoMessages += extraMessages;
     if (polygonMeshRequested) {
         infoMessages.push_back(
             QObject::tr("The original SurfaceTrimmer can preserve polygon output. MeshLab stores triangle meshes, so the result was triangulated."));

@@ -401,6 +401,9 @@ private slots:
     void planarSectionSurfaceUsesCpuTessellator();
     void trimByPlaneCutsAtThePlaneAndKeepsTheScalar();
     void trimByPlaneRefusesRatherThanEmptyTheLayer();
+    void trimByPlaneClosesTheCutOnRequest();
+    void trimByPlaneClosesAConcentricCutAsAnAnnulus();
+    void trimByPlaneClosesTwoDisjointCutsSeparately();
     void filterParameterValidation();
     void meshFixRepairsOpenCube();
     void qslimSimplifiesCube();
@@ -931,6 +934,257 @@ void FilterTests::trimByPlaneCutsAtThePlaneAndKeepsTheScalar()
         if (!v.IsD())
             QVERIFY(v.cP().X() <= cutX + 1e-4f);
     }
+}
+
+void FilterTests::trimByPlaneClosesTheCutOnRequest()
+{
+    // A closed cube, cut in half. Open, the result has a boundary; closed, it has none and
+    // still encloses a volume -- which is the whole point of the option.
+    const auto cutHalfCube = [](bool closeCut, int &boundaryEdges, int &faceCount, float &volume) {
+        Document doc;
+        VCGMesh cube;
+        makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+        vcg::tri::UpdateBounding<VCGMesh>::Box(cube);
+        const int meshIndex = doc.addMesh(cube, QStringLiteral("cube"));
+        QVERIFY(meshIndex >= 0);
+
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("planeAxis"), QStringLiteral("x"));
+        params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
+        params.insert(QStringLiteral("planeOffset"), 0.0);
+        params.insert(QStringLiteral("closeCut"), closeCut);
+        const MeshFilterRunResult result =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("trim_surface_by_plane")), params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+        VCGMesh &out = doc.mesh(meshIndex).mesh;
+        faceCount = out.FN();
+        {
+            VCGMeshFFAdjScope ffAdj(out);
+            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(out);
+            boundaryEdges = 0;
+            for (const VCGFace &f : out.face) {
+                if (f.IsD())
+                    continue;
+                for (int e = 0; e < 3; ++e) {
+                    if (vcg::face::IsBorder(f, e))
+                        ++boundaryEdges;
+                }
+            }
+        }
+        volume = vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(out);
+    };
+
+    int openBoundary = 0, openFaces = 0;
+    float openVolume = 0.0f;
+    cutHalfCube(false, openBoundary, openFaces, openVolume);
+    QVERIFY2(openBoundary > 0, "an uncapped cut leaves a boundary");
+
+    int closedBoundary = 0, closedFaces = 0;
+    float closedVolume = 0.0f;
+    cutHalfCube(true, closedBoundary, closedFaces, closedVolume);
+    QCOMPARE(closedBoundary, 0);
+    QVERIFY2(closedFaces > openFaces, "closing the cut adds faces");
+    // Half a unit cube. The open version's "volume" is meaningless; the closed one is real.
+    QVERIFY2(closedVolume > 0.0f, "the closed result encloses a volume");
+
+    // A hole the mesh already had is not this filter's business, and the help says so.
+    Document holed;
+    VCGMesh openCube;
+    makeCubeMesh(openCube, 0.0f, 0.0f, 0.0f);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(openCube);
+    // Punch a hole well clear of the cutting plane, on the surviving side: the face whose
+    // barycentre is furthest along +X is certainly both.
+    const int faceCountBefore = openCube.FN();
+    VCGFace *furthest = nullptr;
+    float furthestX = -std::numeric_limits<float>::max();
+    for (VCGFace &f : openCube.face) {
+        if (f.IsD())
+            continue;
+        const float x = vcg::Barycenter(f).X();
+        if (x > furthestX) {
+            furthestX = x;
+            furthest = &f;
+        }
+    }
+    QVERIFY(furthest != nullptr);
+    QVERIFY2(furthestX > openCube.bbox.Center().X(), "the punched hole must be on the kept side");
+    vcg::tri::Allocator<VCGMesh>::DeleteFace(openCube, *furthest);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(openCube);
+    QCOMPARE(openCube.FN(), faceCountBefore - 1);
+    const int holedIndex = holed.addMesh(openCube, QStringLiteral("holed cube"));
+    QVERIFY(holedIndex >= 0);
+
+    MeshFilterParameterValues holedParams;
+    holedParams.insert(QStringLiteral("planeAxis"), QStringLiteral("x"));
+    holedParams.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
+    holedParams.insert(QStringLiteral("planeOffset"), 0.0);
+    holedParams.insert(QStringLiteral("closeCut"), true);
+    const MeshFilterRunResult holedResult = holed.runFilter(
+        filterKeyForId(holed, QStringLiteral("trim_surface_by_plane")), holedParams);
+    QVERIFY2(holedResult.success, qPrintable(holedResult.errorMessage));
+
+    VCGMesh &holedOut = holed.mesh(holedIndex).mesh;
+    VCGMeshFFAdjScope holedAdj(holedOut);
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(holedOut);
+    int remaining = 0;
+    for (const VCGFace &f : holedOut.face) {
+        if (f.IsD())
+            continue;
+        for (int e = 0; e < 3; ++e) {
+            if (vcg::face::IsBorder(f, e))
+                ++remaining;
+        }
+    }
+    QVERIFY2(remaining > 0, "a hole the mesh already had must survive the cut being closed");
+}
+
+void FilterTests::trimByPlaneClosesAConcentricCutAsAnAnnulus()
+{
+    // A torus sliced through the plane of its own central circle leaves TWO concentric
+    // boundary circles, and the only right cap is an annulus. Filling each loop on its own
+    // paves over the hole, which is what ear-cutting them separately did.
+    Document doc;
+    const QString torusKey = filterKeyForId(doc, QStringLiteral("create_torus"));
+    QVERIFY(!torusKey.isEmpty());
+    MeshFilterParameterValues torusParams;
+    torusParams.insert(QStringLiteral("h_radius"), 3.0);
+    torusParams.insert(QStringLiteral("v_radius"), 1.0);
+    torusParams.insert(QStringLiteral("h_subdiv"), 48);
+    torusParams.insert(QStringLiteral("v_subdiv"), 24);
+    const MeshFilterRunResult torus = doc.runFilter(torusKey, torusParams);
+    QVERIFY2(torus.success, qPrintable(torus.errorMessage));
+    QCOMPARE(torus.newMeshIndices.size(), 1);
+    const int meshIndex = torus.newMeshIndices[0];
+    doc.setCurrentMeshIndex(meshIndex);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("planeAxis"), QStringLiteral("z"));
+    params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
+    params.insert(QStringLiteral("planeOffset"), 0.0);
+    params.insert(QStringLiteral("closeCut"), true);
+    const MeshFilterRunResult result =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("trim_surface_by_plane")), params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    // The log says whether the cut was closed or quietly left open; if it was, show it.
+    QVERIFY2(result.infoMessages.join(QStringLiteral(" | ")).contains(QStringLiteral("Closed the cut")),
+             qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
+
+    VCGMesh &out = doc.mesh(meshIndex).mesh;
+    const float innerRadius = 3.0f - 1.0f;   // h_radius - v_radius: the hole
+
+    int capTriangles = 0;
+    int insideTheHole = 0;
+    float closestVertex = std::numeric_limits<float>::max();
+    for (const VCGFace &f : out.face) {
+        if (f.IsD())
+            continue;
+        bool onPlane = true;
+        for (int k = 0; k < 3; ++k)
+            onPlane = onPlane && std::abs(f.cV(k)->cP().Z()) < 1e-4f;
+        if (!onPlane)
+            continue;
+        ++capTriangles;
+        for (int k = 0; k < 3; ++k) {
+            const vcg::Point3f &p = f.cV(k)->cP();
+            closestVertex = std::min(closestVertex, std::hypot(p.X(), p.Y()));
+        }
+        // A barycentre sits a chord's sagitta inside its own circle -- about 0.004 on a
+        // 48-gon of radius 2 -- so the margin has to allow that while still being nowhere
+        // near the hole, whose centre a paving triangle would sit at.
+        const vcg::Point3f b = vcg::Barycenter(f);
+        if (std::hypot(b.X(), b.Y()) < innerRadius * 0.9f)
+            ++insideTheHole;
+    }
+    QVERIFY2(capTriangles > 0, "the cut was not closed at all");
+    QCOMPARE(insideTheHole, 0);
+    // The strongest form of the same claim: the cap is built only from the two boundary
+    // circles, so no vertex of it lies inside the inner one.
+    QVERIFY2(closestVertex > innerRadius - 1e-3f,
+             qPrintable(QStringLiteral("a cap vertex at radius %1 is inside the hole")
+                            .arg(closestVertex)));
+
+    // And the half-torus really is closed.
+    VCGMeshFFAdjScope ffAdj(out);
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(out);
+    int borderEdges = 0;
+    for (const VCGFace &f : out.face) {
+        if (f.IsD())
+            continue;
+        for (int e = 0; e < 3; ++e) {
+            if (vcg::face::IsBorder(f, e))
+                ++borderEdges;
+        }
+    }
+    QCOMPARE(borderEdges, 0);
+}
+
+void FilterTests::trimByPlaneClosesTwoDisjointCutsSeparately()
+{
+    // The other shape a multi-loop cut takes: a torus sliced across its tube leaves two
+    // *disjoint* circles, one at each end of the C. Concentric loops and disjoint ones fail
+    // differently, and the first version of the cap handled neither -- so both are pinned.
+    //
+    // This cut also runs exactly through a ring of the torus's own vertices, which is the
+    // case that leaves near-coincident duplicates along the boundary.
+    Document doc;
+    const MeshFilterRunResult torus =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("create_torus")), {});
+    QVERIFY2(torus.success, qPrintable(torus.errorMessage));
+    QCOMPARE(torus.newMeshIndices.size(), 1);
+    const int meshIndex = torus.newMeshIndices[0];
+    doc.setCurrentMeshIndex(meshIndex);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("planeAxis"), QStringLiteral("x"));
+    params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
+    params.insert(QStringLiteral("planeOffset"), 0.0);
+    params.insert(QStringLiteral("closeCut"), true);
+    const MeshFilterRunResult result =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("trim_surface_by_plane")), params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY2(result.infoMessages.join(QStringLiteral(" | ")).contains(QStringLiteral("Closed the cut")),
+             qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
+
+    VCGMesh &out = doc.mesh(meshIndex).mesh;
+
+    // Two caps, one at each end of the C, and nothing bridging the gap between them: the
+    // torus's own hole is around y = 0, where neither cut is.
+    int capTriangles = 0;
+    int nearPositiveEnd = 0;
+    int nearNegativeEnd = 0;
+    for (const VCGFace &f : out.face) {
+        if (f.IsD())
+            continue;
+        bool onPlane = true;
+        for (int k = 0; k < 3; ++k)
+            onPlane = onPlane && std::abs(f.cV(k)->cP().X()) < 1e-4f;
+        if (!onPlane)
+            continue;
+        ++capTriangles;
+        const float y = vcg::Barycenter(f).Y();
+        QVERIFY2(std::abs(y) > 1.0f, "a cap triangle bridged the two disjoint cuts");
+        if (y > 0.0f)
+            ++nearPositiveEnd;
+        else
+            ++nearNegativeEnd;
+    }
+    QVERIFY(capTriangles > 0);
+    QVERIFY2(nearPositiveEnd > 0 && nearNegativeEnd > 0, "both ends must be capped");
+
+    // And the half-torus is closed.
+    VCGMeshFFAdjScope ffAdj(out);
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(out);
+    int borderEdges = 0;
+    for (const VCGFace &f : out.face) {
+        if (f.IsD())
+            continue;
+        for (int e = 0; e < 3; ++e) {
+            if (vcg::face::IsBorder(f, e))
+                ++borderEdges;
+        }
+    }
+    QCOMPARE(borderEdges, 0);
 }
 
 void FilterTests::trimByPlaneRefusesRatherThanEmptyTheLayer()
