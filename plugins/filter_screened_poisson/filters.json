@@ -378,6 +378,105 @@
       ]
     },
     {
+      "id": "trim_surface_by_plane",
+      "categories": ["Meshing/Remeshing"],
+      "name": "Trim Surface by Plane",
+      "pythonName": "trim_surface_by_plane",
+      "shortDescription": "Cuts the mesh with an oriented plane and keeps one side.",
+      "longDescriptionMarkdown": "Trims the current layer along an oriented plane, discarding everything behind it. Faces crossing the plane are split along it, so the cut is a clean boundary rather than a jagged edge along the nearest face borders.\n\nThe plane is described the same way as in *Create Polyline from Planar Section*, so a plane set up for one filter transfers to the other. The per-vertex scalar is preserved and interpolated onto the vertices created along the cut.\n\nThe cut is left open; the result is a surface with a new boundary, not a solid.",
+      "tags": [
+        "plane",
+        "trimming",
+        "cut",
+        "clip",
+        "section"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [
+        {
+          "id": "planeAxis",
+          "label": "Plane perpendicular to",
+          "help": "Direction the cutting plane faces. Everything behind the plane is discarded.",
+          "group": "main",
+          "type": "enum",
+          "default": "x",
+          "enumOptions": [
+            { "id": "x", "label": "X Axis" },
+            { "id": "y", "label": "Y Axis" },
+            { "id": "z", "label": "Z Axis" },
+            { "id": "custom", "label": "Custom Axis" }
+          ]
+        },
+        {
+          "id": "customAxis",
+          "label": "Custom Axis",
+          "help": "Direction the cutting plane faces when the axis is custom. It need not be unit length.",
+          "group": "advanced",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [0.0, 1.0, 0.0]
+        },
+        {
+          "id": "relativeTo",
+          "label": "Plane reference",
+          "help": "Point the offset is measured from.",
+          "group": "main",
+          "type": "enum",
+          "default": "center",
+          "enumOptions": [
+            { "id": "center", "label": "Bounding box center" },
+            { "id": "origin", "label": "Origin" },
+            { "id": "min", "label": "Bounding box min" },
+            { "id": "max", "label": "Bounding box max" }
+          ]
+        },
+        {
+          "id": "planeOffset",
+          "label": "Plane offset",
+          "help": "Distance from the reference point to the plane, measured along the plane direction.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": -1000000.0,
+          "max": 1000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "flip",
+          "label": "Keep other side",
+          "help": "If enabled, the side that would have been discarded is kept instead.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "islandAreaRatio",
+          "label": "Island Area Ratio",
+          "help": "This floating point value specifies the relative area threshold used to detect small disconnected islands. Smaller components may be merged or removed according to the selected options.",
+          "group": "advanced.cleanup",
+          "type": "double",
+          "default": 0.001,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 6
+        },
+        {
+          "id": "removeIslands",
+          "label": "Remove Islands",
+          "help": "If enabled, disconnected components whose area is below the island area ratio are removed instead of being preserved.",
+          "group": "advanced.cleanup",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": ["FV", "VG"]
+    },
+    {
       "id": "trim_surface_by_scalar_isovalue",
       "categories": ["Creation/Reconstruction"],
       "name": "Trim Surface by Scalar Isovalue",
@@ -394,7 +493,8 @@
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true,
-        "requireFaces": true
+        "requireFaces": true,
+        "requireVertexQuality": true
       },
       "parameters": [
         {

@@ -411,7 +411,7 @@ Canonical verbs for the leading word of a name. One meaning each.
 | `Duplicate`, `Split`, `Extract` | Layer-structure operations. `Split` additionally covers separating *mesh elements* that were sharing storage (*Split Vertices by Attribute Seam*) | `Clone`, `Separate`, `Detach` |
 | `Orient` | Make normals point consistently, or toward a reference | `Re-Orient`, `Reorient` — the values are flipped, not recalculated, so not `Compute` |
 | `Sharpen` | Enhance local variation in an attribute | *(the unsharp-mask filters had no verb at all)* |
-| `Trim` | Cut a surface along an isovalue of a scalar field and discard one side | *(neither `Remove`, which deletes whole elements, nor `Cut`, which keeps both sides)* |
+| `Trim` | Cut a surface along an isovalue of a scalar field, or along a plane, and discard one side | *(neither `Remove`, which deletes whole elements, nor `Cut`, which keeps both sides)* |
 | `Mirror` | Negate one or more axes | **`Flip`** — reserved above for edge flipping, which is its opposite: connectivity changes and vertices do not |
 | `Project` | Move vertices onto existing geometry, or onto a line | Admitted **narrowly**, for geometric projection. Still a rejected synonym for `Transfer` wherever attributes move between domains |
 | `Define` | Declare a new named custom attribute | Admitted **narrowly**, for that alone; otherwise still a rejected synonym for `Set` |

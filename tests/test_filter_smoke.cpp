@@ -423,6 +423,10 @@ FilterSmokeTests::Attempt FilterSmokeTests::attempt(Fixture f, const QString &fi
         m_outputDomainById.value(filterId, MeshFilterOutputDomain::Information);
 
     std::unique_ptr<Document> doc = buildDocument(f);
+    const int currentBefore = doc->currentMeshIndex();
+    const int verticesBefore = (currentBefore >= 0 && currentBefore < doc->meshCount())
+        ? doc->mesh(currentBefore).mesh.VN()
+        : 0;
     // runFilter validates the input domain itself and refuses with the same message
     // the menu would grey the entry out with, so the applicability check is left to it.
     const MeshFilterRunResult result = doc->runFilter(key, {});
@@ -447,6 +451,22 @@ FilterSmokeTests::Attempt FilterSmokeTests::attempt(Fixture f, const QString &fi
         }
         if (vertices <= 0) {
             out.error = QStringLiteral("reported success but the new layer is empty");
+            return out;
+        }
+    }
+
+    // The same failure mode from the other direction: a filter that edits the current
+    // layer must not quietly consume it. `trim_surface_by_scalar_isovalue` did exactly
+    // that on a mesh with no per-vertex scalar -- every vertex read 0.0, the default
+    // threshold is 0.0, and the layer was emptied and reported as a success. A filter
+    // whose honest answer is "nothing survives" should refuse and say so.
+    if (outputDomain == MeshFilterOutputDomain::ModifyCurrentMesh && verticesBefore > 0) {
+        const int currentAfter = doc->currentMeshIndex();
+        const int verticesAfter = (currentAfter >= 0 && currentAfter < doc->meshCount())
+            ? doc->mesh(currentAfter).mesh.VN()
+            : 0;
+        if (verticesAfter <= 0) {
+            out.error = QStringLiteral("reported success but emptied the current layer");
             return out;
         }
     }

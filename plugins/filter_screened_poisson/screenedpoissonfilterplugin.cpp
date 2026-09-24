@@ -15,6 +15,7 @@ namespace {
 constexpr QLatin1StringView kFilterScreenedPoisson("reconstruct_surface_by_screened_poisson");
 constexpr QLatin1StringView kFilterSSDRecon("reconstruct_surface_by_smooth_signed_distance");
 constexpr QLatin1StringView kFilterSurfaceTrimmer("trim_surface_by_scalar_isovalue");
+constexpr QLatin1StringView kFilterTrimByPlane("trim_surface_by_plane");
 
 std::vector<int> selectedMeshIndices(const Document &doc, bool mergeVisible)
 {
@@ -101,6 +102,33 @@ MeshFilterRunResult ScreenedPoissonFilterPlugin::runFilter(
         if (meshIndex < 0 || meshIndex >= doc.meshCount())
             return { false, false, QObject::tr("No current mesh selected.") };
         return ScreenedPoisson::runSurfaceTrimmerFilter(doc, meshIndex, params.rawValues());
+    }
+
+    if (filterId == QString::fromLatin1(kFilterTrimByPlane)) {
+        const int meshIndex = doc.currentMeshIndex();
+        if (meshIndex < 0 || meshIndex >= doc.meshCount())
+            return { false, false, QObject::tr("No current mesh selected.") };
+
+        // Resolved here rather than in the backend, because decoding a point3f parameter is
+        // FilterParams' job and the backend only sees the raw variant map.
+        const QString axis = params.getString(QStringLiteral("planeAxis"), QStringLiteral("x"));
+        vcg::Point3f normal(1.0f, 0.0f, 0.0f);
+        if (axis == QLatin1String("y"))
+            normal = vcg::Point3f(0.0f, 1.0f, 0.0f);
+        else if (axis == QLatin1String("z"))
+            normal = vcg::Point3f(0.0f, 0.0f, 1.0f);
+        else if (axis == QLatin1String("custom")) {
+            const QVector3D custom =
+                params.getPoint3f(QStringLiteral("customAxis"), QVector3D(0.0f, 1.0f, 0.0f));
+            normal = vcg::Point3f(custom.x(), custom.y(), custom.z());
+        }
+        // Which side survives. Flipping the normal is the whole of it, because the trimmer
+        // always keeps what the normal points at.
+        if (params.getBool(QStringLiteral("flip"), false))
+            normal = -normal;
+
+        return ScreenedPoisson::runTrimSurfaceByPlaneFilter(
+            doc, meshIndex, normal, params.rawValues());
     }
 
     if (filterId == QString::fromLatin1(kFilterScreenedPoisson) || filterId == QString::fromLatin1(kFilterSSDRecon)) {

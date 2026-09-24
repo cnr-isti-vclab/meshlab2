@@ -399,6 +399,8 @@ private slots:
     void filterApplicabilityReflectsDocumentState();
     void basicFiltersRunOnLoadedMesh();
     void planarSectionSurfaceUsesCpuTessellator();
+    void trimByPlaneCutsAtThePlaneAndKeepsTheScalar();
+    void trimByPlaneRefusesRatherThanEmptyTheLayer();
     void filterParameterValidation();
     void meshFixRepairsOpenCube();
     void qslimSimplifiesCube();
@@ -872,6 +874,98 @@ void FilterTests::basicFiltersRunOnLoadedMesh()
         QVERIFY(doc.mesh(generatedIndex).mesh.FN() > 0);
     }
     QCOMPARE(doc.meshCount(), meshCountBeforeCreate + 1);
+}
+
+void FilterTests::trimByPlaneCutsAtThePlaneAndKeepsTheScalar()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(cube);
+    // A scalar that varies along Y, so an X cut cannot be mistaken for it, and every
+    // surviving vertex can be checked against the value its position implies.
+    for (VCGVertex &v : cube.vert)
+        v.Q() = v.P().Y();
+    const int meshIndex = doc.addMesh(cube, QStringLiteral("cube"));
+    QVERIFY(meshIndex >= 0);
+    doc.mesh(meshIndex).ioMask |= vcg::tri::io::Mask::IOM_VERTQUALITY;
+
+    const QString key = filterKeyForId(doc, QStringLiteral("trim_surface_by_plane"));
+    QVERIFY(!key.isEmpty());
+
+    const vcg::Box3f box = doc.mesh(meshIndex).mesh.bbox;
+    const float cutX = box.Center().X();
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("planeAxis"), QStringLiteral("x"));
+    params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
+    params.insert(QStringLiteral("planeOffset"), 0.0);
+    const MeshFilterRunResult result = doc.runFilter(key, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    const VCGMesh &kept = doc.mesh(meshIndex).mesh;
+    QVERIFY(kept.VN() > 0);
+    QVERIFY(kept.FN() > 0);
+    for (const VCGVertex &v : kept.vert) {
+        if (v.IsD())
+            continue;
+        // Nothing survives behind the plane...
+        QVERIFY2(v.cP().X() >= cutX - 1e-4f, "a vertex survived on the discarded side");
+        // ...and the mesh's own scalar came through, including on the vertices the cut
+        // created, which is what carrying it as an interpolated channel buys.
+        QVERIFY2(std::abs(v.cQ() - v.cP().Y()) < 1e-4f, "the per-vertex scalar was not preserved");
+    }
+
+    // The other side is the complement: together they cover the original.
+    Document flipped;
+    VCGMesh again;
+    makeCubeMesh(again, 0.0f, 0.0f, 0.0f);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(again);
+    const int flippedIndex = flipped.addMesh(again, QStringLiteral("cube"));
+    QVERIFY(flippedIndex >= 0);
+    params.insert(QStringLiteral("flip"), true);
+    const MeshFilterRunResult flipResult =
+        flipped.runFilter(filterKeyForId(flipped, QStringLiteral("trim_surface_by_plane")), params);
+    QVERIFY2(flipResult.success, qPrintable(flipResult.errorMessage));
+    for (const VCGVertex &v : flipped.mesh(flippedIndex).mesh.vert) {
+        if (!v.IsD())
+            QVERIFY(v.cP().X() <= cutX + 1e-4f);
+    }
+}
+
+void FilterTests::trimByPlaneRefusesRatherThanEmptyTheLayer()
+{
+    // A plane clear of the mesh would leave nothing. The mesh must come back untouched
+    // rather than emptied-and-reported-as-a-success, which is what the scalar version of
+    // this filter used to do on a mesh with no scalar at all.
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(cube);
+    const int meshIndex = doc.addMesh(cube, QStringLiteral("cube"));
+    QVERIFY(meshIndex >= 0);
+    const int verticesBefore = doc.mesh(meshIndex).mesh.VN();
+    QVERIFY(verticesBefore > 0);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("trim_surface_by_plane"));
+    QVERIFY(!key.isEmpty());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("planeAxis"), QStringLiteral("x"));
+    params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
+    params.insert(QStringLiteral("planeOffset"), 1000.0);
+    const MeshFilterRunResult result = doc.runFilter(key, params);
+    QVERIFY2(!result.success, "a plane clear of the mesh must refuse");
+    QVERIFY(!result.errorMessage.trimmed().isEmpty());
+    QCOMPARE(doc.mesh(meshIndex).mesh.VN(), verticesBefore);
+
+    // And a normal of zero describes no plane at all.
+    params.insert(QStringLiteral("planeOffset"), 0.0);
+    params.insert(QStringLiteral("planeAxis"), QStringLiteral("custom"));
+    params.insert(QStringLiteral("customAxis"), QVector3D(0.0f, 0.0f, 0.0f));
+    const MeshFilterRunResult zeroNormal = doc.runFilter(key, params);
+    QVERIFY2(!zeroNormal.success, "a zero normal must refuse");
+    QCOMPARE(doc.mesh(meshIndex).mesh.VN(), verticesBefore);
 }
 
 void FilterTests::filterParameterValidation()

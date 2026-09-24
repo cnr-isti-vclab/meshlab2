@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
 #include <list>
 #include <memory>
 #include <unordered_map>
@@ -66,6 +67,15 @@ double doubleParameter(const MeshFilterParameterValues &params, const QString &i
     bool ok = false;
     const double value = it.value().toDouble(&ok);
     return ok ? value : fallback;
+}
+
+QString stringParameter(const MeshFilterParameterValues &params, const QString &id, const QString &fallback)
+{
+    const auto it = params.constFind(id);
+    if (it == params.constEnd())
+        return fallback;
+    const QString value = it.value().toString();
+    return value.isEmpty() ? fallback : value;
 }
 
 bool boolParameter(const MeshFilterParameterValues &params, const QString &id, bool fallback)
@@ -531,6 +541,39 @@ void setConnectedComponents(const std::vector<std::vector<Index>> &polygons, std
         components[size_t(vMap[polygonRoots[size_t(i)]])].push_back(i);
 }
 
+// What the trimmer splits on. The surface trimmer itself only ever sees one number per
+// vertex; whether that number is the mesh's own scalar or a distance to a plane is the
+// only difference between the two filters built on it.
+struct TrimField
+{
+    bool fromPlane = false;
+    vcg::Point3f normal{0.0f, 0.0f, 1.0f};   // unit length
+    float offset = 0.0f;                     // the plane is dot(normal, p) + offset == 0
+};
+
+// The mesh's own per-vertex scalar, carried alongside whatever drives the split. It is the
+// last aux channel in both vertex layouts, and `DirectSum` interpolates every channel, so
+// vertices created along the cut get the right scalar too -- which is why this is carried
+// rather than saved and restored: a trim *creates* vertices, and there is nothing to
+// restore onto them.
+template<bool PreserveColor, class Vertex>
+auto &carriedScalar(Vertex &v)
+{
+    if constexpr (PreserveColor)
+        return v.template get<3>();
+    else
+        return v.template get<2>();
+}
+
+template<bool PreserveColor, class Vertex>
+const auto &carriedScalar(const Vertex &v)
+{
+    if constexpr (PreserveColor)
+        return v.template get<3>();
+    else
+        return v.template get<2>();
+}
+
 template<bool PreserveColor, class Vertex>
 void appendTrimmedVerticesToMesh(const std::vector<Vertex> &vertices, const std::vector<std::vector<int>> &polygons, VCGMesh &mesh)
 {
@@ -538,7 +581,7 @@ void appendTrimmedVerticesToMesh(const std::vector<Vertex> &vertices, const std:
     for (const Vertex &vertex : vertices) {
         const auto &p = vertex.template get<0>();
         vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, vcg::Point3f(p[0], p[1], p[2]));
-        mesh.vert.back().Q() = vertex.template get<1>();
+        mesh.vert.back().Q() = carriedScalar<PreserveColor>(vertex);
         if constexpr (PreserveColor) {
             const auto &c = vertex.template get<2>();
             mesh.vert.back().C()[0] = static_cast<unsigned char>(std::clamp(c[0], 0.0f, 255.0f));
@@ -659,12 +702,15 @@ template<typename Vertex, bool PreserveColor>
 MeshFilterRunResult runSurfaceTrimmerImpl(
     Document &doc,
     int meshIndex,
+    const TrimField &field,
+    const QString &filterName,
     const MeshFilterParameterValues &parameters)
 {
     Document::MeshEntry &entry = doc.mesh(meshIndex);
     const auto &mesh = entry.mesh;
     if (mesh.FN() <= 0)
-        return { false, false, QObject::tr("Surface Trimmer requires a mesh with faces.") };
+        return { false, false, QObject::tr("%1 requires a mesh with faces.").arg(filterName) };
+    const bool hadVertexScalar = (entry.ioMask & Mask::IOM_VERTQUALITY) != 0;
 
     const float trimValue = float(doubleParameter(parameters, QStringLiteral("trim"), 0.0));
     const double islandAreaRatio = doubleParameter(parameters, QStringLiteral("islandAreaRatio"), 0.001);
@@ -672,13 +718,17 @@ MeshFilterRunResult runSurfaceTrimmerImpl(
     const bool polygonMeshRequested = boolParameter(parameters, QStringLiteral("polygonMesh"), false);
 
     vcg::CallBackPos *cb = doc.progressCallback();
-    const QString progressLabel = QObject::tr("Trim Surface by Scalar Isovalue");
+    const QString progressLabel = filterName;
     doc.beginFilterProgress(progressLabel);
     reportProgress(cb, 0, QObject::tr("Preparing Surface Trimmer input..."), true);
 
     std::vector<Vertex> vertices;
     std::vector<int> vertexMap(mesh.vert.size(), -1);
     vertices.reserve(size_t(mesh.VN()));
+    // Read now, while every vertex is still in the list: removeHangingVertices below
+    // empties it when nothing survives, which is exactly when the range is worth saying.
+    float scalarMin = std::numeric_limits<float>::max();
+    float scalarMax = std::numeric_limits<float>::lowest();
     for (size_t i = 0; i < mesh.vert.size(); ++i) {
         const VCGVertex &v = mesh.vert[i];
         vertexMap[i] = int(vertices.size());
@@ -687,7 +737,13 @@ MeshFilterRunResult runSurfaceTrimmerImpl(
         outVertex.template get<0>()[0] = pos[0];
         outVertex.template get<0>()[1] = pos[1];
         outVertex.template get<0>()[2] = pos[2];
-        outVertex.template get<1>() = v.cQ();
+        const float split = field.fromPlane
+            ? (field.normal * vcg::Point3f(v.cP()) + field.offset)
+            : v.cQ();
+        outVertex.template get<1>() = split;
+        carriedScalar<PreserveColor>(outVertex) = v.cQ();
+        scalarMin = std::min(scalarMin, split);
+        scalarMax = std::max(scalarMax, split);
         if constexpr (PreserveColor) {
             outVertex.template get<2>()[0] = float(v.C()[0]);
             outVertex.template get<2>()[1] = float(v.C()[1]);
@@ -708,7 +764,8 @@ MeshFilterRunResult runSurfaceTrimmerImpl(
     }
 
     if (polygons.empty()) {
-        const QString message = QObject::tr("Surface Trimmer could not read any valid faces from the current mesh.");
+        const QString message =
+            QObject::tr("%1 could not read any valid faces from the current mesh.").arg(filterName);
         doc.finishFilterProgress(false, message);
         return { false, false, message };
     }
@@ -729,12 +786,33 @@ MeshFilterRunResult runSurfaceTrimmerImpl(
     gtPolygons = std::move(triangles);
     removeHangingVertices(vertices, gtPolygons);
 
+    // Everything below the threshold is discarded, so a threshold above the scalar's
+    // maximum discards the mesh -- and `entry.mesh.Clear()` a line down is unconditional,
+    // so by the time anyone noticed, the layer was gone and reported as a success. Refuse
+    // instead, and say what range the threshold has to fall in to do anything useful.
+    if (gtPolygons.empty()) {
+        const QString message = field.fromPlane
+            ? QObject::tr(
+                  "%1 would remove the whole mesh: the plane lies entirely on one side of "
+                  "it. The mesh was left unchanged.").arg(filterName)
+            : QObject::tr(
+                  "%1 would remove the whole mesh: the threshold is %2 and the vertex "
+                  "scalar only spans %3 to %4. The mesh was left unchanged.")
+                  .arg(filterName).arg(trimValue).arg(scalarMin).arg(scalarMax);
+        doc.finishFilterProgress(false, message);
+        return { false, false, message };
+    }
+
     entry.mesh.Clear();
     appendTrimmedVerticesToMesh<PreserveColor>(vertices, gtPolygons, entry.mesh);
     vcg::tri::Allocator<VCGMesh>::CompactEveryVector(entry.mesh);
     vcg::tri::UpdateBounding<VCGMesh>::Box(entry.mesh);
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(entry.mesh);
-    entry.ioMask |= Mask::IOM_VERTQUALITY | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+    // The scalar written back is the mesh's own, so the mask only claims one if there was
+    // one: a plane trim of a mesh with no scalar must not invent the claim that it has one.
+    entry.ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+    if (hadVertexScalar)
+        entry.ioMask |= Mask::IOM_VERTQUALITY;
     if constexpr (PreserveColor)
         entry.ioMask |= Mask::IOM_VERTCOLOR;
 
@@ -1070,9 +1148,13 @@ MeshFilterRunResult runSSDReconFilter(
         });
 }
 
-MeshFilterRunResult runSurfaceTrimmerFilter(
+namespace {
+
+MeshFilterRunResult runTrim(
     Document &doc,
     int meshIndex,
+    const TrimField &field,
+    const QString &filterName,
     const MeshFilterParameterValues &parameters)
 {
     if (meshIndex < 0 || meshIndex >= doc.meshCount())
@@ -1082,17 +1164,82 @@ MeshFilterRunResult runSurfaceTrimmerFilter(
         ? boolParameter(parameters, QStringLiteral("preserveColor"), true)
         : (doc.mesh(meshIndex).ioMask & Mask::IOM_VERTCOLOR) != 0;
     try {
+        // The last aux channel is the mesh's own scalar in both layouts; see carriedScalar.
         if (preserveColor) {
-            using Vertex = ValuedPointData<float, 3, Point<float, 3>>;
-            return runSurfaceTrimmerImpl<Vertex, true>(doc, meshIndex, parameters);
+            using Vertex = ValuedPointData<float, 3, Point<float, 3>, float>;
+            return runSurfaceTrimmerImpl<Vertex, true>(doc, meshIndex, field, filterName, parameters);
         }
-        using Vertex = ValuedPointData<float, 3>;
-        return runSurfaceTrimmerImpl<Vertex, false>(doc, meshIndex, parameters);
+        using Vertex = ValuedPointData<float, 3, float>;
+        return runSurfaceTrimmerImpl<Vertex, false>(doc, meshIndex, field, filterName, parameters);
     } catch (const std::exception &ex) {
-        const QString message = QObject::tr("Surface Trimmer failed: %1").arg(QString::fromUtf8(ex.what()));
+        const QString message =
+            QObject::tr("%1 failed: %2").arg(filterName, QString::fromUtf8(ex.what()));
         doc.finishFilterProgress(false, message);
         return { false, false, message };
     }
 }
 
+} // namespace
+
+MeshFilterRunResult runSurfaceTrimmerFilter(
+    Document &doc,
+    int meshIndex,
+    const MeshFilterParameterValues &parameters)
+{
+    return runTrim(doc, meshIndex, TrimField{},
+                   QObject::tr("Trim Surface by Scalar Isovalue"), parameters);
+}
+
+MeshFilterRunResult runTrimSurfaceByPlaneFilter(
+    Document &doc,
+    int meshIndex,
+    const vcg::Point3f &planeNormal,
+    const MeshFilterParameterValues &parameters)
+{
+    const QString filterName = QObject::tr("Trim Surface by Plane");
+    if (meshIndex < 0 || meshIndex >= doc.meshCount())
+        return { false, false, QObject::tr("No current mesh selected.") };
+
+    // The caller has already turned the axis choice into a direction, because decoding a
+    // point3f parameter is FilterParams' job and doing it again here would be a second
+    // copy of the same rules.
+    vcg::Point3f normal = planeNormal;
+    const float length = normal.Norm();
+    if (!std::isfinite(length) || length < 1e-9f)
+        return { false, false, QObject::tr("%1 needs a plane normal that is not zero.").arg(filterName) };
+    normal /= length;
+
+    VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+    if (mesh.VN() <= 0)
+        return { false, false, QObject::tr("%1 requires a mesh with vertices.").arg(filterName) };
+    if (mesh.bbox.IsNull())
+        vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+
+    // The same plane vocabulary Create Polyline from Planar Section established, so a plane
+    // set up for one filter transfers to the other by reading the values across. `max` is
+    // the one addition, for symmetry with `min`.
+    const QString relativeTo =
+        stringParameter(parameters, QStringLiteral("relativeTo"), QStringLiteral("center"));
+    vcg::Point3f reference(0.0f, 0.0f, 0.0f);
+    if (relativeTo == QLatin1String("center"))
+        reference = mesh.bbox.Center();
+    else if (relativeTo == QLatin1String("min"))
+        reference = mesh.bbox.min;
+    else if (relativeTo == QLatin1String("max"))
+        reference = mesh.bbox.max;
+
+    const float offset = float(doubleParameter(parameters, QStringLiteral("planeOffset"), 0.0));
+    const vcg::Point3f onPlane = reference + normal * offset;
+
+    TrimField field;
+    field.fromPlane = true;
+    field.normal = normal;
+    field.offset = -(normal * onPlane);
+
+    // The field is the signed distance to the plane and the trimmer keeps what is above the
+    // threshold, so the threshold is zero and the cut lands exactly on the plane.
+    MeshFilterParameterValues withThreshold = parameters;
+    withThreshold[QStringLiteral("trim")] = 0.0;
+    return runTrim(doc, meshIndex, field, filterName, withThreshold);
+}
 } // namespace ScreenedPoisson
