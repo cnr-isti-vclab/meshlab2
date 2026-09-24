@@ -37,7 +37,7 @@ inline QShader loadShader(const QString &path)
     return QShader::fromSerialized(f.readAll());
 }
 
-inline constexpr int kUbufSize = 368; // expanded: added vec4 clipPlane at offset 352
+inline constexpr int kUbufSize = 384; // expanded: added vec4 clipRim at offset 368
 inline constexpr int kUbufFloatCount = kUbufSize / sizeof(float);
 inline constexpr int kUbufBBoxColorOffset = 176 / sizeof(float);
 inline constexpr int kUbufPointColorOffset = 192 / sizeof(float);
@@ -55,6 +55,9 @@ inline constexpr int kUbufLightDirOffset = 336 / sizeof(float);        // vec4 l
 // no clipping. It lives in the per-mesh slice because it is per-mesh data: one world plane
 // becomes a different local plane for every layer transform.
 inline constexpr int kUbufClipPlaneOffset = 352 / sizeof(float);
+// rgb = the colour of the band where the surface meets the clipping plane, a = its width
+// in pixels. Zero width leaves the band undrawn.
+inline constexpr int kUbufClipRimOffset = 368 / sizeof(float);
 inline constexpr int kFillVertexStrideFloats = 13;
 inline constexpr int kPointsVertexStrideFloats = 11;
 inline constexpr int kMaskMorphUbufSize = 16;

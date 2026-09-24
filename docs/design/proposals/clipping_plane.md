@@ -1,10 +1,9 @@
 # Clipping Plane
 
 An interactive plane that cuts away part of the scene so you can see inside it, integrated
-into the shaders rather than faked with the near clipping plane. **Partly implemented**: it
-cuts and it draws itself, but it is still driven from the render panel rather than by
-dragging, and the cut surface is left as the raw interior. When the remaining phases land,
-this moves into [rendering.md](../rendering.md) and the proposal goes away.
+into the shaders rather than faked with the near clipping plane. **Implemented**; this
+document is kept until its content moves into [rendering.md](../rendering.md), at which
+point it goes away.
 
 Today the only way to cut into an object is `view.nearClipRatio`, which slides the near
 plane towards the eye. That works, and people use it, but it has three limitations that
@@ -16,17 +15,22 @@ are not fixable where it lives:
 - It is **invisible**. Nothing on screen says where the plane is, so you discover the cut
   by overshooting it. (The peer-view camera gizmo now draws the near plane truthfully, but
   only for *another* view, and only as a rectangle at the frustum's mouth.)
-- It **costs depth precision**: resolution at distance Z goes as Z²/near, so cutting deep
-  into an object by raising `nearClipRatio` degrades the depth buffer everywhere.
+- It **ties the cut to the depth buffer**. Depth resolution at distance Z goes as Z²/near,
+  so the one control sets both. Cutting in happens to *improve* precision — at the default
+  framing, pushing the ratio from 0.00333 to 0.66 takes resolution at the object from
+  5.4e-5 to 1.9e-7 scene radii — but scrubbing back out toward the 1e-5 floor collapses it
+  to 1.8e-2, two percent of the object's radius, which is where wireframe-over-fill starts
+  to shimmer. You cannot choose the cut and the precision separately.
 
 This document proposes replacing that use of the near plane with a real clipping plane,
 and keeps the near plane for what it is for.
 
 ## Status
 
-As of 2026-09-23: **phases 1 and 2 are implemented**; direct manipulation and the cut's
-appearance are not. The plane is driven from the render panel and from a render state, cuts
-every Scene3D pass including picking, and draws itself.
+As of 2026-09-24: **all four phases are implemented**. The plane cuts every Scene3D pass
+including picking, marks where it meets the surface, shows its own grid while being moved,
+is driven by `Ctrl`+wheel and `Alt`+drag as well as from a saved render state, and has its
+own button on the render panel's pass bar.
 
 Three questions were settled the same day: the OpenGL floor **moves to 3.2 core**, there is
 **no per-layer exemption**, and **raster mode is out of scope**.
@@ -196,9 +200,16 @@ filter describe a plane the same way:
 | `clipPlaneFlipped` | `bool` | which side is kept |
 | `clipPlaneShowPlane` | `bool` | draw the plane itself |
 
-Each is one line in the `rendersettingsjson.cpp` field-list macro, which generates the JSON
-conversion and the equality operator together, and one bound widget in `RenderOverlayPanel`
-beside the existing global checkboxes. `QVector3D` was not a supported field type and gained
+Plus `clipPlaneRimColor` and `clipPlaneRimWidth` for the cut rim. Each is one line in the
+`rendersettingsjson.cpp` field-list macro, which generates the JSON conversion and the
+equality operator together. `kGlobalSettingsFieldCount` went 34 → 43.
+
+**They live on their own page, behind their own button on the pass bar**
+(`RenderPass::ClipPlane`, appended to the enum rather than inserted, since the pass is
+stored as an integer in every saved render state). The button is the enable and the arrow
+under it opens the page, which is the idiom every other pass already uses. That is what
+makes the feature findable: buried in the Viewer Settings page, the axis presets existed but
+nobody would meet them, and a cut you cannot find is a cut you do not have. `QVector3D` was not a supported field type and gained
 the same pair of conversions `QColor` has. `kGlobalSettingsFieldCount` went 34 → 41.
 
 `clipPlaneCustomAxis` has no spin boxes yet; it is reached by **Freeze to View**, which
@@ -212,59 +223,90 @@ the current direction, so "cut here, then orbit to look at it" is two clicks.
 
 ## Seeing where the plane is
 
-Two different things, worth keeping apart.
+Two different things, and both shipped.
 
-**The plane itself** (proposed for phase 1). A translucent quad with a grid, sized to the
-visible scene's bounding box and drawn at the plane, plus a short normal arrow showing
-which side survives. It is a gizmo, so it is not clipped by itself, and it reuses the
-line-gizmo pipeline that already draws the trackball, the light and the peer cameras;
-`linerenderer.h` has the fat-line vertex builders. This alone answers most of what the
-near plane could never tell you.
+**The plane's own grid**, a bordered grid lying on it with a short stem along the normal
+marking the side that survives. It is a gizmo, so it is not clipped by itself, and it rides
+the line-gizmo pipeline that already draws the trackball, the light and the peer cameras.
 
-**The cut surface** — what the object looks like where it was sliced. Three options, in
-increasing cost:
+It **shows while the plane is being moved and for 1200 ms after** — the same dwell the
+interaction status overlay uses, so the grid and the readout describing it come and go
+together. `clipPlaneShowPlane` keeps it up permanently, and is off by default: a grid across
+the object is how you place a cut and the last thing you want once it is placed.
 
-1. **Nothing.** You see the hollow interior: backfaces, lit. Honest, and for a scan or an
-   open surface it is the only truthful answer, because there *is* no solid interior.
-2. **Backfaces in a distinct colour.** One pipeline variant, no extra pass. Reads as a
-   solid-ish cut without claiming to be one. Works on open and non-manifold meshes, which
-   is most of what MeshLab is used on.
-3. **A stencil cap.** The classic two-pass trick — back faces increment, front faces
-   decrement, then fill the plane where the count is non-zero. `QRhiRenderBuffer::DepthStencil`
-   is already what every off-screen target here allocates, so the buffer exists. It is
-   exact for a closed manifold and produces garbage for anything else, which is a poor
-   default for this archive.
+**The cut rim**: where the surface runs into the plane, coloured in the fill shaders.
+`fill_smooth.vert` and `fill_flat.vert` hand the clip distance to the fragment stage as a
+varying, and `fill_smooth.frag`, `fill_flat.frag` and `fill_radscale.frag` shade the sliver
+just above zero:
 
-Recommendation: 2 as the shipped behaviour, 3 behind a checkbox later if anyone wants it
-for watertight CAD-like meshes. The live *outline* of the cut is a fourth thing again —
-`vcg::IntersectionPlaneMesh` computes it exactly, and
-`create_polyline_from_planar_section` already wraps that when you want it as a layer, but
-recomputing it per frame on a multi-million-face mesh is not a viewport feature.
+```glsl
+float band = smoothstep(ub.clipRim.a * fwidth(v_clipDistance), 0.0, v_clipDistance);
+color = mix(color, ub.clipRim.rgb, band);
+```
+
+`fwidth` is what makes the band a constant number of pixels. Without it the rim would be a
+hairline where the surface runs into the plane head-on and a wide smear where it meets it
+at a glancing angle — exactly backwards, since the glancing case is the one that needs
+least marking. The colour and the width in pixels ride in `vec4 clipRim`, so a width of zero
+turns it off without a second pipeline.
+
+The band does spread where the surface is nearly *tangent* to the plane, which is inherent
+to marking a surface by its distance to a plane rather than an artefact of `fwidth`.
+Measured: at the offset where the plane is about to touch a framed sphere, it is **four
+pixels** out of 57600. Not worth a uniform to bound it.
+
+A stencil cap — filling the cut as if the object were solid — is still not built, and still
+looks like the wrong default: it is exact for a closed manifold and produces garbage for
+anything else, which is most of what MeshLab is used on. The live *outline* of the cut as
+real geometry is a different thing again: `vcg::IntersectionPlaneMesh` computes it exactly
+and `create_polyline_from_planar_section` already wraps that when you want it as a layer.
 
 ## Interaction
 
-Following the headlight, which is the closest existing thing: a modifier-drag on the view,
-a gizmo, and a status overlay naming the gesture.
+Two chords, both of which turn clipping on if it is off — which is how anyone finds the
+feature, since nobody reads a panel first.
 
-- **Slide** — drag, or the wheel, moves the plane along its own normal. The wheel is the
-  gesture that replaces "nudge `nearClipRatio`", and it should feel the same.
-- **Orient** — presets for X / Y / Z / view / flip in the render panel; free rotation by
-  dragging the gizmo's normal arrow.
-- **Numeric** — normal and offset as spin boxes in the render panel, because a plane
-  fitted by `create_plane_from_selection` or read off a paper has numbers, not a drag.
+- **`Ctrl`+wheel slides** the plane along its own normal, at 0.02 diagonals a notch. On the
+  notch that enables it the plane starts where it just touches the scene
+  (`ClipPlane::offsetClearOfScene`), so the very next notch cuts. Starting from a safe
+  guess instead — half a diagonal back — would spend eight or so notches doing nothing,
+  because a box's diagonal is longer than its extent along any one direction.
+- **`Alt`+drag tips** it, switching the axis to `Custom` as it goes. Dragging right swings
+  the normal towards the camera's right and dragging down towards its floor;
+  `ClipPlane::rotateNormal` is a free function so those two signs are pinned by a test
+  rather than by trying it.
 
-The modifier chord is unclaimed as of today (`Ctrl+Shift+Left` is the headlight) and is
-picked in phase 2, not here.
+`Ctrl` rather than `Alt` for the drag would have read better beside `Ctrl`+wheel, but macOS
+turns a `Ctrl`+click into a right-click before Qt sees it, so `Ctrl`+drag is not a chord
+this application can rely on. `Ctrl`+wheel is untouched by that and keeps the gesture people
+already used for cutting.
+
+Both route through `setRenderSettings`, so the panel's controls follow the gesture live and
+a gesture is saved in a render state like any other setting. Both sit after the
+interactive-tool dispatch in the event handlers, so an engaged tool keeps priority.
+
+Not built: a grabbable handle on the gizmo's normal arrow. A modifier chord gives the same
+capability without screen-space hit-testing, and the arrow stays what it is — the thing that
+says which side survives.
+
+The panel keeps the numeric route, because a plane fitted by `create_plane_from_selection`
+or read off a paper has numbers, not a drag.
 
 ## What happens to `nearClipRatio`
 
 It stays, and goes back to being what its name says. The help text has already been
 corrected — it said "fraction of the scene radius" while the code multiplies the
-eye-to-target distance. Once the clipping plane ships, the "raise it to cut into the
-object" sentence comes back out and the control returns to its depth-precision job, with
-its default left alone.
+eye-to-target distance. When phase 3 lands, the "raise it to cut into the object" sentence
+comes back out and the control returns to its depth-precision job, with its default left
+alone. Nothing is removed: a saved view state that raised `nearClipRatio` keeps working.
 
-Nothing is removed: a saved view state that raised `nearClipRatio` keeps working.
+**This is not a depth-precision win, and should not be sold as one.** Holding near at its
+default while the shader does the cutting is much better than scrubbing near to its floor,
+but it is worse than a deep near-plane cut, which pushes near out and sharpens the depth
+buffer as a side effect. A wireframe that shimmers at the default near plane will still
+shimmer with the clipping plane. What is gained is a cut that can face any way, stays put
+when the camera moves, says where it is, and is obeyed by picking, decorators and the
+selection overlay.
 
 ## Phases
 
@@ -274,12 +316,14 @@ Nothing is removed: a saved view state that raised `nearClipRatio` keeps working
    line-gizmo pipeline the peer cameras already use (`kClipPlaneGizmoRasterIndex`).
 2. **Picking, decorators, selection — done.** `depth_pick.vert` and the two decorator
    shaders. Picking through a cut is a bug, so this was never optional.
-3. **Direct manipulation.** Drag and wheel gestures, a normal-arrow handle, a status
-   overlay. Until this lands the plane is driven from the panel, which is enough to use it
-   but not enough to explore with.
-4. **Cut appearance.** MeshLab renders two-sided, so a cut currently shows the lit interior
-   of the far shell — option 1 below, and serviceable. A distinct backface colour is the
-   cheap improvement; a stencil cap is the expensive one.
+3. **Direct manipulation — done.** `Ctrl`+wheel to slide, `Alt`+drag to tip, both with a
+   status overlay, and `ViewTrackball::wheel` no longer scales `nearClipRatio` — that chord
+   now belongs to the plane, and the ratio is a depth-precision setting reachable from the
+   preferences and nowhere else. A grabbable arrow handle was dropped in favour of the
+   chord; see *Interaction*.
+4. **Cut appearance — done.** The rim, above. MeshLab renders two-sided, so the cut also
+   shows the lit interior of the far shell behind it; a stencil cap remains unbuilt and
+   unwanted as a default.
 
 A slab — two parallel planes, for looking at a slice rather than a half — is
 `gl_ClipDistance[1]` and a second `vec4`.

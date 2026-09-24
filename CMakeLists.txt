@@ -442,6 +442,7 @@ qt_add_resources(MeshLab2 "icons"
         img/normals.png
         img/boundary.png
         img/box.png
+        img/clipplane.png
         img/points.png
         img/edge-mesh.png
         img/wireframe.png

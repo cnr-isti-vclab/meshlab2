@@ -7,6 +7,7 @@
 #include "document.h"
 #include "interactivetool.h"
 #include "qualityrange.h"
+#include "clipplane.h"
 #include "renderoverlaypanel.h"
 #include "viewaxisgizmo.h"
 #include "viewgridlayout.h"
@@ -1650,6 +1651,11 @@ void RenderWidget::createOverlayButtons()
         "  border-radius: 6px;"
         "  padding: 5px 10px;"
         "}"));
+    m_clipPlaneGizmoDwellTimer = new QTimer(this);
+    m_clipPlaneGizmoDwellTimer->setSingleShot(true);
+    // One repaint when the dwell expires, to take the grid back down.
+    connect(m_clipPlaneGizmoDwellTimer, &QTimer::timeout, this, [this]() { update(); });
+
     m_interactionStatusOverlayTimer = new QTimer(this);
     m_interactionStatusOverlayTimer->setSingleShot(true);
     connect(m_interactionStatusOverlayTimer, &QTimer::timeout, this, [this]() {
@@ -3143,6 +3149,21 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
     }
     cancelCenterAnimation();
     cancelRotationAnimation();
+    // Alt+Left → tip the clipping plane. Alt rather than Ctrl because macOS turns a
+    // Ctrl+click into a right-click before Qt ever sees it, so Ctrl+drag is not a chord
+    // this application can rely on; Ctrl+wheel, which macOS leaves alone, keeps the
+    // plane's other gesture.
+    if (e
+        && e->button() == Qt::LeftButton
+        && (e->modifiers() & Qt::AltModifier)
+        && !(e->modifiers() & Qt::ControlModifier)
+        && !(e->modifiers() & Qt::ShiftModifier)) {
+        m_clipPlaneDragActive = true;
+        m_clipPlaneDragLastPos = e->position();
+        showInteractionStatusOverlay(tr("Tipping the clipping plane — Alt+drag"));
+        e->accept();
+        return;
+    }
     // Ctrl+Shift+Left → rotate headlight
     if (e
         && e->button() == Qt::LeftButton
@@ -3258,6 +3279,10 @@ void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
         m_lightDragActive = false;
         update();
     }
+    if (m_clipPlaneDragActive && e && e->buttons() == Qt::NoButton) {
+        m_clipPlaneDragActive = false;
+        update();
+    }
 }
 
 void RenderWidget::mouseMoveEvent(QMouseEvent *e)
@@ -3303,6 +3328,18 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
         m_rasterPan += (rasterBefore - rasterAfter);
         m_rasterLastMousePos = pos.toPoint();
         update();
+        if (e)
+            e->accept();
+        return;
+    }
+    if (m_clipPlaneDragActive) {
+        if (e && (e->buttons() & Qt::LeftButton)) {
+            const QPointF pos = e->position();
+            const QPointF delta = pos - m_clipPlaneDragLastPos;
+            m_clipPlaneDragLastPos = pos;
+            if (tipClipPlane(delta))
+                showInteractionStatusOverlay(clipPlaneStatusText());
+        }
         if (e)
             e->accept();
         return;
@@ -3415,13 +3452,22 @@ void RenderWidget::wheelEvent(QWheelEvent *e)
     }
     cancelCenterAnimation();
     const Qt::KeyboardModifiers mods = e ? e->modifiers() : Qt::NoModifier;
-    const bool nearClipMode = (mods & Qt::ControlModifier) && !(mods & Qt::ShiftModifier);
     const bool fovMode = (mods & Qt::ShiftModifier);
+    // Ctrl+wheel slides the clipping plane. It used to scale nearClipRatio, which cut into
+    // the object as a side effect of ruining the depth buffer on the way back out -- at the
+    // bottom of its range the depth resolution at the object is two percent of its radius,
+    // which is what made a wireframe shimmer while scrubbing. The plane does the same job
+    // without touching the frustum.
+    if ((mods & Qt::ControlModifier) && !fovMode) {
+        const float steps = e ? float(e->angleDelta().y()) / 120.0f : 0.0f;
+        if (std::abs(steps) >= 1e-4f && slideClipPlane(steps))
+            showInteractionStatusOverlay(clipPlaneStatusText());
+        if (e)
+            e->accept();
+        return;
+    }
     if (m_trackball.wheel(e)) {
-        if (nearClipMode) {
-            showInteractionStatusOverlay(
-                tr("Near clip: %1").arg(m_trackball.nearClipPlaneDistance(), 0, 'g', 5));
-        } else if (fovMode) {
+        if (fovMode) {
             showInteractionStatusOverlay(
                 tr("FOV: %1 deg").arg(m_trackball.fovYDegrees(), 0, 'f', 1));
         }

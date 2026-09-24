@@ -371,13 +371,13 @@ bool ViewTrackball::wheel(const QWheelEvent *e)
     if (qFuzzyIsNull(steps))
         return false;
 
-    const bool nearClipMode = (e->modifiers() & Qt::ControlModifier)
-        && !(e->modifiers() & Qt::ShiftModifier);
+    // Ctrl+wheel does not arrive here: the view keeps that chord for the clipping plane and
+    // returns before calling this. It used to scale m_nearClipRatio, which cut into the
+    // object by moving the near plane -- and wrecked the depth buffer whenever it was
+    // scrubbed back out. The ratio is now a depth-precision setting and nothing else, set
+    // from the preferences.
     const bool fovMode = (e->modifiers() & Qt::ShiftModifier);
-    if (nearClipMode) {
-        m_nearClipRatio =
-            std::clamp(m_nearClipRatio * std::pow(1.1f, steps), kMinNearClipRatio, kMaxNearClipRatio);
-    } else if (fovMode) {
+    if (fovMode) {
         const float oldFovRad = qDegreesToRadians(m_fovYDeg);
         const float oldTanHalfFov = qMax(1e-6f, std::tan(0.5f * oldFovRad));
         const float constantScreenScale = m_distance * oldTanHalfFov;
@@ -433,8 +433,9 @@ QMatrix4x4 ViewTrackball::projectionMatrix(float aspect, float minFarDistance) c
     const float nearPlane = nearClipPlaneDistance();
     float farPlane = farClipPlaneDistance();
     if (std::isfinite(minFarDistance) && minFarDistance > farPlane) {
-        // Capped only to keep the matrix finite if a caller hands us something absurd;
-        // there is no precision argument for a tighter bound.
+        // Capped only to keep the matrix finite if a caller hands us something absurd. A
+        // tighter bound would not buy precision: the loss saturates at 1/(1 - near/far)
+        // however far out the plane goes, so it is already nearly all paid at 10x.
         farPlane = qMin(minFarDistance, farPlane * 1.0e4f);
     }
     QMatrix4x4 proj;

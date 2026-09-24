@@ -232,6 +232,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         makeButton(QStringLiteral(":/img/selected.png"), tr("Selected elements overlay"));
     m_qualityHistogramButton =
         makeButton(QStringLiteral(":/img/histogram.png"), tr("Quality Histogram"));
+    m_clipPlaneButton = makeButton(
+        QStringLiteral(":/img/clipplane.png"),
+        tr("Clipping plane \u2014 Ctrl+wheel to slide it, Alt+drag to tip it"));
 
     buttonLayout->addWidget(m_currentMeshButton);
     buttonLayout->addWidget(m_bboxButton);
@@ -243,6 +246,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     buttonLayout->addWidget(m_normalsDecoratorsButton);
     buttonLayout->addWidget(m_boundaryDecoratorsButton);
     buttonLayout->addWidget(m_qualityHistogramButton);
+    buttonLayout->addWidget(m_clipPlaneButton);
 
     m_normalsDecoratorsButton->setChecked(false);
     m_boundaryDecoratorsButton->setChecked(false);
@@ -253,6 +257,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillButton->setChecked(true);
     m_selectionButton->setChecked(false);
     m_qualityHistogramButton->setChecked(false);
+    m_clipPlaneButton->setChecked(m_globalSettings.clipPlaneEnabled);
 
     auto *arrowRow = new QWidget(this);
     auto *arrowLayout = new QHBoxLayout(arrowRow);
@@ -283,6 +288,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillSettingsArrow = makeArrowButton(tr("Settings: Fill"));
     m_selectionSettingsArrow = makeArrowButton(tr("Settings: Selection"));
     m_qualityHistogramSettingsArrow = makeArrowButton(tr("Settings: Quality Histogram"));
+    m_clipPlaneSettingsArrow = makeArrowButton(tr("Settings: Clipping Plane"));
     arrowLayout->addWidget(m_bboxSettingsArrow);
     arrowLayout->addWidget(m_pointsSettingsArrow);
     arrowLayout->addWidget(m_edgesSettingsArrow);
@@ -294,6 +300,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_boundaryDecoratorsSettingsArrow = makeArrowButton(tr("Settings: Boundary Decorators"));
     arrowLayout->addWidget(m_boundaryDecoratorsSettingsArrow);
     arrowLayout->addWidget(m_qualityHistogramSettingsArrow);
+    arrowLayout->addWidget(m_clipPlaneSettingsArrow);
 
     m_settingsContainer = new QFrame(this);
     m_settingsContainer->setVisible(false);
@@ -400,50 +407,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     currentMeshForm->addRow(
         tr("Bg bottom"),
         makeCenteredFieldContainer(m_sceneBackgroundBottomColorButton, viewer3dPage));
-
-    // The clipping plane. It cuts the scene itself, not the instruments, so it sits with
-    // the other whole-view settings rather than under any one pass.
-    m_clipPlaneEnabledCheck = new QCheckBox(viewer3dPage);
-    m_clipPlaneEnabledCheck->setChecked(m_globalSettings.clipPlaneEnabled);
-    m_clipPlaneAxisCombo = new QComboBox(viewer3dPage);
-    m_clipPlaneAxisCombo->addItem(tr("View direction"), int(ClipPlaneAxis::View));
-    m_clipPlaneAxisCombo->addItem(tr("X Axis"), int(ClipPlaneAxis::X));
-    m_clipPlaneAxisCombo->addItem(tr("Y Axis"), int(ClipPlaneAxis::Y));
-    m_clipPlaneAxisCombo->addItem(tr("Z Axis"), int(ClipPlaneAxis::Z));
-    m_clipPlaneAxisCombo->addItem(tr("Custom"), int(ClipPlaneAxis::Custom));
-    m_clipPlaneReferenceCombo = new QComboBox(viewer3dPage);
-    m_clipPlaneReferenceCombo->addItem(
-        tr("Bounding box center"), int(ClipPlaneReference::Center));
-    m_clipPlaneReferenceCombo->addItem(tr("Origin"), int(ClipPlaneReference::Origin));
-    m_clipPlaneReferenceCombo->addItem(tr("Bounding box min"), int(ClipPlaneReference::Min));
-    m_clipPlaneReferenceCombo->addItem(tr("Bounding box max"), int(ClipPlaneReference::Max));
-    m_clipPlaneOffsetSpin = new QDoubleSpinBox(viewer3dPage);
-    // A fraction of the scene diagonal, so one range fits every scene.
-    m_clipPlaneOffsetSpin->setRange(-1.0, 1.0);
-    m_clipPlaneOffsetSpin->setSingleStep(0.01);
-    m_clipPlaneOffsetSpin->setDecimals(3);
-    m_clipPlaneOffsetSpin->setValue(m_globalSettings.clipPlaneOffset);
-    m_clipPlaneFlippedCheck = new QCheckBox(viewer3dPage);
-    m_clipPlaneFlippedCheck->setChecked(m_globalSettings.clipPlaneFlipped);
-    m_clipPlaneShowPlaneCheck = new QCheckBox(viewer3dPage);
-    m_clipPlaneShowPlaneCheck->setChecked(m_globalSettings.clipPlaneShowPlane);
-    m_clipPlaneFreezeButton = new QPushButton(tr("Freeze to View"), viewer3dPage);
-    m_clipPlaneFreezeButton->setToolTip(
-        tr("Keep the plane where it is now and stop it following the camera, so the "
-           "scene can be orbited around the cut."));
-    currentMeshForm->addRow(
-        tr("Clipping plane"),
-        makeCenteredFieldContainer(m_clipPlaneEnabledCheck, viewer3dPage));
-    currentMeshForm->addRow(tr("Clip normal"), m_clipPlaneAxisCombo);
-    currentMeshForm->addRow(tr("Clip reference"), m_clipPlaneReferenceCombo);
-    currentMeshForm->addRow(tr("Clip offset"), m_clipPlaneOffsetSpin);
-    currentMeshForm->addRow(
-        tr("Clip other side"),
-        makeCenteredFieldContainer(m_clipPlaneFlippedCheck, viewer3dPage));
-    currentMeshForm->addRow(
-        tr("Show clip plane"),
-        makeCenteredFieldContainer(m_clipPlaneShowPlaneCheck, viewer3dPage));
-    currentMeshForm->addRow(QString(), m_clipPlaneFreezeButton);
 
     applyUniformFormRowHeights(currentMeshForm);
     viewer3dLayout->addLayout(currentMeshForm);
@@ -1056,6 +1019,71 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     uvFillLayout->addLayout(uvFillForm);
     m_settingsStack->addWidget(uvFillPage);  // index 10
 
+    auto *clipPlanePage = new QWidget(m_settingsStack);
+    auto *clipPlaneLayout = new QVBoxLayout(clipPlanePage);
+    clipPlaneLayout->setContentsMargins(0, 0, 0, 0);
+    clipPlaneLayout->setSpacing(2);
+    auto *clipPlaneForm = new QFormLayout();
+    clipPlaneForm->setContentsMargins(0, 0, 0, 0);
+    clipPlaneForm->setHorizontalSpacing(6);
+    clipPlaneForm->setVerticalSpacing(1);
+    clipPlaneForm->setLabelAlignment(kSettingsLabelAlignment);
+
+    m_clipPlaneAxisCombo = new QComboBox(clipPlanePage);
+    m_clipPlaneAxisCombo->addItem(tr("View direction"), int(ClipPlaneAxis::View));
+    m_clipPlaneAxisCombo->addItem(tr("X Axis"), int(ClipPlaneAxis::X));
+    m_clipPlaneAxisCombo->addItem(tr("Y Axis"), int(ClipPlaneAxis::Y));
+    m_clipPlaneAxisCombo->addItem(tr("Z Axis"), int(ClipPlaneAxis::Z));
+    m_clipPlaneAxisCombo->addItem(tr("Custom"), int(ClipPlaneAxis::Custom));
+    m_clipPlaneReferenceCombo = new QComboBox(clipPlanePage);
+    m_clipPlaneReferenceCombo->addItem(
+        tr("Bounding box center"), int(ClipPlaneReference::Center));
+    m_clipPlaneReferenceCombo->addItem(tr("Origin"), int(ClipPlaneReference::Origin));
+    m_clipPlaneReferenceCombo->addItem(tr("Bounding box min"), int(ClipPlaneReference::Min));
+    m_clipPlaneReferenceCombo->addItem(tr("Bounding box max"), int(ClipPlaneReference::Max));
+    m_clipPlaneOffsetSpin = new QDoubleSpinBox(clipPlanePage);
+    // A fraction of the scene diagonal, so one range fits every scene.
+    m_clipPlaneOffsetSpin->setRange(-1.0, 1.0);
+    m_clipPlaneOffsetSpin->setSingleStep(0.01);
+    m_clipPlaneOffsetSpin->setDecimals(3);
+    m_clipPlaneOffsetSpin->setValue(m_globalSettings.clipPlaneOffset);
+    m_clipPlaneFlippedCheck = new QCheckBox(clipPlanePage);
+    m_clipPlaneFlippedCheck->setChecked(m_globalSettings.clipPlaneFlipped);
+    m_clipPlaneShowPlaneCheck = new QCheckBox(clipPlanePage);
+    m_clipPlaneShowPlaneCheck->setChecked(m_globalSettings.clipPlaneShowPlane);
+    m_clipPlaneShowPlaneCheck->setToolTip(
+        tr("The grid always appears while the plane is being moved. This keeps it up "
+           "afterwards as well."));
+    m_clipPlaneRimColorButton = makeColorButton(clipPlanePage);
+    m_clipPlaneRimWidthSpin = new QDoubleSpinBox(clipPlanePage);
+    m_clipPlaneRimWidthSpin->setRange(0.0, 12.0);
+    m_clipPlaneRimWidthSpin->setSingleStep(0.5);
+    m_clipPlaneRimWidthSpin->setDecimals(1);
+    m_clipPlaneRimWidthSpin->setSuffix(tr(" px"));
+    m_clipPlaneRimWidthSpin->setValue(m_globalSettings.clipPlaneRimWidth);
+    m_clipPlaneFreezeButton = new QPushButton(tr("Freeze to View"), clipPlanePage);
+    m_clipPlaneFreezeButton->setToolTip(
+        tr("Keep the plane where it is now and stop it following the camera, so the "
+           "scene can be orbited around the cut."));
+
+    clipPlaneForm->addRow(tr("Normal"), m_clipPlaneAxisCombo);
+    clipPlaneForm->addRow(tr("Reference"), m_clipPlaneReferenceCombo);
+    clipPlaneForm->addRow(tr("Offset"), m_clipPlaneOffsetSpin);
+    clipPlaneForm->addRow(
+        tr("Keep other side"),
+        makeCenteredFieldContainer(m_clipPlaneFlippedCheck, clipPlanePage));
+    clipPlaneForm->addRow(
+        tr("Always show grid"),
+        makeCenteredFieldContainer(m_clipPlaneShowPlaneCheck, clipPlanePage));
+    clipPlaneForm->addRow(
+        tr("Cut color"),
+        makeCenteredFieldContainer(m_clipPlaneRimColorButton, clipPlanePage));
+    clipPlaneForm->addRow(tr("Cut width"), m_clipPlaneRimWidthSpin);
+    clipPlaneForm->addRow(QString(), m_clipPlaneFreezeButton);
+    applyUniformFormRowHeights(clipPlaneForm);
+    clipPlaneLayout->addLayout(clipPlaneForm);
+    m_settingsStack->addWidget(clipPlanePage);  // index 11
+
     panelLayout->addWidget(m_settingsContainer);
 
     auto setGlobalField = [this](auto member, const auto &value, bool syncUi = false) {
@@ -1261,12 +1289,17 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindGlobalCheckBox(m_showTrackballGizmoCheck, &GlobalRenderSettings::showTrackballGizmo);
     bindGlobalCheckBox(m_showAxisGizmoCheck, &GlobalRenderSettings::showAxisGizmo);
     bindGlobalCheckBox(m_showViewCamerasCheck, &GlobalRenderSettings::showViewCameras);
-    bindGlobalCheckBox(m_clipPlaneEnabledCheck, &GlobalRenderSettings::clipPlaneEnabled);
+    bindGlobalToolToggle(m_clipPlaneButton, &GlobalRenderSettings::clipPlaneEnabled);
     bindGlobalCheckBox(m_clipPlaneFlippedCheck, &GlobalRenderSettings::clipPlaneFlipped);
     bindGlobalCheckBox(m_clipPlaneShowPlaneCheck, &GlobalRenderSettings::clipPlaneShowPlane);
     bindGlobalEnumCombo(m_clipPlaneAxisCombo, &GlobalRenderSettings::clipPlaneAxis);
     bindGlobalEnumCombo(m_clipPlaneReferenceCombo, &GlobalRenderSettings::clipPlaneRelativeTo);
     bindGlobalFloatSpin(m_clipPlaneOffsetSpin, &GlobalRenderSettings::clipPlaneOffset);
+    bindGlobalFloatSpin(m_clipPlaneRimWidthSpin, &GlobalRenderSettings::clipPlaneRimWidth);
+    bindGlobalColorButton(
+        m_clipPlaneRimColorButton,
+        &GlobalRenderSettings::clipPlaneRimColor,
+        tr("Clipping Plane Cut Color"));
     connect(m_clipPlaneFreezeButton, &QPushButton::clicked, this, [this]() {
         emit clipPlaneFreezeToViewRequested();
     });
@@ -1694,6 +1727,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindPassButton(m_fillButton, RenderPass::Fill, false);
     bindPassButton(m_selectionButton, RenderPass::Selection, false);
     bindPassButton(m_qualityHistogramButton, RenderPass::QualityHistogram, false);
+    // Clicking it toggles the cut and selects the pass; the arrow below opens its page.
+    // Unlike the mesh passes there is nothing per-layer to apply to all.
+    bindPassButton(m_clipPlaneButton, RenderPass::ClipPlane, false);
 
     bindSettingsArrow(m_currentMeshSettingsArrow, RenderPass::CurrentMesh);
     bindSettingsArrow(m_normalsDecoratorsSettingsArrow, RenderPass::DecoratorNormals);
@@ -1705,6 +1741,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindSettingsArrow(m_fillSettingsArrow, RenderPass::Fill);
     bindSettingsArrow(m_selectionSettingsArrow, RenderPass::Selection);
     bindSettingsArrow(m_qualityHistogramSettingsArrow, RenderPass::QualityHistogram);
+    bindSettingsArrow(m_clipPlaneSettingsArrow, RenderPass::ClipPlane);
 
     bindMeshToolToggle(m_bboxButton, &PerMeshRenderSettings::showBoundingBox);
     // Plain pass toggles, like Points/Edges/Wire/Fill: each owns only its master flag and
@@ -1793,6 +1830,7 @@ int RenderOverlayPanel::renderPassPageIndex(RenderPass pass) const
     case RenderPass::Fill: return 7;
     case RenderPass::Selection: return 8;
     case RenderPass::QualityHistogram: return 9;
+    case RenderPass::ClipPlane: return 11;   // 10 is the UV fill page
     }
     return 0;
 }
@@ -2511,6 +2549,7 @@ void RenderOverlayPanel::syncRenderPassUiState()
     setPassMarker(m_fillButton, RenderPass::Fill);
     setPassMarker(m_selectionButton, RenderPass::Selection);
     setPassMarker(m_qualityHistogramButton, RenderPass::QualityHistogram);
+    setPassMarker(m_clipPlaneButton, RenderPass::ClipPlane);
 
     setArrowChecked(m_currentMeshSettingsArrow, RenderPass::CurrentMesh);
     setArrowChecked(m_normalsDecoratorsSettingsArrow, RenderPass::DecoratorNormals);
@@ -2522,4 +2561,5 @@ void RenderOverlayPanel::syncRenderPassUiState()
     setArrowChecked(m_fillSettingsArrow, RenderPass::Fill);
     setArrowChecked(m_selectionSettingsArrow, RenderPass::Selection);
     setArrowChecked(m_qualityHistogramSettingsArrow, RenderPass::QualityHistogram);
+    setArrowChecked(m_clipPlaneSettingsArrow, RenderPass::ClipPlane);
 }

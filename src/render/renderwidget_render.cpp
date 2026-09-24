@@ -202,6 +202,14 @@ quint32 RenderWidget::uploadMainUbuf(
     ubufData[kUbufClipPlaneOffset + 1] = localClipPlane.y();
     ubufData[kUbufClipPlaneOffset + 2] = localClipPlane.z();
     ubufData[kUbufClipPlaneOffset + 3] = localClipPlane.w();
+    // The rim rides with the plane: no plane, no band, so the fill shaders need no branch
+    // on whether clipping is on.
+    if (!localClipPlane.isNull()) {
+        ubufData[kUbufClipRimOffset + 0] = float(m_renderSettings.clipPlaneRimColor.redF());
+        ubufData[kUbufClipRimOffset + 1] = float(m_renderSettings.clipPlaneRimColor.greenF());
+        ubufData[kUbufClipRimOffset + 2] = float(m_renderSettings.clipPlaneRimColor.blueF());
+        ubufData[kUbufClipRimOffset + 3] = qMax(0.0f, m_renderSettings.clipPlaneRimWidth);
+    }
 
     QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
     uMesh->updateDynamicBuffer(m_ubuf.get(), offset, kUbufSize, ubufData);

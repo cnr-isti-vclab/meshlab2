@@ -454,6 +454,11 @@ struct SceneRasterProjectedDrawItem {
     // The plane's own wireframe. Not clipped by itself -- it is the instrument, not the
     // scene -- so it rides the line-gizmo pipeline the peer cameras already use.
     void planClipPlanePass(RenderFramePlan &plan);
+    // Ctrl+wheel slides the plane along its normal and Alt+drag tips it. Both turn
+    // clipping on if it is off, because that is how anyone finds the feature.
+    bool slideClipPlane(float steps);
+    bool tipClipPlane(const QPointF &delta);
+    QString clipPlaneStatusText() const;
 
     // Built before the frame's projection is, because the projection has to be wide
     // enough to hold the result -- see viewFrustumFarDistance.
@@ -821,6 +826,12 @@ struct SceneRasterProjectedDrawItem {
     QQuaternion m_lightRotation;     // rotates view-space (0,0,1) to current light dir
     bool m_lightDragActive = false;
     QPointF m_lightDragLastPos;
+    bool m_clipPlaneDragActive = false;
+    QPointF m_clipPlaneDragLastPos;
+    // The plane's grid is in the way once the cut is placed, so it shows while the plane
+    // is being moved and for a moment after -- the same dwell the status overlay uses.
+    // clipPlaneShowPlane overrides it and keeps the grid up for good.
+    QTimer *m_clipPlaneGizmoDwellTimer = nullptr;
     // The tile a camera drag started in, in logical pixels. Every tile shares one camera,
     // but the arcball is sized to the viewport it is dragged in, so the tile is latched at
     // press: dragging out of it keeps the rotation the gesture started with.

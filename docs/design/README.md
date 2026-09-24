@@ -44,7 +44,7 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [Edge Support](proposals/edge_support.md) | The two kinds of edge, what is missing in selection and rendering, and filters that would generate per-edge colour. Per-edge colour implemented; the rest not. |
 | [Frame Fields](proposals/frame_fields.md) | Making a 4-RoSy frame field a first-class attribute, feeding it to the QuadWild and Instant Meshes remeshers, and adopting Vaxman's Directional for field processing and visualization. Not implemented; feasibility established, eight questions open. |
 | [OpenSCAD CSG](proposals/openscad_csg.md) | One filter exposing geogram's OpenSCAD-subset compiler, to build a mesh from a script. Not implemented; split out of the geogram port. |
-| [Clipping Plane](proposals/clipping_plane.md) | An arbitrarily oriented clipping plane in the shaders, replacing the near-plane hack. Cutting, picking and the plane gizmo implemented; direct manipulation and the cut's appearance are not. |
+| [Clipping Plane](proposals/clipping_plane.md) | An arbitrarily oriented clipping plane in the shaders, replacing the near-plane hack. Implemented; kept until its content moves into [rendering.md](rendering.md). |
 
 ## History
 

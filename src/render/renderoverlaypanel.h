@@ -118,13 +118,16 @@ private:
     QCheckBox *m_showTrackballGizmoCheck = nullptr;
     QCheckBox *m_showAxisGizmoCheck = nullptr;
     QCheckBox *m_showViewCamerasCheck = nullptr;
-    QCheckBox *m_clipPlaneEnabledCheck = nullptr;
     QComboBox *m_clipPlaneAxisCombo = nullptr;
     QComboBox *m_clipPlaneReferenceCombo = nullptr;
     QDoubleSpinBox *m_clipPlaneOffsetSpin = nullptr;
     QCheckBox *m_clipPlaneFlippedCheck = nullptr;
     QCheckBox *m_clipPlaneShowPlaneCheck = nullptr;
     QPushButton *m_clipPlaneFreezeButton = nullptr;
+    QPushButton *m_clipPlaneRimColorButton = nullptr;
+    QDoubleSpinBox *m_clipPlaneRimWidthSpin = nullptr;
+    QToolButton *m_clipPlaneButton = nullptr;
+    QToolButton *m_clipPlaneSettingsArrow = nullptr;
     QCheckBox *m_bboxShowCornersCheck = nullptr;
     QCheckBox *m_bboxShowDimensionsCheck = nullptr;
     QCheckBox *m_decoratorVertexNormalsCheck = nullptr;

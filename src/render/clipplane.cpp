@@ -1,6 +1,7 @@
 #include "clipplane.h"
 
 #include <algorithm>
+#include <limits>
 #include <cmath>
 
 namespace ClipPlane {
@@ -54,6 +55,65 @@ QVector4D toLocal(const QVector4D &worldPlane, const QMatrix4x4 &meshTransform)
     if (worldPlane.toVector3D().isNull())
         return QVector4D();
     return meshTransform.transposed() * worldPlane;
+}
+
+float offsetClearOfScene(
+    const GlobalRenderSettings &settings,
+    const QVector3D &sceneMin,
+    const QVector3D &sceneMax,
+    const QVector3D &viewDirection)
+{
+    // Asked of the settings as they will be once enabled, so the caller can set the axis
+    // it wants first and get the offset that matches.
+    GlobalRenderSettings probe = settings;
+    probe.clipPlaneEnabled = true;
+    probe.clipPlaneOffset = 0.0f;
+    const QVector4D plane = world(probe, sceneMin, sceneMax, viewDirection);
+    if (plane.toVector3D().isNull())
+        return 0.0f;
+
+    const float diagonal = (sceneMax - sceneMin).length();
+    if (!std::isfinite(diagonal) || diagonal <= 0.0f)
+        return 0.0f;
+
+    // How far the plane would have to move, along its own normal, for the deepest corner
+    // of the box to be on the surviving side.
+    float deepest = std::numeric_limits<float>::max();
+    for (int corner = 0; corner < 8; ++corner) {
+        const QVector3D p(
+            (corner & 1) ? sceneMax.x() : sceneMin.x(),
+            (corner & 2) ? sceneMax.y() : sceneMin.y(),
+            (corner & 4) ? sceneMax.z() : sceneMin.z());
+        deepest = std::min(deepest, QVector3D::dotProduct(plane.toVector3D(), p) + plane.w());
+    }
+    // A flip reverses which way the offset pushes the surviving side, so the sign follows.
+    const float offset = deepest / diagonal;
+    return settings.clipPlaneFlipped ? -offset : offset;
+}
+
+QVector3D rotateNormal(
+    const QVector3D &normal,
+    const QVector3D &cameraRight,
+    const QVector3D &cameraUp,
+    float dx,
+    float dy,
+    float degreesPerUnit)
+{
+    if (normal.isNull())
+        return normal;
+
+    // The axis that swings the normal the way the cursor went. Rotating about -up moves a
+    // forward-facing normal towards +right, and about -right moves it towards -up, so the
+    // plane follows the drag rather than running away from it.
+    const QVector3D axis = -(cameraUp * dx + cameraRight * dy);
+    const float magnitude = axis.length();
+    if (!std::isfinite(magnitude) || magnitude < 1e-9f)
+        return normal;
+
+    const QQuaternion rotation =
+        QQuaternion::fromAxisAndAngle(axis / magnitude, magnitude * degreesPerUnit);
+    const QVector3D rotated = rotation.rotatedVector(normal);
+    return rotated.isNull() ? normal : rotated.normalized() * normal.length();
 }
 
 std::vector<float> planeGizmo(

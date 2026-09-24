@@ -38,6 +38,10 @@ REF = {"origin": 0, "center": 1, "min": 2, "max": 3}      # ClipPlaneReference
 # blue and a band of it reads as "lit" under any simple threshold.
 BARE = {"show_trackball_gizmo": False, "show_axis_gizmo": False, "show_view_cameras": False,
         "clip_plane_show_plane": False,
+        # The cut rim is checked on its own below. Left on, it would put a few dozen
+        # coloured pixels into every geometry comparison, which is real output but not
+        # what those checks are about.
+        "clip_plane_rim_width": 0.0,
         "scene_background_top_color": [0, 0, 0, 255],
         "scene_background_bottom_color": [0, 0, 0, 255]}
 
@@ -86,8 +90,18 @@ cases = {
     "disabled":           dict(clip_plane_enabled=False, clip_plane_axis=AXIS["x"]),
     "X, plane shown":     clip(clip_plane_axis=AXIS["x"], clip_plane_show_plane=True),
     "X, offset +0.2":     clip(clip_plane_axis=AXIS["x"], clip_plane_offset=0.2),
+    # Brackets where Ctrl+wheel starts from: offsetClearOfScene puts the plane on the
+    # nearest bounding-box corner, which for a unit-ish sphere is about -0.29 diagonals.
+    "view, offset -0.32":  clip(clip_plane_axis=AXIS["view"], clip_plane_offset=-0.32),
+    "view, offset -0.24":  clip(clip_plane_axis=AXIS["view"], clip_plane_offset=-0.24),
     "X flipped, off +0.2": clip(clip_plane_axis=AXIS["x"], clip_plane_offset=0.2,
                                 clip_plane_flipped=True),
+    # The cut rim, in a colour nothing else on screen can be mistaken for.
+    "X, rim off":          clip(clip_plane_axis=AXIS["x"], clip_plane_rim_width=0.0),
+    "X, rim on":           clip(clip_plane_axis=AXIS["x"], clip_plane_rim_width=4.0,
+                                clip_plane_rim_color=[255, 0, 255, 255]),
+    "no cut, rim on":      dict(clip_plane_enabled=False, clip_plane_rim_width=4.0,
+                                clip_plane_rim_color=[255, 0, 255, 255]),
 }
 shots = {k: shot(ms, **v) for k, v in cases.items()}
 
@@ -134,6 +148,28 @@ check("the plane gizmo draws",
 check("flipping at an offset keeps the cut in place",
       abs((coverage(shots["X, offset +0.2"]) + coverage(shots["X flipped, off +0.2"])) - b)
       < 0.35 * b)
+# Ctrl+wheel enables clipping at the offset where the plane touches the scene, so a notch
+# either side of it must straddle "nothing cut" and "something cut". If it did not, the
+# gesture would spend its first several notches doing nothing.
+check("just behind the touch point nothing is cut",
+      differing(base, shots["view, offset -0.32"]) == 0.0)
+check("just past it the cut has started",
+      differing(base, shots["view, offset -0.24"]) > 0.0)
+# The rim: where the surface runs into the plane, in the fill shaders. Counted by colour,
+# because it is the one thing on screen that is neither lit grey nor background.
+def magenta(buf):
+    """Pixels carrying a magenta tint. The rim is blended into the shaded colour rather
+    than replacing it, so most rim pixels are pink-grey, not pure magenta -- testing for
+    the pure colour finds only the sliver exactly on the plane."""
+    return sum(1 for i in range(0, len(buf), 4)
+               if min(buf[i] - buf[i + 1], buf[i + 2] - buf[i + 1]) > 30) / float(W * H)
+
+check("the cut is marked in the rim colour", magenta(shots["X, rim on"]) > 0.002)
+check("zero width draws no rim", magenta(shots["X, rim off"]) == 0.0)
+check("no cut, no rim", magenta(shots["no cut, rim on"]) == 0.0)
+check("the rim does not move the cut",
+      abs(coverage(shots["X, rim on"]) - coverage(shots["X, rim off"])) < 0.01)
+
 check("flipping at an offset shows a different half",
       differing(shots["X, offset +0.2"], shots["X flipped, off +0.2"]) > 0.2)
 print("\nRESULT:", "all checks passed" if ok else "FAILURES ABOVE")

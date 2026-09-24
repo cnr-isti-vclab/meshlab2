@@ -15,11 +15,18 @@ layout(std140, binding = 0) uniform buf {
     vec4 materialFlags;  // x=normalMode (2=tangent, 3=object), y=aoMode, z=roughnessMode, w=albedoMode
     vec4 materialParams; // x=param0 (normalScale/enhancement), y=occlusionStrength, z=roughnessFactor, w=material-id
     vec4 lightDir;        // view-space light direction (w unused)
+    // Mesh-LOCAL clipping plane: a vertex survives when dot(vec4(pos,1), clipPlane) >= 0.
+    // All zero disables clipping. Written at kUbufClipPlaneOffset.
+    vec4 clipPlane;
+    // rgb = the colour of the band where the surface meets the clipping plane, a = its
+    // width in pixels. Zero width leaves the band undrawn.
+    vec4 clipRim;
 } ub;
 
 layout(location = 0) in vec3 vViewPos;
 layout(location = 1) in vec4 v_meshColor;
 layout(location = 2) in vec3 v_texInfo;
+layout(location = 3) in float v_clipDistance;
 
 layout(binding = 1) uniform sampler2D albedoTex;
 layout(binding = 2) uniform sampler2D qualityLutTex;
@@ -61,6 +68,24 @@ vec3 applyObjectSpaceNormalMap(vec3 baseNormal, vec2 uv)
     vec3 objectN = normalize(ub.normalMatrix * normalize(mapN));
     float strength = clamp(abs(ub.materialParams.x), 0.0, 1.0);
     return normalize(mix(normalize(baseNormal), objectN, strength));
+}
+
+
+// The band where this surface runs into the clipping plane. v_clipDistance is the
+// signed distance to the plane, so fragments that survived are at 0 or above and the
+// band is the sliver just above zero. fwidth turns that into a constant number of
+// pixels: without it the band would be a hairline on a face edge-on to the plane and a
+// wide smear on one nearly parallel to it, which is exactly backwards.
+vec3 applyClipRim(vec3 color)
+{
+    float widthPx = ub.clipRim.a;
+    if (widthPx <= 0.0)
+        return color;
+    float perPixel = fwidth(v_clipDistance);
+    if (perPixel <= 0.0)
+        return color;
+    float band = smoothstep(widthPx * perPixel, 0.0, v_clipDistance);
+    return mix(color, ub.clipRim.rgb, band);
 }
 
 void main()
@@ -124,5 +149,5 @@ void main()
         float specStrength = mix(0.18, 0.02, roughness);
         color = baseColor * (ambient + (1.0 - kAmbient) * diff) + vec3(spec * specStrength);
     }
-    fragColor = vec4(color, 1.0);
+    fragColor = vec4(applyClipRim(color), 1.0);
 }

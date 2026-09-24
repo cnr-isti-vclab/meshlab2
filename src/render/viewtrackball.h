@@ -55,6 +55,11 @@ public:
     {
         return m_rotation.inverted().rotatedVector(QVector3D(0.0f, 0.0f, -1.0f)).normalized();
     }
+    // The other two axes of the same basis. Public alongside the view direction because a
+    // screen-space drag has to be turned into a world rotation somewhere, and the view is
+    // where that happens.
+    QVector3D cameraRight() const;
+    QVector3D cameraUp() const;
     float radius() const { return m_radius; }
     float fovYDegrees() const { return m_fovYDeg; }
     float nearClipRatio() const { return m_nearClipRatio; }
@@ -69,8 +74,13 @@ public:
     QMatrix4x4 viewMatrix() const;
     // `minFarDistance` pushes the far plane out far enough to hold something that is
     // not part of the scene -- a peer view's camera gizmo, whose far plane can sit well
-    // outside this view's own. Widening the far plane is close to free: the depth
-    // resolution at a given distance Z goes as Z^2/near and barely depends on far.
+    // outside this view's own.
+    //
+    // The cost is small but not zero. Depth resolution goes as Z^2/near * (1 - near/far),
+    // so with the default near it is unmeasurable; the term only bites when near has been
+    // pushed out to cut into the object, where widening far to any distance costs at most
+    // 1/(1 - near/far) -- about 1.4x at a cut halfway through a framed object. That goes
+    // away once the clipping plane retires the near-plane cutting trick.
     QMatrix4x4 projectionMatrix(float aspect, float minFarDistance = 0.0f) const;
 
     void mousePress(const QMouseEvent *e, const QSize &viewportSize);
@@ -86,8 +96,6 @@ private:
     };
 
     QVector3D projectOnArcball(const QPointF &pos, const QSize &viewportSize) const;
-    QVector3D cameraRight() const;
-    QVector3D cameraUp() const;
     QMatrix4x4 viewMatrixForRotation(const QQuaternion &rotation) const;
     QVector3D viewPointForRotation(const QQuaternion &rotation) const;
     bool viewRayFromWindow(const QPointF &pos, const QSize &viewportSize, const QQuaternion &rotation, QVector3D &rayOrigin, QVector3D &rayDir) const;

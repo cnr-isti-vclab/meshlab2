@@ -1,6 +1,8 @@
 #include "renderwidget.h"
 #include "linerenderer.h"
 #include "clipplane.h"
+
+#include <QTimer>
 #include "viewfrustumgizmo.h"
 #include "document.h"
 #include <algorithm>
@@ -201,10 +203,114 @@ QVector4D RenderWidget::localClipPlaneFor(int meshIndex) const
     return ClipPlane::toLocal(m_frameClipPlane, m_doc->mesh(meshIndex).transform);
 }
 
+namespace {
+
+// One notch of the wheel, in the diagonal fractions the offset is measured in. A roughly
+// isotropic object spans about 0.58 of its diagonal along any one direction, so this
+// crosses it in under thirty notches: fine enough to place a cut, coarse enough to get
+// from one side to the other without giving up.
+constexpr float kClipPlaneWheelStep = 0.02f;
+// Matches the interaction status overlay's dwell, so the grid and the readout
+// that describes it come and go together.
+constexpr int kClipPlaneGizmoDwellMs = 1200;
+
+} // namespace
+
+bool RenderWidget::slideClipPlane(float steps)
+{
+    if (m_viewMode != ViewMode::Scene3D || !m_doc || m_doc->meshCount() == 0)
+        return false;
+
+    QVector3D sceneMin;
+    QVector3D sceneMax;
+    if (!computeWorldSceneBBox(sceneMin, sceneMax))
+        return false;
+
+    RenderSettings next = m_renderSettings;
+    if (!next.clipPlaneEnabled) {
+        // The view direction, starting where the plane just touches the scene: the gesture
+        // Ctrl+wheel used to perform with the near plane, now done by a plane that can be
+        // seen, kept, and pointed somewhere other than at the camera.
+        next.clipPlaneEnabled = true;
+        next.clipPlaneAxis = ClipPlaneAxis::View;
+        next.clipPlaneRelativeTo = ClipPlaneReference::Center;
+        next.clipPlaneFlipped = false;
+        next.clipPlaneOffset = ClipPlane::offsetClearOfScene(
+            next, sceneMin, sceneMax, m_trackball.cameraViewDirection());
+    }
+    next.clipPlaneOffset =
+        std::clamp(next.clipPlaneOffset + steps * kClipPlaneWheelStep, -1.0f, 1.0f);
+    if (next == m_renderSettings)
+        return false;
+    if (m_clipPlaneGizmoDwellTimer)
+        m_clipPlaneGizmoDwellTimer->start(kClipPlaneGizmoDwellMs);
+    setRenderSettings(next);
+    return true;
+}
+
+bool RenderWidget::tipClipPlane(const QPointF &delta)
+{
+    if (m_viewMode != ViewMode::Scene3D || !m_doc || m_doc->meshCount() == 0)
+        return false;
+    if (delta.isNull())
+        return false;
+
+    RenderSettings next = m_renderSettings;
+    if (!next.clipPlaneEnabled) {
+        next.clipPlaneEnabled = true;
+        next.clipPlaneRelativeTo = ClipPlaneReference::Center;
+        next.clipPlaneOffset = 0.0f;
+    }
+
+    // Tip what is on screen, which after a flip is the negated normal; the axis is stored
+    // unflipped, so the flip has to come back off before it is written. Without that the
+    // plane would turn the wrong way whenever the other side was being kept.
+    QVector3D normal = m_frameClipPlane.toVector3D();
+    if (normal.isNull())
+        normal = m_trackball.cameraViewDirection();
+    if (normal.isNull())
+        return false;
+
+    const float radius = 0.5f * float(qMin(qMax(1, width()), qMax(1, height())));
+    const QVector3D tipped = ClipPlane::rotateNormal(
+        normal,
+        m_trackball.cameraRight(),
+        m_trackball.cameraUp(),
+        float(delta.x()) / radius,
+        float(delta.y()) / radius);
+
+    next.clipPlaneAxis = ClipPlaneAxis::Custom;
+    next.clipPlaneCustomAxis = next.clipPlaneFlipped ? -tipped : tipped;
+    if (next == m_renderSettings)
+        return false;
+    if (m_clipPlaneGizmoDwellTimer)
+        m_clipPlaneGizmoDwellTimer->start(kClipPlaneGizmoDwellMs);
+    setRenderSettings(next);
+    return true;
+}
+
+QString RenderWidget::clipPlaneStatusText() const
+{
+    if (!m_renderSettings.clipPlaneEnabled)
+        return tr("Clipping plane off");
+    const QVector3D normal = m_frameClipPlane.toVector3D();
+    return tr("Clipping plane: offset %1, normal (%2, %3, %4)")
+        .arg(m_renderSettings.clipPlaneOffset, 0, 'f', 3)
+        .arg(normal.x(), 0, 'f', 2)
+        .arg(normal.y(), 0, 'f', 2)
+        .arg(normal.z(), 0, 'f', 2);
+}
+
 void RenderWidget::planClipPlanePass(RenderWidget::RenderFramePlan &plan)
 {
     m_clipPlaneGizmoVertices.clear();
-    if (m_frameClipPlane.isNull() || !m_renderSettings.clipPlaneShowPlane || !m_rhi || !m_doc)
+    if (m_frameClipPlane.isNull() || !m_rhi || !m_doc)
+        return;
+    // Up while the plane is being moved, and afterwards only if asked. A grid across the
+    // object is how you place a cut and the last thing you want once it is placed.
+    const bool dwelling =
+        m_clipPlaneGizmoDwellTimer && m_clipPlaneGizmoDwellTimer->isActive();
+    if (!m_renderSettings.clipPlaneShowPlane && !dwelling)
         return;
 
     QVector3D sceneMin;

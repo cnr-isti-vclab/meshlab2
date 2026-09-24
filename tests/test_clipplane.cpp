@@ -3,6 +3,7 @@
 #include "clipplane.h"
 
 #include <cmath>
+#include <limits>
 
 // The clipping plane's arithmetic. Whether the shaders honour it is checked through the
 // real render path (see the headless probe in the design notes); what is pinned here is
@@ -24,6 +25,13 @@ private slots:
     void flippingDoesNotMoveThePlane();
     void aLayerTransformMovesThePlaneWithIt();
     void aLocalPlaneOfNothingIsStillNothing();
+
+    void theClearOffsetJustTouchesTheScene();
+    void theClearOffsetFollowsAFlip();
+
+    void draggingTipsThePlaneTheWayTheCursorWent();
+    void aRotatedNormalStaysUnitLength();
+    void aDragOfNothingRotatesNothing();
 
     void theGizmoLiesOnThePlane();
     void theGizmoStemPointsAtWhatIsKept();
@@ -214,6 +222,92 @@ void ClipPlaneTests::aLocalPlaneOfNothingIsStillNothing()
     // A zero plane is how every pass says "no clipping"; a transform must not turn it into
     // a real one, or a transformed layer would be cut when nothing else is.
     QCOMPARE(ClipPlane::toLocal(QVector4D(), transform), QVector4D());
+}
+
+void ClipPlaneTests::theClearOffsetJustTouchesTheScene()
+{
+    // Starting the wheel gesture here means the next notch cuts. Starting it anywhere
+    // further back would spend notches doing nothing visible.
+    for (ClipPlaneAxis axis : { ClipPlaneAxis::X, ClipPlaneAxis::Y, ClipPlaneAxis::Z }) {
+        GlobalRenderSettings s = enabled(axis);
+        s.clipPlaneOffset =
+            ClipPlane::offsetClearOfScene(s, kUnitMin, kUnitMax, kLookingDownZ);
+        const QVector4D plane = ClipPlane::world(s, kUnitMin, kUnitMax, kLookingDownZ);
+
+        // Every corner of the box is on the surviving side...
+        float nearest = std::numeric_limits<float>::max();
+        for (int corner = 0; corner < 8; ++corner) {
+            const QVector3D p(
+                (corner & 1) ? kUnitMax.x() : kUnitMin.x(),
+                (corner & 2) ? kUnitMax.y() : kUnitMin.y(),
+                (corner & 4) ? kUnitMax.z() : kUnitMin.z());
+            nearest = std::min(nearest, distance(plane, p));
+        }
+        QVERIFY2(nearest > -1.0e-4f, "nothing is cut yet");
+        // ...and one of them is right on the plane, so not a step is wasted.
+        QVERIFY2(closeTo(nearest, 0.0f, 1.0e-3f), "the plane is touching the scene");
+    }
+}
+
+void ClipPlaneTests::theClearOffsetFollowsAFlip()
+{
+    GlobalRenderSettings s = enabled(ClipPlaneAxis::X);
+    s.clipPlaneFlipped = true;
+    s.clipPlaneOffset = ClipPlane::offsetClearOfScene(s, kUnitMin, kUnitMax, kLookingDownZ);
+    const QVector4D plane = ClipPlane::world(s, kUnitMin, kUnitMax, kLookingDownZ);
+    for (int corner = 0; corner < 8; ++corner) {
+        const QVector3D p(
+            (corner & 1) ? kUnitMax.x() : kUnitMin.x(),
+            (corner & 2) ? kUnitMax.y() : kUnitMin.y(),
+            (corner & 4) ? kUnitMax.z() : kUnitMin.z());
+        QVERIFY2(distance(plane, p) > -1.0e-4f, "a flipped plane starts clear too");
+    }
+}
+
+void ClipPlaneTests::draggingTipsThePlaneTheWayTheCursorWent()
+{
+    // A camera at +Z looking at the origin: right is +X, up is +Y, and the plane faces the
+    // way the camera looks. Getting either sign wrong makes the plane run away from the
+    // cursor, which is the kind of thing nobody writes down and everybody notices.
+    const QVector3D right(1.0f, 0.0f, 0.0f);
+    const QVector3D up(0.0f, 1.0f, 0.0f);
+    const QVector3D forward(0.0f, 0.0f, -1.0f);
+
+    const QVector3D draggedRight = ClipPlane::rotateNormal(forward, right, up, 0.2f, 0.0f);
+    QVERIFY2(QVector3D::dotProduct(draggedRight, right) > 0.0f,
+             "dragging right swings the normal towards the camera's right");
+    QVERIFY(closeTo(QVector3D::dotProduct(draggedRight, up), 0.0f));
+
+    const QVector3D draggedDown = ClipPlane::rotateNormal(forward, right, up, 0.0f, 0.2f);
+    QVERIFY2(QVector3D::dotProduct(draggedDown, up) < 0.0f,
+             "dragging down swings the normal towards the camera's floor");
+    QVERIFY(closeTo(QVector3D::dotProduct(draggedDown, right), 0.0f));
+
+    // And dragging back undoes it.
+    const QVector3D there = ClipPlane::rotateNormal(forward, right, up, 0.35f, -0.1f);
+    const QVector3D back = ClipPlane::rotateNormal(there, right, up, -0.35f, 0.1f);
+    QVERIFY((back - forward).length() < 1.0e-4f);
+}
+
+void ClipPlaneTests::aRotatedNormalStaysUnitLength()
+{
+    const QVector3D right(1.0f, 0.0f, 0.0f);
+    const QVector3D up(0.0f, 1.0f, 0.0f);
+    QVector3D normal(0.0f, 0.0f, -1.0f);
+    // Many small drags in a row must not let the normal drift in length, or the plane
+    // would slowly stop being a plane.
+    for (int i = 0; i < 200; ++i)
+        normal = ClipPlane::rotateNormal(normal, right, up, 0.03f, -0.02f);
+    QVERIFY(closeTo(normal.length(), 1.0f));
+}
+
+void ClipPlaneTests::aDragOfNothingRotatesNothing()
+{
+    const QVector3D right(1.0f, 0.0f, 0.0f);
+    const QVector3D up(0.0f, 1.0f, 0.0f);
+    const QVector3D normal(0.0f, 0.0f, -1.0f);
+    QCOMPARE(ClipPlane::rotateNormal(normal, right, up, 0.0f, 0.0f), normal);
+    QCOMPARE(ClipPlane::rotateNormal(QVector3D(), right, up, 0.5f, 0.5f), QVector3D());
 }
 
 void ClipPlaneTests::theGizmoLiesOnThePlane()

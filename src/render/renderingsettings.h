@@ -15,7 +15,10 @@ enum class RenderPass {
     Selection,
     DecoratorNormals,
     DecoratorBoundary,
-    QualityHistogram
+    QualityHistogram,
+    // Appended, not inserted: the pass is stored as an integer in every saved render
+    // state, so renumbering the ones above it would silently reinterpret them.
+    ClipPlane
 };
 
 enum class FillShading {
@@ -288,7 +291,15 @@ struct GlobalRenderSettings {
     // slider covers a bunny and a building the same way and a saved view survives a rescale.
     float clipPlaneOffset = 0.0f;
     bool clipPlaneFlipped = false;
-    bool clipPlaneShowPlane = true;
+    // The plane's own grid is shown while it is being adjusted whatever this says; setting
+    // it keeps the grid up afterwards too. Off by default, because once the cut is placed
+    // the grid is in the way of the thing you cut open to look at.
+    bool clipPlaneShowPlane = false;
+    // Where the surface meets the plane, drawn in the fill shaders. Without it a cut
+    // through a thin shell is just a hole, and it is hard to see where the plane is.
+    QColor clipPlaneRimColor = QColor(255, 158, 51);
+    // In pixels, so the rim reads the same at any zoom. Zero turns it off.
+    float clipPlaneRimWidth = 2.0f;
 
     // Defined in rendersettingsjson.cpp, generated from the same field list as the
     // JSON conversions so the two cannot drift apart.
