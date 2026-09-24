@@ -42,7 +42,10 @@ jobs:
       HOMEBREW_NO_AUTO_UPDATE: 1
       APP_NAME: MeshLab
       BUILD_DIR: build-release
-      QT_VERSION: 6.11.*
+      # Pinned to the last known-good patch: newly published Qt patch releases can
+      # appear in aqt's metadata before download.qt.io serves all matching
+      # checksums, which makes install-qt-action fail transiently during CI.
+      QT_VERSION: 6.11.2
       QT_ARCH: clang_64
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
       VCPKG_TARGET_TRIPLET: arm64-osx
