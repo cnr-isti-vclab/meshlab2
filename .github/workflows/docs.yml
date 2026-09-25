@@ -19,7 +19,9 @@ jobs:
       - name: Install Qt6
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.11'
+          # Pin a known-good patch to avoid transient metadata/checksum skew
+          # when a new 6.11.x patch appears in aqt before mirrors are ready.
+          version: '6.11.2'
           host: mac
           target: desktop
           arch: clang_64
