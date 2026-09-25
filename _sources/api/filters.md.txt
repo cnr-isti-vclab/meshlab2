@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 362 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 363 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -6893,6 +6893,37 @@ Create a new mesh that is a resampled version of the current one.<br>The resampl
 - **discretize** (*bool*, default: `False`) — Use fixed edge midpoints instead of linear interpolation for a stair-step appearance.
 - **multisample** (*bool*, default: `False`) — Compute the distance field more accurately by multisampling the volume.
 - **absDist** (*bool*, default: `False`) — Use an unsigned distance field to create an inner and outer shell around the input mesh.
+```
+
+---
+
+(filter-trim-surface-by-plane)=
+
+## Trim Surface by Plane
+
+**Categories:** `Meshing/Remeshing`
+
+**Plugin:** meshlab2.filter.meshing
+
+Cuts the mesh with an oriented plane and keeps one side.
+
+```{py:function} ms.trim_surface_by_plane(**params)
+:module: _meshlab
+
+Trims the current layer along an oriented plane, discarding everything behind it. Faces crossing the plane are split along it, so the cut is a clean boundary rather than a jagged edge along the nearest face borders.
+
+The per-vertex scalar, colour and texture coordinates are preserved, and interpolated onto the vertices created along the cut.
+
+Unless the cut is closed the result is a surface with a new boundary, not a solid.
+
+**Parameters:**
+
+- **planeNormal** (*point3f*, default: `[1.0, 0.0, 0.0]`) — Direction the cutting plane faces. Everything behind the plane is discarded. It need not be unit length.
+- **relativeTo** (*enum*, default: `center`) — Point the offset is measured from.
+- **planeOffset** (*double*, default: `0.0`) — Distance from the reference point to the plane, measured along the plane normal.
+- **flip** (*bool*, default: `False`) — If enabled, the side that would have been discarded is kept instead. The same as negating the plane normal, kept as a control because reversing a cut is a thing you do often.
+- **snapTolerance** (*double*, default: `0.02`) — How close to an existing vertex the cut may fall before that vertex is moved onto the plane instead of the edge being split, as a fraction of the edge. Raising it avoids sliver triangles along the cut at the cost of following the plane less exactly; zero splits every crossing edge and can leave slivers.
+- **closeCut** (*bool*, default: `False`) — If enabled, the boundary opened by the plane is filled with new faces, so a closed mesh stays closed. All the loops on the plane are filled together with an even-odd rule, so a cut that leaves concentric outlines is capped as a ring rather than as overlapping discs. Only those loops are filled; holes the mesh already had are left alone. It needs an edge-manifold mesh, and says so in the log if the cut had to be left open.
 ```
 
 ---

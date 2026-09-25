@@ -372,13 +372,74 @@ tracked CPU allocations and OS physical footprint.</p>
 <p><strong>Point-cloud path</strong>: render occupancy mask → dilate (<code class="docutils literal notranslate"><span class="pre">base</span> <span class="pre">→</span> <span class="pre">work</span></code>) → erode (<code class="docutils literal notranslate"><span class="pre">work</span> <span class="pre">→</span> <span class="pre">mask</span></code>) → composite outline from final mask.</p>
 <p>Debug views: <code class="docutils literal notranslate"><span class="pre">FullMask</span></code>, <code class="docutils literal notranslate"><span class="pre">VisibleMask</span></code>, <code class="docutils literal notranslate"><span class="pre">OccludedMask</span></code>, <code class="docutils literal notranslate"><span class="pre">DilatedMask</span></code>, <code class="docutils literal notranslate"><span class="pre">ErodedMask</span></code>. Normal path is <code class="docutils literal notranslate"><span class="pre">Outline</span></code>.</p>
 </section>
+<section id="clipping-plane">
+<h2>Clipping Plane<a class="headerlink" href="#clipping-plane" title="Link to this heading">¶</a></h2>
+<p>A world-space plane that cuts away everything on its negative side, in every <code class="docutils literal notranslate"><span class="pre">Scene3D</span></code> pass
+including depth picking. Off by default; <code class="docutils literal notranslate"><span class="pre">GlobalRenderSettings</span></code> holds it, so it is per view,
+inherited by a split, and carried in a render state.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ClipPlane::world()</span></code> (<a class="reference download internal" download="" href="../_downloads/3b1000677e2d6f47be1015488613614b/clipplane.h"><span class="xref download myst">clipplane.h</span></a>) resolves
+<code class="docutils literal notranslate"><span class="pre">clipPlaneAxis</span></code> (<code class="docutils literal notranslate"><span class="pre">X</span></code>/<code class="docutils literal notranslate"><span class="pre">Y</span></code>/<code class="docutils literal notranslate"><span class="pre">Z</span></code>/<code class="docutils literal notranslate"><span class="pre">View</span></code>/<code class="docutils literal notranslate"><span class="pre">Custom</span></code>), <code class="docutils literal notranslate"><span class="pre">clipPlaneRelativeTo</span></code> (<code class="docutils literal notranslate"><span class="pre">Origin</span></code>/<code class="docutils literal notranslate"><span class="pre">Center</span></code>/
+<code class="docutils literal notranslate"><span class="pre">Min</span></code>/<code class="docutils literal notranslate"><span class="pre">Max</span></code>), <code class="docutils literal notranslate"><span class="pre">clipPlaneOffset</span></code> and <code class="docutils literal notranslate"><span class="pre">clipPlaneFlipped</span></code> against the visible scene’s bounding
+box into a <code class="docutils literal notranslate"><span class="pre">vec4</span></code> — xyz normal, w offset, a point surviving when <code class="docutils literal notranslate"><span class="pre">dot(vec4(p,</span> <span class="pre">1),</span> <span class="pre">plane)</span></code>
+is at least 0. All-zero means keep everything, which is what every pass writes when clipping
+is off, so no shader branches and no pass has a second pipeline. The offset is a fraction of
+the scene’s diagonal, so one range fits every model and a saved state survives a rescale.
+<code class="docutils literal notranslate"><span class="pre">View</span></code> resolves from the camera each frame; the others hold still while you orbit.</p>
+<p>Vertex shaders see <strong>local</strong> positions, so the world plane is transformed per layer:
+<code class="docutils literal notranslate"><span class="pre">ClipPlane::toLocal()</span></code> applies the transpose of the layer matrix, since a plane transforms
+as a row vector. That makes the plane per-mesh data with the same cadence as <code class="docutils literal notranslate"><span class="pre">mvp</span></code>, which is
+why it rides in the per-mesh uniform slice (<code class="docutils literal notranslate"><span class="pre">kUbufClipPlaneOffset</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">kDecoratorClipPlaneOffset</span></code> for the two decorator blocks) rather than in a buffer of its own.</p>
+<p>Eleven vertex shaders write <code class="docutils literal notranslate"><span class="pre">gl_ClipDistance[0]</span></code>: the seven fill/wire/edge/point/bbox
+shaders and <code class="docutils literal notranslate"><span class="pre">selection_mask.vert</span></code> on <code class="docutils literal notranslate"><span class="pre">m_srb</span></code>, <code class="docutils literal notranslate"><span class="pre">depth_pick.vert</span></code> on <code class="docutils literal notranslate"><span class="pre">m_depthPickSrb</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">overlay_decorator.vert</span></code> / <code class="docutils literal notranslate"><span class="pre">overlay_fat_decorator.vert</span></code> on the decorator and selection SRBs.
+The three that already redeclare <code class="docutils literal notranslate"><span class="pre">gl_PerVertex</span></code> for <code class="docutils literal notranslate"><span class="pre">gl_PointSize</span></code> list the clip distance
+there too, or <code class="docutils literal notranslate"><span class="pre">qsb</span></code> refuses the build. Gizmos, the background, raster passes and everything
+in UV mode are deliberately not clipped.</p>
+<blockquote>
+<div><p><strong>This sets the OpenGL floor at 3.2 core.</strong> <code class="docutils literal notranslate"><span class="pre">qt_add_shaders</span></code> passes <code class="docutils literal notranslate"><span class="pre">GLSL</span> <span class="pre">&quot;150&quot;</span></code> because
+Qt’s default set also bakes GLSL 100 es and 120, and SPIRV-Cross emits a global <code class="docutils literal notranslate"><span class="pre">out</span> <span class="pre">float</span> <span class="pre">gl_ClipDistance[1]</span></code> for those profiles, which they reject. <code class="docutils literal notranslate"><span class="pre">qsb</span></code> exits 0 either way,
+so the breakage would only appear when the GL backend compiled the shader at run time.
+Metal, Vulkan and D3D are unaffected.</p>
+</div></blockquote>
+<p><strong>Cut rim.</strong> <code class="docutils literal notranslate"><span class="pre">fill_smooth.vert</span></code> and <code class="docutils literal notranslate"><span class="pre">fill_flat.vert</span></code> also pass the clip distance to the
+fragment stage, where <code class="docutils literal notranslate"><span class="pre">fill_smooth.frag</span></code>, <code class="docutils literal notranslate"><span class="pre">fill_flat.frag</span></code> and <code class="docutils literal notranslate"><span class="pre">fill_radscale.frag</span></code> blend
+<code class="docutils literal notranslate"><span class="pre">clipRim.rgb</span></code> into the sliver just above zero, <code class="docutils literal notranslate"><span class="pre">clipRim.a</span></code> pixels wide:
+<code class="docutils literal notranslate"><span class="pre">smoothstep(width</span> <span class="pre">*</span> <span class="pre">fwidth(d),</span> <span class="pre">0.0,</span> <span class="pre">d)</span></code>. <code class="docutils literal notranslate"><span class="pre">fwidth</span></code> is what keeps the band a constant number
+of pixels whatever angle the surface meets the plane at. Width 0 disables it.</p>
+<p><strong>Plane gizmo.</strong> A bordered grid on the plane with a stem along the surviving side, built by
+<code class="docutils literal notranslate"><span class="pre">ClipPlane::planeGizmo()</span></code> and drawn on the line-gizmo pipeline the peer-view cameras use
+(<code class="docutils literal notranslate"><span class="pre">kClipPlaneGizmoRasterIndex</span></code>). It appears while the plane is moving and for 1200 ms after;
+<code class="docutils literal notranslate"><span class="pre">clipPlaneShowPlane</span></code> keeps it up permanently.</p>
+<p><strong>Snapping.</strong> <code class="docutils literal notranslate"><span class="pre">ClipMeshWithPlane</span></code> takes a tolerance, exposed by the filter as <em>Snap to
+existing vertices</em>: a crossing that lands within that fraction of an edge from an endpoint
+does not split the edge, and the endpoint is moved onto the plane instead. Without the move
+the cut is planar only to within a fraction of an edge, which is invisible on an
+axis-aligned cut through a regular mesh – those crossings land on vertices exactly – and
+routine on an oblique one, where it stops the cut being cappable at all.</p>
+<p><strong>Making the cut real.</strong> The clip-plane page’s <em>Trim Current Layer</em> button runs
+<code class="docutils literal notranslate"><span class="pre">meshlab2.filter.meshing::trim_surface_by_plane</span></code> on the current layer and then switches the
+clipping plane off, so what is on screen becomes the geometry rather than a view of it. It
+hands over the resolved world plane as a normal measured from the origin rather than
+copying the settings across: the view measures its offset in diagonals of the whole visible
+scene while the filter measures a distance against one layer’s bounding box, so the same
+numbers would mean different planes as soon as there is more than one layer. It matches
+what the viewport shows – one layer, cut left open; the Filters panel has the rest of the
+filter’s options.</p>
+<p><strong>Interaction.</strong> <code class="docutils literal notranslate"><span class="pre">Ctrl</span></code>+wheel slides the plane along its normal at 0.02 diagonals a notch;
+<code class="docutils literal notranslate"><span class="pre">Alt</span></code>+drag tips it, switching the axis to <code class="docutils literal notranslate"><span class="pre">Custom</span></code>. Both enable clipping if it is off, and
+the wheel starts it at <code class="docutils literal notranslate"><span class="pre">ClipPlane::offsetClearOfScene()</span></code> — the offset where the plane just
+touches the scene — so the next notch cuts. <code class="docutils literal notranslate"><span class="pre">Ctrl</span></code>+wheel used to scale <code class="docutils literal notranslate"><span class="pre">view.nearClipRatio</span></code>;
+that ratio is now a depth-precision setting reached only from the preferences. The controls
+also live behind the <code class="docutils literal notranslate"><span class="pre">RenderPass::ClipPlane</span></code> button on the pass bar.</p>
+</section>
 <section id="depth-picking">
 <h2>Depth Picking<a class="headerlink" href="#depth-picking" title="Link to this heading">¶</a></h2>
 <p>Double click schedules an offscreen depth-pick frame: depth encoded in RGB → one pixel read back → backend conventions normalized (Y flip, clip-depth range) → unprojected via inverse MVP → <code class="docutils literal notranslate"><span class="pre">trackballCenterPicked(worldPos)</span></code> emitted, animated recenter starts.</p>
 </section>
 <section id="scene3d-camera-and-interaction">
 <h2><code class="docutils literal notranslate"><span class="pre">Scene3D</span></code> Camera and Interaction<a class="headerlink" href="#scene3d-camera-and-interaction" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">ViewTrackball</span></code>: left drag = arcball/hyperbola rotation; middle/right drag or <code class="docutils literal notranslate"><span class="pre">Ctrl+Left</span></code> = pan; wheel = dolly; <code class="docutils literal notranslate"><span class="pre">Shift+Wheel</span></code> = vertigo (FOV + compensating dolly); double click = depth-pick + animated recenter. <code class="docutils literal notranslate"><span class="pre">Ctrl+Shift+Left</span></code> rotates the view-space headlight and shows the light gizmo while dragging. Gizmos are depth-aware and scale-stable across dolly/FOV changes. The corner <code class="docutils literal notranslate"><span class="pre">ViewAxisGizmo</span></code> uses the <code class="docutils literal notranslate"><span class="pre">view.axisGizmoSize</span></code> preference and lets axis clicks snap the 3D camera orientation. <code class="docutils literal notranslate"><span class="pre">MainWindow</span></code> can optionally synchronize camera state across 3D views and exposes a <code class="docutils literal notranslate"><span class="pre">Center</span> <span class="pre">on</span> <span class="pre">Selection</span></code> camera command; UV views keep independent pan/zoom.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ViewTrackball</span></code>: left drag = arcball/hyperbola rotation; middle/right drag or <code class="docutils literal notranslate"><span class="pre">Ctrl+Left</span></code> = pan; wheel = dolly; <code class="docutils literal notranslate"><span class="pre">Shift+Wheel</span></code> = vertigo (FOV + compensating dolly); double click = depth-pick + animated recenter. <code class="docutils literal notranslate"><span class="pre">Ctrl+Shift+Left</span></code> rotates the view-space headlight and shows the light gizmo while dragging. <code class="docutils literal notranslate"><span class="pre">Ctrl+Wheel</span></code> slides the clipping plane and <code class="docutils literal notranslate"><span class="pre">Alt+Left</span></code> tips it (see <a class="reference internal" href="#clipping-plane"><span class="xref myst">Clipping Plane</span></a>). Gizmos are depth-aware and scale-stable across dolly/FOV changes. The corner <code class="docutils literal notranslate"><span class="pre">ViewAxisGizmo</span></code> uses the <code class="docutils literal notranslate"><span class="pre">view.axisGizmoSize</span></code> preference and lets axis clicks snap the 3D camera orientation. <code class="docutils literal notranslate"><span class="pre">MainWindow</span></code> can optionally synchronize camera state across 3D views and exposes a <code class="docutils literal notranslate"><span class="pre">Center</span> <span class="pre">on</span> <span class="pre">Selection</span></code> camera command; UV views keep independent pan/zoom.</p>
 </section>
 <section id="interactive-tools">
 <h2>Interactive Tools<a class="headerlink" href="#interactive-tools" title="Link to this heading">¶</a></h2>
@@ -477,6 +538,26 @@ tracked CPU allocations and OS physical footprint.</p>
 <p>Snapshot-to-raster paths reuse the same view capture mechanics but add the resulting image to <code class="docutils literal notranslate"><span class="pre">Document</span></code> through <code class="docutils literal notranslate"><span class="pre">addRasterImage(...)</span></code> with a <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code> from <code class="docutils literal notranslate"><span class="pre">RenderWidget::cameraShotForViewport(...)</span></code> or from <code class="docutils literal notranslate"><span class="pre">renderSnapshotFromStateJson(...)</span></code>. This is how manual snapshot rasters and the <code class="docutils literal notranslate"><span class="pre">Render</span> <span class="pre">from</span> <span class="pre">Render-State</span> <span class="pre">JSON</span></code> layer filter create raster layers.</p>
 <p>Programmatic snapshots use the same render-state JSON contract. Embedded <code class="docutils literal notranslate"><span class="pre">mlgui.render_snapshot(...)</span></code> and <code class="docutils literal notranslate"><span class="pre">mlgui.save_snapshot(...)</span></code> render through the live active <code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code>; standalone <code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet.render_snapshot(...)</span></code> uses <code class="docutils literal notranslate"><span class="pre">HeadlessRenderContext</span></code>, which owns a hidden <code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code>/QRhi lifecycle for offscreen and batch rendering.</p>
 </section>
+<section id="verifying-the-render-path">
+<h2>Verifying the Render Path<a class="headerlink" href="#verifying-the-render-path" title="Link to this heading">¶</a></h2>
+<p>The render path lives in the <code class="docutils literal notranslate"><span class="pre">MeshLab</span></code> executable, not a library, so a Qt test cannot link
+<code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code> and there is no ctest for anything a shader decides. The route is the
+application’s own <code class="docutils literal notranslate"><span class="pre">--generate-docs</span> <span class="pre">&lt;dir&gt;</span></code> hook, which execs <code class="docutils literal notranslate"><span class="pre">&lt;dir&gt;/generate_api.py</span></code> with the
+<code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> module importable; a probe there builds a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code>, calls <code class="docutils literal notranslate"><span class="pre">render_snapshot()</span></code>
+with a render-state JSON, and asserts on the returned raw RGBA8888.</p>
+<p><code class="docutils literal notranslate"><span class="pre">tests/render_probes/</span></code> holds these. Each is a directory with a <code class="docutils literal notranslate"><span class="pre">generate_api.py</span></code>, because
+that is the filename the hook runs:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">build</span><span class="o">-</span><span class="n">release</span><span class="o">/</span><span class="n">MeshLab</span><span class="o">.</span><span class="n">app</span><span class="o">/</span><span class="n">Contents</span><span class="o">/</span><span class="n">MacOS</span><span class="o">/</span><span class="n">MeshLab</span> <span class="o">--</span><span class="n">generate</span><span class="o">-</span><span class="n">docs</span> <span class="n">tests</span><span class="o">/</span><span class="n">render_probes</span><span class="o">/</span><span class="n">clip_plane</span>
+</pre></div>
+</div>
+<p>They need a real GPU and a window server. Under <code class="docutils literal notranslate"><span class="pre">QT_QPA_PLATFORM=offscreen</span></code> there is no QRhi
+and every snapshot fails, which is the opposite of how the ctest suite is run.</p>
+<p>Two things to know before writing one, both of which look like bugs first: the default
+background is a gradient that passes through a band any naive “is this pixel lit” test
+scores as geometry, so render on a flat colour; and a pass that changes only hidden geometry
+must leave the image <strong>exactly</strong> unchanged, so equality is the assertion, not a tolerance.</p>
+<p>Moving the render sources into a linkable library would let these become real tests.</p>
+</section>
 <section id="frame-timing">
 <h2>Frame Timing<a class="headerlink" href="#frame-timing" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code> emits per-frame CPU time (<code class="docutils literal notranslate"><span class="pre">QElapsedTimer</span></code>) and GPU time when <code class="docutils literal notranslate"><span class="pre">QRhi::Timestamps</span></code> is supported (<code class="docutils literal notranslate"><span class="pre">lastCompletedGpuTime</span></code>). <code class="docutils literal notranslate"><span class="pre">MainWindow</span></code> displays a rolling 100-frame average in the status bar.</p>
@@ -529,6 +610,7 @@ tracked CPU allocations and OS physical footprint.</p>
 <li><a class="reference internal" href="#scene3d-frame-sequence"><code class="docutils literal notranslate"><span class="pre">Scene3D</span></code> Frame Sequence</a></li>
 <li><a class="reference internal" href="#scene3d-pass-details"><code class="docutils literal notranslate"><span class="pre">Scene3D</span></code> Pass Details</a></li>
 <li><a class="reference internal" href="#current-mesh-highlight">Current Mesh Highlight</a></li>
+<li><a class="reference internal" href="#clipping-plane">Clipping Plane</a></li>
 <li><a class="reference internal" href="#depth-picking">Depth Picking</a></li>
 <li><a class="reference internal" href="#scene3d-camera-and-interaction"><code class="docutils literal notranslate"><span class="pre">Scene3D</span></code> Camera and Interaction</a></li>
 <li><a class="reference internal" href="#interactive-tools">Interactive Tools</a></li>
@@ -540,6 +622,7 @@ tracked CPU allocations and OS physical footprint.</p>
 <li><a class="reference internal" href="#texture-normal-map-workflow">Texture Normal-Map Workflow</a></li>
 <li><a class="reference internal" href="#quality-histogram-overlay">Quality Histogram Overlay</a></li>
 <li><a class="reference internal" href="#snapshot-capture">Snapshot Capture</a></li>
+<li><a class="reference internal" href="#verifying-the-render-path">Verifying the Render Path</a></li>
 <li><a class="reference internal" href="#frame-timing">Frame Timing</a></li>
 </ul>
 </li>

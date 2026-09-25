@@ -370,6 +370,15 @@ Open question:
    release-management benefit is worth the extra complexity.
 7. Remove stale names from user-facing docs once the new taxonomy is in place.
 
+## Moves since pass 1
+
+One row per filter that changed plugin after the pass-1 layout settled, with the measured
+evidence that justified it.
+
+| Filter | From | To | Evidence | Applied |
+|---|---|---|---|---|
+| `trim_surface_by_plane` | `filter_screened_poisson` | `filter_meshing` | It first shipped built on PoissonRecon's SurfaceTrimmer, which is what put it there. Reimplemented on `vcg::tri::ClipMeshWithPlane`, its dispatch references no `ScreenedPoisson::` symbol and the plugin's own headers are not included by it; `filter_meshing` already holds `create_polyline_from_planar_section`, whose plane vocabulary it shares, and `close_holes`. | 2026-09-24 |
+
 ## Plugin Mapping Table (historical pass-1 proposal)
 
 > **Status (2026-08-31): historical design record.** Applied pieces include the

@@ -666,6 +666,31 @@ release-management benefit is worth the extra complexity.</p></li>
 <li><p>Remove stale names from user-facing docs once the new taxonomy is in place.</p></li>
 </ol>
 </section>
+<section id="moves-since-pass-1">
+<h2>Moves since pass 1<a class="headerlink" href="#moves-since-pass-1" title="Link to this heading">¶</a></h2>
+<p>One row per filter that changed plugin after the pass-1 layout settled, with the measured
+evidence that justified it.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>From</p></th>
+<th class="head"><p>To</p></th>
+<th class="head"><p>Evidence</p></th>
+<th class="head"><p>Applied</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">trim_surface_by_plane</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_screened_poisson</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code></p></td>
+<td><p>It first shipped built on PoissonRecon’s SurfaceTrimmer, which is what put it there. Reimplemented on <code class="docutils literal notranslate"><span class="pre">vcg::tri::ClipMeshWithPlane</span></code>, its dispatch references no <code class="docutils literal notranslate"><span class="pre">ScreenedPoisson::</span></code> symbol and the plugin’s own headers are not included by it; <code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> already holds <code class="docutils literal notranslate"><span class="pre">create_polyline_from_planar_section</span></code>, whose plane vocabulary it shares, and <code class="docutils literal notranslate"><span class="pre">close_holes</span></code>.</p></td>
+<td><p>2026-09-24</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="plugin-mapping-table-historical-pass-1-proposal">
 <h2>Plugin Mapping Table (historical pass-1 proposal)<a class="headerlink" href="#plugin-mapping-table-historical-pass-1-proposal" title="Link to this heading">¶</a></h2>
 <blockquote>
@@ -1372,6 +1397,7 @@ specific release-management reason?</p></li>
 <li><a class="reference internal" href="#defaults-and-script-generation">Defaults and Script Generation</a></li>
 <li><a class="reference internal" href="#filter-side-effects">Filter Side Effects</a></li>
 <li><a class="reference internal" href="#migration-strategy">Migration Strategy</a></li>
+<li><a class="reference internal" href="#moves-since-pass-1">Moves since pass 1</a></li>
 <li><a class="reference internal" href="#plugin-mapping-table-historical-pass-1-proposal">Plugin Mapping Table (historical pass-1 proposal)</a><ul>
 <li><a class="reference internal" href="#stays-separate-real-external-dependency">Stays separate — real external dependency</a></li>
 <li><a class="reference internal" href="#stays-separate-vendored-third-party-code">Stays separate — vendored third-party code</a></li>
