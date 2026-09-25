@@ -19,6 +19,7 @@
 #include <vcg/complex/allocate.h>
 #include <vcg/space/planar_polygon_tessellation.h>
 #include <wrap/io_trimesh/export_obj.h>
+#include <wrap/io_trimesh/export_stl.h>
 #include <wrap/io_trimesh/import_obj.h>
 #include <wrap/io_trimesh/io_mask.h>
 
@@ -86,6 +87,7 @@ private slots:
     void openDialogFilterContainsKnownFormats();
     void saveAndLoad3MFRoundTrip();
     void trueFormRoundTripsObjAndStl();
+    void stlOpensWithDuplicateVerticesMerged();
     void polygonalOffExportKeepsEveryWellFormedQuad();
     void plyWithLongPerVertexListLoads();
     void plyEdgeColorsLoadAndRoundTrip();
@@ -2085,6 +2087,51 @@ void DocumentTests::trueFormRoundTripsObjAndStl()
         QVERIFY2(std::abs(box.DimX() - 2.0f) < 1e-3f, qPrintable(ext));
         QVERIFY2(std::abs(box.DimY() - 3.0f) < 1e-3f, qPrintable(ext));
     }
+}
+
+void DocumentTests::stlOpensWithDuplicateVerticesMerged()
+{
+    // STL stores every triangle with its own three corners, so this quad is written as six
+    // vertices. Opening it merges them back to four unless the document is told not to,
+    // which is what the document.mergeStlDuplicateVertices preference does.
+    VCGMesh quad;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(quad, VCGMesh::CoordType(0.0f, 0.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(quad, VCGMesh::CoordType(2.0f, 0.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(quad, VCGMesh::CoordType(0.0f, 3.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(quad, VCGMesh::CoordType(2.0f, 3.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddFace(quad, size_t(0), size_t(1), size_t(2));
+    vcg::tri::Allocator<VCGMesh>::AddFace(quad, size_t(1), size_t(3), size_t(2));
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("quad.stl"));
+    QCOMPARE(vcg::tri::io::ExporterSTL<VCGMesh>::Save(quad, path.toStdString().c_str(), true), 0);
+
+    // vcglib's reader, which returns the soup as stored. TrueForm's merges by itself and
+    // would pass the first half for the wrong reason. The choice persists in QSettings,
+    // shared with the user's own application, so it is put back.
+    Document probe;
+    const QString previousStl = probe.preferredImportPluginForExtension(QStringLiteral("stl"));
+    const auto restore = qScopeGuard([&] {
+        probe.setPreferredImportPluginForExtension(QStringLiteral("stl"), previousStl);
+    });
+    probe.setPreferredImportPluginForExtension(QStringLiteral("stl"), QStringLiteral("io_vcg"));
+
+    Document merged;
+    QVERIFY(merged.mergeStlDuplicateVertices());
+    QCOMPARE(merged.loadMesh(path), 0);
+    QCOMPARE(merged.mesh(0).mesh.FN(), 2);
+    QCOMPARE(merged.mesh(0).mesh.VN(), 4);
+
+    Document soup;
+    soup.setMergeStlDuplicateVertices(false);
+    QCOMPARE(soup.loadMesh(path), 0);
+    QCOMPARE(soup.mesh(0).mesh.FN(), 2);
+    QCOMPARE(soup.mesh(0).mesh.VN(), 6);
+
+    // Reload goes through the same step, so it follows the setting too.
+    soup.setMergeStlDuplicateVertices(true);
+    QCOMPARE(soup.reloadMesh(0), 0);
+    QCOMPARE(soup.mesh(0).mesh.VN(), 4);
 }
 
 void DocumentTests::saveAndLoadEmbeddedGLBTexture()

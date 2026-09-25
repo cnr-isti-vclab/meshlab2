@@ -9,6 +9,7 @@
 
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
+#include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
 

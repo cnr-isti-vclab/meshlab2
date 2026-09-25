@@ -103,6 +103,26 @@ void Document::setPreferredImportPluginForExtension(const QString &extension, co
     m_pluginManager->setPreferredPluginForExtension(extension, pluginId);
 }
 
+void Document::mergeImportedStlVertices(const QString &path, VCGMesh &mesh)
+{
+    if (!m_mergeStlDuplicateVertices
+        || QFileInfo(path).suffix().compare(QLatin1String("stl"), Qt::CaseInsensitive) != 0)
+        return;
+    // Every open and reload passes here, whichever plugin read the file. The TrueForm
+    // reader has already merged, so for it this finds nothing to do.
+    const int facesBefore = mesh.FN();
+    const int merged = vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(mesh);
+    if (merged <= 0)
+        return;
+    const int degenerate = facesBefore - mesh.FN();
+    writeLog(degenerate > 0
+                 ? tr("Merged %1 duplicate vertices of '%2' and removed %3 faces the merge left degenerate.")
+                       .arg(merged).arg(QFileInfo(path).fileName()).arg(degenerate)
+                 : tr("Merged %1 duplicate vertices of '%2'.")
+                       .arg(merged).arg(QFileInfo(path).fileName()),
+        LogSource::Application);
+}
+
 int Document::loadMesh(const QString &filename, QString *errorMessage)
 {
     const auto reportError = [errorMessage](const QString &message) {
@@ -181,6 +201,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage)
     if (err != 0)
         writeLog(tr("Load warning: %1").arg(plugin->errorString(err)), LogSource::Application, LogLevel::Warning);
 
+    mergeImportedStlVertices(filename, entry->mesh);
     // Framework invariant: meshes entering the document from IO must not
     // retain deleted elements in storage.
     compactMeshStorageInvariant(entry->mesh);
@@ -414,6 +435,7 @@ int Document::reloadMesh(int index)
     if (err != 0)
         writeLog(tr("Reload warning: %1").arg(plugin->errorString(err)), LogSource::Application, LogLevel::Warning);
 
+    mergeImportedStlVertices(sourcePath, reloadedMesh);
     // Framework invariant: meshes entering the document from IO must not
     // retain deleted elements in storage.
     compactMeshStorageInvariant(reloadedMesh);

@@ -190,6 +190,12 @@ public:
     // at once need it: a per-file status-bar message is overwritten by the next file.
     int loadMesh(const QString &filename, QString *errorMessage = nullptr);
     int reloadMesh(int index);
+    // STL stores every triangle with its own three corners, so a mesh read from it shares no
+    // vertices. When set (the default), opening or reloading an STL merges vertices at the
+    // same position, as Remove Duplicate Vertices does. The app sets it from the
+    // document.mergeStlDuplicateVertices preference.
+    bool mergeStlDuplicateVertices() const { return m_mergeStlDuplicateVertices; }
+    void setMergeStlDuplicateVertices(bool merge) { m_mergeStlDuplicateVertices = merge; }
     int saveMesh(int index, const QString &filename, const MeshIOSaveOptions &options);
     int saveMesh(int index, const QString &filename);
     int saveCurrentMesh(const QString &filename, const MeshIOSaveOptions &options);
@@ -504,6 +510,7 @@ private:
     void writeProgressLog(const QString &message);
     static bool dispatchLogCallback(int pos, const char *message);
     void purgeMeshGpuResources(std::uint64_t meshId);
+    void mergeImportedStlVertices(const QString &path, VCGMesh &mesh);
 
     std::unique_ptr<MeshIOPluginManager> m_pluginManager;
     std::unique_ptr<MeshFilterPluginManager> m_filterPluginManager;
@@ -541,4 +548,5 @@ private:
     std::function<void(const ViewState &, bool restoreCamera)> m_restoreViewState;
     std::function<bool(const QString &, const QSize &, QImage &, CameraShot &, QString &)> m_captureRenderStateSnapshot;
     bool m_bulkLoading = false;
+    bool m_mergeStlDuplicateVertices = true;
 };

@@ -108,10 +108,11 @@ needed.
 
 ## Behavioural differences from the other readers
 
-- **STL import welds coincident vertices while loading.** STL is a triangle soup
-  with no shared vertices, so every other reader yields a mesh that needs
-  *Remove Duplicate Vertices* afterwards. `tf::read_stl` routes through
-  `tf::clean::polygon_soup`, so the mesh arrives welded.
+- **STL import welds coincident vertices while loading, always.** STL is a
+  triangle soup with no shared vertices. `tf::read_stl` routes through
+  `tf::clean::polygon_soup`, so the mesh arrives welded. The document merges STL
+  duplicates after any reader by default (`document.mergeStlDuplicateVertices`),
+  so the difference shows only with that preference turned off.
 - **OBJ import recovers vertex positions and faces only** — no UVs, normals or
   materials, by design in `tf::read_obj`. For a textured OBJ use `io_vcg` or
   `io_obj_rapidobj`. This is a geometry-recovery reader.

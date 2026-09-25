@@ -201,6 +201,14 @@
       "max": 40
     },
     {
+      "id": "document.mergeStlDuplicateVertices",
+      "label": "Merge duplicate vertices of STL files",
+      "help": "STL stores every triangle with its own three corners, so a mesh read from it shares no vertices: each triangle is detached from its neighbors, and anything that needs connectivity (smoothing, closing holes, selecting connected components, remeshing) sees a heap of loose triangles. With this on, vertices at exactly the same position are merged as an STL file is opened or reloaded, as Remove Duplicate Vertices does, and triangles the merge leaves degenerate are removed. Turn it off to get the file exactly as stored. The TrueForm STL reader merges while reading, whatever this is set to.",
+      "group": "document",
+      "type": "bool",
+      "default": true
+    },
+    {
       "id": "document.undoMemoryLimitMiB",
       "label": "Undo memory limit",
       "help": "Maximum tracked memory retained by undo history, in MiB. When crossed, alternate branches and then the oldest checkpoints are discarded down to a lower watermark. A value of 0 disables automatic byte-budget pruning.",

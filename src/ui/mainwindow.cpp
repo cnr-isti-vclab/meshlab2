@@ -402,6 +402,8 @@ MainWindow::MainWindow(QWidget *parent)
         * 1024LL * 1024LL);
     m_purgeUndoOnMemoryPressure = Preferences::instance().boolValue(
         QStringLiteral("document.purgeUndoOnMemoryPressure"));
+    m_doc->setMergeStlDuplicateVertices(Preferences::instance().boolValue(
+        QStringLiteral("document.mergeStlDuplicateVertices")));
     m_memoryPressureMonitor = new MemoryPressureMonitor(this);
     connect(
         m_memoryPressureMonitor,
@@ -761,6 +763,10 @@ MainWindow::MainWindow(QWidget *parent)
             }
             if (id == QStringLiteral("document.purgeUndoOnMemoryPressure")) {
                 m_purgeUndoOnMemoryPressure = Preferences::instance().boolValue(id);
+                return;
+            }
+            if (id == QStringLiteral("document.mergeStlDuplicateVertices")) {
+                m_doc->setMergeStlDuplicateVertices(Preferences::instance().boolValue(id));
                 return;
             }
             if (id != QStringLiteral("log.verbosity") && id != QStringLiteral("log.timestamp"))
