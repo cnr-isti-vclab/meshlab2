@@ -6,6 +6,7 @@
 #include <vcg/math/perlin_noise.h>
 #include <vcg/complex/allocate.h>
 #include <vcg/complex/algorithms/create/marching_cubes.h>
+#include <vcg/complex/algorithms/create/mc_closed_isosurface.h>
 #include <vcg/complex/algorithms/create/mc_trivial_walker.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
@@ -98,17 +99,23 @@ MeshFilterRunResult BasicFilterPlugin::runFilter(
         }
 
         VCGMesh generatedMesh;
-        WalkerType walker;
-        MarchingCubesType mc(generatedMesh, walker);
         // Keep historical noisy-isosurface appearance by extracting at the
         // same threshold that was previously used in this filter.
         const float isoThreshold = float(std::max(16, (gridSize * gridSize) / 10));
-        walker.BuildMesh<MarchingCubesType>(
-            generatedMesh,
-            volume,
-            mc,
-            isoThreshold,
-            nullptr);
+        QString closeNote;
+        if (params.getBool(QStringLiteral("closeBoundary"))) {
+            vcg::tri::BuildClosedIsosurface(generatedMesh, volume, isoThreshold);
+            closeNote = QObject::tr("Closed the surface at the boundary of the grid.");
+        } else {
+            WalkerType walker;
+            MarchingCubesType mc(generatedMesh, walker);
+            walker.BuildMesh<MarchingCubesType>(
+                generatedMesh,
+                volume,
+                mc,
+                isoThreshold,
+                nullptr);
+        }
 
         if (generatedMesh.VN() <= 0 || generatedMesh.FN() <= 0) {
             return { false, false, QObject::tr("Noisy isosurface generation produced an empty mesh.") };
@@ -136,6 +143,8 @@ MeshFilterRunResult BasicFilterPlugin::runFilter(
                 .arg(doc.mesh(newIndex).mesh.VN())
                 .arg(doc.mesh(newIndex).mesh.FN())
         };
+        if (!closeNote.isEmpty())
+            result.infoMessages << closeNote;
         return result;
     }
 

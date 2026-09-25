@@ -408,6 +408,8 @@ private slots:
     void trimByPlaneClosesTwoDisjointCutsSeparately();
     void trimByPlaneClosesShellsThatPassThroughEachOther();
     void trimByPlaneCutsExactlyByDefault();
+    void isosurfaceFromExpressionSitsWhereTheFieldIsZero();
+    void isosurfacesCloseAtTheVolumeBoundary();
     void trimByPlaneReproducesTheViewportClippingPlane();
     void trimByPlaneClosesObliqueCutsToo();
     void filterParameterValidation();
@@ -1281,6 +1283,85 @@ void FilterTests::trimByPlaneCutsExactlyByDefault()
     const float volume = vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(out);
     QVERIFY2(std::abs(volume - expected) < 0.01f * expected,
              qPrintable(QStringLiteral("volume %1, expected %2").arg(volume).arg(expected)));
+}
+
+void FilterTests::isosurfaceFromExpressionSitsWhereTheFieldIsZero()
+{
+    // A voxel size that does not divide the range: 2 / 0.07 is 28.6 steps. The field was
+    // sampled at min + 0.07 i but the vertices placed at min + (2 / 28) i, which moved this
+    // plane from x = 0.3 to about 0.326. The samples now span the range in whole steps.
+    Document doc;
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("voxelSize"), 0.07);
+    params.insert(QStringLiteral("expr"), QStringLiteral("x-0.3"));
+    const MeshFilterRunResult result =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("create_isosurface_from_expression")), params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+    const VCGMesh &out = doc.mesh(result.newMeshIndices[0]).mesh;
+    float worst = 0.0f;
+    for (const VCGVertex &v : out.vert)
+        if (!v.IsD())
+            worst = std::max(worst, std::abs(v.cP().X() - 0.3f));
+    QVERIFY2(worst < 1e-5f, qPrintable(QString::number(worst)));
+}
+
+void FilterTests::isosurfacesCloseAtTheVolumeBoundary()
+{
+    const auto boundaryEdges = [](VCGMesh &m) {
+        VCGMeshFFAdjScope ffAdj(m);
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+        int n = 0;
+        for (const VCGFace &f : m.face)
+            for (int e = 0; e < 3; ++e)
+                if (!f.IsD() && vcg::face::IsBorder(f, e))
+                    ++n;
+        return n;
+    };
+    const auto run = [](Document &doc, const QString &id, MeshFilterParameterValues params) {
+        params.insert(QStringLiteral("closeBoundary"), true);
+        const MeshFilterRunResult result = doc.runFilter(filterKeyForId(doc, id), params);
+        const QString log = result.infoMessages.join(QStringLiteral(" | "));
+        if (!result.success || result.newMeshIndices.size() != 1 || !log.contains(QStringLiteral("Closed the surface")))
+            return -1;
+        return result.newMeshIndices[0];
+    };
+
+    // A half-space fills the range up to x = 0.3, corners and all. Its surface is a plane,
+    // which marching cubes reproduces exactly, so the closed volume is exact too -- which it
+    // is only if the caps sit on the faces of the range.
+    {
+        Document doc;
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("expr"), QStringLiteral("x-0.3"));
+        const int index = run(doc, QStringLiteral("create_isosurface_from_expression"), params);
+        QVERIFY(index >= 0);
+        VCGMesh &out = doc.mesh(index).mesh;
+        QCOMPARE(boundaryEdges(out), 0);
+        const float volume = vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(out);
+        QVERIFY2(std::abs(volume - 1.3f * 2.0f * 2.0f) < 1e-3f, qPrintable(QString::number(volume)));
+        QVERIFY(std::abs(out.bbox.min.X() + 1.0f) < 1e-5f && std::abs(out.bbox.max.X() - 0.3f) < 1e-5f);
+        QVERIFY(std::abs(out.bbox.min.Y() + 1.0f) < 1e-5f && std::abs(out.bbox.max.Y() - 1.0f) < 1e-5f);
+    }
+    // A gyroid meets every face, edge and corner of the range, where the surface's boundary
+    // runs from one face onto the next.
+    {
+        Document doc;
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("expr"),
+                      QStringLiteral("sin(4*x)*cos(4*y)+sin(4*y)*cos(4*z)+sin(4*z)*cos(4*x)"));
+        const int index = run(doc, QStringLiteral("create_isosurface_from_expression"), params);
+        QVERIFY(index >= 0);
+        QCOMPARE(boundaryEdges(doc.mesh(index).mesh), 0);
+    }
+    {
+        Document doc;
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("resolution"), 32);
+        const int index = run(doc, QStringLiteral("create_isosurface_from_perlin_noise"), params);
+        QVERIFY(index >= 0);
+        QCOMPARE(boundaryEdges(doc.mesh(index).mesh), 0);
+    }
 }
 
 void FilterTests::trimByPlaneReproducesTheViewportClippingPlane()

@@ -8,6 +8,7 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
 #include <vcg/complex/algorithms/create/marching_cubes.h>
+#include <vcg/complex/algorithms/create/mc_closed_isosurface.h>
 #include <vcg/complex/algorithms/create/mc_trivial_walker.h>
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/create/platonic.h>
@@ -1009,9 +1010,19 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             vcg::Point3f(float(maxX), float(maxY), float(maxZ))
         };
         const vcg::Point3f dims = range.max - range.min;
-        const vcg::Point3i size = vcg::Point3i::Construct(dims * float(1.0 / voxelSize));
-        if (size[0] < 2 || size[1] < 2 || size[2] < 2)
-            return fail(QObject::tr("Sampling volume is too small for marching cubes."));
+        // Samples run from min to max inclusive, the step being the voxel size adjusted on
+        // each axis so that a whole number of steps spans the range. The volume's own mapping
+        // then puts every vertex where its samples were taken, and a closed surface ends
+        // exactly on the range's faces.
+        vcg::Point3i size;
+        vcg::Box3f volumeBox(range.min, range.min);
+        for (int a = 0; a < 3; ++a) {
+            const int steps = int(std::lround(double(dims[a]) / voxelSize));
+            if (steps < 1)
+                return fail(QObject::tr("Sampling volume is too small for marching cubes."));
+            size[a] = steps + 1;
+            volumeBox.max[a] += dims[a] / float(steps) * float(size[a]);
+        }
 
         mu::Parser parser;
         double x = 0.0;
@@ -1028,13 +1039,15 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         }
 
         VolumeType volume;
-        volume.Init(size, range);
+        volume.Init(size, volumeBox);
         for (int i = 0; i < size[0]; ++i) {
             for (int j = 0; j < size[1]; ++j) {
                 for (int k = 0; k < size[2]; ++k) {
-                    x = minX + voxelSize * double(i);
-                    y = minY + voxelSize * double(j);
-                    z = minZ + voxelSize * double(k);
+                    vcg::Point3f sample;
+                    volume.IPiToPf(vcg::Point3i(i, j, k), sample);
+                    x = sample[0];
+                    y = sample[1];
+                    z = sample[2];
                     try {
                         volume.Val(i, j, k) = float(parser.Eval());
                     } catch (mu::Parser::exception_type &e) {
@@ -1045,9 +1058,15 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         }
 
         VCGMesh generated;
-        WalkerType walker;
-        MarchingCubesType mc(generated, walker);
-        walker.BuildMesh<MarchingCubesType>(generated, volume, mc, 0.0f, nullptr);
+        QStringList notes;
+        if (params.getBool(QStringLiteral("closeBoundary"))) {
+            vcg::tri::BuildClosedIsosurface(generated, volume, 0.0f);
+            notes << QObject::tr("Closed the surface at the boundary of the sampling range.");
+        } else {
+            WalkerType walker;
+            MarchingCubesType mc(generated, walker);
+            walker.BuildMesh<MarchingCubesType>(generated, volume, mc, 0.0f, nullptr);
+        }
         if (generated.VN() <= 0 || generated.FN() <= 0)
             return fail(QObject::tr("Implicit surface extraction produced an empty mesh."));
 
@@ -1072,6 +1091,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
                 .arg(doc.mesh(newIndex).mesh.VN())
                 .arg(doc.mesh(newIndex).mesh.FN())
         };
+        result.infoMessages += notes;
         return result;
     }
 

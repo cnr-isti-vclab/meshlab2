@@ -56,6 +56,14 @@
           "default": 64,
           "min": 8,
           "max": 256
+        },
+        {
+          "id": "closeBoundary",
+          "label": "Close at the volume boundary",
+          "help": "If enabled, where the surface runs into the boundary of the grid it is closed there with flat caps, so the result is a closed solid instead of a tube left open at its ends and wherever the noise pushes it out of the grid. The caps follow the grid, one or two triangles per boundary cell.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         }
       ]
     }
