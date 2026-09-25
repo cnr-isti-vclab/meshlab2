@@ -80,4 +80,13 @@ std::vector<float> planeGizmo(
     const QVector3D &sceneMax,
     int gridLines = 8);
 
+// Two triangles covering the plane where it can meet the scene: the same square the
+// gizmo's grid spans, which is wider than the scene's bounding box cut by the plane, so
+// every pixel where the cut can be inside an object lies on it. Six xyz points, world
+// space. Empty when there is no plane or no scene.
+std::vector<float> capQuad(
+    const QVector4D &worldPlane,
+    const QVector3D &sceneMin,
+    const QVector3D &sceneMax);
+
 } // namespace ClipPlane

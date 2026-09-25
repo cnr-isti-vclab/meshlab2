@@ -6922,8 +6922,10 @@ Unless the cut is closed the result is a surface with a new boundary, not a soli
 - **relativeTo** (*enum*, default: `center`) — Point the offset is measured from.
 - **planeOffset** (*double*, default: `0.0`) — Distance from the reference point to the plane, measured along the plane normal.
 - **flip** (*bool*, default: `False`) — If enabled, the side that would have been discarded is kept instead. The same as negating the plane normal, kept as a control because reversing a cut is a thing you do often.
-- **snapTolerance** (*double*, default: `0.02`) — How close to an existing vertex the cut may fall before that vertex is moved onto the plane instead of the edge being split, as a fraction of the edge. Raising it avoids sliver triangles along the cut at the cost of following the plane less exactly; zero splits every crossing edge and can leave slivers.
-- **closeCut** (*bool*, default: `False`) — If enabled, the boundary opened by the plane is filled with new faces, so a closed mesh stays closed. All the loops on the plane are filled together with an even-odd rule, so a cut that leaves concentric outlines is capped as a ring rather than as overlapping discs. Only those loops are filled; holes the mesh already had are left alone. It needs an edge-manifold mesh, and says so in the log if the cut had to be left open.
+- **snapTolerance** (*double*, default: `0.0`) — How close to an existing vertex, as a fraction of the edge, the cut may fall before that vertex is moved onto the plane instead of the edge being split. Zero, the default, splits every crossing edge exactly; a vertex lying on the plane to within rounding is put on it regardless. Raising it leaves fewer thin triangles along the cut, but moves vertices by up to that fraction of an edge, which on long edges, such as the cap of an earlier cut, is enough to see.
+- **closeCut** (*bool*, default: `False`) — If enabled, the boundary opened by the plane is filled with new faces, so a closed mesh stays closed. All the loops on the plane are filled together with an even-odd rule, so a cut that leaves concentric outlines is capped as a ring rather than as overlapping discs. Only those loops are filled; holes the mesh already had are left alone. Parts of the layer that pass through each other are closed one by one.
+
+An outline that crosses or touches itself, as the section of a self-intersecting scan can, is still closed, though a few of its new faces may fold over others where it crosses. The log says how many edges of the cut, if any, could not be closed.
 ```
 
 ---
