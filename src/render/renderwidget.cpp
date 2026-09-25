@@ -2466,6 +2466,12 @@ void RenderWidget::updateDecoratorInfoOverlay()
     }
 
     const PerMeshRenderSettings ms = renderModeForMesh(mi);
+    // The panel describes what the boundary decorator draws, so it goes with it. The four
+    // flags below are the decorator page's own state and stay set while the pass is off.
+    if (!ms.decoratorBoundary) {
+        hide();
+        return;
+    }
     const bool wantBoundary = ms.decoratorBoundaryEdges;
     const bool wantSeams = ms.decoratorTextureSeams;
     const bool wantNmEdges = ms.decoratorNonManifoldEdges;

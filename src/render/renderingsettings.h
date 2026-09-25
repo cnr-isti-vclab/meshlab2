@@ -194,8 +194,8 @@ struct PerMeshRenderSettings {
     bool decoratorBoundary = false;
     bool decoratorBoundaryEdges = true;
     bool decoratorTextureSeams = true;
-    bool decoratorNonManifoldEdges = false;
-    bool decoratorNonManifoldVertices = false;
+    bool decoratorNonManifoldEdges = true;
+    bool decoratorNonManifoldVertices = true;
     // Unlike the two normal flags above this stays off by default: it needs per-vertex
     // principal-direction attributes, so it draws nothing until curvature is computed.
     bool decoratorCurvatureDir = false;
@@ -213,10 +213,14 @@ struct PerMeshRenderSettings {
     EdgeColorSource edgeColorSource = EdgeColorSource::Constant;
     QColor decoratorVertexNormalColor = QColor(70, 200, 255);
     QColor decoratorFaceNormalColor = QColor(70, 255, 120);
+    // Three colors for the four boundary-page decorators, all of which are on together:
+    // green for boundaries, as MeshLab always had it, blue for texture seams, and one
+    // red-purple for both kinds of non-manifoldness -- they are defects, and the two never
+    // meet, since the vertex decorator leaves out vertices on non-manifold edges.
     QColor decoratorBoundaryEdgeColor = QColor(0, 255, 0);
-    QColor decoratorTextureSeamColor = QColor(255, 80, 255);
-    QColor decoratorNonManifoldEdgeColor = QColor(255, 50, 50);
-    QColor decoratorNonManifoldVertexColor = QColor(255, 50, 255);
+    QColor decoratorTextureSeamColor = QColor(30, 120, 255);
+    QColor decoratorNonManifoldEdgeColor = QColor(230, 30, 120);
+    QColor decoratorNonManifoldVertexColor = QColor(230, 30, 120);
     QColor decoratorCurvatureDirPD1Color = QColor(50, 50, 220);   // max curvature direction
     QColor decoratorCurvatureDirPD2Color = QColor(220, 50, 50);   // min curvature direction
     float decoratorBoundaryWidth = 4.0f;
@@ -260,8 +264,9 @@ struct GlobalRenderSettings {
     RenderPass currentPass = RenderPass::Fill;
     bool showQualityHistogram = false;
     // Shows an on-view panel with numeric counts for the enabled boundary/seam/
-    // non-manifold decorators of the current mesh.
-    bool showDecoratorInfo = false;
+    // non-manifold decorators of the current mesh. On by default: it appears only while
+    // the boundary decorator is on, so turning that on is all it takes to see the counts.
+    bool showDecoratorInfo = true;
     bool uvShowReferenceFrame = true;
     bool uvShowFullTexture = false;
     int uvTextureChannel = 0;
