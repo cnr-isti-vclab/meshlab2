@@ -221,12 +221,35 @@ Depth picking does not see it — a click on the cap picks the wall behind.
 (`kClipPlaneGizmoRasterIndex`). It appears while the plane is moving and for 1200 ms after;
 `clipPlaneShowPlane` keeps it up permanently.
 
-**Snapping.** `ClipMeshWithPlane` takes a tolerance, exposed by the filter as *Snap to
-existing vertices*: a crossing that lands within that fraction of an edge from an endpoint
-does not split the edge, and the endpoint is moved onto the plane instead. Without the move
-the cut is planar only to within a fraction of an edge, which is invisible on an
-axis-aligned cut through a regular mesh -- those crossings land on vertices exactly -- and
-routine on an oblique one, where it stops the cut being cappable at all.
+**Snapping.** Every edge crossing the plane is split exactly, except at a vertex already
+lying on the plane to within rounding -- vcglib's `PlaneTolerance`: 1e-5 of the diagonal, or
+16 float ulps of the largest coordinate for a small piece far from the origin, the same test
+`CapPlanarBoundary` and the filter's open-edge count use -- which is moved onto the plane
+instead. That snap is invisible, and it is the only one the cut needs: split a float's width
+away from such a vertex, its crossing edges leave a cluster of split points that zig-zag at
+rounding level, and the planar tessellator rightly rejects the outline. The filter's *Snap
+to existing vertices* (`ClipMeshWithPlane`'s tolerance, 0 by default) goes further: a
+crossing within that fraction of an edge from an endpoint moves the endpoint rather than
+splitting the edge. It saves thin triangles, but a fraction of an edge is a long way on a
+long edge -- a second cut through the cap of a first drags that cap's vertices visibly off
+its plane -- so it is off unless asked for. A non-manifold edge cannot be split, so its
+nearer end is moved onto the plane in any case. A face a move lays flat on the plane is
+discarded with the removed side; kept, it would lie under the cap and leave edges shared by
+four faces.
+
+**Capping.** *Close the cut* is vcglib's `CapPlanarBoundary`, which fills only the loops lying
+on the plane and leaves holes the mesh already had alone. All of them are tessellated at once
+under the even-odd rule, so a torus cut through its central circle caps as a ring. When the
+planar tessellator rejects them -- it takes only outlines that neither cross nor touch
+themselves -- each outer outline is tried again alone with the holes inside it, outer and
+hole told apart by the mesh's winding rather than by nesting, so shells of one layer that
+pass through each other get a cap each. What it still rejects is ear-cut on the mesh
+boundary instead: a loop that crosses itself because the scanned surface does, or an
+outline pinched where it touches itself. Ear cutting always closes such a hole, but where
+the outline crosses itself a few of its triangles fold over others. Left open, and counted
+in the filter's log: an outline that runs into a pre-existing hole, an outer outline with
+holes that the tessellator rejects, and a hole that needs ear cutting beside a non-manifold
+edge, which vcglib's boundary walk cannot cross.
 
 **Making the cut real.** The clip-plane page's *Trim Current Layer* button runs
 `meshlab2.filter.meshing::trim_surface_by_plane` on the current layer and then switches the

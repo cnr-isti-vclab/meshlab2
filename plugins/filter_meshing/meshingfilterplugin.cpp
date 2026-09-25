@@ -1846,23 +1846,27 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
             QStringList info{ contextMessage };
             if (closeCut) {
-                // ClipMeshWithPlane leaves the cut open rather than failing when the
-                // outline is not a set of simple loops on an edge-manifold mesh; whether a
-                // boundary is left says which happened.
+                // ClipMeshWithPlane leaves whatever part of the cut it cannot close open
+                // rather than failing, and holes the mesh already had are not its business,
+                // so what is counted is the boundary still lying on the plane -- by the test
+                // CapPlanarBoundary itself uses.
                 VCGMeshFFAdjScope _borderFFAdj(mesh);
                 vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
-                bool stillOpen = false;
+                const float tolerance = vcg::tri::PlaneTolerance(mesh);
+                const auto onPlane = [&](const vcg::Point3f &p) {
+                    return std::abs(vcg::tri::PlaneDistance(plane, p)) <= tolerance;
+                };
+                int open = 0;
                 for (const VCGFace &f : mesh.face) {
                     if (f.IsD())
                         continue;
-                    for (int e = 0; e < 3 && !stillOpen; ++e)
-                        stillOpen = vcg::face::IsBorder(f, e);
-                    if (stillOpen)
-                        break;
+                    for (int e = 0; e < 3; ++e)
+                        if (vcg::face::IsBorder(f, e) && onPlane(f.cP0(e)) && onPlane(f.cP1(e)))
+                            ++open;
                 }
-                info << (stillOpen
-                             ? QObject::tr("The cut could not be closed; the mesh still has a boundary.")
-                             : QObject::tr("Closed the cut."));
+                info << (open == 0
+                             ? QObject::tr("Closed the cut.")
+                             : QObject::tr("Could not close %1 edge(s) of the cut; they were left open.").arg(open));
             }
             return success(true, info);
         }

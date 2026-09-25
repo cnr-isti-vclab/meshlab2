@@ -2612,10 +2612,10 @@
         {
           "id": "snapTolerance",
           "label": "Snap to existing vertices",
-          "help": "How close to an existing vertex the cut may fall before that vertex is moved onto the plane instead of the edge being split, as a fraction of the edge. Raising it avoids sliver triangles along the cut at the cost of following the plane less exactly; zero splits every crossing edge and can leave slivers.",
+          "help": "How close to an existing vertex, as a fraction of the edge, the cut may fall before that vertex is moved onto the plane instead of the edge being split. Zero, the default, splits every crossing edge exactly; a vertex lying on the plane to within rounding is put on it regardless. Raising it leaves fewer thin triangles along the cut, but moves vertices by up to that fraction of an edge, which on long edges, such as the cap of an earlier cut, is enough to see.",
           "group": "advanced",
           "type": "double",
-          "default": 0.02,
+          "default": 0.0,
           "min": 0.0,
           "max": 0.45,
           "decimals": 4
@@ -2623,7 +2623,7 @@
         {
           "id": "closeCut",
           "label": "Close the cut",
-          "help": "If enabled, the boundary opened by the plane is filled with new faces, so a closed mesh stays closed. All the loops on the plane are filled together with an even-odd rule, so a cut that leaves concentric outlines is capped as a ring rather than as overlapping discs. Only those loops are filled; holes the mesh already had are left alone. It needs an edge-manifold mesh, and says so in the log if the cut had to be left open.",
+          "help": "If enabled, the boundary opened by the plane is filled with new faces, so a closed mesh stays closed. All the loops on the plane are filled together with an even-odd rule, so a cut that leaves concentric outlines is capped as a ring rather than as overlapping discs. Only those loops are filled; holes the mesh already had are left alone. Parts of the layer that pass through each other are closed one by one.\n\nAn outline that crosses or touches itself, as the section of a self-intersecting scan can, is still closed, though a few of its new faces may fold over others where it crosses. The log says how many edges of the cut, if any, could not be closed.",
           "group": "main",
           "type": "bool",
           "default": false

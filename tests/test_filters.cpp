@@ -406,6 +406,8 @@ private slots:
     void trimByPlaneClosesTheCutOnRequest();
     void trimByPlaneClosesAConcentricCutAsAnAnnulus();
     void trimByPlaneClosesTwoDisjointCutsSeparately();
+    void trimByPlaneClosesShellsThatPassThroughEachOther();
+    void trimByPlaneCutsExactlyByDefault();
     void trimByPlaneReproducesTheViewportClippingPlane();
     void trimByPlaneClosesObliqueCutsToo();
     void filterParameterValidation();
@@ -1027,6 +1029,10 @@ void FilterTests::trimByPlaneClosesTheCutOnRequest()
     const MeshFilterRunResult holedResult = holed.runFilter(
         filterKeyForId(holed, QStringLiteral("trim_surface_by_plane")), holedParams);
     QVERIFY2(holedResult.success, qPrintable(holedResult.errorMessage));
+    // The log reports on the cut, not on the mesh: the cut is closed even though a boundary
+    // is left, and saying otherwise sends the user hunting for a failure that did not happen.
+    QVERIFY2(holedResult.infoMessages.join(QStringLiteral(" | ")).contains(QStringLiteral("Closed the cut")),
+             qPrintable(holedResult.infoMessages.join(QStringLiteral(" | "))));
 
     VCGMesh &holedOut = holed.mesh(holedIndex).mesh;
     VCGMeshFFAdjScope holedAdj(holedOut);
@@ -1189,6 +1195,92 @@ void FilterTests::trimByPlaneClosesTwoDisjointCutsSeparately()
         }
     }
     QCOMPARE(borderEdges, 0);
+}
+
+void FilterTests::trimByPlaneClosesShellsThatPassThroughEachOther()
+{
+    // Two cubes in one layer, passing through each other -- merged parts and scans that were
+    // never booleaned are like this. Their outlines on the plane cross, which the even-odd
+    // tessellation of all loops at once rejects; each outline is then capped on its own, so
+    // each cube is closed. Telling which outlines are outer by nesting fails here -- each
+    // square has corners inside the other -- which is why the cap asks the mesh's winding.
+    Document doc;
+    VCGMesh cubes;
+    makeCubeMesh(cubes, 0.0f, 0.0f, 0.0f);
+    VCGMesh second;
+    makeCubeMesh(second, 0.5f, 0.5f, 0.0f);
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(cubes, second);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(cubes);
+    const int meshIndex = doc.addMesh(cubes, QStringLiteral("two cubes"));
+    QVERIFY(meshIndex >= 0);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("planeNormal"), QVector3D(0.0f, 0.0f, 1.0f));
+    params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
+    params.insert(QStringLiteral("planeOffset"), 0.0);
+    params.insert(QStringLiteral("closeCut"), true);
+    const MeshFilterRunResult result =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("trim_surface_by_plane")), params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY2(result.infoMessages.join(QStringLiteral(" | ")).contains(QStringLiteral("Closed the cut")),
+             qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
+
+    VCGMesh &out = doc.mesh(meshIndex).mesh;
+    float capArea = 0.0f;
+    for (const VCGFace &f : out.face) {
+        if (f.IsD())
+            continue;
+        bool onPlane = true;
+        for (int k = 0; k < 3; ++k)
+            onPlane = onPlane && std::abs(f.cV(k)->cP().Z() - 0.5f) < 1e-5f;
+        if (onPlane)
+            capArea += vcg::DoubleArea(f) * 0.5f;
+    }
+    // One unit square per cube, overlapping where they do. An even-odd cap of both outlines
+    // would leave the overlap empty and come to 1.5.
+    QVERIFY2(std::abs(capArea - 2.0f) < 1e-4f, qPrintable(QString::number(capArea)));
+    // Each half cube closed on its own: the volumes add.
+    QVERIFY2(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(out) - 1.0f) < 1e-4f,
+             "each cube should be closed by its own cap");
+}
+
+void FilterTests::trimByPlaneCutsExactlyByDefault()
+{
+    // A plane 1% of an edge from a cube's corner, keeping the corner. Snapping to existing
+    // vertices is off by default because a fraction of an edge is a long way on a long edge:
+    // on the cap of an earlier cut it dragged vertices visibly off their plane. Here the
+    // snap that used to be the default would have put the corner itself on the plane and
+    // left nothing to keep. Exact, the result is the corner's tetrahedron, corner untouched.
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(cube);
+    const int meshIndex = doc.addMesh(cube, QStringLiteral("cube"));
+    QVERIFY(meshIndex >= 0);
+
+    const float fromCorner = 0.01f;
+    const QVector3D normal = QVector3D(1.0f, 1.0f, 1.0f).normalized();
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("planeNormal"), normal);
+    params.insert(QStringLiteral("relativeTo"), QStringLiteral("origin"));
+    params.insert(QStringLiteral("planeOffset"), double((3.0f - fromCorner) / std::sqrt(3.0f)));
+    params.insert(QStringLiteral("closeCut"), true);
+    const MeshFilterRunResult result =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("trim_surface_by_plane")), params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY2(result.infoMessages.join(QStringLiteral(" | ")).contains(QStringLiteral("Closed the cut")),
+             qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
+
+    VCGMesh &out = doc.mesh(meshIndex).mesh;
+    bool cornerKept = false;
+    for (const VCGVertex &v : out.vert)
+        if (!v.IsD() && v.cP() == vcg::Point3f(1.0f, 1.0f, 1.0f))
+            cornerKept = true;
+    QVERIFY2(cornerKept, "the corner must survive where it was, not be moved onto the plane");
+    const float expected = fromCorner * fromCorner * fromCorner / 6.0f;
+    const float volume = vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(out);
+    QVERIFY2(std::abs(volume - expected) < 0.01f * expected,
+             qPrintable(QStringLiteral("volume %1, expected %2").arg(volume).arg(expected)));
 }
 
 void FilterTests::trimByPlaneReproducesTheViewportClippingPlane()
