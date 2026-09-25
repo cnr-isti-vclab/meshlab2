@@ -92,8 +92,8 @@ private slots:
 private:
     RenderWidget *currentRenderWidget() const;
     RenderWidget *createRenderWidget(QSplitter *parentSplitter);
-    void attachViewShortcuts(RenderWidget *view);
     void updateTextEditingShortcuts(QWidget *focused);
+    void updateViewShortcuts(QWidget *focused);
     void setCurrentRenderWidget(RenderWidget *view);
     void updateCurrentViewBorder();
     void splitCurrentView(Qt::Orientation orientation);
@@ -177,8 +177,8 @@ private:
     QLabel *m_frameStatsLabel = nullptr;
     QAction *m_undoAction = nullptr;
     QAction *m_redoAction = nullptr;
-    // Ctrl+C / Ctrl+V for the camera. Scoped to the 3D views, so the text panels keep
-    // their own copy and paste; see attachViewShortcuts().
+    // Ctrl+C / Ctrl+V for the camera, bound only while a 3D view has focus so every other
+    // panel keeps its own copy and paste; see updateViewShortcuts().
     QAction *m_copyCameraAction = nullptr;
     QAction *m_pasteCameraAction = nullptr;
     // Rebuilt with the Filters menu, so it is kept here to keep its Ctrl+F binding in step

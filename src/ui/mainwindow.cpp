@@ -1327,28 +1327,14 @@ MainWindow::MainWindow(QWidget *parent)
         this,
         &MainWindow::centerCameraOnSelection);
     viewMenu->addSeparator();
-    // Ctrl+C and Ctrl+V here are scoped to the 3D views rather than the whole window.
-    // As window shortcuts they took the keys away from every other panel -- the log, the
-    // Python console, the script editor -- so copy meant "camera JSON" wherever you were
-    // typing, and paste overwrote the camera from whatever the clipboard held. Widget scope
-    // hands them to whichever panel has focus. The menu entries still fire from the menu
-    // whatever is focused, so the commands remain reachable with no view active.
+    // Ctrl+C and Ctrl+V copy and paste the camera only while a 3D view has focus; the
+    // binding follows focus in updateViewShortcuts(). The menu entries fire from the menu
+    // whatever is focused, so the commands stay reachable with no view active.
     m_copyCameraAction = viewMenu->addAction(
-        tr("Copy Camera/Trackball JSON"),
-        QKeySequence::Copy,
-        this,
-        &MainWindow::copyCameraState);
-    m_copyCameraAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+        tr("Copy Camera/Trackball JSON"), this, &MainWindow::copyCameraState);
     m_pasteCameraAction = viewMenu->addAction(
-        tr("Paste Camera/Trackball JSON"),
-        QKeySequence::Paste,
-        this,
-        &MainWindow::pasteCameraState);
-    m_pasteCameraAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-    // The first view is built before the menus, so it is picked up here; later splits get
-    // them from createRenderWidget().
-    for (RenderWidget *view : m_renderWidgets)
-        attachViewShortcuts(view);
+        tr("Paste Camera/Trackball JSON"), this, &MainWindow::pasteCameraState);
+    updateViewShortcuts(QApplication::focusWidget());
 
 #ifdef MESHLAB2_PYTHON_CONSOLE
     viewMenu->addSeparator();
@@ -1378,9 +1364,11 @@ MainWindow::MainWindow(QWidget *parent)
     helpMenu->addSeparator();
     helpMenu->addAction(tr("&About"), this, &MainWindow::showAbout);
 
-    // Ctrl+F steps aside while something editable has focus.
+    // Ctrl+F steps aside while something editable has focus, and the camera's Ctrl+C and
+    // Ctrl+V exist only while a 3D view has it.
     connect(qApp, &QApplication::focusChanged, this, [this](QWidget *, QWidget *now) {
         updateTextEditingShortcuts(now);
+        updateViewShortcuts(now);
     });
 
     QSettings settings;
@@ -1442,14 +1430,27 @@ RenderWidget *MainWindow::currentRenderWidget() const
 
 // The view-scoped shortcuts every 3D view carries. Actions are owned by the View menu, so
 // a view being closed does not take them with it.
-void MainWindow::attachViewShortcuts(RenderWidget *view)
+// Ctrl+C and Ctrl+V copy and paste the camera, and only while a 3D view -- or a control
+// inside one, such as its overlay panel -- has focus. Anywhere else they belong to the panel
+// that has it: the log copies its lines, a list copies its current item.
+//
+// Scoping the actions to the views with Qt::WidgetWithChildrenShortcut was not enough. The
+// macOS menu bar is native: Qt gives a menu entry's shortcut to Cocoa as a key equivalent
+// whatever its context, and Cocoa offers the key to the focused widget as a ShortcutOverride
+// and fires the menu entry unless the widget claims it. Editable text claims copy and paste;
+// no item view does -- QAbstractItemView copies in keyPressEvent but never accepts the
+// override -- so Cmd+C in the layer list, the action history or the log copied the camera.
+// As with Ctrl+F above, what moves is the binding: set while a view has focus, cleared
+// otherwise, which works the same on every platform.
+void MainWindow::updateViewShortcuts(QWidget *focused)
 {
-    if (!view)
-        return;
+    bool inView = false;
+    for (QWidget *w = focused; w && !inView; w = w->parentWidget())
+        inView = qobject_cast<RenderWidget *>(w) != nullptr;
     if (m_copyCameraAction)
-        view->addAction(m_copyCameraAction);
+        m_copyCameraAction->setShortcut(inView ? QKeySequence(QKeySequence::Copy) : QKeySequence());
     if (m_pasteCameraAction)
-        view->addAction(m_pasteCameraAction);
+        m_pasteCameraAction->setShortcut(inView ? QKeySequence(QKeySequence::Paste) : QKeySequence());
 }
 
 RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
@@ -1464,7 +1465,6 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
     view->setContextMenuPolicy(Qt::CustomContextMenu);
     parentSplitter->addWidget(view);
     m_renderWidgets.append(view);
-    attachViewShortcuts(view);
 
     connect(view, &RenderWidget::viewActivated, this, [this](RenderWidget *activatedView) {
         setCurrentRenderWidget(activatedView);
