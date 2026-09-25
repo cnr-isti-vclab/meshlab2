@@ -70,6 +70,37 @@ if (MESHLAB2_REQUIRE_VCPKG_DEPS)
     message(STATUS "MeshLab external dependency mode: vcpkg (triplet: ${VCPKG_TARGET_TRIPLET})")
 endif()
 
+# CGAL's exact number type, forced to the fast GMP/GMPXX backend, project-wide.
+#
+# libigl's vcpkg port disables it for its OWN cgal feature: vcpkg_installed's
+# share/libigl/libigl-config.cmake does
+#   set(CGAL_CMAKE_EXACT_NT_BACKEND "BOOST_BACKEND" CACHE STRING ...)
+#   set(CGAL_DISABLE_GMP ON CACHE BOOL "Disable GMP")
+# before its own find_dependency(CGAL). Sensible for libigl's default consumer, who
+# may not want a GPL/LGPL dependency merely to try its CGAL-based filters -- but
+# these are plain, non-FORCE cache writes, and CMake's cache is one namespace for the
+# whole configure: whichever plugin's find_package(CGAL) or find_package(libigl) runs
+# first wins the value for every OTHER consumer too, including filter_cgal's own,
+# unrelated CGAL usage. That is what happened here: CGAL_DISABLE_GMP silently landed
+# on ON project-wide, and filter_cgal's exact kernels fell back to CGAL's slower
+# non-GMP number types (Boost.Multiprecision's cpp_int, several times slower than
+# GMP for the exact predicates CGAL's Boolean/intersection algorithms lean on) even
+# though vcpkg's own cgal port requires GMP and MPFR unconditionally, so both are
+# always present.
+#
+# There is no licensing reason to avoid GMP here: this project is already
+# GPL-2.0-or-later, and vcpkg's cgal port itself is already "GPL-3.0-or-later AND
+# LGPL-3.0-or-later AND BSL-1.0", so linking GMP/MPFR (both LGPL) adds no new
+# obligation. FORCE makes this win regardless of add_subdirectory order or of what a
+# future vcpkg baseline bump changes about libigl's own recipe; it must be set here,
+# before add_subdirectory(plugins), since CGAL's find_package() machinery only acts
+# on the first find_package(CGAL) call of the whole configure -- setting it inside
+# filter_cgal's own CMakeLists.txt would be too late if filter_igl, or anything
+# else, resolved CGAL first.
+set(CGAL_DISABLE_GMP OFF CACHE BOOL "Use GMP/MPFR for CGAL's exact number types" FORCE)
+set(CGAL_CMAKE_EXACT_NT_BACKEND "Default" CACHE STRING
+    "CGAL exact number type backend (Default picks GMP/GMPXX once available)" FORCE)
+
 find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets GuiPrivate ShaderTools Test)
 
 if(MESHLAB2_MATH_HELP)
