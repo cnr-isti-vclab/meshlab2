@@ -2328,6 +2328,7 @@ Generate a new mesh that corresponds to the 0 valued isosurface defined by the s
 - **maxY** (*double*, default: `1.0`) — Sampling range parameter.
 - **maxZ** (*double*, default: `1.0`) — Sampling range parameter.
 - **expr** (*string*, default: `x*x+y*y+z*z-0.5`) — Scalar field expression f(x,y,z). The 0-isovalue is extracted.
+- **closeBoundary** (*bool*, default: `False`) — If enabled, where the surface runs into the boundary of the sampling range it is closed there with flat caps lying exactly on the faces of the range, so the result is a closed solid: the part of the region where the function is negative that lies inside the range. The caps follow the sampling grid, one or two triangles per boundary cell.
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
@@ -2351,6 +2352,7 @@ Generates a scalar field over a cubic grid and extracts an isosurface using marc
 **Parameters:**
 
 - **resolution** (*int*, default: `64`) — Resolution of the side of the cubic grid used for volume creation.
+- **closeBoundary** (*bool*, default: `False`) — If enabled, where the surface runs into the boundary of the grid it is closed there with flat caps, so the result is a closed solid instead of a tube left open at its ends and wherever the noise pushes it out of the grid. The caps follow the grid, one or two triangles per boundary cell.
 ```
 
 ---

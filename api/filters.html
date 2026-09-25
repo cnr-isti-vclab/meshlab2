@@ -2098,6 +2098,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <li><p><strong>maxY</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Sampling range parameter.</p></li>
 <li><p><strong>maxZ</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Sampling range parameter.</p></li>
 <li><p><strong>expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">x*x+y*y+z*z-0.5</span></code>) — Scalar field expression f(x,y,z). The 0-isovalue is extracted.</p></li>
+<li><p><strong>closeBoundary</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, where the surface runs into the boundary of the sampling range it is closed there with flat caps lying exactly on the faces of the range, so the result is a closed solid: the part of the region where the function is negative that lies inside the range. The caps follow the sampling grid, one or two triangles per boundary cell.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -2116,6 +2117,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>resolution</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Resolution of the side of the cubic grid used for volume creation.</p></li>
+<li><p><strong>closeBoundary</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, where the surface runs into the boundary of the grid it is closed there with flat caps, so the result is a closed solid instead of a tube left open at its ends and wherever the noise pushes it out of the grid. The caps follow the grid, one or two triangles per boundary cell.</p></li>
 </ul>
 </dd></dl>
 
