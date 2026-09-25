@@ -36,6 +36,7 @@ private slots:
     void theGizmoLiesOnThePlane();
     void theGizmoStemPointsAtWhatIsKept();
     void theGizmoIsEmptyWithoutAPlane();
+    void theCapQuadCoversEveryCutOfTheScene();
 };
 
 namespace {
@@ -358,6 +359,58 @@ void ClipPlaneTests::theGizmoIsEmptyWithoutAPlane()
     const QVector4D plane(0.0f, 0.0f, 1.0f, 0.0f);
     const QVector3D point(1.0f, 1.0f, 1.0f);
     QVERIFY2(ClipPlane::planeGizmo(plane, point, point).empty(), "no scene, nothing to size it to");
+}
+
+void ClipPlaneTests::theCapQuadCoversEveryCutOfTheScene()
+{
+    // The solid cut is drawn only where the stencil says so, but only on this quad: any
+    // point of the plane inside the scene's box that the quad misses is a hole in the cap.
+    // Check it with a deliberately oblique plane, where the box's section is a polygon
+    // reaching furthest from the quad's centre.
+    GlobalRenderSettings s = enabled(ClipPlaneAxis::Custom);
+    s.clipPlaneCustomAxis = QVector3D(0.7f, -0.4f, 0.6f);
+    s.clipPlaneOffset = 0.15f;
+    const QVector3D min(-2.0f, -1.0f, -3.0f);
+    const QVector3D max(3.0f, 2.0f, 1.0f);
+    const QVector4D plane = ClipPlane::world(s, min, max, kLookingDownZ);
+
+    const std::vector<float> quad = ClipPlane::capQuad(plane, min, max);
+    QCOMPARE(int(quad.size()), 18);   // two triangles
+    std::vector<QVector3D> corners;
+    for (int i = 0; i < 6; ++i) {
+        const QVector3D p(quad[size_t(i) * 3], quad[size_t(i) * 3 + 1], quad[size_t(i) * 3 + 2]);
+        QVERIFY2(closeTo(distance(plane, p), 0.0f, 1.0e-3f), "the quad lies on the plane");
+        corners.push_back(p);
+    }
+
+    // Every point where the box's edges cross the plane -- the vertices of the section --
+    // must fall inside the quad. Test in the quad's own frame: corners 0, 1 and 3 span it.
+    const QVector3D o = corners[0];
+    const QVector3D a = corners[1] - o;
+    const QVector3D b = corners[5] - o;   // second triangle's last corner is the fourth
+    const QVector3D boxCorner[8] = {
+        { min.x(), min.y(), min.z() }, { max.x(), min.y(), min.z() },
+        { min.x(), max.y(), min.z() }, { max.x(), max.y(), min.z() },
+        { min.x(), min.y(), max.z() }, { max.x(), min.y(), max.z() },
+        { min.x(), max.y(), max.z() }, { max.x(), max.y(), max.z() },
+    };
+    const int edges[12][2] = { {0,1},{2,3},{4,5},{6,7},{0,2},{1,3},{4,6},{5,7},{0,4},{1,5},{2,6},{3,7} };
+    int crossings = 0;
+    for (const auto &e : edges) {
+        const float d0 = distance(plane, boxCorner[e[0]]);
+        const float d1 = distance(plane, boxCorner[e[1]]);
+        if (d0 * d1 > 0.0f)
+            continue;
+        const QVector3D p = boxCorner[e[0]] + (boxCorner[e[1]] - boxCorner[e[0]]) * (d0 / (d0 - d1));
+        const float ta = QVector3D::dotProduct(p - o, a) / a.lengthSquared();
+        const float tb = QVector3D::dotProduct(p - o, b) / b.lengthSquared();
+        QVERIFY2(ta >= -1e-4f && ta <= 1.0f + 1e-4f && tb >= -1e-4f && tb <= 1.0f + 1e-4f,
+                 "a vertex of the box's section falls outside the cap quad");
+        ++crossings;
+    }
+    QVERIFY2(crossings >= 3, "the plane really does cut the box");
+
+    QVERIFY(ClipPlane::capQuad(QVector4D(), min, max).empty());
 }
 
 QTEST_APPLESS_MAIN(ClipPlaneTests)

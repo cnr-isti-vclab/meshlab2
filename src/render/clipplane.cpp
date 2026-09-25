@@ -116,26 +116,35 @@ QVector3D rotateNormal(
     return rotated.isNull() ? normal : rotated.normalized() * normal.length();
 }
 
-std::vector<float> planeGizmo(
-    const QVector4D &worldPlane,
-    const QVector3D &sceneMin,
-    const QVector3D &sceneMax,
-    int gridLines)
+namespace {
+
+// The square on the plane that the gizmo draws and the cap fills.
+struct PlaneFrame
 {
-    std::vector<float> vertices;
+    QVector3D centre;
+    QVector3D u;
+    QVector3D v;
+    float half = 0.0f;
+    float diagonal = 0.0f;
+    bool valid = false;
+};
+
+PlaneFrame planeFrame(const QVector4D &worldPlane, const QVector3D &sceneMin, const QVector3D &sceneMax)
+{
+    PlaneFrame frame;
     const QVector3D normal = worldPlane.toVector3D();
     if (normal.isNull())
-        return vertices;
+        return frame;
 
     const QVector3D extent = sceneMax - sceneMin;
     const float diagonal = extent.length();
     if (!std::isfinite(diagonal) || diagonal <= 0.0f)
-        return vertices;
+        return frame;
 
-    // The plane's own centre: the scene centre dropped onto it, so the grid stays over the
-    // object as the plane slides rather than drifting off with the offset.
+    // The plane's own centre: the scene centre dropped onto it, so the square stays over
+    // the object as the plane slides rather than drifting off with the offset.
     const QVector3D sceneCentre = 0.5f * (sceneMin + sceneMax);
-    const QVector3D centre =
+    frame.centre =
         sceneCentre - normal * (QVector3D::dotProduct(normal, sceneCentre) + worldPlane.w());
 
     // Any two directions spanning the plane will do; picking the world axis least parallel
@@ -146,12 +155,37 @@ std::vector<float> planeGizmo(
         seed = QVector3D(1.0f, 0.0f, 0.0f);
     else if (absN.y() <= absN.z())
         seed = QVector3D(0.0f, 1.0f, 0.0f);
-    const QVector3D u = QVector3D::crossProduct(normal, seed).normalized();
-    const QVector3D v = QVector3D::crossProduct(normal, u).normalized();
+    frame.u = QVector3D::crossProduct(normal, seed).normalized();
+    frame.v = QVector3D::crossProduct(normal, frame.u).normalized();
 
     // Wider than the scene, so the grid reads as an unbounded plane rather than a card
-    // floating inside the object.
-    const float half = 0.6f * diagonal;
+    // floating inside the object -- and, for the cap, so it covers every point where the
+    // plane can be inside anything: the scene's box meets the plane within half a diagonal
+    // of this centre.
+    frame.half = 0.6f * diagonal;
+    frame.diagonal = diagonal;
+    frame.valid = true;
+    return frame;
+}
+
+} // namespace
+
+std::vector<float> planeGizmo(
+    const QVector4D &worldPlane,
+    const QVector3D &sceneMin,
+    const QVector3D &sceneMax,
+    int gridLines)
+{
+    std::vector<float> vertices;
+    const PlaneFrame frame = planeFrame(worldPlane, sceneMin, sceneMax);
+    if (!frame.valid)
+        return vertices;
+    const QVector3D normal = worldPlane.toVector3D();
+    const QVector3D centre = frame.centre;
+    const QVector3D u = frame.u;
+    const QVector3D v = frame.v;
+    const float half = frame.half;
+    const float diagonal = frame.diagonal;
 
     const auto segment = [&vertices](const QVector3D &a, const QVector3D &b) {
         vertices.insert(vertices.end(), { a.x(), a.y(), a.z(), b.x(), b.y(), b.z() });
@@ -172,6 +206,26 @@ std::vector<float> planeGizmo(
 
     // The stem points at what is kept, which is the one thing a bare rectangle cannot say.
     segment(centre, centre + normal * (0.15f * diagonal));
+    return vertices;
+}
+
+std::vector<float> capQuad(
+    const QVector4D &worldPlane,
+    const QVector3D &sceneMin,
+    const QVector3D &sceneMax)
+{
+    std::vector<float> vertices;
+    const PlaneFrame frame = planeFrame(worldPlane, sceneMin, sceneMax);
+    if (!frame.valid)
+        return vertices;
+    const QVector3D uu = frame.u * frame.half;
+    const QVector3D vv = frame.v * frame.half;
+    const QVector3D corners[4] = {
+        frame.centre - uu - vv, frame.centre + uu - vv,
+        frame.centre + uu + vv, frame.centre - uu + vv
+    };
+    for (int k : { 0, 1, 2, 0, 2, 3 })
+        vertices.insert(vertices.end(), { corners[k].x(), corners[k].y(), corners[k].z() });
     return vertices;
 }
 

@@ -189,6 +189,33 @@ fragment stage, where `fill_smooth.frag`, `fill_flat.frag` and `fill_radscale.fr
 `smoothstep(width * fwidth(d), 0.0, d)`. `fwidth` is what keeps the band a constant number
 of pixels whatever angle the surface meets the plane at. Width 0 disables it.
 
+**Solid cut.** With `clipPlaneSolidCut` the cut is drawn as a face on the plane, found per
+pixel rather than built as geometry, in two draws after all the fills
+(`renderSceneSolidCut`):
+
+1. *Count.* Every clipped layer whose fill is showing is drawn again into the stencil only —
+   colour and depth off, both faces — decrementing on front faces and incrementing on back
+   faces. The main pass clears stencil to `kSolidCutStencilBias` (128), so the count can go
+   negative without wrapping into the range tested next.
+2. *Cap.* `ClipPlane::capQuad` — the square the plane gizmo spans, which covers every point
+   where the plane can meet the scene's box — drawn where the stored value exceeds the bias,
+   depth-tested and depth-writing.
+
+Seen from the discarded side, a ray through a point of the cut that lies inside a closed
+solid leaves it once more than it enters, so the count is positive exactly on the cross-
+section. A **winding** count rather than parity keeps nested and overlapping solids capped
+(parity would cancel them), and on open surfaces it turns most failures into a missing cap
+rather than a spurious sheet: a ray that leaves through a hole simply counts zero. That is
+the remaining limit — on an open mesh, the cap is absent wherever a view ray leaves the
+object through a hole. On by default, since the failure is a missing face and never a
+wrong one.
+
+The cap is planar and the light directional, so its diffuse shading is one value per frame;
+the CPU computes it with the fill shaders' own model (ambient 0.18 plus Lambert) against the
+cap's normal, which faces the discarded side. It is drawn through the raster-projected
+shaders, which carry no clip distance: the cap lies exactly on the plane that would cut it.
+Depth picking does not see it — a click on the cap picks the wall behind.
+
 **Plane gizmo.** A bordered grid on the plane with a stem along the surviving side, built by
 `ClipPlane::planeGizmo()` and drawn on the line-gizmo pipeline the peer-view cameras use
 (`kClipPlaneGizmoRasterIndex`). It appears while the plane is moving and for 1200 ms after;
@@ -208,8 +235,9 @@ hands over the resolved world plane as a normal measured from the origin rather 
 copying the settings across: the view measures its offset in diagonals of the whole visible
 scene while the filter measures a distance against one layer's bounding box, so the same
 numbers would mean different planes as soon as there is more than one layer. It matches
-what the viewport shows -- one layer, cut left open; the Filters panel has the rest of the
-filter's options.
+what the viewport shows -- one layer, and the cut closed when it is shown as solid
+(`closeCut` follows `clipPlaneSolidCut`); the Filters panel has the rest of the filter's
+options.
 
 **Interaction.** `Ctrl`+wheel slides the plane along its normal at 0.02 diagonals a notch;
 `Alt`+drag tips it, switching the axis to `Custom`. Both enable clipping if it is off, and

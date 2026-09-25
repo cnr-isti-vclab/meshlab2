@@ -458,6 +458,7 @@ struct SceneRasterProjectedDrawItem {
     // The plane's own wireframe. Not clipped by itself -- it is the instrument, not the
     // scene -- so it rides the line-gizmo pipeline the peer cameras already use.
     void planClipPlanePass(RenderFramePlan &plan);
+    void renderSceneSolidCut(QRhiCommandBuffer *cb, const RenderFramePlan &plan);
     // Ctrl+wheel slides the plane along its normal and Alt+drag tips it. Both turn
     // clipping on if it is off, because that is how anyone finds the feature.
     bool slideClipPlane(float steps);
@@ -611,6 +612,14 @@ struct SceneRasterProjectedDrawItem {
     std::unique_ptr<QRhiBuffer> m_clipPlaneGizmoVbuf;
     std::unique_ptr<QRhiBuffer> m_clipPlaneGizmoUbuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_clipPlaneGizmoSrb;
+    // Solid cut: the clipped surfaces counted into the stencil by winding (back faces +1,
+    // front faces -1), then the plane drawn wherever the count says the cut is inside
+    // something. See renderSceneSolidCut.
+    std::unique_ptr<QRhiGraphicsPipeline> m_clipCountPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_clipCapPipeline;
+    std::unique_ptr<QRhiBuffer> m_clipCapVbuf;
+    std::unique_ptr<QRhiBuffer> m_clipCapUbuf;
+    std::unique_ptr<QRhiShaderResourceBindings> m_clipCapSrb;
     mutable QVector3D m_viewFrustumBoundsMin;
     mutable QVector3D m_viewFrustumBoundsMax;
     mutable bool m_viewFrustumBoundsValid = false;

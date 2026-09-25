@@ -619,7 +619,9 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                      m_renderSettings.sceneBackgroundBottomColor,
                      m_renderSettings.sceneBackgroundTopColor)
                : m_renderSettings.sceneBackgroundBottomColor);
-    cb->beginPass(renderTarget(), clearColor, { 1.0f, 0 }, u);
+    // Stencil starts at the solid cut's bias, not zero: see kSolidCutStencilBias. Nothing
+    // else in this pass uses stencil, so the value is otherwise inert.
+    cb->beginPass(renderTarget(), clearColor, { 1.0f, kSolidCutStencilBias }, u);
     cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
 
     // The backdrop is a full-screen quad shaded from its own interpolated clip coordinates,
@@ -643,6 +645,11 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     for (const RenderFramePlan &plan : tilePlans) {
         if (plan.hasFillPass())
             renderSceneFillPass(cb, plan);
+    }
+    // After every fill, because the cap is depth-tested against the whole scene.
+    for (const RenderFramePlan &plan : tilePlans) {
+        if (plan.hasFillPass())
+            renderSceneSolidCut(cb, plan);
     }
     for (const RenderFramePlan &plan : tilePlans)
         renderSceneBufferItems(cb, plan, plan.wireItems);

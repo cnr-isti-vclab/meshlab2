@@ -42,6 +42,9 @@ BARE = {"show_trackball_gizmo": False, "show_axis_gizmo": False, "show_view_came
         # coloured pixels into every geometry comparison, which is real output but not
         # what those checks are about.
         "clip_plane_rim_width": 0.0,
+        # The solid cut is on by default and would light the cross-section in every
+        # geometry comparison below; it is checked on its own further down.
+        "clip_plane_solid_cut": False,
         "scene_background_top_color": [0, 0, 0, 255],
         "scene_background_bottom_color": [0, 0, 0, 255]}
 
@@ -172,6 +175,61 @@ check("the rim does not move the cut",
 
 check("flipping at an offset shows a different half",
       differing(shots["X, offset +0.2"], shots["X flipped, off +0.2"]) > 0.2)
+# --- The solid cut: a stencil winding count, then the plane where the count is positive.
+# Looking into a cut that faces the camera, the cross-section is the dark far wall
+# without it and a lit face with it; everything outside the section must not change.
+def pixel(buf, x, y):
+    i = (y * W + x) * 4
+    return buf[i], buf[i + 1], buf[i + 2]
+
+def brightness(rgb):
+    return sum(rgb) / 3.0
+
+facing = clip(clip_plane_axis=AXIS["z"], clip_plane_flipped=True, clip_plane_offset=0.05)
+open_cut = shot(ms, **facing)
+solid_cut = shot(ms, **dict(facing, clip_plane_solid_cut=True,
+                            clip_plane_solid_cut_color=[200, 200, 205, 255]))
+centre_open = brightness(pixel(open_cut, W // 2, H // 2))
+centre_solid = brightness(pixel(solid_cut, W // 2, H // 2))
+print("\n  cut centre: %.0f without the solid cut, %.0f with it" % (centre_open, centre_solid))
+check("the solid cut lights the cross-section", centre_solid > centre_open + 60)
+check("a cap facing the headlight is near its full colour", centre_solid > 180)
+check("the solid cut leaves the silhouette alone",
+      abs(coverage(solid_cut) - coverage(open_cut)) < 0.01)
+check("the corner, outside the section, is untouched",
+      pixel(solid_cut, 2, 2) == pixel(open_cut, 2, 2))
+
+# A plane that misses the sphere cuts nothing, so nothing may be capped either.
+missing = clip(clip_plane_axis=AXIS["z"], clip_plane_offset=-0.9)
+check("no cut, no cap",
+      differing(shot(ms, **missing),
+                shot(ms, **dict(missing, clip_plane_solid_cut=True))) == 0.0)
+
+# A torus cut through the plane of its central circle leaves two concentric outlines; the
+# cap must be a ring, so the hole in the middle stays background. Parity alone would get
+# this right too -- what it would get wrong is an overlap, which the winding count sums.
+torus = ml.MeshSet()
+torus.apply_filter("create_torus", {})
+looking_down = {"center": [0, 0, 0], "rotation_xyzw": [0, 0, 0, 1], "distance": 14.0,
+                "radius": 4.5, "fov_y_degrees": 45.0, "near_clip_ratio": 0.0033}
+def torus_shot(**rs):
+    state = {"render_settings": dict(BARE, **rs), "trackball": looking_down}
+    return bytes(torus.render_snapshot(json.dumps(state), W, H))
+ring_cut = dict(clip_plane_enabled=True, clip_plane_axis=AXIS["z"], clip_plane_flipped=True,
+                clip_plane_offset=0.0)
+ring_open = torus_shot(**ring_cut)
+ring_solid = torus_shot(**dict(ring_cut, clip_plane_solid_cut=True))
+# The tube's centre line is at radius 3 of a scene 8 wide; at this framing that is about
+# a fifth of the image out from the middle.
+tube_x = W // 2 + int(0.19 * W)
+print("  torus: tube %.0f -> %.0f, hole %.0f -> %.0f"
+      % (brightness(pixel(ring_open, tube_x, H // 2)), brightness(pixel(ring_solid, tube_x, H // 2)),
+         brightness(pixel(ring_open, W // 2, H // 2)), brightness(pixel(ring_solid, W // 2, H // 2))))
+check("a concentric cut is capped across the tube",
+      brightness(pixel(ring_solid, tube_x, H // 2)) > brightness(pixel(ring_open, tube_x, H // 2)) + 60)
+check("and the hole in the middle is left open",
+      pixel(ring_solid, W // 2, H // 2) == pixel(ring_open, W // 2, H // 2))
+
 print("\nRESULT:", "all checks passed" if ok else "FAILURES ABOVE")
 
 

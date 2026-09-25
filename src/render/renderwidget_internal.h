@@ -72,6 +72,11 @@ inline constexpr int kRasterProjectedFrustumVertexCount = 16;
 // shared, and the index says which gizmo it is drawing and therefore what colour.
 inline constexpr int kViewFrustumGizmoRasterIndex = -1;
 inline constexpr int kClipPlaneGizmoRasterIndex = -2;
+// The stencil starts every frame at this value rather than at zero, so the solid-cut
+// winding count can go negative without wrapping into the range the cap tests for: the
+// cap is drawn where the count is above the bias, i.e. where more surfaces behind the
+// plane face away from the camera than towards it.
+inline constexpr quint32 kSolidCutStencilBias = 128;
 inline constexpr int kDecoratorUbufSize = 96; // mat4 mvp + vec4 color + vec4 clipPlane
 inline constexpr int kDecoratorFatUbufSize = 112; // + vec4(width, invW, invH, _) + vec4 clipPlane
 inline constexpr int kDecoratorClipPlaneOffset = 80 / sizeof(float);

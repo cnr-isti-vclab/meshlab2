@@ -1055,6 +1055,13 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         tr("The grid always appears while the plane is being moved. This keeps it up "
            "afterwards as well."));
     m_clipPlaneRimColorButton = makeColorButton(clipPlanePage);
+    m_clipPlaneSolidCutCheck = new QCheckBox(clipPlanePage);
+    m_clipPlaneSolidCutCheck->setChecked(m_globalSettings.clipPlaneSolidCut);
+    m_clipPlaneSolidCutCheck->setToolTip(
+        tr("Draw the cut as a solid face, lit like the surface. Exact for closed meshes; "
+           "on an open one the face is left out wherever a view ray leaves the object "
+           "through a hole."));
+    m_clipPlaneSolidCutColorButton = makeColorButton(clipPlanePage);
     m_clipPlaneRimWidthSpin = new QDoubleSpinBox(clipPlanePage);
     m_clipPlaneRimWidthSpin->setRange(0.0, 12.0);
     m_clipPlaneRimWidthSpin->setSingleStep(0.5);
@@ -1068,9 +1075,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_clipPlaneApplyButton = new QPushButton(tr("Trim Current Layer"), clipPlanePage);
     m_clipPlaneApplyButton->setToolTip(
         tr("Cut the current layer along this plane for real, and turn the clipping plane "
-           "off. The result matches what the viewport is showing: the cut is left open, "
-           "and only the current layer is trimmed. Run Trim Surface by Plane from the "
-           "Filters panel for the rest of its options."));
+           "off. The result matches what the viewport is showing: the cut is closed when "
+           "it is shown as solid, and only the current layer is trimmed. Run Trim Surface "
+           "by Plane from the Filters panel for the rest of its options."));
 
     clipPlaneForm->addRow(tr("Normal"), m_clipPlaneAxisCombo);
     clipPlaneForm->addRow(tr("Reference"), m_clipPlaneReferenceCombo);
@@ -1085,6 +1092,12 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         tr("Cut color"),
         makeCenteredFieldContainer(m_clipPlaneRimColorButton, clipPlanePage));
     clipPlaneForm->addRow(tr("Cut width"), m_clipPlaneRimWidthSpin);
+    clipPlaneForm->addRow(
+        tr("Show cut as solid"),
+        makeCenteredFieldContainer(m_clipPlaneSolidCutCheck, clipPlanePage));
+    clipPlaneForm->addRow(
+        tr("Solid cut color"),
+        makeCenteredFieldContainer(m_clipPlaneSolidCutColorButton, clipPlanePage));
     clipPlaneForm->addRow(QString(), m_clipPlaneFreezeButton);
     clipPlaneForm->addRow(QString(), m_clipPlaneApplyButton);
     applyUniformFormRowHeights(clipPlaneForm);
@@ -1307,6 +1320,11 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         m_clipPlaneRimColorButton,
         &GlobalRenderSettings::clipPlaneRimColor,
         tr("Clipping Plane Cut Color"));
+    bindGlobalCheckBox(m_clipPlaneSolidCutCheck, &GlobalRenderSettings::clipPlaneSolidCut);
+    bindGlobalColorButton(
+        m_clipPlaneSolidCutColorButton,
+        &GlobalRenderSettings::clipPlaneSolidCutColor,
+        tr("Solid Cut Color"));
     connect(m_clipPlaneFreezeButton, &QPushButton::clicked, this, [this]() {
         emit clipPlaneFreezeToViewRequested();
     });

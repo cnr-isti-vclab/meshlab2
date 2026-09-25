@@ -300,6 +300,13 @@ struct GlobalRenderSettings {
     QColor clipPlaneRimColor = QColor(255, 158, 51);
     // In pixels, so the rim reads the same at any zoom. Zero turns it off.
     float clipPlaneRimWidth = 2.0f;
+    // Draw the cut as a solid face on the plane, found per pixel with a stencil winding
+    // count rather than computed as geometry. The count is only exact for closed surfaces;
+    // on an open one the cap is left out wherever a view ray leaves the object through a
+    // hole, which is a missing face rather than a wrong one. Also decides whether the
+    // viewport's Trim button closes the cut it makes.
+    bool clipPlaneSolidCut = true;
+    QColor clipPlaneSolidCutColor = QColor(200, 200, 205);
 
     // Defined in rendersettingsjson.cpp, generated from the same field list as the
     // JSON conversions so the two cannot drift apart.

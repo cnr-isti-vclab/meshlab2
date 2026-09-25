@@ -666,6 +666,19 @@ void RenderWidget::ensureRenderResources()
         m_rasterProjectedUbuf.reset();
         m_rasterProjectedFallbackSrb.reset();
         m_rasterProjectedPipeline.reset();
+        // Buffers the frame plan creates lazily belong to the QRhi as much as the ones made
+        // here; a widget moved to another window gets a new one, and these must go with it.
+        m_viewFrustumVbuf.reset();
+        m_viewFrustumUbuf.reset();
+        m_viewFrustumSrb.reset();
+        m_clipPlaneGizmoVbuf.reset();
+        m_clipPlaneGizmoUbuf.reset();
+        m_clipPlaneGizmoSrb.reset();
+        m_clipCountPipeline.reset();
+        m_clipCapPipeline.reset();
+        m_clipCapVbuf.reset();
+        m_clipCapUbuf.reset();
+        m_clipCapSrb.reset();
         m_rastersGpu.clear();
         m_textureSampler.reset();
         m_textureSamplerNearest.reset();
@@ -1035,6 +1048,117 @@ void RenderWidget::ensureRenderResources()
         });
         if (!m_rasterProjectedFallbackSrb->create())
             m_rasterProjectedFallbackSrb.reset();
+    }
+
+    // Solid cut, pass 1: every clipped surface counted into the stencil by winding, colour
+    // and depth untouched. Depth is off on purpose -- the count has to see every surface
+    // behind the plane, not just the nearest -- and so is culling, since the sign comes from
+    // which way each face turns. Same shaders and vertex layout as the current-layer mask,
+    // which already draws fill geometry position-only and honours the clip distance.
+    if (!m_clipCountPipeline && m_srb) {
+        m_clipCountPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/selection_mask.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/selection_mask.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load solid-cut count shaders");
+            m_clipCountPipeline.reset();
+        } else {
+            m_clipCountPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_clipCountPipeline->setDepthTest(false);
+            m_clipCountPipeline->setDepthWrite(false);
+            m_clipCountPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiGraphicsPipeline::TargetBlend noColor;
+            noColor.colorWrite = QRhiGraphicsPipeline::ColorMask();
+            m_clipCountPipeline->setTargetBlends({ noColor });
+            // Seen from the discarded side, a ray through a point of the cut that lies
+            // inside a closed solid leaves it once more than it enters: faces turned away
+            // from the camera are exits, faces turned towards it entries. Counting both,
+            // rather than just their parity, is what keeps nested and overlapping solids
+            // capped, and turns most open-surface failures into a missing cap instead of a
+            // spurious one.
+            QRhiGraphicsPipeline::StencilOpState entries;
+            entries.passOp = QRhiGraphicsPipeline::DecrementAndWrap;
+            entries.compareOp = QRhiGraphicsPipeline::Always;
+            QRhiGraphicsPipeline::StencilOpState exits;
+            exits.passOp = QRhiGraphicsPipeline::IncrementAndWrap;
+            exits.compareOp = QRhiGraphicsPipeline::Always;
+            m_clipCountPipeline->setStencilTest(true);
+            m_clipCountPipeline->setStencilFront(entries);
+            m_clipCountPipeline->setStencilBack(exits);
+            m_clipCountPipeline->setStencilReadMask(0xFF);
+            m_clipCountPipeline->setStencilWriteMask(0xFF);
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { kFillVertexStrideFloats * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_clipCountPipeline->setVertexInputLayout(layout);
+            m_clipCountPipeline->setShaderResourceBindings(m_srb.get());
+            m_clipCountPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_clipCountPipeline->create()) {
+                qWarning("Failed to create solid-cut count pipeline");
+                m_clipCountPipeline.reset();
+            }
+        }
+    }
+
+    // Solid cut, pass 2: the plane itself, drawn only where the count came out above the
+    // bias. Flat colour through the raster-projected shaders -- the cap is planar and the
+    // light directional, so its diffuse shading is one value the CPU computes -- and
+    // unclipped, since it lies exactly on the plane that would otherwise cut it.
+    if (!m_clipCapUbuf) {
+        m_clipCapUbuf.reset(m_rhi->newBuffer(
+            QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kRasterProjectedUbufSize));
+        if (!m_clipCapUbuf->create())
+            m_clipCapUbuf.reset();
+    }
+    if (!m_clipCapSrb && m_clipCapUbuf) {
+        m_clipCapSrb.reset(m_rhi->newShaderResourceBindings());
+        m_clipCapSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0, QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+                m_clipCapUbuf.get()),
+        });
+        if (!m_clipCapSrb->create())
+            m_clipCapSrb.reset();
+    }
+    if (!m_clipCapPipeline && m_clipCapSrb) {
+        m_clipCapPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/raster_projected.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/raster_projected.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load solid-cut cap shaders");
+            m_clipCapPipeline.reset();
+        } else {
+            m_clipCapPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_clipCapPipeline->setTopology(QRhiGraphicsPipeline::Triangles);
+            m_clipCapPipeline->setDepthTest(true);
+            m_clipCapPipeline->setDepthWrite(true);
+            m_clipCapPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_clipCapPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            // Passes when the reference -- the bias -- is less than the stored count.
+            QRhiGraphicsPipeline::StencilOpState inside;
+            inside.compareOp = QRhiGraphicsPipeline::Less;
+            m_clipCapPipeline->setStencilTest(true);
+            m_clipCapPipeline->setStencilFront(inside);
+            m_clipCapPipeline->setStencilBack(inside);
+            m_clipCapPipeline->setStencilReadMask(0xFF);
+            m_clipCapPipeline->setStencilWriteMask(0);
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { kRasterProjectedVertexStrideFloats * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_clipCapPipeline->setVertexInputLayout(layout);
+            m_clipCapPipeline->setShaderResourceBindings(m_clipCapSrb.get());
+            m_clipCapPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_clipCapPipeline->create()) {
+                qWarning("Failed to create solid-cut cap pipeline");
+                m_clipCapPipeline.reset();
+            }
+        }
     }
 
     if (!m_rasterProjectedPipeline && m_rasterProjectedFallbackSrb) {

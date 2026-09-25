@@ -1,4 +1,5 @@
 #include "renderwidget.h"
+#include "clipplane.h"
 #include "document.h"
 #include "renderwidget_internal.h"
 #include <cstring>
@@ -221,4 +222,94 @@ void RenderWidget::renderSceneSelectionItems(
             cb->draw(selectionView.selectedEdgesVertexCount);
         }
     }
+}
+
+void RenderWidget::renderSceneSolidCut(
+    QRhiCommandBuffer *cb,
+    const RenderFramePlan &plan)
+{
+    if (!m_renderSettings.clipPlaneSolidCut || m_frameClipPlane.isNull())
+        return;
+    if (!m_clipCountPipeline || !m_clipCapPipeline || !m_clipCapUbuf || !m_clipCapSrb || !m_srb)
+        return;
+    const SceneFillFramePlan &fillPlan = plan.sceneFill;
+    if (fillPlan.fillItems.empty())
+        return;
+
+    QVector3D sceneMin;
+    QVector3D sceneMax;
+    if (!computeWorldSceneBBox(sceneMin, sceneMax))
+        return;
+    const std::vector<float> quad = ClipPlane::capQuad(m_frameClipPlane, sceneMin, sceneMax);
+    if (quad.empty())
+        return;
+
+    cb->setViewport(plan.rhiViewport());
+
+    // Pass 1: count. Only the layers whose fill is showing take part -- a wire-only or
+    // point layer has no surface to be solid.
+    for (const SceneFillDrawItem &item : fillPlan.fillItems) {
+        const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
+        uploadMainUbufForMesh(
+            cb,
+            item.meshIndex,
+            fillPlan.proj,
+            fillPlan.view,
+            item.meshSettings,
+            fillPlan.pixelSize,
+            false,
+            fillPlan.lightDir,
+            MainUbufMaterialOverrides{},
+            ubufOffset,
+            0.0f);
+        cb->setGraphicsPipeline(m_clipCountPipeline.get());
+        setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
+        for (int bi = 0; bi < item.fillView.batchCount; ++bi) {
+            const auto &batch = item.fillView.batches[bi];
+            if (!hasDrawableBatchGeometry(batch))
+                continue;
+            drawBatchGeometry(cb, batch);
+        }
+    }
+
+    // Pass 2: the cap. Planar, lit by a directional light, so its diffuse term is one value
+    // for the whole face -- computed here with the fill shaders' own model (ambient plus
+    // Lambert, same ambient share) so the cut sits in the same light as the surface around
+    // it. It faces the side that was cut away, which is where a camera looking at it is.
+    const QVector3D planeNormal = m_frameClipPlane.toVector3D().normalized();
+    const QVector3D capNormalView =
+        (fillPlan.view * QVector4D(-planeNormal, 0.0f)).toVector3D().normalized();
+    const float diffuse =
+        std::max(0.0f, QVector3D::dotProduct(capNormalView, fillPlan.lightDir.normalized()));
+    constexpr float kAmbient = 0.18f;   // the fill shaders' kAmbient
+    const float shade = kAmbient + (1.0f - kAmbient) * diffuse;
+    const QColor base = m_renderSettings.clipPlaneSolidCutColor;
+
+    float ubuf[kRasterProjectedUbufSize / sizeof(float)] = {};
+    const QMatrix4x4 mvp = fillPlan.proj * fillPlan.view;
+    memcpy(ubuf, mvp.constData(), 64);
+    ubuf[16] = float(base.redF()) * shade;
+    ubuf[17] = float(base.greenF()) * shade;
+    ubuf[18] = float(base.blueF()) * shade;
+    ubuf[19] = 1.0f;
+
+    const quint32 vbufSize = quint32(quad.size() * sizeof(float));
+    if (!m_clipCapVbuf || m_clipCapVbuf->size() < vbufSize) {
+        m_clipCapVbuf.reset(m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::VertexBuffer, vbufSize));
+        if (!m_clipCapVbuf->create()) {
+            m_clipCapVbuf.reset();
+            return;
+        }
+    }
+    QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+    u->updateDynamicBuffer(m_clipCapVbuf.get(), 0, vbufSize, quad.data());
+    u->updateDynamicBuffer(m_clipCapUbuf.get(), 0, kRasterProjectedUbufSize, ubuf);
+    cb->resourceUpdate(u);
+
+    cb->setGraphicsPipeline(m_clipCapPipeline.get());
+    cb->setStencilRef(kSolidCutStencilBias);
+    cb->setShaderResources(m_clipCapSrb.get());
+    const QRhiCommandBuffer::VertexInput binding(m_clipCapVbuf.get(), 0);
+    cb->setVertexInput(0, 1, &binding);
+    cb->draw(quint32(quad.size() / 3));
 }

@@ -1222,7 +1222,9 @@ void FilterTests::trimByPlaneReproducesTheViewportClippingPlane()
         QVector3D(0.0f, 0.0f, -1.0f));
     QVERIFY(!worldPlane.isNull());
 
-    // Exactly the parameters RenderWidget::applyClipPlaneToCurrentLayer builds.
+    // The plane parameters RenderWidget::applyClipPlaneToCurrentLayer builds. It also
+    // passes closeCut from the view's solid-cut setting; left open here, because this
+    // checks where the plane lands, not how the cut is finished.
     MeshFilterParameterValues params;
     params.insert(QStringLiteral("planeNormal"), worldPlane.toVector3D());
     params.insert(QStringLiteral("relativeTo"), QStringLiteral("origin"));
@@ -1252,6 +1254,33 @@ void FilterTests::trimByPlaneReproducesTheViewportClippingPlane()
 
     // And the cut really happened, rather than the plane missing the mesh.
     QVERIFY(kept.VN() < sphere.VN());
+
+    // The button's default: the view shows the cut as solid, so it asks for it closed. On a
+    // closed sphere that has to leave no boundary at all.
+    Document closedDoc;
+    VCGMesh closedSphere;
+    vcg::tri::Sphere(closedSphere, 3);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(closedSphere);
+    const int closedIndex = closedDoc.addMesh(closedSphere, QStringLiteral("sphere"));
+    QVERIFY(closedIndex >= 0);
+    QVERIFY(GlobalRenderSettings().clipPlaneSolidCut);
+    params.insert(QStringLiteral("closeCut"), GlobalRenderSettings().clipPlaneSolidCut);
+    const MeshFilterRunResult closedResult = closedDoc.runFilter(
+        filterKeyForId(closedDoc, QStringLiteral("trim_surface_by_plane")), params);
+    QVERIFY2(closedResult.success, qPrintable(closedResult.errorMessage));
+    VCGMesh &closedOut = closedDoc.mesh(closedIndex).mesh;
+    VCGMeshFFAdjScope closedAdj(closedOut);
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(closedOut);
+    int border = 0;
+    for (const VCGFace &f : closedOut.face) {
+        if (f.IsD())
+            continue;
+        for (int e = 0; e < 3; ++e) {
+            if (vcg::face::IsBorder(f, e))
+                ++border;
+        }
+    }
+    QVERIFY2(border == 0, qPrintable(closedResult.infoMessages.join(QStringLiteral(" / "))));
 }
 
 void FilterTests::trimByPlaneClosesObliqueCutsToo()

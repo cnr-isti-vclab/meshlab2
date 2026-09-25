@@ -129,6 +129,8 @@ private:
     QPushButton *m_clipPlaneFreezeButton = nullptr;
     QPushButton *m_clipPlaneApplyButton = nullptr;
     QPushButton *m_clipPlaneRimColorButton = nullptr;
+    QCheckBox *m_clipPlaneSolidCutCheck = nullptr;
+    QPushButton *m_clipPlaneSolidCutColorButton = nullptr;
     QDoubleSpinBox *m_clipPlaneRimWidthSpin = nullptr;
     QToolButton *m_clipPlaneButton = nullptr;
     QToolButton *m_clipPlaneSettingsArrow = nullptr;

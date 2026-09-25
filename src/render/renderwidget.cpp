@@ -2862,9 +2862,10 @@ void RenderWidget::applyClipPlaneToCurrentLayer()
     params.insert(QStringLiteral("planeNormal"), normal);
     params.insert(QStringLiteral("relativeTo"), QStringLiteral("origin"));
     params.insert(QStringLiteral("planeOffset"), double(-m_frameClipPlane.w()));
-    // The normal already carries the flip, and the viewport shows an open cut.
+    // The normal already carries the flip. Whether the cut is closed follows what the
+    // viewport is showing: a solid cut on screen becomes a closed cut in the geometry.
     params.insert(QStringLiteral("flip"), false);
-    params.insert(QStringLiteral("closeCut"), false);
+    params.insert(QStringLiteral("closeCut"), m_renderSettings.clipPlaneSolidCut);
 
     const QString filterKey = QStringLiteral("meshlab2.filter.meshing::trim_surface_by_plane");
     const QString label = tr("Trim Surface by Plane");

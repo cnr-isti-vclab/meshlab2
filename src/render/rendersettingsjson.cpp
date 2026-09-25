@@ -185,7 +185,7 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     if (!fieldsEqual(*this, o, &SettingsType::member)) \
         return false;
 
-// 43 fields
+// 45 fields
 #define MESHLAB2_GLOBAL_SETTINGS_FIELDS(F) \
     F("layer_arrangement", layerArrangement) \
     F("highlight_current_mesh", highlightCurrentMesh) \
@@ -229,7 +229,9 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("clip_plane_flipped", clipPlaneFlipped) \
     F("clip_plane_show_plane", clipPlaneShowPlane) \
     F("clip_plane_rim_color", clipPlaneRimColor) \
-    F("clip_plane_rim_width", clipPlaneRimWidth)
+    F("clip_plane_rim_width", clipPlaneRimWidth) \
+    F("clip_plane_solid_cut", clipPlaneSolidCut) \
+    F("clip_plane_solid_cut_color", clipPlaneSolidCutColor)
 
 // 45 flat fields; the three fill_* sub-objects are listed separately
 #define MESHLAB2_PER_MESH_SETTINGS_FIELDS(F) \
