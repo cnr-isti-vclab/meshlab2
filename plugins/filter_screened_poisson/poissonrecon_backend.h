@@ -6,8 +6,6 @@
 #include <QString>
 #include <QStringList>
 
-#include <vcg/space/point3.h>
-
 class Document;
 
 namespace ScreenedPoisson
@@ -37,19 +35,6 @@ MeshFilterRunResult runSSDReconFilter(
 MeshFilterRunResult runSurfaceTrimmerFilter(
     Document &doc,
     int meshIndex,
-    const MeshFilterParameterValues &parameters);
-
-// Trims with an oriented plane instead of the mesh's own scalar, on the same code: the
-// signed distance to the plane drives the split, and the per-vertex scalar rides along as
-// an interpolated channel so the cut does not destroy it.
-//
-// `planeNormal` is resolved by the caller, which has a FilterParams to decode a point3f
-// with; it need not be unit length. Where the plane sits along it comes from the
-// `relativeTo` and `planeOffset` parameters.
-MeshFilterRunResult runTrimSurfaceByPlaneFilter(
-    Document &doc,
-    int meshIndex,
-    const vcg::Point3f &planeNormal,
     const MeshFilterParameterValues &parameters);
 
 } // namespace ScreenedPoisson

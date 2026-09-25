@@ -1696,6 +1696,12 @@ void RenderWidget::createOverlayButtons()
         m_uvScaleYTickLabels[size_t(i)] = yLabel;
     }
 
+    connect(
+        m_overlayPanel,
+        &RenderOverlayPanel::clipPlaneApplyToCurrentLayerRequested,
+        this,
+        &RenderWidget::applyClipPlaneToCurrentLayer);
+
     connect(m_overlayPanel, &RenderOverlayPanel::clipPlaneFreezeToViewRequested, this,
             [this]() {
         // The direction the plane has this instant, made permanent. Reading it from the
@@ -2825,6 +2831,69 @@ void RenderWidget::updateQualityHistogramOverlay()
             .arg(m_qualityHistogram.maxQ, 0, 'g', 8));
     m_qualityHistogramOverlayLabel->show();
     layoutOverlayButtons();
+}
+
+void RenderWidget::applyClipPlaneToCurrentLayer()
+{
+    if (!m_doc)
+        return;
+
+    const int meshIndex = m_doc->currentMeshIndex();
+    if (meshIndex < 0 || meshIndex >= m_doc->meshCount()) {
+        m_doc->writeLog(
+            tr("Cannot trim by the clipping plane: no current layer selected."),
+            Document::LogSource::Application, Document::LogLevel::Error);
+        return;
+    }
+    if (m_frameClipPlane.isNull()) {
+        m_doc->writeLog(
+            tr("Cannot trim by the clipping plane: it is not cutting anything."),
+            Document::LogSource::Application, Document::LogLevel::Error);
+        return;
+    }
+
+    // The resolved world plane, handed over as-is rather than by copying the settings
+    // across: the view measures its offset in diagonals of the whole visible scene while
+    // the filter measures a distance against one layer's bounding box, so the same numbers
+    // would mean different planes as soon as there is more than one layer. A normal
+    // measured from the origin says exactly one thing.
+    const QVector3D normal = m_frameClipPlane.toVector3D();
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("planeNormal"), normal);
+    params.insert(QStringLiteral("relativeTo"), QStringLiteral("origin"));
+    params.insert(QStringLiteral("planeOffset"), double(-m_frameClipPlane.w()));
+    // The normal already carries the flip, and the viewport shows an open cut.
+    params.insert(QStringLiteral("flip"), false);
+    params.insert(QStringLiteral("closeCut"), false);
+
+    const QString filterKey = QStringLiteral("meshlab2.filter.meshing::trim_surface_by_plane");
+    const QString label = tr("Trim Surface by Plane");
+    m_doc->beginFilterProgress(label);
+    const MeshFilterRunResult result = m_doc->runFilter(filterKey, params);
+
+    if (!result.success) {
+        const QString errorText = result.errorMessage.trimmed().isEmpty()
+            ? tr("Unknown filter error")
+            : result.errorMessage.trimmed();
+        const QString msg = tr("Filter failed: %1").arg(errorText);
+        m_doc->finishFilterProgress(false, msg);
+        m_doc->writeLog(msg, Document::LogSource::Application, Document::LogLevel::Error);
+        return;
+    }
+
+    // The cut is in the geometry now, so keeping the view plane on would show the same
+    // picture for a different reason -- and hide from the user that anything happened.
+    RenderSettings next = m_renderSettings;
+    next.clipPlaneEnabled = false;
+    setRenderSettings(next);
+
+    QString status = tr("Trimmed the current layer along the clipping plane");
+    if (!result.infoMessages.isEmpty())
+        status = result.infoMessages.front();
+    m_doc->finishFilterProgress(true, status);
+    showInteractionStatusOverlay(
+        tr("Trimmed the current layer; the clipping plane is now off"));
+    update();
 }
 
 void RenderWidget::bakeCurrentQualityMappingToVertexColor()

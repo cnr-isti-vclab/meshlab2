@@ -2547,6 +2547,91 @@
       ]
     },
     {
+      "id": "trim_surface_by_plane",
+      "categories": ["Meshing/Remeshing"],
+      "name": "Trim Surface by Plane",
+      "pythonName": "trim_surface_by_plane",
+      "shortDescription": "Cuts the mesh with an oriented plane and keeps one side.",
+      "longDescriptionMarkdown": "Trims the current layer along an oriented plane, discarding everything behind it. Faces crossing the plane are split along it, so the cut is a clean boundary rather than a jagged edge along the nearest face borders.\n\nThe per-vertex scalar, colour and texture coordinates are preserved, and interpolated onto the vertices created along the cut.\n\nUnless the cut is closed the result is a surface with a new boundary, not a solid.",
+      "tags": [
+        "plane",
+        "trimming",
+        "cut",
+        "clip",
+        "section"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [
+        {
+          "id": "planeNormal",
+          "label": "Plane normal",
+          "help": "Direction the cutting plane faces. Everything behind the plane is discarded. It need not be unit length.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [1.0, 0.0, 0.0]
+        },
+        {
+          "id": "relativeTo",
+          "label": "Plane reference",
+          "help": "Point the offset is measured from.",
+          "group": "main",
+          "type": "enum",
+          "default": "center",
+          "enumOptions": [
+            { "id": "center", "label": "Bounding box center" },
+            { "id": "origin", "label": "Origin" },
+            { "id": "min", "label": "Bounding box min" },
+            { "id": "max", "label": "Bounding box max" }
+          ]
+        },
+        {
+          "id": "planeOffset",
+          "label": "Plane offset",
+          "help": "Distance from the reference point to the plane, measured along the plane normal.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": -1000000.0,
+          "max": 1000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "flip",
+          "label": "Keep other side",
+          "help": "If enabled, the side that would have been discarded is kept instead. The same as negating the plane normal, kept as a control because reversing a cut is a thing you do often.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "snapTolerance",
+          "label": "Snap to existing vertices",
+          "help": "How close to an existing vertex the cut may fall before that vertex is moved onto the plane instead of the edge being split, as a fraction of the edge. Raising it avoids sliver triangles along the cut at the cost of following the plane less exactly; zero splits every crossing edge and can leave slivers.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.02,
+          "min": 0.0,
+          "max": 0.45,
+          "decimals": 4
+        },
+        {
+          "id": "closeCut",
+          "label": "Close the cut",
+          "help": "If enabled, the boundary opened by the plane is filled with new faces, so a closed mesh stays closed. All the loops on the plane are filled together with an even-odd rule, so a cut that leaves concentric outlines is capped as a ring rather than as overlapping discs. Only those loops are filled; holes the mesh already had are left alone. It needs an edge-manifold mesh, and says so in the log if the cut had to be left open.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": ["FV", "VG"]
+    },
+    {
       "id": "create_polyline_from_planar_section",
       "categories": ["Creation/Primitives"],
       "name": "Create Polyline from Planar Section",

@@ -383,6 +383,10 @@ struct SceneRasterProjectedDrawItem {
     void updateQualityHistogramOverlay();
     void updateDecoratorInfoOverlay();
     void bakeCurrentQualityMappingToVertexColor();
+    // Runs Trim Surface by Plane on the current layer with the plane this view
+    // is showing, then turns the clipping plane off so what is on screen is the
+    // geometry rather than a view of it.
+    void applyClipPlaneToCurrentLayer();
     void updateUvScaleOverlay(
         const QMatrix4x4 &mvp,
         const QSize &pixelSize,

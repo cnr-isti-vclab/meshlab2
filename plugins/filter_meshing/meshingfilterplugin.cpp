@@ -11,6 +11,7 @@
 #include <vcg/complex/algorithms/bitquad_creation.h>
 #include <vcg/complex/algorithms/bitquad_support.h>
 #include <vcg/complex/algorithms/clean.h>
+#include <vcg/complex/algorithms/clip.h>
 #include <vcg/complex/algorithms/clustering.h>
 #include <vcg/complex/algorithms/create/platonic.h>
 #include <vcg/complex/algorithms/hole.h>
@@ -240,6 +241,7 @@ constexpr QLatin1StringView kIdNormalExtrap("compute_point_cloud_normals");
 constexpr QLatin1StringView kIdNormalSmoothPc("smooth_point_cloud_normals");
 constexpr QLatin1StringView kIdCurvDir("compute_principal_curvature_directions_vcglib");
 constexpr QLatin1StringView kIdSlicePlane("create_polyline_from_planar_section");
+constexpr QLatin1StringView kIdTrimByPlane("trim_surface_by_plane");
 constexpr QLatin1StringView kIdPerimeterPolyline("create_polyline_from_selection_perimeter");
 constexpr QLatin1StringView kIdMidpoint("subdivide_by_midpoint");
 constexpr QLatin1StringView kIdReorient("orient_faces_consistently_vcglib");
@@ -1782,6 +1784,87 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (idx < 0)
                 return fail(QObject::tr("Failed to create perimeter polyline layer."));
             return success(true, { QObject::tr("Created perimeter polyline layer.") }, { idx });
+        }
+
+        if (filterId == QString::fromLatin1(kIdTrimByPlane)) {
+            const QString filterName = QObject::tr("Trim Surface by Plane");
+            if (mesh.VN() <= 0 || mesh.FN() <= 0)
+                return fail(QObject::tr("%1 requires a mesh with faces.").arg(filterName));
+
+            // One control, not two: the point3f direction editor already offers the six
+            // axis presets and the view direction, so an enum beside it would be the same
+            // choice asked twice. Create Polyline from Planar Section still has that older
+            // pair; this filter does not copy it.
+            const QVector3D nv = params.getPoint3f(QStringLiteral("planeNormal"));
+            vcg::Point3f normal(float(nv.x()), float(nv.y()), float(nv.z()));
+            const float length = normal.Norm();
+            if (!std::isfinite(length) || length <= 1e-9f)
+                return fail(QObject::tr("%1 needs a plane normal that is not zero.").arg(filterName));
+            normal /= length;
+            // Which side survives: the clip keeps what the normal points at.
+            if (params.getBool(QStringLiteral("flip")))
+                normal = -normal;
+
+            if (mesh.bbox.IsNull())
+                vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+            const QString rel = params.getEnum(QStringLiteral("relativeTo"));
+            vcg::Point3f reference(0, 0, 0);
+            if (rel == QStringLiteral("center"))
+                reference = mesh.bbox.Center();
+            else if (rel == QStringLiteral("min"))
+                reference = mesh.bbox.min;
+            else if (rel == QStringLiteral("max"))
+                reference = mesh.bbox.max;
+            const float offset = float(params.getDouble(QStringLiteral("planeOffset")));
+
+            vcg::Plane3f plane;
+            plane.Init(reference + normal * offset, normal);
+
+            const bool closeCut = params.getBool(QStringLiteral("closeCut"));
+            // All of the geometry is vcglib's: the refine framework splits the faces at the
+            // plane without duplicating vertices it meets head-on, and the cap tessellates
+            // every loop of the outline together so concentric ones come out as a ring.
+            // Face-face adjacency is optional storage on VCGMesh and both of those need it.
+            const float snap = float(std::clamp(
+                params.getDouble(QStringLiteral("snapTolerance")), 0.0, 0.45));
+            bool clipped = false;
+            {
+                VCGMeshFFAdjScope _clipFFAdj(mesh);
+                clipped = vcg::tri::ClipMeshWithPlane(mesh, plane, closeCut, snap);
+            }
+            if (!clipped)
+                return fail(QObject::tr("%1 left the mesh unchanged: the plane does not cut it.").arg(filterName));
+            if (mesh.FN() <= 0)
+                return fail(QObject::tr("%1 would remove the whole mesh. It was left unchanged.").arg(filterName));
+
+            vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+            vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+            const QString contextMessage =
+                QObject::tr("Trimmed mesh '%1' (%2 vertices, %3 faces).")
+                    .arg(entry.name).arg(mesh.VN()).arg(mesh.FN());
+            markGeometry(ci, contextMessage);
+
+            QStringList info{ contextMessage };
+            if (closeCut) {
+                // ClipMeshWithPlane leaves the cut open rather than failing when the
+                // outline is not a set of simple loops on an edge-manifold mesh; whether a
+                // boundary is left says which happened.
+                VCGMeshFFAdjScope _borderFFAdj(mesh);
+                vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+                bool stillOpen = false;
+                for (const VCGFace &f : mesh.face) {
+                    if (f.IsD())
+                        continue;
+                    for (int e = 0; e < 3 && !stillOpen; ++e)
+                        stillOpen = vcg::face::IsBorder(f, e);
+                    if (stillOpen)
+                        break;
+                }
+                info << (stillOpen
+                             ? QObject::tr("The cut could not be closed; the mesh still has a boundary.")
+                             : QObject::tr("Closed the cut."));
+            }
+            return success(true, info);
         }
 
         if (filterId == QString::fromLatin1(kIdSlicePlane)) {

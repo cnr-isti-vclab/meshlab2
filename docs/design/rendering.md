@@ -194,6 +194,23 @@ of pixels whatever angle the surface meets the plane at. Width 0 disables it.
 (`kClipPlaneGizmoRasterIndex`). It appears while the plane is moving and for 1200 ms after;
 `clipPlaneShowPlane` keeps it up permanently.
 
+**Snapping.** `ClipMeshWithPlane` takes a tolerance, exposed by the filter as *Snap to
+existing vertices*: a crossing that lands within that fraction of an edge from an endpoint
+does not split the edge, and the endpoint is moved onto the plane instead. Without the move
+the cut is planar only to within a fraction of an edge, which is invisible on an
+axis-aligned cut through a regular mesh -- those crossings land on vertices exactly -- and
+routine on an oblique one, where it stops the cut being cappable at all.
+
+**Making the cut real.** The clip-plane page's *Trim Current Layer* button runs
+`meshlab2.filter.meshing::trim_surface_by_plane` on the current layer and then switches the
+clipping plane off, so what is on screen becomes the geometry rather than a view of it. It
+hands over the resolved world plane as a normal measured from the origin rather than
+copying the settings across: the view measures its offset in diagonals of the whole visible
+scene while the filter measures a distance against one layer's bounding box, so the same
+numbers would mean different planes as soon as there is more than one layer. It matches
+what the viewport shows -- one layer, cut left open; the Filters panel has the rest of the
+filter's options.
+
 **Interaction.** `Ctrl`+wheel slides the plane along its normal at 0.02 diagonals a notch;
 `Alt`+drag tips it, switching the axis to `Custom`. Both enable clipping if it is off, and
 the wheel starts it at `ClipPlane::offsetClearOfScene()` — the offset where the plane just

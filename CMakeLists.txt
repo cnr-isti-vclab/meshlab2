@@ -539,6 +539,9 @@ qt_add_executable(MeshLab2FilterTests
 
 target_include_directories(MeshLab2FilterTests PRIVATE
     ${MESHLAB2_SOURCE_DIR}
+    # clipplane.h: the plane the render panel's Trim button hands to the filter is resolved
+    # by the same code the viewport uses, so the test can check the two agree.
+    ${MESHLAB2_SOURCE_DIR}/src/render
 )
 
 target_link_libraries(MeshLab2FilterTests PRIVATE

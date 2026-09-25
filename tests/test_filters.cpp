@@ -22,6 +22,8 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/append.h>
 #include <vcg/complex/algorithms/clean.h>
+#include "clipplane.h"
+
 #include <vcg/complex/algorithms/create/platonic.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
@@ -404,6 +406,8 @@ private slots:
     void trimByPlaneClosesTheCutOnRequest();
     void trimByPlaneClosesAConcentricCutAsAnAnnulus();
     void trimByPlaneClosesTwoDisjointCutsSeparately();
+    void trimByPlaneReproducesTheViewportClippingPlane();
+    void trimByPlaneClosesObliqueCutsToo();
     void filterParameterValidation();
     void meshFixRepairsOpenCube();
     void qslimSimplifiesCube();
@@ -900,7 +904,7 @@ void FilterTests::trimByPlaneCutsAtThePlaneAndKeepsTheScalar()
     const float cutX = box.Center().X();
 
     MeshFilterParameterValues params;
-    params.insert(QStringLiteral("planeAxis"), QStringLiteral("x"));
+    params.insert(QStringLiteral("planeNormal"), QVector3D(1.0f, 0.0f, 0.0f));
     params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
     params.insert(QStringLiteral("planeOffset"), 0.0);
     const MeshFilterRunResult result = doc.runFilter(key, params);
@@ -949,7 +953,7 @@ void FilterTests::trimByPlaneClosesTheCutOnRequest()
         QVERIFY(meshIndex >= 0);
 
         MeshFilterParameterValues params;
-        params.insert(QStringLiteral("planeAxis"), QStringLiteral("x"));
+        params.insert(QStringLiteral("planeNormal"), QVector3D(1.0f, 0.0f, 0.0f));
         params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
         params.insert(QStringLiteral("planeOffset"), 0.0);
         params.insert(QStringLiteral("closeCut"), closeCut);
@@ -1016,7 +1020,7 @@ void FilterTests::trimByPlaneClosesTheCutOnRequest()
     QVERIFY(holedIndex >= 0);
 
     MeshFilterParameterValues holedParams;
-    holedParams.insert(QStringLiteral("planeAxis"), QStringLiteral("x"));
+    holedParams.insert(QStringLiteral("planeNormal"), QVector3D(1.0f, 0.0f, 0.0f));
     holedParams.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
     holedParams.insert(QStringLiteral("planeOffset"), 0.0);
     holedParams.insert(QStringLiteral("closeCut"), true);
@@ -1059,7 +1063,7 @@ void FilterTests::trimByPlaneClosesAConcentricCutAsAnAnnulus()
     doc.setCurrentMeshIndex(meshIndex);
 
     MeshFilterParameterValues params;
-    params.insert(QStringLiteral("planeAxis"), QStringLiteral("z"));
+    params.insert(QStringLiteral("planeNormal"), QVector3D(0.0f, 0.0f, 1.0f));
     params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
     params.insert(QStringLiteral("planeOffset"), 0.0);
     params.insert(QStringLiteral("closeCut"), true);
@@ -1136,7 +1140,7 @@ void FilterTests::trimByPlaneClosesTwoDisjointCutsSeparately()
     doc.setCurrentMeshIndex(meshIndex);
 
     MeshFilterParameterValues params;
-    params.insert(QStringLiteral("planeAxis"), QStringLiteral("x"));
+    params.insert(QStringLiteral("planeNormal"), QVector3D(1.0f, 0.0f, 0.0f));
     params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
     params.insert(QStringLiteral("planeOffset"), 0.0);
     params.insert(QStringLiteral("closeCut"), true);
@@ -1187,6 +1191,126 @@ void FilterTests::trimByPlaneClosesTwoDisjointCutsSeparately()
     QCOMPARE(borderEdges, 0);
 }
 
+void FilterTests::trimByPlaneReproducesTheViewportClippingPlane()
+{
+    // The render panel's "Trim Current Layer" button hands the viewport's clipping plane to
+    // this filter. It cannot copy the settings across -- the view measures its offset in
+    // diagonals of the whole visible scene, the filter measures a distance against one
+    // layer's box -- so it passes the resolved world plane as a normal measured from the
+    // origin. This pins that conversion: the geometry that survives must be exactly the
+    // geometry the viewport was still drawing.
+    GlobalRenderSettings view;
+    view.clipPlaneEnabled = true;
+    view.clipPlaneAxis = ClipPlaneAxis::Custom;
+    view.clipPlaneCustomAxis = QVector3D(0.6f, -0.5f, 0.3f);
+    view.clipPlaneRelativeTo = ClipPlaneReference::Center;
+    view.clipPlaneOffset = 0.17f;
+    view.clipPlaneFlipped = true;
+
+    Document doc;
+    VCGMesh sphere;
+    vcg::tri::Sphere(sphere, 3);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(sphere);
+    const int meshIndex = doc.addMesh(sphere, QStringLiteral("sphere"));
+    QVERIFY(meshIndex >= 0);
+
+    const vcg::Box3f box = doc.mesh(meshIndex).mesh.bbox;
+    const QVector4D worldPlane = ClipPlane::world(
+        view,
+        QVector3D(box.min.X(), box.min.Y(), box.min.Z()),
+        QVector3D(box.max.X(), box.max.Y(), box.max.Z()),
+        QVector3D(0.0f, 0.0f, -1.0f));
+    QVERIFY(!worldPlane.isNull());
+
+    // Exactly the parameters RenderWidget::applyClipPlaneToCurrentLayer builds.
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("planeNormal"), worldPlane.toVector3D());
+    params.insert(QStringLiteral("relativeTo"), QStringLiteral("origin"));
+    params.insert(QStringLiteral("planeOffset"), double(-worldPlane.w()));
+    params.insert(QStringLiteral("flip"), false);
+    params.insert(QStringLiteral("closeCut"), false);
+
+    const MeshFilterRunResult result =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("trim_surface_by_plane")), params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    const VCGMesh &kept = doc.mesh(meshIndex).mesh;
+    QVERIFY(kept.VN() > 0);
+    float worstWrongSide = 0.0f;
+    for (const VCGVertex &v : kept.vert) {
+        if (v.IsD())
+            continue;
+        // The same test the shaders apply: survive when dot(vec4(p,1), plane) >= 0.
+        const float d = QVector3D::dotProduct(worldPlane.toVector3D(),
+                                              QVector3D(v.cP().X(), v.cP().Y(), v.cP().Z()))
+                        + worldPlane.w();
+        worstWrongSide = std::min(worstWrongSide, d);
+    }
+    QVERIFY2(worstWrongSide > -1e-4f,
+             qPrintable(QStringLiteral("a vertex survived %1 behind the viewport's plane")
+                            .arg(-worstWrongSide)));
+
+    // And the cut really happened, rather than the plane missing the mesh.
+    QVERIFY(kept.VN() < sphere.VN());
+}
+
+void FilterTests::trimByPlaneClosesObliqueCutsToo()
+{
+    // Every other capping test here cuts along an axis, and on a regular mesh those
+    // crossings land on vertices exactly, which hides the whole problem. An oblique plane
+    // crosses edges at arbitrary fractions, and the refine predicate then declines to split
+    // the ones that land near an endpoint -- leaving that vertex off the plane unless the
+    // clip snaps it back. It is also what the viewport's Trim button passes whenever the
+    // camera is not square-on, which is most of the time.
+    const QVector3D normals[] = {
+        QVector3D(1.0f, 0.0f, 1.0f),
+        QVector3D(1.0f, 1.0f, 1.0f),
+        QVector3D(0.3f, 0.7f, 0.2f),
+        QVector3D(0.57f, -0.11f, 0.81f),
+    };
+    const double offsets[] = { -0.5, -0.3, 0.0, 0.3, 0.5 };
+
+    for (const QVector3D &normal : normals) {
+        for (double offset : offsets) {
+            Document doc;
+            const MeshFilterRunResult torus =
+                doc.runFilter(filterKeyForId(doc, QStringLiteral("create_torus")), {});
+            QVERIFY2(torus.success, qPrintable(torus.errorMessage));
+            QCOMPARE(torus.newMeshIndices.size(), 1);
+            const int meshIndex = torus.newMeshIndices[0];
+            doc.setCurrentMeshIndex(meshIndex);
+
+            MeshFilterParameterValues params;
+            params.insert(QStringLiteral("planeNormal"), normal);
+            params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
+            params.insert(QStringLiteral("planeOffset"), offset);
+            params.insert(QStringLiteral("closeCut"), true);
+            const MeshFilterRunResult result = doc.runFilter(
+                filterKeyForId(doc, QStringLiteral("trim_surface_by_plane")), params);
+            const QString where = QStringLiteral("normal (%1,%2,%3) offset %4")
+                                      .arg(normal.x()).arg(normal.y()).arg(normal.z())
+                                      .arg(offset);
+            QVERIFY2(result.success, qPrintable(where + QStringLiteral(": ") + result.errorMessage));
+
+            VCGMesh &out = doc.mesh(meshIndex).mesh;
+            VCGMeshFFAdjScope ffAdj(out);
+            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(out);
+            int borderEdges = 0;
+            for (const VCGFace &f : out.face) {
+                if (f.IsD())
+                    continue;
+                for (int e = 0; e < 3; ++e) {
+                    if (vcg::face::IsBorder(f, e))
+                        ++borderEdges;
+                }
+            }
+            QVERIFY2(borderEdges == 0,
+                     qPrintable(where + QStringLiteral(" left %1 border edges: ").arg(borderEdges)
+                                + result.infoMessages.join(QStringLiteral(" / "))));
+        }
+    }
+}
+
 void FilterTests::trimByPlaneRefusesRatherThanEmptyTheLayer()
 {
     // A plane clear of the mesh would leave nothing. The mesh must come back untouched
@@ -1205,7 +1329,7 @@ void FilterTests::trimByPlaneRefusesRatherThanEmptyTheLayer()
     QVERIFY(!key.isEmpty());
 
     MeshFilterParameterValues params;
-    params.insert(QStringLiteral("planeAxis"), QStringLiteral("x"));
+    params.insert(QStringLiteral("planeNormal"), QVector3D(1.0f, 0.0f, 0.0f));
     params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
     params.insert(QStringLiteral("planeOffset"), 1000.0);
     const MeshFilterRunResult result = doc.runFilter(key, params);
@@ -1215,8 +1339,7 @@ void FilterTests::trimByPlaneRefusesRatherThanEmptyTheLayer()
 
     // And a normal of zero describes no plane at all.
     params.insert(QStringLiteral("planeOffset"), 0.0);
-    params.insert(QStringLiteral("planeAxis"), QStringLiteral("custom"));
-    params.insert(QStringLiteral("customAxis"), QVector3D(0.0f, 0.0f, 0.0f));
+    params.insert(QStringLiteral("planeNormal"), QVector3D(0.0f, 0.0f, 0.0f));
     const MeshFilterRunResult zeroNormal = doc.runFilter(key, params);
     QVERIFY2(!zeroNormal.success, "a zero normal must refuse");
     QCOMPARE(doc.mesh(meshIndex).mesh.VN(), verticesBefore);

@@ -49,6 +49,9 @@ signals:
     // The panel has no camera; the view answers this by freezing its own direction into
     // clipPlaneCustomAxis, which is what turns "cut here" into "cut here and let me orbit".
     void clipPlaneFreezeToViewRequested();
+    // Make the cut permanent: the view answers by running Trim Surface by Plane on the
+    // current layer with the plane it is showing.
+    void clipPlaneApplyToCurrentLayerRequested();
     void meshSettingsChanged(const PerMeshRenderSettings &settings);
     void applyToAllMeshesRequested(const PerMeshRenderSettings &settings, RenderPass pass);
     void bakeQualityMappingToVertexColorRequested();
@@ -124,6 +127,7 @@ private:
     QCheckBox *m_clipPlaneFlippedCheck = nullptr;
     QCheckBox *m_clipPlaneShowPlaneCheck = nullptr;
     QPushButton *m_clipPlaneFreezeButton = nullptr;
+    QPushButton *m_clipPlaneApplyButton = nullptr;
     QPushButton *m_clipPlaneRimColorButton = nullptr;
     QDoubleSpinBox *m_clipPlaneRimWidthSpin = nullptr;
     QToolButton *m_clipPlaneButton = nullptr;

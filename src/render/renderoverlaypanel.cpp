@@ -1065,6 +1065,12 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_clipPlaneFreezeButton->setToolTip(
         tr("Keep the plane where it is now and stop it following the camera, so the "
            "scene can be orbited around the cut."));
+    m_clipPlaneApplyButton = new QPushButton(tr("Trim Current Layer"), clipPlanePage);
+    m_clipPlaneApplyButton->setToolTip(
+        tr("Cut the current layer along this plane for real, and turn the clipping plane "
+           "off. The result matches what the viewport is showing: the cut is left open, "
+           "and only the current layer is trimmed. Run Trim Surface by Plane from the "
+           "Filters panel for the rest of its options."));
 
     clipPlaneForm->addRow(tr("Normal"), m_clipPlaneAxisCombo);
     clipPlaneForm->addRow(tr("Reference"), m_clipPlaneReferenceCombo);
@@ -1080,6 +1086,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         makeCenteredFieldContainer(m_clipPlaneRimColorButton, clipPlanePage));
     clipPlaneForm->addRow(tr("Cut width"), m_clipPlaneRimWidthSpin);
     clipPlaneForm->addRow(QString(), m_clipPlaneFreezeButton);
+    clipPlaneForm->addRow(QString(), m_clipPlaneApplyButton);
     applyUniformFormRowHeights(clipPlaneForm);
     clipPlaneLayout->addLayout(clipPlaneForm);
     m_settingsStack->addWidget(clipPlanePage);  // index 11
@@ -1302,6 +1309,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         tr("Clipping Plane Cut Color"));
     connect(m_clipPlaneFreezeButton, &QPushButton::clicked, this, [this]() {
         emit clipPlaneFreezeToViewRequested();
+    });
+    connect(m_clipPlaneApplyButton, &QPushButton::clicked, this, [this]() {
+        emit clipPlaneApplyToCurrentLayerRequested();
     });
     bindGlobalCheckBox(m_fillTextureNearestCheck, &GlobalRenderSettings::fillTextureNearestSampling);
     bindGlobalColorButton(
