@@ -20,9 +20,9 @@
 #include <atomic>
 #include <cmath>
 #include <cstddef>
-#include <cstring>
 #include <limits>
 #include <map>
+#include <numeric>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -1752,6 +1752,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             std::array<float, 3> p0 { 0.0f, 0.0f, 0.0f };
             std::array<float, 3> p1 { 0.0f, 0.0f, 0.0f };
             int incidentCount = 0;
+            // For the first two faces on the edge, their corners at p0 and at p1.
+            std::array<std::array<int, 2>, 2> corners {};
             std::vector<EdgeUvSample> uvSamples;
         };
 
@@ -1813,9 +1815,12 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 bool swapped = false;
                 std::array<float, 3> p0 = { v0->cP()[0], v0->cP()[1], v0->cP()[2] };
                 std::array<float, 3> p1 = { v1->cP()[0], v1->cP()[1], v1->cP()[2] };
+                int c0 = 3 * fi + i;
+                int c1 = 3 * fi + next;
                 if (a > b) {
                     std::swap(a, b);
                     std::swap(p0, p1);
+                    std::swap(c0, c1);
                     swapped = true;
                 }
 
@@ -1824,6 +1829,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     acc.p0 = p0;
                     acc.p1 = p1;
                 }
+                if (acc.incidentCount < 2)
+                    acc.corners[size_t(acc.incidentCount)] = { c0, c1 };
                 ++acc.incidentCount;
 
                 if (!hasTexCoords)
@@ -1846,9 +1853,23 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             }
         }
 
-        // Track unique non-manifold vertex positions (to avoid duplicates in the point buffer).
-        std::unordered_set<std::uint64_t> nonManifoldVertexSet;
-        std::vector<float> nonManifoldVertexPoints;
+        // Non-manifold vertices are those whose faces make more than one fan -- two cones
+        // touching at the tip -- and that lie on no non-manifold edge, which has its own
+        // decorator: the definition of vcglib's CountNonManifoldVertexFF, which the info panel
+        // counts with. That walks FF adjacency, which this const mesh does not carry, so the
+        // fans are found from the edge map instead: the corners at each end of a manifold edge
+        // are joined, and a vertex whose corners end up in more than one group has more than
+        // one fan.
+        std::vector<int> fan(static_cast<size_t>(meshData.FN()) * 3);
+        std::iota(fan.begin(), fan.end(), 0);
+        const auto fanOf = [&fan](int c) {
+            while (fan[size_t(c)] != c) {
+                fan[size_t(c)] = fan[size_t(fan[size_t(c)])];
+                c = fan[size_t(c)];
+            }
+            return c;
+        };
+        std::vector<bool> onNonManifoldEdge(static_cast<size_t>(meshData.VN()), false);
 
         for (const auto &kv : edges) {
             const EdgeAccum &acc = kv.second;
@@ -1861,6 +1882,11 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 boundaryEdgeLines.push_back(acc.p1[2]);
             }
 
+            if (acc.incidentCount == 2) {
+                fan[size_t(fanOf(acc.corners[0][0]))] = fanOf(acc.corners[1][0]);
+                fan[size_t(fanOf(acc.corners[0][1]))] = fanOf(acc.corners[1][1]);
+            }
+
             // Non-manifold edges: more than 2 incident faces.
             if (acc.incidentCount > 2) {
                 nonManifoldEdgeLines.push_back(acc.p0[0]);
@@ -1869,23 +1895,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 nonManifoldEdgeLines.push_back(acc.p1[0]);
                 nonManifoldEdgeLines.push_back(acc.p1[1]);
                 nonManifoldEdgeLines.push_back(acc.p1[2]);
-                // Record the two endpoint positions as non-manifold vertices.
-                auto addNonManifoldVertex = [&](const std::array<float, 3> &p) {
-                    // Build a dedup key from the raw float bits.
-                    std::uint32_t bx, by, bz;
-                    std::memcpy(&bx, &p[0], sizeof(bx));
-                    std::memcpy(&by, &p[1], sizeof(by));
-                    std::memcpy(&bz, &p[2], sizeof(bz));
-                    const std::uint64_t key =
-                        (std::uint64_t(bx) << 42) ^ (std::uint64_t(by) << 21) ^ std::uint64_t(bz);
-                    if (nonManifoldVertexSet.insert(key).second) {
-                        nonManifoldVertexPoints.push_back(p[0]);
-                        nonManifoldVertexPoints.push_back(p[1]);
-                        nonManifoldVertexPoints.push_back(p[2]);
-                    }
-                };
-                addNonManifoldVertex(acc.p0);
-                addNonManifoldVertex(acc.p1);
+                onNonManifoldEdge[size_t(kv.first >> 32)] = true;
+                onNonManifoldEdge[size_t(kv.first & 0xffffffffu)] = true;
             }
 
             if (!hasTexCoords)
@@ -1918,6 +1929,31 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             textureSeamLines.push_back(acc.p1[0]);
             textureSeamLines.push_back(acc.p1[1]);
             textureSeamLines.push_back(acc.p1[2]);
+        }
+
+        std::vector<int> firstFan(static_cast<size_t>(meshData.VN()), -1);
+        std::vector<bool> manyFans(static_cast<size_t>(meshData.VN()), false);
+        for (int fi = 0; fi < meshData.FN(); ++fi) {
+            const auto &f = meshData.face[fi];
+            if (f.IsD())
+                continue;
+            for (int k = 0; k < 3; ++k) {
+                if (!f.cV(k))
+                    continue;
+                const size_t vi = size_t(vcg::tri::Index(meshData, f.cV(k)));
+                const int group = fanOf(3 * fi + k);
+                if (firstFan[vi] < 0)
+                    firstFan[vi] = group;
+                else if (firstFan[vi] != group)
+                    manyFans[vi] = true;
+            }
+        }
+        std::vector<float> nonManifoldVertexPoints;
+        for (size_t vi = 0; vi < manyFans.size(); ++vi) {
+            if (!manyFans[vi] || onNonManifoldEdge[vi])
+                continue;
+            const auto &p = meshData.vert[vi].cP();
+            nonManifoldVertexPoints.insert(nonManifoldVertexPoints.end(), { p[0], p[1], p[2] });
         }
 
         uploadLineBuffer(

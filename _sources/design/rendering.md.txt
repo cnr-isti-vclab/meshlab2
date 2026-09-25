@@ -84,7 +84,7 @@ tracked CPU allocations and OS physical footprint.
 
 Fill uses an indexed path (shared vertices) or an expanded-triangle path for per-face colors or texture batching. For quality variants, normalized quality is stored in the buffer and resolved via LUT sampling in shaders. Changing colormap, inversion, or isoline settings updates only the per-view LUT texture; changing fixed range, center-on-zero, or percentile crop changes normalization and rebuilds the affected quality buffers.
 
-Boundary extraction: topological edge incidence (`incidentCount == 1`). Non-manifold edge extraction: topological edge incidence above two. Seam extraction: per-topological-edge UV sample comparison (texture-index changes, missing/invalid UV).
+Boundary extraction: topological edge incidence (`incidentCount == 1`). Non-manifold edge extraction: topological edge incidence above two. Non-manifold vertex extraction: vertices whose faces form more than one fan -- two cones touching at the tip -- and that lie on no non-manifold edge, which that decorator already shows; the definition of vcglib's `CountNonManifoldVertexFF`, which the info panel counts with. The cache holds a const mesh without FF adjacency, so it finds the fans from the same edge map, joining the corners at each end of every manifold edge. Seam extraction: per-topological-edge UV sample comparison (texture-index changes, missing/invalid UV). Colors: green boundaries, blue seams, and one red-purple for both non-manifold decorators.
 
 ## Per-Mesh Render Modes
 
@@ -133,7 +133,7 @@ Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfac
 
 **Selection overlay** (final pass): semi-transparent red fill triangles + red vertex points; depth `LessOrEqual`, no depth write; per-mesh `showSelection`/`showSelectionFaces`/`showSelectionVertices`. Scene3D selection resources come from the shared mesh GPU cache; UV mode has a dedicated UV-space selection overlay.
 
-**Decorator info overlay**: optional 2D label controlled by `showDecoratorInfo`. It reports numeric counts for enabled decorator data on the current mesh (boundary/seam/non-manifold families) and hides itself when no relevant decorator information is available.
+**Decorator info overlay**: 2D label controlled by `showDecoratorInfo`, on by default. It reports numeric counts for enabled decorator data on the current mesh (boundary/seam/non-manifold families) while the boundary decorator is on, and hides itself otherwise or when no relevant decorator information is available. All four boundary-page decorators -- boundary edges, texture seams, non-manifold edges and vertices -- default on, so turning the pass on shows everything it can.
 
 Simple buffer pass execution (wire, edges, bbox, points), decorator execution, and selection execution are isolated in `renderwidget_scene_passes.cpp`. Their draw order remains controlled by `renderwidget_render.cpp`.
 
@@ -368,8 +368,9 @@ application's own `--generate-docs <dir>` hook, which execs `<dir>/generate_api.
 `_meshlab` module importable; a probe there builds a `MeshSet`, calls `render_snapshot()`
 with a render-state JSON, and asserts on the returned raw RGBA8888.
 
-`tests/render_probes/` holds these. Each is a directory with a `generate_api.py`, because
-that is the filename the hook runs:
+`tests/render_probes/` holds these -- `clip_plane` for the clipping plane and solid cut,
+`boundary_decorators` for what the boundary decorator marks and in which colors. Each is a
+directory with a `generate_api.py`, because that is the filename the hook runs:
 
 ```
 build-release/MeshLab.app/Contents/MacOS/MeshLab --generate-docs tests/render_probes/clip_plane
