@@ -1159,12 +1159,34 @@ display name leads with a word that is not here.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">matrix</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">transformation</span> <span class="pre">matrix</span></code> (verbose), <code class="docutils literal notranslate"><span class="pre">xform</span></code></p></td>
 </tr>
+<tr class="row-odd"><td><p>1D abstraction of a shape</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">skeleton</span></code> alone, <code class="docutils literal notranslate"><span class="pre">morphological</span> <span class="pre">skeleton</span></code>, <code class="docutils literal notranslate"><span class="pre">medial</span> <span class="pre">axis</span></code>, <code class="docutils literal notranslate"><span class="pre">centerline</span></code></p></td>
+</tr>
 </tbody>
 </table>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">mesh</span></code> vs <code class="docutils literal notranslate"><span class="pre">layer</span></code>: filters that operate on geometry say <strong>mesh</strong>; operations on
 document structure say <strong>layer</strong>. <em>Duplicate Layer</em>, but <em>Remove Duplicate
 Vertices</em>.</p>
+<section id="why-curve-skeleton-2026-09-27">
+<h3>Why <code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code> (2026-09-27)<a class="headerlink" href="#why-curve-skeleton-2026-09-27" title="Link to this heading">¶</a></h3>
+<p>A <strong>curve skeleton</strong> is a connected polyline centered inside a shape that keeps its
+topology — one curve per branch, junctions where branches meet. It is stored as a polyline
+layer (<code class="docutils literal notranslate"><span class="pre">Polyline</span></code> representation, §2). The term entered with the port of the coral
+branch-phenotyping filters (proposal: <a class="reference internal" href="proposals/coral_branch_phenotyping.html"><span class="std std-doc">Coral Branch Phenotyping</span></a>).
+Each rejected synonym names something else:</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">skeleton</span></code> alone</strong> also means an animation rig, and in geometry processing it covers
+surface skeletons too. The qualifier is what says the result is 1D.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">morphological</span> <span class="pre">skeleton</span></code></strong> is the coral paper’s own term, but it is an established
+image-morphology operation (erosions and openings on a binary image).</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">medial</span> <span class="pre">axis</span></code></strong> is the exact locus of centers of maximal balls. In 3D it is a
+<em>surface</em>, not a curve, and a curve skeleton only approximates part of it. A filter
+that really computed it would call it that.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">centerline</span></code></strong> usually means one path through a tube, with no branching.</p></li>
+</ul>
+</section>
 <section id="why-scalar-not-quality">
 <h3>Why <code class="docutils literal notranslate"><span class="pre">scalar</span></code>, not <code class="docutils literal notranslate"><span class="pre">quality</span></code><a class="headerlink" href="#why-scalar-not-quality" title="Link to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">quality</span></code> is a <strong>storage-slot name masquerading as a concept</strong>. The slot (<code class="docutils literal notranslate"><span class="pre">cQ()</span></code>,
@@ -1478,6 +1500,7 @@ no tag contains a comma or bracket, and that <code class="docutils literal notra
 </li>
 <li><a class="reference internal" href="#verb-lexicon">3. Verb lexicon</a></li>
 <li><a class="reference internal" href="#element-and-data-nouns">4. Element and data nouns</a><ul>
+<li><a class="reference internal" href="#why-curve-skeleton-2026-09-27">Why <code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code> (2026-09-27)</a></li>
 <li><a class="reference internal" href="#why-scalar-not-quality">Why <code class="docutils literal notranslate"><span class="pre">scalar</span></code>, not <code class="docutils literal notranslate"><span class="pre">quality</span></code></a></li>
 </ul>
 </li>

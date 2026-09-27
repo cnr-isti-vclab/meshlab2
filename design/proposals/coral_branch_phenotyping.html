@@ -1,0 +1,571 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Coral Branch Phenotyping (curve-skeleton port) - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/proposals/coral_branch_phenotyping.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="coral-branch-phenotyping-curve-skeleton-port">
+<h1>Coral Branch Phenotyping (curve-skeleton port)<a class="headerlink" href="#coral-branch-phenotyping-curve-skeleton-port" title="Link to this heading">¶</a></h1>
+<p>Porting Yuri Andraccio’s <code class="docutils literal notranslate"><span class="pre">filter_curvature_skeleton</span></code> from his fork of classic MeshLab
+into meshlab2. The plugin implements the workflow in the preprint <em>Leveraging 3D
+geometric processing for the phenotyping of branching corals</em> (Scientific Reports draft,
+2026): mean-curvature skeleton → pruning → Hack-order branch hierarchy → cutting into
+branches → per-branch measurement.</p>
+<p><strong>Status: not implemented. This is the mapping table, awaiting approval.</strong> Nothing has
+been moved or written yet.</p>
+<p>See also: <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>, <a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a>,
+<a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>, <a class="reference internal" href="edge_support.html"><span class="std std-doc">Edge Support</span></a> (the skeleton
+is a polyline layer).</p>
+<section id="source-measured">
+<h2>Source, measured<a class="headerlink" href="#source-measured" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">github.com/Yurand2000/meshlab</span></code>, branch <code class="docutils literal notranslate"><span class="pre">devel</span></code> &#64; <code class="docutils literal notranslate"><span class="pre">b7d86b2</span></code> (2025-03-08), directory
+<code class="docutils literal notranslate"><span class="pre">src/meshlabplugins/filter_curvature_skeleton</span></code>. Line counts are <code class="docutils literal notranslate"><span class="pre">wc</span> <span class="pre">-l</span></code> over <code class="docutils literal notranslate"><span class="pre">.h</span></code>/<code class="docutils literal notranslate"><span class="pre">.cpp</span></code>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Part</p></th>
+<th class="head text-right"><p>Lines</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>6 user filters (<code class="docutils literal notranslate"><span class="pre">filters/*</span></code>)</p></td>
+<td class="text-right"><p>3 350</p></td>
+</tr>
+<tr class="row-odd"><td><p>11 debug filters (<code class="docutils literal notranslate"><span class="pre">test_filters/*</span></code>, built only with <code class="docutils literal notranslate"><span class="pre">-DCURVATURE_SKELETON_TEST</span></code>)</p></td>
+<td class="text-right"><p>3 020</p></td>
+</tr>
+<tr class="row-even"><td><p>Shared algorithms (<code class="docutils literal notranslate"><span class="pre">common/</span></code>)</p></td>
+<td class="text-right"><p>2 944</p></td>
+</tr>
+<tr class="row-odd"><td><p>CGAL adapter (<code class="docutils literal notranslate"><span class="pre">cgalAdapter/</span></code>)</p></td>
+<td class="text-right"><p>326</p></td>
+</tr>
+<tr class="row-even"><td><p>Plugin shell (<code class="docutils literal notranslate"><span class="pre">filter_curvature_skeleton.{h,cpp}</span></code>)</p></td>
+<td class="text-right"><p>293</p></td>
+</tr>
+<tr class="row-odd"><td><p>CMakeLists</p></td>
+<td class="text-right"><p>373</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Total</strong></p></td>
+<td class="text-right"><p><strong>10 306</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>It builds against a <strong>forked vcglib</strong>, <code class="docutils literal notranslate"><span class="pre">Yurand2000/vcglib</span></code> &#64; <code class="docutils literal notranslate"><span class="pre">99d054a</span></code> (26 commits
+ahead of <code class="docutils literal notranslate"><span class="pre">cnr-isti-vclab/vcglib</span></code> <code class="docutils literal notranslate"><span class="pre">devel</span></code>, 95 behind). Net diff against upstream, from
+the GitHub compare API:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>File</p></th>
+<th class="head"><p>Diff</p></th>
+<th class="head"><p>Adds</p></th>
+<th class="head"><p>Called by the plugin</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">vcg/complex/algorithms/stat.h</span></code></p></td>
+<td><p>+169</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Stat::ComputeHackOrderNumbers</span></code>, <code class="docutils literal notranslate"><span class="pre">Stat::ComputeStrahlerNumbers</span></code> on an edge-mesh tree</p></td>
+<td><p>Hack: <code class="docutils literal notranslate"><span class="pre">TreeSegmentationFilter_apply.cpp:118</span></code>. Strahler: never</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">vcg/simplex/edge/topology.h</span></code></p></td>
+<td><p>+35</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">edge::VEEdgeCollapseNonManifold</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">common/SimplifySkeleton.imp.h:139</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">vcg/complex/algorithms/outline_support.h</span></code></p></td>
+<td><p>+1 −1</p></td>
+<td><p>Fixes a call to a renamed function (<code class="docutils literal notranslate"><span class="pre">Convert3DOutlinesToEdgeMesh</span></code> → <code class="docutils literal notranslate"><span class="pre">ConvertOutline3VecToEdgeMesh</span></code>)</p></td>
+<td><p>indirectly</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Every other vcglib header the plugin includes exists in our <code class="docutils literal notranslate"><span class="pre">vcglib/</span></code> checkout.</p>
+</section>
+<section id="filter-mapping">
+<h2>Filter mapping<a class="headerlink" href="#filter-mapping" title="Link to this heading">¶</a></h2>
+<p>17 source filters → <strong>5 ported, 1 folded into another, 11 dropped</strong> (5 + 1 + 11 = 17).</p>
+<p>Names follow <code class="docutils literal notranslate"><span class="pre">Verb</span> <span class="pre">Object</span> <span class="pre">[(Backend)]</span></code> (vocabulary §6). Categories follow the closest
+shipped precedent, cited in the evidence column.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Current (display / python)</p></th>
+<th class="head"><p>Target name · python</p></th>
+<th class="head"><p>Category</p></th>
+<th class="head"><p>Scope</p></th>
+<th class="head"><p>Evidence</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p><em>Skeletonize</em> · <code class="docutils literal notranslate"><span class="pre">skeletonize_mesh</span></code></p></td>
+<td><p><strong>Create Curve Skeleton by Mean Curvature Flow (CGAL)</strong> · <code class="docutils literal notranslate"><span class="pre">create_curve_skeleton_by_mean_curvature_flow_cgal</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>SingleMesh → NewMeshes, tag <code class="docutils literal notranslate"><span class="pre">skeleton</span></code></p></td>
+<td><p>Wraps <code class="docutils literal notranslate"><span class="pre">CGAL::Mean_curvature_flow_skeletonization</span></code> (<code class="docutils literal notranslate"><span class="pre">cgalAdapter/CGALMeshSkeletonizer.h</span></code>). Output is an edge mesh. Precedent: every <em>Create Polyline from …</em> filter is <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code> + NewMeshes. Also writes a per-vertex <code class="docutils literal notranslate"><span class="pre">skeleton_index</span></code> onto the <strong>source</strong> mesh (<code class="docutils literal notranslate"><span class="pre">AlgorithmSkeletonize.cpp:28</span></code>) — see issue A</p></td>
+<td><p>Port</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p><em>Prune Skeleton</em> · <code class="docutils literal notranslate"><span class="pre">prune_skeleton</span></code></p></td>
+<td><p><strong>Remove Curve Skeleton Branches</strong> · <code class="docutils literal notranslate"><span class="pre">remove_curve_skeleton_branches</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Deletion</span></code></p></td>
+<td><p>SingleMesh (skeleton) → ModifyCurrentMesh</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Prune</span></code> is not in the lexicon; <code class="docutils literal notranslate"><span class="pre">Remove</span></code> is. Two modes in one filter: shorter than a length, or selected leaves (<code class="docutils literal notranslate"><span class="pre">PruneSkeletonFilter_params.cpp</span></code>). Rewrites <code class="docutils literal notranslate"><span class="pre">skeleton_index</span></code> on the original mesh (<code class="docutils literal notranslate"><span class="pre">PruneSkeleton.cpp:27</span></code>), so it modifies <strong>two layers</strong> — issue A</p></td>
+<td><p>Port</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p><em>Mesh Segmentation</em> · <code class="docutils literal notranslate"><span class="pre">mesh_segmentation</span></code></p></td>
+<td><p><strong>Compute Branch Hierarchy from Curve Skeleton</strong> · <code class="docutils literal notranslate"><span class="pre">compute_branch_hierarchy_from_curve_skeleton</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p>SingleMesh (surface) + <code class="docutils literal notranslate"><span class="pre">skeleton</span></code> mesh param → ModifyCurrentMesh, <code class="docutils literal notranslate"><span class="pre">FQ</span> <span class="pre">FA</span></code></p></td>
+<td><p>Stores per-face Hack order and branch tag (<code class="docutils literal notranslate"><span class="pre">hack_order</span></code>, <code class="docutils literal notranslate"><span class="pre">segmentation_tag</span></code>). Today it bakes face color (<code class="docutils literal notranslate"><span class="pre">F_POSTCONDS</span> <span class="pre">MM_FACECOLOR</span></code>), which breaks the “Compute never bakes color” rule. Target writes the order to face scalar and returns a <code class="docutils literal notranslate"><span class="pre">FaceQuality</span></code> hint. Root is marked by vertex quality == 0 (<code class="docutils literal notranslate"><span class="pre">TreeSegmentationFilter_params.cpp</span></code>) and branch swaps come from the selection</p></td>
+<td><p>Port</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p><em>Polyline Cutting</em> · <code class="docutils literal notranslate"><span class="pre">polyline_cutting</span></code></p></td>
+<td><p><strong>Cut Mesh into Branches</strong> · <code class="docutils literal notranslate"><span class="pre">cut_mesh_into_branches</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p></td>
+<td><p>SingleMesh → NewMeshes, tag <code class="docutils literal notranslate"><span class="pre">branch</span> <span class="pre">%1</span></code></p></td>
+<td><p>1 011 lines, the largest filter: refines the label boundaries (smoothing, projection, fit-plane and separation weights), cuts, and optionally closes the holes. Precedent: <em>Cut Along Scalar Isocontour (TrueForm)</em> is <code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code> + NewMeshes</p></td>
+<td><p>Port</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p><em>Restore Hack Order Data</em> · <code class="docutils literal notranslate"><span class="pre">restore_hack_order_data</span></code></p></td>
+<td><p>—</p></td>
+<td><p>—</p></td>
+<td><p>—</p></td>
+<td><p>Finds the pieces by regex on their layer labels (<code class="docutils literal notranslate"><span class="pre">Part\s+#(\d+);\s+Tag\s+(\d+)</span></code>), then relabels them and paints them by order (<code class="docutils literal notranslate"><span class="pre">RestoreHackOrderDataFilter_apply.cpp</span></code>). Under vocabulary §7 the framework owns layer names, so this cannot survive as written. #4 already knows every piece’s tag, order and parent when it creates it</p></td>
+<td><p><strong>Fold into #4</strong>: write <code class="docutils literal notranslate"><span class="pre">branch_id</span></code>, <code class="docutils literal notranslate"><span class="pre">branch_order</span></code> and <code class="docutils literal notranslate"><span class="pre">parent_branch_id</span></code> as per-face attributes on each piece</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p><em>Measure Branches</em> · <code class="docutils literal notranslate"><span class="pre">branches_measure</span></code></p></td>
+<td><p><strong>Measure Branches</strong> · <code class="docutils literal notranslate"><span class="pre">measure_branches</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p></td>
+<td><p>WholeDocument → Information</p></td>
+<td><p>Recomputes an MCF skeleton per piece, extends it to the tip (<code class="docutils literal notranslate"><span class="pre">BranchExtender.cpp</span></code>), and reports curved length, linear length, border length, area and volume (CSV header at <code class="docutils literal notranslate"><span class="pre">BranchMeasureFilter_apply.cpp:85</span></code>). Its <em>Save skeletons as meshes</em> option creates layers, which a Measurement filter may not do</p></td>
+<td><p>Port. Drop the layer option, return <code class="docutils literal notranslate"><span class="pre">outputValues</span></code>, keep the CSV as a <code class="docutils literal notranslate"><span class="pre">filesave</span></code> parameter</p></td>
+</tr>
+<tr class="row-even"><td><p>7–17</p></td>
+<td><p>11 debug filters (Find Path, Compute Polylines, Refine Polyline, Cut on Polylines, Close Holes, …)</p></td>
+<td><p>—</p></td>
+<td><p>—</p></td>
+<td><p>—</p></td>
+<td><p>Compiled only with <code class="docutils literal notranslate"><span class="pre">-DCURVATURE_SKELETON_TEST</span></code>; they expose intermediate stages of #3 and #4</p></td>
+<td><p><strong>Drop</strong>. Their checks become rows in <code class="docutils literal notranslate"><span class="pre">tests/test_filters.cpp</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="shared-code-mapping">
+<h2>Shared code mapping<a class="headerlink" href="#shared-code-mapping" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head text-right"><p>Lines</p></th>
+<th class="head"><p>Target</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cgalAdapter/CGALMeshConverter.h</span></code></p></td>
+<td class="text-right"><p>111</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_cgal</span></code> already has <code class="docutils literal notranslate"><span class="pre">copyCgalMeshToVcg</span></code> (<code class="docutils literal notranslate"><span class="pre">cgalfilterplugin.cpp:181</span></code>) and <code class="docutils literal notranslate"><span class="pre">buildTriangleSoup</span></code></p></td>
+<td><p>Reuse ours; delete theirs</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cgalAdapter/CGALMeshSkeletonizer.{h,cpp}</span></code></p></td>
+<td class="text-right"><p>215</p></td>
+<td><p>Stays as the MCF wrapper</p></td>
+<td><p>Port</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">common/TemplateFilter.*</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_curvature_skeleton.*</span></code></p></td>
+<td class="text-right"><p>437</p></td>
+<td><p>Replaced by <code class="docutils literal notranslate"><span class="pre">filters.json</span></code> and our dispatch</p></td>
+<td><p>Drop</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">common/Utils.*</span></code> (<code class="docutils literal notranslate"><span class="pre">tryGetSkeletonMeshIndex</span></code> finds any layer whose label contains <code class="docutils literal notranslate"><span class="pre">&quot;skel&quot;</span></code>; <code class="docutils literal notranslate"><span class="pre">tryGetOriginalMeshIndex</span></code> works only when the document has exactly 2 layers)</p></td>
+<td class="text-right"><p>207</p></td>
+<td><p>Explicit <code class="docutils literal notranslate"><span class="pre">mesh</span></code> parameters</p></td>
+<td><p>Drop; issue B</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">common/SkeletonMesh.h</span></code> (its own vertex/edge types with <code class="docutils literal notranslate"><span class="pre">VEAdj</span></code>/<code class="docutils literal notranslate"><span class="pre">EEAdj</span></code>)</p></td>
+<td class="text-right"><p>70</p></td>
+<td><p>Check whether our <code class="docutils literal notranslate"><span class="pre">VCGMesh</span></code> edge side can carry the adjacency it needs, otherwise keep it as a private working type</p></td>
+<td><p>Decide during port</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ComputeBranches</span></code>, <code class="docutils literal notranslate"><span class="pre">BranchTagger</span></code>, <code class="docutils literal notranslate"><span class="pre">PruneSkeleton</span></code>, <code class="docutils literal notranslate"><span class="pre">SimplifySkeleton</span></code>, <code class="docutils literal notranslate"><span class="pre">BranchExtender</span></code>, <code class="docutils literal notranslate"><span class="pre">MeshBorderPolyline</span></code>, <code class="docutils literal notranslate"><span class="pre">EdgeMeshUtils</span></code>, <code class="docutils literal notranslate"><span class="pre">PolylineMesh</span></code></p></td>
+<td class="text-right"><p>2 230</p></td>
+<td><p>Plugin-private algorithms</p></td>
+<td><p>Port. Any piece that is generic edge-mesh machinery is a candidate for vcglib</p></td>
+</tr>
+<tr class="row-even"><td><p>vcglib <code class="docutils literal notranslate"><span class="pre">Stat::ComputeHackOrderNumbers</span></code> / <code class="docutils literal notranslate"><span class="pre">ComputeStrahlerNumbers</span></code></p></td>
+<td class="text-right"><p>169</p></td>
+<td><p>Upstream vcglib <code class="docutils literal notranslate"><span class="pre">devel</span></code></p></td>
+<td><p>Upstream through our process (commit, push, gitlink bump). Strahler costs nothing to expose as an option on #3; the paper’s Discussion names it for species that grow by bisection</p></td>
+</tr>
+<tr class="row-odd"><td><p>vcglib <code class="docutils literal notranslate"><span class="pre">edge::VEEdgeCollapseNonManifold</span></code></p></td>
+<td class="text-right"><p>35</p></td>
+<td><p>Upstream vcglib</p></td>
+<td><p>Upstream</p></td>
+</tr>
+<tr class="row-even"><td><p>vcglib <code class="docutils literal notranslate"><span class="pre">outline_support.h</span></code> fix</p></td>
+<td class="text-right"><p>1</p></td>
+<td><p>Upstream vcglib</p></td>
+<td><p>Still broken upstream: <code class="docutils literal notranslate"><span class="pre">outline_support.h:290</span></code> calls the nonexistent <code class="docutils literal notranslate"><span class="pre">Convert3DOutlinesToEdgeMesh</span></code>, which goes unnoticed only because nothing instantiates that overload. Upstream the fix</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Size estimate after the port:</strong> about 4.5k lines of plugin code (the 5 filters minus
+their boilerplate, plus the algorithms in <code class="docutils literal notranslate"><span class="pre">common/</span></code>), and about 200 lines in vcglib.</p>
+</section>
+<section id="open-issues-need-a-decision-before-code">
+<h2>Open issues (need a decision before code)<a class="headerlink" href="#open-issues-need-a-decision-before-code" title="Link to this heading">¶</a></h2>
+<p><strong>A. State shared across layers.</strong> The mesh-to-skeleton correspondence lives on the
+surface mesh as a per-vertex float holding a skeleton vertex <strong>index</strong>. Two framework
+invariants break it:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> is honored only for <code class="docutils literal notranslate"><span class="pre">ModifyCurrentMesh</span></code>
+(<code class="docutils literal notranslate"><span class="pre">meshfilterplugin.h:244</span></code>). #1 (NewMeshes) and #2 (current = skeleton) both write to
+the <em>other</em> layer, so undo would not capture that write.</p></li>
+<li><p>The framework compacts the current mesh after every filter. Pruning deletes skeleton
+vertices, the survivors are renumbered, and every stored index goes stale.</p></li>
+</ul>
+<p>Candidate fix: give each skeleton vertex a stable <code class="docutils literal notranslate"><span class="pre">int</span></code> id attribute (the fork already
+has one, <code class="docutils literal notranslate"><span class="pre">original_index</span></code>). The surface stores ids instead of indices, and #2 stops
+touching the surface: #3 resolves a pruned id to its surviving ancestor. <strong><code class="docutils literal notranslate"><span class="pre">int</span></code>
+attributes now survive undo, Duplicate Layer and addMesh</strong> (added 2026-09-27; before that
+<code class="docutils literal notranslate"><span class="pre">deepCopyMesh</span></code> copied only <code class="docutils literal notranslate"><span class="pre">float</span></code> and <code class="docutils literal notranslate"><span class="pre">Point3f</span></code>), and the expression filters can read
+them. That still leaves #1 annotating its source layer, which needs either framework
+support for “NewMeshes + modifies source”, or storing the correspondence on the skeleton
+side.</p>
+<p><strong>B. Finding the layers.</strong> Replace the label heuristic with explicit <code class="docutils literal notranslate"><span class="pre">mesh</span></code> parameters
+(77 of our descriptors already use <code class="docutils literal notranslate"><span class="pre">&quot;type&quot;:</span> <span class="pre">&quot;mesh&quot;</span></code>), defaulted to the current layer and
+to the most recent layer tagged <code class="docutils literal notranslate"><span class="pre">skeleton</span></code>.</p>
+<p><strong>C. Named attributes are not saved.</strong> Per-face labels live in memory and survive undo,
+but <code class="docutils literal notranslate"><span class="pre">io_vcg</span></code> does not write custom attributes to PLY. A saved-and-reopened project loses
+the hierarchy and has to be recomputed. That is acceptable if #4’s pieces are the saved
+artifact, since they carry their identity in their layer names.</p>
+<p><strong>D. Plugin placement.</strong> Decision 1 splits plugins only by dependency. Only #1 and #6
+need CGAL; #2–#4 need only vcglib. Options:
+(a) put all five in <code class="docutils literal notranslate"><span class="pre">filter_cgal</span></code>, which already gates on CGAL and holds the converter;
+(b) create a new family plugin <code class="docutils literal notranslate"><span class="pre">filter_skeleton</span></code>, gated on CGAL, with #2–#4 in it too.
+Option (a) is less code; option (b) is the better home if more skeleton algorithms
+arrive (e.g. a vcglib or libigl skeleton alongside CGAL’s).</p>
+<p><strong>E. Vocabulary extension.</strong> <code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code> was <strong>approved on 2026-09-27</strong> (vocabulary
+§4, with its rejected synonyms and the reasons for each). <code class="docutils literal notranslate"><span class="pre">branch</span></code> is still open.</p>
+<p><strong>F. Paper vs code.</strong> Things the paper describes that the code does not:</p>
+<ul class="simple">
+<li><p>Branching angle, geotropic angle, order and parent are not in the CSV, which has only
+lengths, area and volume.</p></li>
+<li><p>Handle/loop removal before skeletonization (the paper’s Methods, after Alderighi et
+al.) is not in the plugin.</p></li>
+</ul>
+<p>The first belongs in #6. For the second, ask Yuri where it lives.</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Coral Branch Phenotyping (curve-skeleton port)</a><ul>
+<li><a class="reference internal" href="#source-measured">Source, measured</a></li>
+<li><a class="reference internal" href="#filter-mapping">Filter mapping</a></li>
+<li><a class="reference internal" href="#shared-code-mapping">Shared code mapping</a></li>
+<li><a class="reference internal" href="#open-issues-need-a-decision-before-code">Open issues (need a decision before code)</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

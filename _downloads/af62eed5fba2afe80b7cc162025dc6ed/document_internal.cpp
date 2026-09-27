@@ -528,10 +528,12 @@ namespace {
 
 // A custom attribute is type-erased in vcglib: the mesh holds a name and a
 // std::type_index, never a C++ type, so nothing generic can copy one. A copy therefore has
-// to name the types it can carry, and these are the two MeshLab creates -- Define Custom
-// Vertex/Face Scalar Attribute (float) and the Point attribute pair (Point3f). A filter
-// that introduces a third type has to be added here, or its attribute silently fails to
-// survive undo, Duplicate Layer, and being handed to addMesh.
+// to name the types it can carry: the two MeshLab's own filters create -- Define Custom
+// Vertex/Face Scalar Attribute (float) and the Point attribute pair (Point3f) -- plus int,
+// for identifiers and labels (branch ids, part tags, correspondence indices) that must stay
+// exact where a float would round past 2^24. A filter that introduces another type has to
+// be added here, or its attribute silently fails to survive undo, Duplicate Layer, and
+// being handed to addMesh.
 //
 // Values are remapped, not copied wholesale: deepCopyMesh drops deleted elements and
 // renumbers what is left, so each value has to follow its own element.
@@ -590,14 +592,10 @@ bool isCopyableAttribute(const vcg::PointerToAttribute &attr)
     return !attr._name.empty();
 }
 
-bool isFloat(const vcg::PointerToAttribute &attr)
+template <typename T>
+bool isOfType(const vcg::PointerToAttribute &attr)
 {
-    return attr._type == std::type_index(typeid(float));
-}
-
-bool isPoint3f(const vcg::PointerToAttribute &attr)
-{
-    return attr._type == std::type_index(typeid(vcg::Point3f));
+    return attr._type == std::type_index(typeid(T));
 }
 
 } // namespace
@@ -713,26 +711,32 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
     for (const vcg::PointerToAttribute &attr : src.vert_attr) {
         if (!isCopyableAttribute(attr))
             continue;
-        if (isFloat(attr))
+        if (isOfType<float>(attr))
             copyVertexAttribute<float>(src, dst, attr._name, vertexMap);
-        else if (isPoint3f(attr))
+        else if (isOfType<vcg::Point3f>(attr))
             copyVertexAttribute<vcg::Point3f>(src, dst, attr._name, vertexMap);
+        else if (isOfType<int>(attr))
+            copyVertexAttribute<int>(src, dst, attr._name, vertexMap);
     }
     for (const vcg::PointerToAttribute &attr : src.face_attr) {
         if (!isCopyableAttribute(attr))
             continue;
-        if (isFloat(attr))
+        if (isOfType<float>(attr))
             copyFaceAttribute<float>(src, dst, attr._name, faceMap);
-        else if (isPoint3f(attr))
+        else if (isOfType<vcg::Point3f>(attr))
             copyFaceAttribute<vcg::Point3f>(src, dst, attr._name, faceMap);
+        else if (isOfType<int>(attr))
+            copyFaceAttribute<int>(src, dst, attr._name, faceMap);
     }
     for (const vcg::PointerToAttribute &attr : src.edge_attr) {
         if (!isCopyableAttribute(attr))
             continue;
-        if (isFloat(attr))
+        if (isOfType<float>(attr))
             copyEdgeAttribute<float>(src, dst, attr._name, edgeMap);
-        else if (isPoint3f(attr))
+        else if (isOfType<vcg::Point3f>(attr))
             copyEdgeAttribute<vcg::Point3f>(src, dst, attr._name, edgeMap);
+        else if (isOfType<int>(attr))
+            copyEdgeAttribute<int>(src, dst, attr._name, edgeMap);
     }
 }
 
