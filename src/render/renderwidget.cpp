@@ -734,9 +734,54 @@ int viewTileFrameInset(const QSize &viewportSize)
 
 } // namespace
 
+bool RenderWidget::wantsQualityHistogramPanel() const
+{
+    if (!m_renderSettings.showQualityHistogram || m_viewMode != ViewMode::Scene3D || !m_doc)
+        return false;
+    const int meshIndex = m_doc->currentMeshIndex();
+    return meshIndex >= 0 && meshIndex < m_doc->meshCount();
+}
+
+int RenderWidget::qualityHistogramPanelWidth() const
+{
+    // A fraction of the view, clamped to a fixed pixel range rather than left to scale with
+    // it, so a wide window does not waste most of the strip on air and a narrow one still
+    // gets something usable to read.
+    constexpr double kFraction = 0.22;
+    constexpr int kMinPx = 180;
+    constexpr int kMaxPx = 300;
+    // The upper bound never leaves less than one pixel of content, which for a view under
+    // 2*kMinPx wide pulls it below kMinPx -- std::clamp requires lo <= hi, so the lower
+    // bound is capped to match rather than left to outrank it.
+    const int hi = qMin(kMaxPx, qMax(1, width() - 1));
+    const int lo = qMin(kMinPx, hi);
+    return std::clamp(qRound(kFraction * width()), lo, hi);
+}
+
+// The rectangle the 3D content actually renders into: the full view, less a strip on the
+// left when the quality histogram wants dedicated space there instead of floating over
+// whatever would otherwise be drawn under it. Everything below -- tiles in both layer
+// arrangements, and through them the camera aspect ratio, mouse hit-testing and the
+// overlay widgets that follow a tile's rect -- is written against this instead of the raw
+// viewport, so reserving the strip is the one change that moves all of it at once.
+QRect RenderWidget::sceneContentRect(const QSize &viewportSize) const
+{
+    QRect rect(QPoint(0, 0), viewportSize);
+    if (m_offscreenCaptureActive || !wantsQualityHistogramPanel() || width() <= 0)
+        return rect;
+    // The strip is decided once, in the logical pixels the panel is laid out in, and only
+    // scaled here. Clamping it in each caller's own units instead would cap the device-pixel
+    // strip at 300 under a panel 250 logical -- 500 device -- pixels wide on a Retina screen.
+    const int strip = qRound(
+        double(qualityHistogramPanelWidth()) * viewportSize.width() / double(width()));
+    rect.setLeft(qMin(strip, viewportSize.width() - 1));
+    return rect;
+}
+
 std::vector<RenderWidget::ViewTile> RenderWidget::viewTiles(const QSize &viewportSize) const
 {
-    const ViewTile wholeView { QRect(QPoint(0, 0), viewportSize), -1 };
+    const QRect contentRect = sceneContentRect(viewportSize);
+    const ViewTile wholeView { contentRect, -1 };
     if (m_renderSettings.layerArrangement != LayerArrangement::Grid
         || m_viewMode != ViewMode::Scene3D
         || !m_doc) {
@@ -764,14 +809,16 @@ std::vector<RenderWidget::ViewTile> RenderWidget::viewTiles(const QSize &viewpor
     // tiles that were rendered. A snapshot at some other aspect ratio reflows to suit
     // itself, which keeps a snapshot and its preview agreeing with each other.
     const ViewGridLayout::Shape shape =
-        ViewGridLayout::chooseShape(int(layers.size()), viewportSize);
-    const int inset = viewTileFrameInset(viewportSize);
+        ViewGridLayout::chooseShape(int(layers.size()), contentRect.size());
+    const int inset = viewTileFrameInset(contentRect.size());
 
     // Tiles are inset on every side, so the gap between two of them is twice the inset.
     // Shrinking the whole grid by the same amount first gives the outer border that same
     // width, which is what makes the frame read as one deliberate grid instead of a middle
-    // rule that happens to be thicker than the edges.
-    QRect field(QPoint(0, 0), viewportSize);
+    // rule that happens to be thicker than the edges. Starting from contentRect rather than
+    // the full viewport is what carries the histogram's reserved strip into the grid
+    // arrangement too: the whole grid shrinks and shifts right along with it.
+    QRect field = contentRect;
     if (field.width() > 4 * inset && field.height() > 4 * inset)
         field.adjust(inset, inset, -inset, -inset);
     const std::vector<QRect> rects =
@@ -1263,8 +1310,10 @@ QImage RenderWidget::renderOffscreenToImage(
     const QSize oldFixedSize = fixedColorBufferSize();
 
     m_captureTransparentBackground = transparentBackground;
+    m_offscreenCaptureActive = true;
     const auto restoreBackground = qScopeGuard([this] {
         m_captureTransparentBackground = false;
+        m_offscreenCaptureActive = false;
     });
 
     setFixedColorBufferSize(pixelSize);
@@ -1944,23 +1993,24 @@ void RenderWidget::updateTileOverlays()
 void RenderWidget::layoutOverlayButtons()
 {
     constexpr int kOverlayMargin = 8;
-    const int maxOverlayWidth = qMax(120, width() - 2 * kOverlayMargin);
-    int panelBottom = kOverlayMargin;
+    // The histogram gets a dedicated strip on the left instead of floating, so everything
+    // that anchors to the left edge of the 3D content -- not of the widget -- starts this
+    // many pixels further right. Nothing here changes for the histogram label itself: it
+    // owns that strip.
+    const int leftInset = wantsQualityHistogramPanel() ? qualityHistogramPanelWidth() : 0;
+    const int maxOverlayWidth = qMax(120, width() - leftInset - 2 * kOverlayMargin);
 
     if (m_overlayPanel) {
         m_overlayPanel->setMaximumWidth(maxOverlayWidth);
         m_overlayPanel->adjustSize();
-        m_overlayPanel->move(kOverlayMargin, kOverlayMargin);
+        m_overlayPanel->move(leftInset + kOverlayMargin, kOverlayMargin);
         m_overlayPanel->raise();
-        panelBottom = m_overlayPanel->y() + m_overlayPanel->height();
     }
 
     if (m_qualityHistogramOverlayLabel) {
         if (m_qualityHistogramOverlayLabel->isVisible()) {
             m_qualityHistogramOverlayLabel->adjustSize();
-            const int x = kOverlayMargin;
-            const int y = qMax(kOverlayMargin, panelBottom + kOverlayMargin);
-            m_qualityHistogramOverlayLabel->move(x, y);
+            m_qualityHistogramOverlayLabel->move(kOverlayMargin, kOverlayMargin);
             m_qualityHistogramOverlayLabel->raise();
         }
     }
@@ -1987,7 +2037,7 @@ void RenderWidget::layoutOverlayButtons()
 
     if (m_toolBadgeLabel && m_toolBadgeLabel->isVisible()) {
         m_toolBadgeLabel->adjustSize();
-        m_toolBadgeLabel->move(kOverlayMargin,
+        m_toolBadgeLabel->move(leftInset + kOverlayMargin,
                                height() - m_toolBadgeLabel->height() - kOverlayMargin);
         m_toolBadgeLabel->raise();
     }
@@ -2567,18 +2617,12 @@ void RenderWidget::updateQualityHistogramOverlay()
     const bool invertColorMap = m_renderSettings.qualityHistogramInvertColorMap;
     const ColorMapDefinition *colorMapDef = colorRegistry.definition(colorMapId);
     constexpr int kOverlayMargin = 8;
-    const int maxPanelWidth = qMax(120, width() - 2 * kOverlayMargin);
-    int panelBottom = kOverlayMargin;
-    int panelWidth = qMin(360, qMax(120, maxPanelWidth));
-    if (m_overlayPanel) {
-        m_overlayPanel->setMaximumWidth(maxPanelWidth);
-        m_overlayPanel->adjustSize();
-        panelBottom = kOverlayMargin + m_overlayPanel->height();
-        panelWidth = m_overlayPanel->width();
-    }
-    const int w = std::clamp(panelWidth, 120, qMax(120, width() - 2 * kOverlayMargin));
-    const int availableTop = panelBottom + kOverlayMargin;
-    const int h = height() - availableTop - kOverlayMargin;
+    // The histogram now owns its whole reserved strip -- top to bottom, independent of
+    // whatever the pass-bar panel above happens to measure -- rather than matching that
+    // panel's width and starting below it. It used to do both, which meant opening some
+    // unrelated pass's settings (widening the panel) resized the histogram too.
+    const int w = qualityHistogramPanelWidth() - 2 * kOverlayMargin;
+    const int h = height() - 2 * kOverlayMargin;
     if (h < 72) {
         hideOverlay();
         return;

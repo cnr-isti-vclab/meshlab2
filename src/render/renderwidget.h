@@ -381,6 +381,23 @@ struct SceneRasterProjectedDrawItem {
         const QMatrix4x4 &view,
         const QRect &viewportRect);
     void updateQualityHistogramOverlay();
+    // Whether the quality histogram claims real space on the left of the view (rather than
+    // floating over it): only in Scene3D, and only once there is a current mesh for it to
+    // describe -- matching updateQualityHistogramOverlay()'s own conditions for showing
+    // something at all, short of the "not enough height" corner case, which just reserves a
+    // few unnecessary pixels rather than misbehaving.
+    bool wantsQualityHistogramPanel() const;
+    // Width of the histogram's strip in logical pixels, from the widget's own width: a
+    // fraction of it clamped to a fixed pixel range. Logical, and only logical, because the
+    // panel is a native widget laid out in logical pixels; evaluating the clamp in device
+    // pixels as well would make the rendered strip narrower than the panel at DPR 2.
+    int qualityHistogramPanelWidth() const;
+    // viewportSize less the histogram's strip, if it wants one, scaled from logical pixels
+    // into the caller's units (1:1 for hit-testing, the device pixel ratio for the on-screen
+    // render target), so the pixels left empty are exactly the ones under the panel. What
+    // viewTiles() actually tiles. An offscreen capture keeps the whole frame: the panel is
+    // never part of it, and cameraShotForViewport() describes it as one full-frame camera.
+    QRect sceneContentRect(const QSize &viewportSize) const;
     void updateDecoratorInfoOverlay();
     void bakeCurrentQualityMappingToVertexColor();
     // Runs Trim Surface by Plane on the current layer with the plane this view
@@ -635,6 +652,9 @@ struct SceneRasterProjectedDrawItem {
     // background: the colour buffer is cleared to alpha 0 and the gradient quad is skipped,
     // so the scene lands on nothing instead of on the viewport's own backdrop.
     bool m_captureTransparentBackground = false;
+    // Set only for the duration of an offscreen capture, whatever its background: see
+    // sceneContentRect().
+    bool m_offscreenCaptureActive = false;
 
     bool m_reframeCameraRequested = true;
     bool m_resetTrackballRequested = false;

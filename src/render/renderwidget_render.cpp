@@ -629,13 +629,21 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     // its slice of one gradient stretched across the view -- which is what makes a tile read
     // as a small viewport of its own instead of a window cut into a larger picture.
     //
+    // A single tile draws it across the whole target instead. The gradient only varies with
+    // height and the tile spans all of it, so nothing inside the tile changes; what does is
+    // the strip left beside it for the quality histogram, which would otherwise keep the flat
+    // clear colour and show through the translucent panel as a hard vertical edge. With
+    // several tiles that strip is one more gap, framed like the others.
+    //
     // Clearing to alpha 0 is not enough on its own for a transparent capture: drawing the
     // quad would paint the backdrop straight back over the cleared buffer.
     if (!m_captureTransparentBackground && m_sceneBackgroundPipeline && m_sceneBackgroundSrb) {
         cb->setGraphicsPipeline(m_sceneBackgroundPipeline.get());
         cb->setShaderResources(m_sceneBackgroundSrb.get());
         for (const RenderFramePlan &plan : tilePlans) {
-            cb->setViewport(plan.rhiViewport());
+            cb->setViewport(framed
+                    ? plan.rhiViewport()
+                    : QRhiViewport(0, 0, float(sz.width()), float(sz.height())));
             cb->draw(3);
         }
     }

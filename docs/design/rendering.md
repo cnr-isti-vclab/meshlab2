@@ -352,6 +352,14 @@ PBR rendering can consume normal maps directly as either tangent-space or object
 
 2D overlay label inside `RenderWidget`. Controlled by `showQualityHistogram` and `qualityHistogramSource` (auto / forced vertex / forced face). Configurable bin count, optional fixed range (`qualityHistogramFixedRange`/`Min`/`Max`), center-on-zero mode, percentile crop (default `0.01` for automatic ranges), selectable colormap (`qualityHistogramColorMapId`), colormap inversion, and optional isolines (`qualityIsolinesEnabled`, `qualityIsolineCount`). Color mapping is shared with quality-based rendering so histogram colors and rendered quality colors stay aligned.
 
+Unlike the pass-bar/settings overlay panel, which floats over the 3D content regardless (fine for something you open briefly to change a setting), the histogram claims a real strip on the left of the on-screen view for as long as it is showing, so it never sits on top of the mesh it describes. `RenderWidget::sceneContentRect()` narrows the viewport by that strip whenever `wantsQualityHistogramPanel()` holds -- `showQualityHistogram`, `Scene3D`, and a valid current mesh, mirroring `updateQualityHistogramOverlay()`'s own conditions for showing something at all -- and `viewTiles()` tiles within the result, in both layer arrangements, so the camera aspect ratio, mouse hit-testing, and every overlay that follows a tile's rect (the trackball gizmo, the current-mesh outline, grid tile captions) move together. The pass-bar panel and the tool badge, which anchor to the content area rather than to a tile, shift right by the same amount in `layoutOverlayButtons()`. In UV/Raster mode, where nothing consults `viewTiles()` for its own viewport, the histogram (if shown there at all) still just floats.
+
+The strip is decided once, in logical pixels: `qualityHistogramPanelWidth()` takes no size and reads the widget's own width (a fraction of it, clamped to 180-300 px), because the panel is a native widget laid out in logical pixels. `sceneContentRect()` only scales it into the caller's units -- 1:1 for hit-testing, the device pixel ratio for the on-screen render target. Evaluating the clamp separately in each unit system is the mistake to avoid: on a Retina screen it caps the rendered strip at 300 device pixels under a panel 250 logical (500 device) pixels wide, so the gradient starts halfway under the panel and the content area the camera frames is not the one the mouse is tested against.
+
+An offscreen capture keeps the whole frame (`m_offscreenCaptureActive`, set for the duration of `renderOffscreenToImage()`): the panel is never part of a capture, and `cameraShotForViewport()` describes a capture as one full-frame camera, so a reserved strip would come out as a blank band and a snapshot raster would be misregistered against its own camera.
+
+The backdrop is drawn across the whole target when there is a single tile, rather than in the tile's viewport, so the strip behind the translucent panel continues the gradient instead of showing the flat clear colour; the gradient only varies with height and the tile spans all of it, so nothing inside the tile changes. With more than one tile the strip is one more gap and clears to the grid's own frame colour like the others. `tests/render_probes/quality_histogram_layout` checks the capture side: a snapshot is pixel-identical with the histogram on or off, in both arrangements. The on-screen strip cannot be checked from a probe -- every render a probe can ask for is a capture, which is exactly the case that keeps the full frame -- so it was checked by grabbing a live window (`QWidget::grab()`, which composites the native panel over the view) at DPR 2: every row inside the panel one colour across its width, and the mesh centred in what the strip leaves.
+
 ## Snapshot Capture
 
 `MainWindow::saveSnapshotPng()`: set fixed color-buffer size → request update → wait for `frameRendered` → `grabFramebuffer` → restore previous size. Saved PNG embeds camera JSON in `MeshLab.CameraTrackballState` metadata.
@@ -369,7 +377,8 @@ application's own `--generate-docs <dir>` hook, which execs `<dir>/generate_api.
 with a render-state JSON, and asserts on the returned raw RGBA8888.
 
 `tests/render_probes/` holds these -- `clip_plane` for the clipping plane and solid cut,
-`boundary_decorators` for what the boundary decorator marks and in which colors. Each is a
+`boundary_decorators` for what the boundary decorator marks and in which colors,
+`quality_histogram_layout` for captures staying full-frame while the histogram is open. Each is a
 directory with a `generate_api.py`, because that is the filename the hook runs:
 
 ```
