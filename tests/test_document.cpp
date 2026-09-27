@@ -562,6 +562,10 @@ void DocumentTests::customAttributesSurviveUndoAndDuplication()
     using Alloc = vcg::tri::Allocator<VCGMesh>;
     const std::string scalarName = "probe_scalar";
     const std::string pointName = "probe_point";
+    // Integers carry identifiers, so they must come back exact -- including past 2^24,
+    // where a float would already have rounded them.
+    const std::string intName = "probe_id";
+    const int intBase = (1 << 24) + 1;
 
     Document doc;
     const int index = addTinyMesh(doc, QStringLiteral("Layer"));
@@ -574,9 +578,11 @@ void DocumentTests::customAttributesSurviveUndoAndDuplication()
         VCGMesh &mesh = doc.mesh(index).mesh;
         auto scalar = Alloc::AddPerVertexAttribute<float>(mesh, scalarName);
         auto point = Alloc::AddPerVertexAttribute<vcg::Point3f>(mesh, pointName);
+        auto id = Alloc::AddPerVertexAttribute<int>(mesh, intName);
         for (int i = 0; i < vertexCount; ++i) {
             scalar[std::size_t(i)] = float(i) + 0.5f;
             point[std::size_t(i)] = vcg::Point3f(float(i), 2.0f * float(i), 3.0f);
+            id[std::size_t(i)] = intBase + 2 * i;
         }
     }
     doc.markMeshGeometryChanged(index, QStringLiteral("define attributes"));
@@ -591,6 +597,10 @@ void DocumentTests::customAttributesSurviveUndoAndDuplication()
     const auto checkAttributes = [&](const VCGMesh &mesh, const char *where) {
         const auto scalar = Alloc::FindPerVertexAttribute<float>(mesh, scalarName);
         const auto point = Alloc::FindPerVertexAttribute<vcg::Point3f>(mesh, pointName);
+        const auto id = Alloc::FindPerVertexAttribute<int>(mesh, intName);
+        QVERIFY2(Alloc::IsValidHandle<int>(mesh, id),
+                 qPrintable(QStringLiteral("%1: the int attribute is gone")
+                                .arg(QLatin1String(where))));
         QVERIFY2(Alloc::IsValidHandle<float>(mesh, scalar),
                  qPrintable(QStringLiteral("%1: the scalar attribute is gone")
                                 .arg(QLatin1String(where))));
@@ -603,6 +613,9 @@ void DocumentTests::customAttributesSurviveUndoAndDuplication()
                                     .arg(QLatin1String(where)).arg(i)));
             QVERIFY2(point[std::size_t(i)] == vcg::Point3f(float(i), 2.0f * float(i), 3.0f),
                      qPrintable(QStringLiteral("%1: point value %2 did not survive")
+                                    .arg(QLatin1String(where)).arg(i)));
+            QVERIFY2(id[std::size_t(i)] == intBase + 2 * i,
+                     qPrintable(QStringLiteral("%1: int value %2 did not survive")
                                     .arg(QLatin1String(where)).arg(i)));
         }
     };

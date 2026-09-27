@@ -515,6 +515,7 @@ private slots:
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
     void createdCylinderHonoursRadiusHeightAndAxis();
     void edgeExpressionsSelectColorAndScaleAPolyline();
+    void expressionsReadIntegerAttributes();
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToConnectedComponents();
@@ -7753,6 +7754,41 @@ void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()
     }
     QCOMPARE(doc.mesh(index).mesh.edge[0].cQ(), 0.0f);
     QCOMPARE(doc.mesh(index).mesh.edge[3].cQ(), 1.0f);
+}
+
+// Integer attributes hold labels -- a part tag, a branch id -- and selecting by label is the
+// first thing a user does with one. The expression filters bind them read-only.
+void FilterTests::expressionsReadIntegerAttributes()
+{
+    Document doc;
+    const int index = addCubeLayer(doc, QStringLiteral("cube"));
+    QVERIFY(index >= 0);
+    doc.setCurrentMeshIndex(index);
+    {
+        VCGMesh &mesh = doc.mesh(index).mesh;
+        auto facePart = vcg::tri::Allocator<VCGMesh>::AddPerFaceAttribute<int>(mesh, "part_id");
+        for (int i = 0; i < mesh.FN(); ++i)
+            facePart[std::size_t(i)] = i % 3;
+        auto vertexPart = vcg::tri::Allocator<VCGMesh>::AddPerVertexAttribute<int>(mesh, "vpart");
+        for (int i = 0; i < mesh.VN(); ++i)
+            vertexPart[std::size_t(i)] = (i < 2) ? 7 : 0;
+    }
+
+    const auto runWith = [&](const QString &id, const QString &condition) {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("condSelect"), condition);
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, id), p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+    };
+
+    runWith(QStringLiteral("select_faces_by_expression"), QStringLiteral("part_id == 2"));
+    const VCGMesh &m = doc.mesh(index).mesh;
+    for (int i = 0; i < m.FN(); ++i)
+        QCOMPARE(m.face[std::size_t(i)].IsS(), i % 3 == 2);
+
+    runWith(QStringLiteral("select_vertices_by_expression"), QStringLiteral("vpart == 7"));
+    for (int i = 0; i < m.VN(); ++i)
+        QCOMPARE(m.vert[std::size_t(i)].IsS(), i < 2);
 }
 
 void FilterTests::createdCylinderHonoursRadiusHeightAndAxis()

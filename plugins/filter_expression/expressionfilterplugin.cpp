@@ -334,11 +334,15 @@ struct ParserRuntime
 
     std::vector<VCGMesh::PerVertexAttributeHandle<float>> vScalarHandles;
     std::vector<double> vScalarValues;
+    std::vector<VCGMesh::PerVertexAttributeHandle<int>> vIntHandles;
+    std::vector<double> vIntValues;
     std::vector<VCGMesh::PerVertexAttributeHandle<vcg::Point3f>> vPointHandles;
     std::vector<double> vPointValues;
 
     std::vector<VCGMesh::PerFaceAttributeHandle<float>> fScalarHandles;
     std::vector<double> fScalarValues;
+    std::vector<VCGMesh::PerFaceAttributeHandle<int>> fIntHandles;
+    std::vector<double> fIntValues;
     std::vector<VCGMesh::PerFaceAttributeHandle<vcg::Point3f>> fPointHandles;
     std::vector<double> fPointValues;
 };
@@ -398,6 +402,8 @@ void bindVertexCustomAttributes(mu::Parser &parser, ParserRuntime &runtime, VCGM
 {
     runtime.vScalarHandles.clear();
     runtime.vScalarValues.clear();
+    runtime.vIntHandles.clear();
+    runtime.vIntValues.clear();
     runtime.vPointHandles.clear();
     runtime.vPointValues.clear();
 
@@ -414,6 +420,23 @@ void bindVertexCustomAttributes(mu::Parser &parser, ParserRuntime &runtime, VCGM
         runtime.vScalarHandles.push_back(handle);
         runtime.vScalarValues.push_back(0.0);
         parser.DefineVar(name, &runtime.vScalarValues.back());
+    }
+
+    // Integer attributes (identifiers, labels) are readable but not writable: every define
+    // filter writes float, so an expression can test an int but never produce one.
+    names.clear();
+    vcg::tri::Allocator<VCGMesh>::GetAllPerVertexAttribute<int>(mesh, names);
+    runtime.vIntHandles.reserve(names.size());
+    runtime.vIntValues.reserve(names.size());
+    for (const std::string &name : names) {
+        if (!isValidIdentifier(name) || reservedVariables().count(name) > 0)
+            continue;
+        const auto handle = vcg::tri::Allocator<VCGMesh>::GetPerVertexAttribute<int>(mesh, name);
+        if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
+            continue;
+        runtime.vIntHandles.push_back(handle);
+        runtime.vIntValues.push_back(0.0);
+        parser.DefineVar(name, &runtime.vIntValues.back());
     }
 
     names.clear();
@@ -449,6 +472,8 @@ void bindFaceCustomAttributes(mu::Parser &parser, ParserRuntime &runtime, VCGMes
 {
     runtime.fScalarHandles.clear();
     runtime.fScalarValues.clear();
+    runtime.fIntHandles.clear();
+    runtime.fIntValues.clear();
     runtime.fPointHandles.clear();
     runtime.fPointValues.clear();
 
@@ -465,6 +490,23 @@ void bindFaceCustomAttributes(mu::Parser &parser, ParserRuntime &runtime, VCGMes
         runtime.fScalarHandles.push_back(handle);
         runtime.fScalarValues.push_back(0.0);
         parser.DefineVar(name, &runtime.fScalarValues.back());
+    }
+
+    // Integer attributes (identifiers, labels) are readable but not writable: every define
+    // filter writes float, so an expression can test an int but never produce one.
+    names.clear();
+    vcg::tri::Allocator<VCGMesh>::GetAllPerFaceAttribute<int>(mesh, names);
+    runtime.fIntHandles.reserve(names.size());
+    runtime.fIntValues.reserve(names.size());
+    for (const std::string &name : names) {
+        if (!isValidIdentifier(name) || reservedVariables().count(name) > 0)
+            continue;
+        const auto handle = vcg::tri::Allocator<VCGMesh>::GetPerFaceAttribute<int>(mesh, name);
+        if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
+            continue;
+        runtime.fIntHandles.push_back(handle);
+        runtime.fIntValues.push_back(0.0);
+        parser.DefineVar(name, &runtime.fIntValues.back());
     }
 
     names.clear();
@@ -662,6 +704,8 @@ void setVertexRuntime(
 
     for (size_t i = 0; i < runtime.vScalarHandles.size(); ++i)
         runtime.vScalarValues[i] = runtime.vScalarHandles[i][vi];
+    for (size_t i = 0; i < runtime.vIntHandles.size(); ++i)
+        runtime.vIntValues[i] = runtime.vIntHandles[i][vi];
     for (size_t i = 0; i < runtime.vPointHandles.size(); ++i) {
         const vcg::Point3f p = runtime.vPointHandles[i][vi];
         runtime.vPointValues[i * 3 + 0] = p.X();
@@ -750,6 +794,8 @@ void setFaceRuntime(
 
     for (size_t i = 0; i < runtime.fScalarHandles.size(); ++i)
         runtime.fScalarValues[i] = runtime.fScalarHandles[i][fi];
+    for (size_t i = 0; i < runtime.fIntHandles.size(); ++i)
+        runtime.fIntValues[i] = runtime.fIntHandles[i][fi];
     for (size_t i = 0; i < runtime.fPointHandles.size(); ++i) {
         const vcg::Point3f p = runtime.fPointHandles[i][fi];
         runtime.fPointValues[i * 3 + 0] = p.X();

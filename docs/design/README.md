@@ -43,6 +43,7 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [Gaussian Splatting](proposals/gaussian_splatting.md) | Splat loading, rendering and editing. Not implemented; some decisions taken. |
 | [Edge Support](proposals/edge_support.md) | The two kinds of edge, what is missing in selection and rendering, and filters that would generate per-edge colour. Per-edge colour implemented; the rest not. |
 | [Frame Fields](proposals/frame_fields.md) | Making a 4-RoSy frame field a first-class attribute, feeding it to the QuadWild and Instant Meshes remeshers, and adopting Vaxman's Directional for field processing and visualization. Not implemented; feasibility established, eight questions open. |
+| [Coral Branch Phenotyping](proposals/coral_branch_phenotyping.md) | Mapping table for porting Yuri Andraccio's curve-skeleton branch segmentation and measurement plugin (and its three vcglib additions). Not implemented; awaiting approval; `curve skeleton` approved, five issues open. |
 | [OpenSCAD CSG](proposals/openscad_csg.md) | One filter exposing geogram's OpenSCAD-subset compiler, to build a mesh from a script. Not implemented; split out of the geogram port. |
 
 ## History

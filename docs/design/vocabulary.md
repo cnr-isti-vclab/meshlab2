@@ -504,10 +504,28 @@ display name leads with a word that is not here.
 | Selection | `selection` | `marked set`, `active set` |
 | Normal vector | `normal` | `normals direction` |
 | Layer matrix | `matrix` | `transformation matrix` (verbose), `xform` |
+| 1D abstraction of a shape | `curve skeleton` | `skeleton` alone, `morphological skeleton`, `medial axis`, `centerline` |
 
 `mesh` vs `layer`: filters that operate on geometry say **mesh**; operations on
 document structure say **layer**. *Duplicate Layer*, but *Remove Duplicate
 Vertices*.
+
+### Why `curve skeleton` (2026-09-27)
+
+A **curve skeleton** is a connected polyline centered inside a shape that keeps its
+topology — one curve per branch, junctions where branches meet. It is stored as a polyline
+layer (`Polyline` representation, §2). The term entered with the port of the coral
+branch-phenotyping filters (proposal: [Coral Branch Phenotyping](proposals/coral_branch_phenotyping.md)).
+Each rejected synonym names something else:
+
+- **`skeleton` alone** also means an animation rig, and in geometry processing it covers
+  surface skeletons too. The qualifier is what says the result is 1D.
+- **`morphological skeleton`** is the coral paper's own term, but it is an established
+  image-morphology operation (erosions and openings on a binary image).
+- **`medial axis`** is the exact locus of centers of maximal balls. In 3D it is a
+  *surface*, not a curve, and a curve skeleton only approximates part of it. A filter
+  that really computed it would call it that.
+- **`centerline`** usually means one path through a tube, with no branching.
 
 ### Why `scalar`, not `quality`
 
