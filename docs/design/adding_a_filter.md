@@ -261,9 +261,11 @@ void registerFooFilterPlugin(MeshFilterPluginManager &pm);
 - **Input preparation**: declare `inputPrepare` codes instead of computing
   adjacency, normals or flags by hand — the framework enables the OCF
   components, runs the vcglib update in dependency order, and disables them
-  afterward. The full set: `FF`, `VF`, `BorderFF`, `BorderVF` (each border code
+  afterward. The full set: `FF`, `VF`, `VE`, `BorderFF`, `BorderVF` (each border code
   implies its adjacency), `FNorm`, `VNorm` (implies `FNorm`), `BBox`, `FMark`,
-  `VMark`, `VTex`, `WTex`, `CurvDir`.
+  `VMark`, `VTex`, `WTex`, `CurvDir`. `VE` is vertex-edge adjacency on a polyline
+  layer's real edges, for filters that walk the edge graph with `vcg::edge::VEIterator`,
+  `VVStarVE` and the like.
 - **Cleanup/compaction**: after a successful filter the framework compacts the
   affected meshes; don't leave deleted elements around expecting them to persist.
 - **Notify changes**: after mutating a mesh, call the matching

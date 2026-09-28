@@ -516,6 +516,8 @@ private slots:
     void createdCylinderHonoursRadiusHeightAndAxis();
     void edgeExpressionsSelectColorAndScaleAPolyline();
     void expressionsReadIntegerAttributes();
+    void preparedAdjacencyIsReleasedAfterTheFilter();
+    void preparationSurvivesAFilterRemovingItsLayer();
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToConnectedComponents();
@@ -7789,6 +7791,54 @@ void FilterTests::expressionsReadIntegerAttributes()
     runWith(QStringLiteral("select_vertices_by_expression"), QStringLiteral("vpart == 7"));
     for (int i = 0; i < m.VN(); ++i)
         QCOMPARE(m.vert[std::size_t(i)].IsS(), i < 2);
+}
+
+// The framework enables FF/VF adjacency around a filter that declares them and disables
+// it afterwards. Disabling used to keep the storage (std::vector::clear keeps capacity),
+// so a layer held every adjacency it had ever needed for as long as it lived -- about
+// 740 MB on a 10M-face scan after a single cleaning filter. The accounting measures
+// capacity, so it must come back to where it started.
+void FilterTests::preparedAdjacencyIsReleasedAfterTheFilter()
+{
+    Document doc;
+    const int index = addCubeLayer(doc, QStringLiteral("cube"));
+    QVERIFY(index >= 0);
+    doc.setCurrentMeshIndex(index);
+    const auto before = doc.cpuMeshMemoryStats().front();
+
+    const QString key = filterKeyForId(doc, QStringLiteral("measure_topological_properties"));
+    QVERIFY(!key.isEmpty());
+    const MeshFilterRunResult r = doc.runFilter(key, MeshFilterParameterValues());
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+    const auto after = doc.cpuMeshMemoryStats().front();
+    QCOMPARE(after.vertexOcfBytes, before.vertexOcfBytes);
+    QCOMPARE(after.faceOcfBytes, before.faceOcfBytes);
+}
+
+// Split into Connected Components declares FF and can delete the very layer it was
+// prepared for. Releasing the preparation must then skip that layer rather than disable
+// components on its freed mesh -- which went unnoticed while Disable* only called
+// clear(), and became a crash once it started freeing the storage.
+void FilterTests::preparationSurvivesAFilterRemovingItsLayer()
+{
+    VCGMesh twoCubes;
+    VCGMesh second;
+    makeCubeMesh(twoCubes, 0.0f, 0.0f, 0.0f);
+    makeCubeMesh(second, 5.0f, 0.0f, 0.0f);
+    vcg::tri::Append<VCGMesh, VCGMesh>::MeshAppendConst(twoCubes, second);
+
+    Document doc;
+    const int index = doc.addMesh(twoCubes, QStringLiteral("cubes"));
+    QVERIFY(index >= 0);
+    doc.setCurrentMeshIndex(index);
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("delete_source_mesh"), true);
+    const MeshFilterRunResult r =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("split_into_connected_components")), p);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(doc.meshCount(), 2);
 }
 
 void FilterTests::createdCylinderHonoursRadiusHeightAndAxis()

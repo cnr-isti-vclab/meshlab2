@@ -18,6 +18,7 @@
 #include "processmemoryinfo.h"
 #include <vcg/complex/allocate.h>
 #include <vcg/space/planar_polygon_tessellation.h>
+#include <vcg/complex/algorithms/stream_order.h>
 #include <wrap/io_trimesh/export_obj.h>
 #include <wrap/io_trimesh/export_stl.h>
 #include <wrap/io_trimesh/import_obj.h>
@@ -80,6 +81,7 @@ private slots:
     void undoRedoRestoresMeshList();
     void undoTreeBranchingPreservesAlternateFuture();
     void memoryStatsCountCustomAttributes();
+    void polylineLayerWalksItsEdgeGraph();
     void memoryStatsDeduplicateImagesAndTrackUndoOwnership();
     void memoryStatsIncludeSelectionAndPendingSnapshots();
     void undoMemoryBudgetAndPressurePurgeSafely();
@@ -1565,6 +1567,54 @@ void DocumentTests::memoryStatsCountCustomAttributes()
         qint64(doc.mesh(0).mesh.vert.capacity()) * qint64(sizeof(float));
     QCOMPARE(after.front().customAttributeBytes, expected);
     QCOMPARE(after.front().totalBytes() - before.front().totalBytes(), expected);
+}
+
+// A polyline layer can run the edge-graph algorithms directly: VCGEdge carries the edge
+// half of VE adjacency, and the vertex half is an OCF component a triangle mesh never
+// pays for. While it is enabled, memory accounting has to see it.
+void DocumentTests::polylineLayerWalksItsEdgeGraph()
+{
+    // r -- j, then j forks into a short straight tip and a long side tip.
+    VCGMesh polyline;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(polyline, 4);
+    polyline.vert[0].P() = vcg::Point3f(0, 0, 0);
+    polyline.vert[1].P() = vcg::Point3f(0, 1, 0);
+    polyline.vert[2].P() = vcg::Point3f(0, 1.5f, 0);
+    polyline.vert[3].P() = vcg::Point3f(3, 2, 0);
+    vcg::tri::Allocator<VCGMesh>::AddEdges(polyline, 3);
+    const int ends[3][2] = { {0, 1}, {1, 2}, {1, 3} };
+    for (int i = 0; i < 3; ++i) {
+        polyline.edge[std::size_t(i)].V(0) = &polyline.vert[std::size_t(ends[i][0])];
+        polyline.edge[std::size_t(i)].V(1) = &polyline.vert[std::size_t(ends[i][1])];
+    }
+
+    Document doc;
+    doc.setSuppressUndo(true);
+    const int index = doc.addMesh(polyline, QStringLiteral("skeleton"),
+                                  vcg::tri::io::Mask::IOM_EDGEINDEX);
+    doc.setSuppressUndo(false);
+    QVERIFY(index >= 0);
+    VCGMesh &m = doc.mesh(index).mesh;
+    QVERIFY(!vcg::tri::HasVEAdjacency(m)); // off until someone asks for it
+    const qint64 ocfBefore = doc.cpuMeshMemoryStats().front().vertexOcfBytes;
+
+    m.vert.EnableVEAdjacency();
+    vcg::tri::UpdateTopology<VCGMesh>::VertexEdge(m);
+    QVERIFY(vcg::tri::HasVEAdjacency(m));
+    QVERIFY(doc.cpuMeshMemoryStats().front().vertexOcfBytes > ocfBefore);
+
+    using Order = vcg::tri::StreamOrder<VCGMesh>;
+    const std::vector<int> angle = Order::Hack(m, &m.vert[0], Order::MinDeviationAngle);
+    QCOMPARE(angle[2], 1);
+    QCOMPARE(angle[3], 2);
+    const std::vector<int> longest = Order::Hack(m, &m.vert[0], Order::LongestPath);
+    QCOMPARE(longest[2], 2);
+    QCOMPARE(longest[3], 1);
+    QCOMPARE(Order::Strahler(m, &m.vert[0])[0], 2);
+
+    m.vert.DisableVEAdjacency();
+    QVERIFY(!vcg::tri::HasVEAdjacency(m));
+    QCOMPARE(doc.cpuMeshMemoryStats().front().vertexOcfBytes, ocfBefore);
 }
 
 void DocumentTests::memoryStatsDeduplicateImagesAndTrackUndoOwnership()

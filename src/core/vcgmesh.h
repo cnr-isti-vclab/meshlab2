@@ -19,7 +19,7 @@ struct VCGUsedTypes : public vcg::UsedTypes<
 // OCF storable (allocated when data is loaded/computed, preserved in undo):
 //   TexCoordfOcf, CurvatureDirfOcf
 // OCF ancillary (allocated on demand by algorithms, discarded after use):
-//   VFAdjOcf, MarkOcf
+//   VFAdjOcf, VEAdjOcf, MarkOcf
 class VCGVertex : public vcg::Vertex<VCGUsedTypes,
     vcg::vertex::InfoOcf,
     vcg::vertex::Coord3f,
@@ -30,6 +30,7 @@ class VCGVertex : public vcg::Vertex<VCGUsedTypes,
     vcg::vertex::TexCoordfOcf,
     vcg::vertex::CurvatureDirfOcf,
     vcg::vertex::VFAdjOcf,
+    vcg::vertex::VEAdjOcf,
     vcg::vertex::MarkOcf> {};
 
 // Polyline elements. Unlike a triangle mesh -- whose edges exist only as sides of
@@ -38,10 +39,17 @@ class VCGVertex : public vcg::Vertex<VCGUsedTypes,
 // of magnitude fewer edges than a mesh has faces, so 8 bytes each is not worth an
 // OCF vector. `ioMask & IOM_EDGECOLOR` is what says the colour is *meaningful*;
 // quality has no such bit because no format carries it.
+//
+// VEAdj is the edge half of vertex-edge adjacency, for algorithms that walk the edge
+// graph (curve skeletons, stream orders). It is fixed here for the same reason: 32 more
+// bytes per edge. The vertex half is VCGVertex's VEAdjOcf, which is optional because
+// every triangle-mesh vertex would otherwise pay for it; both halves are only
+// meaningful while the `VE` preparation code has them enabled and computed.
 class VCGEdge : public vcg::Edge<VCGUsedTypes,
     vcg::edge::VertexRef,
     vcg::edge::Color4b,
     vcg::edge::Qualityf,
+    vcg::edge::VEAdj,
     vcg::edge::BitFlags> {};
 
 // Fixed (always allocated): VertexRef, Normal, Color, Quality, BitFlags

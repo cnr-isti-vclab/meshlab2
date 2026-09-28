@@ -319,23 +319,34 @@ bool validateStateJsonPayload(
 // Holds the OCF enable/disable state for one filter invocation.
 // Constructed by prepareMeshForFilter(); must stay alive while the filter runs.
 // The destructor disables whatever components were enabled, releasing memory.
+//
+// The layer is held by its persistent id, not by a mesh pointer, and looked up again on
+// release: the filter may remove the layer it was prepared for (Split into Connected
+// Components can delete its source), and a failed run's rollback rebuilds every layer
+// from the undo snapshot and destroys the old MeshEntry objects. A pointer would then
+// disable components on a freed mesh. A rebuilt layer keeps its id, and disabling a
+// component it never had enabled is harmless.
 struct MeshPreparationScope {
-    VCGMesh *mesh = nullptr;
+    Document *doc = nullptr;
+    std::uint64_t meshId = 0;
     bool disableFF   = false;
     bool disableVF   = false;
+    bool disableVE   = false;
     bool disableMark = false;
     bool disableVertexMark = false;
 
     MeshPreparationScope() = default;
     // Movable so it can be returned by value and held in runFilter.
     MeshPreparationScope(MeshPreparationScope &&o) noexcept
-        : mesh(o.mesh)
+        : doc(o.doc)
+        , meshId(o.meshId)
         , disableFF(o.disableFF)
         , disableVF(o.disableVF)
+        , disableVE(o.disableVE)
         , disableMark(o.disableMark)
         , disableVertexMark(o.disableVertexMark)
     {
-        o.mesh = nullptr; // transfer ownership
+        o.doc = nullptr; // transfer ownership
     }
     MeshPreparationScope &operator=(MeshPreparationScope &&) = delete;
     MeshPreparationScope(const MeshPreparationScope &) = delete;
@@ -343,11 +354,24 @@ struct MeshPreparationScope {
 
     ~MeshPreparationScope()
     {
-        if (!mesh) return;
+        if (!doc) return;
+        const int index = doc->indexOfMeshId(meshId);
+        if (index < 0) return; // the filter removed the layer
+        VCGMesh *mesh = &doc->mesh(index).mesh;
         if (disableFF)   mesh->face.DisableFFAdjacency();
         if (disableVF) {
             mesh->vert.DisableVFAdjacency();
             mesh->face.DisableVFAdjacency();
+        }
+        if (disableVE) {
+            mesh->vert.DisableVEAdjacency();
+            // The edge half is a fixed component: clear it so no pointer into the edge
+            // vector outlives the scope and is mistaken for live adjacency later.
+            for (VCGEdge &e : mesh->edge)
+                for (int i = 0; i < 2; ++i) {
+                    e.VEp(i) = nullptr;
+                    e.VEi(i) = -1;
+                }
         }
         if (disableMark) mesh->face.DisableMark();
         if (disableVertexMark) mesh->vert.DisableMark();
@@ -552,17 +576,21 @@ int meshIndexFromVariant(const QVariant &value, int fallback)
 // components on destruction. Persistent output storage (texcoords/curvature
 // directions) is intentionally left enabled because filters write results there.
 MeshPreparationScope prepareMeshForPrepList(
-    VCGMesh &mesh,
+    Document &doc,
+    int meshIndex,
     const QStringList &prep)
 {
     MeshPreparationScope scope;
     if (prep.isEmpty())
         return scope;
-    scope.mesh = &mesh;
+    scope.doc = &doc;
+    scope.meshId = doc.mesh(meshIndex).meshId;
+    VCGMesh &mesh = doc.mesh(meshIndex).mesh;
 
     // Apply in dependency order: enable OCF → topology → border flags → normals → bbox.
     const bool doFF       = prep.contains(QStringLiteral("FF"))       || prep.contains(QStringLiteral("BorderFF"));
     const bool doVF       = prep.contains(QStringLiteral("VF"))       || prep.contains(QStringLiteral("BorderVF"));
+    const bool doVE       = prep.contains(QStringLiteral("VE"));
     const bool doBorderFF = prep.contains(QStringLiteral("BorderFF"));
     const bool doBorderVF = prep.contains(QStringLiteral("BorderVF"));
     const bool doFNorm    = prep.contains(QStringLiteral("FNorm"))    || prep.contains(QStringLiteral("VNorm"));
@@ -595,6 +623,11 @@ MeshPreparationScope prepareMeshForPrepList(
         mesh.face.EnableVFAdjacency();
         scope.disableVF = true;
         vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
+    }
+    if (doVE) {
+        mesh.vert.EnableVEAdjacency();
+        scope.disableVE = true;
+        vcg::tri::UpdateTopology<VCGMesh>::VertexEdge(mesh);
     }
     if (doBorderFF) {
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(mesh);
@@ -651,7 +684,7 @@ MultiMeshPreparationScope prepareMeshesForFilter(
 
     multiScope.scopes.reserve(prepByMeshIndex.size());
     for (auto it = prepByMeshIndex.begin(); it != prepByMeshIndex.end(); ++it)
-        multiScope.scopes.push_back(prepareMeshForPrepList(doc.mesh(it.key()).mesh, it.value()));
+        multiScope.scopes.push_back(prepareMeshForPrepList(doc, it.key(), it.value()));
 
     return multiScope;
 }

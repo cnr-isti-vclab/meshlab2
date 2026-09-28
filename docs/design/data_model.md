@@ -21,7 +21,7 @@ MeshLab is **single-document, multi-view**: one `Document` owns canonical meshes
 
 ## Mesh Data Type
 
-`VCGMesh` is a `vcg::tri::TriMesh` specialization. `VCGVertex` has fixed coordinate, normal, color, quality, and flag components plus optional OCF texture-coordinate and curvature-direction data. `VCGFace` has fixed vertex references, normal, color, quality, and flags plus optional OCF wedge texture coordinates and algorithm-only adjacency/mark data. `VCGEdge` has fixed endpoint references, RGBA color, and flags. Because edge color storage is always allocated, `MeshEntry::ioMask & IOM_EDGECOLOR` is the semantic indication that meaningful per-edge colors are available.
+`VCGMesh` is a `vcg::tri::TriMesh` specialization. `VCGVertex` has fixed coordinate, normal, color, quality, and flag components plus optional OCF texture-coordinate and curvature-direction data. `VCGFace` has fixed vertex references, normal, color, quality, and flags plus optional OCF wedge texture coordinates and algorithm-only adjacency/mark data. `VCGEdge` has fixed endpoint references, RGBA color, scalar, flags, and the edge half of vertex-edge adjacency; the vertex half is an optional OCF component, enabled only while a filter declares the `VE` preparation code. Because edge color storage is always allocated, `MeshEntry::ioMask & IOM_EDGECOLOR` is the semantic indication that meaningful per-edge colors are available.
 
 ## Raster Data Type
 
