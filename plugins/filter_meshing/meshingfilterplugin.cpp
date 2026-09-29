@@ -615,7 +615,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 return fail(QObject::tr("Subdivision surfaces require manifoldness."));
             }
 
-            const bool selected = params.getBool(QStringLiteral("Selected"));
+            const bool selected = params.getBool(QStringLiteral("selectedOnly"));
             const float threshold = float(params.getDouble(QStringLiteral("Threshold")));
             const int iterations = std::max(1, params.getInt(QStringLiteral("Iterations")));
             const QString w = params.getEnum(QStringLiteral("LoopWeight"));
@@ -734,7 +734,12 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
         if (filterId == QString::fromLatin1(kIdInvertFaces)) {
             const bool forceFlip = params.getBool(QStringLiteral("forceFlip"));
-            const bool onlySel = params.getBool(QStringLiteral("onlySelected"));
+            const bool onlySel = params.getBool(QStringLiteral("selectedOnly"));
+            // Automatic orientation is a decision about the whole surface, so it cannot be
+            // confined to part of it without flipping faces outside the selection.
+            if (onlySel && !forceFlip)
+                return fail(QObject::tr("Automatic orientation decides for the whole mesh: "
+                                        "turn on Force Flip to flip only the selected faces."));
             if (forceFlip)
                 vcg::tri::Clean<VCGMesh>::FlipMesh(mesh, onlySel);
             else
@@ -745,11 +750,16 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdQuadric)) {
+            // Both targets are read against what is being simplified: with selectedOnly the
+            // selection, whose face count TargetFaceNum is (quadricSimplification turns it
+            // into a whole-mesh target), so a percentage has to be of the selection too.
+            const bool selected = params.getBool(QStringLiteral("selectedOnly"));
+            const int simplifiedFaces = selected ? selectedFaceCount(mesh) : mesh.FN();
             int targetFaceNum = params.getInt(QStringLiteral("TargetFaceNum"));
             const float targetPerc = float(params.getDouble(QStringLiteral("TargetPerc")));
             if (targetPerc > 0.0f)
-                targetFaceNum = int(std::round(mesh.FN() * targetPerc));
-            targetFaceNum = std::clamp(targetFaceNum, 1, std::max(1, mesh.FN()));
+                targetFaceNum = int(std::round(simplifiedFaces * targetPerc));
+            targetFaceNum = std::clamp(targetFaceNum, 1, std::max(1, simplifiedFaces));
 
             vcg::tri::TriEdgeCollapseQuadricParameter pp;
             pp.QualityThr = float(params.getDouble(QStringLiteral("QualityThr")));
@@ -761,7 +771,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             pp.OptimalPlacement = params.getBool(QStringLiteral("OptimalPlacement"));
             pp.QualityQuadric = params.getBool(QStringLiteral("PlanarQuadric"));
             pp.QualityQuadricWeight = float(params.getDouble(QStringLiteral("PlanarWeight")));
-            const bool selected = params.getBool(QStringLiteral("Selected"));
 
             quadricSimplification(mesh, targetFaceNum, selected, pp, doc.progressCallback());
 
@@ -783,11 +792,16 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (!vcg::tri::Clean<VCGMesh>::HasConsistentPerWedgeTexCoord(mesh))
                 return fail(QObject::tr("Mesh has inconsistent per-wedge texture coordinates."));
 
+            // Both targets are read against what is being simplified: with selectedOnly the
+            // selection, whose face count TargetFaceNum is (quadricSimplification turns it
+            // into a whole-mesh target), so a percentage has to be of the selection too.
+            const bool selected = params.getBool(QStringLiteral("selectedOnly"));
+            const int simplifiedFaces = selected ? selectedFaceCount(mesh) : mesh.FN();
             int targetFaceNum = params.getInt(QStringLiteral("TargetFaceNum"));
             const float targetPerc = float(params.getDouble(QStringLiteral("TargetPerc")));
             if (targetPerc > 0.0f)
-                targetFaceNum = int(std::round(mesh.FN() * targetPerc));
-            targetFaceNum = std::clamp(targetFaceNum, 1, std::max(1, mesh.FN()));
+                targetFaceNum = int(std::round(simplifiedFaces * targetPerc));
+            targetFaceNum = std::clamp(targetFaceNum, 1, std::max(1, simplifiedFaces));
 
             vcg::tri::TriEdgeCollapseQuadricTexParameter pp;
             pp.QualityThr = float(params.getDouble(QStringLiteral("QualityThr")));
@@ -797,7 +811,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             pp.BoundaryWeight = pp.BoundaryWeight * float(params.getDouble(QStringLiteral("BoundaryWeight")));
             pp.QualityQuadric = params.getBool(QStringLiteral("PlanarQuadric"));
             pp.NormalCheck = params.getBool(QStringLiteral("PreserveNormal"));
-            const bool selected = params.getBool(QStringLiteral("Selected"));
 
             quadricTexSimplification(mesh, targetFaceNum, selected, pp, doc.progressCallback());
             vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
@@ -840,7 +853,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             remeshParams.maxSurfDist = float(params.getDouble(QStringLiteral("MaxSurfDist")));
             remeshParams.iter = std::max(1, params.getInt(QStringLiteral("Iterations")));
             remeshParams.adapt = params.getBool(QStringLiteral("Adaptive"));
-            remeshParams.selectedOnly = params.getBool(QStringLiteral("SelectedOnly"));
+            remeshParams.selectedOnly = params.getBool(QStringLiteral("selectedOnly"));
             remeshParams.splitFlag = params.getBool(QStringLiteral("SplitFlag"));
             remeshParams.collapseFlag = params.getBool(QStringLiteral("CollapseFlag"));
             remeshParams.swapFlag = params.getBool(QStringLiteral("SwapFlag"));

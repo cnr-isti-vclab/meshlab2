@@ -115,6 +115,40 @@ code runs, so the filter is greyed out with a reason instead of failing inside
 `requirePerWedgeTexCoords`, `requireTextures`. Declare them instead of
 re-checking by hand — 291 of 337 filters do.
 
+A filter that can confine itself to the selection declares **`selectionScope`** —
+`"vertices"`, `"faces"` or `"edges"`, the kind of element its algorithm restricts to —
+and **no toggle of its own**. The loader injects one `selectedOnly` bool, first and never
+advanced, labelled *Only selected vertices / faces / edges*; read it with
+`params.getBool("selectedOnly")`. A filter that confines some layer other than the
+current one names that mesh parameter in `selectionScopeMesh` (*Transfer Vertex
+Attributes* uses `TargetMesh`, the MLS projections `ProxyMesh`). Everything else is the
+framework's (`src/plugins/selectionscope.h`):
+
+- **Default**: omitted, `selectedOnly` is on exactly when there is something to confine
+  the filter to, in the panel, in Python and in a replayed compact call alike.
+- **Presentation**: the filter panel shows it as a scope control on its own line under
+  the header, with the live count — *Only the 1234 selected faces* — disabled when there
+  is nothing to confine to, and never restored from the parameter cache.
+- **Empty selection**: with `selectedOnly` on and nothing to confine to, the call is
+  refused before your code runs, with one message for every scoped filter. Don't check.
+- **The other kind**: when only the other kind is selected, the filter still sees a
+  selection of its own kind, derived strictly — the vertices whose faces are all selected,
+  the faces or edges whose vertices all are. Don't convert between kinds yourself.
+- **Afterwards** the user's selection is put back, vertex, face and edge bits alike, so
+  converting internally (to make the interior vertices writable, say) costs nothing — unless
+  you report a selection change of your own with `markMeshSelectionChanged`, which then
+  stands as your result.
+
+What *you* owe is the contract: **with `selectedOnly` on, nothing outside the selection
+changes.** For a face scope that means every unselected face keeps its vertices where they
+were — a filter that moves vertices moves only the interior ones of the selected region
+(`VertexFromFaceStrict`), and one that refines splits only edges whose faces are all
+selected. Options such as normalizing a scalar or mapping it to color work on the selected
+elements alone. With `selectedOnly` off, the selection makes no difference.
+`FilterTests::scopedFiltersConfineThemselvesToTheSelection` holds every scoped filter to
+that, on its own kind of selection and on the other kind; a filter it cannot drive goes in
+`scopeTestUnrunnable()` with a reason.
+
 `tags` are free-form search keywords; see [Vocabulary](vocabulary.md) for the
 standing question of whether they should be generated rather than written.
 

@@ -15,6 +15,7 @@
         "optimization"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
@@ -31,14 +32,6 @@
         }
       ],
       "parameters": [
-        {
-          "id": "selection",
-          "label": "Affect only selection",
-          "help": "If enabled, optimize only selected faces.",
-          "group": "main",
-          "type": "bool",
-          "default": "@hasSelectedFaces"
-        },
         {
           "id": "pthreshold",
           "label": "Planar threshold (deg)",
@@ -113,6 +106,7 @@
         "optimization"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
@@ -129,14 +123,6 @@
         }
       ],
       "parameters": [
-        {
-          "id": "selection",
-          "label": "Affect only selection",
-          "help": "If enabled, optimize only selected faces.",
-          "group": "main",
-          "type": "bool",
-          "default": "@hasSelectedFaces"
-        },
         {
           "id": "pthreshold",
           "label": "Angle threshold (deg)",
@@ -191,6 +177,7 @@
         "surface preserving"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
@@ -200,14 +187,6 @@
         "FNorm"
       ],
       "parameters": [
-        {
-          "id": "selection",
-          "label": "Affect only selection",
-          "help": "If enabled, smooth only selected faces.",
-          "group": "main",
-          "type": "bool",
-          "default": false
-        },
         {
           "id": "AngleDeg",
           "label": "Max normal deviation (deg)",

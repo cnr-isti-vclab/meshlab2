@@ -502,21 +502,10 @@ std::vector<int> chooseElementSubset(int count, int sampleNum, vcg::math::Random
     return chosen;
 }
 
-bool hasSelection(const VCGMesh &mesh)
-{
-    return vcg::tri::UpdateSelection<VCGMesh>::VertexCount(mesh) > 0
-        || vcg::tri::UpdateSelection<VCGMesh>::FaceCount(mesh) > 0;
-}
-
 std::unique_ptr<VCGMesh> makeSelectedPointSet(const VCGMesh &source)
 {
     auto selected = std::make_unique<VCGMesh>();
     vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(*selected, source);
-    if (vcg::tri::UpdateSelection<VCGMesh>::VertexCount(*selected) == 0
-        && vcg::tri::UpdateSelection<VCGMesh>::FaceCount(*selected) > 0) {
-        vcg::tri::UpdateSelection<VCGMesh>::VertexClear(*selected);
-        vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceStrict(*selected);
-    }
     vcg::tri::UpdateBounding<VCGMesh>::Box(*selected);
     return selected;
 }
@@ -799,11 +788,9 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kFilterClusteredSampling)) {
         const double threshold = params.getDouble(QStringLiteral("Threshold"));
-        const bool selectedOnly = params.getBool(QStringLiteral("Selected"));
+        const bool selectedOnly = params.getBool(QStringLiteral("selectedOnly"));
         if (!(threshold > 0.0))
             return failResult(QObject::tr("Cell size must be greater than zero."));
-        if (selectedOnly && !hasSelection(entry.mesh))
-            return failResult(QObject::tr("Only on Selection is enabled, but there is no current selection."));
 
         std::unique_ptr<VCGMesh> inputMesh = selectedOnly
             ? makeSelectedPointSet(entry.mesh)
@@ -1210,7 +1197,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         const bool transferSelection = params.getBool(QStringLiteral("SelectionTransfer"));
         const bool qualityDistance = params.getBool(QStringLiteral("QualityDistance"));
         const bool saveBarycentric = params.getBool(QStringLiteral("SaveBarycentric"));
-        const bool onlySelected = params.getBool(QStringLiteral("onSelected"));
+        const bool onlySelected = params.getBool(QStringLiteral("selectedOnly"));
         if (!transferGeometry && !transferNormals && !transferColor && !transferQuality
             && !transferSelection && !saveBarycentric) {
             return failResult(QObject::tr("Enable at least one attribute transfer option."));
@@ -1218,18 +1205,10 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
 
         Document::MeshEntry &targetEntry = doc.mesh(targetMeshIndex);
         const Document::MeshEntry &sourceEntry = doc.mesh(sourceMeshIndex);
-        if (onlySelected && !hasSelection(targetEntry.mesh))
-            return failResult(QObject::tr("Only on selection is enabled, but the target mesh has no selection."));
 
         std::unique_ptr<VCGMesh> sourceMesh = makeWorldMesh(sourceEntry, true);
         std::unique_ptr<VCGMesh> targetWorldMesh = makeWorldMesh(targetEntry, false);
         sourceMesh->face.EnableMark();
-        if (onlySelected
-            && vcg::tri::UpdateSelection<VCGMesh>::VertexCount(*targetWorldMesh) == 0
-            && vcg::tri::UpdateSelection<VCGMesh>::FaceCount(*targetWorldMesh) > 0) {
-            vcg::tri::UpdateSelection<VCGMesh>::VertexClear(*targetWorldMesh);
-            vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceLoose(*targetWorldMesh);
-        }
 
         LocalRedetailSampler sampler;
         sampler.useVertexSampling = vertexSampling;
@@ -1316,6 +1295,13 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             doc.markMeshGeometryChanged(
                 targetMeshIndex,
                 QObject::tr("Transferred vertex attributes from '%1'").arg(sourceEntry.name));
+            // Reported as well, or the framework -- which puts back any selection a filter
+            // changes without saying so -- would undo the one just transferred.
+            if (transferSelection) {
+                doc.markMeshSelectionChanged(
+                    targetMeshIndex,
+                    QObject::tr("Transferred vertex selection from '%1'").arg(sourceEntry.name));
+            }
         } else if (transferSelection) {
             doc.markMeshSelectionChanged(
                 targetMeshIndex,

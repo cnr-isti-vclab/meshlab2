@@ -23,6 +23,7 @@
 #include <vcg/complex/algorithms/update/topology.h>
 #include <vcg/math/matrix33.h>
 #include <algorithm>
+#include <limits>
 #include <array>
 #include <cmath>
 #include <memory>
@@ -863,38 +864,42 @@ void setEdgeRuntime(
     runtime.edz = double(delta[2]) * inv;
 }
 
-bool ensureEdgeSelectionReady(VCGMesh &mesh, QString &error)
+// With selectedOnly, Normalize and Map work on the selected elements alone: their range is
+// the selection's own and nothing outside it is rewritten, where the vcglib helpers span and
+// recolour the whole mesh.
+template <class Container>
+std::pair<float, float> selectedQualityRange(const Container &elements)
 {
-    if (vcg::tri::UpdateSelection<VCGMesh>::EdgeCount(mesh) == 0) {
-        error = QObject::tr("Cannot apply only on selection: there is no edge selection.");
-        return false;
+    float lo = std::numeric_limits<float>::max();
+    float hi = std::numeric_limits<float>::lowest();
+    for (const auto &e : elements) {
+        if (!e.IsD() && e.IsS()) {
+            lo = std::min(lo, float(e.cQ()));
+            hi = std::max(hi, float(e.cQ()));
+        }
     }
-    return true;
+    return { lo, hi };
 }
 
-bool ensureVertexSelectionReady(VCGMesh &mesh, QString &error)
+template <class Container>
+void normalizeSelectedQuality(Container &elements)
 {
-    const size_t selectedVertices = vcg::tri::UpdateSelection<VCGMesh>::VertexCount(mesh);
-    const size_t selectedFaces = vcg::tri::UpdateSelection<VCGMesh>::FaceCount(mesh);
-    if (selectedVertices == 0 && selectedFaces == 0) {
-        error = QObject::tr("Cannot apply only on selection: there is no selection.");
-        return false;
+    const auto [lo, hi] = selectedQualityRange(elements);
+    const float span = hi - lo;
+    for (auto &e : elements) {
+        if (!e.IsD() && e.IsS())
+            e.Q() = span > 0.0f ? (e.Q() - lo) / span : 0.0f;
     }
-    if (selectedVertices == 0 && selectedFaces > 0) {
-        vcg::tri::UpdateSelection<VCGMesh>::VertexClear(mesh);
-        vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceLoose(mesh);
-    }
-    return true;
 }
 
-bool ensureFaceSelectionReady(VCGMesh &mesh, QString &error)
+template <class Container>
+void rampSelectedQuality(Container &elements)
 {
-    const size_t selectedFaces = vcg::tri::UpdateSelection<VCGMesh>::FaceCount(mesh);
-    if (selectedFaces == 0) {
-        error = QObject::tr("Cannot apply only on selection: there is no face selection.");
-        return false;
+    const auto [lo, hi] = selectedQualityRange(elements);
+    for (auto &e : elements) {
+        if (!e.IsD() && e.IsS())
+            e.C() = vcg::GetColorMapping(e.Q(), lo, hi, vcg::ColorMap::RGB);
     }
-    return true;
 }
 
 bool checkCustomAttributeName(const QString &name, QString &error)
@@ -1196,9 +1201,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         const QString exprG = params.getString(QStringLiteral("g"));
         const QString exprB = params.getString(QStringLiteral("b"));
         const QString exprA = params.getString(QStringLiteral("a"));
-        const bool onSelected = params.getBool(QStringLiteral("onselected"));
-        if (onSelected && !ensureEdgeSelectionReady(mesh, meshError))
-            return fail(meshError);
+        const bool onSelected = params.getBool(QStringLiteral("selectedOnly"));
 
         mu::Parser pr;
         mu::Parser pg;
@@ -1255,9 +1258,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         const QString exprQ = params.getString(QStringLiteral("q"));
         const bool normalize = params.getBool(QStringLiteral("normalize"));
         const bool mapToColor = params.getBool(QStringLiteral("map"));
-        const bool onSelected = params.getBool(QStringLiteral("onselected"));
-        if (onSelected && !ensureEdgeSelectionReady(mesh, meshError))
-            return fail(meshError);
+        const bool onSelected = params.getBool(QStringLiteral("selectedOnly"));
 
         mu::Parser parser;
         setPerEdgeVariables(parser, runtime, mesh);
@@ -1283,7 +1284,9 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         }
 
         // vcglib has no EdgeNormalize, and the one-liner is clearer than adding one.
-        if (normalize) {
+        if (normalize && onSelected) {
+            normalizeSelectedQuality(mesh.edge);
+        } else if (normalize) {
             const auto minmax = vcg::tri::Stat<VCGMesh>::ComputePerEdgeQualityMinMax(mesh);
             const float span = minmax.second - minmax.first;
             for (auto ei = mesh.edge.begin(); ei != mesh.edge.end(); ++ei) {
@@ -1298,7 +1301,10 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         result.documentModified = true;
         result.infoMessages = { QObject::tr("Processed %1 edges.").arg(processed) };
         if (mapToColor) {
-            vcg::tri::UpdateColor<VCGMesh>::PerEdgeQualityRamp(mesh);
+            if (onSelected)
+                rampSelectedQuality(mesh.edge);
+            else
+                vcg::tri::UpdateColor<VCGMesh>::PerEdgeQualityRamp(mesh);
             entry.ioMask |= Mask::IOM_EDGECOLOR;
             result.visualizationHints.push_back({
                 meshIndex,
@@ -1385,10 +1391,12 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         const QString exprX = params.getString(QStringLiteral("x"));
         const QString exprY = params.getString(QStringLiteral("y"));
         const QString exprZ = params.getString(QStringLiteral("z"));
-        const QString exprA = params.getString(QStringLiteral("a"));
-        const bool onSelected = params.getBool(QStringLiteral("onselected"));
-        if (onSelected && !ensureVertexSelectionReady(mesh, meshError))
-            return fail(meshError);
+        // Only the color filter uses an alpha. The normal filter declares no `a` at all, and
+        // parsing its missing value as an empty expression made it fail on every run.
+        const QString exprA = filterId == QString::fromLatin1(kFilterVertColor)
+            ? params.getString(QStringLiteral("a"))
+            : QStringLiteral("255");
+        const bool onSelected = params.getBool(QStringLiteral("selectedOnly"));
 
         mu::Parser px;
         mu::Parser py;
@@ -1465,9 +1473,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         const QString exprQ = params.getString(QStringLiteral("q"));
         const bool normalize = params.getBool(QStringLiteral("normalize"));
         const bool mapToColor = params.getBool(QStringLiteral("map"));
-        const bool onSelected = params.getBool(QStringLiteral("onselected"));
-        if (onSelected && !ensureVertexSelectionReady(mesh, meshError))
-            return fail(meshError);
+        const bool onSelected = params.getBool(QStringLiteral("selectedOnly"));
 
         mu::Parser parser;
         setPerVertexVariables(parser, runtime, mesh);
@@ -1489,10 +1495,15 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             }
             ++processed;
         }
-        if (normalize)
+        if (normalize && onSelected)
+            normalizeSelectedQuality(mesh.vert);
+        else if (normalize)
             vcg::tri::UpdateQuality<VCGMesh>::VertexNormalize(mesh);
         if (mapToColor) {
-            vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh);
+            if (onSelected)
+                rampSelectedQuality(mesh.vert);
+            else
+                vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh);
             entry.ioMask |= Mask::IOM_VERTCOLOR;
         }
         entry.ioMask |= Mask::IOM_VERTQUALITY;
@@ -1514,9 +1525,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterVertTex)) {
         const QString exprU = params.getString(QStringLiteral("u"));
         const QString exprV = params.getString(QStringLiteral("v"));
-        const bool onSelected = params.getBool(QStringLiteral("onselected"));
-        if (onSelected && !ensureVertexSelectionReady(mesh, meshError))
-            return fail(meshError);
+        const bool onSelected = params.getBool(QStringLiteral("selectedOnly"));
 
         mu::Parser parserU;
         mu::Parser parserV;
@@ -1561,9 +1570,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         const QString exprV1 = params.getString(QStringLiteral("v1"));
         const QString exprU2 = params.getString(QStringLiteral("u2"));
         const QString exprV2 = params.getString(QStringLiteral("v2"));
-        const bool onSelected = params.getBool(QStringLiteral("onselected"));
-        if (onSelected && !ensureFaceSelectionReady(mesh, meshError))
-            return fail(meshError);
+        const bool onSelected = params.getBool(QStringLiteral("selectedOnly"));
 
         mu::Parser pu0;
         mu::Parser pv0;
@@ -1625,9 +1632,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         const QString exprX = params.getString(QStringLiteral("x"));
         const QString exprY = params.getString(QStringLiteral("y"));
         const QString exprZ = params.getString(QStringLiteral("z"));
-        const bool onSelected = params.getBool(QStringLiteral("onselected"));
-        if (onSelected && !ensureFaceSelectionReady(mesh, meshError))
-            return fail(meshError);
+        const bool onSelected = params.getBool(QStringLiteral("selectedOnly"));
 
         mu::Parser px;
         mu::Parser py;
@@ -1672,9 +1677,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         const QString exprG = params.getString(QStringLiteral("g"));
         const QString exprB = params.getString(QStringLiteral("b"));
         const QString exprA = params.getString(QStringLiteral("a"));
-        const bool onSelected = params.getBool(QStringLiteral("onselected"));
-        if (onSelected && !ensureFaceSelectionReady(mesh, meshError))
-            return fail(meshError);
+        const bool onSelected = params.getBool(QStringLiteral("selectedOnly"));
 
         mu::Parser pr;
         mu::Parser pg;
@@ -1725,9 +1728,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         const QString exprQ = params.getString(QStringLiteral("q"));
         const bool normalize = params.getBool(QStringLiteral("normalize"));
         const bool mapToColor = params.getBool(QStringLiteral("map"));
-        const bool onSelected = params.getBool(QStringLiteral("onselected"));
-        if (onSelected && !ensureFaceSelectionReady(mesh, meshError))
-            return fail(meshError);
+        const bool onSelected = params.getBool(QStringLiteral("selectedOnly"));
 
         mu::Parser parser;
         setPerFaceVariables(parser, runtime, mesh);
@@ -1749,10 +1750,15 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             }
             ++processed;
         }
-        if (normalize)
+        if (normalize && onSelected)
+            normalizeSelectedQuality(mesh.face);
+        else if (normalize)
             vcg::tri::UpdateQuality<VCGMesh>::FaceNormalize(mesh);
         if (mapToColor) {
-            vcg::tri::UpdateColor<VCGMesh>::PerFaceQualityRamp(mesh);
+            if (onSelected)
+                rampSelectedQuality(mesh.face);
+            else
+                vcg::tri::UpdateColor<VCGMesh>::PerFaceQualityRamp(mesh);
             entry.ioMask |= Mask::IOM_FACECOLOR;
         }
         entry.ioMask |= Mask::IOM_FACEQUALITY;

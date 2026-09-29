@@ -335,7 +335,6 @@ const QHash<QString, QString> &expectedRefusals()
         {QStringLiteral("create_polyline_from_self_intersections_trueform"), QStringLiteral("needs a self-intersecting mesh")},
 
         // Needs a value no default can supply: a formula, a name, a viewport.
-        {QStringLiteral("compute_vertex_normals_by_expression"),           QStringLiteral("needs an expression")},
         {QStringLiteral("rename_current_mesh_layer"),                      QStringLiteral("needs a new name")},
         {QStringLiteral("project_vertices_onto_line_of_sight"),            QStringLiteral("needs an attribute name")},
         {QStringLiteral("select_by_screen_rectangle"),                     QStringLiteral("needs a live camera state")},

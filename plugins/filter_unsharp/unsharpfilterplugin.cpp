@@ -244,7 +244,7 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterLaplacian)) {
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromNone(mesh);
         const int steps = params.getInt(QStringLiteral("stepSmoothNum"));
-        const bool selected = params.getBool(QStringLiteral("Selected"));
+        const bool selected = params.getBool(QStringLiteral("selectedOnly"));
         const size_t selectedCount = selected ? selectedVertexCountFromFaces(mesh) : 0;
 
         const bool boundarySmooth = params.getBool(QStringLiteral("Boundary"));
@@ -261,7 +261,7 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kFilterDepth)) {
         const int steps = params.getInt(QStringLiteral("stepSmoothNum"));
-        const bool selected = params.getBool(QStringLiteral("Selected"));
+        const bool selected = params.getBool(QStringLiteral("selectedOnly"));
         const size_t selectedCount = selected ? selectedVertexCountFromFaces(mesh) : 0;
         const Scalar delta = Scalar(params.getDouble(QStringLiteral("delta")));
         const Point viewpoint = toPoint(params.getPoint3f(QStringLiteral("viewPoint")));
@@ -305,20 +305,23 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterSdLaplacian)) {
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromNone(mesh);
         const int steps = params.getInt(QStringLiteral("stepSmoothNum"));
-        const size_t selectedCount = selectedVertexCountFromFaces(mesh);
+        const bool selected = params.getBool(QStringLiteral("selectedOnly"));
+        const size_t selectedCount = selected ? selectedVertexCountFromFaces(mesh) : 0;
         vcg::tri::UpdateFlags<VCGMesh>::FaceClearB(mesh);
         const Scalar delta = Scalar(params.getDouble(QStringLiteral("delta")));
-        vcg::tri::Smooth<VCGMesh>::VertexCoordScaleDependentLaplacian_Fujiwara(mesh, steps, delta);
+        vcg::tri::Smooth<VCGMesh>::VertexCoordScaleDependentLaplacian_Fujiwara(mesh, steps, delta, selected);
         updateBBoxAndNormals(mesh);
         entry.ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
         markGeometry(QObject::tr("Applied scale-dependent Laplacian smoothing to '%1'.").arg(meshName(entry, meshIndex)));
-        return successResult({ QObject::tr("Smoothed %1 vertices.").arg(selectedCount > 0 ? int(selectedCount) : mesh.vn) });
+        return successResult({ QObject::tr("Smoothed %1 vertices.").arg(selected ? int(selectedCount) : mesh.vn) });
     }
 
     if (filterId == QString::fromLatin1(kFilterHcLaplacian)) {
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromNone(mesh);
-        const size_t selectedCount = selectedVertexCountFromFaces(mesh);
-        vcg::tri::Smooth<VCGMesh>::VertexCoordLaplacianHC(mesh, 1, selectedCount > 0);
+        const bool selected = params.getBool(QStringLiteral("selectedOnly"));
+        if (selected)
+            selectedVertexCountFromFaces(mesh);
+        vcg::tri::Smooth<VCGMesh>::VertexCoordLaplacianHC(mesh, 1, selected);
         updateBBoxAndNormals(mesh);
         entry.ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
         markGeometry(QObject::tr("Applied HC Laplacian smoothing to '%1'.").arg(meshName(entry, meshIndex)));
@@ -327,14 +330,15 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kFilterTwoStep)) {
         vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(mesh);
-        vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceStrict(mesh);
+        const bool selected = params.getBool(QStringLiteral("selectedOnly"));
+        if (selected)
+            selectedVertexCountFromFaces(mesh);
         const int steps = params.getInt(QStringLiteral("stepSmoothNum"));
         Scalar sigma = std::cos(vcg::math::ToRad(float(params.getDouble(QStringLiteral("normalThr")))));
         if (sigma < 0)
             sigma = 0;
         const int normalSteps = params.getInt(QStringLiteral("stepNormalNum"));
         const int fitSteps = params.getInt(QStringLiteral("stepFitNum"));
-        const bool selected = params.getBool(QStringLiteral("Selected"));
         for (int i = 0; i < steps; ++i) {
             vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
             vcg::tri::Smooth<VCGMesh>::VertexCoordPasoDoble(mesh, normalSteps, sigma, fitSteps, selected);
@@ -350,12 +354,13 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
         const int steps = params.getInt(QStringLiteral("stepSmoothNum"));
         const Scalar lambda = Scalar(params.getDouble(QStringLiteral("lambda")));
         const Scalar mu = Scalar(params.getDouble(QStringLiteral("mu")));
-        const size_t selectedCount = selectedVertexCountFromFaces(mesh);
-        vcg::tri::Smooth<VCGMesh>::VertexCoordTaubin(mesh, steps, float(lambda), float(mu), selectedCount > 0, cb);
+        const bool selected = params.getBool(QStringLiteral("selectedOnly"));
+        const size_t selectedCount = selected ? selectedVertexCountFromFaces(mesh) : 0;
+        vcg::tri::Smooth<VCGMesh>::VertexCoordTaubin(mesh, steps, float(lambda), float(mu), selected, cb);
         updateBBoxAndNormals(mesh);
         entry.ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
         markGeometry(QObject::tr("Applied Taubin smoothing to '%1'.").arg(meshName(entry, meshIndex)));
-        return successResult({ QObject::tr("Smoothed %1 vertices.").arg(selectedCount > 0 ? int(selectedCount) : mesh.vn) });
+        return successResult({ QObject::tr("Smoothed %1 vertices.").arg(selected ? int(selectedCount) : mesh.vn) });
     }
 
     if (filterId == QString::fromLatin1(kFilterRecomputeFaceNormal)) {

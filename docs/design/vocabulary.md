@@ -502,6 +502,7 @@ display name leads with a word that is not here.
 | Document slot | `layer` | `entry`, `item`, `slot` |
 | Colour | `color` (American) | `colour`, `Colourisation` |
 | Selection | `selection` | `marked set`, `active set` |
+| Confining a filter to the selection (UI label, 2026-09-28) | `Only selected vertices` / `Only selected faces` / `Only selected edges` — always naming the kind, since vertex and face selections are separate | `Only on selection`, `Affect only selection`, `Selection only`, `Selected Only`, `Affect only selected faces` |
 | Normal vector | `normal` | `normals direction` |
 | Layer matrix | `matrix` | `transformation matrix` (verbose), `xform` |
 | 1D abstraction of a shape | `curve skeleton` | `skeleton` alone, `morphological skeleton`, `medial axis`, `centerline` |

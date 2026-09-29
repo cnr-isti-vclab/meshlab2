@@ -10,11 +10,11 @@
       "longDescriptionMarkdown": "Fills the color of the vertices of the mesh with a color chosen by the user.",
       "tags": ["color", "vertex"],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireVertices": true },
       "parameters": [
-        { "id": "color1", "label": "Color", "help": "Sets the color to apply to vertices.", "group": "main", "type": "color", "default": "#000000" },
-        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+        { "id": "color1", "label": "Color", "help": "Sets the color to apply to vertices.", "group": "main", "type": "color", "default": "#000000" }
       ],
       "outputModifies": ["VC"]
     },
@@ -27,13 +27,13 @@
       "longDescriptionMarkdown": "Colors the vertices of the mesh using two colors according to a lightness threshold (on the original color).",
       "tags": ["color", "vertex"],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
       "parameters": [
         { "id": "color1", "label": "Color 1", "help": "Sets the color to apply below the threshold.", "group": "main", "type": "color", "default": "#000000" },
         { "id": "color2", "label": "Color 2", "help": "Sets the color to apply above the threshold.", "group": "main", "type": "color", "default": "#ffffff" },
-        { "id": "threshold", "label": "Threshold", "help": "Vertices with color above the lightness threshold become Color 2, the others Color 1.", "group": "main", "type": "double", "default": 128.0, "min": 0.0, "max": 255.0, "decimals": 3 },
-        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+        { "id": "threshold", "label": "Threshold", "help": "Vertices with color above the lightness threshold become Color 2, the others Color 1.", "group": "main", "type": "double", "default": 128.0, "min": 0.0, "max": 255.0, "decimals": 3 }
       ],
       "outputModifies": ["VC"]
     },
@@ -46,13 +46,13 @@
       "longDescriptionMarkdown": "Change the color the vertices of the mesh adjusting brightness, contrast and gamma.",
       "tags": ["color", "vertex"],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
       "parameters": [
         { "id": "brightness", "label": "Brightness", "help": "Sets the amount of brightness that will be added/subtracted to the colors.", "group": "main", "type": "double", "default": 0.0, "min": -255.0, "max": 255.0, "decimals": 3 },
         { "id": "contrast", "label": "Contrast factor", "help": "Sets the amount of contrast of the mesh.", "group": "main", "type": "double", "default": 0.0, "min": -255.0, "max": 255.0, "decimals": 3 },
-        { "id": "gamma", "label": "Gamma", "help": "Sets the values of the exponent gamma.", "group": "main", "type": "double", "default": 1.0, "min": 0.1, "max": 5.0, "decimals": 3 },
-        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+        { "id": "gamma", "label": "Gamma", "help": "Sets the values of the exponent gamma.", "group": "main", "type": "double", "default": 1.0, "min": 0.1, "max": 5.0, "decimals": 3 }
       ],
       "outputModifies": ["VC"]
     },
@@ -65,10 +65,10 @@
       "longDescriptionMarkdown": "Inverts the colors of the vertices of the mesh.",
       "tags": ["color", "vertex"],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
       "parameters": [
-        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
       ],
       "outputModifies": ["VC"]
     },
@@ -81,6 +81,7 @@
       "longDescriptionMarkdown": "The filter allows adjustment of color levels. It is a custom way to map an interval of color into another one. The user can set the input minimum and maximum levels, gamma and the output minimum and maximum levels (many tools call them respectively input black point, white point, gray point, output black point and white point).",
       "tags": ["color", "vertex"],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
       "parameters": [
@@ -91,8 +92,7 @@
         { "id": "out_max", "label": "Max output level", "help": "Maximum output level.", "group": "main", "type": "double", "default": 255.0, "min": 0.0, "max": 255.0, "decimals": 3 },
         { "id": "rCh", "label": "Red Channel", "help": "Apply to red channel.", "group": "advanced", "type": "bool", "default": true },
         { "id": "gCh", "label": "Green Channel", "help": "Apply to green channel.", "group": "advanced", "type": "bool", "default": true },
-        { "id": "bCh", "label": "Blue Channel", "help": "Apply to blue channel.", "group": "advanced", "type": "bool", "default": true },
-        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "advanced", "type": "bool", "default": false }
+        { "id": "bCh", "label": "Blue Channel", "help": "Apply to blue channel.", "group": "advanced", "type": "bool", "default": true }
       ],
       "outputModifies": ["VC"]
     },
@@ -105,14 +105,14 @@
       "longDescriptionMarkdown": "Allows the application of a color to the mesh. In spite of the Fill operation, the color is blended with the mesh according to a given intensity.",
       "tags": ["color", "vertex"],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireVertices": true },
       "parameters": [
         { "id": "hue", "label": "Hue", "help": "Changes the hue of the mesh.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 360.0, "decimals": 3 },
         { "id": "saturation", "label": "Saturation", "help": "Changes the saturation of the mesh.", "group": "main", "type": "double", "default": 100.0, "min": 0.0, "max": 100.0, "decimals": 3 },
         { "id": "luminance", "label": "Luminance", "help": "Changes the luminance of the mesh.", "group": "main", "type": "double", "default": 50.0, "min": 0.0, "max": 100.0, "decimals": 3 },
-        { "id": "intensity", "label": "Blending", "help": "Sets the blending factor used in adding the new color to the existing one.", "group": "main", "type": "double", "default": 50.0, "min": 0.0, "max": 100.0, "decimals": 3 },
-        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+        { "id": "intensity", "label": "Blending", "help": "Sets the blending factor used in adding the new color to the existing one.", "group": "main", "type": "double", "default": 50.0, "min": 0.0, "max": 100.0, "decimals": 3 }
       ],
       "outputModifies": ["VC"]
     },
@@ -125,6 +125,7 @@
       "longDescriptionMarkdown": "The filter desaturates the colors of the mesh. This provides a simple way to convert a mesh in gray tones. The user can choose the desaturation method to apply; they are based on Lightness, Luminosity and Average.",
       "tags": ["color", "vertex"],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
       "parameters": [
@@ -140,8 +141,7 @@
             { "id": "luminosity", "label": "Luminosity" },
             { "id": "average", "label": "Average" }
           ]
-        },
-        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+        }
       ],
       "outputModifies": ["VC"]
     },
@@ -154,13 +154,13 @@
       "longDescriptionMarkdown": "The filter equalizes the colors histogram. It is a kind of automatic regulation of contrast; the colors histogram is expanded to fit all the range of colors.",
       "tags": ["color", "vertex"],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
       "parameters": [
         { "id": "rCh", "label": "Red Channel", "help": "Select the red channel.", "group": "main", "type": "bool", "default": true },
         { "id": "gCh", "label": "Green Channel", "help": "Select the green channel.", "group": "main", "type": "bool", "default": true },
-        { "id": "bCh", "label": "Blue Channel", "help": "Select the blue channel. If no channel is selected the filter works on Lightness.", "group": "main", "type": "bool", "default": true },
-        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+        { "id": "bCh", "label": "Blue Channel", "help": "Select the blue channel. If no channel is selected the filter works on Lightness.", "group": "main", "type": "bool", "default": true }
       ],
       "outputModifies": ["VC"]
     },
@@ -173,11 +173,11 @@
       "longDescriptionMarkdown": "The filter provides a standard white balance transformation. It is done correcting the RGB channels with a factor such that, the brighter color in the mesh, that is supposed to be white, becomes really white.",
       "tags": ["color", "vertex"],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
       "parameters": [
-        { "id": "color", "label": "Unbalanced white", "help": "The color that is supposed to be white.", "group": "main", "type": "color", "default": "#ffffff" },
-        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+        { "id": "color", "label": "Unbalanced white", "help": "The color that is supposed to be white.", "group": "main", "type": "color", "default": "#ffffff" }
       ],
       "outputModifies": ["VC"]
     },
@@ -190,14 +190,14 @@
       "longDescriptionMarkdown": "Paints the mesh using PerlinColor function. The color assigned to vertices depends on their position in the space; it means that near vertices will be painted with similar colors.",
       "tags": ["color", "vertex", "noise"],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireVertices": true },
       "parameters": [
         { "id": "color1", "label": "Color 1", "help": "Sets the first color to mix with Perlin Noise function.", "group": "main", "type": "color", "default": "#000000" },
         { "id": "color2", "label": "Color 2", "help": "Sets the second color to mix with Perlin Noise function.", "group": "main", "type": "color", "default": "#ffffff" },
         { "id": "freq", "label": "Frequency", "help": "Frequency of the Perlin Noise function, expressed as multiples of mesh bbox.", "group": "main", "type": "double", "default": 10.0, "min": 0.1, "max": 100.0, "decimals": 3 },
-        { "id": "offset", "label": "Offset", "help": "XYZ frequency offset of the noise function.", "group": "main", "type": "point3f", "default": [0.0, 0.0, 0.0] },
-        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+        { "id": "offset", "label": "Offset", "help": "XYZ frequency offset of the noise function.", "group": "main", "type": "point3f", "default": [0.0, 0.0, 0.0] }
       ],
       "outputModifies": ["VC"]
     },
@@ -210,11 +210,11 @@
       "longDescriptionMarkdown": "Adds to the color the requested amount of bits of noise. Bits of noise are added independently for each RGB channel.",
       "tags": ["color", "vertex", "noise"],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
       "parameters": [
         { "id": "noiseBits", "label": "Noise bits", "help": "Bits of noise added to each RGB channel.", "group": "main", "type": "int", "default": 1, "min": 1, "max": 8 },
-        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false },
         {
           "id": "randomSeed",
           "label": "Random seed",

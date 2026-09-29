@@ -138,7 +138,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
     // --- single proj ---
     if (fid == QString::fromLatin1(kFilterSingleProj)) {
         float eta = float(p.getDouble(QStringLiteral("deptheta"), 0.5));
-        bool onSel = p.getBool(QStringLiteral("onselection"), false);
+        bool onSel = p.getBool(QStringLiteral("selectedOnly"), false);
         bool preserveOccluded = p.getBool(QStringLiteral("preserveoccluded"), false);
         QColor blank = p.getColor(QStringLiteral("blankColor"), QColor(0, 0, 0, 255));
 
@@ -191,7 +191,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
     // --- multi proj ---
     if (fid == QString::fromLatin1(kFilterMultiProj)) {
         float eta = float(p.getDouble(QStringLiteral("deptheta"), 0.5));
-        bool onSel = p.getBool(QStringLiteral("onselection"), false);
+        bool onSel = p.getBool(QStringLiteral("selectedOnly"), false);
         bool ua = p.getBool(QStringLiteral("useangle"), true);
         bool ud = p.getBool(QStringLiteral("usedistance"), true);
         bool ub = p.getBool(QStringLiteral("useborders"), true);

@@ -1780,11 +1780,33 @@ MeshFilterRunResult runSmooth(const QString &filterId, const FilterParams &param
         Document::MeshEntry &entry = doc.mesh(index);
         const TfMesh source = tfMeshFromLayer(entry);
         VertexConnectivity conn(source);
-        auto tagged = source.points() | tf::tag(conn.link);
+        const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
 
-        auto smoothed = taubin
-            ? tf::taubin_smoothed(tagged, std::size_t(iterations), float(lambda), float(kpb))
-            : tf::laplacian_smoothed(tagged, std::size_t(iterations), float(lambda));
+        const auto smooth = [&](const auto &pts, std::size_t steps) {
+            auto tagged = pts | tf::tag(conn.link);
+            return taubin
+                ? tf::taubin_smoothed(tagged, steps, float(lambda), float(kpb))
+                : tf::laplacian_smoothed(tagged, steps, float(lambda));
+        };
+        // With selectedOnly the unselected vertices are held in place between iterations,
+        // not merely skipped when the result is written back: smoothing the whole mesh
+        // every iteration and masking at the end lets the vertices near the border of the
+        // selection follow neighbours that in the end never moved.
+        auto smoothed = smooth(source.points(), selectedOnly ? 1 : std::size_t(iterations));
+        if (selectedOnly && std::size_t(smoothed.points().size()) == live.size()) {
+            const auto original = source.points();
+            for (int it = 1; it <= iterations; ++it) {
+                auto current = smoothed.points();
+                for (std::size_t i = 0; i < live.size(); ++i) {
+                    if (entry.mesh.vert[live[i]].IsS())
+                        continue;
+                    for (int c = 0; c < 3; ++c)
+                        current[i][c] = original[i][c];
+                }
+                if (it < iterations)
+                    smoothed = smooth(smoothed.points(), 1);
+            }
+        }
 
         // The source was taken in world space, so the result comes back there too and
         // has to be mapped through the inverse layer matrix before it is stored.
@@ -1793,7 +1815,6 @@ MeshFilterRunResult runSmooth(const QString &filterId, const FilterParams &param
         if (!invertible)
             return fail(QObject::tr("The layer matrix is not invertible."));
 
-        const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
         const auto points = smoothed.points();
         if (std::size_t(points.size()) != live.size())
             return fail(QObject::tr("Smoothing returned an unexpected number of points."));

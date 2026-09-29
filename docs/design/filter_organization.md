@@ -254,7 +254,7 @@ Recommended common names:
 | source texture | `sourceTexture` |
 | target texture | `targetTexture` |
 | output texture | `outputTexture` |
-| selected-only toggle | `selectedOnly` |
+| selected-only toggle | `selectedOnly` — injected from `selectionScope`, never declared by hand ([Adding a Filter](adding_a_filter.md)) |
 | preserve boundary | `preserveBoundary` |
 | preserve topology | `preserveTopology` |
 | update normals | `updateNormals` |

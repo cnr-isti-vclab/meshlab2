@@ -189,7 +189,7 @@ void MeshFilterPanel::buildUi()
         const Document::FilterInfo *info = filterByKey(m_currentFilterKey);
         if (!info)
             return;
-        const MeshFilterParameterValues vals = m_paramForm->values();
+        const MeshFilterParameterValues vals = currentParameterValues();
         emit copyToConsoleRequested(filterCallToPython(info->descriptor, vals, false));
     });
 #endif
@@ -212,6 +212,22 @@ void MeshFilterPanel::buildUi()
     m_applyToAllVisible->hide();
     headerLayout->addWidget(m_applyToAllVisible, 0, Qt::AlignTop);
     paramsPageLayout->addLayout(headerLayout);
+
+    m_selectedOnlyCheck = new QCheckBox(m_parametersPage);
+    m_selectedOnlyCheck->hide();
+    connect(m_selectedOnlyCheck, &QCheckBox::toggled, this, [this](bool) {
+        refreshCurrentFilterApplicability();
+    });
+    paramsPageLayout->addWidget(m_selectedOnlyCheck);
+    // A selection change does not reload the filter list, so the count is kept live here.
+    if (m_doc) {
+        const auto followSelection = [this]() {
+            refreshSelectionScopeControl(false);
+            refreshCurrentFilterApplicability();
+        };
+        connect(m_doc, &Document::meshSelectionChanged, this, followSelection);
+        connect(m_doc, &Document::undoRestoreCompleted, this, followSelection);
+    }
 
     m_filterDescriptionLabel = new QLabel(m_parametersPage);
     m_filterDescriptionLabel->setWordWrap(true);
@@ -257,6 +273,8 @@ void MeshFilterPanel::buildUi()
                 if (binding->descriptor.type == MeshFilterParameterType::Mesh)
                     m_paramForm->refreshDependentEditors();
             }
+            if (!m_currentScopeMeshParameter.isEmpty() && parameterId == m_currentScopeMeshParameter)
+                refreshSelectionScopeControl(false);
             refreshCurrentFilterApplicability();
         });
 
@@ -369,6 +387,9 @@ void MeshFilterPanel::openFilterWithParameters(
     if (m_currentFilterKey != filterKey)
         return;
     m_paramForm->setValues(parameters);
+    const QString scopeId = QString::fromLatin1(SelectionScopes::kParameterId);
+    if (m_selectedOnlyCheck && m_selectedOnlyCheck->isEnabled() && parameters.contains(scopeId))
+        m_selectedOnlyCheck->setChecked(parameters.value(scopeId).toBool());
     // Leaving the filter and coming back should not silently revert to the older values.
     m_filterParameterCache.insert(filterKey, m_paramForm->values());
 }
@@ -409,7 +430,7 @@ void MeshFilterPanel::onApplyClicked()
     if (!info)
         return;
 
-    const MeshFilterParameterValues parameters = m_paramForm->values();
+    const MeshFilterParameterValues parameters = currentParameterValues();
 
     if (m_applyToAllVisible && m_applyToAllVisible->isChecked()) {
         // The sweep, its single undo step and its reporting of skipped layers all live in
@@ -462,6 +483,7 @@ void MeshFilterPanel::onResetParametersClicked()
     }
 
     buildParameterEditors(resetInfo);
+    refreshSelectionScopeControl(true);
     refreshCurrentFilterApplicability();
 }
 
@@ -543,6 +565,7 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
     cacheCurrentFilterParameters();
 
     const Document::FilterInfo &info = m_filters[static_cast<size_t>(filterIndex)];
+    const bool reopening = (m_currentFilterKey == info.key);
     m_currentFilterKey = info.key;
     m_filterTitleLabel->setText(info.descriptor.name);
     m_filterDescriptionLabel->setText(info.descriptor.shortDescription);
@@ -612,6 +635,9 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
     const auto cacheIt = m_filterParameterCache.constFind(info.key);
     if (cacheIt != m_filterParameterCache.constEnd())
         m_paramForm->setValues(cacheIt.value());
+    // Not from the cache: the selection is document state, and the scope that suited last
+    // week's selection is the wrong default for today's.
+    refreshSelectionScopeControl(!reopening);
     refreshCurrentFilterApplicability();
     m_stack->setCurrentWidget(m_parametersPage);
 }
@@ -716,7 +742,18 @@ void MeshFilterPanel::clearParameterEditors()
 void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterInfo)
 {
     clearParameterEditors();
-    if (filterInfo.descriptor.parameters.empty()) {
+    m_currentScope = filterInfo.descriptor.selectionScope;
+    m_currentScopeMeshParameter = filterInfo.descriptor.selectionScopeMesh;
+    std::vector<MeshFilterParameterDescriptor> formParameters;
+    formParameters.reserve(filterInfo.descriptor.parameters.size());
+    for (const MeshFilterParameterDescriptor &p : filterInfo.descriptor.parameters) {
+        if (m_currentScope != SelectionScope::None
+            && p.id == QLatin1String(SelectionScopes::kParameterId))
+            continue;
+        formParameters.push_back(p);
+    }
+    refreshSelectionScopeControl(false);
+    if (formParameters.empty()) {
         m_noParametersLabel->show();
         if (m_showAdvancedCheck) {
             m_showAdvancedCheck->setChecked(false);
@@ -728,7 +765,7 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
         m_noParametersLabel->hide();
 
     m_paramForm->setAdvancedVisible(m_showAdvancedCheck && m_showAdvancedCheck->isChecked());
-    m_paramForm->build(filterInfo.descriptor.parameters);
+    m_paramForm->build(formParameters);
     refreshCurrentFilterApplicability();
 
     if (m_showAdvancedCheck) {
@@ -748,7 +785,7 @@ void MeshFilterPanel::refreshCurrentFilterApplicability()
     if (!info || !m_applyButton || !m_filterDescriptionLabel)
         return;
 
-    const MeshFilterParameterValues parameters = m_paramForm->values();
+    const MeshFilterParameterValues parameters = currentParameterValues();
     QString errorMessage;
     const bool applicable = m_doc->validateFilterInvocation(m_currentFilterKey, parameters, errorMessage);
 
@@ -772,6 +809,60 @@ void MeshFilterPanel::refreshCurrentFilterApplicability()
 }
 
 
+
+MeshFilterParameterValues MeshFilterPanel::currentParameterValues() const
+{
+    MeshFilterParameterValues values = m_paramForm->values();
+    if (m_currentScope != SelectionScope::None && m_selectedOnlyCheck) {
+        values.insert(
+            QString::fromLatin1(SelectionScopes::kParameterId),
+            m_selectedOnlyCheck->isEnabled() && m_selectedOnlyCheck->isChecked());
+    }
+    return values;
+}
+
+int MeshFilterPanel::currentSelectionScopeMeshIndex() const
+{
+    if (!m_doc)
+        return -1;
+    if (m_currentScopeMeshParameter.isEmpty())
+        return m_doc->currentMeshIndex();
+    bool ok = false;
+    const int index = m_paramForm->values().value(m_currentScopeMeshParameter).toInt(&ok);
+    return ok ? index : -1;
+}
+
+void MeshFilterPanel::refreshSelectionScopeControl(bool reset)
+{
+    if (!m_selectedOnlyCheck)
+        return;
+    if (m_currentScope == SelectionScope::None || m_currentFilterKey.isEmpty() || !m_doc) {
+        m_selectedOnlyCheck->hide();
+        m_lastScopeCount = 0;
+        return;
+    }
+    const int meshIndex = currentSelectionScopeMeshIndex();
+    const bool validMesh = meshIndex >= 0 && meshIndex < m_doc->meshCount();
+    const SelectionScopes::Restriction restriction = validMesh
+        ? SelectionScopes::restriction(m_doc->mesh(meshIndex).mesh, m_currentScope)
+        : SelectionScopes::Restriction{};
+    QString text = SelectionScopes::describe(m_currentScope, restriction);
+    // Name the layer when the scope is on one the filter picks by parameter rather than
+    // on the current one, where it goes without saying.
+    if (validMesh && !m_currentScopeMeshParameter.isEmpty())
+        text += tr(" of '%1'").arg(m_doc->mesh(meshIndex).name);
+
+    const QSignalBlocker blocker(m_selectedOnlyCheck);
+    m_selectedOnlyCheck->setText(text);
+    m_selectedOnlyCheck->setToolTip(SelectionScopes::parameterHelp(m_currentScope));
+    m_selectedOnlyCheck->setEnabled(restriction.count > 0);
+    if (restriction.count == 0)
+        m_selectedOnlyCheck->setChecked(false);
+    else if (reset || m_lastScopeCount == 0)
+        m_selectedOnlyCheck->setChecked(true);
+    m_lastScopeCount = restriction.count;
+    m_selectedOnlyCheck->show();
+}
 
 void MeshFilterPanel::cacheCurrentFilterParameters()
 {

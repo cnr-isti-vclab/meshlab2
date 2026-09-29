@@ -76,6 +76,14 @@ private:
     void buildParameterEditors(const Document::FilterInfo &filterInfo);
     void refreshCurrentFilterApplicability();
     void cacheCurrentFilterParameters();
+    // The form's values plus `selectedOnly`, which the form does not hold: every caller
+    // that runs, validates or exports the current filter goes through this.
+    MeshFilterParameterValues currentParameterValues() const;
+    // Re-reads the selection the current filter would be confined to. `reset` puts the
+    // control back to its default -- on when there is a selection -- as opening a filter
+    // does; otherwise an explicit choice survives while the selection stays non-empty.
+    void refreshSelectionScopeControl(bool reset);
+    int currentSelectionScopeMeshIndex() const;
     void updateParameterFormContext();
     bool matchesSearch(const Document::FilterInfo &filterInfo, const QStringList &terms) const;
     bool titleMatchesAllTerms(const Document::FilterInfo &filterInfo, const QStringList &terms) const;
@@ -113,6 +121,12 @@ private:
     QTextBrowser *m_longDescriptionView = nullptr;
     QCheckBox *m_showAdvancedCheck = nullptr;
     QCheckBox *m_applyToAllVisible = nullptr;
+    // The selection scope of a filter that declares one: shown on its own line under the
+    // header, never among the parameters, because it decides where the filter works.
+    QCheckBox *m_selectedOnlyCheck = nullptr;
+    SelectionScope m_currentScope = SelectionScope::None;
+    QString m_currentScopeMeshParameter;
+    int m_lastScopeCount = 0;
     QScrollArea *m_parametersScroll = nullptr;
     QWidget *m_parametersWidget = nullptr;
     QFormLayout *m_parametersLayout = nullptr;

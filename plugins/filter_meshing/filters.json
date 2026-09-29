@@ -68,6 +68,7 @@
         "meshing"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
@@ -115,14 +116,6 @@
           "min": 0.0,
           "max": "@bboxDiag",
           "decimals": 6
-        },
-        {
-          "id": "Selected",
-          "label": "Affect only selected faces",
-          "help": "If selected the filter affects only selected faces.",
-          "group": "main",
-          "type": "bool",
-          "default": "@hasSelectedFaces"
         }
       ],
       "outputModifies": [
@@ -145,6 +138,7 @@
         "meshing"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
@@ -170,14 +164,6 @@
           "min": 0.0,
           "max": "@bboxDiag",
           "decimals": 6
-        },
-        {
-          "id": "Selected",
-          "label": "Affect only selected faces",
-          "help": "If selected the filter affects only selected faces.",
-          "group": "main",
-          "type": "bool",
-          "default": "@hasSelectedFaces"
         }
       ],
       "outputModifies": [
@@ -200,6 +186,7 @@
         "meshing"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
@@ -225,14 +212,6 @@
           "min": 0.0,
           "max": "@bboxDiag",
           "decimals": 6
-        },
-        {
-          "id": "Selected",
-          "label": "Affect only selected faces",
-          "help": "If selected the filter affects only selected faces.",
-          "group": "main",
-          "type": "bool",
-          "default": "@hasSelectedFaces"
         }
       ],
       "outputModifies": [
@@ -255,6 +234,7 @@
         "meshing"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
@@ -302,14 +282,6 @@
           "min": 0.0,
           "max": "@bboxDiag",
           "decimals": 6
-        },
-        {
-          "id": "Selected",
-          "label": "Affect only selected faces",
-          "help": "If selected the filter affects only selected faces.",
-          "group": "main",
-          "type": "bool",
-          "default": "@hasSelectedFaces"
         }
       ],
       "outputModifies": [
@@ -365,6 +337,7 @@
         "meshing"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
@@ -479,14 +452,6 @@
           "group": "main",
           "type": "bool",
           "default": true
-        },
-        {
-          "id": "Selected",
-          "label": "Simplify only selected faces",
-          "help": "Apply simplification only to selected faces.",
-          "group": "main",
-          "type": "bool",
-          "default": "@hasSelectedFaces"
         }
       ],
       "outputModifies": [
@@ -513,6 +478,7 @@
         "meshing"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true,
@@ -604,14 +570,6 @@
           "group": "advanced",
           "type": "bool",
           "default": false
-        },
-        {
-          "id": "Selected",
-          "label": "Simplify only selected faces",
-          "help": "Apply simplification only to selected faces.",
-          "group": "main",
-          "type": "bool",
-          "default": "@hasSelectedFaces"
         }
       ],
       "outputModifies": [
@@ -637,6 +595,7 @@
         "meshing"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
@@ -656,14 +615,6 @@
           "id": "Adaptive",
           "label": "Adaptive remeshing",
           "help": "Toggle adaptive isotropic remeshing.",
-          "group": "main",
-          "type": "bool",
-          "default": false
-        },
-        {
-          "id": "SelectedOnly",
-          "label": "Remesh only selected faces",
-          "help": "Apply remeshing only to selected faces.",
           "group": "main",
           "type": "bool",
           "default": false
@@ -803,6 +754,7 @@
         "meshing"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
@@ -815,14 +767,6 @@
           "group": "main",
           "type": "bool",
           "default": true
-        },
-        {
-          "id": "onlySelected",
-          "label": "Flip only selected faces",
-          "help": "If selected, only selected faces are affected.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ],
       "outputModifies": [

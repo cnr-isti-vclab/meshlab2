@@ -10,6 +10,7 @@
       "longDescriptionMarkdown": "Projects color information from the current raster onto the mesh vertices using perspective projection. Optionally uses a software depth buffer to restrict projection to visible faces only.",
       "tags": ["color", "raster", "projection", "vertex"],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireVertices": true },
       "parameters": [
@@ -31,14 +32,6 @@
           "min": 0.0,
           "max": 100.0,
           "decimals": 4
-        },
-        {
-          "id": "onselection",
-          "label": "Only on selection",
-          "help": "If true, projection is only applied to selected vertices.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         },
         {
           "id": "blankColor",
@@ -68,6 +61,7 @@
       "longDescriptionMarkdown": "Projects color information from all visible and valid rasters onto the mesh vertices using perspective projection and weighted blending. Weights can account for view angle, distance, image border proximity, depth discontinuities, and image alpha.",
       "tags": ["color", "raster", "projection", "vertex", "multi"],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireVertices": true },
       "parameters": [
@@ -81,14 +75,6 @@
           "min": 0.0,
           "max": 100.0,
           "decimals": 4
-        },
-        {
-          "id": "onselection",
-          "label": "Only on selection",
-          "help": "If true, projection is only applied to selected vertices.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         },
         {
           "id": "useangle",

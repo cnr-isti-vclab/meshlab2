@@ -119,16 +119,6 @@ MeshFilterRunResult success(const QStringList &info = {})
     return result;
 }
 
-int selectedFaceCount(const VCGMesh &mesh)
-{
-    int count = 0;
-    for (const VCGFace &face : mesh.face) {
-        if (!face.IsD() && face.IsS())
-            ++count;
-    }
-    return count;
-}
-
 void setAllWritable(VCGMesh &mesh)
 {
     for (VCGFace &face : mesh.face) {
@@ -240,9 +230,7 @@ MeshFilterRunResult TriOptimizeFilterPlugin::runFilter(
             return fail(QObject::tr("Edge flip optimization requires a two-manifold face topology."));
 
         if (filterId == QString::fromLatin1(kPlanarFlip)) {
-            const bool selected = params.getBool(QStringLiteral("selection"));
-            if (selected && selectedFaceCount(mesh) <= 0)
-                return fail(QObject::tr("No selected faces available for planar edge flip optimization."));
+            const bool selected = params.getBool(QStringLiteral("selectedOnly"));
             if (selected)
                 restrictWritableToSelectedFaces(mesh);
 
@@ -266,6 +254,11 @@ MeshFilterRunResult TriOptimizeFilterPlugin::runFilter(
 
             const int iterations = std::max(0, params.getInt(QStringLiteral("iterations")));
             if (iterations > 0) {
+                // restrictWritableToSelectedFaces() left every vertex of a selected face
+                // selected, border ones included; relaxing those would move faces outside
+                // the selection, so only the interior vertices are relaxed.
+                if (selected)
+                    vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceStrict(mesh);
                 vcg::tri::Smooth<VCGMesh>::VertexCoordPlanarLaplacian(
                     mesh,
                     iterations,
@@ -275,8 +268,6 @@ MeshFilterRunResult TriOptimizeFilterPlugin::runFilter(
             }
 
             normalizeGeometryAfterOptimization(mesh);
-            if (selected)
-                vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceStrict(mesh);
             setAllWritable(mesh);
 
             entry.ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
@@ -295,11 +286,23 @@ MeshFilterRunResult TriOptimizeFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kCurvatureFlip)) {
-            const bool selected = params.getBool(QStringLiteral("selection"));
-            if (selected && selectedFaceCount(mesh) <= 0)
-                return fail(QObject::tr("No selected faces available for curvature edge flip optimization."));
-            if (selected)
+            const bool selected = params.getBool(QStringLiteral("selectedOnly"));
+            // The flip keeps each vertex's curvature in its quality, and needs it on the border
+            // of the selection too -- an inside edge's metric reads all four of its corners --
+            // but those border vertices also belong to unselected faces, whose scalar must not
+            // change. Their quality is computed for the metric and put back afterwards.
+            std::vector<std::pair<size_t, float>> borderQuality;
+            if (selected) {
+                std::vector<bool> onUnselected(mesh.vert.size(), false);
+                for (const VCGFace &f : mesh.face)
+                    if (!f.IsD() && !f.IsS())
+                        for (int k = 0; k < 3; ++k)
+                            onUnselected[size_t(vcg::tri::Index(mesh, f.cV(k)))] = true;
+                for (size_t k = 0; k < mesh.vert.size(); ++k)
+                    if (onUnselected[k] && !mesh.vert[k].IsD())
+                        borderQuality.push_back({ k, mesh.vert[k].Q() });
                 restrictWritableToSelectedFaces(mesh);
+            }
 
             vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::TestVertexFace(mesh);
@@ -316,10 +319,10 @@ MeshFilterRunResult TriOptimizeFilterPlugin::runFilter(
                 performed = runSinglePassEdgeFlip<AbsCEFlip>(mesh, pp);
             else
                 performed = runSinglePassEdgeFlip<MeanCEFlip>(mesh, pp);
+            for (const auto &[index, quality] : borderQuality)
+                mesh.vert[index].Q() = quality;
 
             normalizeGeometryAfterOptimization(mesh);
-            if (selected)
-                vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceStrict(mesh);
             setAllWritable(mesh);
 
             entry.ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL | Mask::IOM_VERTQUALITY;
@@ -336,9 +339,7 @@ MeshFilterRunResult TriOptimizeFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kNearLaplacian)) {
-            const bool selected = params.getBool(QStringLiteral("selection"));
-            if (selected && selectedFaceCount(mesh) <= 0)
-                return fail(QObject::tr("No selected faces available for surface-preserving Laplacian smoothing."));
+            const bool selected = params.getBool(QStringLiteral("selectedOnly"));
             if (selected)
                 vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceStrict(mesh);
 

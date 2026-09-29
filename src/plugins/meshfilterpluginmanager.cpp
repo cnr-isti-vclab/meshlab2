@@ -37,6 +37,20 @@ constexpr QLatin1StringView kKeySeparator("::");
 // they are a property of faces rather than a container of their own, the face edges --
 // the three sides each face carries -- only when the filter says it marks them or some
 // are marked already.
+// The layer a scoped filter confines itself on: the one its `selectionScopeMesh`
+// parameter names, or the current mesh.
+int selectionScopeMeshIndex(
+    const MeshFilterDescriptor &descriptor,
+    const MeshFilterParameterValues &parameters,
+    const Document &doc)
+{
+    if (descriptor.selectionScopeMesh.isEmpty())
+        return doc.currentMeshIndex();
+    bool ok = false;
+    const int index = parameters.value(descriptor.selectionScopeMesh).toInt(&ok);
+    return ok ? index : -1;
+}
+
 QString selectionSummaryFor(
     const VCGMesh &mesh, const QStringList &outputModifies)
 {
@@ -1087,7 +1101,15 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
         // Enable OCF components, compute topology/normals, and keep them alive
         // until the filter returns (scope destructor disables them).
         const MultiMeshPreparationScope prepScope = prepareMeshesForFilter(*targetDescriptor, typedParams, doc);
+        // A scoped filter sees a selection of its own kind even when the user made the other
+        // kind, and leaves the user's selection as it found it.
+        SelectionScopes::RunGuard scopeGuard(
+            doc,
+            selectionScopeMeshIndex(*targetDescriptor, normalizedParameters, doc),
+            targetDescriptor->selectionScope,
+            normalizedParameters.value(QString::fromLatin1(SelectionScopes::kParameterId)).toBool());
         result = targetPlugin->runFilter(filterId, typedParams, doc);
+        scopeGuard.restore();
         if (!result.success) {
             // Only roll back a step we opened ourselves: inside an outer transaction
             // this would discard the caller's entire step, not just this one run.
@@ -1294,7 +1316,28 @@ bool MeshFilterPluginManager::normalizeAndValidateParameters(
         }
     }
 
-    return validateNamedMeshParameters(descriptor, normalizedParameters, doc, errorMessage);
+    if (!validateNamedMeshParameters(descriptor, normalizedParameters, doc, errorMessage))
+        return false;
+
+    // `selectedOnly` is decided against the mesh the scope actually names in this call, not
+    // the descriptor's default layer: omitted, it is on exactly when there is something to
+    // confine the filter to; on with nothing to confine it to, the call is refused here,
+    // before any filter code runs, with one message for every scoped filter.
+    if (descriptor.selectionScope != SelectionScope::None) {
+        const QString scopeId = QString::fromLatin1(SelectionScopes::kParameterId);
+        const int meshIndex = selectionScopeMeshIndex(descriptor, normalizedParameters, doc);
+        const SelectionScopes::Restriction restriction =
+            (meshIndex >= 0 && meshIndex < doc.meshCount())
+                ? SelectionScopes::restriction(doc.mesh(meshIndex).mesh, descriptor.selectionScope)
+                : SelectionScopes::Restriction{};
+        if (!inputParameters.contains(scopeId))
+            normalizedParameters.insert(scopeId, restriction.count > 0);
+        if (normalizedParameters.value(scopeId).toBool() && restriction.count == 0) {
+            errorMessage = SelectionScopes::emptyRestrictionError(descriptor.selectionScope);
+            return false;
+        }
+    }
+    return true;
 }
 
 bool MeshFilterPluginManager::convertParameterValue(

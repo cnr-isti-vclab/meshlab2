@@ -14,6 +14,7 @@
 #include <random>
 
 #include "document.h"
+#include "selectionscope.h"
 #include "layerdata.h"
 
 #include <vcg/complex/algorithms/stat.h>
@@ -30,6 +31,7 @@
 #include <vcg/complex/algorithms/update/topology.h>
 #include <vcg/complex/allocate.h>
 #include <array>
+#include <memory>
 #include <cmath>
 
 namespace {
@@ -490,6 +492,8 @@ private slots:
     void randomSeedZeroVariesBetweenRuns();
     void randomSeedControlsExpressionRnd();
     void randomizedFiltersDeclareARandomSeed();
+    void scopedFiltersConfineThemselvesToTheSelection_data();
+    void scopedFiltersConfineThemselvesToTheSelection();
     void capFiltersAgreeOnTheHalfAngleConvention();
     void elementSamplingEmitsOneSamplePerElement();
     void normalizeReferenceFrameIsOrientationInvariant();
@@ -6033,6 +6037,355 @@ QString filterKeyForId(const Document &doc, const QString &filterId)
     return {};
 }
 
+// --- Selection scope contract -----------------------------------------------------------
+//
+// Every filter declaring a selectionScope promises: with selectedOnly on, nothing outside
+// the selection changes; with it off, the selection makes no difference; either way the
+// user's selection survives the run. These helpers take the mesh apart into what that
+// promise is about.
+
+// A sphere carrying every attribute a scoped filter might write.
+void makeScopeSurface(VCGMesh &mesh)
+{
+    mesh.Clear();
+    vcg::tri::Sphere(mesh, 3);
+    mesh.vert.EnableTexCoord();
+    mesh.face.EnableWedgeTexCoord();
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+    for (auto &v : mesh.vert) {
+        v.C() = vcg::Color4b(200, 180, 160, 255);
+        v.Q() = v.P().X();
+        v.T().U() = 0.5f + 0.4f * v.P().X();
+        v.T().V() = 0.5f + 0.4f * v.P().Y();
+    }
+    for (size_t i = 0; i < mesh.face.size(); ++i) {
+        auto &f = mesh.face[i];
+        f.C() = vcg::Color4b(160, 180, 200, 255);
+        f.Q() = float(i) / float(mesh.face.size());
+        for (int c = 0; c < 3; ++c) {
+            f.WT(c).U() = f.V(c)->T().U();
+            f.WT(c).V() = f.V(c)->T().V();
+            f.WT(c).N() = 0;
+        }
+    }
+}
+
+int scopeSurfaceMask()
+{
+    using vcg::tri::io::Mask;
+    return Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_VERTCOLOR
+         | Mask::IOM_VERTQUALITY | Mask::IOM_VERTTEXCOORD
+         | Mask::IOM_FACEINDEX | Mask::IOM_FACENORMAL | Mask::IOM_FACECOLOR
+         | Mask::IOM_FACEQUALITY | Mask::IOM_WEDGTEXCOORD;
+}
+
+// An open polyline, for the edge scope.
+void makeScopePolyline(VCGMesh &mesh)
+{
+    mesh.Clear();
+    const int n = 16;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, n + 1);
+    // Every attribute set, as on the surface fixture: two runs built separately are compared,
+    // and uninitialized memory would differ between them.
+    for (int i = 0; i <= n; ++i) {
+        VCGVertex &v = mesh.vert[size_t(i)];
+        v.P() = vcg::Point3f(-1.0f + 2.0f * float(i) / float(n), 0.1f * float(i), 0.0f);
+        v.N() = vcg::Point3f(0.0f, 0.0f, 1.0f);
+        v.C() = vcg::Color4b(200, 180, 160, 255);
+        v.Q() = float(i);
+    }
+    vcg::tri::Allocator<VCGMesh>::AddEdges(mesh, n);
+    for (int i = 0; i < n; ++i) {
+        mesh.edge[size_t(i)].V(0) = &mesh.vert[size_t(i)];
+        mesh.edge[size_t(i)].V(1) = &mesh.vert[size_t(i + 1)];
+        mesh.edge[size_t(i)].C() = vcg::Color4b(10, 20, 30, 255);
+        mesh.edge[size_t(i)].Q() = float(i);
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+}
+
+int scopePolylineMask()
+{
+    using vcg::tri::io::Mask;
+    return Mask::IOM_VERTCOORD | Mask::IOM_EDGEINDEX | Mask::IOM_EDGECOLOR | Mask::IOM_EDGEQUALITY;
+}
+
+// Selects the elements of one kind lying west of x = 0, and nothing else.
+void selectWestHalf(VCGMesh &mesh, SelectionScope kind)
+{
+    using Sel = vcg::tri::UpdateSelection<VCGMesh>;
+    Sel::VertexClear(mesh);
+    Sel::FaceClear(mesh);
+    Sel::EdgeClear(mesh);
+    switch (kind) {
+    case SelectionScope::Vertices:
+        for (auto &v : mesh.vert)
+            if (v.P().X() < 0.0f)
+                v.SetS();
+        break;
+    case SelectionScope::Faces:
+        for (auto &f : mesh.face)
+            if ((f.P(0).X() + f.P(1).X() + f.P(2).X()) < 0.0f)
+                f.SetS();
+        break;
+    case SelectionScope::Edges:
+        for (auto &e : mesh.edge)
+            if ((e.P(0).X() + e.P(1).X()) < 0.0f)
+                e.SetS();
+        break;
+    case SelectionScope::None:
+        break;
+    }
+}
+
+// The strict derivation, written out here as the test's own oracle rather than borrowed from
+// the framework it checks: vertices whose faces are all selected, faces whose vertices are.
+void deriveInside(VCGMesh &mesh, SelectionScope kind)
+{
+    if (kind == SelectionScope::Vertices) {
+        std::vector<int> selectedFaces(mesh.vert.size(), 0), allFaces(mesh.vert.size(), 0);
+        for (const auto &f : mesh.face) {
+            if (f.IsD())
+                continue;
+            for (int c = 0; c < 3; ++c) {
+                const size_t v = size_t(vcg::tri::Index(mesh, f.cV(c)));
+                ++allFaces[v];
+                selectedFaces[v] += f.IsS() ? 1 : 0;
+            }
+        }
+        for (size_t i = 0; i < mesh.vert.size(); ++i) {
+            if (allFaces[i] > 0 && selectedFaces[i] == allFaces[i])
+                mesh.vert[i].SetS();
+            else
+                mesh.vert[i].ClearS();
+        }
+    } else if (kind == SelectionScope::Faces) {
+        for (auto &f : mesh.face) {
+            if (f.cV(0)->IsS() && f.cV(1)->IsS() && f.cV(2)->IsS())
+                f.SetS();
+            else
+                f.ClearS();
+        }
+    }
+}
+
+using ScopeTriangle = std::array<std::array<float, 3>, 3>;
+
+std::array<float, 3> scopeKey(const vcg::Point3f &p)
+{
+    return { p.X(), p.Y(), p.Z() };
+}
+
+// A face as its three corner positions, rotated to start at the smallest so that the same
+// triangle compares equal wherever the filter left it in the face vector -- but a flipped
+// one does not.
+ScopeTriangle scopeTriangle(const VCGFace &f)
+{
+    ScopeTriangle t { scopeKey(f.cP(0)), scopeKey(f.cP(1)), scopeKey(f.cP(2)) };
+    const auto first = std::min_element(t.begin(), t.end()) - t.begin();
+    std::rotate(t.begin(), t.begin() + first, t.end());
+    return t;
+}
+
+struct ScopeVertexData
+{
+    vcg::Point3f p;
+    vcg::Color4b c;
+    float q = 0.0f;
+    vcg::TexCoord2f t;
+};
+
+// What the contract compares: vertex positions and the attributes a scoped filter writes
+// (not normals, which follow from moved neighbours and are recomputed everywhere), face and
+// edge attributes, and the selection itself.
+struct ScopeSnapshot
+{
+    std::vector<ScopeVertexData> vert;
+    std::vector<bool> vertSel;
+    std::vector<ScopeTriangle> faceTri;
+    std::vector<std::pair<vcg::Color4b, float>> faceData;
+    std::vector<bool> faceSel;
+    std::vector<std::pair<vcg::Color4b, float>> edgeData;
+    std::vector<bool> edgeSel;
+};
+
+ScopeSnapshot scopeSnapshot(const VCGMesh &mesh)
+{
+    ScopeSnapshot s;
+    for (const auto &v : mesh.vert) {
+        if (v.IsD())
+            continue;
+        ScopeVertexData d;
+        d.p = v.cP();
+        d.c = v.cC();
+        d.q = v.cQ();
+        // TexCoord2f does not initialize itself; a mesh without texcoords compares as zero.
+        d.t.U() = 0.0f;
+        d.t.V() = 0.0f;
+        if (mesh.vert.IsTexCoordEnabled())
+            d.t = v.cT();
+        s.vert.push_back(d);
+        s.vertSel.push_back(v.IsS());
+    }
+    for (const auto &f : mesh.face) {
+        if (f.IsD())
+            continue;
+        s.faceTri.push_back(scopeTriangle(f));
+        s.faceData.push_back({ f.cC(), f.cQ() });
+        s.faceSel.push_back(f.IsS());
+    }
+    for (const auto &e : mesh.edge) {
+        if (e.IsD())
+            continue;
+        s.edgeData.push_back({ e.cC(), e.cQ() });
+        s.edgeSel.push_back(e.IsS());
+    }
+    return s;
+}
+
+bool sameVertexData(const ScopeVertexData &a, const ScopeVertexData &b)
+{
+    return a.p == b.p && a.c == b.c && a.q == b.q && a.t.U() == b.t.U() && a.t.V() == b.t.V();
+}
+
+// Where the contract was broken, in words, or empty.
+QString scopeViolations(const ScopeSnapshot &before, const ScopeSnapshot &after, SelectionScope scope,
+                        bool checkSelection = true)
+{
+    QStringList out;
+    const bool sameVerts = before.vert.size() == after.vert.size();
+    const bool sameFaces = before.faceTri.size() == after.faceTri.size();
+    const bool sameEdges = before.edgeData.size() == after.edgeData.size();
+
+    if (scope == SelectionScope::Vertices) {
+        if (!sameVerts) {
+            out << QStringLiteral("vertex count changed");
+        } else {
+            int changed = 0;
+            for (size_t i = 0; i < before.vert.size(); ++i)
+                if (!before.vertSel[i] && !sameVertexData(before.vert[i], after.vert[i]))
+                    ++changed;
+            if (changed)
+                out << QStringLiteral("%1 unselected vertices changed").arg(changed);
+        }
+    }
+    if (scope == SelectionScope::Faces) {
+        // Every unselected face must survive as it was, wherever it now sits; and so must
+        // every vertex on one, found again by position.
+        std::set<ScopeTriangle> surviving(after.faceTri.begin(), after.faceTri.end());
+        std::map<std::array<float, 3>, const ScopeVertexData *> byPosition;
+        for (const auto &v : after.vert)
+            byPosition[scopeKey(v.p)] = &v;
+        std::map<std::array<float, 3>, const ScopeVertexData *> onUnselected;
+        for (const auto &v : before.vert)
+            onUnselected[scopeKey(v.p)] = nullptr;
+        int lost = 0;
+        for (size_t i = 0; i < before.faceTri.size(); ++i) {
+            if (before.faceSel[i])
+                continue;
+            if (!surviving.count(before.faceTri[i]))
+                ++lost;
+        }
+        if (lost)
+            out << QStringLiteral("%1 unselected faces changed").arg(lost);
+        int recolored = 0;
+        std::set<std::array<float, 3>> borderAndOutside;
+        for (size_t i = 0; i < before.faceTri.size(); ++i)
+            if (!before.faceSel[i])
+                for (const auto &corner : before.faceTri[i])
+                    borderAndOutside.insert(corner);
+        for (const auto &v : before.vert) {
+            if (!borderAndOutside.count(scopeKey(v.p)))
+                continue;
+            const auto it = byPosition.find(scopeKey(v.p));
+            if (it != byPosition.end() && !sameVertexData(v, *it->second))
+                ++recolored;
+        }
+        if (recolored)
+            out << QStringLiteral("%1 vertices of unselected faces changed").arg(recolored);
+        if (sameFaces) {
+            int attrs = 0;
+            for (size_t i = 0; i < before.faceData.size(); ++i)
+                if (!before.faceSel[i] && before.faceData[i] != after.faceData[i])
+                    ++attrs;
+            if (attrs)
+                out << QStringLiteral("%1 unselected faces changed color or scalar").arg(attrs);
+        }
+    }
+    if (scope == SelectionScope::Edges) {
+        if (!sameEdges) {
+            out << QStringLiteral("edge count changed");
+        } else {
+            int changed = 0;
+            for (size_t i = 0; i < before.edgeData.size(); ++i)
+                if (!before.edgeSel[i] && before.edgeData[i] != after.edgeData[i])
+                    ++changed;
+            if (changed)
+                out << QStringLiteral("%1 unselected edges changed").arg(changed);
+        }
+    }
+    // The selection survives wherever it can be matched element for element.
+    if (!checkSelection)
+        return out.join(QStringLiteral("; "));
+    if (sameVerts && before.vertSel != after.vertSel)
+        out << QStringLiteral("vertex selection changed");
+    if (sameFaces && before.faceSel != after.faceSel)
+        out << QStringLiteral("face selection changed");
+    if (sameEdges && before.edgeSel != after.edgeSel)
+        out << QStringLiteral("edge selection changed");
+    return out.join(QStringLiteral("; "));
+}
+
+// Everything but the selection, for comparing two runs that differ only in it.
+bool sameResultIgnoringSelection(const ScopeSnapshot &a, const ScopeSnapshot &b)
+{
+    if (a.vert.size() != b.vert.size() || a.faceTri != b.faceTri || a.faceData != b.faceData
+        || a.edgeData != b.edgeData)
+        return false;
+    for (size_t i = 0; i < a.vert.size(); ++i)
+        if (!sameVertexData(a.vert[i], b.vert[i]))
+            return false;
+    return true;
+}
+
+// Parameters that make a scoped filter do something on the fixture, where its defaults
+// would leave it unchanged or take long.
+MeshFilterParameterValues scopeTestParameters(const MeshFilterDescriptor &d)
+{
+    MeshFilterParameterValues p;
+    for (const MeshFilterParameterDescriptor &param : d.parameters)
+        if (param.id == QLatin1String("randomSeed"))
+            p.insert(param.id, 4242);
+    const QString id = d.id;
+    if (id.endsWith(QLatin1String("_scalar_by_expression"))) {
+        p.insert(QStringLiteral("normalize"), true);
+        p.insert(QStringLiteral("map"), true);
+    }
+    if (id.startsWith(QLatin1String("simplify_by_quadric_edge_collapse")))
+        p.insert(QStringLiteral("TargetPerc"), 0.5);
+    if (id.startsWith(QLatin1String("subdivide_by_"))) {
+        p.insert(QStringLiteral("Iterations"), 1);
+        p.insert(QStringLiteral("Threshold"), 0.0);
+    }
+    if (id == QLatin1String("remesh_isotropically_vcglib"))
+        p.insert(QStringLiteral("Iterations"), 2);
+    return p;
+}
+
+// Filters the fixture cannot drive, and why. A filter listed here that does run, or one
+// missing from it that does not, fails the test: the table cannot rot.
+const QHash<QString, QString> &scopeTestUnrunnable()
+{
+    static const QHash<QString, QString> table {
+        { QStringLiteral("transfer_color_from_current_raster_to_vertex"),
+          QStringLiteral("needs a calibrated raster") },
+        { QStringLiteral("transfer_color_from_visible_rasters_to_vertex"),
+          QStringLiteral("needs calibrated rasters") },
+    };
+    return table;
+}
+
 } // namespace
 
 // A convex closed surface cannot occlude itself: every ray leaving a face's outward
@@ -7596,7 +7949,7 @@ void FilterTests::isocontourEdgesCarryTheirContourValue()
     scalarParams.insert(QStringLiteral("q"), QStringLiteral("z"));
     scalarParams.insert(QStringLiteral("normalize"), false);
     scalarParams.insert(QStringLiteral("map"), false);
-    scalarParams.insert(QStringLiteral("onselected"), false);
+    scalarParams.insert(QStringLiteral("selectedOnly"), false);
     QVERIFY2(doc.runFilter(scalarKey, scalarParams).success, "vertex scalar failed");
 
     constexpr int kCount = 5;
@@ -7695,7 +8048,7 @@ void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()
         p.insert(QStringLiteral("g"), QStringLiteral("r0"));      // endpoint colour
         p.insert(QStringLiteral("b"), QStringLiteral("ei * 3"));
         p.insert(QStringLiteral("a"), QStringLiteral("255"));
-        p.insert(QStringLiteral("onselected"), false);
+        p.insert(QStringLiteral("selectedOnly"), false);
         runWith(QStringLiteral("compute_edge_color_by_expression"), p);
     }
     for (int i = 0; i < 4; ++i) {
@@ -7713,7 +8066,7 @@ void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()
         p.insert(QStringLiteral("g"), QStringLiteral("7"));
         p.insert(QStringLiteral("b"), QStringLiteral("7"));
         p.insert(QStringLiteral("a"), QStringLiteral("255"));
-        p.insert(QStringLiteral("onselected"), true);
+        p.insert(QStringLiteral("selectedOnly"), true);
         runWith(QStringLiteral("compute_edge_color_by_expression"), p);
     }
     QCOMPARE(int(doc.mesh(index).mesh.edge[0].cC()[0]), 10);   // untouched
@@ -7728,7 +8081,7 @@ void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()
         p.insert(QStringLiteral("q"), QStringLiteral("elen"));
         p.insert(QStringLiteral("normalize"), false);
         p.insert(QStringLiteral("map"), false);
-        p.insert(QStringLiteral("onselected"), false);
+        p.insert(QStringLiteral("selectedOnly"), false);
         runWith(QStringLiteral("compute_edge_scalar_by_expression"), p);
     }
     for (int i = 0; i < 4; ++i)
@@ -7751,7 +8104,7 @@ void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()
         p.insert(QStringLiteral("q"), QStringLiteral("elen * 100 + 5"));
         p.insert(QStringLiteral("normalize"), true);
         p.insert(QStringLiteral("map"), false);
-        p.insert(QStringLiteral("onselected"), false);
+        p.insert(QStringLiteral("selectedOnly"), false);
         runWith(QStringLiteral("compute_edge_scalar_by_expression"), p);
     }
     QCOMPARE(doc.mesh(index).mesh.edge[0].cQ(), 0.0f);
@@ -9110,6 +9463,170 @@ void FilterTests::trueFormBoundaryRimsComeBackOnePerCurve()
     QVERIFY2(none.errorMessage.contains(QStringLiteral("no boundary")),
              qPrintable(none.errorMessage));
     QCOMPARE(doc.meshCount(), before);
+}
+
+void FilterTests::scopedFiltersConfineThemselvesToTheSelection_data()
+{
+    QTest::addColumn<QString>("filterId");
+    Document doc;
+    int rows = 0;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.selectionScope == SelectionScope::None)
+            continue;
+        QTest::newRow(qPrintable(info.descriptor.id)) << info.descriptor.id;
+        ++rows;
+    }
+    QVERIFY2(rows >= 49, "fewer scoped filters than the migration declared");
+}
+
+void FilterTests::scopedFiltersConfineThemselvesToTheSelection()
+{
+    QFETCH(QString, filterId);
+
+    // One document per run, holding the layer under test -- and, for the attribute
+    // transfer, the layer it transfers from -- with the west half of it selected, or not.
+    struct Run
+    {
+        std::unique_ptr<Document> doc;
+        int layer = -1;
+        MeshFilterRunResult result;
+    };
+    SelectionScope kind = SelectionScope::None;
+    {
+        Document doc;
+        for (const auto &info : doc.filterInfos())
+            if (info.descriptor.id == filterId)
+                kind = info.descriptor.selectionScope;
+    }
+    QVERIFY(kind != SelectionScope::None);
+
+    const auto run = [&](bool selected, bool selectedOnly, SelectionScope selectKind) {
+        Run r;
+        r.doc = std::make_unique<Document>();
+        // A copy: filterInfos() returns a temporary.
+        MeshFilterDescriptor descriptor;
+        QString key;
+        for (const auto &info : r.doc->filterInfos()) {
+            if (info.descriptor.id == filterId) {
+                key = info.key;
+                break;
+            }
+        }
+        VCGMesh mesh;
+        const bool polyline = (kind == SelectionScope::Edges);
+        if (polyline)
+            makeScopePolyline(mesh);
+        else
+            makeScopeSurface(mesh);
+        if (selected)
+            selectWestHalf(mesh, selectKind);
+        const bool transfer = filterId == QLatin1String("transfer_vertex_attributes_by_closest_point");
+        int source = -1;
+        if (transfer) {
+            VCGMesh from;
+            makeScopeSurface(from);
+            for (auto &v : from.vert)
+                v.C() = vcg::Color4b(0, 0, 255, 255);
+            source = r.doc->addMesh(from, QStringLiteral("source"), scopeSurfaceMask());
+        }
+        r.layer = r.doc->addMesh(mesh, QStringLiteral("scope"),
+                                 polyline ? scopePolylineMask() : scopeSurfaceMask());
+        r.doc->setCurrentMeshIndex(transfer ? source : r.layer);
+        for (const auto &info : r.doc->filterInfos())
+            if (info.descriptor.id == filterId)
+                descriptor = info.descriptor;
+        MeshFilterParameterValues params = scopeTestParameters(descriptor);
+        params.insert(QString::fromLatin1(SelectionScopes::kParameterId), selectedOnly);
+        if (transfer) {
+            params.insert(QStringLiteral("SourceMesh"), source);
+            params.insert(QStringLiteral("TargetMesh"), r.layer);
+        }
+        r.result = r.doc->runFilter(key, params);
+        return r;
+    };
+
+    const auto unrunnable = scopeTestUnrunnable().constFind(filterId);
+    Run on = run(true, true, kind);
+    if (unrunnable != scopeTestUnrunnable().constEnd()) {
+        QVERIFY2(!on.result.success,
+                 qPrintable(QStringLiteral("listed as unrunnable (%1) but it ran")
+                                .arg(unrunnable.value())));
+        return;
+    }
+    QVERIFY2(on.result.success, qPrintable(on.result.errorMessage));
+
+    // 1. With selectedOnly on, nothing outside the selection changes, and the selection
+    //    survives. The "before" is a fresh fixture, identical to what the run started from.
+    VCGMesh reference;
+    if (kind == SelectionScope::Edges)
+        makeScopePolyline(reference);
+    else
+        makeScopeSurface(reference);
+    selectWestHalf(reference, kind);
+    const QString violations = scopeViolations(
+        scopeSnapshot(reference), scopeSnapshot(on.doc->mesh(on.layer).mesh), kind);
+    QVERIFY2(violations.isEmpty(), qPrintable(violations));
+
+    // 2. With it off, the selection makes no difference to the result.
+    Run offWith = run(true, false, kind);
+    Run offWithout = run(false, false, kind);
+    QVERIFY2(offWith.result.success, qPrintable(offWith.result.errorMessage));
+    QVERIFY2(offWithout.result.success, qPrintable(offWithout.result.errorMessage));
+    QCOMPARE(offWith.doc->meshCount(), offWithout.doc->meshCount());
+    for (int i = 0; i < offWith.doc->meshCount(); ++i) {
+        QVERIFY2(sameResultIgnoringSelection(scopeSnapshot(offWith.doc->mesh(i).mesh),
+                                             scopeSnapshot(offWithout.doc->mesh(i).mesh)),
+                 qPrintable(QStringLiteral("layer %1 differs with the toggle off").arg(i)));
+    }
+
+    // 4. With only the other kind selected -- the everyday case after a face rectangle, for
+    //    a vertex filter -- the framework derives the scope's own kind strictly: nothing
+    //    outside what lies wholly inside the selection changes, and the user gets back the
+    //    selection they made, with none of the derived kind left behind.
+    if (kind != SelectionScope::Edges) {
+        const SelectionScope other =
+            kind == SelectionScope::Vertices ? SelectionScope::Faces : SelectionScope::Vertices;
+        Run crossed = run(true, true, other);
+        QVERIFY2(crossed.result.success, qPrintable(crossed.result.errorMessage));
+        VCGMesh made;
+        makeScopeSurface(made);
+        selectWestHalf(made, other);
+        VCGMesh inside;
+        makeScopeSurface(inside);
+        selectWestHalf(inside, other);
+        deriveInside(inside, kind);
+        const ScopeSnapshot after = scopeSnapshot(crossed.doc->mesh(crossed.layer).mesh);
+        const QString derivedViolations = scopeViolations(scopeSnapshot(inside), after, kind, false);
+        QVERIFY2(derivedViolations.isEmpty(), qPrintable(QStringLiteral("derived: ") + derivedViolations));
+        const ScopeSnapshot user = scopeSnapshot(made);
+        if (user.vert.size() == after.vert.size())
+            QVERIFY2(user.vertSel == after.vertSel, "derived run: vertex selection not given back");
+        if (user.faceTri.size() == after.faceTri.size())
+            QVERIFY2(user.faceSel == after.faceSel, "derived run: face selection not given back");
+    }
+
+    // 3. Omitted, selectedOnly is on exactly when there is something to confine it to.
+    {
+        Document doc;
+        VCGMesh mesh;
+        if (kind == SelectionScope::Edges)
+            makeScopePolyline(mesh);
+        else
+            makeScopeSurface(mesh);
+        selectWestHalf(mesh, kind);
+        const int layer = doc.addMesh(mesh, QStringLiteral("scope"),
+                                      kind == SelectionScope::Edges ? scopePolylineMask() : scopeSurfaceMask());
+        doc.setCurrentMeshIndex(layer);
+        for (const auto &info : doc.filterInfos()) {
+            if (info.descriptor.id != filterId)
+                continue;
+            for (const auto &p : info.descriptor.parameters) {
+                if (p.id == QLatin1String(SelectionScopes::kParameterId)
+                    && info.descriptor.selectionScopeMesh.isEmpty())
+                    QVERIFY2(p.defaultValue.toBool(), "selectedOnly not on by default over a selection");
+            }
+        }
+    }
 }
 
 QTEST_MAIN(FilterTests)

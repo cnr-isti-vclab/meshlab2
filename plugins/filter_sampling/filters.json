@@ -242,6 +242,7 @@
         "point cloud"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "NewMeshes",
       "inputRequirements": {
         "requireVertices": true
@@ -276,14 +277,6 @@
               "label": "Closest to center"
             }
           ]
-        },
-        {
-          "id": "Selected",
-          "label": "Only on Selection",
-          "help": "If enabled, use only the selected subset of the mesh as input.",
-          "group": "advanced",
-          "type": "bool",
-          "default": false
         }
       ]
     },
@@ -701,6 +694,8 @@
         "projection"
       ],
       "inputDomain": "WholeDocument",
+      "selectionScope": "vertices",
+      "selectionScopeMesh": "TargetMesh",
       "outputDomain": "ModifyCurrentMesh",
       "parameters": [
         {
@@ -799,14 +794,6 @@
           "min": 0.0,
           "max": "@bboxDiag",
           "decimals": 6
-        },
-        {
-          "id": "onSelected",
-          "label": "Only on Selection",
-          "help": "If enabled, transfer only to selected target vertices.",
-          "group": "advanced",
-          "type": "bool",
-          "default": false
         }
       ],
       "outputModifies": [

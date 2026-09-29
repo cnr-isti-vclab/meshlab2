@@ -1,5 +1,7 @@
 #pragma once
 
+#include "selectionscope.h"
+
 #include <QMetaType>
 #include <QVariant>
 #include <QString>
@@ -218,6 +220,12 @@ struct MeshFilterDescriptor
     // When true the framework automatically appends an "incremental_selection" bool
     // parameter and, when enabled, ORs the pre-run selection back after the filter.
     bool incrementalSelection = false;
+    // Which part of a mesh the filter can confine itself to; when set, the framework
+    // injects the `selectedOnly` parameter. See selectionscope.h.
+    SelectionScope selectionScope = SelectionScope::None;
+    // The mesh parameter naming the layer the scope applies to, for a filter that
+    // restricts some layer other than the current one; empty means the current mesh.
+    QString selectionScopeMesh;
     std::vector<MeshFilterParameterDescriptor> parameters;
 
     // The canonical home of this filter: first category, or empty if unclassified.

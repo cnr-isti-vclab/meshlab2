@@ -2,12 +2,16 @@
 
 #include <QDirIterator>
 #include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QRegularExpression>
 #include <utility>
 #include <QSet>
 
 #include "document.h"
 #include "filtercategories.h"
+#include "selectionscope.h"
 
 #include <vcg/complex/algorithms/create/platonic.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -141,6 +145,7 @@ private slots:
     void descriptorConforms_data();
     void descriptorConforms();
     void selectionFiltersDeclareWhatTheySelect();
+    void selectionScopeIsDeclaredNotHandWritten();
     void layerCreatingFiltersDeclareAnOutputTag();
 
 private:
@@ -635,6 +640,86 @@ void FilterDescriptorTests::selectionFiltersDeclareWhatTheySelect()
     QVERIFY2(offenders.isEmpty(),
              qPrintable(QStringLiteral("selection filters declaring no selection code: %1")
                             .arg(offenders.join(QStringLiteral("; ")))));
+}
+
+// "Only selected faces/vertices/edges" is one framework parameter, injected from the
+// filter's selectionScope (src/plugins/selectionscope.h), never a toggle of a plugin's own.
+// Before that, 49 filters spelled it nine ways under eleven labels and hid eight of them
+// among the advanced parameters. The manifests are read directly for the declaration
+// itself, since the loader maps a mistyped scope to none.
+void FilterDescriptorTests::selectionScopeIsDeclaredNotHandWritten()
+{
+    // The retired spellings. `Selected` stays legal on Close Holes alone, where it chooses
+    // which holes to fill rather than confining the filter to the selection.
+    static const QSet<QString> kRetired = {
+        QStringLiteral("onselection"), QStringLiteral("onSelected"), QStringLiteral("onselected"),
+        QStringLiteral("SelectedOnly"), QStringLiteral("onlySelected"),
+        QStringLiteral("SelectionOnly"), QStringLiteral("selection"), QStringLiteral("Selected"),
+    };
+    static const QSet<QString> kScopes = {
+        QStringLiteral("vertices"), QStringLiteral("faces"), QStringLiteral("edges")
+    };
+    const QString scopeId = QString::fromLatin1(SelectionScopes::kParameterId);
+
+    QStringList offenders;
+    int scoped = 0;
+    QDirIterator it(QStringLiteral(TEST_SOURCE_DIR "/plugins"), { QStringLiteral("filters.json") },
+                    QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        QFile file(it.next());
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QJsonArray filters = QJsonDocument::fromJson(file.readAll()).object()
+                                       .value(QStringLiteral("filters")).toArray();
+        for (const QJsonValue &fv : filters) {
+            const QJsonObject f = fv.toObject();
+            const QString id = f.value(QStringLiteral("id")).toString();
+            const QJsonArray params = f.value(QStringLiteral("parameters")).toArray();
+            for (const QJsonValue &pv : params) {
+                const QString pid = pv.toObject().value(QStringLiteral("id")).toString();
+                if (pid == scopeId)
+                    offenders << QStringLiteral("%1 declares %2 by hand").arg(id, scopeId);
+                if (kRetired.contains(pid)
+                    && !(pid == QLatin1String("Selected") && id == QLatin1String("close_holes")))
+                    offenders << QStringLiteral("%1 has a hand-written toggle '%2'").arg(id, pid);
+            }
+            if (!f.contains(QStringLiteral("selectionScope")))
+                continue;
+            ++scoped;
+            const QString scope = f.value(QStringLiteral("selectionScope")).toString();
+            if (!kScopes.contains(scope))
+                offenders << QStringLiteral("%1: unknown selectionScope '%2'").arg(id, scope);
+            const QString mesh = f.value(QStringLiteral("selectionScopeMesh")).toString();
+            if (!mesh.isEmpty()) {
+                bool found = false;
+                for (const QJsonValue &pv : params) {
+                    const QJsonObject p = pv.toObject();
+                    found = found || (p.value(QStringLiteral("id")).toString() == mesh
+                                      && p.value(QStringLiteral("type")).toString() == QLatin1String("mesh"));
+                }
+                if (!found)
+                    offenders << QStringLiteral("%1: selectionScopeMesh '%2' is not a mesh parameter").arg(id, mesh);
+            }
+        }
+    }
+
+    // And what the loader makes of it: one injected bool, first, never advanced.
+    for (const auto &info : m_infos) {
+        const MeshFilterDescriptor &d = info.descriptor;
+        if (d.selectionScope == SelectionScope::None)
+            continue;
+        int count = 0;
+        for (const auto &p : d.parameters)
+            count += (p.id == scopeId) ? 1 : 0;
+        if (count != 1 || d.parameters.empty() || d.parameters.front().id != scopeId
+            || d.parameters.front().type != MeshFilterParameterType::Bool
+            || d.parameters.front().isAdvancedGroup()) {
+            offenders << QStringLiteral("%1: the injected %2 is missing, repeated, not first or advanced")
+                             .arg(d.id, scopeId);
+        }
+    }
+
+    QVERIFY2(scoped >= 49, qPrintable(QStringLiteral("only %1 scoped filters found").arg(scoped)));
+    QVERIFY2(offenders.isEmpty(), qPrintable(offenders.join(QStringLiteral("; "))));
 }
 
 // A filter that creates layers is named by the framework from its outputTag, so one

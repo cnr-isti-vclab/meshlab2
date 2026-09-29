@@ -66,6 +66,8 @@
         "smoothing"
       ],
       "inputDomain": "WholeDocument",
+      "selectionScope": "vertices",
+      "selectionScopeMesh": "ProxyMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true
@@ -92,14 +94,6 @@
           "meshRequirements": {
             "requireVertices": true
           }
-        },
-        {
-          "id": "SelectionOnly",
-          "label": "Selection only",
-          "help": "If checked, only selected vertices will be projected.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         },
         {
           "id": "FilterScale",
@@ -195,6 +189,8 @@
         "smoothing"
       ],
       "inputDomain": "WholeDocument",
+      "selectionScope": "vertices",
+      "selectionScopeMesh": "ProxyMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true
@@ -221,14 +217,6 @@
           "meshRequirements": {
             "requireVertices": true
           }
-        },
-        {
-          "id": "SelectionOnly",
-          "label": "Selection only",
-          "help": "If checked, only selected vertices will be projected.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         },
         {
           "id": "FilterScale",
@@ -498,19 +486,12 @@
         "point set"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true
       },
       "parameters": [
-        {
-          "id": "SelectionOnly",
-          "label": "Selection only",
-          "help": "If checked, only selected vertices will be projected.",
-          "group": "main",
-          "type": "bool",
-          "default": false
-        },
         {
           "id": "CurvatureType",
           "label": "Curvature type",
@@ -608,19 +589,12 @@
         "point set"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true
       },
       "parameters": [
-        {
-          "id": "SelectionOnly",
-          "label": "Selection only",
-          "help": "If checked, only selected vertices will be projected.",
-          "group": "main",
-          "type": "bool",
-          "default": false
-        },
         {
           "id": "CurvatureType",
           "label": "Curvature type",

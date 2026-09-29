@@ -268,6 +268,24 @@ MeshFilterDescriptor parseFilter(const QJsonObject &obj)
         d.parameters.push_back(parseParameter(pv.toObject()));
     }
 
+    // One `selectedOnly` for every filter that can confine itself to the selection,
+    // injected first so no filter can bury it among its advanced parameters. Its default
+    // is resolved per document in resolveSymbolicBounds(): on whenever there is something
+    // to confine the filter to. An unknown scope string loads as no scope at all; the
+    // descriptor tests read the manifests directly to catch that.
+    d.selectionScope = SelectionScopes::parse(obj.value(QStringLiteral("selectionScope")).toString());
+    d.selectionScopeMesh = obj.value(QStringLiteral("selectionScopeMesh")).toString().trimmed();
+    if (d.selectionScope != SelectionScope::None) {
+        MeshFilterParameterDescriptor p;
+        p.id           = QString::fromLatin1(SelectionScopes::kParameterId);
+        p.label        = SelectionScopes::parameterLabel(d.selectionScope);
+        p.helpMarkdown = SelectionScopes::parameterHelp(d.selectionScope);
+        p.group        = QStringLiteral("main");
+        p.type         = MeshFilterParameterType::Bool;
+        p.defaultValue = false;
+        d.parameters.insert(d.parameters.begin(), std::move(p));
+    }
+
     const QJsonArray mods = obj.value(QStringLiteral("outputModifies")).toArray();
     for (const QJsonValue &m : mods)
         d.outputModifies << m.toString();
@@ -596,6 +614,25 @@ void FilterDescriptorLoader::resolveSymbolicBounds(
                 qualityVMin, qualityVMax, qualityFMin, qualityFMax,
                 hasSelectedFaces, hasSelectedVerts, faceCount, selFaces, hardwareThreads,
                 currentMeshIndex, otherMeshIndex);
+        }
+
+        // The same rule the manager applies to a call that omits it, so that a compact
+        // Python call, which leaves out defaults, replays with the same restriction.
+        if (fd.selectionScope != SelectionScope::None) {
+            int scopeMesh = currentMeshIndex;
+            if (!fd.selectionScopeMesh.isEmpty()) {
+                scopeMesh = -1;
+                for (const MeshFilterParameterDescriptor &p : fd.parameters) {
+                    if (p.id == fd.selectionScopeMesh)
+                        scopeMesh = p.defaultValue.toInt();
+                }
+            }
+            const bool restricted = scopeMesh >= 0 && scopeMesh < doc.meshCount()
+                && SelectionScopes::restriction(doc.mesh(scopeMesh).mesh, fd.selectionScope).count > 0;
+            for (MeshFilterParameterDescriptor &p : fd.parameters) {
+                if (p.id == QLatin1String(SelectionScopes::kParameterId))
+                    p.defaultValue = restricted;
+            }
         }
     }
 }

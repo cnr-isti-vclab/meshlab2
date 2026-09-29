@@ -1083,6 +1083,7 @@
     },
     {
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true,
@@ -1127,19 +1128,12 @@
           "min": 0.0,
           "max": 1.0,
           "decimals": 4
-        },
-        {
-          "id": "selectedOnly",
-          "label": "Selected Only",
-          "help": "Move only the selected vertices.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ]
     },
     {
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true,
@@ -1197,14 +1191,6 @@
           "min": 0.0,
           "max": 1.0,
           "decimals": 4
-        },
-        {
-          "id": "selectedOnly",
-          "label": "Selected Only",
-          "help": "Move only the selected vertices.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ]
     },

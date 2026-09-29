@@ -195,17 +195,22 @@ void computeProjection(
     vcg::CallBackPos *cb)
 {
     VCGMeshFFAdjScope _ffAdj(mesh);
-    if (selectionOnly)
-        vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceStrict(mesh);
 
     EdgeAnglePredicate<VCGMesh, float> edgePred;
     edgePred.thCosAngle = std::cos(float(M_PI) * creaseAngleDeg / 180.0f);
 
+    // The scope is the vertex selection -- the usual input is a point cloud, which has no
+    // faces to select. Refinement is face-based, so with selectionOnly it refines the faces
+    // whose vertices are all selected, and selects the vertices it adds: they all lie
+    // inside that region, and are projected with the rest.
     for (int k = 0; k < maxSubdivisions + 1; ++k) {
         if (k != 0) {
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerFace(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::NormalizePerFace(mesh);
+            const size_t verticesBefore = mesh.vert.size();
+            if (selectionOnly)
+                vcg::tri::UpdateSelection<VCGMesh>::FaceFromVertexStrict(mesh);
             vcg::tri::RefineOddEvenE<VCGMesh, vcg::tri::OddPointLoop<VCGMesh>, vcg::tri::EvenPointLoop<VCGMesh>>(
                 mesh,
                 vcg::tri::OddPointLoop<VCGMesh>(mesh),
@@ -213,6 +218,12 @@ void computeProjection(
                 edgePred,
                 selectionOnly,
                 cb);
+            if (selectionOnly) {
+                for (size_t i = verticesBefore; i < mesh.vert.size(); ++i) {
+                    if (!mesh.vert[i].IsD())
+                        mesh.vert[i].SetS();
+                }
+            }
         }
 
         const int totalVerts = std::max(1, int(mesh.vert.size()));
@@ -403,7 +414,7 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
         auto mls = createMlsForFilter(filterId, *controlMesh, params, false);
         computeProjection(
             *proxyMesh,
-            params.getBool(QStringLiteral("SelectionOnly"), false),
+            params.getBool(QStringLiteral("selectedOnly"), false),
             std::max(0, params.getInt(QStringLiteral("MaxSubdivisions"), 0)),
             float(params.getDouble(QStringLiteral("ThAngleInDegree"), 2.0)),
             *mls,
@@ -477,7 +488,7 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
 
         computeCurvatureQuality(
             workMesh,
-            params.getBool(QStringLiteral("SelectionOnly"), false),
+            params.getBool(QStringLiteral("selectedOnly"), false),
             curvatureType,
             *mls,
             doc.progressCallback());

@@ -179,6 +179,7 @@ add_library(MeshLab2Core STATIC
     src/core/preferences.h src/core/preferences.cpp
     src/core/processmemoryinfo.h src/core/processmemoryinfo.cpp
     src/plugins/filterdescriptorloader.h src/plugins/filterdescriptorloader.cpp
+    src/plugins/selectionscope.h src/plugins/selectionscope.cpp
     src/plugins/meshfilterplugin.h src/plugins/meshfilterplugin.cpp
     src/plugins/meshfilterpluginmanager.h src/plugins/meshfilterpluginmanager.cpp
     src/plugins/meshioplugin.h

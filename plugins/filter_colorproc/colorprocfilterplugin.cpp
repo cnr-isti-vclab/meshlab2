@@ -378,7 +378,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         vcg::tri::UpdateColor<VCGMesh>::PerVertexConstant(
             mesh,
             toColor4b(colorParam(params, QStringLiteral("color1"))),
-            params.getBool(QStringLiteral("onSelected"), false));
+            params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Filled vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
@@ -391,7 +391,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             threshold,
             toColor4b(colorParam(params, QStringLiteral("color1"))),
             toColor4b(colorParam(params, QStringLiteral("color2"))),
-            params.getBool(QStringLiteral("onSelected"), false));
+            params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Applied vertex color thresholding to '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
@@ -401,7 +401,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         const Scalar gamma = vcg::math::Clamp<Scalar>(Scalar(params.getDouble(QStringLiteral("gamma"), 1.0)), Scalar(0.1), Scalar(5.0));
         const Scalar brightness = Scalar(params.getDouble(QStringLiteral("brightness"), 0.0));
         const Scalar contrast = Scalar(params.getDouble(QStringLiteral("contrast"), 0.0));
-        const bool selected = params.getBool(QStringLiteral("onSelected"), false);
+        const bool selected = params.getBool(QStringLiteral("selectedOnly"), false);
         vcg::tri::UpdateColor<VCGMesh>::PerVertexGamma(mesh, gamma, selected);
         vcg::tri::UpdateColor<VCGMesh>::PerVertexBrightnessContrast(mesh, brightness / 256.0f, contrast / 256.0f, selected);
         ensureVertexColor(entry);
@@ -410,7 +410,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterInvert)) {
-        vcg::tri::UpdateColor<VCGMesh>::PerVertexInvert(mesh, params.getBool(QStringLiteral("onSelected"), false));
+        vcg::tri::UpdateColor<VCGMesh>::PerVertexInvert(mesh, params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Inverted vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
@@ -425,7 +425,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             Scalar(params.getDouble(QStringLiteral("out_min"), 0.0) / 255.0),
             Scalar(params.getDouble(QStringLiteral("out_max"), 255.0) / 255.0),
             rgbMaskFromParams(params),
-            params.getBool(QStringLiteral("onSelected"), false));
+            params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Adjusted vertex color levels on '%1'").arg(meshLabel(entry, meshIndex)));
         return success({ QObject::tr("Adjusted color levels on current mesh.") });
@@ -442,7 +442,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             mesh,
             vcg::Color4b(int(r * 255.0), int(g * 255.0), int(b * 255.0), 255),
             intensity,
-            params.getBool(QStringLiteral("onSelected"), false));
+            params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Colourised vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
@@ -453,14 +453,14 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         const QString methodId = params.getEnum(QStringLiteral("method"), QStringLiteral("lightness"));
         if (methodId == QStringLiteral("luminosity")) method = 1;
         else if (methodId == QStringLiteral("average")) method = 2;
-        vcg::tri::UpdateColor<VCGMesh>::PerVertexDesaturation(mesh, method, params.getBool(QStringLiteral("onSelected"), false));
+        vcg::tri::UpdateColor<VCGMesh>::PerVertexDesaturation(mesh, method, params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Desaturated vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
     if (filterId == QString::fromLatin1(kFilterEqualize)) {
-        vcg::tri::UpdateColor<VCGMesh>::PerVertexEqualize(mesh, rgbMaskFromParams(params), params.getBool(QStringLiteral("onSelected"), false));
+        vcg::tri::UpdateColor<VCGMesh>::PerVertexEqualize(mesh, rgbMaskFromParams(params), params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Equalized vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
@@ -470,7 +470,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         vcg::tri::UpdateColor<VCGMesh>::PerVertexWhiteBalance(
             mesh,
             toColor4b(colorParam(params, QStringLiteral("color"))),
-            params.getBool(QStringLiteral("onSelected"), false));
+            params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Applied white balance to '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
@@ -486,7 +486,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             Point(offsetVec.x(), offsetVec.y(), offsetVec.z()),
             toColor4b(colorParam(params, QStringLiteral("color1"))),
             toColor4b(colorParam(params, QStringLiteral("color2"))),
-            params.getBool(QStringLiteral("onSelected"), false));
+            params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Colorized '%1' by Perlin noise").arg(meshLabel(entry, meshIndex)));
         return success();
@@ -497,7 +497,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         vcg::tri::UpdateColor<VCGMesh>::PerVertexAddNoise(
             mesh,
             params.getInt(QStringLiteral("noiseBits"), 1),
-            params.getBool(QStringLiteral("onSelected"), false),
+            params.getBool(QStringLiteral("selectedOnly"), false),
             int(seed.value));
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Added color noise to '%1'").arg(meshLabel(entry, meshIndex)));
