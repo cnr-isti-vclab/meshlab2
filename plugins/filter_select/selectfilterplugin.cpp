@@ -994,9 +994,11 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kFilterSelectCoplanar)) {
         // The plane is the least-squares fit to the vertices of the selected faces, and the
-        // selection grows to every face lying on it, connected or not. Fitted in double: a
-        // scan often sits far from the origin, where float residuals are coarse.
+        // selection grows to every face lying on it -- or, with connectedOnly, to those it
+        // reaches across edges through faces on the plane. Fitted in double: a scan often
+        // sits far from the origin, where float residuals are coarse.
         const double tolerance = params.getDouble(QStringLiteral("maxDistance"));
+        const bool connectedOnly = params.getBool(QStringLiteral("connectedOnly"));
         std::vector<char> seen(mesh.vert.size(), 0);
         std::vector<vcg::Point3d> points;
         int selectedFaces = 0;
@@ -1044,22 +1046,47 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                                  plane, vcg::Point3d::Construct(v.cP()))) <= tolerance;
             }
         }
-        int added = 0;
-        for (VCGFace &f : mesh.face) {
-            if (f.IsD() || f.IsS())
-                continue;
-            if (onPlane[vcg::tri::Index(mesh, f.cV(0))]
+        auto faceOnPlane = [&](const VCGFace &f) {
+            return onPlane[vcg::tri::Index(mesh, f.cV(0))]
                 && onPlane[vcg::tri::Index(mesh, f.cV(1))]
-                && onPlane[vcg::tri::Index(mesh, f.cV(2))]) {
-                f.SetS();
-                ++added;
+                && onPlane[vcg::tri::Index(mesh, f.cV(2))];
+        };
+        int added = 0;
+        if (connectedOnly) {
+            // A flood from the selected faces across their edges, through faces on the
+            // plane. The selection bit doubles as the visited mark: a face is pushed only
+            // when it is selected, so none is pushed twice.
+            std::vector<VCGFace *> stack;
+            for (VCGFace &f : mesh.face)
+                if (!f.IsD() && f.IsS())
+                    stack.push_back(&f);
+            while (!stack.empty()) {
+                VCGFace *f = stack.back();
+                stack.pop_back();
+                for (int j = 0; j < 3; ++j) {
+                    VCGFace *g = f->FFp(j);
+                    if (g == f || g->IsD() || g->IsS() || !faceOnPlane(*g))
+                        continue;
+                    g->SetS();
+                    ++added;
+                    stack.push_back(g);
+                }
+            }
+        } else {
+            for (VCGFace &f : mesh.face) {
+                if (!f.IsD() && !f.IsS() && faceOnPlane(f)) {
+                    f.SetS();
+                    ++added;
+                }
             }
         }
         return selectionResult(
             meshIndex,
             entry,
             QObject::tr("Selected coplanar faces on '%1'").arg(entry.name),
-            { QObject::tr("Added %1 faces within %2 of the plane of the %3 selected ones.")
+            { (connectedOnly
+                   ? QObject::tr("Added %1 connected faces within %2 of the plane of the %3 selected ones.")
+                   : QObject::tr("Added %1 faces within %2 of the plane of the %3 selected ones."))
                     .arg(added)
                     .arg(tolerance, 0, 'g', 6)
                     .arg(selectedFaces) });
