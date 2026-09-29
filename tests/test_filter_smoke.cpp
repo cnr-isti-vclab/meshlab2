@@ -334,6 +334,9 @@ const QHash<QString, QString> &expectedRefusals()
         // Needs a mesh shape the ladder does not build.
         {QStringLiteral("create_polyline_from_self_intersections_trueform"), QStringLiteral("needs a self-intersecting mesh")},
 
+        // Needs a selection the ladder does not build: its rungs select everything or nothing.
+        {QStringLiteral("select_coplanar_faces"),                          QStringLiteral("needs a face selection lying on one plane")},
+
         // Needs a value no default can supply: a formula, a name, a viewport.
         {QStringLiteral("rename_current_mesh_layer"),                      QStringLiteral("needs a new name")},
         {QStringLiteral("project_vertices_onto_line_of_sight"),            QStringLiteral("needs an attribute name")},

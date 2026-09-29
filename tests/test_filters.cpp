@@ -431,6 +431,8 @@ private slots:
     void convexHullOfIcosahedronIsTheIcosahedron();
     void selectVisibleVerticesSelectsNearSideOnly();
     void selectVisibleVerticesRejectsEnclosedViewpoint();
+    void selectCoplanarFacesGrowsToThePlaneOfTheSelection();
+    void selectCoplanarFacesRefusesSelectionsOffOnePlane();
     void alphaShapeConvergesToConvexHull();
     void alphaShapeHandlesALargePointSet();
     void voronoiFilteringReconstructsASphere();
@@ -2293,6 +2295,85 @@ void FilterTests::selectVisibleVerticesRejectsEnclosedViewpoint()
     const VCGMesh &mesh = doc.mesh(index).mesh;
     for (const VCGVertex &v : mesh.vert)
         QVERIFY(!v.IsS());
+}
+
+void FilterTests::selectCoplanarFacesGrowsToThePlaneOfTheSelection()
+{
+    // Four 2x2 squares in a row and a unit cube beyond them. The seed is one face of the
+    // square at z = 0. Another square on that plane, one lifted by less than the tolerance
+    // and the bottom of the cube all belong to it, connected or not; the square lifted to
+    // z = 0.2 and the rest of the cube do not.
+    VCGMesh mesh;
+    auto addSquare = [&mesh](float centerX, float z) {
+        const std::size_t base = mesh.vert.size();
+        vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 4);
+        mesh.vert[base + 0].P() = vcg::Point3f(centerX - 1.0f, -1.0f, z);
+        mesh.vert[base + 1].P() = vcg::Point3f(centerX + 1.0f, -1.0f, z);
+        mesh.vert[base + 2].P() = vcg::Point3f(centerX + 1.0f, 1.0f, z);
+        mesh.vert[base + 3].P() = vcg::Point3f(centerX - 1.0f, 1.0f, z);
+        vcg::tri::Allocator<VCGMesh>::AddFace(mesh, base + 0, base + 1, base + 2);
+        vcg::tri::Allocator<VCGMesh>::AddFace(mesh, base + 0, base + 2, base + 3);
+    };
+    addSquare(0.0f, 0.0f);      // faces 0-1: the seed's square
+    addSquare(5.0f, 0.0f);      // faces 2-3: the same plane, not connected
+    addSquare(-5.0f, 0.004f);   // faces 4-5: off the plane by less than the tolerance
+    addSquare(10.0f, 0.2f);     // faces 6-7: parallel, off the plane
+    VCGMesh cube;
+    makeCubeMesh(cube, 20.0f, 0.0f, 0.0f);   // faces 8-19, of which 8-9 are its bottom
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(mesh, cube);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+
+    Document doc;
+    const int meshIndex = doc.addMesh(mesh, QStringLiteral("planes"));
+    QVERIFY(meshIndex >= 0);
+    const QString key = filterKeyForId(doc, QStringLiteral("select_coplanar_faces"));
+    QVERIFY(!key.isEmpty());
+    VCGMesh &m = doc.mesh(meshIndex).mesh;
+    QCOMPARE(int(m.face.size()), 20);
+    m.face[0].SetS();
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("maxDistance"), 0.01);
+    const MeshFilterRunResult result = doc.runFilter(key, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    const std::set<int> onPlane = { 0, 1, 2, 3, 4, 5, 8, 9 };
+    for (int i = 0; i < int(m.face.size()); ++i) {
+        QVERIFY2(m.face[std::size_t(i)].IsS() == (onPlane.count(i) > 0),
+                 qPrintable(QStringLiteral("face %1").arg(i)));
+    }
+}
+
+void FilterTests::selectCoplanarFacesRefusesSelectionsOffOnePlane()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int meshIndex = doc.addMesh(cube, QStringLiteral("cube"));
+    QVERIFY(meshIndex >= 0);
+    const QString key = filterKeyForId(doc, QStringLiteral("select_coplanar_faces"));
+    QVERIFY(!key.isEmpty());
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("maxDistance"), 0.01);
+
+    // Nothing selected, so no plane to take.
+    MeshFilterRunResult result = doc.runFilter(key, params);
+    QVERIFY(!result.success);
+    QVERIFY(!result.errorMessage.isEmpty());
+
+    // The bottom and one side: two planes at right angles, and no single one to extend.
+    // The refusal leaves the selection as it was.
+    VCGMesh &m = doc.mesh(meshIndex).mesh;
+    m.face[0].SetS();
+    m.face[4].SetS();
+    result = doc.runFilter(key, params);
+    QVERIFY(!result.success);
+    QVERIFY(!result.errorMessage.isEmpty());
+    int selected = 0;
+    for (const VCGFace &f : m.face)
+        selected += f.IsS() ? 1 : 0;
+    QCOMPARE(selected, 2);
 }
 
 // As alpha grows the alpha shape converges to the convex hull, so a large alpha on an

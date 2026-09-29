@@ -25,6 +25,7 @@
 #include <vcg/complex/algorithms/update/topology.h>
 #include <vcg/math/base.h>
 #include <vcg/space/colorspace.h>
+#include <vcg/space/fitting3.h>
 #include <vcg/space/triangle3.h>
 #include <algorithm>
 #include <cmath>
@@ -59,6 +60,7 @@ constexpr QLatin1StringView kFilterSelectTexBorder("select_vertex_texture_seams"
 constexpr QLatin1StringView kFilterSelectNonManifoldFace("select_non_manifold_edges_vcglib");
 constexpr QLatin1StringView kFilterSelectNonManifoldVertex("select_non_manifold_vertices");
 constexpr QLatin1StringView kFilterSelectFacesByEdge("select_faces_by_edge_length");
+constexpr QLatin1StringView kFilterSelectCoplanar("select_coplanar_faces");
 constexpr QLatin1StringView kFilterSelectOutlier("select_outliers");
 constexpr QLatin1StringView kFilterSelectByRectangle("select_by_screen_rectangle");
 
@@ -988,6 +990,79 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             { QObject::tr("Selected %1 faces with an edge longer than %2.")
                     .arg(selFaceNum)
                     .arg(QString::number(threshold, 'f', 6)) });
+    }
+
+    if (filterId == QString::fromLatin1(kFilterSelectCoplanar)) {
+        // The plane is the least-squares fit to the vertices of the selected faces, and the
+        // selection grows to every face lying on it, connected or not. Fitted in double: a
+        // scan often sits far from the origin, where float residuals are coarse.
+        const double tolerance = params.getDouble(QStringLiteral("maxDistance"));
+        std::vector<char> seen(mesh.vert.size(), 0);
+        std::vector<vcg::Point3d> points;
+        int selectedFaces = 0;
+        for (const VCGFace &f : mesh.face) {
+            if (f.IsD() || !f.IsS())
+                continue;
+            ++selectedFaces;
+            for (int i = 0; i < 3; ++i) {
+                const std::size_t vi = vcg::tri::Index(mesh, f.cV(i));
+                if (!seen[vi]) {
+                    seen[vi] = 1;
+                    points.push_back(vcg::Point3d::Construct(f.cV(i)->cP()));
+                }
+            }
+        }
+        if (selectedFaces == 0)
+            return fail(QObject::tr("No faces are selected. Select one or more faces on the plane to extend."));
+        if (points.size() < 3)
+            return fail(QObject::tr("The selected faces are degenerate and do not define a plane."));
+
+        vcg::Plane3d plane;
+        vcg::FitPlaneToPointSet(points, plane);
+        // RMS rather than the farthest vertex, so that one noisy vertex does not refuse a
+        // selection that plainly lies on a plane, while two walls still do.
+        double squareSum = 0.0;
+        for (const vcg::Point3d &point : points) {
+            const double d = vcg::SignedDistancePlanePoint(plane, point);
+            squareSum += d * d;
+        }
+        const double rms = std::sqrt(squareSum / double(points.size()));
+        if (rms > tolerance) {
+            return fail(QObject::tr(
+                "The selected faces do not lie on one plane: their RMS distance from the "
+                "best-fitting plane is %1, more than the %2 tolerance. Select faces on a "
+                "single plane, or raise the tolerance.")
+                    .arg(rms, 0, 'g', 4)
+                    .arg(tolerance, 0, 'g', 4));
+        }
+
+        std::vector<char> onPlane(mesh.vert.size(), 0);
+        for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
+            const VCGVertex &v = mesh.vert[i];
+            if (!v.IsD()) {
+                onPlane[i] = std::abs(vcg::SignedDistancePlanePoint(
+                                 plane, vcg::Point3d::Construct(v.cP()))) <= tolerance;
+            }
+        }
+        int added = 0;
+        for (VCGFace &f : mesh.face) {
+            if (f.IsD() || f.IsS())
+                continue;
+            if (onPlane[vcg::tri::Index(mesh, f.cV(0))]
+                && onPlane[vcg::tri::Index(mesh, f.cV(1))]
+                && onPlane[vcg::tri::Index(mesh, f.cV(2))]) {
+                f.SetS();
+                ++added;
+            }
+        }
+        return selectionResult(
+            meshIndex,
+            entry,
+            QObject::tr("Selected coplanar faces on '%1'").arg(entry.name),
+            { QObject::tr("Added %1 faces within %2 of the plane of the %3 selected ones.")
+                    .arg(added)
+                    .arg(tolerance, 0, 'g', 6)
+                    .arg(selectedFaces) });
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectOutlier)) {
