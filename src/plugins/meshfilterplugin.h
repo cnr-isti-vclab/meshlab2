@@ -200,6 +200,16 @@ struct MeshFilterReference
     QString bibTeX() const;
 };
 
+// Where a filter that leaves a matrix on a layer delivers it. The filter declares its
+// default as `transformResult` in the manifest and only ever assigns the matrix; the loader
+// injects one parameter with the two choices, and the framework bakes every layer the run
+// moved when Bake positions is chosen. See docs/design/adding_a_filter.md.
+namespace TransformResults {
+inline constexpr const char *kParameterId = "transformResult";
+inline constexpr const char *kAssignMatrix = "assign_matrix";
+inline constexpr const char *kBakePositions = "bake_positions";
+}
+
 struct MeshFilterDescriptor
 {
     QString id;
@@ -226,6 +236,9 @@ struct MeshFilterDescriptor
     // The mesh parameter naming the layer the scope applies to, for a filter that
     // restricts some layer other than the current one; empty means the current mesh.
     QString selectionScopeMesh;
+    // The declared default of the injected transformResult parameter, `assign_matrix` or
+    // `bake_positions`; empty for a filter that leaves no matrix on a layer.
+    QString transformResult;
     std::vector<MeshFilterParameterDescriptor> parameters;
 
     // The canonical home of this filter: first category, or empty if unclassified.

@@ -433,6 +433,7 @@ private slots:
     void selectVisibleVerticesRejectsEnclosedViewpoint();
     void selectCoplanarFacesGrowsToThePlaneOfTheSelection();
     void selectCoplanarFacesRefusesSelectionsOffOnePlane();
+    void selectCoplanarFacesCanStayConnectedToTheSelection();
     void alphaShapeConvergesToConvexHull();
     void alphaShapeHandlesALargePointSet();
     void voronoiFilteringReconstructsASphere();
@@ -531,6 +532,10 @@ private slots:
     void islandMergeSurvivesATextureItCannotDecode();
     void hardcodedFilterKeysInTheUiStillResolve();
     void setMatrixComposesOnTheLeftOfTheLayerTransform();
+    void setMatrixReplacesTheLayerMatrixUnlessComposing();
+    void transformResultAssignsOrBakesTheFilterMatrix();
+    void alignmentBakesOnlyTheLayerItMoved();
+    void cameraTransformsMoveVisibleLayersOnce();
     void bothBallPivotingsInterpolateTheirInputPoints();
     void ballPivotingRebuildsAfterDeletingTheInitialFaces();
     void trueFormNonManifoldVertexSelectionFindsThePinch();
@@ -859,7 +864,7 @@ void FilterTests::basicFiltersRunOnLoadedMesh()
         params.insert(QStringLiteral("position"), QStringLiteral("bbox_center"));
         params.insert(QStringLiteral("rotation"), QStringLiteral("unchanged"));
         params.insert(QStringLiteral("scale"), QStringLiteral("unit_longest_side"));
-        params.insert(QStringLiteral("Freeze"), true);
+        params.insert(QStringLiteral("transformResult"), QStringLiteral("bake_positions"));
         const MeshFilterRunResult result = doc.runFilter(normalizeKey, params);
         QVERIFY(result.success);
         QVERIFY(result.documentModified);
@@ -2374,6 +2379,53 @@ void FilterTests::selectCoplanarFacesRefusesSelectionsOffOnePlane()
     for (const VCGFace &f : m.face)
         selected += f.IsS() ? 1 : 0;
     QCOMPARE(selected, 2);
+}
+
+void FilterTests::selectCoplanarFacesCanStayConnectedToTheSelection()
+{
+    // A strip of five unit quads along X, flat but for a bump: the vertices at x = 3 are
+    // lifted to z = 1, so quads 2 and 3 are off the plane. Quads 0 and 1 are on it and
+    // connected to the seed; quad 4 is on it too, but reachable only over the bump.
+    VCGMesh strip;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(strip, 12);
+    for (int x = 0; x <= 5; ++x) {
+        for (int y = 0; y <= 1; ++y) {
+            strip.vert[std::size_t(2 * x + y)].P() =
+                vcg::Point3f(float(x), float(y), x == 3 ? 1.0f : 0.0f);
+        }
+    }
+    for (int q = 0; q < 5; ++q) {   // quad q is faces 2q and 2q + 1
+        vcg::tri::Allocator<VCGMesh>::AddFace(strip, 2 * q, 2 * q + 2, 2 * q + 3);
+        vcg::tri::Allocator<VCGMesh>::AddFace(strip, 2 * q, 2 * q + 3, 2 * q + 1);
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(strip);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(strip);
+
+    for (const bool connectedOnly : { false, true }) {
+        Document doc;
+        const int meshIndex = doc.addMesh(strip, QStringLiteral("strip"));
+        QVERIFY(meshIndex >= 0);
+        const QString key = filterKeyForId(doc, QStringLiteral("select_coplanar_faces"));
+        QVERIFY(!key.isEmpty());
+        VCGMesh &m = doc.mesh(meshIndex).mesh;
+        m.face[0].SetS();
+
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("maxDistance"), 0.01);
+        params.insert(QStringLiteral("connectedOnly"), connectedOnly);
+        const MeshFilterRunResult result = doc.runFilter(key, params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+        std::set<int> expected = { 0, 1, 2, 3 };
+        if (!connectedOnly)
+            expected.insert({ 8, 9 });
+        for (int i = 0; i < int(m.face.size()); ++i) {
+            QVERIFY2(m.face[std::size_t(i)].IsS() == (expected.count(i) > 0),
+                     qPrintable(QStringLiteral("connectedOnly %1, face %2")
+                                    .arg(connectedOnly ? QStringLiteral("on") : QStringLiteral("off"))
+                                    .arg(i)));
+        }
+    }
 }
 
 // As alpha grows the alpha shape converges to the convex hull, so a large alpha on an
@@ -5585,7 +5637,7 @@ void FilterTests::translateFilterMovesOnlyCurrentMesh()
     MeshFilterParameterValues params;
     params.insert(QStringLiteral("traslMethod"), QStringLiteral("xyz"));
     params.insert(QStringLiteral("axis"), QVector3D(1.0f, 0.0f, 0.0f));
-    params.insert(QStringLiteral("Freeze"), false);
+    params.insert(QStringLiteral("transformResult"), QStringLiteral("assign_matrix"));
 
     const MeshFilterRunResult result = doc.runFilter(translateKey, params);
     QVERIFY2(result.success, qPrintable(result.errorMessage));
@@ -5621,7 +5673,7 @@ MeshFilterParameterValues translateAlongXParams()
     MeshFilterParameterValues params;
     params.insert(QStringLiteral("traslMethod"), QStringLiteral("xyz"));
     params.insert(QStringLiteral("axis"), QVector3D(1.0f, 0.0f, 0.0f));
-    params.insert(QStringLiteral("Freeze"), false);
+    params.insert(QStringLiteral("transformResult"), QStringLiteral("assign_matrix"));
     return params;
 }
 
@@ -7004,7 +7056,7 @@ void FilterTests::normalizeReferenceFrameIsOrientationInvariant()
         params.insert(QStringLiteral("rotation"), rotationMode);
         params.insert(QStringLiteral("scale"), QStringLiteral("unit_longest_side"));
         params.insert(QStringLiteral("minAxisSeparation"), 0.0);
-        params.insert(QStringLiteral("Freeze"), true);
+        params.insert(QStringLiteral("transformResult"), QStringLiteral("bake_positions"));
         const MeshFilterRunResult r = doc.runFilter(key, params);
         std::vector<vcg::Point3f> out;
         if (r.success)
@@ -7063,7 +7115,7 @@ void FilterTests::normalizeReferenceFrameControlsAreIndependent()
         p.insert(QStringLiteral("rotation"), rotation);
         p.insert(QStringLiteral("scale"), scale);
         p.insert(QStringLiteral("minAxisSeparation"), separation);
-        p.insert(QStringLiteral("Freeze"), true);
+        p.insert(QStringLiteral("transformResult"), QStringLiteral("bake_positions"));
         const MeshFilterRunResult r = doc.runFilter(key, p);
         vcg::tri::UpdateBounding<VCGMesh>::Box(doc.mesh(idx).mesh);
         return std::make_pair(r.success, doc.mesh(idx).mesh.bbox);
@@ -7100,7 +7152,7 @@ void FilterTests::normalizeReferenceFrameControlsAreIndependent()
     guarded.insert(QStringLiteral("rotation"), QStringLiteral("pca_area_weighted"));
     guarded.insert(QStringLiteral("scale"), QStringLiteral("unchanged"));
     guarded.insert(QStringLiteral("minAxisSeparation"), 0.1);
-    guarded.insert(QStringLiteral("Freeze"), true);
+    guarded.insert(QStringLiteral("transformResult"), QStringLiteral("bake_positions"));
     const MeshFilterRunResult guardedRun = sphereDoc.runFilter(key, guarded);
     QVERIFY2(guardedRun.success, qPrintable(guardedRun.errorMessage));
     bool warned = false;
@@ -7120,7 +7172,7 @@ void FilterTests::normalizeReferenceFrameControlsAreIndependent()
     solid.insert(QStringLiteral("rotation"), QStringLiteral("unchanged"));
     solid.insert(QStringLiteral("scale"), QStringLiteral("unchanged"));
     solid.insert(QStringLiteral("minAxisSeparation"), 0.0);
-    solid.insert(QStringLiteral("Freeze"), true);
+    solid.insert(QStringLiteral("transformResult"), QStringLiteral("bake_positions"));
     const MeshFilterRunResult openRun = openDoc.runFilter(key, solid);
     QVERIFY(!openRun.success);
     QVERIFY(openRun.errorMessage.contains(QStringLiteral("watertight"), Qt::CaseInsensitive));
@@ -7170,7 +7222,7 @@ void FilterTests::bboxCentrePivotIsWorldSpace()
         params.insert(QStringLiteral("rotAxis"), QStringLiteral("z"));
         params.insert(QStringLiteral("angle"), 90.0);
         params.insert(QStringLiteral("rotCenter"), QStringLiteral("bbox_center"));
-        params.insert(QStringLiteral("Freeze"), false);
+        params.insert(QStringLiteral("transformResult"), QStringLiteral("assign_matrix"));
         const MeshFilterRunResult r = doc.runFilter(rotateKey, params);
         QVERIFY2(r.success, qPrintable(r.errorMessage));
 
@@ -7189,7 +7241,7 @@ void FilterTests::bboxCentrePivotIsWorldSpace()
         params.insert(QStringLiteral("axisX"), 3.0);
         params.insert(QStringLiteral("uniformFlag"), true);
         params.insert(QStringLiteral("scaleCenter"), QStringLiteral("bbox_center"));
-        params.insert(QStringLiteral("Freeze"), false);
+        params.insert(QStringLiteral("transformResult"), QStringLiteral("assign_matrix"));
         const MeshFilterRunResult r = doc.runFilter(scaleKey, params);
         QVERIFY2(r.success, qPrintable(r.errorMessage));
 
@@ -7201,7 +7253,7 @@ void FilterTests::bboxCentrePivotIsWorldSpace()
 }
 
 // What the interactive transform tool does on commit: run the transform filter with
-// Freeze off, on one of several layers, and keep the resulting layer matrix.
+// Assign matrix, on one of several layers, and keep the resulting layer matrix.
 void FilterTests::unfrozenTransformFilterKeepsTheMatrix()
 {
     Document doc;
@@ -7217,7 +7269,7 @@ void FilterTests::unfrozenTransformFilterKeepsTheMatrix()
     MeshFilterParameterValues params;
     params.insert(QStringLiteral("traslMethod"), QStringLiteral("xyz"));
     params.insert(QStringLiteral("axis"), QVector3D(2.0f, 0.0f, 0.0f));
-    params.insert(QStringLiteral("Freeze"), false);
+    params.insert(QStringLiteral("transformResult"), QStringLiteral("assign_matrix"));
 
     const MeshFilterRunResult r = doc.runFilter(key, params);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
@@ -8485,7 +8537,8 @@ void FilterTests::setMatrixComposesOnTheLeftOfTheLayerTransform()
     for (int row = 0; row < 4; ++row)
         for (int col = 0; col < 4; ++col)
             params[QStringLiteral("m%1%2").arg(row).arg(col)] = double(gesture(row, col));
-    params[QStringLiteral("Freeze")] = false;
+    params[QStringLiteral("compose")] = true;
+    params[QStringLiteral("transformResult")] = QStringLiteral("assign_matrix");
     const MeshFilterRunResult r = doc.runFilter(
         filterKeyForId(doc, QStringLiteral("set_matrix_from_values_or_layer")), params);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
@@ -8498,6 +8551,227 @@ void FilterTests::setMatrixComposesOnTheLeftOfTheLayerTransform()
                      qPrintable(QStringLiteral("m%1%2: %3 expected %4")
                                     .arg(row).arg(col)
                                     .arg(actual(row, col)).arg(expected(row, col))));
+}
+
+// Without Compose with current, Set Matrix sets: the layer's own matrix is replaced, not
+// composed on. The option used to be declared and never read.
+void FilterTests::setMatrixReplacesTheLayerMatrixUnlessComposing()
+{
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply")) >= 0);
+    doc.setCurrentMeshIndex(0);
+    QMatrix4x4 existing;
+    existing.translate(3.0f, 0.0f, 0.0f);
+    doc.setMeshTransform(0, existing);
+
+    QMatrix4x4 matrix;
+    matrix.rotate(90.0f, 0.0f, 0.0f, 1.0f);
+    MeshFilterParameterValues params;
+    for (int row = 0; row < 4; ++row)
+        for (int col = 0; col < 4; ++col)
+            params[QStringLiteral("m%1%2").arg(row).arg(col)] = double(matrix(row, col));
+    params[QStringLiteral("transformResult")] = QStringLiteral("assign_matrix");
+    const MeshFilterRunResult r = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("set_matrix_from_values_or_layer")), params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(matrixNear(doc.mesh(0).transform, matrix, 1e-5f));
+}
+
+// The framework's one result choice, on Rotate: 90 degrees about Z, on a layer already
+// carrying a translation. Assign matrix composes the rotation onto that matrix and leaves
+// the vertices alone. Bake positions -- Rotate's default, as the retired Freeze Matrix
+// toggle's was -- writes the composed matrix into the vertices and resets it to the
+// identity, which is also what Freeze Matrix then does to an assigned one.
+void FilterTests::transformResultAssignsOrBakesTheFilterMatrix()
+{
+    QMatrix4x4 existing;
+    existing.translate(3.0f, 0.0f, 0.0f);
+    QMatrix4x4 rotation;
+    rotation.rotate(90.0f, 0.0f, 0.0f, 1.0f);
+    const QMatrix4x4 combined = rotation * existing;
+
+    for (const QString &mode : { QString(), QStringLiteral("assign_matrix"), QStringLiteral("bake_positions") }) {
+        Document doc;
+        VCGMesh cube;
+        makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+        const int index = doc.addMesh(cube, QStringLiteral("cube"));
+        QVERIFY(index >= 0);
+        doc.setMeshTransform(index, existing);
+        std::vector<vcg::Point3f> before;
+        for (const VCGVertex &v : doc.mesh(index).mesh.vert)
+            before.push_back(v.cP());
+
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("rotAxis"), QStringLiteral("z"));
+        params.insert(QStringLiteral("rotCenter"), QStringLiteral("origin"));
+        params.insert(QStringLiteral("angle"), 90.0);
+        if (!mode.isEmpty())
+            params.insert(QStringLiteral("transformResult"), mode);
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("rotate")), params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+        const Document::MeshEntry &entry = doc.mesh(index);
+        const bool assigned = (mode == QStringLiteral("assign_matrix"));
+        if (assigned) {
+            QVERIFY2(matrixNear(entry.transform, combined, 1e-5f), "assign: rotation composed onto the matrix");
+            for (std::size_t i = 0; i < before.size(); ++i)
+                QVERIFY2(entry.mesh.vert[i].cP() == before[i], "assign: vertices untouched");
+            // Freeze Matrix then bakes the assigned matrix, through the same core helper.
+            QVERIFY(doc.runFilter(filterKeyForId(doc, QStringLiteral("freeze_matrix")), {}).success);
+        }
+        const QString label = mode.isEmpty() ? QStringLiteral("default") : mode;
+        QVERIFY2(entry.transform.isIdentity(), qPrintable(label + QStringLiteral(": matrix reset")));
+        for (std::size_t i = 0; i < before.size(); ++i) {
+            const QVector3D expected = combined.map(QVector3D(before[i][0], before[i][1], before[i][2]));
+            const vcg::Point3f &actual = entry.mesh.vert[i].cP();
+            QVERIFY2((QVector3D(actual[0], actual[1], actual[2]) - expected).length() < 1e-5f,
+                     qPrintable(QStringLiteral("%1: vertex %2 not at its baked position").arg(label).arg(i)));
+        }
+    }
+}
+
+// Bake positions on an alignment, where the moved layer is a parameter rather than the
+// current one: the framework finds it by the matrix the run changed. The source cloud is
+// displaced in its vertices, so ICP's answer is a real translation. The assigned run keeps
+// it as the matrix; the baked one ends at the identity with the points where that matrix
+// put them. The reference, which nothing moved, is left exactly as it was either way.
+void FilterTests::alignmentBakesOnlyTheLayerItMoved()
+{
+    struct Outcome {
+        QMatrix4x4 sourceMatrix;
+        QMatrix4x4 referenceMatrix;
+        std::vector<vcg::Point3f> source;
+        std::vector<vcg::Point3f> reference;
+    };
+    const vcg::Point3f offset(0.12f, -0.06f, 0.04f);
+    std::vector<vcg::Point3f> original;
+    const auto align = [&](const QString &mode, Outcome &out) {
+        Document doc;
+        VCGMesh referenceCloud;
+        VCGMesh sourceCloud;
+        makeIcpPointCloud(referenceCloud);
+        makeIcpPointCloud(sourceCloud);
+        original.clear();
+        for (VCGVertex &v : sourceCloud.vert) {
+            original.push_back(v.cP());
+            v.P() += offset;
+        }
+        const int mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTNORMAL;
+        const int referenceIndex = doc.addMesh(referenceCloud, QStringLiteral("ICP Reference"), mask);
+        const int sourceIndex = doc.addMesh(sourceCloud, QStringLiteral("ICP Source"), mask);
+        QVERIFY(referenceIndex >= 0 && sourceIndex >= 0);
+
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("ReferenceMesh"), referenceIndex);
+        params.insert(QStringLiteral("SourceMesh"), sourceIndex);
+        params.insert(QStringLiteral("SampleNum"), 5);
+        params.insert(QStringLiteral("SampleMode"), false);
+        params.insert(QStringLiteral("UseVertexOnly"), true);
+        params.insert(QStringLiteral("MinPointNum"), 3);
+        params.insert(QStringLiteral("MinDistAbs"), 0.5);
+        params.insert(QStringLiteral("TrgDistAbs"), 0.000001);
+        params.insert(QStringLiteral("MaxIterNum"), 20);
+        params.insert(QStringLiteral("PassHiFilter"), 1.0);
+        params.insert(QStringLiteral("transformResult"), mode);
+        const MeshFilterRunResult r =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("align_by_icp_vcglib")), params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+        out.sourceMatrix = doc.mesh(sourceIndex).transform;
+        out.referenceMatrix = doc.mesh(referenceIndex).transform;
+        for (const VCGVertex &v : doc.mesh(sourceIndex).mesh.vert)
+            out.source.push_back(v.cP());
+        for (const VCGVertex &v : doc.mesh(referenceIndex).mesh.vert)
+            out.reference.push_back(v.cP());
+    };
+
+    Outcome assigned;
+    Outcome baked;
+    align(QStringLiteral("assign_matrix"), assigned);
+    align(QStringLiteral("bake_positions"), baked);
+    if (QTest::currentTestFailed())
+        return;
+
+    // Assigned: ICP moved the source back by its matrix and left its points displaced.
+    QMatrix4x4 back;
+    back.translate(-offset[0], -offset[1], -offset[2]);
+    QVERIFY2(matrixNear(assigned.sourceMatrix, back, 1e-3f), "ICP should undo the displacement");
+    for (std::size_t i = 0; i < original.size(); ++i)
+        QVERIFY(assigned.source[i] == original[i] + offset);
+
+    // Baked: identity, and every point where the assigned matrix put it.
+    QVERIFY(baked.sourceMatrix.isIdentity());
+    QCOMPARE(baked.source.size(), assigned.source.size());
+    for (std::size_t i = 0; i < baked.source.size(); ++i) {
+        const vcg::Point3f &a = assigned.source[i];
+        const QVector3D expected = assigned.sourceMatrix.map(QVector3D(a[0], a[1], a[2]));
+        const vcg::Point3f &b = baked.source[i];
+        QVERIFY2((QVector3D(b[0], b[1], b[2]) - expected).length() < 1e-4f,
+                 qPrintable(QStringLiteral("baked point %1 is not where the matrix put it").arg(i)));
+    }
+
+    // The reference: untouched in both runs.
+    for (const Outcome *o : { &assigned, &baked }) {
+        QVERIFY(o->referenceMatrix.isIdentity());
+        QCOMPARE(o->reference.size(), original.size());
+        for (std::size_t i = 0; i < original.size(); ++i)
+            QVERIFY(o->reference[i] == original[i]);
+    }
+}
+
+// With Apply to all visible cameras, the camera filters move the scene: every visible layer
+// goes by the same world-space transform as the cameras, once. They used to write it into
+// the vertices and compose it onto the layer matrix as well, so a layer moved twice. A layer
+// that already carries a matrix must still move by the transform in world space.
+void FilterTests::cameraTransformsMoveVisibleLayersOnce()
+{
+    Document doc;
+    VCGMesh plain;
+    makeCubeMesh(plain, 0.0f, 0.0f, 0.0f);
+    VCGMesh rotated;
+    makeCubeMesh(rotated, 2.0f, 0.0f, 0.0f);
+    const int plainIndex = doc.addMesh(plain, QStringLiteral("plain"));
+    const int rotatedIndex = doc.addMesh(rotated, QStringLiteral("rotated"));
+    QVERIFY(plainIndex >= 0 && rotatedIndex >= 0);
+    QMatrix4x4 layerMatrix;
+    layerMatrix.rotate(90.0f, 0.0f, 0.0f, 1.0f);
+    doc.setMeshTransform(rotatedIndex, layerMatrix);
+
+    const auto worldPositions = [&doc](int index) {
+        std::vector<QVector3D> out;
+        const Document::MeshEntry &entry = doc.mesh(index);
+        for (const VCGVertex &v : entry.mesh.vert)
+            out.push_back(entry.transform.map(QVector3D(v.cP()[0], v.cP()[1], v.cP()[2])));
+        return out;
+    };
+    const std::vector<QVector3D> plainBefore = worldPositions(plainIndex);
+    const std::vector<QVector3D> rotatedBefore = worldPositions(rotatedIndex);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("tx"), 1.0);
+    params.insert(QStringLiteral("toall"), true);
+    const MeshFilterRunResult r =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("translate_cameras")), params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+    const QVector3D shift(1.0f, 0.0f, 0.0f);
+    const std::vector<QVector3D> plainAfter = worldPositions(plainIndex);
+    const std::vector<QVector3D> rotatedAfter = worldPositions(rotatedIndex);
+    for (std::size_t i = 0; i < plainBefore.size(); ++i) {
+        QVERIFY2((plainAfter[i] - (plainBefore[i] + shift)).length() < 1e-5f,
+                 qPrintable(QStringLiteral("plain vertex %1 moved by (%2, %3, %4)")
+                                .arg(i)
+                                .arg(plainAfter[i].x() - plainBefore[i].x())
+                                .arg(plainAfter[i].y() - plainBefore[i].y())
+                                .arg(plainAfter[i].z() - plainBefore[i].z())));
+    }
+    for (std::size_t i = 0; i < rotatedBefore.size(); ++i) {
+        QVERIFY2((rotatedAfter[i] - (rotatedBefore[i] + shift)).length() < 1e-5f,
+                 qPrintable(QStringLiteral("rotated vertex %1 did not move by the shift in world space").arg(i)));
+    }
+    // The move is in the vertices; the layer matrices are left as they were.
+    QVERIFY(doc.mesh(plainIndex).transform.isIdentity());
+    QVERIFY(matrixNear(doc.mesh(rotatedIndex).transform, layerMatrix, 1e-6f));
 }
 
 // The tools and the render widget reach for a handful of filters by literal

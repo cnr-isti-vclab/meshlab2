@@ -176,7 +176,7 @@
       "tags": ["camera", "transform", "rotation"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "outputModifies": [],
+      "outputModifies": ["VG", "VN", "FN"],
       "parameters": [
         {
           "id": "camera",
@@ -274,7 +274,7 @@
       "tags": ["camera", "transform", "scale"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "outputModifies": [],
+      "outputModifies": ["VG", "VN", "FN"],
       "parameters": [
         {
           "id": "camera",
@@ -349,7 +349,7 @@
       "tags": ["camera", "transform", "translation"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "outputModifies": [],
+      "outputModifies": ["VG", "VN", "FN"],
       "parameters": [
         {
           "id": "camera",
@@ -432,7 +432,7 @@
       "tags": ["camera", "transform"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "outputModifies": [],
+      "outputModifies": ["VG", "VN", "FN"],
       "parameters": [
         {
           "id": "camera",

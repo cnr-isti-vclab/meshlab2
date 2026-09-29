@@ -302,6 +302,13 @@ public:
         int index,
         const QMatrix4x4 &transform,
         const QString &contextMessage = {});
+    // Write the layer matrix into the vertex positions and normals and reset it to the
+    // identity: what Freeze Matrix does, and what the framework does for a filter whose
+    // transformResult is Bake positions. Nothing happens to a layer already at identity.
+    void freezeMeshTransform(int index, const QString &contextMessage = {});
+    // Move a mesh's vertices by `matrix`. Vertex normals follow its inverse transpose, and a
+    // mesh with faces then has its normals recomputed from the moved geometry.
+    static void transformMeshGeometry(VCGMesh &mesh, const QMatrix4x4 &matrix);
     void setCurrentMeshIndex(int index);
     void markMeshGeometryChanged(int index, const QString &contextMessage = {});
     // Recount an existing polygon mesh; fauxEdgesModified also reconciles its polygon flag.

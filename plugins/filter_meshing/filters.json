@@ -786,6 +786,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "transformResult": "bake_positions",
       "parameters": [
         {
           "id": "flipX",
@@ -834,14 +835,6 @@
           "group": "main",
           "type": "bool",
           "default": false
-        },
-        {
-          "id": "Freeze",
-          "label": "Freeze Matrix",
-          "help": "Transformation is explicitly applied to vertices.",
-          "group": "main",
-          "type": "bool",
-          "default": true
         }
       ],
       "outputModifies": [
@@ -863,6 +856,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "transformResult": "bake_positions",
       "parameters": [
         {
           "id": "rotAxis",
@@ -967,14 +961,6 @@
           "min": 0.0001,
           "max": 360.0,
           "decimals": 4
-        },
-        {
-          "id": "Freeze",
-          "label": "Freeze Matrix",
-          "help": "Transformation is explicitly applied to vertices.",
-          "group": "main",
-          "type": "bool",
-          "default": true
         }
       ],
       "outputModifies": [
@@ -996,6 +982,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "transformResult": "bake_positions",
       "inputRequirements": {
         "requireVertices": true
       },
@@ -1055,14 +1042,6 @@
           "group": "main",
           "type": "bool",
           "default": true
-        },
-        {
-          "id": "Freeze",
-          "label": "Freeze Matrix",
-          "help": "Transformation is explicitly applied to vertices.",
-          "group": "main",
-          "type": "bool",
-          "default": true
         }
       ],
       "outputModifies": [
@@ -1090,6 +1069,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "transformResult": "bake_positions",
       "inputRequirements": {
         "requireVertices": true
       },
@@ -1146,14 +1126,6 @@
           "min": 0.0,
           "max": 1.0,
           "decimals": 3
-        },
-        {
-          "id": "Freeze",
-          "label": "Freeze Matrix",
-          "help": "Transformation is explicitly applied to vertices.",
-          "group": "main",
-          "type": "bool",
-          "default": true
         }
       ],
       "outputModifies": [
@@ -1175,6 +1147,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "transformResult": "bake_positions",
       "parameters": [
         {
           "id": "axisX",
@@ -1251,14 +1224,6 @@
             0.0,
             0.0
           ]
-        },
-        {
-          "id": "Freeze",
-          "label": "Freeze Matrix",
-          "help": "Transformation is explicitly applied to vertices.",
-          "group": "main",
-          "type": "bool",
-          "default": true
         }
       ],
       "outputModifies": [
@@ -1280,6 +1245,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "transformResult": "bake_positions",
       "parameters": [
         {
           "id": "traslMethod",
@@ -1328,14 +1294,6 @@
             0.0,
             0.0
           ]
-        },
-        {
-          "id": "Freeze",
-          "label": "Freeze Matrix",
-          "help": "Transformation is explicitly applied to vertices.",
-          "group": "main",
-          "type": "bool",
-          "default": true
         }
       ],
       "outputModifies": [
@@ -1394,16 +1352,8 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "parameters": [
-        {
-          "id": "Freeze",
-          "label": "Freeze Matrix",
-          "help": "Transformation is explicitly applied to vertices.",
-          "group": "main",
-          "type": "bool",
-          "default": true
-        }
-      ],
+      "transformResult": "bake_positions",
+      "parameters": [],
       "outputModifies": [
         "TM",
         "VG",
@@ -1423,6 +1373,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "transformResult": "bake_positions",
       "parameters": [
         {
           "id": "translationX",
@@ -1530,14 +1481,6 @@
           "group": "main",
           "type": "bool",
           "default": false
-        },
-        {
-          "id": "Freeze",
-          "label": "Freeze Matrix",
-          "help": "Transformation is explicitly applied to vertices.",
-          "group": "main",
-          "type": "bool",
-          "default": true
         }
       ],
       "outputModifies": [
@@ -1559,6 +1502,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "transformResult": "bake_positions",
       "parameters": [
         {
           "id": "m00",
@@ -1743,14 +1687,6 @@
           "group": "main",
           "type": "bool",
           "default": false
-        },
-        {
-          "id": "Freeze",
-          "label": "Freeze Matrix",
-          "help": "Transformation is explicitly applied to vertices.",
-          "group": "main",
-          "type": "bool",
-          "default": true
         }
       ],
       "outputModifies": [

@@ -270,10 +270,6 @@ constexpr QLatin1StringView kIdFauxExtract("create_polyline_from_selected_edges"
 constexpr QLatin1StringView kIdVAttrSeam("split_vertices_by_attribute_seam");
 constexpr QLatin1StringView kIdLS3Loop("subdivide_by_ls3_loop");
 
-struct TransformOptions {
-    bool freeze = true;
-};
-
 int selectedFaceCount(const VCGMesh &mesh)
 {
     int cnt = 0;
@@ -333,29 +329,6 @@ vcg::Box3f sceneBBox(const Document &doc, bool visibleOnly)
     return bb;
 }
 
-vcg::Point3f transformVectorLinear(const vcg::Matrix44f &m, const vcg::Point3f &v)
-{
-    return {
-        m[0][0] * v.X() + m[0][1] * v.Y() + m[0][2] * v.Z(),
-        m[1][0] * v.X() + m[1][1] * v.Y() + m[1][2] * v.Z(),
-        m[2][0] * v.X() + m[2][1] * v.Y() + m[2][2] * v.Z()
-    };
-}
-
-void applyTransformToMesh(VCGMesh &mesh, const vcg::Matrix44f &tr)
-{
-    for (VCGVertex &v : mesh.vert) {
-        v.P() = tr * v.cP();
-        vcg::Point3f nn = transformVectorLinear(tr, v.cN());
-        const float n2 = nn.SquaredNorm();
-        if (n2 > 1e-20f)
-            v.N() = nn / std::sqrt(n2);
-    }
-    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
-    if (mesh.FN() > 0)
-        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
-}
-
 bool buildReferenceSurfaceForIsotropicRemeshing(
     const Document &doc,
     int currentMeshIndex,
@@ -395,14 +368,18 @@ bool buildReferenceSurfaceForIsotropicRemeshing(
 
     vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(referenceMesh, referenceEntry.mesh);
     const QMatrix4x4 referenceToCurrentLocal = currentToWorldInv * referenceEntry.transform;
-    applyTransformToMesh(referenceMesh, qtToVcg(referenceToCurrentLocal));
+    Document::transformMeshGeometry(referenceMesh, referenceToCurrentLocal);
     return true;
 }
 
+// Leave the filter's matrix on the current layer, composed on top of the layer's own or in
+// its place. Writing it into the vertices is the framework's, when the call asks for Bake
+// positions (MeshFilterDescriptor::transformResult).
 void applyTransform(
     Document &doc,
     const vcg::Matrix44f &tr,
-    const TransformOptions &opt,
+    bool compose,
+    const QString &opName,
     QVector<int> &touched)
 {
     touched.clear();
@@ -410,19 +387,9 @@ void applyTransform(
     if (i < 0 || i >= doc.meshCount())
         return;
 
-    Document::MeshEntry &entry = doc.mesh(i);
-    // Compose the new filter matrix on top of the existing per-mesh transform.
-    const QMatrix4x4 combined = vcgToQt(tr) * entry.transform;
-    if (opt.freeze) {
-        // Bake the combined transform into vertex positions, then reset the matrix.
-        applyTransformToMesh(entry.mesh, qtToVcg(combined));
-        QMatrix4x4 identity;
-        identity.setToIdentity();
-        doc.setMeshTransform(i, identity);
-    } else {
-        // Store the composed matrix for rendering without touching vertex data.
-        doc.setMeshTransform(i, combined);
-    }
+    const Document::MeshEntry &entry = doc.mesh(i);
+    const QMatrix4x4 matrix = compose ? vcgToQt(tr) * entry.transform : vcgToQt(tr);
+    doc.setMeshTransform(i, matrix, QObject::tr("%1 on '%2'").arg(opName, entry.name));
     touched.push_back(i);
 }
 
@@ -873,19 +840,9 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             return success(true, info);
         }
 
-        auto makeTransformOptions = [&]() {
-            TransformOptions o;
-            o.freeze = params.getBool(QStringLiteral("Freeze"));
-            return o;
-        };
-
-        auto applyTransformAndMark = [&](const vcg::Matrix44f &tr, const TransformOptions &opt, const QString &opName) {
+        auto applyTransformAndReport = [&](const vcg::Matrix44f &tr, const QString &opName, bool compose = true) {
             QVector<int> touched;
-            applyTransform(doc, tr, opt, touched);
-            for (int idx : touched) {
-                if (opt.freeze)
-                    markGeometry(idx, QObject::tr("%1 on '%2'").arg(opName, doc.mesh(idx).name));
-            }
+            applyTransform(doc, tr, compose, opName, touched);
             return success(!touched.isEmpty(), { QObject::tr("Affected layers: %1").arg(touched.size()) });
         };
 
@@ -910,7 +867,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (params.getBool(QStringLiteral("swapYZ"))) {
                 vcg::Matrix44f m; m.SetIdentity(); m[1][1] = 0; m[1][2] = 1; m[2][1] = 1; m[2][2] = 0; tr *= m;
             }
-            return applyTransformAndMark(tr, makeTransformOptions(), QObject::tr("Flip/Swap axes"));
+            return applyTransformAndReport(tr, QObject::tr("Flip/Swap axes"));
         }
 
         if (filterId == QString::fromLatin1(kIdRotate)) {
@@ -957,7 +914,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             trT.SetTranslate(center);
             trInvT.SetTranslate(-center);
             vcg::Matrix44f tr = trT * trRot * trInvT;
-            return applyTransformAndMark(tr, makeTransformOptions(), QObject::tr("Rotate"));
+            return applyTransformAndReport(tr, QObject::tr("Rotate"));
         }
 
         if (filterId == QString::fromLatin1(kIdRotateFit)) {
@@ -1029,7 +986,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 t.SetTranslate(-selBox.Center());
                 tr = rt * t;
             }
-            return applyTransformAndMark(tr, makeTransformOptions(), QObject::tr("Rotate to fit"));
+            return applyTransformAndReport(tr, QObject::tr("Rotate to fit"));
         }
 
         if (filterId == QString::fromLatin1(kIdNormalizeFrame)) {
@@ -1236,12 +1193,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             const vcg::Matrix44f tr = back * scale4 * rot4 * toOrigin;
 
             QVector<int> touched;
-            applyTransform(doc, tr, makeTransformOptions(), touched);
-            const TransformOptions opt = makeTransformOptions();
-            for (int idx : touched) {
-                if (opt.freeze)
-                    markGeometry(idx, QObject::tr("Normalized the reference frame of '%1'").arg(doc.mesh(idx).name));
-            }
+            applyTransform(doc, tr, true, QObject::tr("Normalize reference frame"), touched);
             notes << QObject::tr("Affected layers: %1").arg(touched.size());
             return success(!touched.isEmpty(), notes);
         }
@@ -1260,7 +1212,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
             vcg::Matrix44f tr;
             tr.SetTranslate(translation);
-            return applyTransformAndMark(tr, makeTransformOptions(), QObject::tr("Translate/Center"));
+            return applyTransformAndReport(tr, QObject::tr("Translate/Center"));
         }
 
         if (filterId == QString::fromLatin1(kIdScale)) {
@@ -1288,7 +1240,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             t.SetTranslate(c);
             it.SetTranslate(-c);
             vcg::Matrix44f tr = t * s * it;
-            return applyTransformAndMark(tr, makeTransformOptions(), QObject::tr("Scale"));
+            return applyTransformAndReport(tr, QObject::tr("Scale"));
         }
 
         if (filterId == QString::fromLatin1(kIdReset)) {
@@ -1300,31 +1252,17 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdFreeze)) {
-            // Bake the current per-mesh transform into vertex positions and reset to identity.
-            QMatrix4x4 identity;
-            identity.setToIdentity();
-            applyTransformToMesh(mesh, qtToVcg(entry.transform));
-            doc.setMeshTransform(ci, identity);
-            markGeometry(ci, QObject::tr("Freeze transform on '%1'").arg(entry.name));
+            doc.freezeMeshTransform(ci, QObject::tr("Freeze transform on '%1'").arg(entry.name));
             return success(true, { QObject::tr("Transform frozen to vertices on current layer.") });
         }
 
         if (filterId == QString::fromLatin1(kIdInvertTr)) {
             // Invert the current per-mesh transform matrix.
-            const bool freeze = params.getBool(QStringLiteral("Freeze"));
-            QMatrix4x4 identity;
-            identity.setToIdentity();
             bool invertible = false;
             const QMatrix4x4 inv = entry.transform.inverted(&invertible);
             if (!invertible)
                 return fail(QObject::tr("Current transform matrix is not invertible."));
-            if (freeze) {
-                applyTransformToMesh(mesh, qtToVcg(inv));
-                doc.setMeshTransform(ci, identity);
-                markGeometry(ci, QObject::tr("Invert and freeze transform on '%1'").arg(entry.name));
-            } else {
-                doc.setMeshTransform(ci, inv);
-            }
+            doc.setMeshTransform(ci, inv, QObject::tr("Invert transform on '%1'").arg(entry.name));
             return success(true, { QObject::tr("Transform inverted on current layer.") });
         }
 
@@ -1352,7 +1290,8 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 tt.SetScale(sx, sy, sz);
                 tr = tr * tt;
             }
-            return applyTransformAndMark(tr, makeTransformOptions(), QObject::tr("Set transform from parameters"));
+            return applyTransformAndReport(
+                tr, QObject::tr("Set transform from parameters"), params.getBool(QStringLiteral("compose")));
         }
 
         if (filterId == QString::fromLatin1(kIdSetMatrix)) {
@@ -1360,7 +1299,8 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             for (int r = 0; r < 4; ++r)
                 for (int c = 0; c < 4; ++c)
                     tr[r][c] = float(params.getDouble(QStringLiteral("m%1%2").arg(r).arg(c)));
-            return applyTransformAndMark(tr, makeTransformOptions(), QObject::tr("Set transform matrix"));
+            return applyTransformAndReport(
+                tr, QObject::tr("Set transform matrix"), params.getBool(QStringLiteral("compose")));
         }
 
         if (filterId == QString::fromLatin1(kIdNormalExtrap)) {

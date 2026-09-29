@@ -146,6 +146,7 @@ private slots:
     void descriptorConforms();
     void selectionFiltersDeclareWhatTheySelect();
     void selectionScopeIsDeclaredNotHandWritten();
+    void transformResultIsDeclaredNotHandWritten();
     void singleMeshFiltersUseTheCurrentLayer();
     void layerCreatingFiltersDeclareAnOutputTag();
 
@@ -720,6 +721,80 @@ void FilterDescriptorTests::selectionScopeIsDeclaredNotHandWritten()
     }
 
     QVERIFY2(scoped >= 49, qPrintable(QStringLiteral("only %1 scoped filters found").arg(scoped)));
+    QVERIFY2(offenders.isEmpty(), qPrintable(offenders.join(QStringLiteral("; "))));
+}
+
+// Assign matrix / Bake positions is one framework parameter, injected from the filter's
+// transformResult, never a toggle of a plugin's own. Before that, nine transform filters each
+// declared a `Freeze Matrix` bool and baked by hand, and the five alignment filters offered no
+// choice. A declaring filter lists everything a bake can change, since the framework may do it
+// after the filter returns. The manifests are read directly for the declaration itself, since
+// the loader maps an unknown value to none.
+void FilterDescriptorTests::transformResultIsDeclaredNotHandWritten()
+{
+    const QString resultId = QString::fromLatin1(TransformResults::kParameterId);
+    static const QSet<QString> kValues = {
+        QString::fromLatin1(TransformResults::kAssignMatrix),
+        QString::fromLatin1(TransformResults::kBakePositions),
+    };
+    static const QStringList kBakeModifies = {
+        QStringLiteral("TM"), QStringLiteral("VG"), QStringLiteral("VN"), QStringLiteral("FN")
+    };
+
+    QStringList offenders;
+    int declaring = 0;
+    QDirIterator it(QStringLiteral(TEST_SOURCE_DIR "/plugins"), { QStringLiteral("filters.json") },
+                    QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        QFile file(it.next());
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QJsonArray filters = QJsonDocument::fromJson(file.readAll()).object()
+                                       .value(QStringLiteral("filters")).toArray();
+        for (const QJsonValue &fv : filters) {
+            const QJsonObject f = fv.toObject();
+            const QString id = f.value(QStringLiteral("id")).toString();
+            for (const QJsonValue &pv : f.value(QStringLiteral("parameters")).toArray()) {
+                const QString pid = pv.toObject().value(QStringLiteral("id")).toString();
+                if (pid == resultId || pid == QLatin1String("Freeze"))
+                    offenders << QStringLiteral("%1 declares '%2' by hand").arg(id, pid);
+            }
+            if (!f.contains(resultId))
+                continue;
+            ++declaring;
+            const QString value = f.value(resultId).toString();
+            if (!kValues.contains(value))
+                offenders << QStringLiteral("%1: unknown transformResult '%2'").arg(id, value);
+            QStringList modifies;
+            for (const QJsonValue &m : f.value(QStringLiteral("outputModifies")).toArray())
+                modifies << m.toString();
+            for (const QString &code : kBakeModifies) {
+                if (!modifies.contains(code))
+                    offenders << QStringLiteral("%1: a bake changes %2, missing from outputModifies").arg(id, code);
+            }
+        }
+    }
+
+    // And what the loader makes of it: one enum of the two choices, last, never advanced,
+    // defaulting to the declared value.
+    for (const auto &info : m_infos) {
+        const MeshFilterDescriptor &d = info.descriptor;
+        if (d.transformResult.isEmpty())
+            continue;
+        int count = 0;
+        for (const auto &p : d.parameters)
+            count += (p.id == resultId) ? 1 : 0;
+        const MeshFilterParameterDescriptor *last = d.parameters.empty() ? nullptr : &d.parameters.back();
+        if (count != 1 || !last || last->id != resultId
+            || last->type != MeshFilterParameterType::Enum || last->isAdvancedGroup()
+            || last->enumOptions.size() != 2
+            || last->defaultValue.toString() != d.transformResult) {
+            offenders << QStringLiteral("%1: the injected %2 is missing, repeated, not last, "
+                                        "advanced or not defaulting to the declaration")
+                             .arg(d.id, resultId);
+        }
+    }
+
+    QVERIFY2(declaring >= 14, qPrintable(QStringLiteral("only %1 declaring filters found").arg(declaring)));
     QVERIFY2(offenders.isEmpty(), qPrintable(offenders.join(QStringLiteral("; "))));
 }
 

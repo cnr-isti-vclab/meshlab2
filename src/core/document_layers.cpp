@@ -345,6 +345,56 @@ void Document::setMeshTransform(
         endUndoStep(true);
 }
 
+void Document::transformMeshGeometry(VCGMesh &mesh, const QMatrix4x4 &matrix)
+{
+    // The inverse transpose, not the linear part: the two agree only for rotations, mirrors
+    // and uniform scales, and a point cloud scaled along one axis keeps no other normals.
+    const QMatrix3x3 normalMatrix = matrix.normalMatrix();
+    for (VCGVertex &v : mesh.vert) {
+        if (v.IsD())
+            continue;
+        const QVector3D p = matrix.map(QVector3D(v.cP()[0], v.cP()[1], v.cP()[2]));
+        v.P() = vcg::Point3f(p.x(), p.y(), p.z());
+        const vcg::Point3f &n = v.cN();
+        const vcg::Point3f moved(
+            normalMatrix(0, 0) * n[0] + normalMatrix(0, 1) * n[1] + normalMatrix(0, 2) * n[2],
+            normalMatrix(1, 0) * n[0] + normalMatrix(1, 1) * n[1] + normalMatrix(1, 2) * n[2],
+            normalMatrix(2, 0) * n[0] + normalMatrix(2, 1) * n[1] + normalMatrix(2, 2) * n[2]);
+        const float squaredNorm = moved.SquaredNorm();
+        if (squaredNorm > 1e-20f)
+            v.N() = moved / std::sqrt(squaredNorm);
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    if (mesh.FN() > 0)
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+}
+
+void Document::freezeMeshTransform(int index, const QString &contextMessage)
+{
+    if (index < 0 || index >= meshCount())
+        return;
+    MeshEntry &entry = mesh(index);
+    if (entry.transform.isIdentity())
+        return;
+
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("Freeze Matrix"));
+
+    transformMeshGeometry(entry.mesh, entry.transform);
+    // Reset here rather than through setMeshTransform, so the change is logged once, by
+    // markMeshGeometryChanged, which emits the same meshDataChanged.
+    entry.transform = QMatrix4x4();
+    markMeshGeometryChanged(
+        index,
+        contextMessage.trimmed().isEmpty()
+            ? tr("Froze the matrix of '%1' into its vertices").arg(entry.name)
+            : contextMessage);
+
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
 void Document::setMeshVisible(int index, bool visible)
 {
     if (index < 0 || index >= meshCount())

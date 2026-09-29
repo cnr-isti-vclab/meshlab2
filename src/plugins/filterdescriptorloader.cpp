@@ -286,6 +286,32 @@ MeshFilterDescriptor parseFilter(const QJsonObject &obj)
         d.parameters.insert(d.parameters.begin(), std::move(p));
     }
 
+    // One Assign matrix / Bake positions choice for every filter that leaves a matrix on a
+    // layer, last in `main`, where each filter's own Freeze Matrix toggle used to be. The
+    // declared value is the default. An unknown one loads as no declaration at all; the
+    // descriptor tests read the manifests directly to catch that.
+    const QString transformResult = obj.value(QStringLiteral("transformResult")).toString();
+    if (transformResult == QLatin1String(TransformResults::kAssignMatrix)
+        || transformResult == QLatin1String(TransformResults::kBakePositions)) {
+        d.transformResult = transformResult;
+        MeshFilterParameterDescriptor p;
+        p.id           = QString::fromLatin1(TransformResults::kParameterId);
+        p.label        = QObject::tr("Result");
+        p.helpMarkdown = QObject::tr(
+            "**Assign matrix** stores the transformation as the layer's matrix and leaves the "
+            "vertex positions as they are, so it can still be changed, inverted or reset. "
+            "**Bake positions** writes it into the vertex positions and normals and resets the "
+            "matrix to the identity.");
+        p.group        = QStringLiteral("main");
+        p.type         = MeshFilterParameterType::Enum;
+        p.enumOptions  = {
+            { QString::fromLatin1(TransformResults::kAssignMatrix), QObject::tr("Assign matrix"), {} },
+            { QString::fromLatin1(TransformResults::kBakePositions), QObject::tr("Bake positions"), {} },
+        };
+        p.defaultValue = transformResult;
+        d.parameters.push_back(std::move(p));
+    }
+
     const QJsonArray mods = obj.value(QStringLiteral("outputModifies")).toArray();
     for (const QJsonValue &m : mods)
         d.outputModifies << m.toString();

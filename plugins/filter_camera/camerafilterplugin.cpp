@@ -143,19 +143,19 @@ void setShotFromParams(CameraShot &shot, const QVector3D &vp,
     }
 }
 
-// Apply a transformation to mesh entries (toall mode) — bake transform into vertices
+// Move every visible layer by the world-space transform the cameras get (toall mode),
+// written into its vertices once. Conjugating by the layer matrix keeps that matrix as it
+// was and still moves the layer in world space, where the rasters' shots move. This used to
+// bake the transform and also compose it onto the matrix, moving each layer twice.
 void applyTransformToVisibleMeshes(Document &doc, const QMatrix4x4 &transf)
 {
     for (int mi = 0; mi < doc.meshCount(); ++mi) {
         auto &ent = doc.mesh(mi);
         if (!ent.visible) continue;
-        VCGMesh &m = ent.mesh;
-        // Bake the transform into vertex positions
-        for (auto &v : m.vert) {
-            QVector3D p = transformPoint(transf, v.cP());
-            v.P()[0] = p.x(); v.P()[1] = p.y(); v.P()[2] = p.z();
-        }
-        ent.transform = ent.transform * transf;
+        bool invertible = false;
+        const QMatrix4x4 inverse = ent.transform.inverted(&invertible);
+        Document::transformMeshGeometry(
+            ent.mesh, invertible ? inverse * transf * ent.transform : transf);
         doc.markMeshGeometryChanged(mi, QStringLiteral("Camera transform applied"));
     }
 }

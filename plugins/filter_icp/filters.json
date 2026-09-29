@@ -42,6 +42,7 @@
       "tags": ["icp", "alignment", "transform", "registration"],
       "inputDomain": "WholeDocument",
       "outputDomain": "ModifyCurrentMesh",
+      "transformResult": "assign_matrix",
       "parameters": [
         {
           "id": "ReferenceMesh",
@@ -191,7 +192,7 @@
           "max": 2147483647
         }
       ],
-      "outputModifies": ["TM"]
+      "outputModifies": ["TM", "VG", "VN", "FN"]
     },
     {
       "id": "align_meshes_globally",
@@ -204,6 +205,7 @@
       "tags": ["icp", "alignment", "global", "registration"],
       "inputDomain": "WholeDocument",
       "outputDomain": "ModifyCurrentMesh",
+      "transformResult": "assign_matrix",
       "parameters": [
         {
           "id": "BaseMesh",
@@ -375,7 +377,7 @@
           "max": 2147483647
         }
       ],
-      "outputModifies": ["TM"]
+      "outputModifies": ["TM", "VG", "VN", "FN"]
     },
     {
       "id": "measure_layer_overlap",

@@ -1089,11 +1089,20 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     // least one, either of which makes a live index mean something else.
     QStringList meshNamesBefore;
     QSet<std::uint64_t> meshIdsBefore;
+    // Bake positions: which layers the filter will move is not declared -- Align Meshes
+    // Globally moves every layer it aligns -- so every matrix is compared after the run.
+    const bool bakeTransforms =
+        !targetDescriptor->transformResult.isEmpty()
+        && typedParams.getEnum(QString::fromLatin1(TransformResults::kParameterId))
+               == QLatin1String(TransformResults::kBakePositions);
+    QHash<std::uint64_t, QMatrix4x4> transformBefore;
     for (int i = 0; i < doc.meshCount(); ++i) {
         const Document::MeshEntry &entry = doc.mesh(i);
         selectionRevisionBefore.insert(entry.meshId, entry.selectionRevision);
         meshNamesBefore << entry.name;
         meshIdsBefore.insert(entry.meshId);
+        if (bakeTransforms)
+            transformBefore.insert(entry.meshId, entry.transform);
     }
 
     MeshFilterRunResult result;
@@ -1116,6 +1125,18 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
             if (ownUndoStep)
                 doc.endUndoStep(false, true);
             return result;
+        }
+
+        // The filter assigned its matrix like any other; turning it into vertex positions is
+        // the framework's, for every layer the run moved. Layers the run created keep the
+        // matrix they were given, as do those it left alone.
+        if (bakeTransforms) {
+            for (int i = 0; i < doc.meshCount(); ++i) {
+                const Document::MeshEntry &entry = doc.mesh(i);
+                const auto previous = transformBefore.constFind(entry.meshId);
+                if (previous != transformBefore.constEnd() && previous.value() != entry.transform)
+                    doc.freezeMeshTransform(i);
+            }
         }
 
         // OR back the previously saved selection (if incremental was requested).

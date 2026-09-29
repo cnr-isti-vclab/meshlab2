@@ -445,6 +445,11 @@ Both words stay in the **descriptions** of the filters they belonged to, so sear
 `Displace Vertices toward Target Mesh`. A word being rejected as a verb does not mean it
 should stop being findable.
 
+*Bake positions* (2026-09-29) is an **option label**, not a verb in a filter name, and it is
+the one place the word is admitted: paired with *Assign matrix*, it says what happens to
+the vertex positions better than the one word *Freeze* did. The filter that does the same
+thing on its own keeps its verb, *Freeze Matrix*.
+
 Two rulings worth stating outright, because both rejected terms were in heavy use
 before the renaming rounds began:
 
@@ -503,6 +508,7 @@ display name leads with a word that is not here.
 | Colour | `color` (American) | `colour`, `Colourisation` |
 | Selection | `selection` | `marked set`, `active set` |
 | Confining a filter to the selection (UI label, 2026-09-28) | `Only selected vertices` / `Only selected faces` / `Only selected edges` — always naming the kind, since vertex and face selections are separate | `Only on selection`, `Affect only selection`, `Selection only`, `Selected Only`, `Affect only selected faces` |
+| Where a transform filter's matrix goes (UI label, 2026-09-29) | `Result`: `Assign matrix` / `Bake positions` — two choices that each say what happens, set by the framework for every filter that leaves a matrix on a layer | `Freeze Matrix` as a toggle (one verb, and nothing said about the other choice), `Freeze`, `Apply matrix` |
 | Normal vector | `normal` | `normals direction` |
 | Layer matrix | `matrix` | `transformation matrix` (verbose), `xform` |
 | 1D abstraction of a shape | `curve skeleton` | `skeleton` alone, `morphological skeleton`, `medial axis`, `centerline` |

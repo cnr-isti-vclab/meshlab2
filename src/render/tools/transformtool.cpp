@@ -305,9 +305,11 @@ void TransformTool::commitGesture()
     for (int row = 0; row < 4; ++row)
         for (int col = 0; col < 4; ++col)
             params[QStringLiteral("m%1%2").arg(row).arg(col)] = double(delta(row, col));
-    // Keep it a layer matrix: baking every gesture would deep-copy the mesh. The filter
-    // composes what it is handed onto the existing layer transform.
-    params[QStringLiteral("Freeze")] = false;
+    // Composed onto the existing layer transform, since the gesture is a delta, and kept as
+    // a layer matrix: baking every gesture would deep-copy the mesh.
+    params[QStringLiteral("compose")] = true;
+    params[QString::fromLatin1(TransformResults::kParameterId)] =
+        QString::fromLatin1(TransformResults::kAssignMatrix);
 
     const int previousCurrent = doc->currentMeshIndex();
     doc->setCurrentMeshIndex(meshIndex);
