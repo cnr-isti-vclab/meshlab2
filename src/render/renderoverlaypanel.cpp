@@ -351,6 +351,19 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         btn->setFixedSize(kColorButtonSize, kColorButtonSize);
         return btn;
     };
+    // One small look for every button that acts rather than sets: Apply to all, and the
+    // buttons that hand what the view shows to a filter (Bake to Vertex Color, Trim Current
+    // Layer) or pin it (Freeze to View). The container's stylesheet matches the property.
+    auto makeActionButton = [](const QString &text, QWidget *parentWidget) {
+        auto *btn = new QPushButton(text, parentWidget);
+        btn->setProperty("panelAction", true);
+        btn->setCursor(Qt::PointingHandCursor);
+        // Laid out by its own rect. QPushButton takes its layout margins once, in its
+        // constructor, before the property above can match the rule; on macOS they keep
+        // room for the native bezel, and two of these stacked in a layout overlapped.
+        btn->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+        return btn;
+    };
     m_currentMeshSettingsArrow = makeArrowButton(RenderPass::CurrentMesh);
     arrowLayout->addWidget(m_currentMeshSettingsArrow);
 
@@ -383,8 +396,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         "#settingsContainer QLabel { border: none; background: transparent; }"
         "#settingsContainer, #settingsContainer QLabel, #settingsContainer QCheckBox, #settingsContainer QComboBox, #settingsContainer QDoubleSpinBox { font-size: 11px; }"
         "#settingsContainer QLabel#settingsTitle { font-size: 10px; font-weight: bold; color: rgba(60,60,68,215); }"
-        "#settingsContainer QPushButton#applyToAll { font-size: 10px; padding: 1px 6px; background: rgba(250,250,250,200); border: 1px solid rgba(40,40,40,115); border-radius: 3px; }"
-        "#settingsContainer QPushButton#applyToAll:pressed { background: rgba(36,132,210,195); color: white; }"));
+        "#settingsContainer QPushButton[panelAction=\"true\"] { font-size: 10px; padding: 1px 6px; background: rgba(250,250,250,200); border: 1px solid rgba(40,40,40,115); border-radius: 3px; }"
+        "#settingsContainer QPushButton[panelAction=\"true\"]:pressed { background: rgba(36,132,210,195); color: white; }"));
 
     auto *settingsContainerLayout = new QVBoxLayout(m_settingsContainer);
     settingsContainerLayout->setContentsMargins(4, 4, 4, 4);
@@ -399,9 +412,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_settingsTitleLabel = new QLabel(m_settingsContainer);
     m_settingsTitleLabel->setObjectName(QStringLiteral("settingsTitle"));
     titleRow->addWidget(m_settingsTitleLabel, 1);
-    m_applyToAllButton = new QPushButton(tr("Apply to all"), m_settingsContainer);
-    m_applyToAllButton->setObjectName(QStringLiteral("applyToAll"));
-    m_applyToAllButton->setCursor(Qt::PointingHandCursor);
+    m_applyToAllButton = makeActionButton(tr("Apply to all"), m_settingsContainer);
     connect(m_applyToAllButton, &QPushButton::clicked, this, [this]() {
         emit applyToAllMeshesRequested(m_meshSettings, m_globalSettings.currentPass);
     });
@@ -1034,12 +1045,14 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_qualityHistogramMaxSpin->setValue(m_globalSettings.qualityHistogramMax);
     m_qualityHistogramMaxLabel = new QLabel(tr("Max"), histogramPage);
     histogramForm->addRow(m_qualityHistogramMaxLabel, m_qualityHistogramMaxSpin);
-    m_qualityBakeVertexColorButton = new QPushButton(tr("Bake to Vertex Color"), histogramPage);
+    m_qualityBakeVertexColorButton = makeActionButton(tr("Bake to Vertex Color"), histogramPage);
     m_qualityBakeVertexColorButton->setToolTip(
         tr("Bake the current per-vertex scalar color mapping into per-vertex colors. Isolines are ignored."));
-    histogramForm->addRow(QString(), m_qualityBakeVertexColorButton);
     applyUniformFormRowHeights(histogramForm);
     histogramLayout->addLayout(histogramForm);
+    // Below the form rather than in it, so it can line up with Apply to all on the right: on
+    // macOS a form's field column never grows, so nothing inside it reaches the right edge.
+    histogramLayout->addWidget(m_qualityBakeVertexColorButton, 0, Qt::AlignRight);
     m_settingsStack->addWidget(histogramPage);
     syncQualityHistogramUiState();
 
@@ -1140,11 +1153,11 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_clipPlaneRimWidthSpin->setDecimals(1);
     m_clipPlaneRimWidthSpin->setSuffix(tr(" px"));
     m_clipPlaneRimWidthSpin->setValue(m_globalSettings.clipPlaneRimWidth);
-    m_clipPlaneFreezeButton = new QPushButton(tr("Freeze to View"), clipPlanePage);
+    m_clipPlaneFreezeButton = makeActionButton(tr("Freeze to View"), clipPlanePage);
     m_clipPlaneFreezeButton->setToolTip(
         tr("Keep the plane where it is now and stop it following the camera, so the "
            "scene can be orbited around the cut."));
-    m_clipPlaneApplyButton = new QPushButton(tr("Trim Current Layer"), clipPlanePage);
+    m_clipPlaneApplyButton = makeActionButton(tr("Trim Current Layer"), clipPlanePage);
     m_clipPlaneApplyButton->setToolTip(
         tr("Cut the current layer along this plane for real, and turn the clipping plane "
            "off. The result matches what the viewport is showing: the cut is closed when "
@@ -1170,10 +1183,16 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     clipPlaneForm->addRow(
         tr("Solid cut color"),
         makeCenteredFieldContainer(m_clipPlaneSolidCutColorButton, clipPlanePage));
-    clipPlaneForm->addRow(QString(), m_clipPlaneFreezeButton);
-    clipPlaneForm->addRow(QString(), m_clipPlaneApplyButton);
     applyUniformFormRowHeights(clipPlaneForm);
     clipPlaneLayout->addLayout(clipPlaneForm);
+    // Right-aligned below the form like the histogram's bake button, sharing one row.
+    auto *clipPlaneActions = new QHBoxLayout();
+    clipPlaneActions->setContentsMargins(0, 0, 0, 0);
+    clipPlaneActions->setSpacing(4);
+    clipPlaneActions->addStretch(1);
+    clipPlaneActions->addWidget(m_clipPlaneFreezeButton);
+    clipPlaneActions->addWidget(m_clipPlaneApplyButton);
+    clipPlaneLayout->addLayout(clipPlaneActions);
     m_settingsStack->addWidget(clipPlanePage);  // index 11
 
     panelLayout->addWidget(m_settingsContainer);
