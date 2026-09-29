@@ -557,6 +557,27 @@ all three (ruling 2).</p>
 </tbody>
 </table>
 </div>
+<section id="a-single-mesh-filter-works-on-the-current-layer">
+<h3>A single-mesh filter works on the current layer<a class="headerlink" href="#a-single-mesh-filter-works-on-the-current-layer" title="Link to this heading">¶</a></h3>
+<p>A filter that works on one mesh takes it from the current layer, chosen in the layer panel,
+never from a mesh parameter; a mesh parameter names a <em>second</em> input. <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> in the
+table above is the source of a source-to-target pair, so one standing alone is the telltale,
+and <code class="docutils literal notranslate"><span class="pre">FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer</span></code> refuses it.</p>
+<p>Migrated 2026-09-29 (measured from the code, not the manifests: each of these read its
+<code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> and never touched the current layer otherwise): the ten TrueForm filters
+<em>Create Tube from Polyline</em>, <em>Split into Connected Components</em>, <em>Extract Outer Shell</em>,
+<em>Create Polyline from Self-Intersections</em>, <em>Create Polyline from Scalar Isocontour</em>,
+<em>Create Polyline from Boundary Rims</em>, <em>Measure Mesh Health</em>, <em>Repair Self-Intersections</em>,
+<em>Split Non-Manifold Vertices</em> and <em>Cut Along Scalar Isocontour</em>. The requirement checks had
+been validating the current layer while the filter worked on another.</p>
+<p>Kept, because the parameter is a real second input beside the current layer: the occluder
+of <em>Compute Point Cloud Ambient Occlusion</em>, the surface of <em>Compute Generalized Winding
+Number (libigl)</em> and the target of <em>Displace Vertices Toward Target Mesh</em> (both refuse the
+current layer), the projection reference of <em>Remesh Isotropically</em>, the samples to refine of
+<em>Sample Surface by Poisson Disk</em>, the fixed base of <em>Align Meshes Globally</em>, and the optional
+fit layer of <em>Create Grid</em>. That is all 17 filters with a single mesh parameter; the other
+30 with mesh parameters take two meshes.</p>
+</section>
 <section id="randomseed">
 <h3><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code><a class="headerlink" href="#randomseed" title="Link to this heading">¶</a></h3>
 <p>Every filter whose algorithm draws from a random generator declares exactly one
@@ -1391,6 +1412,7 @@ specific release-management reason?</p></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#parameter-naming-rules">Parameter Naming Rules</a><ul>
+<li><a class="reference internal" href="#a-single-mesh-filter-works-on-the-current-layer">A single-mesh filter works on the current layer</a></li>
 <li><a class="reference internal" href="#randomseed"><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code></a></li>
 </ul>
 </li>

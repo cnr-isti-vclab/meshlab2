@@ -2212,10 +2212,7 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <p>A rim ends where the boundary stops passing straight through, so a boundary that pinches — one vertex the boundary reaches more than twice — comes back as its separate pieces rather than as one figure eight. Every layer this produces is therefore a <strong>simple curve</strong>, which is what makes it usable: measurable as a length, sweepable by <em>Create Tube from Polyline (TrueForm)</em>, or usable to drive a hole fill. A closed rim’s polyline runs back to its first vertex; an open one has two loose ends.</p>
 <p>On a consistently wound mesh each rim runs the way its faces wind their boundary, so the direction is meaningful rather than arbitrary.</p>
 <p>A closed surface has no boundary and so no rims, and the filter says so rather than creating an empty layer. <em>Measure Mesh Health (TrueForm)</em> reports the rim count without creating anything.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose boundary is extracted.</p></li>
-</ul>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />
@@ -2279,7 +2276,6 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <p>All the levels land in one layer, so every edge carries <strong>the value of the contour it belongs to</strong> as its scalar. Run <em>Colorize Edges by Scalar</em> on the result to tell the levels apart; without that they draw in one flat colour. The scalars survive a PLY round trip, so the layer can be saved and re-colored later.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose scalar field is contoured.</p></li>
 <li><p><strong>contourCount</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — How many evenly spaced contour levels to extract.</p></li>
 <li><p><strong>useCustomRange</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Contour a chosen value band instead of the field’s full min-max range.</p></li>
 <li><p><strong>minValue</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;qualityVMin</span></code>) — Lower end of the contoured range. Ignored unless Use Custom Range is on.</p></li>
@@ -2328,10 +2324,7 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <dd><p>Extracts the exact curve along which the layer intersects <strong>itself</strong>, as a new polyline layer.</p>
 <p><em>Select Self Intersecting Faces</em> marks the faces involved; this gives the intersection itself, which is what you need to see where the problem is rather than merely that it exists — and, being exact geometry rather than a selection, it can be measured, exported, or swept into a tube.</p>
 <p>A clean mesh produces nothing, and the filter says so.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer to examine.</p></li>
-</ul>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />
@@ -2510,7 +2503,6 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <p>Edges are chained into paths first. A vertex where three or more edges meet cannot be swept unambiguously, so the polyline is <strong>split</strong> there rather than branched, and the count of such junctions is reported.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — An edge-mesh layer, such as one made by the Create Polyline filters.</p></li>
 <li><p><strong>radius</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag001</span></code>) — Radius of the swept profile.</p></li>
 <li><p><strong>segments</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — Number of segments around the tube. Higher is smoother and heavier.</p></li>
 </ul>
@@ -3620,7 +3612,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <p>The source layer is kept, and the layer matrix is baked into the results. Reads TrueForm’s <code class="docutils literal notranslate"><span class="pre">make_manifold_edge_connected_component_labels</span></code>, <code class="docutils literal notranslate"><span class="pre">make_edge_connected_component_labels</span></code> or <code class="docutils literal notranslate"><span class="pre">make_vertex_connected_component_labels</span></code>, then <code class="docutils literal notranslate"><span class="pre">split_into_components</span></code>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer to split into its connected components.</p></li>
 <li><p><strong>connectivity</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">manifold</span></code>) — What counts as joining two faces. Manifold edges keep sheets that meet at a seam apart; any shared edge walks through the seam; any shared vertex also joins pieces that only touch at a point.</p></li>
 </ul>
 </dd></dl>
@@ -4841,10 +4832,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <p>Each fact has its own filter elsewhere, but a mesh that misbehaves for no visible reason is usually diagnosed by reading several of them together: <strong>closed but not manifold</strong> points at a seam three sheets share, <strong>manifold but not closed</strong> at holes, and <strong>self-intersecting</strong> at geometry that has no well-defined inside no matter how clean its topology looks.</p>
 <p>The answers are computed off one shared connectivity structure rather than one per question. Only the self-intersection test needs a spatial index, and it stops at the first contact it finds, so a mesh that does intersect itself is answered without the rest of it being examined.</p>
 <p>Nothing is modified; this filter only reports.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer to examine.</p></li>
-</ul>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />
@@ -5433,7 +5421,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <p>Compute a scalar first — a constant field has nothing to cut along, and the filter says so.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose scalar field is cut along.</p></li>
 <li><p><strong>contourCount</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — How many evenly spaced contours to cut at. N contours give N+1 bands.</p></li>
 </ul>
 </dd></dl>
@@ -7002,10 +6989,7 @@ Leave 0 for automatic calculation.</p></li>
 <dd><p>Resolves the layer’s self-intersections and keeps only the <strong>outermost</strong> boundary, dropping every internal shell and any surface enclosed by another.</p>
 <p>This is the repair step for geometry assembled from overlapping parts — kitbashed models, scans merged from several pieces, or anything destined for 3D printing, where interior walls are invisible but still slow slicing and can confuse a slicer about what is solid.</p>
 <p>The input should be solid rather than an open sheet: an open surface has no inside, so there is no outer shell to extract.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer to extract the outer shell from.</p></li>
-</ul>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />
@@ -7182,10 +7166,7 @@ Leave 0 for automatic calculation.</p></li>
 <p>This is the principled repair for self-intersecting geometry. Before it, the surface has no well-defined inside — a ray can cross the same sheet twice with nothing recording that they met — which is why self-intersections break booleans, offsetting, signed distance and printing. Afterwards the pieces are properly separated, and <em>Extract Outer Shell (TrueForm)</em> can keep the outermost one.</p>
 <p>Use <em>Create Polyline from Self-Intersections (TrueForm)</em> first to see where the problem is, and <em>Select Self Intersecting Faces</em> to see how much is affected.</p>
 <p>The result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer to resolve.</p></li>
-</ul>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />
@@ -7223,10 +7204,7 @@ Leave 0 for automatic calculation.</p></li>
 <p>The fan holding the vertex’s smallest face keeps the original id, faces keep their ids, their arity and their winding, and the output points are the input’s followed by the minted copies. Nothing moves, so the surface is geometrically identical — only its connectivity changes, and two sheets that merely touched at a point come apart into the separate pieces they always were.</p>
 <p><strong>This is a partial repair, by construction.</strong> An edge carried by three or more faces is crossed by no fan, and separating the fans it holds would tear that edge into boundary copies — a different operation with a different cost. Such a vertex is therefore left exactly as it was, and <em>Select Non-Manifold Vertices (TrueForm)</em> still names it afterwards. Run that filter before and after to see what was repaired and what remains.</p>
 <p>The result is a new layer; the original is untouched.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose pinched vertices are separated.</p></li>
-</ul>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />

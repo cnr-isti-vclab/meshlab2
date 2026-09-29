@@ -263,6 +263,29 @@ Recommended common names:
 | quality threshold | `qualityThreshold` |
 | distance threshold | `distanceThreshold` |
 
+### A single-mesh filter works on the current layer
+
+A filter that works on one mesh takes it from the current layer, chosen in the layer panel,
+never from a mesh parameter; a mesh parameter names a *second* input. `sourceMesh` in the
+table above is the source of a source-to-target pair, so one standing alone is the telltale,
+and `FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer` refuses it.
+
+Migrated 2026-09-29 (measured from the code, not the manifests: each of these read its
+`sourceMesh` and never touched the current layer otherwise): the ten TrueForm filters
+*Create Tube from Polyline*, *Split into Connected Components*, *Extract Outer Shell*,
+*Create Polyline from Self-Intersections*, *Create Polyline from Scalar Isocontour*,
+*Create Polyline from Boundary Rims*, *Measure Mesh Health*, *Repair Self-Intersections*,
+*Split Non-Manifold Vertices* and *Cut Along Scalar Isocontour*. The requirement checks had
+been validating the current layer while the filter worked on another.
+
+Kept, because the parameter is a real second input beside the current layer: the occluder
+of *Compute Point Cloud Ambient Occlusion*, the surface of *Compute Generalized Winding
+Number (libigl)* and the target of *Displace Vertices Toward Target Mesh* (both refuse the
+current layer), the projection reference of *Remesh Isotropically*, the samples to refine of
+*Sample Surface by Poisson Disk*, the fixed base of *Align Meshes Globally*, and the optional
+fit layer of *Create Grid*. That is all 17 filters with a single mesh parameter; the other
+30 with mesh parameters take two meshes.
+
 ### `randomSeed`
 
 Every filter whose algorithm draws from a random generator declares exactly one

@@ -2486,9 +2486,7 @@ On a consistently wound mesh each rim runs the way its faces wind their boundary
 
 A closed surface has no boundary and so no rims, and the filter says so rather than creating an empty layer. *Measure Mesh Health (TrueForm)* reports the rim count without creating anything.
 
-**Parameters:**
-
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer whose boundary is extracted.
+This filter has no parameters.
 ```
 
 ---
@@ -2575,7 +2573,6 @@ All the levels land in one layer, so every edge carries **the value of the conto
 
 **Parameters:**
 
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer whose scalar field is contoured.
 - **contourCount** (*int*, default: `10`) — How many evenly spaced contour levels to extract.
 - **useCustomRange** (*bool*, default: `False`) — Contour a chosen value band instead of the field's full min-max range.
 - **minValue** (*double*, default: `@qualityVMin`) — Lower end of the contoured range. Ignored unless Use Custom Range is on.
@@ -2643,9 +2640,7 @@ Extracts the exact curve along which the layer intersects **itself**, as a new p
 
 A clean mesh produces nothing, and the filter says so.
 
-**Parameters:**
-
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer to examine.
+This filter has no parameters.
 ```
 
 ---
@@ -2883,7 +2878,6 @@ Edges are chained into paths first. A vertex where three or more edges meet cann
 
 **Parameters:**
 
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — An edge-mesh layer, such as one made by the Create Polyline filters.
 - **radius** (*absperc*, default: `@bboxDiag001`) — Radius of the swept profile.
 - **segments** (*int*, default: `8`) — Number of segments around the tube. Higher is smoother and heavier.
 ```
@@ -4250,7 +4244,6 @@ The source layer is kept, and the layer matrix is baked into the results. Reads 
 
 **Parameters:**
 
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer to split into its connected components.
 - **connectivity** (*enum*, default: `manifold`) — What counts as joining two faces. Manifold edges keep sheets that meet at a seam apart; any shared edge walks through the seam; any shared vertex also joins pieces that only touch at a point.
 ```
 
@@ -5759,9 +5752,7 @@ The answers are computed off one shared connectivity structure rather than one p
 
 Nothing is modified; this filter only reports.
 
-**Parameters:**
-
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer to examine.
+This filter has no parameters.
 ```
 
 ---
@@ -6520,7 +6511,6 @@ Compute a scalar first — a constant field has nothing to cut along, and the fi
 
 **Parameters:**
 
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer whose scalar field is cut along.
 - **contourCount** (*int*, default: `5`) — How many evenly spaced contours to cut at. N contours give N+1 bands.
 ```
 
@@ -8481,9 +8471,7 @@ This is the repair step for geometry assembled from overlapping parts — kitbas
 
 The input should be solid rather than an open sheet: an open surface has no inside, so there is no outer shell to extract.
 
-**Parameters:**
-
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer to extract the outer shell from.
+This filter has no parameters.
 ```
 
 ---
@@ -8727,9 +8715,7 @@ Use *Create Polyline from Self-Intersections (TrueForm)* first to see where the 
 
 The result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.
 
-**Parameters:**
-
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer to resolve.
+This filter has no parameters.
 ```
 
 ---
@@ -8785,9 +8771,7 @@ The fan holding the vertex's smallest face keeps the original id, faces keep the
 
 The result is a new layer; the original is untouched.
 
-**Parameters:**
-
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer whose pinched vertices are separated.
+This filter has no parameters.
 ```
 
 ---
