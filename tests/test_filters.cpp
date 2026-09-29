@@ -2862,7 +2862,7 @@ void FilterTests::trueFormBooleansAgreeWithVolume()
 
     // The outer shell of a single box is the box itself.
     MeshFilterParameterValues shellParams;
-    shellParams.insert(QStringLiteral("sourceMesh"), a);
+    doc.setCurrentMeshIndex(a);
     const MeshFilterRunResult shell = doc.runFilter(shellKey, shellParams);
     QVERIFY2(shell.success, qPrintable(shell.errorMessage));
     QVERIFY(std::abs(volumeOf(shell.newMeshIndices.front()) - unit) < 0.02 * unit);
@@ -3732,7 +3732,7 @@ void FilterTests::trueFormComponentSplitSeparatesDisjointSurfaces()
     QVERIFY(scatteredIndex >= 0);
 
     MeshFilterParameterValues params;
-    params.insert(QStringLiteral("sourceMesh"), scatteredIndex);
+    doc.setCurrentMeshIndex(scatteredIndex);
     const MeshFilterRunResult result = doc.runFilter(splitKey, params);
     QVERIFY2(result.success, qPrintable(result.errorMessage));
     QCOMPARE(result.newMeshIndices.size(), 3);
@@ -3760,7 +3760,7 @@ void FilterTests::trueFormComponentSplitSeparatesDisjointSurfaces()
     QVERIFY(sphereFaces > 0);
 
     MeshFilterParameterValues one;
-    one.insert(QStringLiteral("sourceMesh"), sphere);
+    doc.setCurrentMeshIndex(sphere);
     const MeshFilterRunResult whole = doc.runFilter(splitKey, one);
     QVERIFY2(whole.success, qPrintable(whole.errorMessage));
     QCOMPARE(whole.newMeshIndices.size(), 1);
@@ -3800,7 +3800,7 @@ void FilterTests::trueFormComponentConnectivityChoosesWhatJoins()
 
     const auto splitWith = [&](int layer, const QString &connectivity) {
         MeshFilterParameterValues params;
-        params.insert(QStringLiteral("sourceMesh"), layer);
+        doc.setCurrentMeshIndex(layer);
         params.insert(QStringLiteral("connectivity"), connectivity);
         return doc.runFilter(splitKey, params);
     };
@@ -3901,7 +3901,7 @@ void FilterTests::trueFormCurveFamilyProducesPolylines()
 
     // Sweeping that curve must give a solid.
     MeshFilterParameterValues tube;
-    tube.insert(QStringLiteral("sourceMesh"), curveIndex);
+    doc.setCurrentMeshIndex(curveIndex);
     tube.insert(QStringLiteral("radius"), double(side) * 0.02);
     tube.insert(QStringLiteral("segments"), 8);
     const MeshFilterRunResult swept = doc.runFilter(tubeKey, tube);
@@ -3910,13 +3910,13 @@ void FilterTests::trueFormCurveFamilyProducesPolylines()
 
     // Sweeping something that is not a polyline must be refused, not crash.
     MeshFilterParameterValues badTube;
-    badTube.insert(QStringLiteral("sourceMesh"), a);
+    doc.setCurrentMeshIndex(a);
     badTube.insert(QStringLiteral("radius"), double(side) * 0.02);
     QVERIFY(!doc.runFilter(tubeKey, badTube).success);
 
     // A single clean box does not intersect itself.
     MeshFilterParameterValues single;
-    single.insert(QStringLiteral("sourceMesh"), a);
+    doc.setCurrentMeshIndex(a);
     QVERIFY2(!doc.runFilter(selfKey, single).success,
              "a clean box should report no self-intersections");
 
@@ -3927,7 +3927,7 @@ void FilterTests::trueFormCurveFamilyProducesPolylines()
 
         // Without a scalar field the filter must explain itself rather than fail blankly.
         MeshFilterParameterValues iso;
-        iso.insert(QStringLiteral("sourceMesh"), sphere);
+        doc.setCurrentMeshIndex(sphere);
         iso.insert(QStringLiteral("contourCount"), 5);
         const MeshFilterRunResult constantField = doc.runFilter(isoKey, iso);
         if (!constantField.success)
@@ -4564,7 +4564,7 @@ void FilterTests::trueFormRepairAndIsobands()
         const int before = d.mesh(crossIndex).mesh.FN();
 
         MeshFilterParameterValues p;
-        p.insert(QStringLiteral("sourceMesh"), crossIndex);
+        doc.setCurrentMeshIndex(crossIndex);
         const MeshFilterRunResult r = d.runFilter(resolveKey, p);
         QVERIFY2(r.success, qPrintable(r.errorMessage));
         QCOMPARE(r.newMeshIndices.size(), 1);
@@ -4585,7 +4585,7 @@ void FilterTests::trueFormRepairAndIsobands()
         const int beforeF = d.mesh(s).mesh.FN();
 
         MeshFilterParameterValues p;
-        p.insert(QStringLiteral("sourceMesh"), s);
+        doc.setCurrentMeshIndex(s);
         p.insert(QStringLiteral("contourCount"), 4);
         const MeshFilterRunResult r = d.runFilter(cutKey, p);
         QVERIFY2(r.success, qPrintable(r.errorMessage));
@@ -4690,7 +4690,7 @@ void FilterTests::trueFormIsocontoursLandOnTheRequestedValues()
     // Four contours over the observed range of 0 to 4: at a fifth, two fifths, and so on.
     {
         MeshFilterParameterValues p;
-        p.insert(QStringLiteral("sourceMesh"), index);
+        doc.setCurrentMeshIndex(index);
         p.insert(QStringLiteral("contourCount"), 4);
         const MeshFilterRunResult r = doc.runFilter(key, p);
         QVERIFY2(r.success, qPrintable(r.errorMessage));
@@ -4714,7 +4714,7 @@ void FilterTests::trueFormIsocontoursLandOnTheRequestedValues()
         // decided on the current layer, which has no faces.
         doc.setCurrentMeshIndex(index);
         MeshFilterParameterValues p;
-        p.insert(QStringLiteral("sourceMesh"), index);
+        doc.setCurrentMeshIndex(index);
         p.insert(QStringLiteral("contourCount"), 2);
         p.insert(QStringLiteral("useCustomRange"), true);
         p.insert(QStringLiteral("minValue"), 0.5);
@@ -4744,7 +4744,7 @@ void FilterTests::trueFormIsocontoursLandOnTheRequestedValues()
                                            | vcg::tri::io::Mask::IOM_VERTQUALITY);
 
         MeshFilterParameterValues p;
-        p.insert(QStringLiteral("sourceMesh"), radial);
+        doc.setCurrentMeshIndex(radial);
         p.insert(QStringLiteral("contourCount"), 1);
         const MeshFilterRunResult r = doc.runFilter(key, p);
         QVERIFY2(r.success, qPrintable(r.errorMessage));
@@ -4768,7 +4768,7 @@ void FilterTests::trueFormIsocontoursLandOnTheRequestedValues()
     {
         doc.setCurrentMeshIndex(index);
         MeshFilterParameterValues p;
-        p.insert(QStringLiteral("sourceMesh"), index);
+        doc.setCurrentMeshIndex(index);
         p.insert(QStringLiteral("useCustomRange"), true);
         p.insert(QStringLiteral("minValue"), 3.0);
         p.insert(QStringLiteral("maxValue"), 1.0);
@@ -4799,7 +4799,7 @@ void FilterTests::trueFormIsobandCutSplitsOnlyAlongTheContours()
     const int before = doc.mesh(index).mesh.FN();
 
     MeshFilterParameterValues p;
-    p.insert(QStringLiteral("sourceMesh"), index);
+    doc.setCurrentMeshIndex(index);
     p.insert(QStringLiteral("contourCount"), 4);
     const MeshFilterRunResult r = doc.runFilter(key, p);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
@@ -4894,7 +4894,7 @@ void FilterTests::trueFormTubesSweepTheWholePolyline()
                                          | vcg::tri::io::Mask::IOM_EDGEINDEX);
 
     MeshFilterParameterValues p;
-    p.insert(QStringLiteral("sourceMesh"), polyline);
+    doc.setCurrentMeshIndex(polyline);
     p.insert(QStringLiteral("radius"), kRadius);
     p.insert(QStringLiteral("segments"), kSegments);
     const MeshFilterRunResult r = doc.runFilter(key, p);
@@ -4946,7 +4946,7 @@ void FilterTests::trueFormTubesSweepTheWholePolyline()
                                          | vcg::tri::io::Mask::IOM_EDGEINDEX);
 
     MeshFilterParameterValues q;
-    q.insert(QStringLiteral("sourceMesh"), branched);
+    doc.setCurrentMeshIndex(branched);
     q.insert(QStringLiteral("radius"), kRadius);
     q.insert(QStringLiteral("segments"), kSegments);
     const MeshFilterRunResult swept = doc.runFilter(key, q);
@@ -5185,7 +5185,7 @@ void FilterTests::trueFormShellAndRepairOfOverlappingCubes()
     const int before = doc.mesh(index).mesh.FN();
 
     MeshFilterParameterValues p;
-    p.insert(QStringLiteral("sourceMesh"), index);
+    doc.setCurrentMeshIndex(index);
 
     const MeshFilterRunResult resolved = doc.runFilter(repairKey, p);
     QVERIFY2(resolved.success, qPrintable(resolved.errorMessage));
@@ -7954,7 +7954,6 @@ void FilterTests::isocontourEdgesCarryTheirContourValue()
 
     constexpr int kCount = 5;
     MeshFilterParameterValues isoParams;
-    isoParams.insert(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
     isoParams.insert(QStringLiteral("contourCount"), kCount);
     isoParams.insert(QStringLiteral("useCustomRange"), true);
     isoParams.insert(QStringLiteral("minValue"), -1.0);
@@ -9222,7 +9221,7 @@ void FilterTests::trueFormMeshHealthReportsTheStructuralFacts()
                                   vcg::tri::io::Mask::IOM_VERTCOORD);
 
     MeshFilterParameterValues p;
-    p.insert(QStringLiteral("sourceMesh"), solid);
+    doc.setCurrentMeshIndex(solid);
     const MeshFilterRunResult r = doc.runFilter(key, p);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
     QVERIFY(!r.documentModified); // a measurement must not alter the document
@@ -9247,7 +9246,7 @@ void FilterTests::trueFormMeshHealthReportsTheStructuralFacts()
     const int pinched = doc.addMesh(bowtie, QStringLiteral("Bowtie"),
                                     vcg::tri::io::Mask::IOM_VERTCOORD);
     MeshFilterParameterValues q;
-    q.insert(QStringLiteral("sourceMesh"), pinched);
+    doc.setCurrentMeshIndex(pinched);
     const MeshFilterRunResult bad = doc.runFilter(key, q);
     QVERIFY2(bad.success, qPrintable(bad.errorMessage));
     QCOMPARE(valueFor(bad, QStringLiteral("Manifold")), QStringLiteral("no"));
@@ -9261,7 +9260,7 @@ void FilterTests::trueFormMeshHealthReportsTheStructuralFacts()
     const int ring = doc.addMesh(annulus, QStringLiteral("Annulus"),
                                  vcg::tri::io::Mask::IOM_VERTCOORD);
     MeshFilterParameterValues s;
-    s.insert(QStringLiteral("sourceMesh"), ring);
+    doc.setCurrentMeshIndex(ring);
     const MeshFilterRunResult open = doc.runFilter(key, s);
     QVERIFY2(open.success, qPrintable(open.errorMessage));
     QCOMPARE(valueFor(open, QStringLiteral("Boundary rims")),
@@ -9299,7 +9298,7 @@ void FilterTests::trueFormVertexSplitSeparatesTheFansItCan()
     QCOMPARE(doc.mesh(pinched).mesh.VN(), 5);
 
     MeshFilterParameterValues p;
-    p.insert(QStringLiteral("sourceMesh"), pinched);
+    doc.setCurrentMeshIndex(pinched);
     const MeshFilterRunResult split = doc.runFilter(key, p);
     QVERIFY2(split.success, qPrintable(split.errorMessage));
     QCOMPARE(split.newMeshIndices.size(), 1);
@@ -9327,7 +9326,7 @@ void FilterTests::trueFormVertexSplitSeparatesTheFansItCan()
     QCOMPARE(selectedVertices(fins), 2); // both ends of the shared edge
 
     MeshFilterParameterValues q;
-    q.insert(QStringLiteral("sourceMesh"), fins);
+    doc.setCurrentMeshIndex(fins);
     const MeshFilterRunResult untouched = doc.runFilter(key, q);
     QVERIFY2(untouched.success, qPrintable(untouched.errorMessage));
     QCOMPARE(untouched.newMeshIndices.size(), 1);
@@ -9417,7 +9416,7 @@ void FilterTests::trueFormBoundaryRimsComeBackOnePerCurve()
                                  vcg::tri::io::Mask::IOM_VERTCOORD);
 
     MeshFilterParameterValues p;
-    p.insert(QStringLiteral("sourceMesh"), flat);
+    doc.setCurrentMeshIndex(flat);
     const MeshFilterRunResult one = doc.runFilter(key, p);
     QVERIFY2(one.success, qPrintable(one.errorMessage));
     QCOMPARE(one.newMeshIndices.size(), 1);
@@ -9438,7 +9437,7 @@ void FilterTests::trueFormBoundaryRimsComeBackOnePerCurve()
     const int ring = doc.addMesh(annulus, QStringLiteral("Annulus"),
                                  vcg::tri::io::Mask::IOM_VERTCOORD);
     MeshFilterParameterValues q;
-    q.insert(QStringLiteral("sourceMesh"), ring);
+    doc.setCurrentMeshIndex(ring);
     const MeshFilterRunResult two = doc.runFilter(key, q);
     QVERIFY2(two.success, qPrintable(two.errorMessage));
     QCOMPARE(two.newMeshIndices.size(), 2);
@@ -9457,7 +9456,7 @@ void FilterTests::trueFormBoundaryRimsComeBackOnePerCurve()
                                   vcg::tri::io::Mask::IOM_VERTCOORD);
     const int before = doc.meshCount();
     MeshFilterParameterValues s;
-    s.insert(QStringLiteral("sourceMesh"), solid);
+    doc.setCurrentMeshIndex(solid);
     const MeshFilterRunResult none = doc.runFilter(key, s);
     QVERIFY2(!none.success, "a closed solid has no rims to extract");
     QVERIFY2(none.errorMessage.contains(QStringLiteral("no boundary")),

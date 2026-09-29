@@ -146,6 +146,7 @@ private slots:
     void descriptorConforms();
     void selectionFiltersDeclareWhatTheySelect();
     void selectionScopeIsDeclaredNotHandWritten();
+    void singleMeshFiltersUseTheCurrentLayer();
     void layerCreatingFiltersDeclareAnOutputTag();
 
 private:
@@ -720,6 +721,30 @@ void FilterDescriptorTests::selectionScopeIsDeclaredNotHandWritten()
 
     QVERIFY2(scoped >= 49, qPrintable(QStringLiteral("only %1 scoped filters found").arg(scoped)));
     QVERIFY2(offenders.isEmpty(), qPrintable(offenders.join(QStringLiteral("; "))));
+}
+
+// A filter that works on one mesh works on the current layer, chosen in the layer panel
+// like every other; a mesh parameter names a second input. `sourceMesh` is the source of a
+// source-to-target pair (docs/design/filter_organization.md), so one standing alone is the
+// telltale of the other pattern -- the mesh to work on picked in the form instead -- which
+// ten TrueForm filters had, with the current layer's requirements checked against a layer
+// the filter then ignored.
+void FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer()
+{
+    QStringList offenders;
+    for (const auto &info : m_infos) {
+        const MeshFilterDescriptor &d = info.descriptor;
+        QStringList meshParameters;
+        for (const auto &p : d.parameters)
+            if (p.type == MeshFilterParameterType::Mesh)
+                meshParameters << p.id;
+        if (meshParameters == QStringList{ QStringLiteral("sourceMesh") })
+            offenders << d.id;
+    }
+    QVERIFY2(offenders.isEmpty(),
+             qPrintable(QStringLiteral("filters taking their only mesh as a parameter instead of "
+                                       "working on the current layer: %1")
+                            .arg(offenders.join(QStringLiteral(", ")))));
 }
 
 // A filter that creates layers is named by the framework from its outputTag, so one

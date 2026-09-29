@@ -552,14 +552,6 @@
       "outputTag": "part %1",
       "parameters": [
         {
-          "id": "sourceMesh",
-          "label": "Layer",
-          "help": "The layer to split into its connected components.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        },
-        {
           "id": "connectivity",
           "label": "Connectivity",
           "help": "What counts as joining two faces. Manifold edges keep sheets that meet at a seam apart; any shared edge walks through the seam; any shared vertex also joins pieces that only touch at a point.",
@@ -607,14 +599,6 @@
       "longDescriptionMarkdown": "Resolves the layer's self-intersections and keeps only the **outermost** boundary, dropping every internal shell and any surface enclosed by another.\n\nThis is the repair step for geometry assembled from overlapping parts — kitbashed models, scans merged from several pieces, or anything destined for 3D printing, where interior walls are invisible but still slow slicing and can confuse a slicer about what is solid.\n\nThe input should be solid rather than an open sheet: an open surface has no inside, so there is no outer shell to extract.",
       "outputTag": "outer shell",
       "parameters": [
-        {
-          "id": "sourceMesh",
-          "label": "Layer",
-          "help": "The layer to extract the outer shell from.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        }
       ]
     },
     {
@@ -641,14 +625,6 @@
       ],
       "outputTag": "self-intersections",
       "parameters": [
-        {
-          "id": "sourceMesh",
-          "label": "Layer",
-          "help": "The layer to examine.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        }
       ]
     },
     {
@@ -729,14 +705,6 @@
       "outputTag": "isocontours",
       "parameters": [
         {
-          "id": "sourceMesh",
-          "label": "Layer",
-          "help": "The layer whose scalar field is contoured.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        },
-        {
           "id": "contourCount",
           "label": "Contours",
           "help": "How many evenly spaced contour levels to extract.",
@@ -799,14 +767,6 @@
         "hole"
       ],
       "parameters": [
-        {
-          "id": "sourceMesh",
-          "label": "Layer",
-          "help": "The layer whose boundary is extracted.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        }
       ]
     },
     {
@@ -833,14 +793,6 @@
       ],
       "outputTag": "tube",
       "parameters": [
-        {
-          "id": "sourceMesh",
-          "label": "Polyline Layer",
-          "help": "An edge-mesh layer, such as one made by the Create Polyline filters.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        },
         {
           "id": "radius",
           "label": "Radius",
@@ -1071,14 +1023,6 @@
         "repair"
       ],
       "parameters": [
-        {
-          "id": "sourceMesh",
-          "label": "Layer",
-          "help": "The layer to examine.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        }
       ]
     },
     {
@@ -1774,14 +1718,6 @@
       ],
       "outputTag": "resolved",
       "parameters": [
-        {
-          "id": "sourceMesh",
-          "label": "Layer",
-          "help": "The layer to resolve.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        }
       ]
     },
     {
@@ -1808,14 +1744,6 @@
         "topology"
       ],
       "parameters": [
-        {
-          "id": "sourceMesh",
-          "label": "Layer",
-          "help": "The layer whose pinched vertices are separated.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        }
       ]
     },
     {
@@ -1842,14 +1770,6 @@
       ],
       "outputTag": "isobands",
       "parameters": [
-        {
-          "id": "sourceMesh",
-          "label": "Layer",
-          "help": "The layer whose scalar field is cut along.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        },
         {
           "id": "contourCount",
           "label": "Contours",

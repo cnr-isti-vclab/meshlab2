@@ -936,7 +936,7 @@ MeshFilterRunResult runSymmetricDifference(const FilterParams &params, Document 
 // geometry assembled from overlapping parts.
 MeshFilterRunResult runOuterShell(const FilterParams &params, Document &doc)
 {
-    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int index = doc.currentMeshIndex();
     if (index < 0 || index >= doc.meshCount())
         return fail(QObject::tr("No layer selected."));
     if (doc.mesh(index).mesh.FN() <= 0)
@@ -1049,7 +1049,7 @@ tf::buffer<int> faceComponentLabels(const TfMesh &source, const QString &connect
 // a producer for each of the three connectivity standards the parameter offers.
 MeshFilterRunResult runSplitComponents(const FilterParams &params, Document &doc)
 {
-    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int index = doc.currentMeshIndex();
     if (index < 0 || index >= doc.meshCount())
         return fail(QObject::tr("No layer selected."));
     if (doc.mesh(index).mesh.FN() <= 0)
@@ -1174,7 +1174,7 @@ MeshFilterRunResult addPolylineLayer(
 // the faces involved, this extracts the intersection curve itself.
 MeshFilterRunResult runSelfIntersectionCurves(const FilterParams &params, Document &doc)
 {
-    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int index = doc.currentMeshIndex();
     if (index < 0 || index >= doc.meshCount())
         return fail(QObject::tr("No layer selected."));
     if (doc.mesh(index).mesh.FN() <= 0)
@@ -1231,7 +1231,7 @@ MeshFilterRunResult runIntersectionCurves(const FilterParams &params, Document &
 // occlusion, raster coverage — into something with extractable level sets.
 MeshFilterRunResult runIsocurves(const FilterParams &params, Document &doc)
 {
-    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int index = doc.currentMeshIndex();
     if (index < 0 || index >= doc.meshCount())
         return fail(QObject::tr("No layer selected."));
     const VCGMesh &mesh = doc.mesh(index).mesh;
@@ -1361,7 +1361,7 @@ tf::curves_buffer<int, float, 3> rimPolyline(
 // a tube, or used to drive a hole fill.
 MeshFilterRunResult runBoundaryRims(const FilterParams &params, Document &doc)
 {
-    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int index = doc.currentMeshIndex();
     if (index < 0 || index >= doc.meshCount())
         return fail(QObject::tr("No layer selected."));
     if (doc.mesh(index).mesh.FN() <= 0)
@@ -1441,7 +1441,7 @@ MeshFilterRunResult runBoundaryRims(const FilterParams &params, Document &doc)
 // exported or printed.
 MeshFilterRunResult runTubeFromPolyline(const FilterParams &params, Document &doc)
 {
-    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int index = doc.currentMeshIndex();
     if (index < 0 || index >= doc.meshCount())
         return fail(QObject::tr("No layer selected."));
 
@@ -2475,7 +2475,7 @@ struct MeshHealthContext
 // misbehaves for no visible reason into a diagnosis.
 MeshFilterRunResult runMeshHealth(const FilterParams &params, Document &doc)
 {
-    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int index = doc.currentMeshIndex();
     if (index < 0 || index >= doc.meshCount())
         return fail(QObject::tr("No layer selected."));
     if (doc.mesh(index).mesh.FN() <= 0)
@@ -2542,7 +2542,7 @@ MeshFilterRunResult runMeshHealth(const FilterParams &params, Document &doc)
 // where the original had neither.
 MeshFilterRunResult runRepairSelfIntersections(const FilterParams &params, Document &doc)
 {
-    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int index = doc.currentMeshIndex();
     if (index < 0 || index >= doc.meshCount())
         return fail(QObject::tr("No layer selected."));
     if (doc.mesh(index).mesh.FN() <= 0)
@@ -2575,7 +2575,7 @@ MeshFilterRunResult runRepairSelfIntersections(const FilterParams &params, Docum
 // a vertex is left exactly as it was.
 MeshFilterRunResult runSplitNonManifoldVertices(const FilterParams &params, Document &doc)
 {
-    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int index = doc.currentMeshIndex();
     if (index < 0 || index >= doc.meshCount())
         return fail(QObject::tr("No layer selected."));
     if (doc.mesh(index).mesh.FN() <= 0)
@@ -2609,7 +2609,7 @@ MeshFilterRunResult runSplitNonManifoldVertices(const FilterParams &params, Docu
 // contour values becomes its own set of faces.
 MeshFilterRunResult runCutAlongIsocontour(const FilterParams &params, Document &doc)
 {
-    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int index = doc.currentMeshIndex();
     if (index < 0 || index >= doc.meshCount())
         return fail(QObject::tr("No layer selected."));
     const VCGMesh &mesh = doc.mesh(index).mesh;
