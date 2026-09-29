@@ -38,6 +38,9 @@ constexpr int kMinPreviewHeight = 200;
 void paintCheckerboard(QPainter &painter, const QRect &rect, int cell)
 {
     const int kCell = qMax(2, cell);
+    // The last row and column of cells would otherwise spill past the image.
+    painter.save();
+    painter.setClipRect(rect);
     painter.fillRect(rect, QColor(0x9A, 0x9A, 0x9A));
     painter.setPen(Qt::NoPen);
     painter.setBrush(QColor(0xC8, 0xC8, 0xC8));
@@ -47,6 +50,7 @@ void paintCheckerboard(QPainter &painter, const QRect &rect, int cell)
                 painter.drawRect(QRect(x, y, kCell, kCell));
         }
     }
+    painter.restore();
 }
 
 } // namespace
@@ -272,10 +276,12 @@ void SnapshotDialog::refreshPreview()
     QPainter painter(&canvas);
     const QRect area(QPoint(0, 0), device);
 
-    if (background() == Background::Transparent)
-        paintCheckerboard(painter, area, int(std::lround(8.0 * dpr)));
-    else
-        painter.fillRect(area, m_previewLabel->palette().window());
+    // The surround is a neutral mid tone, never the snapshot's own background: filled with
+    // the window colour, a white snapshot vanished into it, and a checkerboard across the
+    // whole area hid where a transparent one ended -- so the aspect ratio being chosen could
+    // not be seen for either. The checkerboard now covers the image alone, and a frame marks
+    // its edge whatever the image holds there.
+    painter.fillRect(area, m_previewLabel->palette().color(QPalette::Mid));
 
     // Capture at the preview's own size with the requested aspect, so what is shown is
     // framed exactly as the file will be.
@@ -292,11 +298,27 @@ void SnapshotDialog::refreshPreview()
         painter.drawText(area, Qt::AlignCenter, tr("Preview unavailable"));
     } else {
         shot.setDevicePixelRatio(1.0);
-        QImage scaled = shot.scaled(device, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        // Inset by the frame, so its line stays inside the preview on the sides the image
+        // would otherwise touch.
+        const int frame = qMax(1, int(std::lround(dpr)));
+        const QSize room = device - QSize(4 * frame, 4 * frame);
+        QImage scaled = shot.scaled(room.expandedTo(QSize(1, 1)), Qt::KeepAspectRatio,
+                                    Qt::SmoothTransformation);
         scaled.setDevicePixelRatio(1.0);
-        painter.drawImage(QPoint((device.width() - scaled.width()) / 2,
+        const QRect image(QPoint((device.width() - scaled.width()) / 2,
                                  (device.height() - scaled.height()) / 2),
-                          scaled);
+                          scaled.size());
+        if (background() == Background::Transparent)
+            paintCheckerboard(painter, image, int(std::lround(8.0 * dpr)));
+        painter.drawImage(image.topLeft(), scaled);
+        // Four strips just outside the image, rather than a pen, whose width straddles the
+        // edge and would cover the image's outermost pixels.
+        const QColor edge = m_previewLabel->palette().color(QPalette::Shadow);
+        const QRect outer = image.adjusted(-frame, -frame, frame, frame);
+        painter.fillRect(QRect(outer.left(), outer.top(), outer.width(), frame), edge);
+        painter.fillRect(QRect(outer.left(), image.bottom() + 1, outer.width(), frame), edge);
+        painter.fillRect(QRect(outer.left(), image.top(), frame, image.height()), edge);
+        painter.fillRect(QRect(image.right() + 1, image.top(), frame, image.height()), edge);
     }
     painter.end();
 
