@@ -149,6 +149,20 @@ elements alone. With `selectedOnly` off, the selection makes no difference.
 that, on its own kind of selection and on the other kind; a filter it cannot drive goes in
 `scopeTestUnrunnable()` with a reason.
 
+A filter that leaves a matrix on one or more layers — a transform, an alignment — declares
+**`transformResult`**, `"assign_matrix"` or `"bake_positions"`, the default it wants, and
+**no Freeze toggle of its own**. The loader appends one enum, `transformResult`, labelled
+*Result*, with the options *Assign matrix* and *Bake positions*, last in `main`. Your code
+only ever assigns: compose your matrix onto the layer's with `setMeshTransform` (or set it
+in place of it) and return. When the call asks for *Bake positions*, the framework then
+writes the matrix of **every layer that existed before the run and whose matrix the run
+changed** into its vertex positions and normals and resets it to the identity
+(`Document::freezeMeshTransform`), inside the same undo step. That rule finds the layers an
+alignment moves without you naming them; a run that leaves a matrix unchanged bakes nothing
+on that layer. A declaring filter lists `TM`, `VG`, `VN` and `FN` in `outputModifies`, since
+the bake changes all four. `FilterDescriptorTests::transformResultIsDeclaredNotHandWritten`
+enforces both.
+
 `tags` are free-form search keywords; see [Vocabulary](vocabulary.md) for the
 standing question of whether they should be generated rather than written.
 

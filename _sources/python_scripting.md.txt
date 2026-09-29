@@ -230,10 +230,10 @@ Currently supported parameter value types are:
 Example with a vector parameter:
 
 ```python
-result = ms.apply_filter("compute_matrix_from_translation", {
+result = ms.apply_filter("translate", {
     "traslMethod": "xyz",
     "axis": (1.0, 0.0, 0.0),
-    "Freeze": False,
+    "transformResult": "assign_matrix",
 })
 print(result.success)
 ```

@@ -58,3 +58,4 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [Geogram Port](history/geogram_port.md) | The `filter_geogram` plugin: four phases, eight rulings and four measured corrections, completed 2026-09-20. |
 | [Clipping Plane](history/clipping_plane.md) | Replacing the near-plane cutting trick with a real plane in the shaders: the OpenGL 3.2 floor and the measurements behind it, applied 2026-09-24. |
 | [Selection Scope Audit](history/selection_scope_audit.md) | The 50 filters that honour a selection, measured, and their migration to one framework `selectedOnly` with a single contract; eleven defects fixed, applied 2026-09-28. |
+| [Transform Result Audit](history/transform_result_audit.md) | The 20 filters that write a layer matrix, and the migration of nine Freeze Matrix toggles and five alignments to one framework *Assign matrix* / *Bake positions* choice; the ignored `compose` and the camera filters' double move fixed, applied 2026-09-29. |

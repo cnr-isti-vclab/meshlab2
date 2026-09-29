@@ -451,10 +451,10 @@ Currently supported parameter value types are:</p>
 <li><p>3-item <code class="docutils literal notranslate"><span class="pre">tuple</span></code> or <code class="docutils literal notranslate"><span class="pre">list</span></code> for point/vector values, for example <code class="docutils literal notranslate"><span class="pre">(1.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0)</span></code></p></li>
 </ul>
 <p>Example with a vector parameter:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">apply_filter</span><span class="p">(</span><span class="s2">"compute_matrix_from_translation"</span><span class="p">,</span> <span class="p">{</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">apply_filter</span><span class="p">(</span><span class="s2">"translate"</span><span class="p">,</span> <span class="p">{</span>
     <span class="s2">"traslMethod"</span><span class="p">:</span> <span class="s2">"xyz"</span><span class="p">,</span>
     <span class="s2">"axis"</span><span class="p">:</span> <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
-    <span class="s2">"Freeze"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="s2">"transformResult"</span><span class="p">:</span> <span class="s2">"assign_matrix"</span><span class="p">,</span>
 <span class="p">})</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">)</span>
 </pre></div>

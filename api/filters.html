@@ -4335,10 +4335,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dt class="sig sig-object py" id="meshlab.ms.invert_matrix">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">invert_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.invert_matrix" title="Link to this definition">¶</a></dt>
 <dd><p>Invert the current transformation matrix. The current transformation is reversed, becoming its opposite.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>Freeze</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Transformation is explicitly applied to vertices.</p></li>
-</ul>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />
@@ -4360,7 +4357,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>swapXY</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Swap X and Y.</p></li>
 <li><p><strong>swapXZ</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Swap X and Z.</p></li>
 <li><p><strong>swapYZ</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Swap Y and Z.</p></li>
-<li><p><strong>Freeze</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Transformation is explicitly applied to vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -4382,17 +4378,16 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 </div>
 <p>When <strong>Position</strong> is <em>Unchanged</em>, <span class="math notranslate nohighlight">\(C\)</span> is still used as the pivot and the object is put back where it started, so changing <strong>Scale</strong> or <strong>Rotation</strong> never moves it.</p>
 <p><strong>Position</strong> picks the point that lands on the origin. <em>Bounding Box Center</em> is cheap but follows the extremes, so a single stray vertex moves it. <em>Vertex Average</em> is biased by tessellation density. <em>Shell Barycenter</em> weights by triangle area and is the robust choice for a surface. <em>Mesh Barycenter</em> is the centre of mass of the enclosed solid and needs a watertight mesh.</p>
-<p><strong>Rotation</strong> aligns the principal axes with X, Y and Z, most spread first. <em>On Vertices</em> is biased wherever the tessellation is dense; <em>Area Weighted</em> integrates over the surface and is usually what you want. Principal axes are only defined up to sign, so the axis directions are fixed by the sign of the third moment along each one, and the third axis is set to the cross product of the first two. Without that step the same shape canonicalizes to any of four different frames depending on how it happened to be oriented on input.</p>
+<p><strong>Rotation</strong> is <em>Unchanged</em> by default, since turning a mesh is rarely what someone normalizing it expects. The other two choices align the principal axes with X, Y and Z, most spread first. <em>On Vertices</em> is biased wherever the tessellation is dense; <em>Area Weighted</em> integrates over the surface and is usually what you want. Principal axes are only defined up to sign, so the axis directions are fixed by the sign of the third moment along each one, and the third axis is set to the cross product of the first two. Without that step the same shape canonicalizes to any of four different frames depending on how it happened to be oriented on input.</p>
 <p><strong>Minimum Axis Separation</strong> guards the ill-conditioned cases. A sphere has three equal eigenvalues and a cylinder two, so their principal axes are arbitrary; when the relative gap between consecutive eigenvalues falls below this value the rotation is skipped and the reason is logged. Zero always rotates.</p>
 <p><strong>Scale</strong> is always uniform, and is measured <em>after</em> rotation, in the canonical frame.</p>
 <p>Note that applying this to several layers at once gives each layer its own frame, which will pull apart layers that were registered to each other.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>position</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">bbox_center</span></code>) — Which point of the mesh is moved onto the origin.</p></li>
-<li><p><strong>rotation</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">pca_area_weighted</span></code>) — Align the principal axes to X, Y and Z, widest spread first.</p></li>
+<li><p><strong>rotation</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">unchanged</span></code>) — Align the principal axes to X, Y and Z, widest spread first.</p></li>
 <li><p><strong>scale</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">unit_longest_side</span></code>) — Uniform scale, measured after rotation.</p></li>
 <li><p><strong>minAxisSeparation</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Skip the rotation when consecutive principal eigenvalues are closer than this relative gap, as they are for a sphere or a cylinder. Zero always rotates.</p></li>
-<li><p><strong>Freeze</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Transformation is explicitly applied to vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -4416,7 +4411,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>customCenter</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Custom rotation center point.</p></li>
 <li><p><strong>snapFlag</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Snap angle according to snap value.</p></li>
 <li><p><strong>snapAngle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Snap step in degrees.</p></li>
-<li><p><strong>Freeze</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Transformation is explicitly applied to vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -4436,7 +4430,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>targetPlane</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">xy</span></code>) — Target plane.</p></li>
 <li><p><strong>rotAxis</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">any</span></code>) — Rotation axis constraint.</p></li>
 <li><p><strong>ToOrigin</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Translate so selection centroid rests on origin.</p></li>
-<li><p><strong>Freeze</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Transformation is explicitly applied to vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -4459,7 +4452,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>uniformFlag</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Use same scale for all axes (axisX value).</p></li>
 <li><p><strong>scaleCenter</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">origin</span></code>) — Scaling center.</p></li>
 <li><p><strong>customCenter</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Custom scaling center point.</p></li>
-<li><p><strong>Freeze</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Transformation is explicitly applied to vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -4486,7 +4478,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>scaleY</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Scale Y.</p></li>
 <li><p><strong>scaleZ</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Scale Z.</p></li>
 <li><p><strong>compose</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Compose with current matrix.</p></li>
-<li><p><strong>Freeze</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Transformation is explicitly applied to vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -4520,7 +4511,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>m32</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Matrix coefficient.</p></li>
 <li><p><strong>m33</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Matrix coefficient.</p></li>
 <li><p><strong>compose</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Compose with current matrix.</p></li>
-<li><p><strong>Freeze</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Transformation is explicitly applied to vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -4554,7 +4544,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>traslMethod</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">xyz</span></code>) — Translation strategy.</p></li>
 <li><p><strong>axis</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Custom translation vector.</p></li>
 <li><p><strong>newOrigin</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Custom new origin point.</p></li>
-<li><p><strong>Freeze</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Transformation is explicitly applied to vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -6448,7 +6437,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><p><strong>use_dummy_texture</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, also attach a generated dummy base-color texture to the mesh after the xatlas UVs are created, so the result is immediately visible in textured and UV views.</p></li>
 <li><p><strong>dummy_img_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — Size in pixels of the generated dummy texture. Common values are <code class="docutils literal notranslate"><span class="pre">512</span></code>, <code class="docutils literal notranslate"><span class="pre">1024</span></code>, and <code class="docutils literal notranslate"><span class="pre">2048</span></code>.</p></li>
 <li><p><strong>dummy_check_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">32</span></code>) — Size of the check or grid cells in pixels. A practical range is usually <code class="docutils literal notranslate"><span class="pre">8..128</span></code> depending on texture resolution.</p></li>
-<li><p><strong>dummy_type</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">checkerboard</span></code>) — Choose between a checkerboard or a grid pattern for the generated dummy texture.</p></li>
+<li><p><strong>dummy_type</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">checkerboard</span></code>) — Choose between a checkerboard, a line grid, and a UV grid whose lines along U are red and along V blue, for the generated dummy texture.</p></li>
 <li><p><strong>bilinear</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Leave space around charts for texels that would be sampled by bilinear filtering. Keep this enabled for safer baked textures; disabling it can improve packing density slightly but increases artifact risk.</p></li>
 <li><p><strong>blockAlign</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Align charts to 4x4 blocks. This can improve packing speed and can help block-compressed textures, but it is usually a little less aggressive in raw packing efficiency.</p></li>
 <li><p><strong>maxChartSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Charts larger than this are scaled down. Leave <code class="docutils literal notranslate"><span class="pre">0</span></code> for no limit. A small limit can make the atlas more fragmented by preventing large islands from remaining large. Practical values are typically <code class="docutils literal notranslate"><span class="pre">256..4096</span></code> when you want to constrain very large charts.</p></li>
@@ -7297,11 +7286,13 @@ Leave 0 for automatic calculation.</p></li>
 <dt class="sig sig-object py" id="meshlab.ms.select_coplanar_faces">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_coplanar_faces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_coplanar_faces" title="Link to this definition">¶</a></dt>
 <dd><p>Fits a plane to the currently selected faces, by least squares over their vertices, and adds to the selection every face of the layer whose three vertices all lie within <strong>Distance from plane</strong> of it, whether or not it is connected to the selection. The existing selection is kept.</p>
+<p>With <strong>Only connected faces</strong>, the selection instead grows from the selected faces across their edges, through faces that are on the plane themselves, so a coplanar region reached only through faces off the plane is left out.</p>
 <p>The selected faces must themselves lie on one plane. When their RMS distance from the fitted plane is larger than the tolerance, for instance because they come from two different walls, the filter refuses rather than guess a plane.</p>
 <p>On a noisy surface, select several faces spread over the plane for a steadier fit, and set the tolerance to a few times the noise.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>maxDistance</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag001</span></code>) — A face is added to the selection when all three of its vertices are within this distance of the plane fitted to the selected faces.</p></li>
+<li><p><strong>connectedOnly</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Grow the selection from the selected faces across their edges, through faces that are on the plane themselves. When off, every face on the plane is added, wherever it is in the layer.</p></li>
 </ul>
 </dd></dl>
 
@@ -7819,7 +7810,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><p><strong>textName</strong> (<em>fileopen</em>, default: ``) — Sets the given input image as unique texture of the mesh.</p></li>
 <li><p><strong>dummy_img_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">512</span></code>) — Size in pixel of the square dummy texture.</p></li>
 <li><p><strong>dummy_check_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Size in pixel of the checkerboard or grid cell of the dummy texture.</p></li>
-<li><p><strong>dummy_type</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">checkerboard</span></code>) — Choose between a checkerboard and a line grid.</p></li>
+<li><p><strong>dummy_type</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">checkerboard</span></code>) — Choose between a checkerboard, a line grid, and a UV grid whose lines along U are red and along V blue.</p></li>
 </ul>
 </dd></dl>
 

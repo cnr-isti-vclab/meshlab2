@@ -1026,6 +1026,10 @@ a texture is already <code class="docutils literal notranslate"><span class="pre
 <em>freeze</em> or <em>bake</em> still finds them — the same reason <em>morphing</em> survives in the text of
 <code class="docutils literal notranslate"><span class="pre">Displace</span> <span class="pre">Vertices</span> <span class="pre">toward</span> <span class="pre">Target</span> <span class="pre">Mesh</span></code>. A word being rejected as a verb does not mean it
 should stop being findable.</p>
+<p><em>Bake positions</em> (2026-09-29) is an <strong>option label</strong>, not a verb in a filter name, and it is
+the one place the word is admitted: paired with <em>Assign matrix</em>, it says what happens to
+the vertex positions better than the one word <em>Freeze</em> did. The filter that does the same
+thing on its own keeps its verb, <em>Freeze Matrix</em>.</p>
 <p>Two rulings worth stating outright, because both rejected terms were in heavy use
 before the renaming rounds began:</p>
 <ul class="simple">
@@ -1155,15 +1159,19 @@ display name leads with a word that is not here.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Only</span> <span class="pre">selected</span> <span class="pre">vertices</span></code> / <code class="docutils literal notranslate"><span class="pre">Only</span> <span class="pre">selected</span> <span class="pre">faces</span></code> / <code class="docutils literal notranslate"><span class="pre">Only</span> <span class="pre">selected</span> <span class="pre">edges</span></code> — always naming the kind, since vertex and face selections are separate</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Only</span> <span class="pre">on</span> <span class="pre">selection</span></code>, <code class="docutils literal notranslate"><span class="pre">Affect</span> <span class="pre">only</span> <span class="pre">selection</span></code>, <code class="docutils literal notranslate"><span class="pre">Selection</span> <span class="pre">only</span></code>, <code class="docutils literal notranslate"><span class="pre">Selected</span> <span class="pre">Only</span></code>, <code class="docutils literal notranslate"><span class="pre">Affect</span> <span class="pre">only</span> <span class="pre">selected</span> <span class="pre">faces</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Normal vector</p></td>
+<tr class="row-even"><td><p>Where a transform filter’s matrix goes (UI label, 2026-09-29)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Result</span></code>: <code class="docutils literal notranslate"><span class="pre">Assign</span> <span class="pre">matrix</span></code> / <code class="docutils literal notranslate"><span class="pre">Bake</span> <span class="pre">positions</span></code> — two choices that each say what happens, set by the framework for every filter that leaves a matrix on a layer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Freeze</span> <span class="pre">Matrix</span></code> as a toggle (one verb, and nothing said about the other choice), <code class="docutils literal notranslate"><span class="pre">Freeze</span></code>, <code class="docutils literal notranslate"><span class="pre">Apply</span> <span class="pre">matrix</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Normal vector</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normal</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normals</span> <span class="pre">direction</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Layer matrix</p></td>
+<tr class="row-even"><td><p>Layer matrix</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">matrix</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">transformation</span> <span class="pre">matrix</span></code> (verbose), <code class="docutils literal notranslate"><span class="pre">xform</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>1D abstraction of a shape</p></td>
+<tr class="row-odd"><td><p>1D abstraction of a shape</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">skeleton</span></code> alone, <code class="docutils literal notranslate"><span class="pre">morphological</span> <span class="pre">skeleton</span></code>, <code class="docutils literal notranslate"><span class="pre">medial</span> <span class="pre">axis</span></code>, <code class="docutils literal notranslate"><span class="pre">centerline</span></code></p></td>
 </tr>

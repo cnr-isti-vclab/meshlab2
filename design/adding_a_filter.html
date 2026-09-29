@@ -393,6 +393,19 @@ elements alone. With <code class="docutils literal notranslate"><span class="pre
 <code class="docutils literal notranslate"><span class="pre">FilterTests::scopedFiltersConfineThemselvesToTheSelection</span></code> holds every scoped filter to
 that, on its own kind of selection and on the other kind; a filter it cannot drive goes in
 <code class="docutils literal notranslate"><span class="pre">scopeTestUnrunnable()</span></code> with a reason.</p>
+<p>A filter that leaves a matrix on one or more layers — a transform, an alignment — declares
+<strong><code class="docutils literal notranslate"><span class="pre">transformResult</span></code></strong>, <code class="docutils literal notranslate"><span class="pre">&quot;assign_matrix&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;bake_positions&quot;</span></code>, the default it wants, and
+<strong>no Freeze toggle of its own</strong>. The loader appends one enum, <code class="docutils literal notranslate"><span class="pre">transformResult</span></code>, labelled
+<em>Result</em>, with the options <em>Assign matrix</em> and <em>Bake positions</em>, last in <code class="docutils literal notranslate"><span class="pre">main</span></code>. Your code
+only ever assigns: compose your matrix onto the layer’s with <code class="docutils literal notranslate"><span class="pre">setMeshTransform</span></code> (or set it
+in place of it) and return. When the call asks for <em>Bake positions</em>, the framework then
+writes the matrix of <strong>every layer that existed before the run and whose matrix the run
+changed</strong> into its vertex positions and normals and resets it to the identity
+(<code class="docutils literal notranslate"><span class="pre">Document::freezeMeshTransform</span></code>), inside the same undo step. That rule finds the layers an
+alignment moves without you naming them; a run that leaves a matrix unchanged bakes nothing
+on that layer. A declaring filter lists <code class="docutils literal notranslate"><span class="pre">TM</span></code>, <code class="docutils literal notranslate"><span class="pre">VG</span></code>, <code class="docutils literal notranslate"><span class="pre">VN</span></code> and <code class="docutils literal notranslate"><span class="pre">FN</span></code> in <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code>, since
+the bake changes all four. <code class="docutils literal notranslate"><span class="pre">FilterDescriptorTests::transformResultIsDeclaredNotHandWritten</span></code>
+enforces both.</p>
 <p><code class="docutils literal notranslate"><span class="pre">tags</span></code> are free-form search keywords; see <a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a> for the
 standing question of whether they should be generated rather than written.</p>
 <p><code class="docutils literal notranslate"><span class="pre">categories</span></code> is required for in-tree descriptors and is validated against the
