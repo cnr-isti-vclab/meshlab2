@@ -139,8 +139,8 @@ QString ioCapabilityText(const MeshIOCapabilities &capabilities)
     if (m & M::IOM_EDGEQUALITY)  out << QObject::tr("edge scalars");
     if (m & M::IOM_FACECOLOR)    out << QObject::tr("face colors");
     if (m & M::IOM_WEDGCOLOR)    out << QObject::tr("corner colors");
-    if (m & M::IOM_VERTQUALITY)  out << QObject::tr("vertex quality");
-    if (m & M::IOM_FACEQUALITY)  out << QObject::tr("face quality");
+    if (m & M::IOM_VERTQUALITY)  out << QObject::tr("vertex scalars");
+    if (m & M::IOM_FACEQUALITY)  out << QObject::tr("face scalars");
     if (m & M::IOM_VERTTEXCOORD) out << QObject::tr("vertex UVs");
     if (m & M::IOM_WEDGTEXCOORD) out << QObject::tr("corner UVs");
     if (m & M::IOM_WEDGTEXMULTI) out << QObject::tr("texture groups");

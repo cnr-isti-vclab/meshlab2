@@ -390,7 +390,7 @@ wants to hear it*, and is what the `log.verbosity` preference filters on:
 
 | Level | Use for | Examples |
 | --- | --- | --- |
-| `Error` | the operation failed and the user must know | "Cannot bake quality colors: no current mesh selected." |
+| `Error` | the operation failed and the user must know | "Cannot bake scalar colors: there is no current layer." |
 | `Warning` | it went ahead, but degraded or partially | "Project mesh '%1' has no filename and was skipped" |
 | `Info` | the normal narration of what happened — the default | "UV islands after defragmentation: %1" |
 | `Debug` | timings, counters, mask dumps, cache and GPU bookkeeping | "Load timing '%1': import %2 ms, post %3 ms" |

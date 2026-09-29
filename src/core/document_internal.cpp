@@ -25,8 +25,8 @@ QString summarizeLoadMask(int mask)
     addIf(Mask::IOM_WEDGTEXMULTI, QStringLiteral("multi texture index"));
     addIf(Mask::IOM_WEDGCOLOR, QStringLiteral("wedge color"));
     addIf(Mask::IOM_WEDGNORMAL, QStringLiteral("wedge normal"));
-    addIf(Mask::IOM_VERTQUALITY, QStringLiteral("vertex quality"));
-    addIf(Mask::IOM_FACEQUALITY, QStringLiteral("face quality"));
+    addIf(Mask::IOM_VERTQUALITY, QStringLiteral("vertex scalar"));
+    addIf(Mask::IOM_FACEQUALITY, QStringLiteral("face scalar"));
     addIf(Mask::IOM_VERTRADIUS, QStringLiteral("vertex radius"));
     addIf(Mask::IOM_EDGEINDEX, QStringLiteral("edge index"));
     addIf(Mask::IOM_BITPOLYGONAL, QStringLiteral("polygonal faces"));

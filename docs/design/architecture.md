@@ -74,7 +74,7 @@ Built-in tools are registered by `createBuiltinInteractiveTools()`:
 
 ### `RenderOverlayPanel`
 
-Compact pass/settings panel: pass toggles, mode-specific world settings page (Scene vs UV), per-pass style controls (colors, color sources, widths, lighting/culling, quality histogram), PBR texture/normal-space controls, decorator info overlay toggle, apply-current-settings-to-visible-meshes actions, and `PerMeshRenderSettings`/`GlobalRenderSettings` sync. Explicit-edge color choices are constrained by the current mesh's vertex/edge color mask.
+Compact pass/settings panel: pass toggles, mode-specific world settings page (Scene vs UV), per-pass style controls (colors, color sources, widths, lighting/culling, quality histogram), PBR texture/normal-space controls, decorator info overlay toggle, and `PerMeshRenderSettings`/`GlobalRenderSettings` sync. Explicit-edge color choices are constrained by the current mesh's vertex/edge color mask. Every page opens under a one-line title row: the pass's name (see the pass-bar table in [vocabulary.md](vocabulary.md#the-views-pass-bar-2026-09-29)) and, for the eight per-layer passes, one shared *Apply to all* that copies the page's settings to every visible layer — the same `applyToAllMeshesRequested` a shift-click on the pass button sends. Pages are as tall as their own content: the stack declines height-for-width, because `QStackedLayout` answers it with the tallest page's minimum height.
 
 ### `LayerWidget`
 

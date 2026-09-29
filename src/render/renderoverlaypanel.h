@@ -94,6 +94,8 @@ private:
     bool m_viewerModeUv = false;
 
     QWidget *m_settingsContainer = nullptr;
+    QLabel *m_settingsTitleLabel = nullptr;
+    QPushButton *m_applyToAllButton = nullptr;
     QStackedWidget *m_settingsStack = nullptr;
     QStackedWidget *m_viewerSettingsStack = nullptr;
     QTimer *m_settingsAutoCloseTimer = nullptr;

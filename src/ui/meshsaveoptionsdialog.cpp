@@ -19,7 +19,7 @@ struct OptionalMaskItem {
 const OptionalMaskItem kOptionalMaskItems[] = {
     { vcg::tri::io::Mask::IOM_VERTFLAGS, QT_TR_NOOP("Vertex Flags") },
     { vcg::tri::io::Mask::IOM_VERTCOLOR, QT_TR_NOOP("Vertex Color") },
-    { vcg::tri::io::Mask::IOM_VERTQUALITY, QT_TR_NOOP("Vertex Quality") },
+    { vcg::tri::io::Mask::IOM_VERTQUALITY, QT_TR_NOOP("Vertex Scalar") },
     { vcg::tri::io::Mask::IOM_VERTNORMAL, QT_TR_NOOP("Vertex Normal") },
     { vcg::tri::io::Mask::IOM_VERTTEXCOORD, QT_TR_NOOP("Vertex Texcoord") },
     { vcg::tri::io::Mask::IOM_VERTRADIUS, QT_TR_NOOP("Vertex Radius") },
@@ -27,7 +27,7 @@ const OptionalMaskItem kOptionalMaskItems[] = {
     { vcg::tri::io::Mask::IOM_EDGEQUALITY, QT_TR_NOOP("Edge Scalar") },
     { vcg::tri::io::Mask::IOM_FACEFLAGS, QT_TR_NOOP("Face Flags") },
     { vcg::tri::io::Mask::IOM_FACECOLOR, QT_TR_NOOP("Face Color") },
-    { vcg::tri::io::Mask::IOM_FACEQUALITY, QT_TR_NOOP("Face Quality") },
+    { vcg::tri::io::Mask::IOM_FACEQUALITY, QT_TR_NOOP("Face Scalar") },
     { vcg::tri::io::Mask::IOM_FACENORMAL, QT_TR_NOOP("Face Normal") },
     { vcg::tri::io::Mask::IOM_WEDGCOLOR, QT_TR_NOOP("Wedge Color") },
     { vcg::tri::io::Mask::IOM_WEDGTEXCOORD, QT_TR_NOOP("Wedge Texcoord") },

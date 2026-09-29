@@ -611,7 +611,12 @@ void RenderWidget::planDecoratorPasses(
             for (const RenderMeshPassRequests &meshRequest : requests.meshes) {
                 const int mi = meshRequest.meshIndex;
                 const PerMeshRenderSettings &meshSettings = meshRequest.meshSettings;
-                if (!shouldDraw(meshSettings))
+                // Every thin-line decorator belongs to the normal pass, and the layer's pass
+                // request gates it before its checkbox does. The checkboxes stay set while
+                // the pass is off and the cache keeps the lines, so on their own they would
+                // draw a layer's normals whenever another decorator pass is on -- a hidden
+                // layer's too, since only the request carries visibility.
+                if (!meshRequest.decoratorNormals || !shouldDraw(meshSettings))
                     continue;
 
                 const MeshGpuResourceCache::DecoratorPassView decoratorView =
@@ -644,7 +649,9 @@ void RenderWidget::planDecoratorPasses(
             for (const RenderMeshPassRequests &meshRequest : requests.meshes) {
                 const int mi = meshRequest.meshIndex;
                 const PerMeshRenderSettings &meshSettings = meshRequest.meshSettings;
-                if (!shouldDraw(meshSettings))
+                // Every fat-or-line decorator belongs to the boundary pass; gated for the
+                // same reason as the normals above.
+                if (!meshRequest.decoratorBoundaries || !shouldDraw(meshSettings))
                     continue;
 
                 const MeshGpuResourceCache::DecoratorPassView decoratorView =
@@ -805,7 +812,7 @@ void RenderWidget::planDecoratorPasses(
         for (const RenderMeshPassRequests &meshRequest : requests.meshes) {
             const int mi = meshRequest.meshIndex;
             const PerMeshRenderSettings &meshSettings = meshRequest.meshSettings;
-            if (!meshSettings.decoratorNonManifoldVertices)
+            if (!meshRequest.decoratorBoundaries || !meshSettings.decoratorNonManifoldVertices)
                 continue;
 
             const MeshGpuResourceCache::DecoratorPassView decoratorView =

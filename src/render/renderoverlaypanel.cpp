@@ -27,8 +27,9 @@
 
 namespace {
 
-// Only these five passes have an apply-to-all: RenderWidget copies their fields and ignores
-// the rest, so offering the gesture anywhere else would look like it had done something.
+// The per-layer passes, whose fields RenderWidget knows how to copy to every layer. The
+// view-wide ones (View Settings, Scalar Histogram, Clipping Plane) have nothing per-layer
+// to copy, so offering the gesture there would look like it had done something.
 bool passSupportsApplyToAll(RenderPass pass)
 {
     switch (pass) {
@@ -37,10 +38,77 @@ bool passSupportsApplyToAll(RenderPass pass)
     case RenderPass::Edges:
     case RenderPass::Wireframe:
     case RenderPass::Fill:
+    case RenderPass::Selection:
+    case RenderPass::DecoratorNormals:
+    case RenderPass::DecoratorBoundary:
         return true;
     default:
         return false;
     }
+}
+
+// One name per button, shared by its tooltip, its arrow's tooltip and the title of its
+// panel, so the three cannot disagree again. None of them says "pass": that is the
+// renderer's word, not the user's. View Settings is the one button that is not a pass at
+// all -- it holds the view's own settings -- and its name says so.
+QString passName(RenderPass pass)
+{
+    switch (pass) {
+    case RenderPass::CurrentMesh: return QObject::tr("View Settings");
+    case RenderPass::BoundingBox: return QObject::tr("Bounding Box");
+    case RenderPass::Points: return QObject::tr("Points");
+    case RenderPass::Edges: return QObject::tr("Edges");
+    case RenderPass::Wireframe: return QObject::tr("Wireframe");
+    case RenderPass::Fill: return QObject::tr("Fill");
+    case RenderPass::Selection: return QObject::tr("Selection");
+    case RenderPass::DecoratorNormals: return QObject::tr("Normals");
+    case RenderPass::DecoratorBoundary: return QObject::tr("Boundaries");
+    case RenderPass::QualityHistogram: return QObject::tr("Scalar Histogram");
+    case RenderPass::ClipPlane: return QObject::tr("Clipping Plane");
+    }
+    return QString();
+}
+
+// What the button shows and where -- on the current layer or across the whole view, which
+// the icon cannot say -- with any shortcut on a line of its own.
+QString passButtonToolTip(RenderPass pass)
+{
+    QString what;
+    switch (pass) {
+    case RenderPass::CurrentMesh:
+        what = QObject::tr("outline, gizmos, cameras and background of the whole view");
+        break;
+    case RenderPass::Selection:
+        what = QObject::tr("show the selected elements of the current layer");
+        break;
+    case RenderPass::DecoratorNormals:
+        what = QObject::tr("show normals and curvature directions of the current layer");
+        break;
+    case RenderPass::DecoratorBoundary:
+        what = QObject::tr("show boundaries, seams and non-manifold elements of the current layer");
+        break;
+    case RenderPass::QualityHistogram:
+        what = QObject::tr("show the scalar distribution of the current layer beside the view");
+        break;
+    case RenderPass::ClipPlane:
+        what = QObject::tr("cut the whole view\nCtrl+wheel to slide it, Alt+drag to tip it");
+        break;
+    default:
+        what = QObject::tr("show on the current layer");
+        break;
+    }
+    QString tip = QObject::tr("%1: %2").arg(passName(pass), what);
+    if (passSupportsApplyToAll(pass))
+        tip += QLatin1Char('\n') + QObject::tr("Shift-click: apply to all layers");
+    return tip;
+}
+
+// View Settings is already a name for settings, so its arrow does not say it twice.
+QString passArrowToolTip(RenderPass pass)
+{
+    if (pass == RenderPass::CurrentMesh)
+        return passName(pass);
+    return QObject::tr("%1 settings").arg(passName(pass));
 }
 const QColor kAccentColor(36, 132, 210);
 const QColor kNeutralArrowColor(90, 90, 90, 175);
@@ -123,7 +191,6 @@ public:
         setAutoRaise(true);
         setCursor(Qt::PointingHandCursor);
         setFixedSize(kPassArrowWidth, kPassArrowHeight);
-        setToolTip(QObject::tr("Show settings for this pass"));
     }
 
 protected:
@@ -132,10 +199,9 @@ protected:
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing, true);
         p.setPen(Qt::NoPen);
-        QColor arrowColor = isChecked() ? kActiveArrowColor : kNeutralArrowColor;
-        if (underMouse() || isDown())
-            arrowColor = kActiveArrowColor;
-        p.setBrush(arrowColor);
+        // Blue means "this panel is open" and nothing else. It used to light up under the
+        // mouse as well, which made every arrow look open while being pointed at.
+        p.setBrush(isChecked() ? kActiveArrowColor : kNeutralArrowColor);
 
         const int triW = 14;
         const int triH = 8;
@@ -174,6 +240,12 @@ public:
             return page->minimumSizeHint();
         return QStackedWidget::minimumSizeHint();
     }
+
+    // QStackedLayout answers height-for-width with at least the minimum height of its
+    // tallest page, hidden or not. One word-wrapped label on a page was enough to stretch
+    // that page to the height of View Settings; declining height-for-width leaves every
+    // page to the two size hints above.
+    bool hasHeightForWidth() const override { return false; }
 };
 }
 
@@ -200,17 +272,19 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     buttonLayout->setSpacing(3);
     panelLayout->addWidget(buttonRow);
 
+    // No :hover rule. A button shows whether it is on and whether its panel is open, and
+    // pointing at it changes neither; a hover background, coming after :checked, used to
+    // paint over the on state of whatever button the mouse was on.
     const QString passButtonStyle = QStringLiteral(
         "QToolButton { background: rgba(250,250,250,165); border: 1px solid rgba(40,40,40,115); border-radius: 4px; }"
         "QToolButton:checked { background: rgba(%1,%2,%3,195); border-color: rgba(%1,%2,%3,220); }"
-        "QToolButton:hover { background: rgba(220,230,245,185); }"
         "QToolButton[settingsTarget=\"true\"] { border: 2px solid rgba(%1,%2,%3,210); }")
             .arg(kAccentColor.red()).arg(kAccentColor.green()).arg(kAccentColor.blue());
 
-    auto makeButton = [this, &passButtonStyle](const QString &iconPath, const QString &tooltip) {
+    auto makeButton = [this, &passButtonStyle](const QString &iconPath, RenderPass pass) {
         auto *btn = new QToolButton(this);
         btn->setIcon(QIcon(iconPath));
-        btn->setToolTip(tooltip);
+        btn->setToolTip(passButtonToolTip(pass));
         btn->setCheckable(true);
         btn->setAutoRaise(false);
         btn->setIconSize(QSize(kPassIconSize, kPassIconSize));
@@ -219,22 +293,21 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         return btn;
     };
 
-    m_currentMeshButton = makeButton(QStringLiteral(":/img/global.png"), tr("Viewer Settings"));
+    m_currentMeshButton = makeButton(QStringLiteral(":/img/global.png"), RenderPass::CurrentMesh);
     m_currentMeshButton->setCheckable(false);
-    m_normalsDecoratorsButton = makeButton(QStringLiteral(":/img/normals.png"), tr("Normal Decorators"));
-    m_boundaryDecoratorsButton = makeButton(QStringLiteral(":/img/boundary.png"), tr("Boundary Decorators"));
-    m_bboxButton = makeButton(QStringLiteral(":/img/box.png"), tr("Bounding Box"));
-    m_pointsButton = makeButton(QStringLiteral(":/img/points.png"), tr("Points"));
-    m_edgesButton = makeButton(QStringLiteral(":/img/edge-mesh.png"), tr("Edges pass"));
-    m_wireButton = makeButton(QStringLiteral(":/img/wire.png"), tr("Wireframe pass"));
-    m_fillButton = makeButton(QStringLiteral(":/img/flat.png"), tr("Fill pass"));
-    m_selectionButton =
-        makeButton(QStringLiteral(":/img/selected.png"), tr("Selected elements overlay"));
+    m_normalsDecoratorsButton =
+        makeButton(QStringLiteral(":/img/normals.png"), RenderPass::DecoratorNormals);
+    m_boundaryDecoratorsButton =
+        makeButton(QStringLiteral(":/img/boundary.png"), RenderPass::DecoratorBoundary);
+    m_bboxButton = makeButton(QStringLiteral(":/img/box.png"), RenderPass::BoundingBox);
+    m_pointsButton = makeButton(QStringLiteral(":/img/points.png"), RenderPass::Points);
+    m_edgesButton = makeButton(QStringLiteral(":/img/edge-mesh.png"), RenderPass::Edges);
+    m_wireButton = makeButton(QStringLiteral(":/img/wire.png"), RenderPass::Wireframe);
+    m_fillButton = makeButton(QStringLiteral(":/img/flat.png"), RenderPass::Fill);
+    m_selectionButton = makeButton(QStringLiteral(":/img/selected.png"), RenderPass::Selection);
     m_qualityHistogramButton =
-        makeButton(QStringLiteral(":/img/histogram.png"), tr("Quality Histogram"));
-    m_clipPlaneButton = makeButton(
-        QStringLiteral(":/img/clipplane.png"),
-        tr("Clipping plane \u2014 Ctrl+wheel to slide it, Alt+drag to tip it"));
+        makeButton(QStringLiteral(":/img/histogram.png"), RenderPass::QualityHistogram);
+    m_clipPlaneButton = makeButton(QStringLiteral(":/img/clipplane.png"), RenderPass::ClipPlane);
 
     buttonLayout->addWidget(m_currentMeshButton);
     buttonLayout->addWidget(m_bboxButton);
@@ -265,9 +338,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     arrowLayout->setSpacing(3);
     panelLayout->addWidget(arrowRow);
 
-    auto makeArrowButton = [this, arrowRow](const QString &tooltip) {
+    auto makeArrowButton = [arrowRow](RenderPass pass) {
         auto *btn = new PassArrowButton(arrowRow);
-        btn->setToolTip(tooltip);
+        btn->setToolTip(passArrowToolTip(pass));
         return btn;
     };
     auto makeColorButton = [this](QWidget *parentWidget) {
@@ -278,26 +351,26 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         btn->setFixedSize(kColorButtonSize, kColorButtonSize);
         return btn;
     };
-    m_currentMeshSettingsArrow = makeArrowButton(tr("Settings: Viewer"));
+    m_currentMeshSettingsArrow = makeArrowButton(RenderPass::CurrentMesh);
     arrowLayout->addWidget(m_currentMeshSettingsArrow);
 
-    m_bboxSettingsArrow = makeArrowButton(tr("Settings: Bounding Box"));
-    m_pointsSettingsArrow = makeArrowButton(tr("Settings: Points"));
-    m_edgesSettingsArrow = makeArrowButton(tr("Settings: Edges"));
-    m_wireSettingsArrow = makeArrowButton(tr("Settings: Wireframe"));
-    m_fillSettingsArrow = makeArrowButton(tr("Settings: Fill"));
-    m_selectionSettingsArrow = makeArrowButton(tr("Settings: Selection"));
-    m_qualityHistogramSettingsArrow = makeArrowButton(tr("Settings: Quality Histogram"));
-    m_clipPlaneSettingsArrow = makeArrowButton(tr("Settings: Clipping Plane"));
+    m_bboxSettingsArrow = makeArrowButton(RenderPass::BoundingBox);
+    m_pointsSettingsArrow = makeArrowButton(RenderPass::Points);
+    m_edgesSettingsArrow = makeArrowButton(RenderPass::Edges);
+    m_wireSettingsArrow = makeArrowButton(RenderPass::Wireframe);
+    m_fillSettingsArrow = makeArrowButton(RenderPass::Fill);
+    m_selectionSettingsArrow = makeArrowButton(RenderPass::Selection);
+    m_qualityHistogramSettingsArrow = makeArrowButton(RenderPass::QualityHistogram);
+    m_clipPlaneSettingsArrow = makeArrowButton(RenderPass::ClipPlane);
     arrowLayout->addWidget(m_bboxSettingsArrow);
     arrowLayout->addWidget(m_pointsSettingsArrow);
     arrowLayout->addWidget(m_edgesSettingsArrow);
     arrowLayout->addWidget(m_wireSettingsArrow);
     arrowLayout->addWidget(m_fillSettingsArrow);
     arrowLayout->addWidget(m_selectionSettingsArrow);
-    m_normalsDecoratorsSettingsArrow = makeArrowButton(tr("Settings: Normal Decorators"));
+    m_normalsDecoratorsSettingsArrow = makeArrowButton(RenderPass::DecoratorNormals);
     arrowLayout->addWidget(m_normalsDecoratorsSettingsArrow);
-    m_boundaryDecoratorsSettingsArrow = makeArrowButton(tr("Settings: Boundary Decorators"));
+    m_boundaryDecoratorsSettingsArrow = makeArrowButton(RenderPass::DecoratorBoundary);
     arrowLayout->addWidget(m_boundaryDecoratorsSettingsArrow);
     arrowLayout->addWidget(m_qualityHistogramSettingsArrow);
     arrowLayout->addWidget(m_clipPlaneSettingsArrow);
@@ -308,11 +381,38 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_settingsContainer->setStyleSheet(QStringLiteral(
         "#settingsContainer { background: rgba(250,250,250,170); border: 1px solid rgba(40,40,40,110); border-radius: 4px; }"
         "#settingsContainer QLabel { border: none; background: transparent; }"
-        "#settingsContainer, #settingsContainer QLabel, #settingsContainer QCheckBox, #settingsContainer QComboBox, #settingsContainer QDoubleSpinBox { font-size: 11px; }"));
+        "#settingsContainer, #settingsContainer QLabel, #settingsContainer QCheckBox, #settingsContainer QComboBox, #settingsContainer QDoubleSpinBox { font-size: 11px; }"
+        "#settingsContainer QLabel#settingsTitle { font-size: 10px; font-weight: bold; color: rgba(60,60,68,215); }"
+        "#settingsContainer QPushButton#applyToAll { font-size: 10px; padding: 1px 6px; background: rgba(250,250,250,200); border: 1px solid rgba(40,40,40,115); border-radius: 3px; }"
+        "#settingsContainer QPushButton#applyToAll:pressed { background: rgba(36,132,210,195); color: white; }"));
 
     auto *settingsContainerLayout = new QVBoxLayout(m_settingsContainer);
     settingsContainerLayout->setContentsMargins(4, 4, 4, 4);
     settingsContainerLayout->setSpacing(2);
+
+    // The panel's title, and one "Apply to all" shared by every per-layer page. Sharing the
+    // title's line costs that button no height of its own; syncRenderPassUiState() keeps
+    // both in step with the page on show.
+    auto *titleRow = new QHBoxLayout();
+    titleRow->setContentsMargins(0, 0, 0, 0);
+    titleRow->setSpacing(4);
+    m_settingsTitleLabel = new QLabel(m_settingsContainer);
+    m_settingsTitleLabel->setObjectName(QStringLiteral("settingsTitle"));
+    titleRow->addWidget(m_settingsTitleLabel, 1);
+    m_applyToAllButton = new QPushButton(tr("Apply to all"), m_settingsContainer);
+    m_applyToAllButton->setObjectName(QStringLiteral("applyToAll"));
+    m_applyToAllButton->setCursor(Qt::PointingHandCursor);
+    connect(m_applyToAllButton, &QPushButton::clicked, this, [this]() {
+        emit applyToAllMeshesRequested(m_meshSettings, m_globalSettings.currentPass);
+    });
+    // Keeps its height while hidden on the view-wide pages, so the title line is the same
+    // on every page instead of shifting the form by a few pixels.
+    QSizePolicy applyToAllPolicy = m_applyToAllButton->sizePolicy();
+    applyToAllPolicy.setRetainSizeWhenHidden(true);
+    m_applyToAllButton->setSizePolicy(applyToAllPolicy);
+    titleRow->addWidget(m_applyToAllButton);
+    settingsContainerLayout->addLayout(titleRow);
+
     m_settingsStack = new CurrentPageStackedWidget(m_settingsContainer);
     settingsContainerLayout->addWidget(m_settingsStack);
 
@@ -523,29 +623,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     boundaryDecoratorsLayout->addLayout(boundaryDecoratorsForm);
     m_settingsStack->addWidget(boundaryDecoratorsPage);
 
-    auto addApplyToAllButton = [this](QLayout *layout, RenderPass pass) {
-        // "to All" left the reader to guess all of what -- all passes? all views? It is
-        // all layers, and the label now says which.
-        auto *btn = new QPushButton(tr("Apply to All Layers"));
-        btn->setToolTip(tr("Apply current %1 settings to all visible layers")
-            .arg(pass == RenderPass::BoundingBox ? tr("box") :
-                 pass == RenderPass::Points ? tr("points") :
-                 pass == RenderPass::Edges ? tr("edges") :
-                 pass == RenderPass::Wireframe ? tr("wire") :
-                 tr("fill")));
-        layout->addWidget(btn);
-        connect(btn, &QPushButton::clicked, this, [this, pass]() {
-            emit applyToAllMeshesRequested(m_meshSettings, pass);
-        });
-
-        // The shortcut is invisible by nature, so it is written down exactly where someone
-        // who wanted it would be looking -- next to the long way round.
-        auto *hint = new QLabel(tr("Shift-click a pass button to do this without opening it."));
-        hint->setWordWrap(true);
-        hint->setStyleSheet(QStringLiteral("QLabel { color: rgba(90,90,96,205); }"));
-        layout->addWidget(hint);
-    };
-
     auto *bboxPage = new QWidget(m_settingsStack);
     auto *bboxLayout = new QVBoxLayout(bboxPage);
     bboxLayout->setContentsMargins(0, 0, 0, 0);
@@ -576,7 +653,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         makeCenteredFieldContainer(m_bboxShowDimensionsCheck, bboxPage));
     applyUniformFormRowHeights(bboxForm);
     bboxLayout->addLayout(bboxForm);
-    addApplyToAllButton(bboxLayout, RenderPass::BoundingBox);
     m_settingsStack->addWidget(bboxPage);
     auto *pointsPage = new QWidget(m_settingsStack);
     auto *pointsLayout = new QVBoxLayout(pointsPage);
@@ -592,7 +668,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_pointColorSourceCombo->addItem(tr("Constant"), static_cast<int>(PointColorSource::Constant));
     m_pointColorSourceCombo->addItem(tr("Per-Vertex"), static_cast<int>(PointColorSource::PerVertex));
     m_pointColorSourceCombo->addItem(
-        tr("Per-Vertex Quality"),
+        tr("Per-Vertex Scalar"),
         static_cast<int>(PointColorSource::PerVertexQuality));
     m_pointSizeSpin = new QDoubleSpinBox(pointsPage);
     m_pointSizeSpin->setRange(1.0, 32.0);
@@ -612,7 +688,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         makeCenteredFieldContainer(m_pointLightingCheck, pointsPage));
     applyUniformFormRowHeights(pointsForm);
     pointsLayout->addLayout(pointsForm);
-    addApplyToAllButton(pointsLayout, RenderPass::Points);
     m_settingsStack->addWidget(pointsPage);
     auto *edgesPage = new QWidget(m_settingsStack);
     auto *edgesLayout = new QVBoxLayout(edgesPage);
@@ -645,7 +720,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     edgesForm->addRow(tr("Edge size"), m_edgeSizeSpin);
     applyUniformFormRowHeights(edgesForm);
     edgesLayout->addLayout(edgesForm);
-    addApplyToAllButton(edgesLayout, RenderPass::Edges);
     m_settingsStack->addWidget(edgesPage);
     auto *wirePage = new QWidget(m_settingsStack);
     auto *wireLayout = new QVBoxLayout(wirePage);
@@ -684,7 +758,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         makeCenteredFieldContainer(m_wireRespectFauxCheck, wirePage));
     applyUniformFormRowHeights(wireForm);
     wireLayout->addLayout(wireForm);
-    addApplyToAllButton(wireLayout, RenderPass::Wireframe);
     m_settingsStack->addWidget(wirePage);
     auto *fillPage = new QWidget(m_settingsStack);
     auto *fillLayout = new QVBoxLayout(fillPage);
@@ -707,10 +780,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillColorSourceCombo->addItem(tr("Per-Face"), static_cast<int>(FillColorSource::PerFace));
     m_fillColorSourceCombo->addItem(tr("Per-Mesh"), static_cast<int>(FillColorSource::PerMesh));
     m_fillColorSourceCombo->addItem(
-        tr("Per-Vertex Quality"),
+        tr("Per-Vertex Scalar"),
         static_cast<int>(FillColorSource::PerVertexQuality));
     m_fillColorSourceCombo->addItem(
-        tr("Per-Face Quality"),
+        tr("Per-Face Scalar"),
         static_cast<int>(FillColorSource::PerFaceQuality));
     m_fillColorSourceCombo->addItem(tr("Texture"), static_cast<int>(FillColorSource::Texture));
     m_fillShadingCombo = new QComboBox(fillPage);
@@ -838,7 +911,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     applyUniformFormRowHeights(fillForm);
     fillLayout->addLayout(fillForm);
     fillLayout->addWidget(m_fillMaterialStack);
-    addApplyToAllButton(fillLayout, RenderPass::Fill);
     m_settingsStack->addWidget(fillPage);
 
     auto *selectionPage = new QWidget(m_settingsStack);
@@ -882,9 +954,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_qualityHistogramSourceCombo->addItem(
         tr("Auto"), static_cast<int>(QualityHistogramSource::Auto));
     m_qualityHistogramSourceCombo->addItem(
-        tr("Vertex Q"), static_cast<int>(QualityHistogramSource::VertexQuality));
+        tr("Per-Vertex"), static_cast<int>(QualityHistogramSource::VertexQuality));
     m_qualityHistogramSourceCombo->addItem(
-        tr("Face Q"), static_cast<int>(QualityHistogramSource::FaceQuality));
+        tr("Per-Face"), static_cast<int>(QualityHistogramSource::FaceQuality));
     histogramForm->addRow(tr("Source"), m_qualityHistogramSourceCombo);
     m_qualityHistogramColorMapCombo = new QComboBox(histogramPage);
     const ColorMapRegistry &colorMapRegistry = ColorMapRegistry::instance();
@@ -964,7 +1036,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     histogramForm->addRow(m_qualityHistogramMaxLabel, m_qualityHistogramMaxSpin);
     m_qualityBakeVertexColorButton = new QPushButton(tr("Bake to Vertex Color"), histogramPage);
     m_qualityBakeVertexColorButton->setToolTip(
-        tr("Bake the current vertex-quality color mapping into per-vertex colors. Isolines are ignored."));
+        tr("Bake the current per-vertex scalar color mapping into per-vertex colors. Isolines are ignored."));
     histogramForm->addRow(QString(), m_qualityBakeVertexColorButton);
     applyUniformFormRowHeights(histogramForm);
     histogramLayout->addLayout(histogramForm);
@@ -987,10 +1059,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_uvFillColorSourceCombo->addItem(tr("Per-Face"), static_cast<int>(FillColorSource::PerFace));
     m_uvFillColorSourceCombo->addItem(tr("Per-Mesh"), static_cast<int>(FillColorSource::PerMesh));
     m_uvFillColorSourceCombo->addItem(
-        tr("Per-Vertex Quality"),
+        tr("Per-Vertex Scalar"),
         static_cast<int>(FillColorSource::PerVertexQuality));
     m_uvFillColorSourceCombo->addItem(
-        tr("Per-Face Quality"),
+        tr("Per-Face Scalar"),
         static_cast<int>(FillColorSource::PerFaceQuality));
     m_uvFillColorSourceCombo->addItem(tr("Texture"), static_cast<int>(FillColorSource::Texture));
     uvFillForm->addRow(tr("Color source"), m_uvFillColorSourceCombo);
@@ -2590,4 +2662,18 @@ void RenderOverlayPanel::syncRenderPassUiState()
     setArrowChecked(m_selectionSettingsArrow, RenderPass::Selection);
     setArrowChecked(m_qualityHistogramSettingsArrow, RenderPass::QualityHistogram);
     setArrowChecked(m_clipPlaneSettingsArrow, RenderPass::ClipPlane);
+
+    const RenderPass pass = m_globalSettings.currentPass;
+    if (m_settingsTitleLabel)
+        m_settingsTitleLabel->setText(passName(pass));
+    if (m_applyToAllButton) {
+        const bool applies = passSupportsApplyToAll(pass);
+        m_applyToAllButton->setVisible(applies);
+        if (applies) {
+            m_applyToAllButton->setToolTip(
+                tr("Apply these %1 settings to all visible layers.\n"
+                   "Shift-click the %1 button to do the same without opening this panel.")
+                    .arg(passName(pass)));
+        }
+    }
 }

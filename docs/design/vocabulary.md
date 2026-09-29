@@ -541,11 +541,38 @@ This follows the same split already used for texture coordinates: **`UV` user-fa
 `texcoord` in code**. Likewise **`scalar` user-facing, `quality` in code** — vcglib's
 API is not ours to rename, and no code churn is implied.
 
-Scope warning: user-facing `quality` is not confined to filters. It also appears in the
-histogram, the colormap-by-scalar UI, the layer panel's `VQ`/`FQ` data flags, the
-decorator info panel, and parameter ids such as `qualityThreshold`. Filters and
-categories are renamed in **pass 1**; the UI labels and parameter ids follow in a later
-pass so the two stay consistent. Until then, expect `quality` to persist in the UI.
+Scope warning: user-facing `quality` is not confined to filters. Filters and categories
+were renamed in **pass 1**, and the application's own labels followed on 2026-09-29.
+The render panel's color sources and histogram, the histogram overlay, the
+bake-to-color messages, the save dialog, the load and save attribute summaries, and
+the filter framework's requirement errors now all say `scalar`. Still to go: the filter
+descriptions and log messages, which live with each plugin, and parameter ids such as
+`qualityThreshold` (pass 2). The layer panel's `VQ`/`FQ`/`EQ` flags stay as they are:
+they are the requirement codes the descriptors use, and the filter panel spells them out
+as *vertex scalar*, *face scalar* and *edge scalar*.
+
+### The view's pass bar (2026-09-29)
+
+Each button above the 3D view has one name, used unchanged by its tooltip, by the tooltip
+of the arrow beneath it (*Name* `settings`), and as the title of its panel.
+`passName()` in `renderoverlaypanel.cpp` is the only place these names are spelled.
+
+| Button | Name | Acts on |
+|---|---|---|
+| globe | `View Settings` | the whole view — its general settings, not a pass |
+| box · points · edges · wire · flat | `Bounding Box` · `Points` · `Edges` · `Wireframe` · `Fill` | the current layer |
+| selected | `Selection` | the current layer |
+| normals | `Normals` | the current layer |
+| boundary | `Boundaries` | the current layer (also seams and non-manifold elements) |
+| histogram | `Scalar Histogram` | the whole view |
+| clip plane | `Clipping Plane` | the whole view |
+
+- **`pass` is the renderer's word, never the user's**: no tooltip or label says it.
+- **A tooltip says where the button acts** — the current layer or the whole view — since
+  the icon cannot. Shortcuts go on a line of their own.
+- Rejected: `Viewer Settings`, `Normal Decorators`, `Boundary Decorators` (*decorator* is
+  implementation vocabulary), `Selected elements overlay`, `Quality Histogram` (see
+  above), `Edges pass` and every other `… pass`.
 
 ## 5. Spelling and casing
 

@@ -571,9 +571,9 @@ bool validateMeshRequirements(
     if (req.requireTextures && !meshHasAnyTextureAssociation(meshEntry))
         return fail(QObject::tr("Filter '%1' requires %2 to have associated textures.").arg(filterName, subject));
     if (req.requireVertexQuality && (meshEntry.ioMask & Mask::IOM_VERTQUALITY) == 0)
-        return fail(QObject::tr("Filter '%1' requires %2 to have vertex quality.").arg(filterName, subject));
+        return fail(QObject::tr("Filter '%1' requires %2 to have vertex scalars.").arg(filterName, subject));
     if (req.requireFaceQuality && (meshEntry.ioMask & Mask::IOM_FACEQUALITY) == 0)
-        return fail(QObject::tr("Filter '%1' requires %2 to have face quality.").arg(filterName, subject));
+        return fail(QObject::tr("Filter '%1' requires %2 to have face scalars.").arg(filterName, subject));
 
     return true;
 }

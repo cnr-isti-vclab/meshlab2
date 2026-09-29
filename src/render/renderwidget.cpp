@@ -1850,6 +1850,7 @@ void RenderWidget::createOverlayButtons()
                 dst.showEdges      = meshSettings.showEdges;
                 dst.edgeColor      = meshSettings.edgeColor;
                 dst.edgeSize       = meshSettings.edgeSize;
+                dst.edgeColorSource = meshSettings.edgeColorSource;
                 break;
             case RenderPass::Wireframe:
                 dst.showWire       = meshSettings.showWire;
@@ -1869,9 +1870,42 @@ void RenderWidget::createOverlayButtons()
                 dst.fillPbr        = meshSettings.fillPbr;
                 dst.fillRs         = meshSettings.fillRs;
                 break;
+            case RenderPass::Selection:
+                dst.showSelection         = meshSettings.showSelection;
+                dst.showSelectionVertices = meshSettings.showSelectionVertices;
+                dst.showSelectionEdges    = meshSettings.showSelectionEdges;
+                dst.showSelectionFaces    = meshSettings.showSelectionFaces;
+                break;
+            case RenderPass::DecoratorNormals:
+                dst.decoratorNormals              = meshSettings.decoratorNormals;
+                dst.decoratorVertexNormals        = meshSettings.decoratorVertexNormals;
+                dst.decoratorVertexNormalColor    = meshSettings.decoratorVertexNormalColor;
+                dst.decoratorFaceNormals          = meshSettings.decoratorFaceNormals;
+                dst.decoratorFaceNormalColor      = meshSettings.decoratorFaceNormalColor;
+                dst.decoratorCurvatureDir         = meshSettings.decoratorCurvatureDir;
+                dst.decoratorCurvatureDirPD1Color = meshSettings.decoratorCurvatureDirPD1Color;
+                dst.decoratorCurvatureDirPD2Color = meshSettings.decoratorCurvatureDirPD2Color;
+                break;
+            case RenderPass::DecoratorBoundary:
+                // Not showDecoratorInfo: the info panel on the same page belongs to the
+                // view, so there is nothing per-layer to copy for it.
+                dst.decoratorBoundary               = meshSettings.decoratorBoundary;
+                dst.decoratorBoundaryEdges          = meshSettings.decoratorBoundaryEdges;
+                dst.decoratorBoundaryEdgeColor      = meshSettings.decoratorBoundaryEdgeColor;
+                dst.decoratorTextureSeams           = meshSettings.decoratorTextureSeams;
+                dst.decoratorTextureSeamColor       = meshSettings.decoratorTextureSeamColor;
+                dst.decoratorNonManifoldEdges       = meshSettings.decoratorNonManifoldEdges;
+                dst.decoratorNonManifoldEdgeColor   = meshSettings.decoratorNonManifoldEdgeColor;
+                dst.decoratorNonManifoldVertices    = meshSettings.decoratorNonManifoldVertices;
+                dst.decoratorNonManifoldVertexColor = meshSettings.decoratorNonManifoldVertexColor;
+                dst.decoratorBoundaryWidth          = meshSettings.decoratorBoundaryWidth;
+                break;
             default: break;
             }
         }
+        // The corner labels stay up while any visible layer shows its box, so switching the
+        // box off everywhere at once has to take them down here as well.
+        updateBoundingBoxCornersOverlay();
         update();
     });
 
@@ -2645,14 +2679,14 @@ void RenderWidget::updateQualityHistogramOverlay()
     };
 
     if (!useVertexQuality && !useFaceQuality) {
-        QString message = tr("No quality found in current mesh");
-        QString tooltip = tr("Mesh has no vertex/face quality");
+        QString message = tr("No scalar in the current layer");
+        QString tooltip = tr("The current layer has no per-vertex or per-face scalar");
         if (sourceSelection == QualityHistogramSource::VertexQuality) {
-            message = tr("No vertex quality found in current mesh");
-            tooltip = tr("Selected source is Vertex Quality but mesh has no VQ");
+            message = tr("No per-vertex scalar in the current layer");
+            tooltip = tr("The source is Per-Vertex, but the current layer has no per-vertex scalar");
         } else if (sourceSelection == QualityHistogramSource::FaceQuality) {
-            message = tr("No face quality found in current mesh");
-            tooltip = tr("Selected source is Face Quality but mesh has no FQ");
+            message = tr("No per-face scalar in the current layer");
+            tooltip = tr("The source is Per-Face, but the current layer has no per-face scalar");
         }
         m_qualityHistogramOverlayLabel->setPixmap(buildMessagePixmap(message));
         m_qualityHistogramOverlayLabel->setToolTip(tooltip);
@@ -2741,7 +2775,7 @@ void RenderWidget::updateQualityHistogramOverlay()
     }
 
     if (!m_qualityHistogram.valid) {
-        m_qualityHistogramOverlayLabel->setPixmap(buildMessagePixmap(tr("Quality values are not finite")));
+        m_qualityHistogramOverlayLabel->setPixmap(buildMessagePixmap(tr("Scalar values are not finite")));
         m_qualityHistogramOverlayLabel->setToolTip(tr("Cannot build histogram for current mesh"));
         m_qualityHistogramOverlayLabel->show();
         layoutOverlayButtons();
@@ -2871,10 +2905,10 @@ void RenderWidget::updateQualityHistogramOverlay()
             qText);
     }
 
-    const QString sourceName = m_qualityHistogram.vertexBased ? tr("VQ") : tr("FQ");
+    const QString sourceName = m_qualityHistogram.vertexBased ? tr("Per-vertex") : tr("Per-face");
     m_qualityHistogramOverlayLabel->setPixmap(pm);
     m_qualityHistogramOverlayLabel->setToolTip(
-        tr("%1 quality distribution\nsamples: %2\nrange: [%3, %4]")
+        tr("%1 scalar distribution\nsamples: %2\nrange: [%3, %4]")
             .arg(sourceName)
             .arg(m_qualityHistogram.sampleCount)
             .arg(m_qualityHistogram.minQ, 0, 'g', 8)
@@ -2955,7 +2989,7 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
     const int meshIndex = m_doc->currentMeshIndex();
     if (meshIndex < 0 || meshIndex >= m_doc->meshCount()) {
         m_doc->writeLog(
-            tr("Cannot bake quality colors: no current mesh selected."),
+            tr("Cannot bake scalar colors: there is no current layer."),
             Document::LogSource::Application, Document::LogLevel::Error);
         return;
     }
@@ -2965,13 +2999,13 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
         (entry.ioMask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
     if (!hasVertexQuality) {
         m_doc->writeLog(
-            tr("Cannot bake quality colors: current mesh has no vertex quality."),
+            tr("Cannot bake scalar colors: the current layer has no per-vertex scalar."),
             Document::LogSource::Application, Document::LogLevel::Error);
         return;
     }
     if (m_renderSettings.qualityHistogramSource == QualityHistogramSource::FaceQuality) {
         m_doc->writeLog(
-            tr("Cannot bake to vertex color while the quality source is Face Q. Switch the source to Auto or Vertex Q."),
+            tr("Cannot bake to vertex color while the histogram source is Per-Face. Switch the source to Auto or Per-Vertex."),
             Document::LogSource::Application, Document::LogLevel::Error);
         return;
     }
@@ -2986,7 +3020,7 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
     }
     if (!range.valid) {
         m_doc->writeLog(
-            tr("Cannot bake quality colors: current quality range is not finite."),
+            tr("Cannot bake scalar colors: the current scalar range is not finite."),
             Document::LogSource::Application, Document::LogLevel::Error);
         return;
     }
@@ -3007,7 +3041,7 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
 
     const QString filterKey =
         QStringLiteral("meshlab2.filter.colorproc::colorize_vertices_by_scalar");
-    const QString label = tr("Bake Quality to Vertex Color");
+    const QString label = tr("Bake Scalar to Vertex Color");
     m_doc->beginFilterProgress(label);
     // Document::runFilter logs the run's duration for every entry point; no timing here.
     const MeshFilterRunResult result = m_doc->runFilter(filterKey, params);
@@ -3036,7 +3070,7 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
         }
     }
 
-    QString status = tr("Baked quality mapping to vertex colors");
+    QString status = tr("Baked the scalar color mapping into vertex colors");
     if (!result.infoMessages.isEmpty())
         status = result.infoMessages.back();
     m_doc->finishFilterProgress(true, status);
