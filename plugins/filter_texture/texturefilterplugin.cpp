@@ -882,11 +882,8 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                 return fail(QObject::tr("Dummy size has an incorrect value."));
             if (checkSize <= 0)
                 return fail(QObject::tr("Check size has an incorrect value."));
-            const bool checkerboard = (dummyType != QStringLiteral("grid"));
-            const QImage dummyTexture = Tex::makeDummyTexture(imageSize, checkSize, checkerboard);
-            displayName = checkerboard
-                ? QStringLiteral("Dummy Checkerboard")
-                : QStringLiteral("Dummy Grid");
+            const QImage dummyTexture = Tex::makeDummyTexture(imageSize, checkSize, dummyType);
+            displayName = QStringLiteral("Dummy %1").arg(Tex::dummyTextureName(dummyType));
             newAssets.push_back(Tex::makeTextureAssetFromImage(dummyTexture, displayName));
         } else {
             const QString chosenPath = params.getFileOpen(QStringLiteral("textName")).trimmed();

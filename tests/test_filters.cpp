@@ -485,6 +485,7 @@ private slots:
     void applyToAllVisibleLayersDoesNotConsumeItsOwnOutput();
     void applyToAllVisibleLayersReportsSkippedLayers();
     void packTextureImagesCreatesGutteredAtlas();
+    void setTextureUvGridTellsUAndVApart();
     void faceQualityFiltersAreSplit();
     void libiglParametrizationFiltersRunWhenAvailable();
     void libiglQuantityFiltersRunWhenAvailable();
@@ -5843,6 +5844,43 @@ void FilterTests::packTextureImagesCreatesGutteredAtlas()
             QVERIFY(face.cWT(corner).V() > 0.0f && face.cWT(corner).V() < 1.0f);
         }
     }
+}
+
+// Set Texture's UV Grid: rows of the image are lines along U and come out red, columns run
+// along V and come out blue, on the gray the other patterns use, so the two directions can
+// be told apart on the mesh. The plain Grid keeps white lines both ways.
+void FilterTests::setTextureUvGridTellsUAndVApart()
+{
+    Document doc;
+    VCGMesh mesh;
+    makeTwoTextureTriangles(mesh);
+    const int meshIndex = doc.addMesh(
+        mesh,
+        QStringLiteral("uv"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    QVERIFY(meshIndex >= 0);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("use_dummy_texture"), true);
+    params.insert(QStringLiteral("dummy_type"), QStringLiteral("uv_grid"));
+    params.insert(QStringLiteral("dummy_img_size"), 64);
+    params.insert(QStringLiteral("dummy_check_size"), 16);
+    const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("set_texture")), params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+    const auto &assets = doc.mesh(meshIndex).textureAssets;
+    QCOMPARE(assets.size(), std::size_t(1));
+    QCOMPARE(assets.front().name, QStringLiteral("Dummy UV Grid"));
+    const QImage &uvGrid = assets.front().image;
+    QCOMPARE(uvGrid.size(), QSize(64, 64));
+    QCOMPARE(uvGrid.pixelColor(5, 16), QColor(220, 40, 40));   // on a row: along U
+    QCOMPARE(uvGrid.pixelColor(16, 5), QColor(40, 90, 230));   // on a column: along V
+    QCOMPARE(uvGrid.pixelColor(5, 5), QColor(128, 128, 128));  // inside a cell
+
+    const QImage grid = TextureAssociationUtils::makeDummyTexture(64, 16, QStringLiteral("grid"));
+    QCOMPARE(grid.pixelColor(5, 16), QColor(255, 255, 255));
+    QCOMPARE(grid.pixelColor(16, 5), QColor(255, 255, 255));
+    QCOMPARE(grid.pixelColor(5, 5), QColor(128, 128, 128));
 }
 
 void FilterTests::faceQualityFiltersAreSplit()

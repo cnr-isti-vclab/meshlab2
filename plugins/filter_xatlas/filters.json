@@ -96,7 +96,7 @@
         {
           "id": "dummy_type",
           "label": "Dummy texture type",
-          "help": "Choose between a checkerboard or a grid pattern for the generated dummy texture.",
+          "help": "Choose between a checkerboard, a line grid, and a UV grid whose lines along U are red and along V blue, for the generated dummy texture.",
           "group": "main",
           "type": "enum",
           "default": "checkerboard",
@@ -108,6 +108,11 @@
             {
               "id": "grid",
               "label": "Grid"
+            },
+            {
+              "id": "uv_grid",
+              "label": "UV Grid",
+              "help": "Grid lines along U in red and along V in blue, so the two directions can be told apart on the mesh."
             }
           ]
         },

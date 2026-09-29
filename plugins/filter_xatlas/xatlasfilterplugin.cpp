@@ -276,14 +276,12 @@ MeshFilterRunResult XAtlasFilterPlugin::runFilter(
             doc.finishFilterProgress(false, message);
             return fail(message);
         }
-        const bool checkerboard = (dummyType != QStringLiteral("grid"));
-        const QString displayName = checkerboard
-            ? QStringLiteral("xatlas Dummy Checkerboard")
-            : QStringLiteral("xatlas Dummy Grid");
+        const QString displayName =
+            QStringLiteral("xatlas Dummy %1").arg(Tex::dummyTextureName(dummyType));
         Tex::replaceTextureAssociations(
             entry,
             { Tex::makeTextureAssetFromImage(
-                Tex::makeDummyTexture(imageSize, checkSize, checkerboard),
+                Tex::makeDummyTexture(imageSize, checkSize, dummyType),
                 displayName) });
         dummyTextureInfo = QObject::tr("Added dummy texture: %1 (%2x%2).")
             .arg(displayName)

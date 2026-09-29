@@ -24,16 +24,23 @@ QString normalizeExistingPath(const QString &path)
     return info.absoluteFilePath();
 }
 
-QImage makeDummyTexture(int imageSize, int checkSize, bool checkerboard)
+QImage makeDummyTexture(int imageSize, int checkSize, const QString &type)
 {
     QImage image(imageSize, imageSize, QImage::Format_RGB32);
-    if (checkerboard) {
+    if (type == QLatin1String("grid") || type == QLatin1String("uv_grid")) {
+        // Image rows are lines of constant V, running along U; columns run along V. The UV
+        // grid colors them red and blue, red like the U axis the UV view draws.
+        const bool twoColors = (type == QLatin1String("uv_grid"));
+        const QRgb alongU = twoColors ? qRgb(220, 40, 40) : qRgb(255, 255, 255);
+        const QRgb alongV = twoColors ? qRgb(40, 90, 230) : qRgb(255, 255, 255);
         for (int y = 0; y < imageSize; ++y) {
             for (int x = 0; x < imageSize; ++x) {
-                image.setPixel(
-                    x,
-                    y,
-                    (((x / checkSize) % 2) == ((y / checkSize) % 2)) ? 0xFFFFFF : 0x808080);
+                QRgb color = qRgb(128, 128, 128);
+                if (x % checkSize == 0)
+                    color = alongV;
+                if (y % checkSize == 0)
+                    color = alongU;
+                image.setPixel(x, y, color);
             }
         }
     } else {
@@ -42,11 +49,20 @@ QImage makeDummyTexture(int imageSize, int checkSize, bool checkerboard)
                 image.setPixel(
                     x,
                     y,
-                    ((x % checkSize) == 0 || (y % checkSize) == 0) ? 0xFFFFFF : 0x808080);
+                    (((x / checkSize) % 2) == ((y / checkSize) % 2)) ? 0xFFFFFF : 0x808080);
             }
         }
     }
     return image;
+}
+
+QString dummyTextureName(const QString &type)
+{
+    if (type == QLatin1String("grid"))
+        return QStringLiteral("Grid");
+    if (type == QLatin1String("uv_grid"))
+        return QStringLiteral("UV Grid");
+    return QStringLiteral("Checkerboard");
 }
 
 namespace {

@@ -10,7 +10,12 @@
 namespace TextureAssociationUtils {
 
 QString normalizeExistingPath(const QString &path);
-QImage makeDummyTexture(int imageSize, int checkSize, bool checkerboard);
+// A generated placeholder texture, by the id a filter's `dummy_type` parameter uses:
+// "checkerboard", "grid", or "uv_grid", a grid whose lines along U are red and along V blue so
+// the two directions can be told apart. Anything else gives the checkerboard.
+QImage makeDummyTexture(int imageSize, int checkSize, const QString &type);
+// The pattern's name, for naming the texture made from it: Checkerboard, Grid or UV Grid.
+QString dummyTextureName(const QString &type);
 
 // Read an image file, reporting *why* it could not be read. Prefer this over
 // QImage(path) anywhere the failure reaches the user: a missing image-format
