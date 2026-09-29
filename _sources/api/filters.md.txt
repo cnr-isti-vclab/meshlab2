@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 363 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 364 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -8875,6 +8875,32 @@ Clear the current set of selected faces/vertices.
 
 - **allFaces** (*bool*, default: `True`) — If true the filter will de-select all the faces.
 - **allVerts** (*bool*, default: `True`) — If true the filter will de-select all the vertices.
+```
+
+---
+
+(filter-select-coplanar-faces)=
+
+## Select Coplanar Faces
+
+**Categories:** `Selection/by Attribute`
+
+**Plugin:** meshlab2.filter.select
+
+Extend the face selection to every face on the plane of the selected ones.
+
+```{py:function} ms.select_coplanar_faces(**params)
+:module: _meshlab
+
+Fits a plane to the currently selected faces, by least squares over their vertices, and adds to the selection every face of the layer whose three vertices all lie within **Distance from plane** of it, whether or not it is connected to the selection. The existing selection is kept.
+
+The selected faces must themselves lie on one plane. When their RMS distance from the fitted plane is larger than the tolerance, for instance because they come from two different walls, the filter refuses rather than guess a plane.
+
+On a noisy surface, select several faces spread over the plane for a steadier fit, and set the tolerance to a few times the noise.
+
+**Parameters:**
+
+- **maxDistance** (*absperc*, default: `@bboxDiag001`) — A face is added to the selection when all three of its vertices are within this distance of the plane fitted to the selected faces.
 ```
 
 ---
