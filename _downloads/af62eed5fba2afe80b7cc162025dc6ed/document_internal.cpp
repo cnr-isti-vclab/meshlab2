@@ -750,7 +750,8 @@ qint64 vcgVertexOcfBytes(const VCGMesh &mesh)
          + vectorStorageBytes(mesh.vert.QV)
          + vectorStorageBytes(mesh.vert.RadiusV)
          + vectorStorageBytes(mesh.vert.TV)
-         + vectorStorageBytes(mesh.vert.AV);
+         + vectorStorageBytes(mesh.vert.AV)
+         + vectorStorageBytes(mesh.vert.VEV);
 }
 
 qint64 vcgFaceOcfBytes(const VCGMesh &mesh)

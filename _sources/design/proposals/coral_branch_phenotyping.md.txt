@@ -74,6 +74,18 @@ shipped precedent, cited in the evidence column.
 **Size estimate after the port:** about 4.5k lines of plugin code (the 5 filters minus
 their boilerplate, plus the algorithms in `common/`), and about 200 lines in vcglib.
 
+## vcglib changes (implemented 2026-09-28, not yet pushed)
+
+Yuri's three changes were reviewed rather than taken as-is, and redone:
+
+| Change | Where | Replaces |
+|---|---|---|
+| `tri::StreamOrder<MeshType>`: `Root()` (throws if the root's component has a loop), `Strahler()`, `Hack(rule)` with `MinDeviationAngle` (Yuri's) and `LongestPath` (classical Hack) | new `vcg/complex/algorithms/stream_order.h` | `Stat::ComputeHackOrderNumbers` / `ComputeStrahlerNumbers`. His Strahler depended on child order (children 1,1,2 gave 3, not 2); his Hack gave order 1 to every child of a junction root, bounds-checked against `VN()`, and let a zero-length child win because `vcg::Angle` returns −1. Both now return `vector<int>` instead of writing a float attribute |
+| `edge::VEEdgeCollapseToVertex` | `vcg/simplex/edge/topology.h` | `VEEdgeCollapseNonManifold`; also drops an edge that would become a loop |
+| `vertex::VEAdjOcf` | `vcg/simplex/vertex/component_ocf.h` | the need for a private skeleton mesh type: `VCGVertex` now carries it optionally, `VCGEdge` carries `edge::VEAdj` fixed, and filters ask for it with the `VE` preparation code |
+| `outline_support.h:290` call fixed | as is | same fix as his |
+| sample/self-test `apps/sample/edgemesh_stream_order` | new | — |
+
 ## Open issues (need a decision before code)
 
 **A. State shared across layers.** The mesh-to-skeleton correspondence lives on the

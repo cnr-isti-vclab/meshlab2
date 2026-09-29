@@ -24,7 +24,6 @@ Adds to the color the requested amount of bits of noise. Bits of noise are added
 **Parameters:**
 
 - **noiseBits** (*int*, default: `1`) — Bits of noise added to each RGB channel.
-- **onSelected** (*bool*, default: `False`) — If checked, only affects selected vertices.
 - **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the added noise exactly reproducible.
 ```
 
@@ -50,7 +49,6 @@ Change the color the vertices of the mesh adjusting brightness, contrast and gam
 - **brightness** (*double*, default: `0.0`) — Sets the amount of brightness that will be added/subtracted to the colors.
 - **contrast** (*double*, default: `0.0`) — Sets the amount of contrast of the mesh.
 - **gamma** (*double*, default: `1.0`) — Sets the values of the exponent gamma.
-- **onSelected** (*bool*, default: `False`) — If checked, only affects selected vertices.
 ```
 
 ---
@@ -80,7 +78,6 @@ The filter allows adjustment of color levels. It is a custom way to map an inter
 - **rCh** (*bool*, default: `True`) — Apply to red channel.
 - **gCh** (*bool*, default: `True`) — Apply to green channel.
 - **bCh** (*bool*, default: `True`) — Apply to blue channel.
-- **onSelected** (*bool*, default: `False`) — If checked, only affects selected vertices.
 ```
 
 ---
@@ -103,7 +100,6 @@ The filter provides a standard white balance transformation. It is done correcti
 **Parameters:**
 
 - **color** (*color*, default: `#ffffff`) — The color that is supposed to be white.
-- **onSelected** (*bool*, default: `False`) — If checked, only affects selected vertices.
 ```
 
 ---
@@ -211,7 +207,6 @@ Paints the mesh using PerlinColor function. The color assigned to vertices depen
 - **color2** (*color*, default: `#ffffff`) — Sets the second color to mix with Perlin Noise function.
 - **freq** (*double*, default: `10.0`) — Frequency of the Perlin Noise function, expressed as multiples of mesh bbox.
 - **offset** (*point3f*, default: `[0.0, 0.0, 0.0]`) — XYZ frequency offset of the noise function.
-- **onSelected** (*bool*, default: `False`) — If checked, only affects selected vertices.
 ```
 
 ---
@@ -291,7 +286,6 @@ Endpoint values use the same names as the first two corners of a face: `x0,y0,z0
 - **g** (*string*, default: `0`) — Expression for green output in range [0, 255].
 - **b** (*string*, default: `255`) — Expression for blue output in range [0, 255].
 - **a** (*string*, default: `255`) — Expression for alpha output in range [0, 255].
-- **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected edges.
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
@@ -318,7 +312,6 @@ Color function using muparser lib to generate new RGBA color for every face<br>R
 - **g** (*string*, default: `0`) — Expression for green output in range [0, 255].
 - **b** (*string*, default: `255`) — Expression for blue output in range [0, 255].
 - **a** (*string*, default: `255`) — Expression for alpha output in range [0, 255].
-- **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
@@ -345,7 +338,6 @@ Color function using muparser lib to generate new RGBA color for every vertex<br
 - **y** (*string*, default: `255`) — Expression for Y output.
 - **z** (*string*, default: `0`) — Expression for Z output.
 - **a** (*string*, default: `255`) — Expression for alpha output in range [0, 255].
-- **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
@@ -369,7 +361,6 @@ The filter desaturates the colors of the mesh. This provides a simple way to con
 **Parameters:**
 
 - **method** (*enum*, default: `lightness`) — Lightness is computed as (Max(r,g,b)+Min(r,g,b))/2; Luminosity as 0.212*r + 0.715*g + 0.072*b; Average as (r+g+b)/3.
-- **onSelected** (*bool*, default: `False`) — If checked, only affects selected vertices.
 ```
 
 ---
@@ -394,7 +385,6 @@ The filter equalizes the colors histogram. It is a kind of automatic regulation 
 - **rCh** (*bool*, default: `True`) — Select the red channel.
 - **gCh** (*bool*, default: `True`) — Select the green channel.
 - **bCh** (*bool*, default: `True`) — Select the blue channel. If no channel is selected the filter works on Lightness.
-- **onSelected** (*bool*, default: `False`) — If checked, only affects selected vertices.
 ```
 
 ---
@@ -414,9 +404,7 @@ Invert vertex colors.
 
 Inverts the colors of the vertices of the mesh.
 
-**Parameters:**
-
-- **onSelected** (*bool*, default: `False`) — If checked, only affects selected vertices.
+This filter has no parameters.
 ```
 
 ---
@@ -527,7 +515,6 @@ Fills the color of the vertices of the mesh with a color chosen by the user.
 **Parameters:**
 
 - **color1** (*color*, default: `#000000`) — Sets the color to apply to vertices.
-- **onSelected** (*bool*, default: `False`) — If checked, only affects selected vertices.
 ```
 
 ---
@@ -626,7 +613,6 @@ Colors the vertices of the mesh using two colors according to a lightness thresh
 - **color1** (*color*, default: `#000000`) — Sets the color to apply below the threshold.
 - **color2** (*color*, default: `#ffffff`) — Sets the color to apply above the threshold.
 - **threshold** (*double*, default: `128.0`) — Vertices with color above the lightness threshold become Color 2, the others Color 1.
-- **onSelected** (*bool*, default: `False`) — If checked, only affects selected vertices.
 ```
 
 ---
@@ -652,7 +638,6 @@ Allows the application of a color to the mesh. In spite of the Fill operation, t
 - **saturation** (*double*, default: `100.0`) — Changes the saturation of the mesh.
 - **luminance** (*double*, default: `50.0`) — Changes the luminance of the mesh.
 - **intensity** (*double*, default: `50.0`) — Sets the blending factor used in adding the new color to the existing one.
-- **onSelected** (*bool*, default: `False`) — If checked, only affects selected vertices.
 ```
 
 ---
@@ -681,7 +666,6 @@ This is the **algebraic point set surfaces** (APSS) variant: the local approxima
 
 **Parameters:**
 
-- **SelectionOnly** (*bool*, default: `False`) — If checked, only selected vertices will be projected.
 - **CurvatureType** (*enum*, default: `mean`) — The type of the curvature to plot.<br>ApproxMean uses the radius of the fitted sphere as an approximation of the mean curvature.
 - **FilterScale** (*double*, default: `2.0`) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.
 - **SphericalParameter** (*double*, default: `1.0`) — Control the curvature of the fitted spheres: 0 is equivalent to a pure plane fit, 1 to a pure spherical fit, values between 0 and 1 give intermediate results, while other real values might give interesting results, but take care with extreme settings.
@@ -736,7 +720,6 @@ This is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS wit
 
 **Parameters:**
 
-- **SelectionOnly** (*bool*, default: `False`) — If checked, only selected vertices will be projected.
 - **CurvatureType** (*enum*, default: `mean`) — The type of the curvature to plot.
 - **FilterScale** (*double*, default: `2.0`) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.
 - **SigmaN** (*double*, default: `0.75`) — Width of the filter used by the normal refitting weight. This weight function is a Gaussian on the distance between two unit vectors: the current gradient and the input normal. Typical values range between 0.5 (sharp) and 2 (smooth).
@@ -1019,7 +1002,6 @@ Normal function using muparser to generate new Normal for every face<br>
 - **x** (*string*, default: `-fnx`) — Expression for X output.
 - **y** (*string*, default: `-fny`) — Expression for Y output.
 - **z** (*string*, default: `-fnz`) — Expression for Z output.
-- **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
@@ -1138,7 +1120,6 @@ Normal function using muparser to generate new Normal for every vertex<br>
 - **x** (*string*, default: `-nx`) — Expression for X output.
 - **y** (*string*, default: `-ny`) — Expression for Y output.
 - **z** (*string*, default: `-nz`) — Expression for Z output.
-- **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
@@ -1408,7 +1389,6 @@ Endpoint values use the same names as the first two corners of a face: `x0,y0,z0
 - **q** (*string*, default: `elen`) — Expression evaluated per edge; its value becomes the edge scalar.
 - **normalize** (*bool*, default: `False`) — Rescale the computed values into [0, 1] once every edge has been evaluated.
 - **map** (*bool*, default: `False`) — Also map the resulting scalar into per-edge color, using the full value range.
-- **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected edges.
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
@@ -1527,7 +1507,6 @@ Quality function using muparser to generate new Quality for every face<br>Insert
 - **q** (*string*, default: `x0+y0+z0`) — Expression for quality output.
 - **normalize** (*bool*, default: `False`) — Normalize computed quality into range [0, 1].
 - **map** (*bool*, default: `False`) — Also write a per-face color ramp. Disabled by default because MeshLab automatically switches to face-quality visualization after the quality is computed.
-- **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
@@ -1951,7 +1930,6 @@ Quality function using muparser to generate new Quality for every vertex<br>
 - **q** (*string*, default: `vi`) — Expression for quality output.
 - **normalize** (*bool*, default: `False`) — Normalize computed quality into range [0, 1].
 - **map** (*bool*, default: `False`) — Also write a per-vertex color ramp. Disabled by default because MeshLab automatically switches to vertex-quality visualization after the quality is computed.
-- **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
@@ -3729,7 +3707,6 @@ Create a new layer populated with a subsampling of the vertices of the current m
 
 - **Threshold** (*absperc*, default: `@bboxDiag01`) — Size of the clustering grid cell. Smaller cells preserve more detail.
 - **Sampling** (*enum*, default: `closest_to_center`) — Choose how each cell representative is computed.
-- **Selected** (*bool*, default: `False`) — If enabled, use only the selected subset of the mesh as input.
 ```
 
 ---
@@ -4515,7 +4492,6 @@ Geometric function using muparser lib to generate new Coord<br>You can change x,
 - **y** (*string*, default: `y`) — Expression for Y output.
 - **z** (*string*, default: `sin(x+y)`) — Expression for Z output.
 - **a** (*string*, default: `1`) — Expression for alpha channel (ignored for geometry).
-- **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
@@ -4818,7 +4794,6 @@ This is the **algebraic point set surfaces** (APSS) variant: the local approxima
 
 - **ControlMesh** (*mesh*, default: `@currentMeshIndex`) — The point set (or mesh) which defines the MLS surface.
 - **ProxyMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh that will be projected/resampled onto the MLS surface.
-- **SelectionOnly** (*bool*, default: `False`) — If checked, only selected vertices will be projected.
 - **FilterScale** (*double*, default: `2.0`) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.
 - **SphericalParameter** (*double*, default: `1.0`) — Control the curvature of the fitted spheres: 0 is equivalent to a pure plane fit, 1 to a pure spherical fit, values between 0 and 1 give intermediate results, while other real values might give interesting results, but take care with extreme settings.
 - **AccurateNormal** (*bool*, default: `True`) — If checked, use the accurate MLS gradient instead of the local approximation to compute the normals.
@@ -4855,7 +4830,6 @@ This is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS wit
 
 - **ControlMesh** (*mesh*, default: `@currentMeshIndex`) — The point set (or mesh) which defines the MLS surface.
 - **ProxyMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh that will be projected/resampled onto the MLS surface.
-- **SelectionOnly** (*bool*, default: `False`) — If checked, only selected vertices will be projected.
 - **FilterScale** (*double*, default: `2.0`) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.
 - **SigmaN** (*double*, default: `0.75`) — Width of the filter used by the normal refitting weight. This weight function is a Gaussian on the distance between two unit vectors: the current gradient and the input normal. Typical values range between 0.5 (sharp) and 2 (smooth).
 - **MaxRefittingIters** (*int*, default: `3`) — Max number of fitting iterations. (0 or 1 is equivalent to the standard IMLS).
@@ -4917,7 +4891,6 @@ A laplacian smooth that is constrained to move vertices only in one given direct
 - **stepSmoothNum** (*int*, default: `3`) — Number of smoothing iterations.
 - **viewPoint** (*point3f*, default: `[0.0, 0.0, 0.0]`) — Position of the viewpoint that defines the allowed displacement direction.
 - **delta** (*double*, default: `1.0`) — How much smoothing is applied: 0 means no smoothing, 1 means full smoothing.
-- **Selected** (*bool*, default: `@hasSelectedFaces`) — If enabled, apply the filter only to the selected area.
 ```
 
 ---
@@ -4973,7 +4946,6 @@ Competing implementation: MeshLab already has vcglib smoothing under *Geometry/S
 
 - **iterations** (*int*, default: `10`) — How many smoothing steps to take.
 - **lambda** (*double*, default: `0.5`) — How far each step moves towards the neighbour average, 0 to 1.
-- **selectedOnly** (*bool*, default: `False`) — Move only the selected vertices.
 ```
 
 ---
@@ -4998,7 +4970,6 @@ Laplacian smoothing: each vertex moves toward the average position of its neighb
 - **stepSmoothNum** (*int*, default: `3`) — Number of smoothing iterations.
 - **Boundary** (*bool*, default: `True`) — Smooth boundary edges only by themselves instead of shrinking them into the surface.
 - **cotangentWeight** (*bool*, default: `True`) — Use cotangent weights instead of umbrella weights for the position average.
-- **Selected** (*bool*, default: `@hasSelectedFaces`) — If enabled, apply the filter only to the selected area.
 ```
 
 ---
@@ -5026,7 +4997,6 @@ Scale-dependent Laplacian smoothing, using the Fujiwara extended umbrella operat
 
 - **stepSmoothNum** (*int*, default: `3`) — Number of smoothing iterations.
 - **delta** (*absperc*, default: `@bboxDiag001`) — Maximum displacement scale used by the Fujiwara operator.
-- **Selected** (*bool*, default: `@hasSelectedFaces`) — If enabled, apply the filter only to the selected area.
 ```
 
 ---
@@ -5048,7 +5018,6 @@ Laplacian smooth with limited surface modification: each vertex moves toward the
 
 **Parameters:**
 
-- **selection** (*bool*, default: `False`) — If enabled, smooth only selected faces.
 - **AngleDeg** (*double*, default: `0.5`) — Maximum mean normal angle displacement allowed from old to new faces.
 - **iterations** (*int*, default: `1`) — Number of smoothing iterations.
 ```
@@ -5085,7 +5054,6 @@ Competing implementation: MeshLab already has vcglib smoothing under *Geometry/S
 - **iterations** (*int*, default: `10`) — How many smoothing steps to take.
 - **lambda** (*double*, default: `0.5`) — The shrinking step size, 0 to 1.
 - **kpb** (*double*, default: `0.1`) — Controls the compensating expansion. Larger values resist shrinkage more.
-- **selectedOnly** (*bool*, default: `False`) — Move only the selected vertices.
 ```
 
 ---
@@ -5114,7 +5082,6 @@ The $\lambda$-$\mu$ Taubin smoothing. Each iteration combines two low-pass filte
 - **lambda** (*double*, default: `0.5`) — Lambda parameter of Taubin smoothing.
 - **mu** (*double*, default: `-0.53`) — Mu parameter of Taubin smoothing.
 - **stepSmoothNum** (*int*, default: `10`) — Number of Taubin smoothing iterations.
-- **Selected** (*bool*, default: `@hasSelectedFaces`) — If enabled, apply the filter only to the selected area.
 ```
 
 ---
@@ -5149,7 +5116,6 @@ Smoothing the normals first and the positions second is what separates this from
 - **normalThr** (*double*, default: `60.0`) — Features forming angles larger than this threshold are preserved.
 - **stepNormalNum** (*int*, default: `20`) — Number of normal smoothing iterations per step.
 - **stepFitNum** (*int*, default: `20`) — Number of vertex fitting iterations per step.
-- **Selected** (*bool*, default: `@hasSelectedFaces`) — If enabled, perform the filter only on selected faces.
 ```
 
 ---
@@ -6577,7 +6543,6 @@ Mesh optimization by edge flipping to improve local mesh curvature. The method e
 
 **Parameters:**
 
-- **selection** (*bool*, default: `@hasSelectedFaces`) — If enabled, optimize only selected faces.
 - **pthreshold** (*double*, default: `1.0`) — Only face pairs with a dihedral angle larger than this threshold are considered for curvature optimization.
 - **curvtype** (*enum*, default: `mean`) — Metric used to evaluate curvature reduction before and after a flip.
 ```
@@ -6601,7 +6566,6 @@ Mesh optimization by edge flipping, improving local triangle quality for face pa
 
 **Parameters:**
 
-- **selection** (*bool*, default: `@hasSelectedFaces`) — If enabled, optimize only selected faces.
 - **pthreshold** (*double*, default: `1.0`) — Only adjacent faces whose dihedral angle is below this threshold are considered for planar optimization.
 - **planartype** (*enum*, default: `area_max_side`) — Metric used to rank planar edge flips.
 - **iterations** (*int*, default: `1`) — Number of surface-preserving planar Laplacian smoothing iterations performed after the flip pass.
@@ -6779,7 +6743,6 @@ Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge f
 
 - **Iterations** (*int*, default: `10`) — Number of remeshing iterations.
 - **Adaptive** (*bool*, default: `False`) — Toggle adaptive isotropic remeshing.
-- **SelectedOnly** (*bool*, default: `False`) — Apply remeshing only to selected faces.
 - **TargetLen** (*absperc*, default: `@bboxDiag01`) — Target length for remeshed edges.
 - **FeatureDeg** (*double*, default: `30.0`) — Minimum angle to treat an edge as feature.
 - **CheckSurfDist** (*bool*, default: `False`) — Each operation must satisfy max surface distance.
@@ -7063,7 +7026,6 @@ This filter uses VCGLib and remains distinct from the separately available **Ori
 - **PlanarWeight** (*double*, default: `0.001`) — Weight for preserving planar regions.
 - **QualityWeight** (*bool*, default: `False`) — Use per-vertex quality as weighting factor.
 - **AutoClean** (*bool*, default: `True`) — Run cleaning after simplification.
-- **Selected** (*bool*, default: `@hasSelectedFaces`) — Apply simplification only to selected faces.
 ```
 
 ---
@@ -7098,7 +7060,6 @@ Simplifies a textured mesh with VCGLib's attribute-aware quadric edge-collapse i
 - **OptimalPlacement** (*bool*, default: `True`) — Place collapsed vertices minimizing quadric error.
 - **PreserveNormal** (*bool*, default: `False`) — Try to avoid face flipping effects.
 - **PlanarQuadric** (*bool*, default: `False`) — Additional constraints preserving planar areas.
-- **Selected** (*bool*, default: `@hasSelectedFaces`) — Apply simplification only to selected faces.
 ```
 
 ---
@@ -7222,7 +7183,6 @@ Apply Butterfly Subdivision Surface algorithm. It is an interpolated refinement 
 
 - **Iterations** (*int*, default: `3`) — Number of times the model is subdivided.
 - **Threshold** (*absperc*, default: `@bboxDiag01`) — All edges longer than this threshold are refined.
-- **Selected** (*bool*, default: `@hasSelectedFaces`) — If selected the filter affects only selected faces.
 ```
 
 ---
@@ -7291,7 +7251,6 @@ Apply Loop's Subdivision Surface algorithm. It is an approximant refinement meth
 - **LoopWeight** (*enum*, default: `loop`) — Change the weights used. Allows one to optimize some behaviors over others.
 - **Iterations** (*int*, default: `3`) — Number of times the model is subdivided.
 - **Threshold** (*absperc*, default: `@bboxDiag01`) — All edges longer than this threshold are refined. Zero means uniform refinement.
-- **Selected** (*bool*, default: `@hasSelectedFaces`) — If selected the filter affects only selected faces.
 ```
 
 ---
@@ -7316,7 +7275,6 @@ Apply LS3 Subdivision Surface algorithm using Loop's weights. This refinement me
 - **LoopWeight** (*enum*, default: `loop`) — Change the weights used.
 - **Iterations** (*int*, default: `3`) — Number of times the model is subdivided.
 - **Threshold** (*absperc*, default: `@bboxDiag01`) — All edges longer than this threshold are refined.
-- **Selected** (*bool*, default: `@hasSelectedFaces`) — If selected the filter affects only selected faces.
 ```
 
 ---
@@ -7340,7 +7298,6 @@ Apply a plain subdivision scheme where every edge is split on its midpoint. Usef
 
 - **Iterations** (*int*, default: `3`) — Number of times the model is subdivided.
 - **Threshold** (*absperc*, default: `@bboxDiag01`) — All edges longer than this threshold are refined.
-- **Selected** (*bool*, default: `@hasSelectedFaces`) — If selected the filter affects only selected faces.
 ```
 
 ---
@@ -8176,7 +8133,6 @@ Texture function using muparser to generate new texture coords for every vertex<
 
 - **u** (*string*, default: `x`) — Expression for U texture coordinate.
 - **v** (*string*, default: `y`) — Expression for V texture coordinate.
-- **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
@@ -8205,7 +8161,6 @@ Texture function using muparser to generate new per wedge tex coords for every f
 - **v1** (*string*, default: `y1`) — Expression for wedge texture coordinate.
 - **u2** (*string*, default: `x2`) — Expression for wedge texture coordinate.
 - **v2** (*string*, default: `y2`) — Expression for wedge texture coordinate.
-- **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
@@ -8551,7 +8506,6 @@ Invert faces orientation, flipping the normals of the mesh. <br>If requested, it
 **Parameters:**
 
 - **forceFlip** (*bool*, default: `True`) — Always flip normals; otherwise try to set normals outside.
-- **onlySelected** (*bool*, default: `False`) — If selected, only selected faces are affected.
 ```
 
 ---
@@ -9763,7 +9717,6 @@ Transfer the chosen per-vertex attributes from one layer to another. Useful to t
 - **QualityDistance** (*bool*, default: `False`) — Store the transfer distance in the target vertex quality.
 - **SaveBarycentric** (*bool*, default: `False`) — Store barycentric coordinates and nearest face or vertex indices as per-vertex attributes on the target mesh.
 - **UpperBound** (*absperc*, default: `@bboxDiag01`) — Closest-point searches farther than this threshold are rejected.
-- **onSelected** (*bool*, default: `False`) — If enabled, transfer only to selected target vertices.
 ```
 
 ---
@@ -9818,7 +9771,6 @@ Projects color information from the current raster onto the mesh vertices using 
 
 - **usedepth** (*bool*, default: `True`) — If true, a depth buffer is used to restrict projection to visible faces only.
 - **deptheta** (*double*, default: `0.5`) — Tolerance value for depth buffer comparison (shadow buffer).
-- **onselection** (*bool*, default: `False`) — If true, projection is only applied to selected vertices.
 - **blankColor** (*color*, default: `#00000000`) — Areas that cannot be projected will be filled with this color. If all channels are 0, the original color is preserved.
 - **preserveoccluded** (*bool*, default: `False`) — If true, depth-occluded vertices keep their original color instead of being assigned the blank color.
 ```
@@ -9873,7 +9825,6 @@ Projects color information from all visible and valid rasters onto the mesh vert
 **Parameters:**
 
 - **deptheta** (*double*, default: `0.5`) — Tolerance value for depth buffer comparison (shadow buffer).
-- **onselection** (*bool*, default: `False`) — If true, projection is only applied to selected vertices.
 - **useangle** (*bool*, default: `True`) — If true, color contribution is weighted by the angle between the surface normal and the view direction.
 - **usedistance** (*bool*, default: `True`) — If true, color contribution is weighted by the vertex distance from the camera.
 - **useborders** (*bool*, default: `True`) — If true, color contribution is weighted by the pixel distance from the image boundaries.

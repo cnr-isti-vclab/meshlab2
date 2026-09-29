@@ -464,6 +464,42 @@ shipped precedent, cited in the evidence column.</p>
 <p><strong>Size estimate after the port:</strong> about 4.5k lines of plugin code (the 5 filters minus
 their boilerplate, plus the algorithms in <code class="docutils literal notranslate"><span class="pre">common/</span></code>), and about 200 lines in vcglib.</p>
 </section>
+<section id="vcglib-changes-implemented-2026-09-28-not-yet-pushed">
+<h2>vcglib changes (implemented 2026-09-28, not yet pushed)<a class="headerlink" href="#vcglib-changes-implemented-2026-09-28-not-yet-pushed" title="Link to this heading">¶</a></h2>
+<p>Yuri’s three changes were reviewed rather than taken as-is, and redone:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Change</p></th>
+<th class="head"><p>Where</p></th>
+<th class="head"><p>Replaces</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tri::StreamOrder&lt;MeshType&gt;</span></code>: <code class="docutils literal notranslate"><span class="pre">Root()</span></code> (throws if the root’s component has a loop), <code class="docutils literal notranslate"><span class="pre">Strahler()</span></code>, <code class="docutils literal notranslate"><span class="pre">Hack(rule)</span></code> with <code class="docutils literal notranslate"><span class="pre">MinDeviationAngle</span></code> (Yuri’s) and <code class="docutils literal notranslate"><span class="pre">LongestPath</span></code> (classical Hack)</p></td>
+<td><p>new <code class="docutils literal notranslate"><span class="pre">vcg/complex/algorithms/stream_order.h</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Stat::ComputeHackOrderNumbers</span></code> / <code class="docutils literal notranslate"><span class="pre">ComputeStrahlerNumbers</span></code>. His Strahler depended on child order (children 1,1,2 gave 3, not 2); his Hack gave order 1 to every child of a junction root, bounds-checked against <code class="docutils literal notranslate"><span class="pre">VN()</span></code>, and let a zero-length child win because <code class="docutils literal notranslate"><span class="pre">vcg::Angle</span></code> returns −1. Both now return <code class="docutils literal notranslate"><span class="pre">vector&lt;int&gt;</span></code> instead of writing a float attribute</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">edge::VEEdgeCollapseToVertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vcg/simplex/edge/topology.h</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VEEdgeCollapseNonManifold</span></code>; also drops an edge that would become a loop</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">vertex::VEAdjOcf</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vcg/simplex/vertex/component_ocf.h</span></code></p></td>
+<td><p>the need for a private skeleton mesh type: <code class="docutils literal notranslate"><span class="pre">VCGVertex</span></code> now carries it optionally, <code class="docutils literal notranslate"><span class="pre">VCGEdge</span></code> carries <code class="docutils literal notranslate"><span class="pre">edge::VEAdj</span></code> fixed, and filters ask for it with the <code class="docutils literal notranslate"><span class="pre">VE</span></code> preparation code</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">outline_support.h:290</span></code> call fixed</p></td>
+<td><p>as is</p></td>
+<td><p>same fix as his</p></td>
+</tr>
+<tr class="row-even"><td><p>sample/self-test <code class="docutils literal notranslate"><span class="pre">apps/sample/edgemesh_stream_order</span></code></p></td>
+<td><p>new</p></td>
+<td><p>—</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="open-issues-need-a-decision-before-code">
 <h2>Open issues (need a decision before code)<a class="headerlink" href="#open-issues-need-a-decision-before-code" title="Link to this heading">¶</a></h2>
 <p><strong>A. State shared across layers.</strong> The mesh-to-skeleton correspondence lives on the
@@ -551,6 +587,7 @@ al.) is not in the plugin.</p></li>
 <li><a class="reference internal" href="#source-measured">Source, measured</a></li>
 <li><a class="reference internal" href="#filter-mapping">Filter mapping</a></li>
 <li><a class="reference internal" href="#shared-code-mapping">Shared code mapping</a></li>
+<li><a class="reference internal" href="#vcglib-changes-implemented-2026-09-28-not-yet-pushed">vcglib changes (implemented 2026-09-28, not yet pushed)</a></li>
 <li><a class="reference internal" href="#open-issues-need-a-decision-before-code">Open issues (need a decision before code)</a></li>
 </ul>
 </li>

@@ -27,6 +27,14 @@ Live mesh accounting uses vector **capacity**, not size, for vertices, edges, fa
 VCG optional-component vectors. It also estimates named VCG custom-attribute backing
 storage from attribute element size and the owning container capacity.
 
+Optional components that a filter's preparation enables (FF, VF and VE adjacency,
+marks) are counted only while it runs. vcglib's `Disable*` functions free their storage
+(since 2026-09-28; before that they called `clear()`, which kept the capacity, so a
+10M-face layer held about 740 MB of dead adjacency after its first cleaning filter).
+On macOS the process footprint may still not drop right away: the system allocator
+keeps large freed blocks cached for reuse inside the process, and the OS reclaims them
+under memory pressure (`MallocLargeCache=0` disables the cache when measuring).
+
 Live `QImage` storage is counted for mesh texture assets, material texture assets, and
 raster planes. QImage copies are implicit shares, so backing pointers are de-duplicated
 before summing.

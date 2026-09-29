@@ -258,7 +258,6 @@
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>noiseBits</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Bits of noise added to each RGB channel.</p></li>
-<li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only affects selected vertices.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the added noise exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -279,7 +278,6 @@
 <li><p><strong>brightness</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Sets the amount of brightness that will be added/subtracted to the colors.</p></li>
 <li><p><strong>contrast</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Sets the amount of contrast of the mesh.</p></li>
 <li><p><strong>gamma</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Sets the values of the exponent gamma.</p></li>
-<li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only affects selected vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -304,7 +302,6 @@
 <li><p><strong>rCh</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Apply to red channel.</p></li>
 <li><p><strong>gCh</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Apply to green channel.</p></li>
 <li><p><strong>bCh</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Apply to blue channel.</p></li>
-<li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only affects selected vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -322,7 +319,6 @@
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>color</strong> (<em>color</em>, default: <code class="docutils literal notranslate"><span class="pre">#ffffff</span></code>) — The color that is supposed to be white.</p></li>
-<li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only affects selected vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -408,7 +404,6 @@
 <li><p><strong>color2</strong> (<em>color</em>, default: <code class="docutils literal notranslate"><span class="pre">#ffffff</span></code>) — Sets the second color to mix with Perlin Noise function.</p></li>
 <li><p><strong>freq</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">10.0</span></code>) — Frequency of the Perlin Noise function, expressed as multiples of mesh bbox.</p></li>
 <li><p><strong>offset</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — XYZ frequency offset of the noise function.</p></li>
-<li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only affects selected vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -472,7 +467,6 @@
 <li><p><strong>g</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Expression for green output in range [0, 255].</p></li>
 <li><p><strong>b</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for blue output in range [0, 255].</p></li>
 <li><p><strong>a</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for alpha output in range [0, 255].</p></li>
-<li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected edges.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -494,7 +488,6 @@
 <li><p><strong>g</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Expression for green output in range [0, 255].</p></li>
 <li><p><strong>b</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for blue output in range [0, 255].</p></li>
 <li><p><strong>a</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for alpha output in range [0, 255].</p></li>
-<li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -516,7 +509,6 @@
 <li><p><strong>y</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for Y output.</p></li>
 <li><p><strong>z</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Expression for Z output.</p></li>
 <li><p><strong>a</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for alpha output in range [0, 255].</p></li>
-<li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -535,7 +527,6 @@
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>method</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">lightness</span></code>) — Lightness is computed as (Max(r,g,b)+Min(r,g,b))/2; Luminosity as 0.212<em>r + 0.715</em>g + 0.072*b; Average as (r+g+b)/3.</p></li>
-<li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only affects selected vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -555,7 +546,6 @@
 <li><p><strong>rCh</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Select the red channel.</p></li>
 <li><p><strong>gCh</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Select the green channel.</p></li>
 <li><p><strong>bCh</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Select the blue channel. If no channel is selected the filter works on Lightness.</p></li>
-<li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only affects selected vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -570,10 +560,7 @@
 <dt class="sig sig-object py" id="meshlab.ms.invert_vertex_color">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">invert_vertex_color</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.invert_vertex_color" title="Link to this definition">¶</a></dt>
 <dd><p>Inverts the colors of the vertices of the mesh.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only affects selected vertices.</p></li>
-</ul>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />
@@ -654,7 +641,6 @@
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>color1</strong> (<em>color</em>, default: <code class="docutils literal notranslate"><span class="pre">#000000</span></code>) — Sets the color to apply to vertices.</p></li>
-<li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only affects selected vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -732,7 +718,6 @@
 <li><p><strong>color1</strong> (<em>color</em>, default: <code class="docutils literal notranslate"><span class="pre">#000000</span></code>) — Sets the color to apply below the threshold.</p></li>
 <li><p><strong>color2</strong> (<em>color</em>, default: <code class="docutils literal notranslate"><span class="pre">#ffffff</span></code>) — Sets the color to apply above the threshold.</p></li>
 <li><p><strong>threshold</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">128.0</span></code>) — Vertices with color above the lightness threshold become Color 2, the others Color 1.</p></li>
-<li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only affects selected vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -753,7 +738,6 @@
 <li><p><strong>saturation</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">100.0</span></code>) — Changes the saturation of the mesh.</p></li>
 <li><p><strong>luminance</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">50.0</span></code>) — Changes the luminance of the mesh.</p></li>
 <li><p><strong>intensity</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">50.0</span></code>) — Sets the blending factor used in adding the new color to the existing one.</p></li>
-<li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only affects selected vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -776,7 +760,6 @@
 </ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>SelectionOnly</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only selected vertices will be projected.</p></li>
 <li><p><strong>CurvatureType</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">mean</span></code>) — The type of the curvature to plot.<br>ApproxMean uses the radius of the fitted sphere as an approximation of the mean curvature.</p></li>
 <li><p><strong>FilterScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.</p></li>
 <li><p><strong>SphericalParameter</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Control the curvature of the fitted spheres: 0 is equivalent to a pure plane fit, 1 to a pure spherical fit, values between 0 and 1 give intermediate results, while other real values might give interesting results, but take care with extreme settings.</p></li>
@@ -820,7 +803,6 @@
 </ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>SelectionOnly</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only selected vertices will be projected.</p></li>
 <li><p><strong>CurvatureType</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">mean</span></code>) — The type of the curvature to plot.</p></li>
 <li><p><strong>FilterScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.</p></li>
 <li><p><strong>SigmaN</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.75</span></code>) — Width of the filter used by the normal refitting weight. This weight function is a Gaussian on the distance between two unit vectors: the current gradient and the input normal. Typical values range between 0.5 (sharp) and 2 (smooth).</p></li>
@@ -1059,7 +1041,6 @@
 <li><p><strong>x</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">-fnx</span></code>) — Expression for X output.</p></li>
 <li><p><strong>y</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">-fny</span></code>) — Expression for Y output.</p></li>
 <li><p><strong>z</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">-fnz</span></code>) — Expression for Z output.</p></li>
-<li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -1150,7 +1131,6 @@
 <li><p><strong>x</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">-nx</span></code>) — Expression for X output.</p></li>
 <li><p><strong>y</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">-ny</span></code>) — Expression for Y output.</p></li>
 <li><p><strong>z</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">-nz</span></code>) — Expression for Z output.</p></li>
-<li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -1353,7 +1333,6 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <li><p><strong>q</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">elen</span></code>) — Expression evaluated per edge; its value becomes the edge scalar.</p></li>
 <li><p><strong>normalize</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Rescale the computed values into [0, 1] once every edge has been evaluated.</p></li>
 <li><p><strong>map</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also map the resulting scalar into per-edge color, using the full value range.</p></li>
-<li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected edges.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -1460,7 +1439,6 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <li><p><strong>q</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">x0+y0+z0</span></code>) — Expression for quality output.</p></li>
 <li><p><strong>normalize</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Normalize computed quality into range [0, 1].</p></li>
 <li><p><strong>map</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also write a per-face color ramp. Disabled by default because MeshLab automatically switches to face-quality visualization after the quality is computed.</p></li>
-<li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -1807,7 +1785,6 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <li><p><strong>q</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">vi</span></code>) — Expression for quality output.</p></li>
 <li><p><strong>normalize</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Normalize computed quality into range [0, 1].</p></li>
 <li><p><strong>map</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also write a per-vertex color ramp. Disabled by default because MeshLab automatically switches to vertex-quality visualization after the quality is computed.</p></li>
-<li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -3206,7 +3183,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <ul class="simple">
 <li><p><strong>Threshold</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Size of the clustering grid cell. Smaller cells preserve more detail.</p></li>
 <li><p><strong>Sampling</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">closest_to_center</span></code>) — Choose how each cell representative is computed.</p></li>
-<li><p><strong>Selected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, use only the selected subset of the mesh as input.</p></li>
 </ul>
 </dd></dl>
 
@@ -3839,7 +3815,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>y</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">y</span></code>) — Expression for Y output.</p></li>
 <li><p><strong>z</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">sin(x+y)</span></code>) — Expression for Z output.</p></li>
 <li><p><strong>a</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Expression for alpha channel (ignored for geometry).</p></li>
-<li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -4084,7 +4059,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <ul class="simple">
 <li><p><strong>ControlMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The point set (or mesh) which defines the MLS surface.</p></li>
 <li><p><strong>ProxyMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh that will be projected/resampled onto the MLS surface.</p></li>
-<li><p><strong>SelectionOnly</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only selected vertices will be projected.</p></li>
 <li><p><strong>FilterScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.</p></li>
 <li><p><strong>SphericalParameter</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Control the curvature of the fitted spheres: 0 is equivalent to a pure plane fit, 1 to a pure spherical fit, values between 0 and 1 give intermediate results, while other real values might give interesting results, but take care with extreme settings.</p></li>
 <li><p><strong>AccurateNormal</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If checked, use the accurate MLS gradient instead of the local approximation to compute the normals.</p></li>
@@ -4115,7 +4089,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <ul class="simple">
 <li><p><strong>ControlMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The point set (or mesh) which defines the MLS surface.</p></li>
 <li><p><strong>ProxyMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh that will be projected/resampled onto the MLS surface.</p></li>
-<li><p><strong>SelectionOnly</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only selected vertices will be projected.</p></li>
 <li><p><strong>FilterScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.</p></li>
 <li><p><strong>SigmaN</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.75</span></code>) — Width of the filter used by the normal refitting weight. This weight function is a Gaussian on the distance between two unit vectors: the current gradient and the input normal. Typical values range between 0.5 (sharp) and 2 (smooth).</p></li>
 <li><p><strong>MaxRefittingIters</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Max number of fitting iterations. (0 or 1 is equivalent to the standard IMLS).</p></li>
@@ -4166,7 +4139,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>stepSmoothNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of smoothing iterations.</p></li>
 <li><p><strong>viewPoint</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Position of the viewpoint that defines the allowed displacement direction.</p></li>
 <li><p><strong>delta</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — How much smoothing is applied: 0 means no smoothing, 1 means full smoothing.</p></li>
-<li><p><strong>Selected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedFaces</span></code>) — If enabled, apply the filter only to the selected area.</p></li>
 </ul>
 </dd></dl>
 
@@ -4207,7 +4179,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <ul class="simple">
 <li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — How many smoothing steps to take.</p></li>
 <li><p><strong>lambda</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — How far each step moves towards the neighbour average, 0 to 1.</p></li>
-<li><p><strong>selectedOnly</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Move only the selected vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -4227,7 +4198,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>stepSmoothNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of smoothing iterations.</p></li>
 <li><p><strong>Boundary</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Smooth boundary edges only by themselves instead of shrinking them into the surface.</p></li>
 <li><p><strong>cotangentWeight</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Use cotangent weights instead of umbrella weights for the position average.</p></li>
-<li><p><strong>Selected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedFaces</span></code>) — If enabled, apply the filter only to the selected area.</p></li>
 </ul>
 </dd></dl>
 
@@ -4250,7 +4220,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <ul class="simple">
 <li><p><strong>stepSmoothNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of smoothing iterations.</p></li>
 <li><p><strong>delta</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag001</span></code>) — Maximum displacement scale used by the Fujiwara operator.</p></li>
-<li><p><strong>Selected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedFaces</span></code>) — If enabled, apply the filter only to the selected area.</p></li>
 </ul>
 </dd></dl>
 
@@ -4267,7 +4236,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dd><p>Laplacian smooth with limited surface modification: each vertex moves toward the average position of neighboring vertices only when the new position still almost lies on the original surface.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>selection</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, smooth only selected faces.</p></li>
 <li><p><strong>AngleDeg</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Maximum mean normal angle displacement allowed from old to new faces.</p></li>
 <li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Number of smoothing iterations.</p></li>
 </ul>
@@ -4296,7 +4264,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — How many smoothing steps to take.</p></li>
 <li><p><strong>lambda</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — The shrinking step size, 0 to 1.</p></li>
 <li><p><strong>kpb</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.1</span></code>) — Controls the compensating expansion. Larger values resist shrinkage more.</p></li>
-<li><p><strong>selectedOnly</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Move only the selected vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -4320,7 +4287,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>lambda</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Lambda parameter of Taubin smoothing.</p></li>
 <li><p><strong>mu</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">-0.53</span></code>) — Mu parameter of Taubin smoothing.</p></li>
 <li><p><strong>stepSmoothNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Number of Taubin smoothing iterations.</p></li>
-<li><p><strong>Selected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedFaces</span></code>) — If enabled, apply the filter only to the selected area.</p></li>
 </ul>
 </dd></dl>
 
@@ -4350,7 +4316,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>normalThr</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">60.0</span></code>) — Features forming angles larger than this threshold are preserved.</p></li>
 <li><p><strong>stepNormalNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">20</span></code>) — Number of normal smoothing iterations per step.</p></li>
 <li><p><strong>stepFitNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">20</span></code>) — Number of vertex fitting iterations per step.</p></li>
-<li><p><strong>Selected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedFaces</span></code>) — If enabled, perform the filter only on selected faces.</p></li>
 </ul>
 </dd></dl>
 
@@ -5486,7 +5451,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dd><p>Mesh optimization by edge flipping to improve local mesh curvature. The method evaluates edge flips with discrete curvature metrics and applies flips that reduce the local curvature measure.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>selection</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedFaces</span></code>) — If enabled, optimize only selected faces.</p></li>
 <li><p><strong>pthreshold</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Only face pairs with a dihedral angle larger than this threshold are considered for curvature optimization.</p></li>
 <li><p><strong>curvtype</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">mean</span></code>) — Metric used to evaluate curvature reduction before and after a flip.</p></li>
 </ul>
@@ -5505,7 +5469,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dd><p>Mesh optimization by edge flipping, improving local triangle quality for face pairs whose dihedral angle is below the planar threshold. A small surface-preserving Laplacian relaxation can be run after the flip pass.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>selection</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedFaces</span></code>) — If enabled, optimize only selected faces.</p></li>
 <li><p><strong>pthreshold</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Only adjacent faces whose dihedral angle is below this threshold are considered for planar optimization.</p></li>
 <li><p><strong>planartype</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">area_max_side</span></code>) — Metric used to rank planar edge flips.</p></li>
 <li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Number of surface-preserving planar Laplacian smoothing iterations performed after the flip pass.</p></li>
@@ -5653,7 +5616,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <ul class="simple">
 <li><p><strong>Iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Number of remeshing iterations.</p></li>
 <li><p><strong>Adaptive</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Toggle adaptive isotropic remeshing.</p></li>
-<li><p><strong>SelectedOnly</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Apply remeshing only to selected faces.</p></li>
 <li><p><strong>TargetLen</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Target length for remeshed edges.</p></li>
 <li><p><strong>FeatureDeg</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Minimum angle to treat an edge as feature.</p></li>
 <li><p><strong>CheckSurfDist</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Each operation must satisfy max surface distance.</p></li>
@@ -5878,7 +5840,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>PlanarWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.001</span></code>) — Weight for preserving planar regions.</p></li>
 <li><p><strong>QualityWeight</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Use per-vertex quality as weighting factor.</p></li>
 <li><p><strong>AutoClean</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Run cleaning after simplification.</p></li>
-<li><p><strong>Selected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedFaces</span></code>) — Apply simplification only to selected faces.</p></li>
 </ul>
 </dd></dl>
 
@@ -5908,7 +5869,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>OptimalPlacement</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Place collapsed vertices minimizing quadric error.</p></li>
 <li><p><strong>PreserveNormal</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Try to avoid face flipping effects.</p></li>
 <li><p><strong>PlanarQuadric</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Additional constraints preserving planar areas.</p></li>
-<li><p><strong>Selected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedFaces</span></code>) — Apply simplification only to selected faces.</p></li>
 </ul>
 </dd></dl>
 
@@ -6007,7 +5967,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <ul class="simple">
 <li><p><strong>Iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of times the model is subdivided.</p></li>
 <li><p><strong>Threshold</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — All edges longer than this threshold are refined.</p></li>
-<li><p><strong>Selected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedFaces</span></code>) — If selected the filter affects only selected faces.</p></li>
 </ul>
 </dd></dl>
 
@@ -6061,7 +6020,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>LoopWeight</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">loop</span></code>) — Change the weights used. Allows one to optimize some behaviors over others.</p></li>
 <li><p><strong>Iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of times the model is subdivided.</p></li>
 <li><p><strong>Threshold</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — All edges longer than this threshold are refined. Zero means uniform refinement.</p></li>
-<li><p><strong>Selected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedFaces</span></code>) — If selected the filter affects only selected faces.</p></li>
 </ul>
 </dd></dl>
 
@@ -6081,7 +6039,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>LoopWeight</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">loop</span></code>) — Change the weights used.</p></li>
 <li><p><strong>Iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of times the model is subdivided.</p></li>
 <li><p><strong>Threshold</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — All edges longer than this threshold are refined.</p></li>
-<li><p><strong>Selected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedFaces</span></code>) — If selected the filter affects only selected faces.</p></li>
 </ul>
 </dd></dl>
 
@@ -6100,7 +6057,6 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <ul class="simple">
 <li><p><strong>Iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of times the model is subdivided.</p></li>
 <li><p><strong>Threshold</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — All edges longer than this threshold are refined.</p></li>
-<li><p><strong>Selected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedFaces</span></code>) — If selected the filter affects only selected faces.</p></li>
 </ul>
 </dd></dl>
 
@@ -6783,7 +6739,6 @@ Leave 0 for automatic calculation.</p></li>
 <ul class="simple">
 <li><p><strong>u</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">x</span></code>) — Expression for U texture coordinate.</p></li>
 <li><p><strong>v</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">y</span></code>) — Expression for V texture coordinate.</p></li>
-<li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -6807,7 +6762,6 @@ Leave 0 for automatic calculation.</p></li>
 <li><p><strong>v1</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">y1</span></code>) — Expression for wedge texture coordinate.</p></li>
 <li><p><strong>u2</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">x2</span></code>) — Expression for wedge texture coordinate.</p></li>
 <li><p><strong>v2</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">y2</span></code>) — Expression for wedge texture coordinate.</p></li>
-<li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -7068,7 +7022,6 @@ Leave 0 for automatic calculation.</p></li>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>forceFlip</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Always flip normals; otherwise try to set normals outside.</p></li>
-<li><p><strong>onlySelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If selected, only selected faces are affected.</p></li>
 </ul>
 </dd></dl>
 
@@ -7987,7 +7940,6 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><p><strong>QualityDistance</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Store the transfer distance in the target vertex quality.</p></li>
 <li><p><strong>SaveBarycentric</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Store barycentric coordinates and nearest face or vertex indices as per-vertex attributes on the target mesh.</p></li>
 <li><p><strong>UpperBound</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Closest-point searches farther than this threshold are rejected.</p></li>
-<li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, transfer only to selected target vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -8032,7 +7984,6 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <ul class="simple">
 <li><p><strong>usedepth</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If true, a depth buffer is used to restrict projection to visible faces only.</p></li>
 <li><p><strong>deptheta</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Tolerance value for depth buffer comparison (shadow buffer).</p></li>
-<li><p><strong>onselection</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If true, projection is only applied to selected vertices.</p></li>
 <li><p><strong>blankColor</strong> (<em>color</em>, default: <code class="docutils literal notranslate"><span class="pre">#00000000</span></code>) — Areas that cannot be projected will be filled with this color. If all channels are 0, the original color is preserved.</p></li>
 <li><p><strong>preserveoccluded</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If true, depth-occluded vertices keep their original color instead of being assigned the blank color.</p></li>
 </ul>
@@ -8077,7 +8028,6 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>deptheta</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Tolerance value for depth buffer comparison (shadow buffer).</p></li>
-<li><p><strong>onselection</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If true, projection is only applied to selected vertices.</p></li>
 <li><p><strong>useangle</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If true, color contribution is weighted by the angle between the surface normal and the view direction.</p></li>
 <li><p><strong>usedistance</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If true, color contribution is weighted by the vertex distance from the camera.</p></li>
 <li><p><strong>useborders</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If true, color contribution is weighted by the pixel distance from the image boundaries.</p></li>

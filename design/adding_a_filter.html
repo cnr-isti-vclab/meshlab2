@@ -360,6 +360,39 @@ code runs, so the filter is greyed out with a reason instead of failing inside
 <code class="docutils literal notranslate"><span class="pre">requireFaceColor</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextureCoordinates</span></code>, <code class="docutils literal notranslate"><span class="pre">requirePerVertexTexCoords</span></code>,
 <code class="docutils literal notranslate"><span class="pre">requirePerWedgeTexCoords</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextures</span></code>. Declare them instead of
 re-checking by hand — 291 of 337 filters do.</p>
+<p>A filter that can confine itself to the selection declares <strong><code class="docutils literal notranslate"><span class="pre">selectionScope</span></code></strong> —
+<code class="docutils literal notranslate"><span class="pre">&quot;vertices&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;faces&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;edges&quot;</span></code>, the kind of element its algorithm restricts to —
+and <strong>no toggle of its own</strong>. The loader injects one <code class="docutils literal notranslate"><span class="pre">selectedOnly</span></code> bool, first and never
+advanced, labelled <em>Only selected vertices / faces / edges</em>; read it with
+<code class="docutils literal notranslate"><span class="pre">params.getBool(&quot;selectedOnly&quot;)</span></code>. A filter that confines some layer other than the
+current one names that mesh parameter in <code class="docutils literal notranslate"><span class="pre">selectionScopeMesh</span></code> (<em>Transfer Vertex
+Attributes</em> uses <code class="docutils literal notranslate"><span class="pre">TargetMesh</span></code>, the MLS projections <code class="docutils literal notranslate"><span class="pre">ProxyMesh</span></code>). Everything else is the
+framework’s (<code class="docutils literal notranslate"><span class="pre">src/plugins/selectionscope.h</span></code>):</p>
+<ul class="simple">
+<li><p><strong>Default</strong>: omitted, <code class="docutils literal notranslate"><span class="pre">selectedOnly</span></code> is on exactly when there is something to confine
+the filter to, in the panel, in Python and in a replayed compact call alike.</p></li>
+<li><p><strong>Presentation</strong>: the filter panel shows it as a scope control on its own line under
+the header, with the live count — <em>Only the 1234 selected faces</em> — disabled when there
+is nothing to confine to, and never restored from the parameter cache.</p></li>
+<li><p><strong>Empty selection</strong>: with <code class="docutils literal notranslate"><span class="pre">selectedOnly</span></code> on and nothing to confine to, the call is
+refused before your code runs, with one message for every scoped filter. Don’t check.</p></li>
+<li><p><strong>The other kind</strong>: when only the other kind is selected, the filter still sees a
+selection of its own kind, derived strictly — the vertices whose faces are all selected,
+the faces or edges whose vertices all are. Don’t convert between kinds yourself.</p></li>
+<li><p><strong>Afterwards</strong> the user’s selection is put back, vertex, face and edge bits alike, so
+converting internally (to make the interior vertices writable, say) costs nothing — unless
+you report a selection change of your own with <code class="docutils literal notranslate"><span class="pre">markMeshSelectionChanged</span></code>, which then
+stands as your result.</p></li>
+</ul>
+<p>What <em>you</em> owe is the contract: <strong>with <code class="docutils literal notranslate"><span class="pre">selectedOnly</span></code> on, nothing outside the selection
+changes.</strong> For a face scope that means every unselected face keeps its vertices where they
+were — a filter that moves vertices moves only the interior ones of the selected region
+(<code class="docutils literal notranslate"><span class="pre">VertexFromFaceStrict</span></code>), and one that refines splits only edges whose faces are all
+selected. Options such as normalizing a scalar or mapping it to color work on the selected
+elements alone. With <code class="docutils literal notranslate"><span class="pre">selectedOnly</span></code> off, the selection makes no difference.
+<code class="docutils literal notranslate"><span class="pre">FilterTests::scopedFiltersConfineThemselvesToTheSelection</span></code> holds every scoped filter to
+that, on its own kind of selection and on the other kind; a filter it cannot drive goes in
+<code class="docutils literal notranslate"><span class="pre">scopeTestUnrunnable()</span></code> with a reason.</p>
 <p><code class="docutils literal notranslate"><span class="pre">tags</span></code> are free-form search keywords; see <a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a> for the
 standing question of whether they should be generated rather than written.</p>
 <p><code class="docutils literal notranslate"><span class="pre">categories</span></code> is required for in-tree descriptors and is validated against the
@@ -490,9 +523,11 @@ meshes, where snapshotting is seconds of deep copy.</p></li>
 <li><p><strong>Input preparation</strong>: declare <code class="docutils literal notranslate"><span class="pre">inputPrepare</span></code> codes instead of computing
 adjacency, normals or flags by hand — the framework enables the OCF
 components, runs the vcglib update in dependency order, and disables them
-afterward. The full set: <code class="docutils literal notranslate"><span class="pre">FF</span></code>, <code class="docutils literal notranslate"><span class="pre">VF</span></code>, <code class="docutils literal notranslate"><span class="pre">BorderFF</span></code>, <code class="docutils literal notranslate"><span class="pre">BorderVF</span></code> (each border code
+afterward. The full set: <code class="docutils literal notranslate"><span class="pre">FF</span></code>, <code class="docutils literal notranslate"><span class="pre">VF</span></code>, <code class="docutils literal notranslate"><span class="pre">VE</span></code>, <code class="docutils literal notranslate"><span class="pre">BorderFF</span></code>, <code class="docutils literal notranslate"><span class="pre">BorderVF</span></code> (each border code
 implies its adjacency), <code class="docutils literal notranslate"><span class="pre">FNorm</span></code>, <code class="docutils literal notranslate"><span class="pre">VNorm</span></code> (implies <code class="docutils literal notranslate"><span class="pre">FNorm</span></code>), <code class="docutils literal notranslate"><span class="pre">BBox</span></code>, <code class="docutils literal notranslate"><span class="pre">FMark</span></code>,
-<code class="docutils literal notranslate"><span class="pre">VMark</span></code>, <code class="docutils literal notranslate"><span class="pre">VTex</span></code>, <code class="docutils literal notranslate"><span class="pre">WTex</span></code>, <code class="docutils literal notranslate"><span class="pre">CurvDir</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">VMark</span></code>, <code class="docutils literal notranslate"><span class="pre">VTex</span></code>, <code class="docutils literal notranslate"><span class="pre">WTex</span></code>, <code class="docutils literal notranslate"><span class="pre">CurvDir</span></code>. <code class="docutils literal notranslate"><span class="pre">VE</span></code> is vertex-edge adjacency on a polyline
+layer’s real edges, for filters that walk the edge graph with <code class="docutils literal notranslate"><span class="pre">vcg::edge::VEIterator</span></code>,
+<code class="docutils literal notranslate"><span class="pre">VVStarVE</span></code> and the like.</p></li>
 <li><p><strong>Cleanup/compaction</strong>: after a successful filter the framework compacts the
 affected meshes; don’t leave deleted elements around expecting them to persist.</p></li>
 <li><p><strong>Notify changes</strong>: after mutating a mesh, call the matching
