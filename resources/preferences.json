@@ -104,7 +104,7 @@
       "help": "Color map selected when a scalar field is first displayed.",
       "group": "scalar",
       "type": "enum",
-      "default": "gray",
+      "default": "rainbow",
       "enumOptions": [
         {
           "id": "gray",
