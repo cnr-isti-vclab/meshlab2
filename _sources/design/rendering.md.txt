@@ -141,7 +141,7 @@ Simple buffer pass execution (wire, edges, bbox, points), decorator execution, a
 
 ## Current Mesh Highlight
 
-Runs when `highlightCurrentMesh` is on and the current mesh is visible.
+Runs when `highlightCurrentMesh` is on, the current mesh is visible, the document holds more than one layer, and the layers are overlaid rather than arranged in a grid: with a single layer the outline marks nothing, and in the grid every layer already has a tile of its own. Every outline pass asks `RenderWidget::wantsCurrentMeshOutline()`, so the rule lives in one place.
 
 **Surface/edge path**: render current mesh depth mask → extract silhouette into `work` → render all other meshes into `mask` for occlusion → composite outline. Occluded outline portions use half alpha.
 
