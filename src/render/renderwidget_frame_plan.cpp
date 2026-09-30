@@ -90,8 +90,7 @@ RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassReques
         if (onlyMeshIndex >= 0 && mi != onlyMeshIndex)
             continue;
         const bool visible = meshVisible(mi);
-        const bool highlighted =
-            m_renderSettings.highlightCurrentMesh && mi == m_doc->currentMeshIndex();
+        const bool highlighted = wantsCurrentMeshOutline() && mi == m_doc->currentMeshIndex();
         if (!visible && !highlighted)
             continue;
         const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);

@@ -14,11 +14,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     updateCameraFrameIfNeeded();
     syncPerMeshRenderModesWithDocument();
     const int currentMeshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
-    const bool drawCurrentMeshHighlight =
-        m_doc
-        && m_renderSettings.highlightCurrentMesh
-        && currentMeshIndex >= 0
-        && currentMeshIndex < m_doc->meshCount();
+    const bool drawCurrentMeshHighlight = wantsCurrentMeshOutline();
     const RenderFramePassRequests requests = collectRenderFramePassRequests(-1);
     prepareDirtyBuffers(cb, requests, currentMeshIndex, drawCurrentMeshHighlight);
 }
@@ -335,7 +331,7 @@ void RenderWidget::renderCurrentMeshMask(
     const QSize &pixelSize,
     const ViewTile &tile)
 {
-    if (!m_renderSettings.highlightCurrentMesh)
+    if (!wantsCurrentMeshOutline())
         return;
 
     m_currentMaskFromPoints = false;
@@ -604,7 +600,7 @@ void RenderWidget::renderCurrentMeshMask(
 
 void RenderWidget::processCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize)
 {
-    if (!m_renderSettings.highlightCurrentMesh)
+    if (!wantsCurrentMeshOutline())
         return;
     if (!m_currentMaskRt || !m_currentMaskBaseRt || !m_currentMaskWorkRt)
         return;
@@ -721,7 +717,7 @@ void RenderWidget::drawCurrentMeshDebugView(QRhiCommandBuffer *cb, const QSize &
 
 void RenderWidget::drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pixelSize)
 {
-    if (!m_renderSettings.highlightCurrentMesh)
+    if (!wantsCurrentMeshOutline())
         return;
 
     if (m_renderSettings.currentMeshDebugView != CurrentMeshDebugView::Outline) {

@@ -300,11 +300,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     const bool drawTrackballGizmo =
         !rasterMode && m_renderSettings.showTrackballGizmo && (m_doc->meshCount() > 0);
     const int currentMeshIndex = m_doc->currentMeshIndex();
-    const bool drawCurrentMeshHighlight =
-        !rasterMode
-        && m_renderSettings.highlightCurrentMesh
-        && (currentMeshIndex >= 0)
-        && (currentMeshIndex < m_doc->meshCount());
+    const bool drawCurrentMeshHighlight = !rasterMode && wantsCurrentMeshOutline();
     const QSize sz = renderTarget()->pixelSize();
     // One tile covering everything in the overlay arrangement, one per visible layer in the
     // grid. Everything below is written against this list, so the two arrangements share a

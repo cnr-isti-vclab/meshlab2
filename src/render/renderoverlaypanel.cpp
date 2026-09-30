@@ -445,6 +445,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     currentMeshForm->setLabelAlignment(kSettingsLabelAlignment);
     m_currentMeshHighlightCheck = new QCheckBox(viewer3dPage);
     m_currentMeshHighlightCheck->setChecked(m_globalSettings.highlightCurrentMesh);
+    m_currentMeshHighlightCheck->setToolTip(
+        tr("Outline the current layer. Drawn only when several layers share the view: not "
+           "with a single layer, and not in the layer grid, where each has a tile of its own."));
     m_showTrackballGizmoCheck = new QCheckBox(viewer3dPage);
     m_showTrackballGizmoCheck->setChecked(m_globalSettings.showTrackballGizmo);
     m_showAxisGizmoCheck = new QCheckBox(viewer3dPage);

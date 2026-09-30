@@ -742,6 +742,15 @@ bool RenderWidget::wantsQualityHistogramPanel() const
     return meshIndex >= 0 && meshIndex < m_doc->meshCount();
 }
 
+bool RenderWidget::wantsCurrentMeshOutline() const
+{
+    if (!m_renderSettings.highlightCurrentMesh || !m_doc || m_doc->meshCount() < 2
+        || m_renderSettings.layerArrangement == LayerArrangement::Grid)
+        return false;
+    const int meshIndex = m_doc->currentMeshIndex();
+    return meshIndex >= 0 && meshIndex < m_doc->meshCount();
+}
+
 int RenderWidget::qualityHistogramPanelWidth() const
 {
     // A fraction of the view, clamped to a fixed pixel range rather than left to scale with

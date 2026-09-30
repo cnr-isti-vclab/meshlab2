@@ -387,6 +387,10 @@ struct SceneRasterProjectedDrawItem {
     // something at all, short of the "not enough height" corner case, which just reserves a
     // few unnecessary pixels rather than misbehaving.
     bool wantsQualityHistogramPanel() const;
+    // The current layer is outlined only when another layer shares its space: with a single
+    // layer the outline marks nothing, and in the layer grid every layer has a tile of its
+    // own. Every outline pass asks this.
+    bool wantsCurrentMeshOutline() const;
     // Width of the histogram's strip in logical pixels, from the widget's own width: a
     // fraction of it clamped to a fixed pixel range. Logical, and only logical, because the
     // panel is a native widget laid out in logical pixels; evaluating the clamp in device
