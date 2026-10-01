@@ -9,13 +9,15 @@
 #include <vector>
 
 class QFormLayout;
+class QLabel;
+class QToolButton;
 class QWidget;
 
 // Turns a list of MeshFilterParameterDescriptor into editor rows in a QFormLayout,
 // and reads the edited values back out.
 //
 // Shared by the filter panel and the preferences dialog: both describe their inputs
-// with the same descriptors, so both get the same editors, grouping, tooltips and
+// with the same descriptors, so both get the same editors, grouping, help and
 // advanced-section handling without duplicating any of it. See
 // docs/design/adding_a_filter.md for the descriptor schema.
 class ParameterFormBuilder : public QObject
@@ -49,6 +51,10 @@ public:
         MeshFilterParameterDescriptor descriptor;
         QWidget *editor = nullptr;
         QWidget *formLabel = nullptr;
+        // What the row holds: the editor alone, or the editor with its reset button.
+        QWidget *field = nullptr;
+        QToolButton *resetButton = nullptr;
+        QLabel *helpLabel = nullptr;
         bool advanced = false;
     };
 
@@ -56,6 +62,19 @@ public:
     ParameterFormBuilder(QFormLayout *layout, QWidget *parentWidget, QObject *parent = nullptr);
 
     void setContext(Context context);
+
+    // Presentation options for build(), both off by default, as the filter panel wants
+    // them. Inline help puts each parameter's help under its row as text, in place of the
+    // tooltip it otherwise gets; reset buttons give each row a button, shown once its
+    // value differs from the default, that puts that one value back.
+    void setShowsInlineHelp(bool shows) { m_showsInlineHelp = shows; }
+    void setShowsResetButtons(bool shows) { m_showsResetButtons = shows; }
+    // Hides or shows that inline help, before or after build(), without a rebuild.
+    void setInlineHelpVisible(bool visible);
+    // Group headings are bold at the rows' size, so in the filter panel they rank below the
+    // filter's bold title. A form whose groups are its top level, as in the preferences
+    // dialog, sets them larger.
+    void setGroupHeadingScale(double scale) { m_groupHeadingScale = scale; }
 
     // Removes every row from the layout and drops all bindings.
     void clear();
@@ -72,6 +91,9 @@ public:
     QVariant value(const QString &parameterId) const;
     void setValues(const MeshFilterParameterValues &values);
     void resetToDefaults();
+    // Whether the editor shows the descriptor default, with the same tolerance the
+    // preferences store uses (sameParameterValue).
+    bool isDefault(const QString &parameterId) const;
 
     bool hasAdvanced() const { return m_hasAdvanced; }
     void setAdvancedVisible(bool visible);
@@ -100,6 +122,7 @@ private:
     void connectEditorSignals(const Binding &binding);
     void applyValue(const Binding &binding, const QVariant &value);
     QVariant readValue(const Binding &binding) const;
+    void refreshResetButtons();
 
     QFormLayout *m_layout = nullptr;
     QWidget *m_parentWidget = nullptr;
@@ -108,4 +131,8 @@ private:
     std::vector<GroupHeading> m_groupHeadings;
     bool m_hasAdvanced = false;
     bool m_advancedVisible = false;
+    bool m_showsInlineHelp = false;
+    bool m_inlineHelpVisible = true;
+    bool m_showsResetButtons = false;
+    double m_groupHeadingScale = 1.0;
 };

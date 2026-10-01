@@ -20,6 +20,8 @@ private slots:
     void settingTheSameValueIsNotAChange();
     void unknownIdsAreRefused();
     void resetRestoresEveryDefault();
+    void restoringOneDefaultForgetsTheStoredValue();
+    void settingTheDefaultStoresNothing();
     void valuesCoverEveryDescriptor();
 };
 
@@ -125,6 +127,56 @@ void PreferencesTests::resetRestoresEveryDefault()
     preferences.resetToDefaults();
     for (const auto &d : preferences.descriptors())
         QCOMPARE(preferences.value(d.id), d.defaultValue);
+    // Forgotten, not written back as copies of today's defaults.
+    QSettings settings;
+    settings.beginGroup(QStringLiteral("preferences"));
+    QVERIFY2(settings.childKeys().isEmpty(), qPrintable(settings.childKeys().join(QStringLiteral(", "))));
+}
+
+// Restoring one preference touches only that one, and forgets its stored value, so it
+// follows the declared default from then on -- a stored copy of the default would keep
+// the old value alive through a later change to it.
+void PreferencesTests::restoringOneDefaultForgetsTheStoredValue()
+{
+    Preferences &preferences = Preferences::instance();
+    const QString gizmo = QStringLiteral("view.axisGizmoSize");
+    const QString drag = QStringLiteral("input.dragThreshold");
+    preferences.setValue(gizmo, 200);
+    preferences.setValue(drag, 30);
+
+    QSignalSpy spy(&preferences, &Preferences::changed);
+    preferences.resetToDefault(gizmo);
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.at(0).at(0).toString(), gizmo);
+    QCOMPARE(preferences.value(gizmo), preferences.descriptor(gizmo)->defaultValue);
+    QCOMPARE(preferences.intValue(drag), 30);
+
+    QSettings settings;
+    settings.beginGroup(QStringLiteral("preferences"));
+    QVERIFY(!settings.contains(gizmo));
+    QCOMPARE(settings.value(drag).toInt(), 30);
+
+    // Restoring what is already the default changes nothing and says nothing.
+    preferences.resetToDefault(gizmo);
+    QCOMPARE(spy.count(), 1);
+}
+
+// Choosing the default by hand is the same as restoring it: nothing is stored.
+void PreferencesTests::settingTheDefaultStoresNothing()
+{
+    Preferences &preferences = Preferences::instance();
+    const QString id = QStringLiteral("view.axisGizmoSize");
+    const QVariant defaultValue = preferences.descriptor(id)->defaultValue;
+    preferences.setValue(id, defaultValue.toInt() + 5);
+
+    QSignalSpy spy(&preferences, &Preferences::changed);
+    preferences.setValue(id, defaultValue.toInt());
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(preferences.value(id).toInt(), defaultValue.toInt());
+
+    QSettings settings;
+    settings.beginGroup(QStringLiteral("preferences"));
+    QVERIFY(!settings.contains(id));
 }
 
 // values() is what seeds the dialog's form, so it has to name every declared id.

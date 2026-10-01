@@ -8,8 +8,10 @@ class QFormLayout;
 // Editor for the application preferences declared in resources/preferences.json.
 //
 // Deliberately thin: ParameterFormBuilder turns the declared descriptors into
-// editors, so this class only decides that edits apply immediately (no OK/Cancel)
-// and offers a reset. A new preference needs no change here.
+// editors, with each help text under its row and a reset button on each, so this
+// class only decides that edits apply immediately (no OK/Cancel), offers a reset
+// for all of them and a switch to hide the help. A new preference needs no change
+// here.
 class PreferencesDialog : public QDialog
 {
     Q_OBJECT

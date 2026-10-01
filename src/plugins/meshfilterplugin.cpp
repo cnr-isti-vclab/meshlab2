@@ -1,6 +1,9 @@
 #include "meshfilterplugin.h"
 #include "filterdescriptorloader.h"
 
+#include <algorithm>
+#include <cmath>
+
 namespace {
 
 QString bibValue(QString value)
@@ -201,4 +204,23 @@ std::vector<MeshFilterDescriptor> MeshFilterPlugin::filters(const Document &doc)
     }
     FilterDescriptorLoader::resolveSymbolicBounds(descriptors, doc);
     return descriptors;
+}
+
+bool sameParameterValue(const QVariant &a, const QVariant &b)
+{
+    const auto isNumber = [](const QVariant &v) {
+        switch (v.metaType().id()) {
+        case QMetaType::Int: case QMetaType::UInt: case QMetaType::LongLong:
+        case QMetaType::ULongLong: case QMetaType::Double: case QMetaType::Float:
+            return true;
+        default:
+            return false;
+        }
+    };
+    if (isNumber(a) && isNumber(b)) {
+        const double x = a.toDouble();
+        const double y = b.toDouble();
+        return std::abs(x - y) <= 1e-9 * std::max({ 1.0, std::abs(x), std::abs(y) });
+    }
+    return a == b;
 }

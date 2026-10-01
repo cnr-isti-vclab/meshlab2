@@ -40,11 +40,16 @@ public:
     QString stringValue(const QString &id) const;
 
     // No-ops when the value is unchanged, so wiring a signal to a widget that echoes
-    // it back cannot loop.
+    // it back cannot loop. Only a value that differs from the default is stored; setting
+    // the default is the same as resetToDefault().
     void setValue(const QString &id, const QVariant &value);
     void setValues(const MeshFilterParameterValues &values);
 
     MeshFilterParameterValues values() const;
+    // Forget the stored value, so the preference follows its declared default again --
+    // including a later change to that default, which a stored copy of today's default
+    // would have hidden. Emits changed() when the effective value moves.
+    void resetToDefault(const QString &id);
     void resetToDefaults();
 
 signals:

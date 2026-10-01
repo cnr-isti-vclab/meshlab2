@@ -135,6 +135,11 @@ struct MeshFilterParameterDescriptor
     }
 };
 
+// Whether two parameter values are the same setting. Numbers compare by value with a
+// small tolerance, so an int editor against a default the JSON parsed as a double, or a
+// double spin box rounded to its decimals, still counts as unchanged.
+bool sameParameterValue(const QVariant &a, const QVariant &b);
+
 enum class MeshFilterCleanupKind
 {
     RemoveUnreferencedVertices

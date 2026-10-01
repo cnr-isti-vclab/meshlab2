@@ -14,6 +14,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPalette>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSignalBlocker>
@@ -922,6 +923,29 @@ void ParameterFormBuilder::clear()
         m_layout->removeRow(0);
 }
 
+namespace {
+
+// The default as the row shows it, for the reset button's tooltip: an option's label rather
+// than its id, and on/off rather than true/false.
+QString defaultValueText(const MeshFilterParameterDescriptor &param)
+{
+    switch (param.type) {
+    case MeshFilterParameterType::Bool:
+        return param.defaultValue.toBool() ? QObject::tr("on") : QObject::tr("off");
+    case MeshFilterParameterType::Enum:
+        for (const MeshFilterEnumOption &option : param.enumOptions) {
+            if (option.id == param.defaultValue.toString())
+                return option.label;
+        }
+        break;
+    default:
+        break;
+    }
+    return param.defaultValue.toString();
+}
+
+} // namespace
+
 void ParameterFormBuilder::build(
     const std::vector<MeshFilterParameterDescriptor> &parameters,
     const MeshFilterParameterValues &initialValues)
@@ -950,8 +974,12 @@ void ParameterFormBuilder::build(
         auto *groupLabel = new QLabel(groupDisplayName(group), m_parentWidget);
         QFont f = groupLabel->font();
         f.setBold(true);
+        f.setPointSizeF(f.pointSizeF() * m_groupHeadingScale);
         groupLabel->setFont(f);
-        groupLabel->setStyleSheet(QStringLiteral("color: palette(mid); padding-top: 6px;"));
+        // The space above is a contents margin, not style-sheet padding: padding gives a
+        // QLabel a frame, and QLabel indents framed text by half an "x", which set the
+        // headings a few pixels right of the labels under them.
+        groupLabel->setContentsMargins(0, 8, 0, 0);
         m_layout->addRow(groupLabel);
         m_groupHeadings.push_back(
             { groupLabel, group.startsWith(QStringLiteral("advanced"), Qt::CaseInsensitive) });
@@ -971,16 +999,68 @@ void ParameterFormBuilder::build(
 
         auto *labelWidget = new QLabel(param.label, m_parentWidget);
         binding.formLabel = labelWidget;
-        if (!param.helpMarkdown.trimmed().isEmpty()) {
+        const QString help = param.helpMarkdown.trimmed();
+        // The help is a tooltip only where it is not shown under the row.
+        if (!help.isEmpty() && !m_showsInlineHelp) {
             labelWidget->setToolTip(param.helpMarkdown);
             editor->setToolTip(param.helpMarkdown);
         }
 
-        m_layout->addRow(labelWidget, editor);
+        QWidget *field = editor;
+        if (m_showsResetButtons) {
+            auto *row = new QWidget(m_parentWidget);
+            auto *rowLayout = new QHBoxLayout(row);
+            rowLayout->setContentsMargins(0, 0, 0, 0);
+            rowLayout->setSpacing(4);
+            // The editor keeps its own width, as it has without a reset button; the buttons
+            // line up at the end of the rows.
+            rowLayout->addWidget(editor);
+            rowLayout->addStretch(1);
+            auto *reset = new QToolButton(row);
+            reset->setText(QStringLiteral("\u21BA"));
+            reset->setAutoRaise(true);
+            reset->setToolTip(QObject::tr("Restore the default: %1").arg(defaultValueText(param)));
+            // Shown only while the value differs from the default, but keeping its space,
+            // so the editors do not shift sideways as values change.
+            QSizePolicy policy = reset->sizePolicy();
+            policy.setRetainSizeWhenHidden(true);
+            reset->setSizePolicy(policy);
+            rowLayout->addWidget(reset);
+            const QString id = param.id;
+            // Setting the editor fires its own change signal, so valueChanged() follows as
+            // for any edit.
+            connect(reset, &QToolButton::clicked, this, [this, id]() {
+                if (const Binding *b = bindingById(id))
+                    applyValue(*b, b->descriptor.defaultValue);
+            });
+            binding.resetButton = reset;
+            field = row;
+        }
+        binding.field = field;
+        m_layout->addRow(labelWidget, field);
+
+        if (m_showsInlineHelp && !help.isEmpty()) {
+            auto *helpLabel = new QLabel(m_parentWidget);
+            helpLabel->setTextFormat(Qt::MarkdownText);
+            helpLabel->setText(help);
+            helpLabel->setWordWrap(true);
+            QFont helpFont = helpLabel->font();
+            helpFont.setPointSizeF(helpFont.pointSizeF() * 0.9);
+            helpLabel->setFont(helpFont);
+            QPalette helpPalette = helpLabel->palette();
+            helpPalette.setColor(QPalette::WindowText, helpPalette.color(QPalette::PlaceholderText));
+            helpLabel->setPalette(helpPalette);
+            m_layout->addRow(helpLabel);
+            if (!m_inlineHelpVisible)
+                helpLabel->hide();
+            binding.helpLabel = helpLabel;
+        }
 
         if (binding.advanced && !m_advancedVisible) {
             labelWidget->hide();
-            editor->hide();
+            field->hide();
+            if (binding.helpLabel)
+                binding.helpLabel->hide();
         }
 
         // A stored value wins over the descriptor default, so a caller holding
@@ -1345,6 +1425,24 @@ void ParameterFormBuilder::resetToDefaults()
 {
     for (const Binding &binding : m_bindings)
         applyValue(binding, binding.descriptor.defaultValue);
+    refreshResetButtons();
+}
+
+bool ParameterFormBuilder::isDefault(const QString &parameterId) const
+{
+    const Binding *binding = bindingById(parameterId);
+    return binding && sameParameterValue(readValue(*binding), binding->descriptor.defaultValue);
+}
+
+void ParameterFormBuilder::refreshResetButtons()
+{
+    for (const Binding &binding : m_bindings) {
+        if (!binding.resetButton)
+            continue;
+        binding.resetButton->setVisible(
+            !sameParameterValue(readValue(binding), binding.descriptor.defaultValue));
+        binding.resetButton->setEnabled(!binding.editor || binding.editor->isEnabled());
+    }
 }
 
 void ParameterFormBuilder::setAdvancedVisible(bool visible)
@@ -1355,9 +1453,13 @@ void ParameterFormBuilder::setAdvancedVisible(bool visible)
             continue;
         if (binding.formLabel)
             binding.formLabel->setVisible(visible);
-        if (binding.editor)
-            binding.editor->setVisible(visible);
+        if (QWidget *field = binding.field ? binding.field : binding.editor)
+            field->setVisible(visible);
+        if (binding.helpLabel)
+            binding.helpLabel->setVisible(visible && m_inlineHelpVisible);
     }
+    // A row coming back into view shows its reset button only if it is needed.
+    refreshResetButtons();
 
     // Count the groups that still have something in them. Hiding the advanced
     // parameters can leave a single visible group, and then its heading says nothing
@@ -1373,6 +1475,15 @@ void ParameterFormBuilder::setAdvancedVisible(bool visible)
             continue;
         const bool wanted = (visible || !heading.advanced) && visibleGroups > 1;
         heading.label->setVisible(wanted);
+    }
+}
+
+void ParameterFormBuilder::setInlineHelpVisible(bool visible)
+{
+    m_inlineHelpVisible = visible;
+    for (const Binding &binding : m_bindings) {
+        if (binding.helpLabel)
+            binding.helpLabel->setVisible(visible && (m_advancedVisible || !binding.advanced));
     }
 }
 
@@ -1449,4 +1560,6 @@ void ParameterFormBuilder::refreshEnabledState()
         if (binding.editor)
             binding.editor->setEnabled(enabled);
     }
+    // Run after every edit and every setValues(), so the reset buttons follow the values.
+    refreshResetButtons();
 }

@@ -14,6 +14,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QSpinBox>
+#include <QToolButton>
 #include <QSignalSpy>
 #include <QTest>
 #include <QWidget>
@@ -75,6 +76,8 @@ private slots:
     void advancedVisibilityFollowsGroup();
     void groupHeadingsAppearOncePerGroup();
     void resetRestoresDefaults();
+    void resetButtonsRestoreOneValue();
+    void inlineHelpShowsEachHelpText();
     void skipsDocumentTypesWithoutADocument();
     void enabledWhenGatesOnABool();
     void enabledWhenSupportsNegation();
@@ -247,6 +250,86 @@ void ParameterFormTests::resetRestoresDefaults()
     builder.resetToDefaults();
     QCOMPARE(builder.value(QStringLiteral("count")).toInt(), 7);
     QCOMPARE(builder.value(QStringLiteral("mode")).toString(), QStringLiteral("b"));
+}
+
+// With reset buttons on, a row's button appears once its value leaves the default and
+// puts that one value back, emitting valueChanged like any edit; the other rows keep
+// theirs.
+void ParameterFormTests::resetButtonsRestoreOneValue()
+{
+    QWidget host;
+    auto *layout = new QFormLayout(&host);
+    ParameterFormBuilder builder(layout, &host);
+    builder.setShowsResetButtons(true);
+    builder.build(sampleParameters());
+
+    const auto *count = builder.bindingById(QStringLiteral("count"));
+    const auto *mode = builder.bindingById(QStringLiteral("mode"));
+    QVERIFY(count && count->resetButton && mode && mode->resetButton);
+    QVERIFY(count->resetButton->isHidden());
+    QVERIFY(builder.isDefault(QStringLiteral("count")));
+
+    qobject_cast<QSpinBox *>(count->editor)->setValue(99);
+    qobject_cast<QComboBox *>(mode->editor)->setCurrentIndex(0);
+    QVERIFY(!count->resetButton->isHidden());
+    QVERIFY(!mode->resetButton->isHidden());
+    QVERIFY(!builder.isDefault(QStringLiteral("count")));
+
+    QSignalSpy spy(&builder, &ParameterFormBuilder::valueChanged);
+    count->resetButton->click();
+    QCOMPARE(builder.value(QStringLiteral("count")).toInt(), 7);
+    QVERIFY(builder.isDefault(QStringLiteral("count")));
+    QVERIFY(count->resetButton->isHidden());
+    QVERIFY(spy.count() >= 1);
+    QCOMPARE(spy.last().at(0).toString(), QStringLiteral("count"));
+    // The other row is untouched.
+    QCOMPARE(builder.value(QStringLiteral("mode")).toString(), QStringLiteral("a"));
+    QVERIFY(!mode->resetButton->isHidden());
+}
+
+// Inline help puts each help text under its row, in place of the tooltip, and can be
+// hidden and shown again; without the option there is none and the help stays in the
+// tooltips, as the filter panel wants it.
+void ParameterFormTests::inlineHelpShowsEachHelpText()
+{
+    std::vector<MeshFilterParameterDescriptor> params = sampleParameters();
+    params[1].helpMarkdown = QStringLiteral("How many of them.");
+    params[2].helpMarkdown = QStringLiteral("An advanced one.");
+
+    QWidget host;
+    auto *layout = new QFormLayout(&host);
+    ParameterFormBuilder builder(layout, &host);
+    builder.setShowsInlineHelp(true);
+    builder.build(params);
+    const auto *count = builder.bindingById(QStringLiteral("count"));
+    QVERIFY(count && count->helpLabel);
+    QVERIFY(count->helpLabel->text().contains(QStringLiteral("How many of them.")));
+    QVERIFY(count->editor->toolTip().isEmpty());
+    QVERIFY(count->formLabel->toolTip().isEmpty());
+    QVERIFY(!builder.bindingById(QStringLiteral("enabled"))->helpLabel);   // no help declared
+
+    // Hiding the help hides every help text, and the advanced set coming into view does
+    // not bring its help back; showing the help again leaves the hidden advanced set's
+    // help hidden.
+    const auto *ratio = builder.bindingById(QStringLiteral("ratio"));
+    QVERIFY(ratio && ratio->helpLabel);
+    QVERIFY(ratio->helpLabel->isHidden());   // advanced parameters start hidden
+    builder.setInlineHelpVisible(false);
+    QVERIFY(count->helpLabel->isHidden());
+    builder.setAdvancedVisible(true);
+    QVERIFY(!ratio->formLabel->isHidden());
+    QVERIFY(ratio->helpLabel->isHidden());
+    builder.setAdvancedVisible(false);
+    builder.setInlineHelpVisible(true);
+    QVERIFY(!count->helpLabel->isHidden());
+    QVERIFY(ratio->helpLabel->isHidden());
+
+    QWidget plainHost;
+    auto *plainLayout = new QFormLayout(&plainHost);
+    ParameterFormBuilder plain(plainLayout, &plainHost);
+    plain.build(params);
+    QVERIFY(!plain.bindingById(QStringLiteral("count"))->helpLabel);
+    QCOMPARE(plain.bindingById(QStringLiteral("count"))->editor->toolTip(), QStringLiteral("How many of them."));
 }
 
 // A caller with no Document (the preferences dialog) must still get a usable form:

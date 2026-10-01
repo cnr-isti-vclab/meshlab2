@@ -38,8 +38,15 @@ void Preferences::ensureLoaded() const
     QSettings settings;
     settings.beginGroup(QString::fromLatin1(kSettingsGroup));
     for (const auto &descriptor : m_descriptors) {
-        if (settings.contains(descriptor.id))
-            m_values.insert(descriptor.id, settings.value(descriptor.id));
+        if (!settings.contains(descriptor.id))
+            continue;
+        const QVariant stored = settings.value(descriptor.id);
+        // A stored copy of the default, as the old Restore Defaults wrote, would pin
+        // today's default against a later change to it; it says nothing, so drop it.
+        if (sameParameterValue(stored, descriptor.defaultValue))
+            settings.remove(descriptor.id);
+        else
+            m_values.insert(descriptor.id, stored);
     }
     settings.endGroup();
 }
@@ -85,9 +92,13 @@ void Preferences::setValue(const QString &id, const QVariant &newValue)
         qWarning() << "Preferences: refusing to set undeclared preference" << id;
         return;
     }
+    if (sameParameterValue(newValue, d->defaultValue)) {
+        resetToDefault(id);
+        return;
+    }
     // Compare against the effective value, not the stored one: setting a preference
     // back to its default must still count as a change when it had been overridden.
-    if (value(id) == newValue)
+    if (sameParameterValue(value(id), newValue))
         return;
 
     m_values.insert(id, newValue);
@@ -115,9 +126,27 @@ MeshFilterParameterValues Preferences::values() const
     return out;
 }
 
+void Preferences::resetToDefault(const QString &id)
+{
+    ensureLoaded();
+    const MeshFilterParameterDescriptor *d = descriptor(id);
+    if (!d) {
+        qWarning() << "Preferences: refusing to reset undeclared preference" << id;
+        return;
+    }
+    const bool moves = !sameParameterValue(value(id), d->defaultValue);
+    m_values.remove(id);
+    QSettings settings;
+    settings.beginGroup(QString::fromLatin1(kSettingsGroup));
+    settings.remove(id);
+    settings.endGroup();
+    if (moves)
+        emit changed(id, d->defaultValue);
+}
+
 void Preferences::resetToDefaults()
 {
     ensureLoaded();
     for (const auto &d : m_descriptors)
-        setValue(d.id, d.defaultValue);
+        resetToDefault(d.id);
 }
