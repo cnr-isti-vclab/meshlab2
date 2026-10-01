@@ -170,6 +170,12 @@ enum class UndoStorageKind {
 // Undo node — one node in the undo tree
 // ---------------------------------------
 
+// A fresh identity for an undo node: unique, never reused, and kept by the node when the
+// history is compacted. Node ids are indices into the history, so compacting it (Make Root,
+// Purge Branch, Linearize, the undo limit) renumbers the nodes that are left; anything kept
+// per state across those calls, like the Action History's thumbnails, is keyed by serial.
+std::uint64_t nextUndoNodeSerial();
+
 // Tree-shaped undo history. Each node holds a full document
 // restoration payload plus linkage (parentId, children, preferredChild).
 // Node 0 is always the "before" root (initial state when recording started).
@@ -178,8 +184,9 @@ struct UndoNode {
     UndoState state;
     UndoStorageKind storageKind = UndoStorageKind::FullSnapshot;
     QString   label;         // label of the action that led INTO this node ("" for root)
+    // Taken when the node is made; compaction moves nodes whole, so it travels with them.
+    std::uint64_t serial = nextUndoNodeSerial();
     int       parentId = -1; // index into m_undoNodes (-1 for root)
-    int       lane = 0;      // display lane assigned at creation time
     std::vector<int> children;
     int       preferredChild = -1; // which child to follow on redo() (-1 = none)
 
@@ -204,9 +211,9 @@ struct UndoNode {
 // nodeId is stable for the lifetime of the node.  parentId == -1 for the root.
 struct UndoTreeNodeInfo {
     int nodeId = -1;
+    std::uint64_t serial = 0; // the node's identity across compactions; nodeId is not one
     int parentId = -1;
     int depth = 0;   // 0 = root
-    int lane = 0;    // display lane (column); 0 = main, 1+ = branches
     bool isCurrent = false;
     bool isOnCurrentPath = false; // lies on the path root → current node
     QString label;   // label of the action that produced this node ("" for root)

@@ -69,6 +69,24 @@
       ]
     },
     {
+      "id": "view.historyPreview",
+      "label": "History preview",
+      "help": "Where the Action History shows a state while you hover its thumbnail or one of its dots.\n\n**In the view** draws the state's snapshot over the 3D view, inside a cloudy frame and under a *Preview* label, so it cannot be mistaken for the document itself. Nothing changes: moving the mouse away brings the live view back.\n\n**In a popup** shows the snapshot in a floating window beside the panel and leaves the view alone.",
+      "group": "view",
+      "type": "enum",
+      "default": "view",
+      "enumOptions": [
+        {
+          "id": "view",
+          "label": "In the view"
+        },
+        {
+          "id": "popup",
+          "label": "In a popup"
+        }
+      ]
+    },
+    {
       "id": "input.dragThreshold",
       "label": "Drag threshold",
       "help": "How far the pointer must move, in pixels, before a press becomes a drag rather than a click.",

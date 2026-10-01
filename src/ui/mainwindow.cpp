@@ -61,6 +61,7 @@
 #include <QFontDatabase>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QFrame>
 #include <QLabel>
 #include <QListWidget>
 #include <QListWidgetItem>
@@ -680,15 +681,26 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_undoHistoryLaneWidget = new UndoGraphWidget(this);
     m_undoHistoryLaneWidget->setFocusPolicy(Qt::NoFocus);
+    m_undoHistoryLaneWidget->setDocument(m_doc);
 
-    m_undoHistoryPreviewPopup = new QLabel(this);
+    m_undoHistoryPreviewPopup = new QFrame(this);
     m_undoHistoryPreviewPopup->setWindowFlags(Qt::ToolTip);
+    // By name: a QLabel is a QFrame too, so a type selector would frame the labels as well.
+    m_undoHistoryPreviewPopup->setObjectName(QStringLiteral("undoHistoryPreview"));
     m_undoHistoryPreviewPopup->setStyleSheet(QStringLiteral(
-        "QLabel {"
+        "#undoHistoryPreview {"
         "  background: rgba(24,24,24,235);"
         "  border: 1px solid rgba(180,180,180,180);"
-        "  padding: 2px;"
-        "}"));
+        "}"
+        "QLabel { padding: 2px; color: rgb(225,225,225); }"));
+    auto *previewLayout = new QVBoxLayout(m_undoHistoryPreviewPopup);
+    previewLayout->setContentsMargins(1, 1, 1, 1);
+    previewLayout->setSpacing(0);
+    m_undoHistoryPreviewImage = new QLabel(m_undoHistoryPreviewPopup);
+    m_undoHistoryPreviewCaption = new QLabel(m_undoHistoryPreviewPopup);
+    m_undoHistoryPreviewCaption->setWordWrap(true);
+    previewLayout->addWidget(m_undoHistoryPreviewImage);
+    previewLayout->addWidget(m_undoHistoryPreviewCaption);
     m_undoHistoryPreviewPopup->hide();
     m_undoHistoryPreviewTimer = new QTimer(this);
     m_undoHistoryPreviewTimer->setSingleShot(true);
@@ -792,40 +804,21 @@ MainWindow::MainWindow(QWidget *parent)
         &Document::undoRedoStateChanged,
         this,
         [this](bool, bool, const QString &, const QString &) {
-            refreshUndoHistoryPanel();
+            if (!m_visitingUndoStates)
+                refreshUndoHistoryPanel();
         });
     // An undo changes mesh contents, and the dynamic parameter bounds resolved from them
     // (a decimation target capped at the face count, a default derived from the bounding
     // box) go stale with it. Every other refresh trigger deliberately bails out mid-restore.
-    connect(m_doc, &Document::undoRestoreCompleted, this, &MainWindow::refreshFilterUi);
+    connect(m_doc, &Document::undoRestoreCompleted, this, [this]() {
+        if (!m_visitingUndoStates)
+            refreshFilterUi();
+    });
     connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeActivated, this, [this](int nodeId, bool withCamera) {
         jumpToUndoNode(nodeId, withCamera);
     });
-    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeUpdateCameraRequested, this, [this](int nodeId) {
-        if (!m_doc || !m_doc->updateUndoNodeCamera(nodeId))
-            return;
-        // Refresh the thumbnail and snapshot for this node with the current frame.
-        RenderWidget *view = currentRenderWidget();
-        if (view) {
-            const QImage frame = view->grabFramebuffer();
-            if (!frame.isNull()) {
-                const int fw = frame.width(), fh = frame.height();
-                int cropW, cropH;
-                if (fw >= fh * 2) { cropH = fh; cropW = fh * 2; }
-                else              { cropW = fw; cropH = fw / 2;   }
-                const int ox = (fw - cropW) / 2, oy = (fh - cropH) / 2;
-                const QSize thumbSize = UndoGraphWidget::thumbnailSize();
-                m_undoNodeThumbnails[nodeId] = QPixmap::fromImage(
-                    frame.copy(ox, oy, cropW, std::max(1, cropH))
-                         .scaled(thumbSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-                m_undoNodeSnapshots[nodeId] = QPixmap::fromImage(
-                    frame.scaled(std::max(1, fw / 2), std::max(1, fh / 2),
-                                 Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-            }
-        }
-        refreshUndoHistoryPanel();
-        statusBar()->showMessage(tr("Camera updated for history state %1").arg(nodeId), 1800);
-    });
+    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::updateCameraRequested, this,
+            &MainWindow::updateUndoNodeCameras);
     connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeMakeRootRequested, this, [this](int nodeId) {
         if (!m_doc)
             return;
@@ -839,8 +832,6 @@ MainWindow::MainWindow(QWidget *parent)
         if (answer != QMessageBox::Yes)
             return;
         m_doc->makeUndoRoot(nodeId);
-        m_undoNodeThumbnails.clear();
-        m_undoNodeSnapshots.clear();
         refreshUndoHistoryPanel();
         statusBar()->showMessage(tr("History root updated"), 2000);
     });
@@ -859,8 +850,6 @@ MainWindow::MainWindow(QWidget *parent)
         if (answer != QMessageBox::Yes)
             return;
         m_doc->purgeUndoBranch(nodeId);
-        m_undoNodeThumbnails.clear();
-        m_undoNodeSnapshots.clear();
         refreshUndoHistoryPanel();
         statusBar()->showMessage(tr("Branch purged"), 2000);
     });
@@ -878,8 +867,6 @@ MainWindow::MainWindow(QWidget *parent)
         if (answer != QMessageBox::Yes)
             return;
         m_doc->linearizeUndoHistory();
-        m_undoNodeThumbnails.clear();
-        m_undoNodeSnapshots.clear();
         refreshUndoHistoryPanel();
         statusBar()->showMessage(tr("History linearized"), 2000);
     });
@@ -1015,14 +1002,38 @@ MainWindow::MainWindow(QWidget *parent)
         Q_UNUSED(lines);
 #endif
     });
-    const auto showUndoHistoryPreview = [this](int nodeId, const QPoint &globalPos) {
+    const auto showUndoHistoryPreview = [this](int nodeId, const QPoint &globalPos,
+                                               const QString &caption) {
         if (!m_undoHistoryPreviewPopup)
             return;
         // Use the 50%-size snapshot for the hover popup; fall back to the thumbnail.
-        const QPixmap src = m_undoNodeSnapshots.contains(nodeId)
-            ? m_undoNodeSnapshots.value(nodeId)
-            : m_undoNodeThumbnails.value(nodeId);
+        const quint64 serial = m_undoSerialByNode.value(nodeId);
+        const QPixmap src = m_undoNodeSnapshots.contains(serial)
+            ? m_undoNodeSnapshots.value(serial)
+            : m_undoNodeThumbnails.value(serial);
         if (src.isNull()) return;
+        // Over the view itself, marked as a preview, unless the preference asks for the popup.
+        if (Preferences::instance().stringValue(QStringLiteral("view.historyPreview"))
+            == QLatin1String("view")) {
+            RenderWidget *view = currentRenderWidget();
+            if (!view)
+                return;
+            m_undoHistoryPreviewPopup->hide();
+            if (m_statePreviewView && m_statePreviewView != view)
+                m_statePreviewView->hideStatePreview();
+            QString label = tr("Initial state");
+            for (const UndoTreeNodeInfo &info : m_doc->undoTreeInfo())
+                if (info.nodeId == nodeId && !info.label.isEmpty())
+                    label = info.label;
+            view->showStatePreview(src, caption.isEmpty() ? label
+                                                          : label + QStringLiteral(" \u00B7 ") + caption);
+            m_statePreviewView = view;
+            return;
+        }
+        if (m_statePreviewView) {
+            m_statePreviewView->hideStatePreview();
+            m_statePreviewView = nullptr;
+        }
         QScreen *screenForPopup = this->screen();
         if (QScreen *cursorScreen = QGuiApplication::screenAt(globalPos))
             screenForPopup = cursorScreen;
@@ -1037,7 +1048,9 @@ MainWindow::MainWindow(QWidget *parent)
             ? src.scaled(maxSize, Qt::KeepAspectRatio, Qt::SmoothTransformation)
             : src;
         if (display.isNull()) return;
-        m_undoHistoryPreviewPopup->setPixmap(display);
+        m_undoHistoryPreviewImage->setPixmap(display);
+        m_undoHistoryPreviewCaption->setText(caption);
+        m_undoHistoryPreviewCaption->setVisible(!caption.isEmpty());
         m_undoHistoryPreviewPopup->adjustSize();
         const QRect historyRect = m_undoHistoryLaneWidget
             ? QRect(m_undoHistoryLaneWidget->mapToGlobal(QPoint(0, 0)), m_undoHistoryLaneWidget->size())
@@ -1072,13 +1085,18 @@ MainWindow::MainWindow(QWidget *parent)
             return;
         showUndoHistoryPreview(
             m_pendingUndoHistoryPreviewNodeId,
-            m_pendingUndoHistoryPreviewGlobalPos);
+            m_pendingUndoHistoryPreviewGlobalPos,
+            m_pendingUndoHistoryPreviewCaption);
     });
-    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeHovered, this, [this, showUndoHistoryPreview](int nodeId, const QPoint &globalPos) {
+    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeHovered, this,
+            [this, showUndoHistoryPreview](int nodeId, const QPoint &globalPos, const QString &caption) {
         m_pendingUndoHistoryPreviewNodeId = nodeId;
         m_pendingUndoHistoryPreviewGlobalPos = globalPos;
-        if (m_undoHistoryPreviewPopup && m_undoHistoryPreviewPopup->isVisible()) {
-            showUndoHistoryPreview(nodeId, globalPos);
+        m_pendingUndoHistoryPreviewCaption = caption;
+        // A preview already up follows the mouse at once, so sweeping across dots scrubs.
+        if ((m_undoHistoryPreviewPopup && m_undoHistoryPreviewPopup->isVisible())
+            || m_statePreviewView) {
+            showUndoHistoryPreview(nodeId, globalPos, caption);
             return;
         }
         if (m_undoHistoryPreviewTimer)
@@ -1089,6 +1107,10 @@ MainWindow::MainWindow(QWidget *parent)
         if (m_undoHistoryPreviewTimer)
             m_undoHistoryPreviewTimer->stop();
         if (m_undoHistoryPreviewPopup) m_undoHistoryPreviewPopup->hide();
+        if (m_statePreviewView) {
+            m_statePreviewView->hideStatePreview();
+            m_statePreviewView = nullptr;
+        }
     });
 
     connect(m_doc, &Document::loadProgressStarted, this, [this](const QString &filePath) {
@@ -3633,6 +3655,70 @@ void MainWindow::jumpToUndoNode(int nodeId, bool withCamera)
     }
 }
 
+void MainWindow::captureUndoNodeImages(int nodeId)
+{
+    RenderWidget *view = currentRenderWidget();
+    const quint64 serial = m_undoSerialByNode.value(nodeId);
+    if (!view || serial == 0)
+        return;
+    const QImage frame = view->grabFramebuffer();
+    if (frame.isNull())
+        return;
+    // The row icon is a 2:1 centre crop; the hover snapshot is the frame at half size.
+    const int fw = frame.width();
+    const int fh = frame.height();
+    int cropW, cropH;
+    if (fw >= fh * 2) { cropH = fh; cropW = fh * 2; }
+    else              { cropW = fw; cropH = fw / 2;   }
+    const QImage cropped = frame.copy((fw - cropW) / 2, (fh - cropH) / 2, cropW, std::max(1, cropH));
+    m_undoNodeThumbnails[serial] = QPixmap::fromImage(cropped.scaled(
+        UndoGraphWidget::thumbnailSize(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+    m_undoNodeSnapshots[serial] = QPixmap::fromImage(frame.scaled(
+        std::max(1, fw / 2), std::max(1, fh / 2), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+}
+
+// Only the live document can be photographed, so every other state is visited in turn -- the
+// camera kept, and the current look put back over the one the state was recorded with -- and
+// the document is then returned to where it was. A visit's own refreshes of the filter UI and
+// of this panel are skipped: the document ends where it started.
+void MainWindow::updateUndoNodeCameras(const QVector<int> &nodeIds)
+{
+    RenderWidget *view = currentRenderWidget();
+    if (!m_doc || !view || nodeIds.isEmpty())
+        return;
+    const int origin = m_doc->undoCurrentNodeId();
+    const ViewState live = view->captureViewState();
+    const bool visiting = std::any_of(nodeIds.cbegin(), nodeIds.cend(),
+                                      [origin](int id) { return id != origin; });
+    if (visiting)
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+    m_visitingUndoStates = true;
+    int updated = 0;
+    for (int id : nodeIds) {
+        if (id != m_doc->undoCurrentNodeId() && !m_doc->jumpToUndoNode(id, false))
+            continue;
+        view->restoreViewState(live, true);
+        if (!m_doc->updateUndoNodeCamera(id))
+            continue;
+        captureUndoNodeImages(id);
+        ++updated;
+    }
+    if (m_doc->undoCurrentNodeId() != origin)
+        m_doc->jumpToUndoNode(origin, false);
+    view->restoreViewState(live, true);
+    m_visitingUndoStates = false;
+    if (visiting)
+        QApplication::restoreOverrideCursor();
+    // Only a failed way back leaves the filter UI describing another state.
+    if (m_doc->undoCurrentNodeId() != origin)
+        refreshFilterUi();
+    refreshUndoHistoryPanel();
+    statusBar()->showMessage(nodeIds.size() == 1
+                                 ? tr("Camera updated for history state %1").arg(nodeIds.front())
+                                 : tr("Camera updated for %1 history states").arg(updated),
+                             1800);
+}
+
 // Varying a recorded action means standing where it was invoked from, not where it landed:
 // we jump to the node's parent and reopen its filter on the same values, so Apply produces
 // a sibling branch rather than stacking on top of the original result.
@@ -3684,61 +3770,46 @@ void MainWindow::refreshUndoHistoryPanel()
     const auto treeInfo = m_doc->undoTreeInfo();
     const int currentNodeId = m_doc->undoCurrentNodeId();
 
-    // Capture thumbnail (2:1 row icon) and hover snapshot (50% of frame) for the
-    // current node if we don't have them yet.
-    if (currentNodeId >= 0 && !m_undoNodeThumbnails.contains(currentNodeId)) {
-        RenderWidget *view = currentRenderWidget();
-        if (view) {
-            const QImage frame = view->grabFramebuffer();
-            if (!frame.isNull()) {
-                // 2:1 thumbnail: centre-crop then scale to 96×48.
-                {
-                    const int fw = frame.width();
-                    const int fh = frame.height();
-                    const QSize thumbSize = UndoGraphWidget::thumbnailSize();
-                    int cropW, cropH;
-                    if (fw >= fh * 2) { cropH = fh; cropW = fh * 2; }
-                    else              { cropW = fw; cropH = fw / 2;   }
-                    const int ox = (fw - cropW) / 2;
-                    const int oy = (fh - cropH) / 2;
-                    const QImage cropped = frame.copy(ox, oy, cropW, std::max(1, cropH));
-                    m_undoNodeThumbnails[currentNodeId] = QPixmap::fromImage(
-                        cropped.scaled(thumbSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-                }
-                // 50%-size snapshot for the hover popup.
-                m_undoNodeSnapshots[currentNodeId] = QPixmap::fromImage(
-                    frame.scaled(std::max(1, frame.width() / 2),
-                                 std::max(1, frame.height() / 2),
-                                 Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-            }
-        }
-    }
+    // The panel names states by node id; the images are kept by serial, which survives the
+    // history being compacted and its states renumbered.
+    m_undoSerialByNode.clear();
+    for (const auto &info : treeInfo)
+        m_undoSerialByNode.insert(info.nodeId, info.serial);
 
-    // Remove thumbnail entries for nodes that no longer exist.
+    // A state gets its images the first time it is current.
+    if (currentNodeId >= 0 && !m_undoNodeThumbnails.contains(m_undoSerialByNode.value(currentNodeId)))
+        captureUndoNodeImages(currentNodeId);
+
+    // Remove the images of states that no longer exist.
     {
-        QSet<int> liveIds;
+        QSet<quint64> live;
         for (const auto &info : treeInfo)
-            liveIds.insert(info.nodeId);
+            live.insert(info.serial);
         for (auto it = m_undoNodeThumbnails.begin(); it != m_undoNodeThumbnails.end(); ) {
-            if (!liveIds.contains(it.key()))
+            if (!live.contains(it.key()))
                 it = m_undoNodeThumbnails.erase(it);
             else
                 ++it;
         }
         for (auto it = m_undoNodeSnapshots.begin(); it != m_undoNodeSnapshots.end(); ) {
-            if (!liveIds.contains(it.key()))
+            if (!live.contains(it.key()))
                 it = m_undoNodeSnapshots.erase(it);
             else
                 ++it;
         }
     }
 
-    // Convert to QVector and hand off to the lane widget.
+    // Convert to QVector and hand off to the lane widget, with the thumbnails by node id.
     QVector<UndoTreeNodeInfo> vec;
     vec.reserve(static_cast<int>(treeInfo.size()));
-    for (const auto &info : treeInfo)
+    QMap<int, QPixmap> thumbnails;
+    for (const auto &info : treeInfo) {
         vec.append(info);
-    m_undoHistoryLaneWidget->setNodes(vec, currentNodeId, m_undoNodeThumbnails);
+        const auto thumb = m_undoNodeThumbnails.constFind(info.serial);
+        if (thumb != m_undoNodeThumbnails.constEnd())
+            thumbnails.insert(info.nodeId, thumb.value());
+    }
+    m_undoHistoryLaneWidget->setNodes(vec, thumbnails);
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)

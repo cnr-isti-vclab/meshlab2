@@ -29,6 +29,7 @@ class InteractiveTool;
 class RenderOverlayPanel;
 class ViewAxisGizmo;
 class QLabel;
+class QPixmap;
 class QListWidget;
 class QTimer;
 
@@ -60,6 +61,10 @@ public:
     // tool is auto-suspended: the mouse drives the camera, but the tool stays
     // owned here and the persistent badge shows it as suspended.
     void setToolOwnerIsCurrent(bool current);
+    // Shows a history state's snapshot over the view, marked as a preview, until
+    // hideStatePreview(); the scene underneath is not touched.
+    void showStatePreview(const QPixmap &snapshot, const QString &label);
+    void hideStatePreview();
     // Schedules a GPU surface pick at the given pixel; the result is delivered
     // asynchronously to the active tool's onSurfacePicked().
     void requestSurfacePick(QPoint pixel);
@@ -610,6 +615,7 @@ struct SceneRasterProjectedDrawItem {
     bool m_toolOwnerIsCurrent = true;
     QLabel *m_toolBadgeLabel = nullptr; // persistent "tool owned here" indicator
     QWidget *m_toolOverlayWidget = nullptr; // transparent screen-space tool drawing
+    QWidget *m_statePreview = nullptr;      // StatePreviewOverlay, made on first use
     // View support is a tool capability: all tools support 3D, while only some
     // explicitly support UV. Raster mode never routes input to tools.
     bool toolAllowedInCurrentMode() const;

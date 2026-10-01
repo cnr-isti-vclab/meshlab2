@@ -14,6 +14,16 @@ QStringList Document::loadedFilterPluginSummaries() const
     return m_filterPluginManager->loadedPluginSummaries();
 }
 
+std::optional<MeshFilterDescriptor> Document::filterDescriptor(const QString &filterKey) const
+{
+    if (!m_filterPluginManager)
+        return std::nullopt;
+    const auto info = m_filterPluginManager->filterInfo(filterKey, *this);
+    if (!info)
+        return std::nullopt;
+    return info->descriptor;
+}
+
 std::vector<Document::FilterInfo> Document::filterInfos() const
 {
     std::vector<FilterInfo> infos;

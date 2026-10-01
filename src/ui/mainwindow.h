@@ -22,6 +22,7 @@ struct MeshFilterRunResult;
 class PythonConsoleWidget;
 class QMenu;
 class QAction;
+class QFrame;
 class QLabel;
 class QProgressBar;
 class QSplitter;
@@ -129,6 +130,10 @@ private:
     void applyFilterVisualizationHints(const MeshFilterRunResult &result);
     void updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
     void refreshUndoHistoryPanel();
+    // The row thumbnail and hover snapshot of a history state, taken from the current view.
+    void captureUndoNodeImages(int nodeId);
+    // Stores the current view into each state and retakes its images.
+    void updateUndoNodeCameras(const QVector<int> &nodeIds);
     void rebuildLogPanel();
     void appendLogItem(const Document::LogEntry &entry, int entryIndex, bool replaceLast);
     void jumpToUndoNode(int nodeId, bool withCamera = true);
@@ -191,12 +196,25 @@ private:
     Document::LogLevel m_logVerbosity = Document::LogLevel::Info;
     LogTimestampMode m_logTimestampMode = LogTimestampMode::Elapsed;
     UndoGraphWidget *m_undoHistoryLaneWidget = nullptr;
-    QLabel *m_undoHistoryPreviewPopup = nullptr;
+    // The hover preview: the state's snapshot, with a caption under it for a state on a
+    // folded row (which try or step it is, and what differs).
+    QFrame *m_undoHistoryPreviewPopup = nullptr;
+    QLabel *m_undoHistoryPreviewImage = nullptr;
+    QLabel *m_undoHistoryPreviewCaption = nullptr;
     QTimer *m_undoHistoryPreviewTimer = nullptr;
     int m_pendingUndoHistoryPreviewNodeId = -1;
     QPoint m_pendingUndoHistoryPreviewGlobalPos;
-    QMap<int, QPixmap> m_undoNodeThumbnails; // keyed by nodeId — 2:1 row icon
-    QMap<int, QPixmap> m_undoNodeSnapshots;  // keyed by nodeId — 50% size hover image
+    QString m_pendingUndoHistoryPreviewCaption;
+    // The view showing a history preview over its scene (view.historyPreview = view), if any.
+    QPointer<RenderWidget> m_statePreviewView;
+    // Set while updateUndoNodeCameras() passes through other states to photograph them, so
+    // each visit does not refresh what the return trip makes valid again.
+    bool m_visitingUndoStates = false;
+    // A history state's images, keyed by its serial (UndoTreeNodeInfo::serial): node ids are
+    // indices into the history and change when it is compacted, serials stay with the state.
+    QMap<quint64, QPixmap> m_undoNodeThumbnails; // 2:1 row icon
+    QMap<quint64, QPixmap> m_undoNodeSnapshots;  // 50% size hover image
+    QMap<int, quint64> m_undoSerialByNode;       // node id -> serial, as of the last refresh
     std::deque<float> m_lastCpuFrameTimes;
     std::deque<float> m_lastGpuFrameTimes;
 };

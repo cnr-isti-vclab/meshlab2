@@ -82,12 +82,30 @@ Application preferences live in `resources/preferences.json`, using the same par
 
 History is a tree, not a flat stack:
 
-- `m_undoNodes` — flat arena of `UndoNode` objects; node id is the vector index
+- `m_undoNodes` — flat arena of `UndoNode` objects; node id is the vector index, so compacting the arena — `makeUndoRoot`, `purgeUndoBranch`, `linearizeUndoHistory`, and the pruning that enforces the undo limit — renumbers the nodes it keeps
 - node `0` — root state before the first recorded action
 - `m_undoCurrentNode` — node id representing the current live state
-- each `UndoNode` — incoming action label, parent id, child ids, display lane, preferred redo child, optional script-action record, and either a full `UndoState` snapshot or compact selection deltas
+- each `UndoNode` — incoming action label, parent id, child ids, preferred redo child, optional script-action record, and either a full `UndoState` snapshot or compact selection deltas
+- `UndoNode::serial` — the node's identity: unique, never reused, taken when the node is made (`nextUndoNodeSerial()`), and kept through compaction, which moves nodes whole. `undoTreeInfo()` reports it beside the id; anything held per state across calls is keyed by it rather than by id
 
-Committing an action appends a child to the current node, preserving alternate timelines instead of truncating siblings. `redo()` follows `preferredChild` when present, otherwise the first child. `jumpToUndoNode(nodeId, restoreCamera)` walks through the lowest common ancestor, suppressing intermediate GUI refresh signals and restoring camera only at the final target when requested. `undoTreeInfo()` exposes nodes, lanes, depths, current-node state, and current-path flags for `UndoGraphWidget`.
+Committing an action appends a child to the current node, preserving alternate timelines instead of truncating siblings. `redo()` follows `preferredChild` when present, otherwise the first child. `jumpToUndoNode(nodeId, restoreCamera)` walks through the lowest common ancestor, suppressing intermediate GUI refresh signals and restoring camera only at the final target when requested. `undoTreeInfo()` exposes nodes, depths, current-node state, and current-path flags; the Action History lays them out itself (below).
+
+### The Action History view
+
+`UndoGraphWidget` draws the tree as rows, newest at top, laid out by `UndoGraphLayout` (`src/ui/undographlayout.h`), which is pure and tested in `tests/test_undographlayout.cpp`. Two kinds of repeat fold into one row, drawn with a strip of dots under the label, one per state:
+
+- **Tries** — siblings made by the same filter: the sweep left by undoing a filter and running it again. Only tries that went nowhere fold. A try that was continued keeps a row for its children to hang from, and when exactly one was, the others fold into its row.
+- **Runs** — a chain of the same action, as an interactive tool leaves it, each step carried on by its oldest child made by that action. A branch does not split the run: the row that leaves it hangs from the step it left, whose dot carries a notch, and takes a column of its own even when it is the run's only branch, so it cannot pass for what came after the last step. Hovering the branch enlarges that dot; hovering the dot lights up the branches and names them in the caption. A run's dots are joined, solid along the path to the current state and dashed, muted, where it does not come from them; tries stand apart.
+
+When siblings of one action hang from a step made by that same action and the oldest of them was continued, that one carries on the run and only the others can fold as tries: undoing two selections and selecting again is a branch off the run, not a sweep. A sweep of leaves on top of the same filter still folds as tries.
+
+"The same action" is the same filter key whatever its parameters, or the same label for anything that is not a filter. When exactly one parameter differs between the states, each dot carries its value and the strip starts with that parameter's name. Hovering a thumbnail or a dot shows the state's snapshot, captioned with the try or step and, up to three, the parameters that differ. Where it shows is the `view.historyPreview` preference: by default over the 3D view itself (`RenderWidget::showStatePreview`), filling it inside a cloudy frame and under a *Preview* label so it cannot pass for the live document, which stays untouched underneath; or in a popup beside the panel. Camera and render states are left out of the comparison: they say where a screen-space tool acted from, not what was chosen. Clicking the count, or the `+N` standing for older states that do not fit, expands a group into a row per state.
+
+*Update camera* stores the current view, camera and look alike, into a state and retakes its row thumbnail and hover snapshot. On a folded row, right-clicked anywhere but on a dot, it does so for every state the row holds. Only the live document can be photographed, so `MainWindow::updateUndoNodeCameras` visits each other state with `jumpToUndoNode(id, false)`, puts the live view back over the look the state was recorded with, grabs the frame, and returns to where it started. A visit's own refreshes of the filter UI and of the panel are skipped, since the document ends where it started. Selection steps are deltas and cost almost nothing to visit; filter steps restore a geometry snapshot each.
+
+The panel's images (the row thumbnail and the hover snapshot) and its expanded rows are kept by node serial, so they follow their states through a renumbering; MainWindow maps the panel's node ids to serials at each refresh.
+
+Columns are assigned on the folded rows by the rule the history has always used: a row's oldest child continues its column, and each later one opens a new column, in creation order. The undo model stores no display lane.
 
 Undo-tree maintenance APIs keep the graph controllable after branching: `makeUndoRoot(nodeId)` promotes a chosen node to the new root and discards unreachable history, `purgeUndoBranch(nodeId)` deletes a descendant branch, and `linearizeUndoHistory()` keeps only the root-to-current path. Byte-aware pruning discards side branches first and then advances through old full checkpoints; delta nodes cannot become roots. These operations preserve the current live state and notify the UI through the normal undo/redo state signal.
 

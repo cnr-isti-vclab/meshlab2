@@ -28,6 +28,8 @@
 #include <QListWidget>
 #include <QFontMetrics>
 #include <QPainter>
+#include <QRadialGradient>
+#include <QLinearGradient>
 #include <QPaintEvent>
 #include <QPixmap>
 #include <QKeyEvent>
@@ -81,6 +83,99 @@ private:
     RenderWidget *m_view = nullptr;
 };
 
+
+// A history state shown over the view while its dot or thumbnail is hovered in the Action
+// History: its snapshot, filling the view, inside a cloudy frame and under a Preview label,
+// so it reads as a glimpse of another state and not as the document. It takes no input and
+// the live scene underneath is untouched; hiding it is all it takes to get the view back.
+class StatePreviewOverlay final : public QWidget
+{
+public:
+    explicit StatePreviewOverlay(QWidget *parent)
+        : QWidget(parent)
+    {
+        setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    }
+
+    void setPreview(const QPixmap &snapshot, const QString &label)
+    {
+        m_snapshot = snapshot;
+        m_label = label;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setRenderHint(QPainter::SmoothPixmapTransform);
+        // Filling the view; what the crop takes off the edges is under the frame anyway.
+        const QSize fitted = m_snapshot.deviceIndependentSize().toSize().scaled(
+            size(), Qt::KeepAspectRatioByExpanding);
+        p.drawPixmap(QRect(QPoint((width() - fitted.width()) / 2, (height() - fitted.height()) / 2),
+                           fitted),
+                     m_snapshot);
+
+        // The frame: milky fog fading inward from every edge, with puffs along it so it reads
+        // as cloud rather than as a vignette. The puffs vary by a fixed pattern, so the frame
+        // stays put as it repaints.
+        const int band = std::max(28, std::min(width(), height()) / 9);
+        const QColor fog(240, 242, 246, 235);
+        const QColor clear(240, 242, 246, 0);
+        const auto fade = [&](const QRect &r, QPointF from, QPointF to) {
+            QLinearGradient g(from, to);
+            g.setColorAt(0.0, fog);
+            g.setColorAt(1.0, clear);
+            p.fillRect(r, g);
+        };
+        fade(QRect(0, 0, width(), band), QPointF(0, 0), QPointF(0, band));
+        fade(QRect(0, height() - band, width(), band), QPointF(0, height()), QPointF(0, height() - band));
+        fade(QRect(0, 0, band, height()), QPointF(0, 0), QPointF(band, 0));
+        fade(QRect(width() - band, 0, band, height()), QPointF(width(), 0), QPointF(width() - band, 0));
+        const auto puff = [&](QPointF centre, qreal radius) {
+            QRadialGradient g(centre, radius);
+            g.setColorAt(0.0, fog);
+            g.setColorAt(1.0, clear);
+            p.setPen(Qt::NoPen);
+            p.setBrush(g);
+            p.drawEllipse(centre, radius, radius);
+        };
+        static constexpr qreal kPuffSizes[] = {1.0, 0.75, 1.2, 0.85, 1.05, 0.7, 1.15, 0.9};
+        const qreal step = band * 1.1;
+        int k = 0;
+        for (qreal x = 0; x <= width(); x += step, ++k) {
+            puff(QPointF(x, 0), band * kPuffSizes[k % 8]);
+            puff(QPointF(x, height()), band * kPuffSizes[(k + 3) % 8]);
+        }
+        for (qreal y = step; y < height(); y += step, ++k) {
+            puff(QPointF(0, y), band * kPuffSizes[k % 8]);
+            puff(QPointF(width(), y), band * kPuffSizes[(k + 5) % 8]);
+        }
+
+        // And a label that says what this is, over the top of the frame.
+        QFont font = p.font();
+        font.setBold(true);
+        p.setFont(font);
+        const QFontMetrics fm(font);
+        const QString text = m_label.isEmpty() ? QObject::tr("Preview")
+                                               : QObject::tr("Preview \u00B7 %1").arg(m_label);
+        // Rounded up from the fractional advance, which is what eliding measures against.
+        const int textW = std::min(int(std::ceil(QFontMetricsF(font).horizontalAdvance(text))),
+                                   std::max(0, width() - 2 * band));
+        const QRect pill(QPoint((width() - textW) / 2 - 12, band / 3),
+                         QSize(textW + 24, fm.height() + 10));
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor(28, 30, 36, 220));
+        p.drawRoundedRect(pill, pill.height() / 2.0, pill.height() / 2.0);
+        p.setPen(QColor(246, 246, 250));
+        p.drawText(pill, Qt::AlignCenter, fm.elidedText(text, Qt::ElideRight, textW));
+    }
+
+private:
+    QPixmap m_snapshot;
+    QString m_label;
+};
 
 bool fuzzyVec3Equal(const QVector3D &a, const QVector3D &b, float eps = 1e-6f)
 {
@@ -3638,6 +3733,23 @@ void RenderWidget::wheelEvent(QWheelEvent *e)
     }
 }
 
+void RenderWidget::showStatePreview(const QPixmap &snapshot, const QString &label)
+{
+    if (!m_statePreview)
+        m_statePreview = new StatePreviewOverlay(this);
+    auto *overlay = static_cast<StatePreviewOverlay *>(m_statePreview);
+    overlay->setGeometry(rect());
+    overlay->setPreview(snapshot, label);
+    overlay->show();
+    overlay->raise();
+}
+
+void RenderWidget::hideStatePreview()
+{
+    if (m_statePreview)
+        m_statePreview->hide();
+}
+
 void RenderWidget::resizeEvent(QResizeEvent *e)
 {
     QRhiWidget::resizeEvent(e);
@@ -3645,6 +3757,8 @@ void RenderWidget::resizeEvent(QResizeEvent *e)
         m_currentViewIndicator->setGeometry(rect().adjusted(1, 1, -1, -1));
     if (m_toolOverlayWidget)
         m_toolOverlayWidget->setGeometry(rect());
+    if (m_statePreview)
+        m_statePreview->setGeometry(rect());
     updateQualityHistogramOverlay();
     layoutOverlayButtons();
 }

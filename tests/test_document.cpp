@@ -80,6 +80,7 @@ private slots:
     void rasterCameraUndoRedoRestoresShot();
     void undoRedoRestoresMeshList();
     void undoTreeBranchingPreservesAlternateFuture();
+    void undoSerialsSurviveRenumbering();
     void memoryStatsCountCustomAttributes();
     void polylineLayerWalksItsEdgeGraph();
     void memoryStatsDeduplicateImagesAndTrackUndoOwnership();
@@ -1543,6 +1544,44 @@ void DocumentTests::undoTreeBranchingPreservesAlternateFuture()
     QVERIFY(doc.jumpToUndoNode(nodeBId));
     QCOMPARE(doc.meshCount(), 2);
     QVERIFY(doc.undoCurrentNodeId() == nodeBId);
+}
+
+// Node ids are indices into the history, and pruning to the undo limit compacts it, so the
+// states that are left are renumbered. Their serials must come through unchanged and still
+// name the same states: the Action History keeps each state's thumbnail under its serial.
+void DocumentTests::undoSerialsSurviveRenumbering()
+{
+    Document doc;
+    QCOMPARE(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/data/simple.off")), 0);
+
+    // Each rename is a step, and the mesh's name tells its state apart from the others.
+    QHash<quint64, QString> nameBySerial;
+    QHash<quint64, int> idBySerial;
+    for (int k = 0; k < 8; ++k) {
+        const QString name = QStringLiteral("state %1").arg(k);
+        doc.setMeshName(0, name);
+        for (const UndoTreeNodeInfo &info : doc.undoTreeInfo()) {
+            if (info.isCurrent) {
+                nameBySerial.insert(info.serial, name);
+                idBySerial.insert(info.serial, info.nodeId);
+            }
+        }
+    }
+    QCOMPARE(nameBySerial.size(), 8);
+
+    doc.setUndoLimit(3);
+    bool renumbered = false;
+    int checked = 0;
+    for (const UndoTreeNodeInfo &info : doc.undoTreeInfo()) {
+        if (!nameBySerial.contains(info.serial))
+            continue;
+        renumbered = renumbered || info.nodeId != idBySerial.value(info.serial);
+        QVERIFY(doc.jumpToUndoNode(info.nodeId, false));
+        QCOMPARE(doc.mesh(0).name, nameBySerial.value(info.serial));
+        ++checked;
+    }
+    QVERIFY2(renumbered, "pruning was expected to renumber the states it kept");
+    QVERIFY(checked >= 3);
 }
 
 void DocumentTests::memoryStatsCountCustomAttributes()

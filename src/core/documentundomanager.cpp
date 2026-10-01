@@ -10,7 +10,14 @@
 #include <QVector>
 
 #include <algorithm>
+#include <atomic>
 #include <set>
+
+std::uint64_t nextUndoNodeSerial()
+{
+    static std::atomic<std::uint64_t> next{1};
+    return next.fetch_add(1, std::memory_order_relaxed);
+}
 
 using namespace DocumentInternal;
 
@@ -283,11 +290,11 @@ std::vector<UndoTreeNodeInfo> DocumentUndoManager::undoTreeInfo() const
         const auto &node = m_undoNodes[static_cast<size_t>(id)];
         UndoTreeNodeInfo info;
         info.nodeId = id;
+        info.serial = node.serial;
         info.parentId = node.parentId;
         info.depth = depth;
         info.isCurrent = (id == m_undoCurrentNode);
         info.isOnCurrentPath = onPath.count(id) > 0;
-        info.lane = node.lane;
         info.label = node.label;
         if (node.actionRecord.has_value()
             && node.actionRecord->kind == QStringLiteral("filter")) {
@@ -685,10 +692,6 @@ bool DocumentUndoManager::linearizeHistory()
     }
     compacted[0].parentId = -1; // root has no parent
 
-    // After linearization there is only one chain, so all nodes belong to lane 0.
-    for (UndoNode &n : compacted)
-        n.lane = 0;
-
     m_undoNodes = std::move(compacted);
     m_undoCurrentNode = remap[m_undoCurrentNode];
     emitStateChanged();
@@ -896,20 +899,6 @@ void DocumentUndoManager::pushStep(const QString &label, UndoState &&before, Und
     if (scriptAction.has_value())
         child.actionRecord = UndoActionRecord::fromScriptAction(*scriptAction);
 
-    // Lane: inherit parent's lane if this is the first child; otherwise open a
-    // new lane (max lane currently in tree + 1).
-    {
-        const auto &parentNode = m_undoNodes[static_cast<size_t>(m_undoCurrentNode)];
-        if (parentNode.children.empty()) {
-            child.lane = parentNode.lane;
-        } else {
-            int maxLane = 0;
-            for (const auto &n : m_undoNodes)
-                maxLane = std::max(maxLane, n.lane);
-            child.lane = maxLane + 1;
-        }
-    }
-
     m_undoNodes.push_back(std::move(child));
 
     // Link parent → new child and make it the preferred redo target.
@@ -923,7 +912,6 @@ void DocumentUndoManager::pushStep(const QString &label, UndoState &&before, Und
         const auto &n = m_undoNodes[static_cast<size_t>(newId)];
         qDebug() << "[STATE SAVED]" << QDateTime::currentDateTime().toString(Qt::ISODateWithMs)
                  << "idx=" << newId
-                 << "lane=" << n.lane
                  << "parent=" << n.parentId
                  << "label=" << n.label;
     }
@@ -963,18 +951,6 @@ void DocumentUndoManager::pushDeltaStep(
     if (scriptAction.has_value())
         child.actionRecord = UndoActionRecord::fromScriptAction(*scriptAction);
 
-    {
-        const auto &parentNode = m_undoNodes[static_cast<size_t>(m_undoCurrentNode)];
-        if (parentNode.children.empty()) {
-            child.lane = parentNode.lane;
-        } else {
-            int maxLane = 0;
-            for (const auto &n : m_undoNodes)
-                maxLane = std::max(maxLane, n.lane);
-            child.lane = maxLane + 1;
-        }
-    }
-
     m_undoNodes.push_back(std::move(child));
     auto &parent = m_undoNodes[static_cast<size_t>(m_undoCurrentNode)];
     parent.children.push_back(newId);
@@ -985,7 +961,6 @@ void DocumentUndoManager::pushDeltaStep(
         const auto &n = m_undoNodes[static_cast<size_t>(newId)];
         qDebug() << "[STATE SAVED]" << QDateTime::currentDateTime().toString(Qt::ISODateWithMs)
                  << "idx=" << newId
-                 << "lane=" << n.lane
                  << "parent=" << n.parentId
                  << "label=" << n.label
                  << "(selection delta)";

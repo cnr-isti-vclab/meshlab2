@@ -1,26 +1,36 @@
 #pragma once
 
 #include "document.h"
+#include "undographlayout.h"
 #include <QAbstractScrollArea>
 #include <QMap>
 #include <QPixmap>
+#include <QSet>
 #include <QVector>
 
 // UndoGraphWidget renders the undo history as a git-style lane graph.
 //
-// Layout:
-//   - Each row = one node in the undo tree (newest at top, oldest at bottom).
-//   - Each lane (column) carries one branch.  The main/current branch is always
-//     in lane 0 (leftmost).  When a branch point is first encountered a new lane
-//     is assigned and retained until the branch merges back (i.e. hits a node
-//     that is shared with another lane).
-//   - A filled circle is drawn on the node's lane.  A dot indicates current.
-//   - Vertical lines connect parent↔child within the same lane.
-//   - Diagonal lines connect a branch tip back to the row where the parent sits.
+// Layout (UndoGraphLayout decides it; this widget paints it):
+//   - Each row = one state of the undo tree, newest at top, oldest at bottom, except that
+//     repeats fold: tries of one filter from the same state, and runs of one action, share a
+//     row, drawn with a strip of dots under the label, one per state. Tries stand apart;
+//     a run's dots are joined, since its states follow one another -- dashed, and muted,
+//     where the current state does not come from them. When exactly one parameter tells the
+//     states apart, each dot is labelled with its value.
+//   - A row that left a run from an earlier step hangs from that step: its dot carries a
+//     notch, the row takes a column of its own, and hovering either points at the other.
+//   - Each lane (column) carries one branch: a row's oldest child continues its column and
+//     later ones open new columns, in the order they were made.
+//   - A filled circle is drawn on the row's lane; a ring marks the current state.
+//   - Vertical lines connect parent↔child within the same lane; a branch runs down its own
+//     lane and curves into its parent's row.
 //
 // Interaction:
-//   - Double-click a row → jumpToNode(nodeId)
-//   - Hover → show thumbnail popup (via signal)
+//   - Double-click a row or a dot → jumpToNode(nodeId)
+//   - Hover a thumbnail or a dot → large snapshot popup (via signal), with a caption saying
+//     which try or step it is and what differs
+//   - Click a folded row's count, or its "+N", to expand it into a row per state; click the
+//     count again to fold it back
 
 class UndoGraphWidget : public QAbstractScrollArea
 {
@@ -29,17 +39,19 @@ public:
     explicit UndoGraphWidget(QWidget *parent = nullptr);
     static QSize thumbnailSize() { return QSize(kThumbW, kThumbH); }
 
-    void setNodes(const QVector<UndoTreeNodeInfo> &nodes,
-                  int currentNodeId,
-                  const QMap<int, QPixmap> &thumbnails);
+    // Where the parameters of each state are read from, to label folded rows.
+    void setDocument(const Document *doc) { m_doc = doc; }
+
+    void setNodes(const QVector<UndoTreeNodeInfo> &nodes, const QMap<int, QPixmap> &thumbnails);
 
 signals:
     // Emitted when the user requests to jump to a node.
     // withCamera=true  → restore data AND camera (Ctrl/Cmd+double-click or context menu)
     // withCamera=false → restore data only (plain double-click or context menu)
     void nodeActivated(int nodeId, bool withCamera);
-    // Emitted when the user requests to store the current view camera into a node.
-    void nodeUpdateCameraRequested(int nodeId);
+    // Emitted when the user requests to store the current view into states and retake their
+    // thumbnails: the one right-clicked, or every state of a folded row.
+    void updateCameraRequested(const QVector<int> &nodeIds);
     // Emitted when the user requests to make a node the new history root.
     void nodeMakeRootRequested(int nodeId);
     // Emitted when the user requests to delete all descendants of a node.
@@ -50,11 +62,15 @@ signals:
     // Emitted when the user requests to keep only the path root→current, removing all branches.
     void linearizeHistoryRequested();
     void generatePythonScriptRequested();
-    void nodeHovered(int nodeId, const QPoint &globalPos); // emitted only when hovering a thumbnail
+    // Emitted while hovering a thumbnail or a dot. `caption` is empty for a state with a
+    // row of its own; for one on a folded row it says which try or step it is, and what
+    // differs from the others.
+    void nodeHovered(int nodeId, const QPoint &globalPos, const QString &caption);
     void nodeUnhovered();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent *event) override;
@@ -63,18 +79,19 @@ protected:
     QSize sizeHint() const override;
 
 private:
-    struct Row {
-        int nodeId    = -1;
-        int parentId  = -1;
-        int lane      = 0;  // which column this node occupies
-        bool isCurrent        = false;
-        bool isOnCurrentPath  = false;
-        QString label;
-        QString filterKey; // non-empty when a filter produced this node
-
-        // For each active lane at this row: which lane carries a continuous line
-        // from the row above to the row below.  Used to draw pass-through verticals.
-        QVector<int> activeParentLanes; // lanes still open below this row
+    // Where a folded row's strip puts things, shared by painting and hit-testing.
+    struct StripItem {
+        int nodeId = -1;
+        QPoint dot;
+        QRect text; // the value label, empty without one
+        QRect hit;
+    };
+    struct Strip {
+        QRect name;     // the varied parameter's label
+        QRect overflow; // "+N" for the older states that do not fit
+        int hidden = 0;
+        QVector<StripItem> items;
+        QRect toggle;   // the count and chevron
     };
 
     void rebuildRows();
@@ -83,15 +100,27 @@ private:
     QRect thumbnailRect(int row) const;
     int  laneX(int lane) const;
     void updateScrollBars();
+    QFont stripFont() const;
+    QString toggleText(const UndoGraphLayout::Row &row) const;
+    Strip stripLayout(int row) const;
+    void paintStrip(QPainter &p, int row) const;
+    // The state a dot at pos on `row` stands for, or -1 when pos is on no dot.
+    int stripNodeAt(int row, const QPoint &pos) const;
+    // The state a click or hover at pos on `row` means: a dot's, else the row's own.
+    int nodeAt(int row, const QPoint &pos) const;
+    bool onStripToggle(int row, const QPoint &pos) const;
+    void toggleGroup(int row);
+    QString caption(int row, int nodeId) const;
 
     // ---- data ----
-    QVector<UndoTreeNodeInfo> m_nodes; // original tree info (DFS pre-order)
-    int                                 m_currentNodeId = -1;
+    const Document                     *m_doc = nullptr;
+    QVector<UndoTreeNodeInfo>           m_nodes; // original tree info (DFS pre-order)
     QMap<int, QPixmap>                  m_thumbnails;
+    QSet<quint64>                       m_expandedGroups; // by UndoGraphLayout::Row::groupKey
 
     // ---- layout ----
-    QVector<Row>  m_rows;     // one per visible row, row 0 = newest (top)
-    int           m_laneCount = 1;
+    UndoGraphLayout::Layout                   m_layout;      // row 0 = newest (top)
+    QVector<UndoGraphLayout::Differences>     m_differences; // per row; empty for plain rows
 
     // ---- geometry constants ----
     static constexpr int kThumbW      = 80;  // thumbnail width  (2:1 aspect ratio)
@@ -100,7 +129,18 @@ private:
     static constexpr int kLaneWidth   = 20;
     static constexpr int kDotRadius   = 6;
     static constexpr int kTextLeft    = 8;   // gap between graph area and text
+    // A row with a strip puts its label in the top line and the strip below it.
+    static constexpr int kLabelLineH      = 22;
+    static constexpr int kStripY          = 30; // strip centre, from the row's top
+    static constexpr int kStripDotRadius  = 4;
+    static constexpr int kStripDotTextGap = 3;
+    static constexpr int kStripSpacing    = 8;
+    static constexpr int kStripGap        = 6;
+    static constexpr int kStripValueMaxW  = 64;
+    // The mark on a step a branch left from: a tick above its dot, short enough to clear the
+    // descenders of the label above.
+    static constexpr int kNotchLength     = 3;
 
     int m_hoveredRow = -1;
-    int m_hoveredThumbnailRow = -1;
+    int m_hoveredMember = -1; // the state whose dot is under the mouse
 };

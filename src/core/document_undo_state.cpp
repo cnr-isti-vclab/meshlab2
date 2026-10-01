@@ -90,7 +90,6 @@ void Document::restoreUndoState(const UndoState &state)
         for (int i = 0; i < static_cast<int>(m_undoManager->nodes().size()); ++i) {
             const auto &n = m_undoManager->nodes()[static_cast<size_t>(i)];
             qDebug() << "  node" << i
-                     << "lane=" << n.lane
                      << "parent=" << n.parentId
                      << "prefChild=" << n.preferredChild
                      << "children=" << QVector<int>(n.children.begin(), n.children.end())

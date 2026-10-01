@@ -305,6 +305,7 @@ qt_add_executable(MeshLab2
     src/render/tools/measuretool.h src/render/tools/measuretool.cpp
     src/render/tools/transformtool.h src/render/tools/transformtool.cpp
     src/ui/layerwidget.h src/ui/layerwidget.cpp
+    src/ui/undographlayout.h src/ui/undographlayout.cpp
     src/ui/undographwidget.h src/ui/undographwidget.cpp
 )
 
@@ -703,6 +704,25 @@ target_link_libraries(MeshLab2PreferencesTests PRIVATE
 )
 
 add_test(NAME MeshLab2PreferencesTests COMMAND MeshLab2PreferencesTests)
+
+# The Action History's layout is pure, so it is compiled straight into its test, which
+# needs only Core (for the undo types and parameter comparison).
+qt_add_executable(MeshLab2UndoGraphLayoutTests
+    tests/test_undographlayout.cpp
+    src/ui/undographlayout.h src/ui/undographlayout.cpp
+)
+
+target_include_directories(MeshLab2UndoGraphLayoutTests PRIVATE
+    ${MESHLAB2_SOURCE_DIR}
+    ${MESHLAB2_SOURCE_DIR}/src/ui
+)
+
+target_link_libraries(MeshLab2UndoGraphLayoutTests PRIVATE
+    MeshLab2Core
+    Qt6::Test
+)
+
+add_test(NAME MeshLab2UndoGraphLayoutTests COMMAND MeshLab2UndoGraphLayoutTests)
 
 qt_add_executable(MeshLab2ViewLayoutTests
     tests/test_viewsplitterlayout.cpp

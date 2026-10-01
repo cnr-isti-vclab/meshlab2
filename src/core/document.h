@@ -381,6 +381,9 @@ public:
     std::vector<ImportPluginInfo> importPluginInfos() const;
     std::vector<ExportPluginInfo> exportPluginInfos() const;
     std::vector<FilterInfo> filterInfos() const;
+    // One filter's descriptor, without the applicability pass filterInfos() makes over every
+    // filter. Empty when no loaded plugin declares the key.
+    std::optional<MeshFilterDescriptor> filterDescriptor(const QString &filterKey) const;
     bool validateFilterInvocation(
         const QString &filterKey,
         const MeshFilterParameterValues &parameters,
