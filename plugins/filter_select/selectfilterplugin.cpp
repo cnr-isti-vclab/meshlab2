@@ -229,14 +229,24 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         if (doFaces && mesh.FN() <= 0)
             return fail(QObject::tr("Current mesh has no faces."));
 
-        // "Connected components": grow what the rectangle touched to the whole component
-        // it belongs to. The growth has to start from the raw hits rather than from the
-        // finished selection -- with Ctrl (subtract) the whole component under the
-        // rectangle must come out, and growing the *remainder* would do very nearly the
-        // opposite. So while expanding, the pass below marks hits only and the composition
-        // mode is applied afterwards, against a snapshot taken here.
-        const bool expandComponents =
-            params.getBool(QStringLiteral("expand_to_components")) && mesh.FN() > 0;
+        // "Expand to": grow what the rectangle touched to the whole connected component, or
+        // the whole UV island, it belongs to. The growth has to start from the raw hits
+        // rather than from the finished selection -- with Ctrl (subtract) the whole piece
+        // under the rectangle must come out, and growing the *remainder* would do very
+        // nearly the opposite. So while expanding, the pass below marks hits only and the
+        // composition mode is applied afterwards, against a snapshot taken here.
+        const QString expandTo = params.getEnum(QStringLiteral("expand_to"));
+        const bool expandComponents = expandTo != QStringLiteral("none") && mesh.FN() > 0;
+        const bool uvIslands = expandTo == QStringLiteral("uv_islands");
+        // The same test the UV reader makes (vcgFaceCornerUV): the mask says the UVs were
+        // loaded, the enabled flag that the storage still exists.
+        const bool wedgeUV = (entry.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD)
+            && mesh.face.IsWedgeTexCoordEnabled();
+        const bool vertexUV = (entry.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD)
+            && mesh.vert.IsTexCoordEnabled();
+        if (expandComponents && uvIslands && !wedgeUV && !vertexUV)
+            return fail(QObject::tr("Expanding to UV islands needs UVs, and '%1' has none.")
+                            .arg(entry.name));
         std::vector<bool> selectionBefore;
         if (expandComponents) {
             const std::size_t n = doFaces ? std::size_t(mesh.face.size())
@@ -365,7 +375,14 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                 // FF adjacency is built here rather than declared in inputPrepare: every
                 // drag would otherwise pay for it, and the ordinary case has no use for it.
                 VCGMeshFFAdjScope _ffAdj(mesh);
-                vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+                // A UV island is also bounded by the seams. Per-wedge UVs carry them, and
+                // FaceFaceFromTexCoord cuts the adjacency wherever the two sides of an edge
+                // disagree. Per-vertex UVs cannot hold a seam without splitting its
+                // vertices, which already cuts the plain adjacency there.
+                if (uvIslands && wedgeUV)
+                    vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(mesh);
+                else
+                    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
                 // vcglib only grows components face-wise, so a vertex rectangle goes out
                 // through the faces it touched and comes back over all of theirs.
                 if (!doFaces)
@@ -411,8 +428,11 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                 .arg(nThreads)
         };
         if (expandComponents)
-            messages << QObject::tr("Expanded to whole connected components (%1 faces in the "
-                                    "components the rectangle touched).")
+            messages << (uvIslands
+                             ? QObject::tr("Expanded to whole UV islands (%1 faces in the "
+                                           "islands the rectangle touched).")
+                             : QObject::tr("Expanded to whole connected components (%1 faces "
+                                           "in the components the rectangle touched)."))
                             .arg(grownComponentFaces);
         if (occluder)
             messages << QObject::tr("Visibility test via %1.")

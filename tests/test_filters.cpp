@@ -528,7 +528,7 @@ private slots:
     void preparationSurvivesAFilterRemovingItsLayer();
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
-    void rubberBandExpandsToConnectedComponents();
+    void rubberBandExpandsToComponentsAndUvIslands();
     void islandMergeCanTakeItsIslandsFromTheSelection();
     void islandMergeSurvivesATextureItCannotDecode();
     void hardcodedFilterKeysInTheUiStillResolve();
@@ -8087,15 +8087,6 @@ void FilterTests::islandMergeCanTakeItsIslandsFromTheSelection()
     }
 }
 
-// The rubber-band tool's C modifier sets expand_to_components: grazing one triangle takes
-// the whole piece. Driven here in UV space, where the projection is fully determined by
-// pan/zoom/aspect, so which faces the rectangle hits is exact rather than inferred from a
-// camera. Three triangles form one component, a fourth stands alone, and the rectangle is
-// aimed at a single triangle of the first.
-// The stage-1 edge pipeline end to end: select some edges, colour by an expression
-// that reads both endpoints and a derived quantity, then write a scalar and ramp it
-// into colour. Built on a polyline whose edges have deliberately different lengths,
-// because every interesting edge expression is a function of length or direction.
 // The isocontour filter puts every level into one layer, so without a per-edge value
 // the levels are indistinguishable. Each edge must carry the value of the contour it
 // belongs to, and the distinct values must be exactly the levels that were asked for.
@@ -8164,6 +8155,10 @@ void FilterTests::isocontourEdgesCarryTheirContourValue()
     }
 }
 
+// The stage-1 edge pipeline end to end: select some edges, colour by an expression
+// that reads both endpoints and a derived quantity, then write a scalar and ramp it
+// into colour. Built on a polyline whose edges have deliberately different lengths,
+// because every interesting edge expression is a function of length or direction.
 void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()
 {
     Document doc;
@@ -8454,7 +8449,13 @@ void FilterTests::stateJsonAcceptsBothNameSpellings()
     QVERIFY(runWithKind(QStringLiteral("Something.Else")).contains(QStringLiteral("invalid kind")));
 }
 
-void FilterTests::rubberBandExpandsToConnectedComponents()
+// The rubber-band tool's C and T modifiers set expand_to: grazing one triangle takes the
+// whole connected component, or the whole UV island. Driven here in UV space, where the
+// projection is fully determined by pan/zoom/aspect, so which faces the rectangle hits is
+// exact rather than inferred from a camera. Three triangles form one component and a
+// fourth stands alone; a UV seam splits the component into an island of two triangles and
+// one of a single triangle, and the rectangle is aimed at one triangle of the two.
+void FilterTests::rubberBandExpandsToComponentsAndUvIslands()
 {
     VCGMesh mesh;
     auto *vi = &*vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 8);
@@ -8481,8 +8482,6 @@ void FilterTests::rubberBandExpandsToConnectedComponents()
 
     // UVs go on the document's own copy: enabling an OCF component on a local mesh does not
     // survive being copied into the layer.
-    // One value per face -- the face rule uses the centroid of the three wedges, and with
-    // pan 0, zoom 1 and aspect 1 a u of x lands at (x + 1) / 2 across the screen.
     VCGMesh &layerMesh = doc.mesh(layer).mesh;
     layerMesh.face.EnableWedgeTexCoord();
     QVERIFY(layerMesh.face.IsWedgeTexCoordEnabled());
@@ -8492,18 +8491,23 @@ void FilterTests::rubberBandExpandsToConnectedComponents()
     // Writing UVs behind the document's back leaves the undo system's interned copy stale,
     // and the next filter run would be handed that UV-less copy.
     doc.markMeshGeometryChanged(layer, QStringLiteral("test UVs"));
-    const float faceU[4] = {0.0f, 0.3f, 0.6f, 0.9f};
+    // Each corner's UV is 0.2 times its position plus an offset per face. Faces 0 and 1
+    // share theirs, so their common edge has the same UVs on both sides and they make one
+    // island; face 2's differs, so its edge with face 1 is a seam. The face rule uses the
+    // centroid of the three wedges, and with pan 0, zoom 1 and aspect 1 a u of x lands at
+    // (x + 1) / 2 across the screen.
+    const float offsetU[4] = {0.0f, 0.0f, 0.5f, -1.2f};
+    const float offsetV[4] = {0.0f, 0.0f, 0.0f, -1.2f};
     for (int f = 0; f < 4; ++f)
         for (int c = 0; c < 3; ++c) {
-            layerMesh.face[std::size_t(f)].WT(c).U() = faceU[f];
-            layerMesh.face[std::size_t(f)].WT(c).V() = 0.0f;
+            VCGFace &face = layerMesh.face[std::size_t(f)];
+            face.WT(c).U() = 0.2f * face.V(c)->P().X() + offsetU[f];
+            face.WT(c).V() = 0.2f * face.V(c)->P().Y() + offsetV[f];
         }
     const QString key = filterKeyForId(doc, QStringLiteral("select_by_screen_rectangle"));
     QVERIFY(!key.isEmpty());
 
-    // Returns the selected face indices. QVERIFY expands to `return;`, so a failed run is
-    // reported and comes back empty for the comparison to catch.
-    const auto drag = [&](const QString &mode, bool expand) -> QList<int> {
+    const auto paramsFor = [](const QString &mode, const QString &expandTo) {
         MeshFilterParameterValues params;
         params.insert(QStringLiteral("space"), QStringLiteral("uv"));
         // Unused in UV space, but the parameter is typed and has no default, so it has to
@@ -8514,7 +8518,7 @@ void FilterTests::rubberBandExpandsToConnectedComponents()
         params.insert(QStringLiteral("uv_pan_x"), 0.0);
         params.insert(QStringLiteral("uv_pan_y"), 0.0);
         params.insert(QStringLiteral("uv_zoom"), 1.0);
-        // Around screen (0.5, 0.5), which is u = 0: face 0 only.
+        // Around screen (0.5, 0.5), which is UV (0, 0): face 0's centroid only.
         params.insert(QStringLiteral("rect_min_x"), 0.45);
         params.insert(QStringLiteral("rect_max_x"), 0.55);
         params.insert(QStringLiteral("rect_min_y"), 0.45);
@@ -8522,34 +8526,77 @@ void FilterTests::rubberBandExpandsToConnectedComponents()
         params.insert(QStringLiteral("element"), QStringLiteral("face"));
         params.insert(QStringLiteral("mode"), mode);
         params.insert(QStringLiteral("visible_only"), false);
-        params.insert(QStringLiteral("expand_to_components"), expand);
-        const MeshFilterRunResult r = doc.runFilter(key, params);
-        if (!r.success) {
-            qWarning("rectangle select failed: %s", qPrintable(r.errorMessage));
-            return {};
-        }
+        params.insert(QStringLiteral("expand_to"), expandTo);
+        return params;
+    };
+    const auto selectedFaces = [&]() {
         QList<int> selected;
-        const VCGMesh &m = doc.mesh(0).mesh;
+        const VCGMesh &m = doc.mesh(layer).mesh;
         for (int f = 0; f < m.FN(); ++f)
             if (m.face[std::size_t(f)].IsS())
                 selected << f;
         return selected;
     };
+    // Returns the selected face indices. QVERIFY expands to `return;`, so a failed run is
+    // reported and comes back empty for the comparison to catch.
+    const auto drag = [&](const QString &mode, const QString &expandTo) -> QList<int> {
+        const MeshFilterRunResult r = doc.runFilter(key, paramsFor(mode, expandTo));
+        if (!r.success) {
+            qWarning("rectangle select failed: %s", qPrintable(r.errorMessage));
+            return {};
+        }
+        return selectedFaces();
+    };
+    const QString none = QStringLiteral("none");
+    const QString components = QStringLiteral("connected_components");
+    const QString islands = QStringLiteral("uv_islands");
 
     // Without expansion the rectangle takes what it covers, and nothing else.
-    QCOMPARE(drag(QStringLiteral("replace"), false), QList<int>({0}));
+    QCOMPARE(drag(QStringLiteral("replace"), none), QList<int>({0}));
     // With it, the whole component the rectangle grazed -- and none of the loner.
-    QCOMPARE(drag(QStringLiteral("replace"), true), QList<int>({0, 1, 2}));
+    QCOMPARE(drag(QStringLiteral("replace"), components), QList<int>({0, 1, 2}));
+    // The island stops at the seam, so face 2 stays out although it is in the component.
+    QCOMPARE(drag(QStringLiteral("replace"), islands), QList<int>({0, 1}));
 
-    // Subtract is the case worth pinning: the component under the rectangle has to come
-    // out, not the remainder be grown. Start from everything selected.
+    // Subtract is the case worth pinning: the piece under the rectangle has to come out,
+    // not the remainder be grown. Start from everything selected.
     const QString allKey = filterKeyForId(doc, QStringLiteral("select_all"));
     QVERIFY(doc.runFilter(allKey, {}).success);
-    QCOMPARE(drag(QStringLiteral("subtract"), true), QList<int>({3}));
+    QCOMPARE(drag(QStringLiteral("subtract"), components), QList<int>({3}));
+    QVERIFY(doc.runFilter(allKey, {}).success);
+    QCOMPARE(drag(QStringLiteral("subtract"), islands), QList<int>({2, 3}));
     // And subtract without expansion still removes only what the rectangle covered, which
     // is the path the modifier reorganised.
     QVERIFY(doc.runFilter(allKey, {}).success);
-    QCOMPARE(drag(QStringLiteral("subtract"), false), QList<int>({1, 2, 3}));
+    QCOMPARE(drag(QStringLiteral("subtract"), none), QList<int>({1, 2, 3}));
+
+    // Per-vertex UVs cannot hold a seam without splitting the vertex, and these faces share
+    // theirs, so the three make one island. What this pins is that the path never reaches
+    // for the wedges: FaceFaceFromTexCoord demands them, and throws on a mesh without.
+    using Mask = vcg::tri::io::Mask;
+    VCGMesh &vertexUvMesh = doc.mesh(layer).mesh;
+    vertexUvMesh.face.DisableWedgeTexCoord();
+    vertexUvMesh.vert.EnableTexCoord();
+    doc.mesh(layer).ioMask = (doc.mesh(layer).ioMask & ~Mask::IOM_WEDGTEXCOORD)
+        | Mask::IOM_VERTTEXCOORD;
+    doc.markMeshGeometryChanged(layer, QStringLiteral("test vertex UVs"));
+    for (VCGVertex &v : vertexUvMesh.vert) {
+        v.T().U() = 0.2f * v.P().X();
+        v.T().V() = 0.2f * v.P().Y();
+    }
+    QCOMPARE(drag(QStringLiteral("replace"), islands), QList<int>({0, 1, 2}));
+
+    // With no UVs there are no islands, and the filter says so rather than quietly growing
+    // to components -- before it has touched the selection.
+    vertexUvMesh.vert.DisableTexCoord();
+    doc.mesh(layer).ioMask &= ~Mask::IOM_VERTTEXCOORD;
+    doc.markMeshGeometryChanged(layer, QStringLiteral("test no UVs"));
+    const MeshFilterRunResult refused =
+        doc.runFilter(key, paramsFor(QStringLiteral("replace"), islands));
+    QVERIFY(!refused.success);
+    QVERIFY2(refused.errorMessage.contains(QStringLiteral("UV islands")),
+             qPrintable(refused.errorMessage));
+    QCOMPARE(selectedFaces(), QList<int>({0, 1, 2}));
 }
 
 // The transform tool hands its gesture over as a raw matrix and relies on the filter

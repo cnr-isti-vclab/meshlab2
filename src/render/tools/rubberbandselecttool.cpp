@@ -26,7 +26,7 @@ QString RubberBandSelectTool::name() const
 
 QString RubberBandSelectTool::statusHint() const
 {
-    return QObject::tr("Rubber-band: drag to select — Shift add, Ctrl subtract, F/V faces/vertices, B visible-only, C connected components; Tab: camera, Esc: exit");
+    return QObject::tr("Rubber-band: drag to select — Shift add, Ctrl subtract, F/V faces/vertices, B visible-only, C connected components, T UV islands; Tab: camera, Esc: exit");
 }
 
 QString RubberBandSelectTool::badgeDetail() const
@@ -35,8 +35,10 @@ QString RubberBandSelectTool::badgeDetail() const
     parts << (m_selectFaces ? QObject::tr("faces") : QObject::tr("vertices"));
     if (m_visibleOnly && m_selectFaces)
         parts << QObject::tr("visible-only");
-    if (m_connectedComponents)
+    if (m_expansion == Expansion::Components)
         parts << QObject::tr("connected components");
+    else if (m_expansion == Expansion::UvIslands)
+        parts << QObject::tr("UV islands");
     return parts.join(QStringLiteral(" · "));
 }
 
@@ -64,12 +66,13 @@ QCursor RubberBandSelectTool::cursor() const
             : (eye ? QStringLiteral(":/img/cur_sel_rect_eye.png")
                    : QStringLiteral(":/img/cur_sel_rect.png"));
     const QPixmap base(img);
-    if (!m_connectedComponents)
+    if (m_expansion == Expansion::None)
         return QCursor(base, 1, 1);
 
-    // "cc" for connected-component growth. One sprite composited over the six base
-    // cursors, rather than six more files: the base already varies by add/subtract and by
-    // the eye, and a second badge baked into the artwork would multiply that again.
+    // "cc" for growth to connected components, "uv" to UV islands. One sprite per kind
+    // composited over the six base cursors, rather than twelve more files: the base
+    // already varies by add/subtract and by the eye, and a badge baked into the artwork
+    // would multiply that again.
     //
     // The 32x32 artwork fills its square -- arrow, dashed rectangle, sometimes an eye -- so
     // the badge gets room by growing the canvas instead of squeezing into a corner of it.
@@ -77,7 +80,9 @@ QCursor RubberBandSelectTool::cursor() const
     // placement are derived from the sprite, so retouching it, including at a different
     // size, needs no change here. Drawn at integer coordinates and never scaled, so the
     // pixels land exactly as authored.
-    const QPixmap badge(QStringLiteral(":/img/cur_badge_cc.png"));
+    const QPixmap badge(m_expansion == Expansion::Components
+                            ? QStringLiteral(":/img/cur_badge_cc.png")
+                            : QStringLiteral(":/img/cur_badge_uv.png"));
     QPixmap pixmap(base.width() + badge.width() - kBadgeOverlap,
                    base.height() + badge.height() - kBadgeOverlap);
     pixmap.fill(Qt::transparent);
@@ -163,7 +168,10 @@ bool RubberBandSelectTool::mouseRelease(QMouseEvent *e)
     params[QStringLiteral("element")] = m_selectFaces ? QStringLiteral("face") : QStringLiteral("vertex");
     params[QStringLiteral("mode")] = mode;
     params[QStringLiteral("visible_only")] = m_visibleOnly;
-    params[QStringLiteral("expand_to_components")] = m_connectedComponents;
+    params[QStringLiteral("expand_to")] =
+        m_expansion == Expansion::Components ? QStringLiteral("connected_components")
+        : m_expansion == Expansion::UvIslands ? QStringLiteral("uv_islands")
+                                              : QStringLiteral("none");
     // Provide the parameters for BOTH spaces (the unused ones are ignored by the
     // filter). camera_state has no default, so it must always be present or the
     // filter's parameter validation rejects the call.
@@ -188,7 +196,7 @@ bool RubberBandSelectTool::keyPress(QKeyEvent *e)
 {
     if (!e)
         return false;
-    // Esc is handled globally by the view (exits the tool); the tool owns F/V and B.
+    // Esc is handled globally by the view (exits the tool); the tool owns F/V, B, C and T.
     if (e->key() == Qt::Key_F || e->key() == Qt::Key_V) {
         m_selectFaces = (e->key() == Qt::Key_F);
         if (m_view && m_view->document())
@@ -207,12 +215,16 @@ bool RubberBandSelectTool::keyPress(QKeyEvent *e)
                 Document::LogSource::Application);
         return true;
     }
-    if (e->key() == Qt::Key_C) {
-        m_connectedComponents = !m_connectedComponents;
+    if (e->key() == Qt::Key_C || e->key() == Qt::Key_T) {
+        const Expansion pressed =
+            (e->key() == Qt::Key_C) ? Expansion::Components : Expansion::UvIslands;
+        m_expansion = (m_expansion == pressed) ? Expansion::None : pressed;
         if (m_view && m_view->document())
             m_view->document()->writeLog(
-                m_connectedComponents
+                m_expansion == Expansion::Components
                     ? QObject::tr("Rubber-band: expand to whole connected components")
+                : m_expansion == Expansion::UvIslands
+                    ? QObject::tr("Rubber-band: expand to whole UV islands")
                     : QObject::tr("Rubber-band: select only what the rectangle covers"),
                 Document::LogSource::Application);
         return true;

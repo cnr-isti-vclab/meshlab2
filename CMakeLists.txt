@@ -510,6 +510,7 @@ qt_add_resources(MeshLab2 "icons"
         img/cur_sel_rect_plus_eye.png
         img/cur_sel_rect_minus_eye.png
         img/cur_badge_cc.png
+        img/cur_badge_uv.png
 )
 
 qt_add_resources(MeshLab2 "help"

@@ -10,7 +10,8 @@ class QRubberBand;
 // or vertices. On release it commits exactly one select_by_screen_rectangle filter call
 // (camera + normalized rect) → one undo node, fully scriptable. Modifiers:
 // Shift = add, Ctrl = subtract, otherwise replace. Keys: F/V switch faces/vertices,
-// B toggles visible-only, C toggles connected-component growth, Esc cancels the drag.
+// B toggles visible-only, C and T toggle growth to whole connected components or whole
+// UV islands, Esc cancels the drag.
 class RubberBandSelectTool final : public InteractiveTool
 {
 public:
@@ -37,5 +38,8 @@ private:
     bool m_dragging = false;
     bool m_selectFaces = true;
     bool m_visibleOnly = false; // faces: keep only faces not occluded from the viewpoint
-    bool m_connectedComponents = false; // grow the hit set to whole connected components
+    // What the hit set grows to, the filter's expand_to. C and T each toggle their own
+    // choice, so pressing one switches the other off.
+    enum class Expansion { None, Components, UvIslands };
+    Expansion m_expansion = Expansion::None;
 };

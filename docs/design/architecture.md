@@ -66,7 +66,7 @@ Base class for interactive editing tools. A tool owns mouse/keyboard handling fo
 Built-in tools are registered by `createBuiltinInteractiveTools()`:
 
 - `SelectLayerTool`: uses asynchronous surface picking to make the clicked mesh layer current.
-- `RubberBandSelectTool`: runs the `select_by_rectangle` filter in Scene3D or UV space, with replace/add/subtract modes and face/vertex selection.
+- `RubberBandSelectTool`: runs the `select_by_screen_rectangle` filter in Scene3D or UV space, with replace/add/subtract modes, face/vertex selection, and growth to whole connected components or UV islands.
 - `MeasureTool`: uses asynchronous surface picks to place/edit endpoints, draws 2D labels plus depth-cued segments, can print/save measurements, and can export them as an edge-only document layer.
 - `TransformTool`: provides Blender-style `G`/`R`/`S` layer transforms with axis/plane constraints, numeric entry, a toolbar icon, depth-cued constraint guides, and one filter-backed commit per gesture.
 
