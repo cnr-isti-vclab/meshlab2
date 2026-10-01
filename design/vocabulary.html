@@ -1131,47 +1131,51 @@ display name leads with a word that is not here.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">parametrization</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">parameterization</span></code>, <code class="docutils literal notranslate"><span class="pre">unwrapping</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Texture image</p></td>
+<tr class="row-odd"><td><p>Connected piece of a UV layout (2026-10-01)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UV</span> <span class="pre">island</span></code> — the faces reachable from one another across edges whose UVs agree on both sides, so the mesh borders and the UV seams bound it</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UV</span> <span class="pre">shell</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Texture image</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">image</span></code>, <code class="docutils literal notranslate"><span class="pre">map</span></code> (except <code class="docutils literal notranslate"><span class="pre">normal</span> <span class="pre">map</span></code>)</p></td>
 </tr>
-<tr class="row-even"><td><p>Registered photo layer</p></td>
+<tr class="row-odd"><td><p>Registered photo layer</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">raster</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">image</span></code>, <code class="docutils literal notranslate"><span class="pre">photo</span></code>, <code class="docutils literal notranslate"><span class="pre">camera</span> <span class="pre">image</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Geometric object</p></td>
+<tr class="row-even"><td><p>Geometric object</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">mesh</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">model</span></code>, <code class="docutils literal notranslate"><span class="pre">object</span></code>, <code class="docutils literal notranslate"><span class="pre">shape</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Document slot</p></td>
+<tr class="row-odd"><td><p>Document slot</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">entry</span></code>, <code class="docutils literal notranslate"><span class="pre">item</span></code>, <code class="docutils literal notranslate"><span class="pre">slot</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Colour</p></td>
+<tr class="row-even"><td><p>Colour</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">color</span></code> (American)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colour</span></code>, <code class="docutils literal notranslate"><span class="pre">Colourisation</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Selection</p></td>
+<tr class="row-odd"><td><p>Selection</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">selection</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">marked</span> <span class="pre">set</span></code>, <code class="docutils literal notranslate"><span class="pre">active</span> <span class="pre">set</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Confining a filter to the selection (UI label, 2026-09-28)</p></td>
+<tr class="row-even"><td><p>Confining a filter to the selection (UI label, 2026-09-28)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Only</span> <span class="pre">selected</span> <span class="pre">vertices</span></code> / <code class="docutils literal notranslate"><span class="pre">Only</span> <span class="pre">selected</span> <span class="pre">faces</span></code> / <code class="docutils literal notranslate"><span class="pre">Only</span> <span class="pre">selected</span> <span class="pre">edges</span></code> — always naming the kind, since vertex and face selections are separate</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Only</span> <span class="pre">on</span> <span class="pre">selection</span></code>, <code class="docutils literal notranslate"><span class="pre">Affect</span> <span class="pre">only</span> <span class="pre">selection</span></code>, <code class="docutils literal notranslate"><span class="pre">Selection</span> <span class="pre">only</span></code>, <code class="docutils literal notranslate"><span class="pre">Selected</span> <span class="pre">Only</span></code>, <code class="docutils literal notranslate"><span class="pre">Affect</span> <span class="pre">only</span> <span class="pre">selected</span> <span class="pre">faces</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Where a transform filter’s matrix goes (UI label, 2026-09-29)</p></td>
+<tr class="row-odd"><td><p>Where a transform filter’s matrix goes (UI label, 2026-09-29)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Result</span></code>: <code class="docutils literal notranslate"><span class="pre">Assign</span> <span class="pre">matrix</span></code> / <code class="docutils literal notranslate"><span class="pre">Bake</span> <span class="pre">positions</span></code> — two choices that each say what happens, set by the framework for every filter that leaves a matrix on a layer</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Freeze</span> <span class="pre">Matrix</span></code> as a toggle (one verb, and nothing said about the other choice), <code class="docutils literal notranslate"><span class="pre">Freeze</span></code>, <code class="docutils literal notranslate"><span class="pre">Apply</span> <span class="pre">matrix</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Normal vector</p></td>
+<tr class="row-even"><td><p>Normal vector</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normal</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normals</span> <span class="pre">direction</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Layer matrix</p></td>
+<tr class="row-odd"><td><p>Layer matrix</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">matrix</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">transformation</span> <span class="pre">matrix</span></code> (verbose), <code class="docutils literal notranslate"><span class="pre">xform</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>1D abstraction of a shape</p></td>
+<tr class="row-even"><td><p>1D abstraction of a shape</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">skeleton</span></code> alone, <code class="docutils literal notranslate"><span class="pre">morphological</span> <span class="pre">skeleton</span></code>, <code class="docutils literal notranslate"><span class="pre">medial</span> <span class="pre">axis</span></code>, <code class="docutils literal notranslate"><span class="pre">centerline</span></code></p></td>
 </tr>

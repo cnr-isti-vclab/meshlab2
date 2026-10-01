@@ -9473,7 +9473,7 @@ Select vertices or faces whose screen projection falls inside a rectangle.
 
 Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside the rectangle. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.
 
-*Expand to Connected Components* is what the rubber-band tool's **C** modifier sets: the rectangle only has to graze a component for all of it to be selected.
+*Expand to* is what the rubber-band tool's **C** (connected components) and **T** (UV islands) modifiers set: the rectangle only has to graze a piece for all of it to be selected.
 
 **Parameters:**
 
@@ -9490,7 +9490,7 @@ Screen-space rubber-band selection. Given a camera and a rectangle in normalized
 - **element** (*enum*, default: `face`) — Whether to select vertices or faces (by centroid).
 - **mode** (*enum*, default: `replace`) — Replace the current selection, add to it, or subtract from it.
 - **visible_only** (*bool*, default: `False`) — When selecting faces in the 3D view, keep only faces not occluded from the current viewpoint (ray-traced visibility).
-- **expand_to_components** (*bool*, default: `False`) — Grow what the rectangle touched to the whole connected component it belongs to, so grazing one triangle takes the entire piece. The growth starts from what the rectangle hit rather than from the finished selection, so it composes with the modes as you would expect: subtract removes the whole component under the rectangle instead of growing whatever was left behind. Vertices are grown through their faces, since components are a face notion. Face-face adjacency is built on demand, so this costs more than a plain drag.
+- **expand_to** (*enum*, default: `none`) — Grow what the rectangle touched to the whole piece it belongs to, so grazing one triangle takes all of it. *Connected components* follow the mesh's own connectivity. *UV islands* also stop at UV seams, the edges whose two sides have different UVs, so each island is one piece of the UV layout; the mesh needs UVs for it. The growth starts from what the rectangle hit rather than from the finished selection, so it composes with the modes as you would expect: subtract removes the whole piece under the rectangle instead of growing whatever was left behind. Vertices are grown through their faces, so a vertex on a seam takes the islands on both sides. Face-face adjacency is built on demand, so this costs more than a plain drag.
 ```
 
 ---

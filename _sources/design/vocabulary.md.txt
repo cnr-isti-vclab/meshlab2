@@ -501,6 +501,7 @@ display name leads with a word that is not here.
 | Per-element scalar attribute | `scalar` / `scalar field` (user-facing) · `quality` (code/API only) | `quality` in user-facing text, `value` |
 | Texture coordinates | `UV` (user-facing), `texcoord` (code/API) | `tex coords`, `UVW`, `st` |
 | UV creation | `parametrization` | `parameterization`, `unwrapping` |
+| Connected piece of a UV layout (2026-10-01) | `UV island` — the faces reachable from one another across edges whose UVs agree on both sides, so the mesh borders and the UV seams bound it | `UV shell` |
 | Texture image | `texture` | `image`, `map` (except `normal map`) |
 | Registered photo layer | `raster` | `image`, `photo`, `camera image` |
 | Geometric object | `mesh` | `model`, `object`, `shape` |
