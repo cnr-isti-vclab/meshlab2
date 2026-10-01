@@ -13,7 +13,7 @@ resources/preferences.json   declaration (same schema as any filters.json "param
         │
         └─ ParameterFormBuilder (src/ui)   descriptors → editors, shared with the filter panel
                     │
-                    └─ PreferencesDialog     ~60 lines; owns no widget knowledge
+                    └─ PreferencesDialog     ~75 lines; owns no widget knowledge
 ```
 
 Adding a preference means adding a JSON entry and reading it back. There is no UI code
@@ -34,6 +34,9 @@ Entries in `resources/preferences.json` use exactly the parameter schema documen
 `default`, `min`/`max`, `enumOptions`. Ids are dotted and namespaced by group
 (`view.fieldOfView`), because the id doubles as the QSettings key.
 
+Write the `help` for a reader of the dialog: it is shown there as text under the row,
+rendered as Markdown, and not only as a tooltip. Every preference declares one.
+
 ## Reading one
 
 ```cpp
@@ -49,6 +52,35 @@ fires after a new value is stored, for consumers that need to react live.
 Values are written to QSettings the moment they change — there is no OK/Cancel — and
 stored values are only adopted for ids that are still declared, so deleting an entry
 from the JSON leaves no stale key behind.
+
+**Only overrides are stored.** A preference at its default has no QSettings key: setting
+a value equal to the default, `resetToDefault(id)`, and `resetToDefaults()` all remove
+the key rather than write the default into it, and a stored copy of the default found at
+load is dropped. That keeps a user following the declared default, including a later
+change to it. The old Restore Defaults wrote the defaults in, which pinned them: a user
+who had once pressed it kept Gray as the default color map after the declared default
+became Rainbow.
+
+## The dialog
+
+`PreferencesDialog` turns on three `ParameterFormBuilder` options that the filter panel
+leaves off.
+
+With **inline help**, each row's help is shown as text under it, in place of the tooltip
+it gets in the filter panel. *Show help* hides and shows it (`setInlineHelpVisible`). The
+choice is kept in QSettings as `preferencesDialog/showHelp`, outside the `preferences`
+group: it is how the dialog looks, not a preference, so *Restore All Defaults* leaves it
+alone.
+
+With **reset buttons**, a button appears at the end of a row once its value differs from
+the default, and puts that one value back; *Restore All Defaults* resets them all. When an
+edit or a reset leaves a row at its default, the dialog calls `resetToDefault(id)` instead
+of storing the value. The builder's `isDefault()` makes that call, with the same numeric
+tolerance as the store (`sameParameterValue`), because an editor may round.
+
+**Larger group headings** (`setGroupHeadingScale`) make the sections read as titles, since
+they are the dialog's top level. In the filter panel the headings stay at the rows' size,
+below the filter's bold title.
 
 ## What belongs here
 

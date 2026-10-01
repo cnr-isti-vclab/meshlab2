@@ -255,7 +255,7 @@
         │
         └─ ParameterFormBuilder (src/ui)   descriptors → editors, shared with the filter panel
                     │
-                    └─ PreferencesDialog     ~60 lines; owns no widget knowledge
+                    └─ PreferencesDialog     ~75 lines; owns no widget knowledge
 </pre></div>
 </div>
 <p>Adding a preference means adding a JSON entry and reading it back. There is no UI code
@@ -272,6 +272,8 @@ to write.</p>
 <a class="reference internal" href="adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a> — <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">label</span></code>, <code class="docutils literal notranslate"><span class="pre">help</span></code>, <code class="docutils literal notranslate"><span class="pre">group</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>,
 <code class="docutils literal notranslate"><span class="pre">default</span></code>, <code class="docutils literal notranslate"><span class="pre">min</span></code>/<code class="docutils literal notranslate"><span class="pre">max</span></code>, <code class="docutils literal notranslate"><span class="pre">enumOptions</span></code>. Ids are dotted and namespaced by group
 (<code class="docutils literal notranslate"><span class="pre">view.fieldOfView</span></code>), because the id doubles as the QSettings key.</p>
+<p>Write the <code class="docutils literal notranslate"><span class="pre">help</span></code> for a reader of the dialog: it is shown there as text under the row,
+rendered as Markdown, and not only as a tooltip. Every preference declares one.</p>
 </section>
 <section id="reading-one">
 <h2>Reading one<a class="headerlink" href="#reading-one" title="Link to this heading">¶</a></h2>
@@ -286,6 +288,31 @@ fires after a new value is stored, for consumers that need to react live.</p>
 <p>Values are written to QSettings the moment they change — there is no OK/Cancel — and
 stored values are only adopted for ids that are still declared, so deleting an entry
 from the JSON leaves no stale key behind.</p>
+<p><strong>Only overrides are stored.</strong> A preference at its default has no QSettings key: setting
+a value equal to the default, <code class="docutils literal notranslate"><span class="pre">resetToDefault(id)</span></code>, and <code class="docutils literal notranslate"><span class="pre">resetToDefaults()</span></code> all remove
+the key rather than write the default into it, and a stored copy of the default found at
+load is dropped. That keeps a user following the declared default, including a later
+change to it. The old Restore Defaults wrote the defaults in, which pinned them: a user
+who had once pressed it kept Gray as the default color map after the declared default
+became Rainbow.</p>
+</section>
+<section id="the-dialog">
+<h2>The dialog<a class="headerlink" href="#the-dialog" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">PreferencesDialog</span></code> turns on three <code class="docutils literal notranslate"><span class="pre">ParameterFormBuilder</span></code> options that the filter panel
+leaves off.</p>
+<p>With <strong>inline help</strong>, each row’s help is shown as text under it, in place of the tooltip
+it gets in the filter panel. <em>Show help</em> hides and shows it (<code class="docutils literal notranslate"><span class="pre">setInlineHelpVisible</span></code>). The
+choice is kept in QSettings as <code class="docutils literal notranslate"><span class="pre">preferencesDialog/showHelp</span></code>, outside the <code class="docutils literal notranslate"><span class="pre">preferences</span></code>
+group: it is how the dialog looks, not a preference, so <em>Restore All Defaults</em> leaves it
+alone.</p>
+<p>With <strong>reset buttons</strong>, a button appears at the end of a row once its value differs from
+the default, and puts that one value back; <em>Restore All Defaults</em> resets them all. When an
+edit or a reset leaves a row at its default, the dialog calls <code class="docutils literal notranslate"><span class="pre">resetToDefault(id)</span></code> instead
+of storing the value. The builder’s <code class="docutils literal notranslate"><span class="pre">isDefault()</span></code> makes that call, with the same numeric
+tolerance as the store (<code class="docutils literal notranslate"><span class="pre">sameParameterValue</span></code>), because an editor may round.</p>
+<p><strong>Larger group headings</strong> (<code class="docutils literal notranslate"><span class="pre">setGroupHeadingScale</span></code>) make the sections read as titles, since
+they are the dialog’s top level. In the filter panel the headings stay at the rows’ size,
+below the filter’s bold title.</p>
 </section>
 <section id="what-belongs-here">
 <h2>What belongs here<a class="headerlink" href="#what-belongs-here" title="Link to this heading">¶</a></h2>
@@ -373,6 +400,7 @@ same builder; that is where the remaining duplication lives.</p>
 <li><a class="reference internal" href="#">Preferences</a><ul>
 <li><a class="reference internal" href="#declaring-one">Declaring one</a></li>
 <li><a class="reference internal" href="#reading-one">Reading one</a></li>
+<li><a class="reference internal" href="#the-dialog">The dialog</a></li>
 <li><a class="reference internal" href="#what-belongs-here">What belongs here</a></li>
 <li><a class="reference internal" href="#related">Related</a></li>
 </ul>
