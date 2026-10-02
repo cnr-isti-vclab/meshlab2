@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 364 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 366 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -2235,6 +2235,39 @@ Without a fit layer, **Center on Origin** decides whether the grid straddles the
 
 ---
 
+(filter-create-handle-and-tunnel-loops)=
+
+## Create Handle and Tunnel Loops
+
+**Categories:** `Creation/Primitives`
+
+**Plugin:** meshlab2.filter.meshing
+
+Create two polyline layers with short handle loops and tunnel loops of a surface of nonzero genus.
+
+```{py:function} ms.create_handle_and_tunnel_loops(**params)
+:module: _meshlab
+
+A closed surface of genus $g$ bounds an inside and an outside. A **handle loop** bounds a disk inside but not outside: it circles a handle, like a meridian going around the tube of a torus. A **tunnel loop** bounds a disk outside but not inside: it circles a tunnel, like the inner equator going around the hole of a torus. The filter finds $g$ short handle loops and $g$ short tunnel loops, closed paths along mesh edges, and puts each family in a new polyline layer. They are what to cut to remove a spurious handle, or to fill to close a spurious tunnel, as when repairing the topology of a scanned or reconstructed surface. Each edge carries the number of its loop as its scalar, so *Colorize Edges by Scalar* tells the loops apart; the log reports the genus and the length of every loop.
+
+The loops come from the Reeb graph of a random height function, classified as handles or tunnels and then shortened. Shortening is a heuristic: the loops are short, not the shortest. It dominates the running time, which grows with the size and genus of the mesh, from seconds to minutes; zero tightening rounds keeps the loops as found, which is fast but gives long loops, and may split one basis element into several loops.
+
+The surface must be connected, orientable and edge-manifold. Small holes are allowed and are closed internally; large ones make the classification depend on how they would be closed. A surface of genus zero has no such loops, and the filter says so instead of creating empty layers.
+
+**References:**
+
+- Tamal K. Dey, Fengtao Fan, Yusu Wang. **An efficient computation of handle and tunnel loops via Reeb graphs**. *ACM Transactions on Graphics* (2013). [DOI](https://doi.org/10.1145/2461912.2462017)
+- Valerio Pascucci, Giorgio Scorzelli, Peer-Timo Bremer, Ajith Mascarenhas. **Robust on-line computation of Reeb graphs: simplicity and speed**. *ACM Transactions on Graphics* (2007). [DOI](https://doi.org/10.1145/1276377.1276449)
+
+**Parameters:**
+
+- **tighteningRounds** (*int*, default: `100`) — Maximum number of rounds spent shortening the loops. Zero keeps the loops found on the Reeb graph, which is fast but gives long loops.
+- **patience** (*int*, default: `10`) — Stop shortening after this many consecutive rounds without a shorter set of loops.
+- **randomSeed** (*int*, default: `0`) — Seeds the random height direction and the projection directions. Zero draws a fresh seed on every run, so repeated applications may find different loops; any other value makes the run exactly reproducible.
+```
+
+---
+
 (filter-create-hexahedron)=
 
 ## Create Hexahedron
@@ -2639,6 +2672,34 @@ Extracts the exact curve along which the layer intersects **itself**, as a new p
 *Select Self Intersecting Faces* marks the faces involved; this gives the intersection itself, which is what you need to see where the problem is rather than merely that it exists — and, being exact geometry rather than a selection, it can be measured, exported, or swept into a tube.
 
 A clean mesh produces nothing, and the filter says so.
+
+This filter has no parameters.
+```
+
+---
+
+(filter-create-reeb-graph-from-vertex-scalar)=
+
+## Create Reeb Graph from Vertex Scalar
+
+**Categories:** `Creation/Primitives`
+
+**Plugin:** meshlab2.filter.meshing
+
+Create a polyline layer with the Reeb graph of the vertex scalar field.
+
+```{py:function} ms.create_reeb_graph_from_vertex_scalar(**params)
+:module: _meshlab
+
+The Reeb graph of a scalar field on a surface collapses every connected component of every level set to a point. Its nodes are the critical points of the field (minima, maxima, and the saddles where a contour splits or two contours merge) and its arcs are the families of contours swept between them. It is a compact description of the shape along the field, used for shape matching, skeletons and topology repair.
+
+The graph becomes a new polyline layer: a vertex per node, placed at its mesh vertex and carrying the field value there as its scalar, and an edge per arc. Whatever the field, the graph of a closed orientable surface of genus $g$ has exactly $g$ independent cycles, and the log reports how many it found. With boundaries that count no longer equals the genus.
+
+The field is the current vertex scalar, which must be finite everywhere; ties are broken consistently, so it need not be free of flat regions. To use a height function, compute it first with *Compute Vertex Scalar by Expression* (for instance `y`). The surface must be edge-manifold.
+
+**References:**
+
+- Valerio Pascucci, Giorgio Scorzelli, Peer-Timo Bremer, Ajith Mascarenhas. **Robust on-line computation of Reeb graphs: simplicity and speed**. *ACM Transactions on Graphics* (2007). [DOI](https://doi.org/10.1145/1276377.1276449)
 
 This filter has no parameters.
 ```
