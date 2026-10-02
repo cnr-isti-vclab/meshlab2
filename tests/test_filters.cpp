@@ -26,6 +26,7 @@
 #include "clipplane.h"
 
 #include <vcg/complex/algorithms/create/platonic.h>
+#include <vcg/complex/algorithms/update/quality.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/algorithms/update/topology.h>
@@ -526,6 +527,8 @@ private slots:
     void expressionsReadIntegerAttributes();
     void preparedAdjacencyIsReleasedAfterTheFilter();
     void preparationSurvivesAFilterRemovingItsLayer();
+    void reebGraphOfATorusHasOneCycle();
+    void torusHasOneHandleAndOneTunnelLoop();
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToComponentsAndUvIslands();
@@ -8357,6 +8360,91 @@ void FilterTests::preparationSurvivesAFilterRemovingItsLayer()
         doc.runFilter(filterKeyForId(doc, QStringLiteral("split_into_connected_components")), p);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
     QCOMPARE(doc.meshCount(), 2);
+}
+
+namespace {
+
+// A torus with R = 3, r = 1: genus 1. Its vertex scalar is a height along a tilted
+// direction, so the critical points are isolated -- minimum, two saddles, maximum.
+int addTorusLayer(Document &doc)
+{
+    VCGMesh torus;
+    vcg::tri::Torus(torus, 3.0f, 1.0f, 64, 32);
+    vcg::tri::UpdateQuality<VCGMesh>::VertexFromPlane(
+        torus, vcg::Plane3f(0.0f, vcg::Point3f(0.3f, 0.5f, 0.8f).Normalize()));
+    const int index = doc.addMesh(torus, QStringLiteral("torus"),
+                                  vcg::tri::io::Mask::IOM_VERTQUALITY);
+    doc.setCurrentMeshIndex(index);
+    return index;
+}
+
+} // namespace
+
+// Whatever the function, the Reeb graph of a closed orientable surface has exactly as
+// many independent cycles as the genus; a sphere has none.
+void FilterTests::reebGraphOfATorusHasOneCycle()
+{
+    Document doc;
+    QVERIFY(addTorusLayer(doc) >= 0);
+    const QString key = filterKeyForId(doc, QStringLiteral("create_reeb_graph_from_vertex_scalar"));
+    QVERIFY(!key.isEmpty());
+    MeshFilterRunResult r = doc.runFilter(key, {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.newMeshIndices.size(), 1);
+    QCOMPARE(r.outputValues.value(QStringLiteral("cycles")).toInt(), 1);
+    const VCGMesh &graph = doc.mesh(r.newMeshIndices.front()).mesh;
+    QCOMPARE(graph.VN(), 4);   // minimum, two saddles, maximum
+    QCOMPARE(graph.EN(), 4);
+    QCOMPARE(graph.FN(), 0);
+
+    Document sphereDoc;
+    VCGMesh sphere;
+    vcg::tri::Sphere(sphere, 3);
+    vcg::tri::UpdateQuality<VCGMesh>::VertexFromPlane(
+        sphere, vcg::Plane3f(0.0f, vcg::Point3f(0.3f, 0.5f, 0.8f).Normalize()));
+    sphereDoc.setCurrentMeshIndex(
+        sphereDoc.addMesh(sphere, QStringLiteral("sphere"), vcg::tri::io::Mask::IOM_VERTQUALITY));
+    r = sphereDoc.runFilter(key, {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.outputValues.value(QStringLiteral("cycles")).toInt(), 0);
+}
+
+// The handle loop of a torus goes around the tube (2*pi*r), the tunnel loop around the
+// hole along the inner equator (2*pi*(R - r)); the polygonal ones are a touch shorter.
+void FilterTests::torusHasOneHandleAndOneTunnelLoop()
+{
+    Document doc;
+    QVERIFY(addTorusLayer(doc) >= 0);
+    const QString key = filterKeyForId(doc, QStringLiteral("create_handle_and_tunnel_loops"));
+    QVERIFY(!key.isEmpty());
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("randomSeed"), 1);
+    MeshFilterRunResult r = doc.runFilter(key, p);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.outputValues.value(QStringLiteral("genus")).toInt(), 1);
+    QCOMPARE(r.newMeshIndices.size(), 2);
+
+    const VCGMesh &handles = doc.mesh(r.newMeshIndices[0]).mesh;
+    const VCGMesh &tunnels = doc.mesh(r.newMeshIndices[1]).mesh;
+    QVERIFY(doc.mesh(r.newMeshIndices[0]).name.contains(QStringLiteral("handle loops")));
+    QVERIFY(doc.mesh(r.newMeshIndices[1]).name.contains(QStringLiteral("tunnel loops")));
+    const double twoPi = 2.0 * M_PI;
+    QVERIFY2(std::abs(polylineLength(handles) - twoPi * 1.0) < 0.05 * twoPi,
+             qPrintable(QString::number(polylineLength(handles))));
+    QVERIFY2(std::abs(polylineLength(tunnels) - twoPi * 2.0) < 0.05 * twoPi * 2.0,
+             qPrintable(QString::number(polylineLength(tunnels))));
+    for (const VCGEdge &e : handles.edge)
+        QCOMPARE(e.cQ(), 1.0f);   // one loop, numbered 1
+
+    // A sphere has no such loops, and the filter says so instead of adding empty layers.
+    Document sphereDoc;
+    VCGMesh sphere;
+    vcg::tri::Sphere(sphere, 3);
+    sphereDoc.setCurrentMeshIndex(sphereDoc.addMesh(sphere, QStringLiteral("sphere")));
+    r = sphereDoc.runFilter(key, p);
+    QVERIFY(!r.success);
+    QVERIFY(r.errorMessage.contains(QStringLiteral("genus 0")));
+    QCOMPARE(sphereDoc.meshCount(), 1);
 }
 
 void FilterTests::createdCylinderHonoursRadiusHeightAndAxis()

@@ -513,6 +513,8 @@ display name leads with a word that is not here.
 | Normal vector | `normal` | `normals direction` |
 | Layer matrix | `matrix` | `transformation matrix` (verbose), `xform` |
 | 1D abstraction of a shape | `curve skeleton` | `skeleton` alone, `morphological skeleton`, `medial axis`, `centerline` |
+| Graph of the level-set components of a scalar field | `Reeb graph` | `contour tree` (the special case of a simply connected domain, which has no cycles) |
+| Loops around a handle / around a tunnel of a closed surface | `handle loop`, `tunnel loop` | `meridian`, `longitude` (torus-only), `generator` (any basis loop, not classified) |
 
 `mesh` vs `layer`: filters that operate on geometry say **mesh**; operations on
 document structure say **layer**. *Duplicate Layer*, but *Remove Duplicate

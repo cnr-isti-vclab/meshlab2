@@ -2,6 +2,70 @@
   "pluginId": "meshlab2.filter.meshing",
   "references": [
     {
+      "id": "pascucci2007reeb",
+      "type": "article-journal",
+      "title": "Robust on-line computation of Reeb graphs: simplicity and speed",
+      "author": [
+        {
+          "family": "Pascucci",
+          "given": "Valerio"
+        },
+        {
+          "family": "Scorzelli",
+          "given": "Giorgio"
+        },
+        {
+          "family": "Bremer",
+          "given": "Peer-Timo"
+        },
+        {
+          "family": "Mascarenhas",
+          "given": "Ajith"
+        }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "26",
+      "issue": "3",
+      "issued": {
+        "date-parts": [
+          [
+            2007
+          ]
+        ]
+      },
+      "DOI": "10.1145/1276377.1276449"
+    },
+    {
+      "id": "dey2013handle",
+      "type": "article-journal",
+      "title": "An efficient computation of handle and tunnel loops via Reeb graphs",
+      "author": [
+        {
+          "family": "Dey",
+          "given": "Tamal K."
+        },
+        {
+          "family": "Fan",
+          "given": "Fengtao"
+        },
+        {
+          "family": "Wang",
+          "given": "Yusu"
+        }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "32",
+      "issue": "4",
+      "issued": {
+        "date-parts": [
+          [
+            2013
+          ]
+        ]
+      },
+      "DOI": "10.1145/2461912.2462017"
+    },
+    {
       "id": "garland1997qem",
       "type": "paper-conference",
       "title": "Surface Simplification Using Quadric Error Metrics",
@@ -2310,6 +2374,73 @@
       },
       "outputTag": "edges",
       "parameters": []
+    },
+    {
+      "id": "create_reeb_graph_from_vertex_scalar",
+      "categories": ["Creation/Primitives"],
+      "name": "Create Reeb Graph from Vertex Scalar",
+      "pythonName": "create_reeb_graph_from_vertex_scalar",
+      "shortDescription": "Create a polyline layer with the Reeb graph of the vertex scalar field.",
+      "longDescriptionMarkdown": "The Reeb graph of a scalar field on a surface collapses every connected component of every level set to a point. Its nodes are the critical points of the field (minima, maxima, and the saddles where a contour splits or two contours merge) and its arcs are the families of contours swept between them. It is a compact description of the shape along the field, used for shape matching, skeletons and topology repair.\n\nThe graph becomes a new polyline layer: a vertex per node, placed at its mesh vertex and carrying the field value there as its scalar, and an edge per arc. Whatever the field, the graph of a closed orientable surface of genus $g$ has exactly $g$ independent cycles, and the log reports how many it found. With boundaries that count no longer equals the genus.\n\nThe field is the current vertex scalar, which must be finite everywhere; ties are broken consistently, so it need not be free of flat regions. To use a height function, compute it first with *Compute Vertex Scalar by Expression* (for instance `y`). The surface must be edge-manifold.",
+      "tags": ["topology", "reeb graph", "critical points", "genus", "polyline"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireVertexQuality": true
+      },
+      "inputPrepare": ["FF"],
+      "outputTag": "reeb graph",
+      "referenceIds": ["pascucci2007reeb"],
+      "parameters": []
+    },
+    {
+      "id": "create_handle_and_tunnel_loops",
+      "categories": ["Creation/Primitives"],
+      "name": "Create Handle and Tunnel Loops",
+      "pythonName": "create_handle_and_tunnel_loops",
+      "shortDescription": "Create two polyline layers with short handle loops and tunnel loops of a surface of nonzero genus.",
+      "longDescriptionMarkdown": "A closed surface of genus $g$ bounds an inside and an outside. A **handle loop** bounds a disk inside but not outside: it circles a handle, like a meridian going around the tube of a torus. A **tunnel loop** bounds a disk outside but not inside: it circles a tunnel, like the inner equator going around the hole of a torus. The filter finds $g$ short handle loops and $g$ short tunnel loops, closed paths along mesh edges, and puts each family in a new polyline layer. They are what to cut to remove a spurious handle, or to fill to close a spurious tunnel, as when repairing the topology of a scanned or reconstructed surface. Each edge carries the number of its loop as its scalar, so *Colorize Edges by Scalar* tells the loops apart; the log reports the genus and the length of every loop.\n\nThe loops come from the Reeb graph of a random height function, classified as handles or tunnels and then shortened. Shortening is a heuristic: the loops are short, not the shortest. It dominates the running time, which grows with the size and genus of the mesh, from seconds to minutes; zero tightening rounds keeps the loops as found, which is fast but gives long loops, and may split one basis element into several loops.\n\nThe surface must be connected, orientable and edge-manifold. Small holes are allowed and are closed internally; large ones make the classification depend on how they would be closed. A surface of genus zero has no such loops, and the filter says so instead of creating empty layers.",
+      "tags": ["topology", "handle", "tunnel", "genus", "repair", "reeb graph", "polyline"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireFaces": true
+      },
+      "outputTag": ["handle loops", "tunnel loops"],
+      "referenceIds": ["dey2013handle", "pascucci2007reeb"],
+      "parameters": [
+        {
+          "id": "tighteningRounds",
+          "label": "Tightening rounds",
+          "help": "Maximum number of rounds spent shortening the loops. Zero keeps the loops found on the Reeb graph, which is fast but gives long loops.",
+          "group": "main",
+          "type": "int",
+          "default": 100,
+          "min": 0,
+          "max": 10000
+        },
+        {
+          "id": "patience",
+          "label": "Patience",
+          "help": "Stop shortening after this many consecutive rounds without a shorter set of loops.",
+          "group": "advanced",
+          "type": "int",
+          "default": 10,
+          "min": 1,
+          "max": 1000
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seeds the random height direction and the projection directions. Zero draws a fresh seed on every run, so repeated applications may find different loops; any other value makes the run exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
+        }
+      ]
     },
     {
       "id": "split_vertices_by_attribute_seam",

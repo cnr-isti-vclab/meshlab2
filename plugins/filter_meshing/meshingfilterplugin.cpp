@@ -13,6 +13,7 @@
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/clip.h>
 #include <vcg/complex/algorithms/clustering.h>
+#include <vcg/complex/algorithms/handle_tunnel_loops.h>
 #include <vcg/complex/algorithms/create/platonic.h>
 #include <vcg/complex/algorithms/hole.h>
 #include <vcg/complex/algorithms/intersection.h>
@@ -25,6 +26,7 @@
 #include <vcg/complex/algorithms/refine_catmullclark.h>
 #include <vcg/complex/algorithms/refine_doosabin.h>
 #include <vcg/complex/algorithms/refine_loop.h>
+#include <vcg/complex/algorithms/reeb_graph.h>
 #include <vcg/complex/algorithms/inertia.h>
 #include <vcg/complex/algorithms/stat.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -37,6 +39,7 @@
 #include <vcg/complex/algorithms/update/selection.h>
 #include <vcg/complex/algorithms/update/topology.h>
 #include <vcg/math/base.h>
+#include <vcg/math/disjoint_set.h>
 #include <vcg/space/fitting3.h>
 #include <vcg/space/planar_polygon_tessellation.h>
 #include <Eigen/Dense>
@@ -267,6 +270,8 @@ constexpr QLatin1StringView kIdMakePureTri("convert_to_pure_triangles");
 constexpr QLatin1StringView kIdQuadPairing("convert_to_quads_by_triangle_pairing");
 constexpr QLatin1StringView kIdFauxCrease("select_crease_edges_vcglib");
 constexpr QLatin1StringView kIdFauxExtract("create_polyline_from_selected_edges");
+constexpr QLatin1StringView kIdReebGraph("create_reeb_graph_from_vertex_scalar");
+constexpr QLatin1StringView kIdHandleTunnel("create_handle_and_tunnel_loops");
 constexpr QLatin1StringView kIdVAttrSeam("split_vertices_by_attribute_seam");
 constexpr QLatin1StringView kIdLS3Loop("subdivide_by_ls3_loop");
 
@@ -1656,6 +1661,86 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (idx < 0)
                 return fail(QObject::tr("Failed to create edge extraction layer."));
             return success(true, { QObject::tr("Created edge mesh from selected edges.") }, { idx });
+        }
+
+        if (filterId == QString::fromLatin1(kIdReebGraph)) {
+            VCGMesh graph;
+            vcg::tri::ReebGraph<VCGMesh> reeb;
+            reeb.Compute(mesh, graph);
+            // Each node sits on a mesh vertex: give it the field value there, so the graph
+            // can be colored by the function it was built from.
+            for (size_t n = 0; n < graph.vert.size(); ++n)
+                graph.vert[n].Q() = mesh.vert[size_t(reeb.nodeVert[n])].cQ();
+            vcg::tri::UpdateBounding<VCGMesh>::Box(graph);
+
+            // Independent cycles of a graph: arcs - nodes + connected components.
+            vcg::DisjointSet<VCGVertex> components;
+            for (VCGVertex &v : graph.vert)
+                components.MakeSet(&v);
+            for (VCGEdge &e : graph.edge)
+                if (components.FindSet(e.V(0)) != components.FindSet(e.V(1)))
+                    components.Union(e.V(0), e.V(1));
+            int componentCount = 0;
+            for (VCGVertex &v : graph.vert)
+                componentCount += components.FindSet(&v) == &v ? 1 : 0;
+            const int cycles = graph.EN() - graph.VN() + componentCount;
+
+            const int idx = doc.addMesh(graph, {}, Mask::IOM_EDGEINDEX | Mask::IOM_VERTQUALITY);
+            if (idx < 0)
+                return fail(QObject::tr("Failed to create the Reeb graph layer."));
+            MeshFilterRunResult r = success(true, {
+                QObject::tr("Reeb graph: %1 nodes, %2 arcs, %3 independent cycles (the genus, on a closed surface).")
+                    .arg(graph.VN()).arg(graph.EN()).arg(cycles) }, { idx });
+            r.outputValues["cycles"] = cycles;
+            return r;
+        }
+
+        if (filterId == QString::fromLatin1(kIdHandleTunnel)) {
+            using Loops = vcg::tri::HandleTunnelLoops<VCGMesh>;
+            Loops::Param par;
+            par.maxIter = params.getInt(QStringLiteral("tighteningRounds"));
+            par.patience = params.getInt(QStringLiteral("patience"));
+            const RandomSeed seed = params.getRandomSeed();
+            par.seed = seed.value;
+            Loops ht;
+            ht.Compute(mesh, par);
+            // Say so rather than add two empty layers: a sphere has nothing to report.
+            if (ht.genus == 0)
+                return fail(QObject::tr("The surface has genus 0, so it has no handle or tunnel loops."));
+
+            QStringList info{ QObject::tr("Genus %1.").arg(ht.genus) };
+            QVector<int> created;
+            // Handles first, then tunnels: the order of the descriptor's outputTag.
+            for (const auto &[family, name] : { std::pair{ &ht.handles, QObject::tr("handle") },
+                                                std::pair{ &ht.tunnels, QObject::tr("tunnel") } }) {
+                VCGMesh loops;
+                Loops::LoopsToEdgeMesh(mesh, *family, loops);
+                // A loop of k vertices is k consecutive edges: number them by loop, so the
+                // loops can be told apart by coloring the edges by scalar.
+                float shortest = std::numeric_limits<float>::max(), longest = 0.0f;
+                size_t e = 0;
+                for (size_t li = 0; li < family->size(); ++li) {
+                    float length = 0.0f;
+                    for (size_t k = 0; k < (*family)[li].size(); ++k, ++e) {
+                        loops.edge[e].Q() = float(li + 1);
+                        length += vcg::edge::Length(loops.edge[e]);
+                    }
+                    shortest = std::min(shortest, length);
+                    longest = std::max(longest, length);
+                }
+                vcg::tri::UpdateBounding<VCGMesh>::Box(loops);
+                const int idx = doc.addMesh(loops, {}, Mask::IOM_EDGEINDEX | Mask::IOM_EDGEQUALITY);
+                if (idx < 0)
+                    return fail(QObject::tr("Failed to create the %1 loop layer.").arg(name));
+                created << idx;
+                info << QObject::tr("%1 %2 loop(s), length %3 to %4.")
+                            .arg(family->size()).arg(name)
+                            .arg(double(shortest), 0, 'g', 4).arg(double(longest), 0, 'g', 4);
+            }
+            info << seed.message();
+            MeshFilterRunResult r = success(true, info, created);
+            r.outputValues["genus"] = ht.genus;
+            return r;
         }
 
         if (filterId == QString::fromLatin1(kIdVAttrSeam)) {
