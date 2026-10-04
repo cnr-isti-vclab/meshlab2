@@ -66,6 +66,13 @@ primitive belongs upstream rather than worked around here — MeshLab is the lib
 largest consumer, and a workaround in a filter leaves the defect in place for everyone
 else.
 
+**Read `vcglib/AGENTS.md` before touching anything under `vcglib/`.** Its rules govern
+there and are not repeated here: the library idioms (`Allocator`, `MeshAssert`, throw
+rather than assert, report through `CallBackPos`), no duplication inside the library, and
+samples that are short documentation rather than tests. It is not loaded automatically —
+only `CLAUDE.md` files are — so it has to be opened by hand; a session that skipped it
+once wrote a regression suite with a `CHECK` macro as a sample.
+
 **Every vcglib change must be documented and motivated.** Say in the commit message what
 it changes and why, and comment the code itself: the change lands for every other vcglib
 user, most of whom will never see the MeshLab problem that prompted it. A change that
