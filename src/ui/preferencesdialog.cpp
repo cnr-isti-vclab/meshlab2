@@ -8,6 +8,7 @@
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSettings>
@@ -26,12 +27,25 @@ PreferencesDialog::PreferencesDialog(QWidget *parent)
 
     auto *rootLayout = new QVBoxLayout(this);
 
+    // Typing narrows the list to the preferences whose name, help or options mention every
+    // word typed. It has the focus on opening, so the search can start at once.
+    auto *search = new QLineEdit(this);
+    search->setPlaceholderText(tr("Search preferences"));
+    search->setClearButtonEnabled(true);
+    rootLayout->addWidget(search);
+    search->setFocus();
+
     auto *intro = new QLabel(
         tr("Changes apply immediately and are remembered between sessions."),
         this);
     intro->setStyleSheet(QStringLiteral("color: palette(mid);"));
     intro->setWordWrap(true);
     rootLayout->addWidget(intro);
+
+    auto *noMatch = new QLabel(this);
+    noMatch->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    noMatch->hide();
+    rootLayout->addWidget(noMatch);
 
     auto *scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
@@ -70,6 +84,12 @@ PreferencesDialog::PreferencesDialog(QWidget *parent)
                 preferences.setValue(parameterId, m_form->value(parameterId));
         });
 
+    connect(search, &QLineEdit::textChanged, this, [this, noMatch](const QString &text) {
+        const bool none = m_form->setFilter(text) == 0;
+        noMatch->setText(tr("No preference matches \u201C%1\u201D.").arg(text.trimmed()));
+        noMatch->setVisible(none);
+    });
+
     auto *showHelp = new QCheckBox(tr("Show help"), this);
     showHelp->setChecked(QSettings().value(kShowHelpKey, true).toBool());
     m_form->setInlineHelpVisible(showHelp->isChecked());
@@ -82,6 +102,11 @@ PreferencesDialog::PreferencesDialog(QWidget *parent)
     auto *resetButton =
         buttons->addButton(tr("Restore All Defaults"), QDialogButtonBox::ResetRole);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::accept);
+    // Enter in a dialog presses its next auto-default button, and with the focus in the
+    // search field or an editor that could be Restore All Defaults. Enter does nothing here.
+    for (QAbstractButton *button : buttons->buttons())
+        if (auto *push = qobject_cast<QPushButton *>(button))
+            push->setAutoDefault(false);
     connect(resetButton, &QPushButton::clicked, this, [this]() {
         Preferences &preferences = Preferences::instance();
         preferences.resetToDefaults();

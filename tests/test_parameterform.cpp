@@ -78,6 +78,7 @@ private slots:
     void resetRestoresDefaults();
     void resetButtonsRestoreOneValue();
     void inlineHelpShowsEachHelpText();
+    void filterShowsMatchingRowsUnderTheirHeadings();
     void skipsDocumentTypesWithoutADocument();
     void enabledWhenGatesOnABool();
     void enabledWhenSupportsNegation();
@@ -330,6 +331,66 @@ void ParameterFormTests::inlineHelpShowsEachHelpText()
     plain.build(params);
     QVERIFY(!plain.bindingById(QStringLiteral("count"))->helpLabel);
     QCOMPARE(plain.bindingById(QStringLiteral("count"))->editor->toolTip(), QStringLiteral("How many of them."));
+}
+
+// The search keeps the rows whose label, help, group or option labels contain every word
+// typed, ignoring case, under the headings of their groups, and says how many it kept.
+void ParameterFormTests::filterShowsMatchingRowsUnderTheirHeadings()
+{
+    std::vector<MeshFilterParameterDescriptor> params = sampleParameters();
+    params[1].helpMarkdown = QStringLiteral("How many of them.");
+
+    QWidget host;
+    auto *layout = new QFormLayout(&host);
+    ParameterFormBuilder builder(layout, &host);
+    builder.setShowsInlineHelp(true);
+    builder.setAdvancedVisible(true);
+    builder.build(params);
+
+    const auto shownRows = [&builder]() {
+        QStringList ids;
+        for (const auto &binding : builder.bindings())
+            if (!binding.formLabel->isHidden())
+                ids << binding.descriptor.id;
+        return ids;
+    };
+    const auto headingShown = [layout](const QString &name) {
+        for (int row = 0; row < layout->rowCount(); ++row) {
+            QLayoutItem *spanning = layout->itemAt(row, QFormLayout::SpanningRole);
+            auto *label = spanning ? qobject_cast<QLabel *>(spanning->widget()) : nullptr;
+            if (label && label->text() == name)
+                return !label->isHidden();
+        }
+        return false;
+    };
+
+    QCOMPARE(builder.setFilter(QStringLiteral("many")), 1); // the help text
+    QCOMPARE(shownRows(), QStringList{QStringLiteral("count")});
+    QVERIFY(!builder.bindingById(QStringLiteral("count"))->helpLabel->isHidden());
+    QVERIFY(headingShown(QStringLiteral("Main")));
+    QVERIFY(!headingShown(QStringLiteral("Advanced")));
+
+    QCOMPARE(builder.setFilter(QStringLiteral("BETA")), 1); // an option's label
+    QCOMPARE(shownRows(), QStringList{QStringLiteral("mode")});
+
+    QCOMPARE(builder.setFilter(QStringLiteral("advanced")), 1); // the group's name
+    QCOMPARE(shownRows(), QStringList{QStringLiteral("ratio")});
+    QVERIFY(headingShown(QStringLiteral("Advanced")));
+    QVERIFY(!headingShown(QStringLiteral("Main")));
+
+    // Every word has to match.
+    QCOMPARE(builder.setFilter(QStringLiteral("count many")), 1);
+    QCOMPARE(builder.setFilter(QStringLiteral("count zebra")), 0);
+    QVERIFY(!headingShown(QStringLiteral("Main")));
+
+    // Hiding the advanced set still hides it, matched or not.
+    builder.setAdvancedVisible(false);
+    QCOMPARE(builder.setFilter(QStringLiteral("advanced")), 0);
+
+    builder.setAdvancedVisible(true);
+    QCOMPARE(builder.setFilter(QString()), int(params.size()));
+    QVERIFY(headingShown(QStringLiteral("Main")));
+    QVERIFY(headingShown(QStringLiteral("Advanced")));
 }
 
 // A caller with no Document (the preferences dialog) must still get a usable form:

@@ -40,11 +40,11 @@ public:
         std::function<QString()> renderStateProvider;
     };
 
-    // A group heading and whether it belongs to the advanced set, so that hiding the
-    // advanced parameters hides their heading too.
+    // A group heading and the group it stands over: it shows only while some of that group's
+    // rows do, whether they were hidden as advanced or by a search.
     struct GroupHeading {
         QWidget *label = nullptr;
-        bool advanced = false;
+        QString group;
     };
 
     struct Binding {
@@ -97,6 +97,10 @@ public:
 
     bool hasAdvanced() const { return m_hasAdvanced; }
     void setAdvancedVisible(bool visible);
+    // Shows only the rows whose label, help, group or option labels contain every word of
+    // `text`, ignoring case, under the headings of the groups they are in; an empty text shows
+    // them all again. Returns how many rows are shown.
+    int setFilter(const QString &text);
 
     // Re-point every texture editor at the mesh named by its
     // `textureSourceMeshParameter` (or the current mesh when it names none).
@@ -123,6 +127,10 @@ private:
     void applyValue(const Binding &binding, const QVariant &value);
     QVariant readValue(const Binding &binding) const;
     void refreshResetButtons();
+    bool matchesFilter(const Binding &binding) const;
+    // Applies the advanced, help and search settings to every row and heading at once.
+    // Returns how many rows are shown.
+    int refreshVisibility();
 
     QFormLayout *m_layout = nullptr;
     QWidget *m_parentWidget = nullptr;
@@ -131,6 +139,7 @@ private:
     std::vector<GroupHeading> m_groupHeadings;
     bool m_hasAdvanced = false;
     bool m_advancedVisible = false;
+    QStringList m_filterWords;
     bool m_showsInlineHelp = false;
     bool m_inlineHelpVisible = true;
     bool m_showsResetButtons = false;

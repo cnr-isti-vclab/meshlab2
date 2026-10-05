@@ -981,8 +981,7 @@ void ParameterFormBuilder::build(
         // headings a few pixels right of the labels under them.
         groupLabel->setContentsMargins(0, 8, 0, 0);
         m_layout->addRow(groupLabel);
-        m_groupHeadings.push_back(
-            { groupLabel, group.startsWith(QStringLiteral("advanced"), Qt::CaseInsensitive) });
+        m_groupHeadings.push_back({ groupLabel, group });
     }
     for (const MeshFilterParameterDescriptor *paramPtr : byGroup[group]) {
         const MeshFilterParameterDescriptor &param = *paramPtr;
@@ -1051,16 +1050,7 @@ void ParameterFormBuilder::build(
             helpPalette.setColor(QPalette::WindowText, helpPalette.color(QPalette::PlaceholderText));
             helpLabel->setPalette(helpPalette);
             m_layout->addRow(helpLabel);
-            if (!m_inlineHelpVisible)
-                helpLabel->hide();
             binding.helpLabel = helpLabel;
-        }
-
-        if (binding.advanced && !m_advancedVisible) {
-            labelWidget->hide();
-            field->hide();
-            if (binding.helpLabel)
-                binding.helpLabel->hide();
         }
 
         // A stored value wins over the descriptor default, so a caller holding
@@ -1075,9 +1065,7 @@ void ParameterFormBuilder::build(
     }
     refreshDependentEditors();
     refreshEnabledState();
-    // Headings follow their parameters: with the advanced set hidden the "Advanced"
-    // heading would otherwise sit above nothing.
-    setAdvancedVisible(m_advancedVisible);
+    refreshVisibility();
 }
 
 QWidget *ParameterFormBuilder::createEditor(const MeshFilterParameterDescriptor &param)
@@ -1448,43 +1436,65 @@ void ParameterFormBuilder::refreshResetButtons()
 void ParameterFormBuilder::setAdvancedVisible(bool visible)
 {
     m_advancedVisible = visible;
+    refreshVisibility();
+}
+
+void ParameterFormBuilder::setInlineHelpVisible(bool visible)
+{
+    m_inlineHelpVisible = visible;
+    refreshVisibility();
+}
+
+int ParameterFormBuilder::setFilter(const QString &text)
+{
+    m_filterWords = text.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    return refreshVisibility();
+}
+
+bool ParameterFormBuilder::matchesFilter(const Binding &binding) const
+{
+    if (m_filterWords.isEmpty())
+        return true;
+    const MeshFilterParameterDescriptor &d = binding.descriptor;
+    QStringList haystack{ d.label, d.helpMarkdown, groupDisplayName(d.group) };
+    for (const MeshFilterEnumOption &option : d.enumOptions)
+        haystack << option.label;
+    const QString text = haystack.join(QLatin1Char('\n'));
+    return std::all_of(m_filterWords.cbegin(), m_filterWords.cend(), [&text](const QString &word) {
+        return text.contains(word, Qt::CaseInsensitive);
+    });
+}
+
+int ParameterFormBuilder::refreshVisibility()
+{
+    std::map<QString, int> shownByGroup;
+    int shown = 0;
     for (const Binding &binding : m_bindings) {
-        if (!binding.advanced)
-            continue;
+        const bool visible = (m_advancedVisible || !binding.advanced) && matchesFilter(binding);
         if (binding.formLabel)
             binding.formLabel->setVisible(visible);
         if (QWidget *field = binding.field ? binding.field : binding.editor)
             field->setVisible(visible);
         if (binding.helpLabel)
             binding.helpLabel->setVisible(visible && m_inlineHelpVisible);
+        if (visible) {
+            ++shown;
+            ++shownByGroup[binding.descriptor.group];
+        }
     }
     // A row coming back into view shows its reset button only if it is needed.
     refreshResetButtons();
 
-    // Count the groups that still have something in them. Hiding the advanced
-    // parameters can leave a single visible group, and then its heading says nothing
-    // the form does not already say -- the same reason a one-group form has no heading
-    // at all.
-    int visibleGroups = 0;
-    for (const GroupHeading &heading : m_groupHeadings)
-        if (visible || !heading.advanced)
-            ++visibleGroups;
-
+    // A heading shows over a group that has rows left. When only one group has any, its
+    // heading says nothing the form does not already say -- the reason a one-group form has
+    // no heading at all -- unless a search is narrowing the form: then it says where the
+    // match is.
+    const bool headed = shownByGroup.size() > 1 || !m_filterWords.isEmpty();
     for (const GroupHeading &heading : m_groupHeadings) {
-        if (!heading.label)
-            continue;
-        const bool wanted = (visible || !heading.advanced) && visibleGroups > 1;
-        heading.label->setVisible(wanted);
+        if (heading.label)
+            heading.label->setVisible(headed && shownByGroup.count(heading.group) > 0);
     }
-}
-
-void ParameterFormBuilder::setInlineHelpVisible(bool visible)
-{
-    m_inlineHelpVisible = visible;
-    for (const Binding &binding : m_bindings) {
-        if (binding.helpLabel)
-            binding.helpLabel->setVisible(visible && (m_advancedVisible || !binding.advanced));
-    }
+    return shown;
 }
 
 const ParameterFormBuilder::Binding *ParameterFormBuilder::bindingById(
