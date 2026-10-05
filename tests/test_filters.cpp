@@ -533,6 +533,10 @@ private slots:
     void cutAlongSelectedEdgesMatchesCutAlongCreaseEdges();
     void embedPolylineThenCutSplitsTheSurface();
     void embedPolylineRefusesWhatItCannotEmbed();
+    void smoothPolylineOnSurfaceStaysOnItAndShortens();
+    void smoothPolylineOnCylinderKeepsTheHelixWinding();
+    void cutGraphThenEmbedThenCutGivesADisk();
+    void cutGraphIsReproducibleAndRefusesWhatItCannotCut();
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToComponentsAndUvIslands();
@@ -8639,6 +8643,222 @@ void FilterTests::embedPolylineRefusesWhatItCannotEmbed()
         const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("embed_polyline_in_surface")), p);
         QVERIFY(!r.success);
     }
+}
+
+namespace {
+
+void makePolyline(VCGMesh &line, const std::vector<vcg::Point3f> &pts)
+{
+    line.Clear();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(line, pts.size());
+    vcg::tri::Allocator<VCGMesh>::AddEdges(line, pts.size() - 1);
+    for (size_t i = 0; i < pts.size(); ++i) line.vert[i].P() = pts[i];
+    for (size_t i = 0; i + 1 < pts.size(); ++i) {
+        line.edge[i].V(0) = &line.vert[i];
+        line.edge[i].V(1) = &line.vert[i + 1];
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(line);
+}
+
+double curveLength(const VCGMesh &m)
+{
+    double l = 0;
+    for (const VCGEdge &e : m.edge) if (!e.IsD()) l += vcg::Distance(e.cV(0)->cP(), e.cV(1)->cP());
+    return l;
+}
+
+} // namespace
+
+// A zigzag hovering just above a flat grid ends up on it, much shorter, with its two ends
+// (the control points) only projected; the grid is untouched. The same holds for a polyline
+// layer whose matrix differs from the surface's.
+void FilterTests::smoothPolylineOnSurfaceStaysOnItAndShortens()
+{
+    std::vector<vcg::Point3f> zigzag;
+    for (int i = 0; i <= 40; ++i)
+        zigzag.push_back(vcg::Point3f(0.5f + 5.0f * i / 40, 3.0f + ((i % 2) ? -0.3f : 0.3f), 0.05f));
+    VCGMesh zigzagMesh;
+    makePolyline(zigzagMesh, zigzag);
+    const double zigzagLength = curveLength(zigzagMesh);
+
+    std::vector<vcg::Point3f> results[2];
+    for (int shifted = 0; shifted < 2; ++shifted)
+    {
+        Document doc;
+        VCGMesh grid;
+        makeGridMesh(grid, 6);
+        doc.addMesh(grid, QStringLiteral("grid"));
+        const vcg::Point3f shift = shifted ? vcg::Point3f(4, 1, -2) : vcg::Point3f(0, 0, 0);
+        std::vector<vcg::Point3f> stored = zigzag;
+        for (auto &p : stored) p -= shift;
+        VCGMesh storedMesh;
+        makePolyline(storedMesh, stored);
+        const int line = doc.addMesh(storedMesh, QStringLiteral("zigzag"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+        QMatrix4x4 mx;
+        mx.translate(shift[0], shift[1], shift[2]);
+        doc.setMeshTransform(line, mx);
+        doc.setCurrentMeshIndex(line);
+
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("surface"), 0);
+        p.insert(QStringLiteral("iterations"), 20);
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("smooth_polyline_on_surface")), p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+        const VCGMesh &m = doc.mesh(line).mesh;
+        int selected = 0;
+        for (const VCGVertex &v : m.vert) {
+            const vcg::Point3f w = v.cP() + shift;  // the layer matrix is a translation
+            QVERIFY2(std::abs(w[2]) < 1e-4f, qPrintable(QString::number(w[2])));
+            selected += v.IsS() ? 1 : 0;
+            results[shifted].push_back(w);
+        }
+        QCOMPARE(selected, 2);  // the two ends are the control points
+        QVERIFY2(curveLength(m) < 0.5 * zigzagLength, qPrintable(QString::number(curveLength(m))));
+        QCOMPARE(doc.mesh(0).mesh.FN(), 72);  // the surface is not modified
+    }
+    QCOMPARE(results[1].size(), results[0].size());
+    for (size_t i = 0; i < results[0].size(); ++i)
+        QVERIFY(vcg::Distance(results[0][i], results[1][i]) < 1e-4f);
+}
+
+// A strand with fixed ends shortens towards a geodesic in its own homotopy class: a helix
+// of three turns around a cylinder stays three turns, it does not unwind.
+void FilterTests::smoothPolylineOnCylinderKeepsTheHelixWinding()
+{
+    VCGMesh cyl;
+    vcg::tri::OrientedCylinder(cyl, vcg::Point3f(0, -1, 0), vcg::Point3f(0, 1, 0), 1.0f, false, 24, 4);
+    vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(cyl);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(cyl);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(cyl);
+    std::vector<vcg::Point3f> helix;
+    for (int i = 0; i <= 180; ++i) {
+        const float a = 2 * float(M_PI) * i / 60, wobble = 0.08f * std::sin(17.0f * a);
+        helix.push_back(vcg::Point3f(std::cos(a), -0.9f + 0.6f * i / 60 + wobble, std::sin(a)));
+    }
+    auto turns = [](const VCGMesh &m) {   // walk the chain from its first vertex, summing angles
+        double total = 0;
+        for (const VCGEdge &e : m.edge) if (!e.IsD()) {
+            const vcg::Point3f a = e.cV(0)->cP(), b = e.cV(1)->cP();
+            double d = std::atan2(b[2], b[0]) - std::atan2(a[2], a[0]);
+            while (d > M_PI) d -= 2 * M_PI;
+            while (d < -M_PI) d += 2 * M_PI;
+            total += d;
+        }
+        return total / (2 * M_PI);
+    };
+    Document doc;
+    doc.addMesh(cyl, QStringLiteral("cylinder"));
+    VCGMesh helixMesh;
+    makePolyline(helixMesh, helix);
+    const int line = doc.addMesh(helixMesh, QStringLiteral("helix"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+    doc.setCurrentMeshIndex(line);
+    const double turnsBefore = turns(doc.mesh(line).mesh), lengthBefore = curveLength(doc.mesh(line).mesh);
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("surface"), 0);
+    p.insert(QStringLiteral("iterations"), 30);
+    const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("smooth_polyline_on_surface")), p);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const double turnsAfter = turns(doc.mesh(line).mesh), lengthAfter = curveLength(doc.mesh(line).mesh);
+    QVERIFY2(std::abs(turnsBefore - 3.0) < 0.05, qPrintable(QString::number(turnsBefore)));
+    QVERIFY2(std::abs(turnsAfter - 3.0) < 0.05, qPrintable(QString::number(turnsAfter)));
+    QVERIFY2(lengthAfter < lengthBefore, qPrintable(QStringLiteral("%1 -> %2").arg(lengthBefore).arg(lengthAfter)));
+
+    // The polyline itself is not a surface.
+    MeshFilterParameterValues self;
+    self.insert(QStringLiteral("surface"), line);
+    QVERIFY(!doc.runFilter(filterKeyForId(doc, QStringLiteral("smooth_polyline_on_surface")), self).success);
+}
+
+namespace {
+
+// Connected, one boundary loop, Euler characteristic V - E + F = 1: a topological disk.
+void verifyTopologicalDisk(VCGMesh &m, const char *what)
+{
+    m.face.EnableFFAdjacency();
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+    int edges = 0, borderEdges = 0, nonManifold = 0;
+    vcg::tri::Clean<VCGMesh>::CountEdgeNum(m, edges, borderEdges, nonManifold);
+    const int components = vcg::tri::Clean<VCGMesh>::CountConnectedComponents(m);
+    const int loops = vcg::tri::Clean<VCGMesh>::CountHoles(m);
+    m.face.DisableFFAdjacency();
+    QVERIFY2(components == 1, qPrintable(QStringLiteral("%1: %2 components").arg(QLatin1String(what)).arg(components)));
+    QVERIFY2(loops == 1, qPrintable(QStringLiteral("%1: %2 boundary loops").arg(QLatin1String(what)).arg(loops)));
+    QVERIFY2(m.VN() - edges + m.FN() == 1,
+             qPrintable(QStringLiteral("%1: Euler characteristic %2").arg(QLatin1String(what)).arg(m.VN() - edges + m.FN())));
+    QCOMPARE(nonManifold, 0);
+}
+
+} // namespace
+
+// The whole chain on a torus (genus 1) and a sphere (genus 0): the cut graph, embedded and
+// cut along, leaves one topological disk; and the cut graph leaves the face colors alone.
+void FilterTests::cutGraphThenEmbedThenCutGivesADisk()
+{
+    for (int shape = 0; shape < 2; ++shape)
+    {
+        VCGMesh m;
+        if (shape == 0) vcg::tri::Torus(m, 3.0f, 1.0f, 32, 16);
+        else vcg::tri::Sphere(m, 3);
+        for (VCGFace &f : m.face) f.C() = vcg::Color4b(10, 200, 30, 255);
+        vcg::tri::UpdateBounding<VCGMesh>::Box(m);
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
+        Document doc;
+        const int surface = doc.addMesh(m, QString::fromLatin1(shape == 0 ? "torus" : "sphere"), vcg::tri::io::Mask::IOM_FACECOLOR);
+        doc.setCurrentMeshIndex(surface);
+        MeshFilterParameterValues seed;
+        seed.insert(QStringLiteral("randomSeed"), 3);
+        MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("create_polyline_from_cut_graph")), seed);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QCOMPARE(r.newMeshIndices.size(), 1);
+        for (const VCGFace &f : doc.mesh(surface).mesh.face)
+            QCOMPARE(f.cC(), vcg::Color4b(10, 200, 30, 255));
+
+        doc.setCurrentMeshIndex(surface);
+        MeshFilterParameterValues embed;
+        embed.insert(QStringLiteral("polyline"), r.newMeshIndices.front());
+        r = doc.runFilter(filterKeyForId(doc, QStringLiteral("embed_polyline_in_surface")), embed);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        r = doc.runFilter(filterKeyForId(doc, QStringLiteral("cut_along_selected_edges")), {});
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        verifyTopologicalDisk(doc.mesh(surface).mesh, shape == 0 ? "torus" : "sphere");
+    }
+}
+
+void FilterTests::cutGraphIsReproducibleAndRefusesWhatItCannotCut()
+{
+    auto cutGraph = [](VCGMesh &m, int seedValue, MeshFilterRunResult &r) {
+        Document doc;
+        doc.setCurrentMeshIndex(doc.addMesh(m, QStringLiteral("mesh")));
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("randomSeed"), seedValue);
+        r = doc.runFilter(filterKeyForId(doc, QStringLiteral("create_polyline_from_cut_graph")), p);
+        std::vector<vcg::Point3f> pts;
+        if (r.success)
+            for (const VCGVertex &v : doc.mesh(r.newMeshIndices.front()).mesh.vert) pts.push_back(v.cP());
+        std::sort(pts.begin(), pts.end());
+        return pts;
+    };
+    VCGMesh torus;
+    vcg::tri::Torus(torus, 3.0f, 1.0f, 32, 16);
+    MeshFilterRunResult r1, r2;
+    const auto a = cutGraph(torus, 7, r1), b = cutGraph(torus, 7, r2);
+    QVERIFY2(r1.success && r2.success, qPrintable(r1.errorMessage + r2.errorMessage));
+    QVERIFY(!a.empty());
+    QVERIFY(a == b);  // the same seed, the same cut
+
+    VCGMesh grid;  // an open grid is already a disk
+    makeGridMesh(grid, 6);
+    cutGraph(grid, 1, r1);
+    QVERIFY(!r1.success);
+    QVERIFY2(r1.errorMessage.contains(QStringLiteral("already a topological disk")), qPrintable(r1.errorMessage));
+
+    VCGMesh doubled;  // two vertices at the same place
+    vcg::tri::Torus(doubled, 3.0f, 1.0f, 32, 16);
+    vcg::tri::Allocator<VCGMesh>::AddVertex(doubled, doubled.vert[4].cP());
+    cutGraph(doubled, 1, r1);
+    QVERIFY(!r1.success);
+    QVERIFY2(r1.errorMessage.contains(QStringLiteral("duplicate vertices")), qPrintable(r1.errorMessage));
 }
 
 void FilterTests::createdCylinderHonoursRadiusHeightAndAxis()

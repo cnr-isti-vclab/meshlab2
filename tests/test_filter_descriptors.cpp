@@ -61,7 +61,7 @@ const QSet<QString> &outputModifyCodes()
 const QSet<QString> &inputPrepareCodes()
 {
     static const QSet<QString> codes = {
-        QStringLiteral("FF"), QStringLiteral("VF"), QStringLiteral("BorderFF"),
+        QStringLiteral("FF"), QStringLiteral("VF"), QStringLiteral("VE"), QStringLiteral("BorderFF"),
         QStringLiteral("BorderVF"), QStringLiteral("FNorm"), QStringLiteral("VNorm"),
         QStringLiteral("BBox"), QStringLiteral("FMark"), QStringLiteral("VMark"),
         QStringLiteral("Mark"), QStringLiteral("VTex"), QStringLiteral("VT"),

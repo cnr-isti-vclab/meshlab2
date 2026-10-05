@@ -2399,6 +2399,107 @@
       "parameters": []
     },
     {
+      "id": "create_polyline_from_cut_graph",
+      "categories": ["Creation/Primitives"],
+      "name": "Create Polyline from Cut Graph",
+      "pythonName": "create_polyline_from_cut_graph",
+      "shortDescription": "Create a polyline along mesh edges that, once cut, opens the mesh into a topological disk.",
+      "longDescriptionMarkdown": "Compute a cut graph: a set of mesh edges such that cutting the surface along them leaves a single topological disk. A closed surface of genus $g$ needs a graph with $2g$ independent cycles, so a sphere is opened by a short cut and a torus by two loops around the tube and the hole. The graph becomes a new polyline layer lying exactly on mesh edges; *Embed Polyline in Surface* then selects those edges (after an optional *Smooth Polyline on Surface*), and *Cut Along Selected Edges* opens the mesh. It is the first step towards a parametrization that needs disk topology.\n\nThe graph is found by visiting the faces in a random order and keeping only the edges where different fronts of the visit meet, so different seeds give different, equally valid cuts. The mesh must be connected and manifold, without duplicate vertices; one that is already a disk needs no cut, and the filter says so.",
+      "tags": ["polyline", "cut", "seam", "topology", "disk", "parametrization"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireFaces": true
+      },
+      "inputPrepare": ["BorderFF", "VF"],
+      "outputTag": "cut graph",
+      "parameters": [
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seeds the starting face and the order of the visit. Zero draws a fresh seed on every run, so repeated applications give different cuts; any other value makes the cut exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
+        }
+      ]
+    },
+    {
+      "id": "smooth_polyline_on_surface",
+      "categories": ["Geometry/Smoothing"],
+      "name": "Smooth Polyline on Surface",
+      "pythonName": "smooth_polyline_on_surface",
+      "shortDescription": "Smooth the current polyline while keeping it on a surface layer, so each strand tends to a geodesic.",
+      "longDescriptionMarkdown": "Smooth a polyline lying on a surface without letting it leave the surface: at every iteration each free vertex moves towards the average of its neighbours and is then pulled back onto the surface. The polyline is resampled as it goes, adding vertices where it strays from the surface and removing them where it is flat, and the last iteration projects it exactly.\n\nThe curve is read as **control points** joined by **strands**. Control points are only projected; each strand between them shortens towards a geodesic of the surface, staying in its own homotopy class: a helix around a cylinder with fixed ends stays a helix. By default the control points are the ends of the polyline and its junctions; *Selected vertices* uses the vertex selection of the polyline. Afterwards the control points are the selected vertices of the polyline.\n\nThe surface layer is not changed. The polyline must lie close to it; it can then be embedded with *Embed Polyline in Surface*.",
+      "tags": ["polyline", "curve", "geodesic", "smoothing", "projection"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireEdges": true
+      },
+      "inputPrepare": ["VE"],
+      "outputModifies": ["VG", "VN", "VS"],
+      "parameters": [
+        {
+          "id": "surface",
+          "label": "Surface",
+          "help": "The surface layer the polyline lies on. It is left unchanged.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {"requireVertices": true, "requireFaces": true},
+          "meshPrepare": ["FF", "FMark", "FNorm"]
+        },
+        {
+          "id": "iterations",
+          "label": "Iterations",
+          "help": "Number of smoothing iterations.",
+          "group": "main",
+          "type": "int",
+          "default": 10,
+          "min": 1,
+          "max": 1000
+        },
+        {
+          "id": "smoothWeight",
+          "label": "Smoothing",
+          "help": "How far each iteration moves a vertex towards the average of its neighbours, from 0 (not at all) to 1 (all the way).",
+          "group": "main",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 3
+        },
+        {
+          "id": "projectWeight",
+          "label": "Projection",
+          "help": "How far each iteration pulls a vertex back onto the surface, from 0 to 1. The last iteration always projects fully.",
+          "group": "main",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 3
+        },
+        {
+          "id": "controlPoints",
+          "label": "Control points",
+          "help": "Which polyline vertices stay fixed (only projected).",
+          "group": "main",
+          "type": "enum",
+          "default": "ends_and_nodes",
+          "enumOptions": [
+            {"id": "ends_and_nodes", "label": "Ends and junctions", "help": "The polyline's ends and the vertices where three or more of its edges meet."},
+            {"id": "selected", "label": "Selected vertices", "help": "The selected vertices of the polyline."}
+          ]
+        }
+      ]
+    },
+    {
       "id": "embed_polyline_in_surface",
       "categories": ["Meshing/Remeshing"],
       "name": "Embed Polyline in Surface",

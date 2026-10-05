@@ -15,6 +15,7 @@
 #include <vcg/complex/algorithms/clustering.h>
 #include <vcg/complex/algorithms/crease_cut.h>
 #include <vcg/complex/algorithms/curve_on_manifold.h>
+#include <vcg/complex/algorithms/cut_tree.h>
 #include <vcg/complex/algorithms/handle_tunnel_loops.h>
 #include <vcg/complex/algorithms/create/platonic.h>
 #include <vcg/complex/algorithms/hole.h>
@@ -274,6 +275,8 @@ constexpr QLatin1StringView kIdFauxCrease("select_crease_edges_vcglib");
 constexpr QLatin1StringView kIdFauxExtract("create_polyline_from_selected_edges");
 constexpr QLatin1StringView kIdCutSelectedEdges("cut_along_selected_edges");
 constexpr QLatin1StringView kIdEmbedPolyline("embed_polyline_in_surface");
+constexpr QLatin1StringView kIdSmoothPolyline("smooth_polyline_on_surface");
+constexpr QLatin1StringView kIdCutGraph("create_polyline_from_cut_graph");
 constexpr QLatin1StringView kIdReebGraph("create_reeb_graph_from_vertex_scalar");
 constexpr QLatin1StringView kIdHandleTunnel("create_handle_and_tunnel_loops");
 constexpr QLatin1StringView kIdVAttrSeam("split_vertices_by_attribute_seam");
@@ -1665,6 +1668,69 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (idx < 0)
                 return fail(QObject::tr("Failed to create edge extraction layer."));
             return success(true, { QObject::tr("Created edge mesh from selected edges.") }, { idx });
+        }
+
+        if (filterId == QString::fromLatin1(kIdCutGraph)) {
+            // CutTree finds mesh vertices again by position: two at the same place would be confused.
+            std::vector<vcg::Point3f> pos;
+            pos.reserve(size_t(mesh.VN()));
+            for (const VCGVertex &v : mesh.vert) if (!v.IsD()) pos.push_back(v.cP());
+            std::sort(pos.begin(), pos.end());
+            if (std::adjacent_find(pos.begin(), pos.end()) != pos.end())
+                return fail(QObject::tr("Mesh has duplicate vertices; remove them first (Remove Duplicate Vertices)."));
+            const RandomSeed seed = params.getRandomSeed();
+            vcg::math::MarsenneTwisterRNG rng(seed.value);
+            VCGMesh tree;
+            tree.vert.EnableVEAdjacency();
+            vcg::tri::CutTree<VCGMesh> ct(mesh, seed.value);
+            ct.Build(tree, int(rng.generate(unsigned(mesh.FN()))));
+            if (tree.EN() == 0)
+                return fail(QObject::tr("The mesh is already a topological disk: it needs no cut."));
+            tree.vert.DisableVEAdjacency();
+            const int idx = doc.addMesh(tree, {}, Mask::IOM_EDGEINDEX);
+            if (idx < 0)
+                return fail(QObject::tr("Failed to create the cut graph layer."));
+            MeshFilterRunResult r = success(true, {
+                QObject::tr("Cut graph: %1 edges.").arg(tree.EN()), seed.message() }, { idx });
+            r.outputValues["edges"] = tree.EN();
+            return r;
+        }
+
+        if (filterId == QString::fromLatin1(kIdSmoothPolyline)) {
+            const int si = params.getMesh(QStringLiteral("surface"));
+            if (si < 0 || si >= doc.meshCount() || si == ci)
+                return fail(QObject::tr("Choose a surface layer other than the polyline."));
+            auto &surfEntry = doc.mesh(si);
+            // CoM works in the surface's frame: bring the polyline there and back.
+            bool invertible = true, invertible2 = true;
+            const QMatrix4x4 toSurface = surfEntry.transform.inverted(&invertible) * entry.transform;
+            const QMatrix4x4 back = toSurface.inverted(&invertible2);
+            if (!invertible || !invertible2)
+                return fail(QObject::tr("The layer matrices cannot be inverted."));
+            auto mapAll = [&](const QMatrix4x4 &mx) {
+                for (VCGVertex &v : mesh.vert) {
+                    const QVector3D q = mx.map(QVector3D(v.P()[0], v.P()[1], v.P()[2]));
+                    v.P() = vcg::Point3f(q.x(), q.y(), q.z());
+                }
+            };
+            using CoM = vcg::tri::CoM<VCGMesh>;
+            CoM com(surfEntry.mesh);
+            com.par.cb = doc.progressCallback();
+            com.Init();
+            const int before = mesh.VN();
+            mapAll(toSurface);
+            com.SetControlPoints(mesh, params.getEnum(QStringLiteral("controlPoints")) == QStringLiteral("selected")
+                                           ? CoM::Selected : CoM::EndsAndNodes);
+            com.SmoothProject(mesh, params.getInt(QStringLiteral("iterations")),
+                              float(params.getDouble(QStringLiteral("smoothWeight"))),
+                              float(params.getDouble(QStringLiteral("projectWeight"))));
+            mapAll(back);  // on failure the rollback restores the layer, frame included
+            vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+            markGeometry(ci, QObject::tr("Smoothed '%1' on '%2'").arg(entry.name, surfEntry.name));
+            MeshFilterRunResult r = success(true, {
+                QObject::tr("Smoothed the polyline on '%1': %2 vertices, now %3.").arg(surfEntry.name).arg(before).arg(mesh.VN()) });
+            r.outputValues["vertices"] = mesh.VN();
+            return r;
         }
 
         if (filterId == QString::fromLatin1(kIdEmbedPolyline)) {
