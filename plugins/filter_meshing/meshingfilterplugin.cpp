@@ -13,6 +13,8 @@
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/clip.h>
 #include <vcg/complex/algorithms/clustering.h>
+#include <vcg/complex/algorithms/crease_cut.h>
+#include <vcg/complex/algorithms/curve_on_manifold.h>
 #include <vcg/complex/algorithms/handle_tunnel_loops.h>
 #include <vcg/complex/algorithms/create/platonic.h>
 #include <vcg/complex/algorithms/hole.h>
@@ -270,6 +272,8 @@ constexpr QLatin1StringView kIdMakePureTri("convert_to_pure_triangles");
 constexpr QLatin1StringView kIdQuadPairing("convert_to_quads_by_triangle_pairing");
 constexpr QLatin1StringView kIdFauxCrease("select_crease_edges_vcglib");
 constexpr QLatin1StringView kIdFauxExtract("create_polyline_from_selected_edges");
+constexpr QLatin1StringView kIdCutSelectedEdges("cut_along_selected_edges");
+constexpr QLatin1StringView kIdEmbedPolyline("embed_polyline_in_surface");
 constexpr QLatin1StringView kIdReebGraph("create_reeb_graph_from_vertex_scalar");
 constexpr QLatin1StringView kIdHandleTunnel("create_handle_and_tunnel_loops");
 constexpr QLatin1StringView kIdVAttrSeam("split_vertices_by_attribute_seam");
@@ -1661,6 +1665,64 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (idx < 0)
                 return fail(QObject::tr("Failed to create edge extraction layer."));
             return success(true, { QObject::tr("Created edge mesh from selected edges.") }, { idx });
+        }
+
+        if (filterId == QString::fromLatin1(kIdEmbedPolyline)) {
+            const int pi = params.getMesh(QStringLiteral("polyline"));
+            if (pi < 0 || pi >= doc.meshCount() || pi == ci)
+                return fail(QObject::tr("Choose a polyline layer other than the surface."));
+            const auto &polyEntry = doc.mesh(pi);
+            if (polyEntry.mesh.EN() == 0)
+                return fail(QObject::tr("Layer '%1' has no edges to embed.").arg(polyEntry.name));
+
+            // Work on a copy, in the surface's own frame: the polyline layer stays as it is.
+            VCGMesh poly;
+            vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(poly, polyEntry.mesh);
+            bool invertible = true;
+            const QMatrix4x4 toSurface = entry.transform.inverted(&invertible) * polyEntry.transform;
+            if (!invertible)
+                return fail(QObject::tr("The surface's matrix cannot be inverted."));
+            for (VCGVertex &v : poly.vert) {
+                const QVector3D q = toSurface.map(QVector3D(v.P()[0], v.P()[1], v.P()[2]));
+                v.P() = vcg::Point3f(q.x(), q.y(), q.z());
+            }
+            poly.vert.EnableVEAdjacency();
+
+            using CoM = vcg::tri::CoM<VCGMesh>;
+            CoM com(mesh);
+            com.par.cb = doc.progressCallback();
+            com.Init();
+            const QString mode = params.getEnum(QStringLiteral("controlPoints"));
+            com.SetControlPoints(poly, mode == QStringLiteral("all_vertices") ? CoM::AllVertices
+                                      : mode == QStringLiteral("selected") ? CoM::Selected : CoM::EndsAndNodes);
+            com.SmoothProject(poly, 1, 0, 1);  // project only: no smoothing
+            com.RefineCurveByBaseMesh(poly);
+            const int vertsBefore = mesh.VN(), facesBefore = mesh.FN();
+            vcg::tri::CoMEmbed<VCGMesh>::SplitMeshWithPolyline(com, poly);
+            entry.ioMask |= Mask::IOM_FACEFLAGS;
+            markGeometry(ci, QObject::tr("Embedded '%1' in '%2'").arg(polyEntry.name, entry.name));
+            MeshFilterRunResult r = success(true, {
+                QObject::tr("Embedded %1 polyline edges: %2 vertices and %3 faces added.")
+                    .arg(poly.EN()).arg(mesh.VN() - vertsBefore).arg(mesh.FN() - facesBefore) });
+            r.outputValues["curve_edges"] = poly.EN();
+            return r;
+        }
+
+        if (filterId == QString::fromLatin1(kIdCutSelectedEdges)) {
+            const size_t selected = vcg::tri::UpdateSelection<VCGMesh>::FaceEdgeCount(mesh);
+            if (selected == 0)
+                return fail(QObject::tr("No selected edges to cut along."));
+            if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh, false) > 0 ||
+                vcg::tri::Clean<VCGMesh>::CountNonManifoldVertexFF(mesh, false) > 0)
+                return fail(QObject::tr("Mesh has non-manifold edges or vertices; cutting requires a manifold mesh."));
+            const int before = mesh.VN();
+            vcg::tri::CutMeshAlongSelectedFaceEdges(mesh);
+            const int added = mesh.VN() - before;
+            markGeometry(ci, QObject::tr("Cut '%1' along %2 selected edges").arg(entry.name).arg(selected));
+            MeshFilterRunResult r = success(true, {
+                QObject::tr("Cut along %1 selected edges: %2 vertices duplicated.").arg(selected).arg(added) });
+            r.outputValues["vertices_added"] = added;
+            return r;
         }
 
         if (filterId == QString::fromLatin1(kIdReebGraph)) {

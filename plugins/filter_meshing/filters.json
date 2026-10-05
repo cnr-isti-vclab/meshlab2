@@ -2,6 +2,29 @@
   "pluginId": "meshlab2.filter.meshing",
   "references": [
     {
+      "id": "sloan1993cdt",
+      "type": "article-journal",
+      "title": "A fast algorithm for generating constrained Delaunay triangulations",
+      "author": [
+        {
+          "family": "Sloan",
+          "given": "S. W."
+        }
+      ],
+      "container-title": "Computers & Structures",
+      "volume": "47",
+      "issue": "3",
+      "page": "441-450",
+      "issued": {
+        "date-parts": [
+          [
+            1993
+          ]
+        ]
+      },
+      "DOI": "10.1016/0045-7949(93)90239-A"
+    },
+    {
       "id": "pascucci2007reeb",
       "type": "article-journal",
       "title": "Robust on-line computation of Reeb graphs: simplicity and speed",
@@ -2373,6 +2396,64 @@
         "requireFaces": true
       },
       "outputTag": "edges",
+      "parameters": []
+    },
+    {
+      "id": "embed_polyline_in_surface",
+      "categories": ["Meshing/Remeshing"],
+      "name": "Embed Polyline in Surface",
+      "pythonName": "embed_polyline_in_surface",
+      "shortDescription": "Retriangulate the current mesh so that a polyline layer runs along its edges, and select those edges.",
+      "longDescriptionMarkdown": "Project a polyline layer onto the current surface and make it part of the tessellation: the faces it crosses are split so that every polyline segment becomes a mesh edge, and those edges are selected. Follow it with *Cut Along Selected Edges* to open the surface along the curve, or with *Create Polyline from Selected Edges* to get the curve back exactly on the mesh. The polyline layer itself is not changed.\n\nThe curve is read as **control points** joined by **strands**. Control points are only projected; between them each strand is traced across the mesh face by face, crossing every edge at its exact intersection point, and only those crossing points are kept, so the strand runs straight inside each face. By default the control points are the ends of the polyline and its junctions; *All vertices* keeps every input vertex, *Selected vertices* uses the vertex selection of the polyline layer.\n\nCurves may cross and touch: the mesh gets a vertex at every crossing, and coinciding curves share their vertices and edges. New vertices take the color, scalar, normal and texture coordinate of the surface where they lie, and split faces keep their attributes, so the mesh looks unchanged. The surface must be manifold and free of zero-area faces, and the polyline must lie close to it.",
+      "tags": ["polyline", "curve", "cut", "seam", "edge selection", "remeshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireFaces": true
+      },
+      "inputPrepare": ["FF", "FMark"],
+      "outputModifies": ["VG", "FV", "FES"],
+      "referenceIds": ["sloan1993cdt"],
+      "parameters": [
+        {
+          "id": "polyline",
+          "label": "Polyline",
+          "help": "The polyline layer to embed. It is projected onto the current mesh, and left unchanged.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {"requireVertices": true, "requireEdges": true}
+        },
+        {
+          "id": "controlPoints",
+          "label": "Control points",
+          "help": "Which polyline vertices are kept exactly (only projected). Between them the curve follows the surface and keeps only its crossings with mesh edges.",
+          "group": "main",
+          "type": "enum",
+          "default": "ends_and_nodes",
+          "enumOptions": [
+            {"id": "ends_and_nodes", "label": "Ends and junctions", "help": "The polyline's ends and the vertices where three or more of its edges meet."},
+            {"id": "all_vertices", "label": "All vertices", "help": "Every polyline vertex is kept."},
+            {"id": "selected", "label": "Selected vertices", "help": "The selected vertices of the polyline layer."}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cut_along_selected_edges",
+      "categories": ["Meshing/Remeshing"],
+      "name": "Cut Along Selected Edges",
+      "pythonName": "cut_along_selected_edges",
+      "shortDescription": "Open the mesh along the selected edges, duplicating the vertices on them.",
+      "longDescriptionMarkdown": "Cut the surface along every selected edge: the vertices on the cut are duplicated so that each selected edge becomes a border edge on both sides. Faces and positions are unchanged; only the connectivity is, so a closed cut line separates the mesh into pieces and an open one leaves a slit. A vertex where a cut ends inside the surface is not duplicated.\n\nThe edges can come from any filter that selects them, such as *Select Crease Edges* (which with this filter gives the same result as *Cut Along Crease Edges*), or from an embedded polyline. The mesh must be manifold.",
+      "tags": ["cut", "seam", "edge selection", "topology"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireFaces": true
+      },
+      "inputPrepare": ["FF"],
+      "outputModifies": ["VG", "FV"],
       "parameters": []
     },
     {

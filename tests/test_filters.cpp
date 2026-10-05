@@ -529,6 +529,10 @@ private slots:
     void preparationSurvivesAFilterRemovingItsLayer();
     void reebGraphOfATorusHasOneCycle();
     void torusHasOneHandleAndOneTunnelLoop();
+    void cutAlongSelectedEdgesDuplicatesOnlyWhatTheCutNeeds();
+    void cutAlongSelectedEdgesMatchesCutAlongCreaseEdges();
+    void embedPolylineThenCutSplitsTheSurface();
+    void embedPolylineRefusesWhatItCannotEmbed();
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToComponentsAndUvIslands();
@@ -8445,6 +8449,196 @@ void FilterTests::torusHasOneHandleAndOneTunnelLoop()
     QVERIFY(!r.success);
     QVERIFY(r.errorMessage.contains(QStringLiteral("genus 0")));
     QCOMPARE(sphereDoc.meshCount(), 1);
+}
+
+namespace {
+
+// An n x n grid of unit squares, each split into two triangles, in the z = 0 plane.
+void makeGridMesh(VCGMesh &m, int n)
+{
+    m.Clear();
+    for (int j = 0; j <= n; ++j)
+        for (int i = 0; i <= n; ++i)
+            vcg::tri::Allocator<VCGMesh>::AddVertex(m, vcg::Point3f(float(i), float(j), 0));
+    for (int j = 0; j < n; ++j)
+        for (int i = 0; i < n; ++i) {
+            const int a = j * (n + 1) + i, b = a + 1, c = a + n + 1, d = c + 1;
+            vcg::tri::Allocator<VCGMesh>::AddFace(m, a, b, d);
+            vcg::tri::Allocator<VCGMesh>::AddFace(m, a, d, c);
+        }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(m);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
+}
+
+// Select the face edges lying on the row y between x0 and x1, on both sides.
+void selectGridRow(VCGMesh &m, int y, int x0, int x1)
+{
+    for (VCGFace &f : m.face)
+        for (int i = 0; i < 3; ++i) {
+            const vcg::Point3f a = f.cP0(i), b = f.cP1(i);
+            if (a[1] == y && b[1] == y && std::min(a[0], b[0]) >= x0 && std::max(a[0], b[0]) <= x1)
+                f.SetFaceEdgeS(i);
+        }
+}
+
+} // namespace
+
+// A cut duplicates the vertices along it, except where it ends inside the surface, and
+// leaves no unreferenced vertex behind (vcglib allocated one for every inner vertex of the
+// cut until the copy was made lazy).
+void FilterTests::cutAlongSelectedEdgesDuplicatesOnlyWhatTheCutNeeds()
+{
+    struct Case { const char *name; int x0, x1, added, pieces; };
+    const Case cases[] = {
+        { "interior slit", 2, 4, 1, 1 },        // only the middle vertex splits
+        { "through cut", 0, 6, 7, 2 },          // every vertex on the row, two pieces
+        { "from the border inward", 0, 3, 3, 1 } // the tip stays single
+    };
+    for (const Case &c : cases)
+    {
+        Document doc;
+        VCGMesh grid;
+        makeGridMesh(grid, 6);
+        selectGridRow(grid, 3, c.x0, c.x1);
+        const int index = doc.addMesh(grid, QStringLiteral("grid"));
+        doc.setCurrentMeshIndex(index);
+        const MeshFilterRunResult r =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("cut_along_selected_edges")), {});
+        QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(QLatin1String(c.name), r.errorMessage)));
+        VCGMesh &m = doc.mesh(index).mesh;
+        QCOMPARE(r.outputValues.value(QStringLiteral("vertices_added")).toInt(), c.added);
+        QCOMPARE(m.VN(), 49 + c.added);
+        QCOMPARE(vcg::tri::Clean<VCGMesh>::CountUnreferencedVertex(m), 0);
+        m.face.EnableFFAdjacency();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+        QCOMPARE(vcg::tri::Clean<VCGMesh>::CountConnectedComponents(m), c.pieces);
+        m.face.DisableFFAdjacency();
+    }
+
+    // Nothing selected: refused, mesh untouched.
+    Document doc;
+    VCGMesh grid;
+    makeGridMesh(grid, 6);
+    doc.setCurrentMeshIndex(doc.addMesh(grid, QStringLiteral("grid")));
+    const MeshFilterRunResult r =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("cut_along_selected_edges")), {});
+    QVERIFY(!r.success);
+    QVERIFY(r.errorMessage.contains(QStringLiteral("No selected edges")));
+    QCOMPARE(doc.mesh(0).mesh.VN(), 49);
+}
+
+// The description promises that Select Crease Edges followed by this filter is Cut Along
+// Crease Edges: on a cube, both split every corner into its three faces' copies.
+void FilterTests::cutAlongSelectedEdgesMatchesCutAlongCreaseEdges()
+{
+    Document crease;
+    QVERIFY(addCubeLayer(crease, QStringLiteral("cube")) >= 0);
+    MeshFilterParameterValues angle;
+    angle.insert(QStringLiteral("angleDeg"), 45.0);
+    MeshFilterRunResult r = crease.runFilter(filterKeyForId(crease, QStringLiteral("cut_along_crease_edges")), angle);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+    Document twoStep;
+    QVERIFY(addCubeLayer(twoStep, QStringLiteral("cube")) >= 0);
+    r = twoStep.runFilter(filterKeyForId(twoStep, QStringLiteral("select_crease_edges_vcglib")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    r = twoStep.runFilter(filterKeyForId(twoStep, QStringLiteral("cut_along_selected_edges")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+    const VCGMesh &a = crease.mesh(0).mesh, &b = twoStep.mesh(0).mesh;
+    QCOMPARE(b.VN(), a.VN());
+    QCOMPARE(b.FN(), a.FN());
+    QCOMPARE(a.VN(), 24);  // 8 corners x 3 faces
+    QCOMPARE(vcg::tri::Clean<VCGMesh>::CountUnreferencedVertex(const_cast<VCGMesh &>(a)), 0);
+}
+
+namespace {
+
+// A grid surface (with a constant vertex color, to check it survives) and a polyline layer
+// crossing it from border to border. With `shift`, the polyline layer stores its points
+// moved by `shift` and carries a matrix that moves them back onto the surface.
+int addGridWithCrossingPolyline(Document &doc, const vcg::Point3f &shift = vcg::Point3f(0, 0, 0))
+{
+    VCGMesh grid;
+    makeGridMesh(grid, 6);
+    for (VCGVertex &v : grid.vert) v.C() = vcg::Color4b(200, 30, 30, 255);
+    const int surface = doc.addMesh(grid, QStringLiteral("grid"), vcg::tri::io::Mask::IOM_VERTCOLOR);
+
+    VCGMesh line;
+    const vcg::Point3f a(0.0f, 2.3f, 0.0f), b(6.0f, 4.7f, 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddVertices(line, 5);
+    vcg::tri::Allocator<VCGMesh>::AddEdges(line, 4);
+    for (int i = 0; i < 5; ++i) line.vert[std::size_t(i)].P() = a + (b - a) * (float(i) / 4) - shift;
+    for (int i = 0; i < 4; ++i) {
+        line.edge[std::size_t(i)].V(0) = &line.vert[std::size_t(i)];
+        line.edge[std::size_t(i)].V(1) = &line.vert[std::size_t(i + 1)];
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(line);
+    const int polyline = doc.addMesh(line, QStringLiteral("line"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+    QMatrix4x4 m;
+    m.translate(shift[0], shift[1], shift[2]);
+    doc.setMeshTransform(polyline, m);
+    doc.setCurrentMeshIndex(surface);
+    return polyline;
+}
+
+} // namespace
+
+// Embedding selects the curve's edges; cutting along them then splits the grid in two, the
+// polyline layer is left as it was, the surface keeps its color, and a polyline layer with
+// a matrix of its own lands where its matrix puts it.
+void FilterTests::embedPolylineThenCutSplitsTheSurface()
+{
+    for (const vcg::Point3f &shift : { vcg::Point3f(0, 0, 0), vcg::Point3f(10, -3, 2) })
+    {
+        Document doc;
+        const int polyline = addGridWithCrossingPolyline(doc, shift);
+        const int lineEdges = doc.mesh(polyline).mesh.EN();
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("polyline"), polyline);
+        MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("embed_polyline_in_surface")), p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        VCGMesh &m = doc.mesh(0).mesh;
+        const int curveEdges = r.outputValues.value(QStringLiteral("curve_edges")).toInt();
+        QVERIFY(curveEdges > 0);
+        m.face.EnableFFAdjacency();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+        QCOMPARE(int(vcg::tri::UpdateSelection<VCGMesh>::FaceEdgeCount(m)), curveEdges);
+        m.face.DisableFFAdjacency();
+        for (const VCGVertex &v : m.vert)
+            QCOMPARE(v.cC(), vcg::Color4b(200, 30, 30, 255));
+        QCOMPARE(doc.mesh(polyline).mesh.EN(), lineEdges);  // the polyline layer is untouched
+
+        r = doc.runFilter(filterKeyForId(doc, QStringLiteral("cut_along_selected_edges")), {});
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        m.face.EnableFFAdjacency();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+        QCOMPARE(vcg::tri::Clean<VCGMesh>::CountConnectedComponents(m), 2);
+        m.face.DisableFFAdjacency();
+    }
+}
+
+void FilterTests::embedPolylineRefusesWhatItCannotEmbed()
+{
+    {   // far from the surface: more than gridBailout (a twentieth of the diagonal) away
+        Document doc;
+        const int polyline = addGridWithCrossingPolyline(doc, vcg::Point3f(0, 0, -5));
+        doc.setMeshTransform(polyline, QMatrix4x4());  // drop the matrix that would bring it back
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("polyline"), polyline);
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("embed_polyline_in_surface")), p);
+        QVERIFY(!r.success);
+        QVERIFY2(r.errorMessage.contains(QStringLiteral("too far")), qPrintable(r.errorMessage));
+        QCOMPARE(doc.mesh(0).mesh.FN(), 72);
+    }
+    {   // the surface itself is not a polyline layer
+        Document doc;
+        addGridWithCrossingPolyline(doc);
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("polyline"), 0);
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("embed_polyline_in_surface")), p);
+        QVERIFY(!r.success);
+    }
 }
 
 void FilterTests::createdCylinderHonoursRadiusHeightAndAxis()

@@ -333,6 +333,7 @@ const QHash<QString, QString> &expectedRefusals()
 
         // Needs a mesh shape the ladder does not build.
         {QStringLiteral("create_polyline_from_self_intersections_trueform"), QStringLiteral("needs a self-intersecting mesh")},
+        {QStringLiteral("embed_polyline_in_surface"),                      QStringLiteral("needs a polyline layer beside the surface; every rung is one layer (FilterTests::embedPolylineThenCutSplitsTheSurface drives it)")},
         {QStringLiteral("create_handle_and_tunnel_loops"),                 QStringLiteral("needs a surface of nonzero genus; every rung has genus 0 (FilterTests::torusHasOneHandleAndOneTunnelLoop drives it)")},
 
         // Needs a selection the ladder does not build: its rungs select everything or nothing.
