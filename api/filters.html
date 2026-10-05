@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 366 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 368 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -5462,6 +5462,45 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
+<section id="cut-along-selected-edges">
+<span id="filter-cut-along-selected-edges"></span><h2>Cut Along Selected Edges<a class="headerlink" href="#cut-along-selected-edges" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.meshing</p>
+<p>Open the mesh along the selected edges, duplicating the vertices on them.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.cut_along_selected_edges">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">cut_along_selected_edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.cut_along_selected_edges" title="Link to this definition">¶</a></dt>
+<dd><p>Cut the surface along every selected edge: the vertices on the cut are duplicated so that each selected edge becomes a border edge on both sides. Faces and positions are unchanged; only the connectivity is, so a closed cut line separates the mesh into pieces and an open one leaves a slit. A vertex where a cut ends inside the surface is not duplicated.</p>
+<p>The edges can come from any filter that selects them, such as <em>Select Crease Edges</em> (which with this filter gives the same result as <em>Cut Along Crease Edges</em>), or from an embedded polyline. The mesh must be manifold.</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="embed-polyline-in-surface">
+<span id="filter-embed-polyline-in-surface"></span><h2>Embed Polyline in Surface<a class="headerlink" href="#embed-polyline-in-surface" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.meshing</p>
+<p>Retriangulate the current mesh so that a polyline layer runs along its edges, and select those edges.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.embed_polyline_in_surface">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">embed_polyline_in_surface</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.embed_polyline_in_surface" title="Link to this definition">¶</a></dt>
+<dd><p>Project a polyline layer onto the current surface and make it part of the tessellation: the faces it crosses are split so that every polyline segment becomes a mesh edge, and those edges are selected. Follow it with <em>Cut Along Selected Edges</em> to open the surface along the curve, or with <em>Create Polyline from Selected Edges</em> to get the curve back exactly on the mesh. The polyline layer itself is not changed.</p>
+<p>The curve is read as <strong>control points</strong> joined by <strong>strands</strong>. Control points are only projected; between them each strand is traced across the mesh face by face, crossing every edge at its exact intersection point, and only those crossing points are kept, so the strand runs straight inside each face. By default the control points are the ends of the polyline and its junctions; <em>All vertices</em> keeps every input vertex, <em>Selected vertices</em> uses the vertex selection of the polyline layer.</p>
+<p>Curves may cross and touch: the mesh gets a vertex at every crossing, and coinciding curves share their vertices and edges. New vertices take the color, scalar, normal and texture coordinate of the surface where they lie, and split faces keep their attributes, so the mesh looks unchanged. The surface must be manifold and free of zero-area faces, and the polyline must lie close to it.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>S. W. Sloan. <strong>A fast algorithm for generating constrained Delaunay triangulations</strong>. <em>Computers &amp; Structures</em> (1993). <a class="reference external" href="https://doi.org/10.1016/0045-7949(93)90239-A">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>polyline</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The polyline layer to embed. It is projected onto the current mesh, and left unchanged.</p></li>
+<li><p><strong>controlPoints</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">ends_and_nodes</span></code>) — Which polyline vertices are kept exactly (only projected). Between them the curve follows the surface and keeps only its crossings with mesh edges.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="flip-edges-by-curvature">
 <span id="filter-flip-edges-by-curvature"></span><h2>Flip Edges by Curvature<a class="headerlink" href="#flip-edges-by-curvature" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p>
@@ -9192,6 +9231,14 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#cut-along-scalar-isocontour-trueform">Cut Along Scalar Isocontour (TrueForm)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.cut_along_scalar_isocontour_trueform"><code class="docutils literal notranslate"><span class="pre">ms.cut_along_scalar_isocontour_trueform()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cut-along-selected-edges">Cut Along Selected Edges</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.cut_along_selected_edges"><code class="docutils literal notranslate"><span class="pre">ms.cut_along_selected_edges()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#embed-polyline-in-surface">Embed Polyline in Surface</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.embed_polyline_in_surface"><code class="docutils literal notranslate"><span class="pre">ms.embed_polyline_in_surface()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#flip-edges-by-curvature">Flip Edges by Curvature</a><ul>

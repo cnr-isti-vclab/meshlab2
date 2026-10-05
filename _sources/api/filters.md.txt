@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 366 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 368 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -6563,6 +6563,59 @@ Compute a scalar first — a constant field has nothing to cut along, and the fi
 **Parameters:**
 
 - **contourCount** (*int*, default: `5`) — How many evenly spaced contours to cut at. N contours give N+1 bands.
+```
+
+---
+
+(filter-cut-along-selected-edges)=
+
+## Cut Along Selected Edges
+
+**Categories:** `Meshing/Remeshing`
+
+**Plugin:** meshlab2.filter.meshing
+
+Open the mesh along the selected edges, duplicating the vertices on them.
+
+```{py:function} ms.cut_along_selected_edges(**params)
+:module: _meshlab
+
+Cut the surface along every selected edge: the vertices on the cut are duplicated so that each selected edge becomes a border edge on both sides. Faces and positions are unchanged; only the connectivity is, so a closed cut line separates the mesh into pieces and an open one leaves a slit. A vertex where a cut ends inside the surface is not duplicated.
+
+The edges can come from any filter that selects them, such as *Select Crease Edges* (which with this filter gives the same result as *Cut Along Crease Edges*), or from an embedded polyline. The mesh must be manifold.
+
+This filter has no parameters.
+```
+
+---
+
+(filter-embed-polyline-in-surface)=
+
+## Embed Polyline in Surface
+
+**Categories:** `Meshing/Remeshing`
+
+**Plugin:** meshlab2.filter.meshing
+
+Retriangulate the current mesh so that a polyline layer runs along its edges, and select those edges.
+
+```{py:function} ms.embed_polyline_in_surface(**params)
+:module: _meshlab
+
+Project a polyline layer onto the current surface and make it part of the tessellation: the faces it crosses are split so that every polyline segment becomes a mesh edge, and those edges are selected. Follow it with *Cut Along Selected Edges* to open the surface along the curve, or with *Create Polyline from Selected Edges* to get the curve back exactly on the mesh. The polyline layer itself is not changed.
+
+The curve is read as **control points** joined by **strands**. Control points are only projected; between them each strand is traced across the mesh face by face, crossing every edge at its exact intersection point, and only those crossing points are kept, so the strand runs straight inside each face. By default the control points are the ends of the polyline and its junctions; *All vertices* keeps every input vertex, *Selected vertices* uses the vertex selection of the polyline layer.
+
+Curves may cross and touch: the mesh gets a vertex at every crossing, and coinciding curves share their vertices and edges. New vertices take the color, scalar, normal and texture coordinate of the surface where they lie, and split faces keep their attributes, so the mesh looks unchanged. The surface must be manifold and free of zero-area faces, and the polyline must lie close to it.
+
+**References:**
+
+- S. W. Sloan. **A fast algorithm for generating constrained Delaunay triangulations**. *Computers & Structures* (1993). [DOI](https://doi.org/10.1016/0045-7949(93)90239-A)
+
+**Parameters:**
+
+- **polyline** (*mesh*, default: `@otherMeshIndex`) — The polyline layer to embed. It is projected onto the current mesh, and left unchanged.
+- **controlPoints** (*enum*, default: `ends_and_nodes`) — Which polyline vertices are kept exactly (only projected). Between them the curve follows the surface and keeps only its crossings with mesh edges.
 ```
 
 ---

@@ -423,6 +423,7 @@ Canonical verbs for the leading word of a name. One meaning each.
 | `Rename` | Change the label of a layer or raster | `Relabel`. `Set` would have covered it and matches the ids, but *rename* is the word a user searches for |
 | `Render` | Produce an image from the scene | `Draw`, `Snapshot`, `Screenshot` — and not `Create`, which produces a layer |
 | `Defragment` | Reduce the fragmentation of a texture atlas by merging compatible charts and resampling | Admitted **narrowly**, for that alone. It is the term of the paper the filter implements (Maggiordomo et al. 2021); `Merge` describes only half of it, and `Pack` means arranging charts rather than merging them |
+| `Embed` | Make a curve part of a surface's tessellation, so that its segments become mesh edges (2026-10-05, for *Embed Polyline in Surface*) | `Insert`, `Imprint`, `Conform`, `Project` (which moves vertices onto a surface without retriangulating it) |
 | `Estimate` | Report a result that is explicitly statistical or approximate, where the approximation is something the user needs to know about | Admitted **narrowly**. `Compute` wins wherever the result is exact; the footnote below states the same rule and is where the ratified set ends |
 
 **Attribute-editing verbs**, admitted as a closed group of standard image and signal
