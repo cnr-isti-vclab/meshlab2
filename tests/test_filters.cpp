@@ -540,6 +540,7 @@ private slots:
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToComponentsAndUvIslands();
+    void libraryExceptionFailsTheRunInsteadOfAborting();
     void islandMergeCanTakeItsIslandsFromTheSelection();
     void islandMergeSurvivesATextureItCannotDecode();
     void hardcodedFilterKeysInTheUiStillResolve();
@@ -8949,6 +8950,47 @@ void FilterTests::stateJsonAcceptsBothNameSpellings()
     }
     // And the check is still a check.
     QVERIFY(runWithKind(QStringLiteral("Something.Else")).contains(QStringLiteral("invalid kind")));
+}
+
+// vcglib reports a mesh that lacks what an algorithm needs by throwing. Escaping a filter, the
+// exception crossed the event loop and aborted the application; the dispatcher now turns it
+// into a failed run carrying its message, and rolls back the step the run opened. The trigger
+// is Select Vertex Texture Seams on a mesh with per-vertex UVs only: its manifest accepts any
+// UVs, but FaceFaceFromTexCoord needs per-wedge ones and throws MissingComponentException. If
+// that manifest is ever narrowed to per-wedge UVs, this test needs another trigger.
+void FilterTests::libraryExceptionFailsTheRunInsteadOfAborting()
+{
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 4);
+    const float p[4][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}};
+    for (int i = 0; i < 4; ++i)
+        mesh.vert[std::size_t(i)].P() = VCGMesh::CoordType(p[i][0], p[i][1], p[i][2]);
+    vcg::tri::Allocator<VCGMesh>::AddFaces(mesh, 2);
+    const int idx[2][3] = {{0, 1, 2}, {1, 3, 2}};
+    for (int f = 0; f < 2; ++f)
+        for (int c = 0; c < 3; ++c)
+            mesh.face[std::size_t(f)].V(c) = &mesh.vert[std::size_t(idx[f][c])];
+
+    Document doc;
+    const int layer = doc.addMesh(mesh, QStringLiteral("vertex uvs"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD
+                                      | vcg::tri::io::Mask::IOM_FACEINDEX);
+    QVERIFY(layer >= 0);
+    doc.setCurrentMeshIndex(layer);
+    // Per-vertex UVs on the document's own copy, and none per wedge.
+    VCGMesh &layerMesh = doc.mesh(layer).mesh;
+    layerMesh.vert.EnableTexCoord();
+    QVERIFY(!layerMesh.face.IsWedgeTexCoordEnabled());
+    doc.mesh(layer).ioMask |= vcg::tri::io::Mask::IOM_VERTTEXCOORD;
+    doc.markMeshGeometryChanged(layer, QStringLiteral("test UVs"));
+
+    const QString key = filterKeyForId(doc, QStringLiteral("select_vertex_texture_seams"));
+    QVERIFY(!key.isEmpty());
+    const std::size_t statesBefore = doc.undoTreeInfo().size();
+    const MeshFilterRunResult r = doc.runFilter(key, {});
+    QVERIFY(!r.success);
+    QVERIFY2(r.errorMessage.contains(QStringLiteral("PerFaceWedgeTexCoord")), qPrintable(r.errorMessage));
+    QCOMPARE(doc.undoTreeInfo().size(), statesBefore);
 }
 
 // The rubber-band tool's C and T modifiers set expand_to: grazing one triangle takes the

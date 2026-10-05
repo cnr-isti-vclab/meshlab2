@@ -143,6 +143,9 @@ public:
         int selectedVerticesVertexCount = 0;
         QRhiBuffer *selectedEdgesBuffer = nullptr;
         int selectedEdgesVertexCount = 0;
+        // The same edges as quads, in the fat-line layout of LineRenderer::buildFatLineVertices.
+        QRhiBuffer *selectedEdgesFatBuffer = nullptr;
+        int selectedEdgesFatVertexCount = 0;
         bool valid = false;
     };
 

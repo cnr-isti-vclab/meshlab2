@@ -193,6 +193,8 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
         mode.showWire = false;
         mode.showEdges = true;
         mode.showPoints = false;
+        // The default of render.selectedEdgeWidth follows this, so a selection on a polyline
+        // covers the edges it marks.
         mode.edgeSize = 4.0f;
         mode.fillLighting = false;
         mode.pointLighting = false;

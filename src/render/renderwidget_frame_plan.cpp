@@ -5,6 +5,7 @@
 #include <QTimer>
 #include "viewfrustumgizmo.h"
 #include "document.h"
+#include "preferences.h"
 #include <algorithm>
 #include <utility>
 
@@ -866,11 +867,31 @@ void RenderWidget::planSelectionPasses(
             && m_selectionVerticesPipeline
             && selectionView.selectedVerticesBuffer
             && selectionView.selectedVerticesVertexCount > 0;
-        const bool drawEdges =
+        bool drawEdges =
             meshSettings.showSelectionEdges
             && m_selectionEdgesPipeline
             && selectionView.selectedEdgesBuffer
             && selectionView.selectedEdgesVertexCount > 0;
+        // Selected edges are widened into quads, as an edge layer's own edges are, by the fat
+        // pipeline the boundary decorators use -- so they go on the decorator list. A plain
+        // line, one device pixel wide whatever is asked of it, only stands in when the quads
+        // cannot be drawn.
+        if (meshSettings.showSelectionEdges
+            && m_decoratorFatPipeline && m_decoratorFatUbuf && m_decoratorFatSrb
+            && selectionView.selectedEdgesFatBuffer
+            && selectionView.selectedEdgesFatVertexCount > 0) {
+            plan.decoratorItems.push_back(SceneDecoratorDrawItem {
+                mi,
+                -1, // fat lines take no decorator slot
+                SceneDecoratorDrawKind::FatLine,
+                QColor::fromRgbF(kSelectionColor[0], kSelectionColor[1], kSelectionColor[2],
+                                 kSelectionColor[3]),
+                float(Preferences::instance().doubleValue(
+                    QStringLiteral("render.selectedEdgeWidth"))),
+                selectionView.selectedEdgesFatBuffer,
+                selectionView.selectedEdgesFatVertexCount });
+            drawEdges = false;
+        }
         if (!drawFaces && !drawVertices && !drawEdges)
             continue;
 

@@ -172,10 +172,7 @@ void RenderWidget::renderSceneSelectionItems(
         float selectionData[kDecoratorUbufSize / sizeof(float)] = {};
         const QMatrix4x4 meshMvp = frameVp * m_doc->mesh(item.meshIndex).transform;
         memcpy(selectionData, meshMvp.constData(), 64);
-        selectionData[16] = 1.0f;
-        selectionData[17] = 0.0f;
-        selectionData[18] = 0.0f;
-        selectionData[19] = 0.5f;
+        memcpy(selectionData + 16, kSelectionColor, sizeof(kSelectionColor));
         const QVector4D localClip = localClipPlaneFor(item.meshIndex);
         selectionData[20] = localClip.x();
         selectionData[21] = localClip.y();

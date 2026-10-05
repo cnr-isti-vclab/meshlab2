@@ -286,6 +286,14 @@ void registerFooFilterPlugin(MeshFilterPluginManager &pm);
 `getPoint3f`, `getCameraState`, …), operates on the mesh, and returns a
 `MeshFilterRunResult { success, documentModified, errorMessage, infoMessages, … }`.
 
+An exception escaping `runFilter` does not take the application down: the dispatcher
+(`MeshFilterPluginManager::runFilter`) catches it, fails the run with the exception's
+message, and rolls back the undo step the run opened, so whatever the filter changed before
+it threw is undone. This is what keeps vcglib's `Require*` checks (`MissingComponentException`
+and kin) and CGAL's preconditions from aborting MeshLab. It is a safety net, not a way to
+report errors: a mesh the filter cannot handle should be refused by its `inputRequirements`
+up front, or with a `success = false` result that says why.
+
 ### 3–5. Wiring (three edits)
 
 - `plugins/filter_foo/CMakeLists.txt`: `option(MESHLAB2_PLUGIN_FILTER_FOO … ON)`, an

@@ -22,6 +22,7 @@
 #include <QVector3D>
 #include <algorithm>
 #include <cmath>
+#include <exception>
 
 namespace {
 constexpr QLatin1StringView kKeySeparator("::");
@@ -1117,7 +1118,20 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
             selectionScopeMeshIndex(*targetDescriptor, normalizedParameters, doc),
             targetDescriptor->selectionScope,
             normalizedParameters.value(QString::fromLatin1(SelectionScopes::kParameterId)).toBool());
-        result = targetPlugin->runFilter(filterId, typedParams, doc);
+        // Libraries report a mesh that lacks what an algorithm needs by throwing: vcglib's
+        // Require* checks (MissingComponentException and kin) and CGAL's preconditions alike.
+        // Let through, the exception would cross the event loop and abort the application.
+        // Caught, the run fails like any other, and the step it opened is rolled back below,
+        // taking back whatever the filter had changed before it threw.
+        try {
+            result = targetPlugin->runFilter(filterId, typedParams, doc);
+        } catch (const std::exception &e) {
+            result = MeshFilterRunResult{ false, false,
+                QObject::tr("%1 stopped: %2").arg(targetDescriptor->name, QString::fromUtf8(e.what())) };
+        } catch (...) {
+            result = MeshFilterRunResult{ false, false,
+                QObject::tr("%1 stopped on an unknown error.").arg(targetDescriptor->name) };
+        }
         scopeGuard.restore();
         if (!result.success) {
             // Only roll back a step we opened ourselves: inside an outer transaction

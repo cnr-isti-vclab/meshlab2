@@ -2614,8 +2614,14 @@ RenderWidget::DecoratorCounts RenderWidget::computeDecoratorCounts(int meshIndex
             // Re-derive adjacency from texture coords: seam edges become borders
             // (on both incident faces), so they are counted twice on top of the
             // real geometric borders. Islands = connected components in tex space.
-            vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(m);
-            vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(m);
+            // Only per-wedge UVs can hold a seam: per-vertex ones cannot without splitting
+            // the vertex, which the plain adjacency above already cuts. FaceFaceFromTexCoord
+            // also throws on a mesh without wedges, so it is kept to the meshes that have them.
+            if ((entry.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD)
+                && m.face.IsWedgeTexCoordEnabled()) {
+                vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(m);
+                vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(m);
+            }
             const int texBorder = countBorderEdges();
             c.seamEdges = std::max(0, (texBorder - geometricBorder) / 2);
             std::vector<std::pair<int, VCGFace *>> components;

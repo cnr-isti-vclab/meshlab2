@@ -72,7 +72,7 @@ Cached outputs:
 - **edges**: line buffer + fat-line buffer from explicit mesh edges. Each expanded vertex stores packed endpoint RGBA and packed edge RGBA; the shader selects constant, interpolated per-vertex, or flat per-edge color without rebuilding geometry.
 - **points**: position/color/normal payload + normal-valid flag. Variants: `Constant`, `PerVertex`, `PerVertexQuality`.
 - **bbox**: line buffer.
-- **selection**: selected-face triangles, selected-vertex points, keyed on `selectionRevision` so selection overlays rebuild without invalidating fill/wire/point resources.
+- **selection**: selected-face triangles, selected-vertex points, and selected edges both as plain segments and as fat-line quads (`LineRenderer::buildFatLineVertices`), keyed on `selectionRevision` so selection overlays rebuild without invalidating fill/wire/point resources.
 - **decorators**: vertex normals, face normals, boundary edges (line + fat-line), texture seams (line + fat-line), non-manifold edges (line + fat-line), non-manifold vertices, and curvature principal-direction lines.
 
 `MeshGpuResourceCache::gpuMemoryStats()` sums the QRhi buffer sizes and known RGBA8
@@ -131,7 +131,7 @@ Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfac
 
 **Decorators**: depth `LessOrEqual`, no depth write. Normals and curvature directions use the line pipeline. Boundary, seams, and non-manifold edges use the fat-decorator pipeline (`decoratorBoundaryWidth`) with line fallback. Non-manifold vertices use a point pipeline.
 
-**Selection overlay** (final pass): semi-transparent red fill triangles + red vertex points; depth `LessOrEqual`, no depth write; per-mesh `showSelection`/`showSelectionFaces`/`showSelectionVertices`. Scene3D selection resources come from the shared mesh GPU cache; UV mode has a dedicated UV-space selection overlay.
+**Selection overlay** (final pass): semi-transparent red fill triangles + red vertex points; depth `LessOrEqual`, no depth write; per-mesh `showSelection`/`showSelectionFaces`/`showSelectionVertices`/`showSelectionEdges`, all in `RenderWidget::kSelectionColor`. Selected edges are drawn as quads `render.selectedEdgeWidth` pixels wide (default 4, the width an edge layer is first drawn with), through the fat-line decorator pipeline: `planSelectionPasses` puts them on the decorator list, so they draw in the decorators' slot of the order above. A line primitive is one device pixel wide on Metal whatever width is asked for, so the plain-line selection pipeline only stands in when the fat one cannot be drawn. Scene3D selection resources come from the shared mesh GPU cache; UV mode has a dedicated UV-space selection overlay.
 
 **Decorator info overlay**: 2D label controlled by `showDecoratorInfo`, on by default. It reports numeric counts for enabled decorator data on the current mesh (boundary/seam/non-manifold families) while the boundary decorator is on, and hides itself otherwise or when no relevant decorator information is available. All four boundary-page decorators -- boundary edges, texture seams, non-manifold edges and vertices -- default on, so turning the pass on shows everything it can.
 

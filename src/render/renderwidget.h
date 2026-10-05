@@ -504,6 +504,8 @@ struct SceneRasterProjectedDrawItem {
     void planSelectionPasses(
         const RenderFramePassRequests &requests,
         RenderFramePlan &plan);
+    // The translucent red every selected element is drawn in.
+    static constexpr float kSelectionColor[4] = { 1.0f, 0.0f, 0.0f, 0.5f };
     // Takes every tile's plan at once: the radiance-scaling prepass clears its gradient
     // buffer when it opens a pass, and QRhi has no way to open one without clearing, so
     // running it per tile would wipe the tiles already drawn.
