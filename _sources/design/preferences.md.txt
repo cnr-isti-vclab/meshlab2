@@ -82,6 +82,14 @@ tolerance as the store (`sameParameterValue`), because an editor may round.
 they are the dialog's top level. In the filter panel the headings stay at the rows' size,
 below the filter's bold title.
 
+A **search field** at the top, focused on opening, narrows the list as you type
+(`ParameterFormBuilder::setFilter`): a row stays when its label, help, group name or option
+labels contain every word typed, ignoring case, and a heading stays over a group that keeps
+rows. Searching for an option's label finds the setting it belongs to ("rainbow" finds the
+default color map). The builder applies the search together with the advanced and help
+settings in one pass, `refreshVisibility()`. No dialog button is auto-default, so Enter in
+the search field or an editor presses nothing, *Restore All Defaults* least of all.
+
 ## What belongs here
 
 This is the part that matters, because most constants in the codebase should **not**

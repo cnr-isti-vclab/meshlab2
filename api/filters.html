@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 368 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 370 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -2243,6 +2243,24 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 
 <hr class="docutils" />
 </section>
+<section id="create-polyline-from-cut-graph">
+<span id="filter-create-polyline-from-cut-graph"></span><h2>Create Polyline from Cut Graph<a class="headerlink" href="#create-polyline-from-cut-graph" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.meshing</p>
+<p>Create a polyline along mesh edges that, once cut, opens the mesh into a topological disk.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.create_polyline_from_cut_graph">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_polyline_from_cut_graph</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_polyline_from_cut_graph" title="Link to this definition">¶</a></dt>
+<dd><p>Compute a cut graph: a set of mesh edges such that cutting the surface along them leaves a single topological disk. A closed surface of genus <span class="math notranslate nohighlight">\(g\)</span> needs a graph with <span class="math notranslate nohighlight">\(2g\)</span> independent cycles, so a sphere is opened by a short cut and a torus by two loops around the tube and the hole. The graph becomes a new polyline layer lying exactly on mesh edges; <em>Embed Polyline in Surface</em> then selects those edges (after an optional <em>Smooth Polyline on Surface</em>), and <em>Cut Along Selected Edges</em> opens the mesh. It is the first step towards a parametrization that needs disk topology.</p>
+<p>The graph is found by visiting the faces in a random order and keeping only the edges where different fronts of the visit meet, so different seeds give different, equally valid cuts. The mesh must be connected and manifold, without duplicate vertices; one that is already a disk needs no cut, and the filter says so.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seeds the starting face and the order of the visit. Zero draws a fresh seed on every run, so repeated applications give different cuts; any other value makes the cut exactly reproducible.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="create-polyline-from-mesh-intersection-trueform">
 <span id="filter-create-polyline-from-mesh-intersection-trueform"></span><h2>Create Polyline from Mesh Intersection (TrueForm)<a class="headerlink" href="#create-polyline-from-mesh-intersection-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
@@ -4157,6 +4175,29 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>weight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.3</span></code>) — Unsharp weight applied to the high-frequency geometric component.</p></li>
 <li><p><strong>weightOrig</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Weight of the original geometry signal.</p></li>
 <li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — Number of Laplacian smoothing iterations used to build the low-pass geometry.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="smooth-polyline-on-surface">
+<span id="filter-smooth-polyline-on-surface"></span><h2>Smooth Polyline on Surface<a class="headerlink" href="#smooth-polyline-on-surface" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.meshing</p>
+<p>Smooth the current polyline while keeping it on a surface layer, so each strand tends to a geodesic.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.smooth_polyline_on_surface">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">smooth_polyline_on_surface</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.smooth_polyline_on_surface" title="Link to this definition">¶</a></dt>
+<dd><p>Smooth a polyline lying on a surface without letting it leave the surface: at every iteration each free vertex moves towards the average of its neighbours and is then pulled back onto the surface. The polyline is resampled as it goes, adding vertices where it strays from the surface and removing them where it is flat, and the last iteration projects it exactly.</p>
+<p>The curve is read as <strong>control points</strong> joined by <strong>strands</strong>. Control points are only projected; each strand between them shortens towards a geodesic of the surface, staying in its own homotopy class: a helix around a cylinder with fixed ends stays a helix. By default the control points are the ends of the polyline and its junctions; <em>Selected vertices</em> uses the vertex selection of the polyline. Afterwards the control points are the selected vertices of the polyline.</p>
+<p>The surface layer is not changed. The polyline must lie close to it; it can then be embedded with <em>Embed Polyline in Surface</em>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>surface</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The surface layer the polyline lies on. It is left unchanged.</p></li>
+<li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Number of smoothing iterations.</p></li>
+<li><p><strong>smoothWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — How far each iteration moves a vertex towards the average of its neighbours, from 0 (not at all) to 1 (all the way).</p></li>
+<li><p><strong>projectWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — How far each iteration pulls a vertex back onto the surface, from 0 to 1. The last iteration always projects fully.</p></li>
+<li><p><strong>controlPoints</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">ends_and_nodes</span></code>) — Which polyline vertices stay fixed (only projected).</p></li>
 </ul>
 </dd></dl>
 
@@ -8665,6 +8706,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#meshlab.ms.create_polyline_from_boundary_rims_trueform"><code class="docutils literal notranslate"><span class="pre">ms.create_polyline_from_boundary_rims_trueform()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#create-polyline-from-cut-graph">Create Polyline from Cut Graph</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.create_polyline_from_cut_graph"><code class="docutils literal notranslate"><span class="pre">ms.create_polyline_from_cut_graph()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#create-polyline-from-mesh-intersection-trueform">Create Polyline from Mesh Intersection (TrueForm)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.create_polyline_from_mesh_intersection_trueform"><code class="docutils literal notranslate"><span class="pre">ms.create_polyline_from_mesh_intersection_trueform()</span></code></a></li>
 </ul>
@@ -8991,6 +9036,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#sharpen-vertices-by-unsharp-mask">Sharpen Vertices by Unsharp Mask</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.sharpen_vertices_by_unsharp_mask"><code class="docutils literal notranslate"><span class="pre">ms.sharpen_vertices_by_unsharp_mask()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#smooth-polyline-on-surface">Smooth Polyline on Surface</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.smooth_polyline_on_surface"><code class="docutils literal notranslate"><span class="pre">ms.smooth_polyline_on_surface()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#smooth-vertices-along-one-direction">Smooth Vertices along One Direction</a><ul>

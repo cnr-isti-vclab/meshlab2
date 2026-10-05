@@ -313,6 +313,13 @@ tolerance as the store (<code class="docutils literal notranslate"><span class="
 <p><strong>Larger group headings</strong> (<code class="docutils literal notranslate"><span class="pre">setGroupHeadingScale</span></code>) make the sections read as titles, since
 they are the dialog’s top level. In the filter panel the headings stay at the rows’ size,
 below the filter’s bold title.</p>
+<p>A <strong>search field</strong> at the top, focused on opening, narrows the list as you type
+(<code class="docutils literal notranslate"><span class="pre">ParameterFormBuilder::setFilter</span></code>): a row stays when its label, help, group name or option
+labels contain every word typed, ignoring case, and a heading stays over a group that keeps
+rows. Searching for an option’s label finds the setting it belongs to (“rainbow” finds the
+default color map). The builder applies the search together with the advanced and help
+settings in one pass, <code class="docutils literal notranslate"><span class="pre">refreshVisibility()</span></code>. No dialog button is auto-default, so Enter in
+the search field or an editor presses nothing, <em>Restore All Defaults</em> least of all.</p>
 </section>
 <section id="what-belongs-here">
 <h2>What belongs here<a class="headerlink" href="#what-belongs-here" title="Link to this heading">¶</a></h2>

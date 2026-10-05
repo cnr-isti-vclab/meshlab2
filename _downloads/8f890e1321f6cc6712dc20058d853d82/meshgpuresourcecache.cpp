@@ -212,6 +212,8 @@ struct MeshGpuResourceCache::CacheState
         int selectedVerticesVertexCount = 0;
         std::unique_ptr<QRhiBuffer> selectedEdgesVbuf;
         int selectedEdgesVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> selectedEdgesFatVbuf;
+        int selectedEdgesFatVertexCount = 0;
     };
 
     struct DecoratorNormalsGpu {
@@ -1330,6 +1332,54 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         return true;
     };
 
+    auto uploadLineBuffer = [&](const std::vector<float> &lineData,
+                                std::unique_ptr<QRhiBuffer> &dstBuffer,
+                                int &dstVertexCount) {
+        dstBuffer.reset();
+        dstVertexCount = 0;
+        if (lineData.empty())
+            return;
+
+        dstBuffer.reset(
+            rhi->newBuffer(
+                QRhiBuffer::Immutable,
+                QRhiBuffer::VertexBuffer,
+                static_cast<quint32>(lineData.size() * sizeof(float))));
+        if (!dstBuffer || !dstBuffer->create()) {
+            dstBuffer.reset();
+            return;
+        }
+
+        ensureUpdates()->uploadStaticBuffer(dstBuffer.get(), lineData.data());
+        dstVertexCount = static_cast<int>(lineData.size() / 3);
+    };
+
+    auto uploadFatLineBuffer = [&](const std::vector<float> &lineData,
+                                   std::unique_ptr<QRhiBuffer> &dstBuffer,
+                                   int &dstVertexCount) {
+        dstBuffer.reset();
+        dstVertexCount = 0;
+        if (lineData.size() < LineRenderer::kLineStrideFloats)
+            return;
+
+        std::vector<float> fatData = LineRenderer::buildFatLineVertices(lineData);
+        if (fatData.empty())
+            return;
+
+        dstBuffer.reset(
+            rhi->newBuffer(
+                QRhiBuffer::Immutable,
+                QRhiBuffer::VertexBuffer,
+                static_cast<quint32>(fatData.size() * sizeof(float))));
+        if (!dstBuffer || !dstBuffer->create()) {
+            dstBuffer.reset();
+            return;
+        }
+
+        ensureUpdates()->uploadStaticBuffer(dstBuffer.get(), fatData.data());
+        dstVertexCount = static_cast<int>(fatData.size() / LineRenderer::kFatLineStrideFloats);
+    };
+
     auto rebuildSelection = [&](CacheState::SelectionGpu &dst) -> bool {
         if (dst.valid
             && dst.geometryRevision == source.geometryRevision
@@ -1348,6 +1398,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         dst.selectedVerticesVertexCount = 0;
         dst.selectedEdgesVbuf.reset();
         dst.selectedEdgesVertexCount = 0;
+        dst.selectedEdgesFatVbuf.reset();
+        dst.selectedEdgesFatVertexCount = 0;
 
         if (meshData.VN() <= 0)
             return true;
@@ -1457,21 +1509,10 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             pushSegment(e.cV(0), e.cV(1));
         }
 
-        if (!selectedEdgeLines.empty()) {
-            dst.selectedEdgesVbuf.reset(
-                rhi->newBuffer(
-                    QRhiBuffer::Immutable,
-                    QRhiBuffer::VertexBuffer,
-                    static_cast<quint32>(selectedEdgeLines.size() * sizeof(float))));
-            if (!dst.selectedEdgesVbuf || !dst.selectedEdgesVbuf->create()) {
-                dst.selectedEdgesVbuf.reset();
-            } else {
-                ensureUpdates()->uploadStaticBuffer(
-                    dst.selectedEdgesVbuf.get(), selectedEdgeLines.data());
-                dst.selectedEdgesVertexCount =
-                    static_cast<int>(selectedEdgeLines.size() / 3);
-            }
-        }
+        // As quads, which the view widens to the selected edge width, and as plain lines,
+        // which stand in where quads cannot be drawn -- the same pair a boundary decorator keeps.
+        uploadLineBuffer(selectedEdgeLines, dst.selectedEdgesVbuf, dst.selectedEdgesVertexCount);
+        uploadFatLineBuffer(selectedEdgeLines, dst.selectedEdgesFatVbuf, dst.selectedEdgesFatVertexCount);
 
         return true;
     };
@@ -1508,54 +1549,6 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         ensureUpdates()->uploadStaticBuffer(dst.vbuf.get(), bd.data());
         dst.vertexCount = LineRenderer::kBoundingBoxVertexCount;
         return true;
-    };
-
-    auto uploadLineBuffer = [&](const std::vector<float> &lineData,
-                                std::unique_ptr<QRhiBuffer> &dstBuffer,
-                                int &dstVertexCount) {
-        dstBuffer.reset();
-        dstVertexCount = 0;
-        if (lineData.empty())
-            return;
-
-        dstBuffer.reset(
-            rhi->newBuffer(
-                QRhiBuffer::Immutable,
-                QRhiBuffer::VertexBuffer,
-                static_cast<quint32>(lineData.size() * sizeof(float))));
-        if (!dstBuffer || !dstBuffer->create()) {
-            dstBuffer.reset();
-            return;
-        }
-
-        ensureUpdates()->uploadStaticBuffer(dstBuffer.get(), lineData.data());
-        dstVertexCount = static_cast<int>(lineData.size() / 3);
-    };
-
-    auto uploadFatLineBuffer = [&](const std::vector<float> &lineData,
-                                   std::unique_ptr<QRhiBuffer> &dstBuffer,
-                                   int &dstVertexCount) {
-        dstBuffer.reset();
-        dstVertexCount = 0;
-        if (lineData.size() < LineRenderer::kLineStrideFloats)
-            return;
-
-        std::vector<float> fatData = LineRenderer::buildFatLineVertices(lineData);
-        if (fatData.empty())
-            return;
-
-        dstBuffer.reset(
-            rhi->newBuffer(
-                QRhiBuffer::Immutable,
-                QRhiBuffer::VertexBuffer,
-                static_cast<quint32>(fatData.size() * sizeof(float))));
-        if (!dstBuffer || !dstBuffer->create()) {
-            dstBuffer.reset();
-            return;
-        }
-
-        ensureUpdates()->uploadStaticBuffer(dstBuffer.get(), fatData.data());
-        dstVertexCount = static_cast<int>(fatData.size() / LineRenderer::kFatLineStrideFloats);
     };
 
     auto rebuildDecoratorNormals = [&](CacheState::DecoratorNormalsGpu &dst) -> bool {
@@ -2195,6 +2188,8 @@ MeshGpuResourceCache::SelectionPassView MeshGpuResourceCache::selectionPassView(
     view.selectedVerticesVertexCount = selection.selectedVerticesVertexCount;
     view.selectedEdgesBuffer = selection.selectedEdgesVbuf.get();
     view.selectedEdgesVertexCount = selection.selectedEdgesVertexCount;
+    view.selectedEdgesFatBuffer = selection.selectedEdgesFatVbuf.get();
+    view.selectedEdgesFatVertexCount = selection.selectedEdgesFatVertexCount;
     return view;
 }
 

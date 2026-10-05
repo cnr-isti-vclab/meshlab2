@@ -510,6 +510,13 @@ site rather than changing the shared signature.</p>
 <p><code class="docutils literal notranslate"><span class="pre">runFilter</span></code> reads params (<code class="docutils literal notranslate"><span class="pre">params.getDouble(&quot;amount&quot;)</span></code>, <code class="docutils literal notranslate"><span class="pre">getEnum</span></code>, <code class="docutils literal notranslate"><span class="pre">getBool</span></code>,
 <code class="docutils literal notranslate"><span class="pre">getPoint3f</span></code>, <code class="docutils literal notranslate"><span class="pre">getCameraState</span></code>, …), operates on the mesh, and returns a
 <code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult</span> <span class="pre">{</span> <span class="pre">success,</span> <span class="pre">documentModified,</span> <span class="pre">errorMessage,</span> <span class="pre">infoMessages,</span> <span class="pre">…</span> <span class="pre">}</span></code>.</p>
+<p>An exception escaping <code class="docutils literal notranslate"><span class="pre">runFilter</span></code> does not take the application down: the dispatcher
+(<code class="docutils literal notranslate"><span class="pre">MeshFilterPluginManager::runFilter</span></code>) catches it, fails the run with the exception’s
+message, and rolls back the undo step the run opened, so whatever the filter changed before
+it threw is undone. This is what keeps vcglib’s <code class="docutils literal notranslate"><span class="pre">Require*</span></code> checks (<code class="docutils literal notranslate"><span class="pre">MissingComponentException</span></code>
+and kin) and CGAL’s preconditions from aborting MeshLab. It is a safety net, not a way to
+report errors: a mesh the filter cannot handle should be refused by its <code class="docutils literal notranslate"><span class="pre">inputRequirements</span></code>
+up front, or with a <code class="docutils literal notranslate"><span class="pre">success</span> <span class="pre">=</span> <span class="pre">false</span></code> result that says why.</p>
 </section>
 <section id="wiring-three-edits">
 <h3>3–5. Wiring (three edits)<a class="headerlink" href="#wiring-three-edits" title="Link to this heading">¶</a></h3>
