@@ -7,7 +7,7 @@ in two separately gated stages. These are proposed choices, not completed ruling
 
 See also: [Geogram Port](../history/geogram_port.md), [Adding a Filter](../adding_a_filter.md),
 [Filter Organization](../filter_organization.md), [Vocabulary](../vocabulary.md),
-[Data Model](../data_model.md), [Frame Fields](frame_fields.md).
+[Data Model](../data_model.md), [Directional and Frame Fields](directional_port.md).
 
 ## Status and evidence
 
