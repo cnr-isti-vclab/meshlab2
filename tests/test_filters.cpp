@@ -14,6 +14,7 @@
 #include <random>
 
 #include "document.h"
+#include "meshfilterpluginmanager.h"
 #include "selectionscope.h"
 #include "layerdata.h"
 
@@ -8713,6 +8714,11 @@ void FilterTests::smoothPolylineOnSurfaceStaysOnItAndShortens()
             QVERIFY2(std::abs(w[2]) < 1e-4f, qPrintable(QString::number(w[2])));
             selected += v.IsS() ? 1 : 0;
             results[shifted].push_back(w);
+            // Traced on the grid: every free vertex is on an edge (x, y or x - y integer).
+            auto onLine = [](float t) { return std::abs(t - std::round(t)) < 1e-4f; };
+            if (!v.IsS())
+                QVERIFY2(onLine(w[0]) || onLine(w[1]) || onLine(w[0] - w[1]),
+                         qPrintable(QStringLiteral("(%1, %2) is inside a face").arg(w[0]).arg(w[1])));
         }
         QCOMPARE(selected, 2);  // the two ends are the control points
         QVERIFY2(curveLength(m) < 0.5 * zigzagLength, qPrintable(QString::number(curveLength(m))));
@@ -8796,6 +8802,9 @@ void verifyTopologicalDisk(VCGMesh &m, const char *what)
 // cut along, leaves one topological disk; and the cut graph leaves the face colors alone.
 void FilterTests::cutGraphThenEmbedThenCutGivesADisk()
 {
+    // Seed 6 on the torus gives a smoothed segment running almost along an edge of a
+    // curved stretch, where tracing by per-face projection used to bounce between faces.
+    for (int seedValue : {3, 6})
     for (int shape = 0; shape < 2; ++shape)
     {
         VCGMesh m;
@@ -8808,12 +8817,23 @@ void FilterTests::cutGraphThenEmbedThenCutGivesADisk()
         const int surface = doc.addMesh(m, QString::fromLatin1(shape == 0 ? "torus" : "sphere"), vcg::tri::io::Mask::IOM_FACECOLOR);
         doc.setCurrentMeshIndex(surface);
         MeshFilterParameterValues seed;
-        seed.insert(QStringLiteral("randomSeed"), 3);
+        seed.insert(QStringLiteral("randomSeed"), seedValue);
         MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("create_polyline_from_cut_graph")), seed);
         QVERIFY2(r.success, qPrintable(r.errorMessage));
         QCOMPARE(r.newMeshIndices.size(), 1);
         for (const VCGFace &f : doc.mesh(surface).mesh.face)
             QCOMPARE(f.cC(), vcg::Color4b(10, 200, 30, 255));
+
+        // On the torus smoothing keeps the cut graph's nodes and loops: it still opens the
+        // surface. Not on the sphere, whose cut graph is a short path: straightened to a
+        // single edge, it has nothing to open around.
+        if (shape == 0) {
+            doc.setCurrentMeshIndex(r.newMeshIndices.front());
+            MeshFilterParameterValues smooth;
+            smooth.insert(QStringLiteral("surface"), surface);
+            const MeshFilterRunResult rs = doc.runFilter(filterKeyForId(doc, QStringLiteral("smooth_polyline_on_surface")), smooth);
+            QVERIFY2(rs.success, qPrintable(rs.errorMessage));
+        }
 
         doc.setCurrentMeshIndex(surface);
         MeshFilterParameterValues embed;
@@ -8952,45 +8972,60 @@ void FilterTests::stateJsonAcceptsBothNameSpellings()
     QVERIFY(runWithKind(QStringLiteral("Something.Else")).contains(QStringLiteral("invalid kind")));
 }
 
-// vcglib reports a mesh that lacks what an algorithm needs by throwing. Escaping a filter, the
-// exception crossed the event loop and aborted the application; the dispatcher now turns it
-// into a failed run carrying its message, and rolls back the step the run opened. The trigger
-// is Select Vertex Texture Seams on a mesh with per-vertex UVs only: its manifest accepts any
-// UVs, but FaceFaceFromTexCoord needs per-wedge ones and throws MissingComponentException. If
-// that manifest is ever narrowed to per-wedge UVs, this test needs another trigger.
+namespace {
+
+// A plugin whose one filter moves a vertex and then throws, as a vcglib Require* check would
+// halfway through a real one.
+class ThrowingPlugin final : public MeshFilterPlugin
+{
+public:
+    QString pluginId() const override { return QStringLiteral("test.throwing"); }
+    QString name() const override { return QStringLiteral("Throwing"); }
+    std::vector<MeshFilterDescriptor> filters(const Document &) const override
+    {
+        MeshFilterDescriptor d;
+        d.id = QStringLiteral("move_then_throw");
+        d.name = QStringLiteral("Move Then Throw");
+        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
+        return {d};
+    }
+    MeshFilterRunResult runFilter(const QString &, const FilterParams &, Document &doc) const override
+    {
+        doc.mesh(doc.currentMeshIndex()).mesh.vert[0].P() = VCGMesh::CoordType(9, 9, 9);
+        throw vcg::MissingComponentException("PerFaceWedgeTexCoord");
+    }
+};
+
+} // namespace
+
+// An exception escaping a filter used to cross the event loop and abort the application. The
+// dispatcher now turns it into a failed run that names it, and rolls back the step the run
+// opened, so what the filter changed before throwing is undone.
 void FilterTests::libraryExceptionFailsTheRunInsteadOfAborting()
 {
-    VCGMesh mesh;
-    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 4);
-    const float p[4][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}};
-    for (int i = 0; i < 4; ++i)
-        mesh.vert[std::size_t(i)].P() = VCGMesh::CoordType(p[i][0], p[i][1], p[i][2]);
-    vcg::tri::Allocator<VCGMesh>::AddFaces(mesh, 2);
-    const int idx[2][3] = {{0, 1, 2}, {1, 3, 2}};
-    for (int f = 0; f < 2; ++f)
-        for (int c = 0; c < 3; ++c)
-            mesh.face[std::size_t(f)].V(c) = &mesh.vert[std::size_t(idx[f][c])];
-
     Document doc;
-    const int layer = doc.addMesh(mesh, QStringLiteral("vertex uvs"),
-                                  vcg::tri::io::Mask::IOM_VERTCOORD
-                                      | vcg::tri::io::Mask::IOM_FACEINDEX);
-    QVERIFY(layer >= 0);
-    doc.setCurrentMeshIndex(layer);
-    // Per-vertex UVs on the document's own copy, and none per wedge.
-    VCGMesh &layerMesh = doc.mesh(layer).mesh;
-    layerMesh.vert.EnableTexCoord();
-    QVERIFY(!layerMesh.face.IsWedgeTexCoordEnabled());
-    doc.mesh(layer).ioMask |= vcg::tri::io::Mask::IOM_VERTTEXCOORD;
-    doc.markMeshGeometryChanged(layer, QStringLiteral("test UVs"));
-
-    const QString key = filterKeyForId(doc, QStringLiteral("select_vertex_texture_seams"));
-    QVERIFY(!key.isEmpty());
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply")) >= 0);
+    doc.setCurrentMeshIndex(0);
+    const VCGMesh::CoordType before = doc.mesh(0).mesh.vert[0].P();
     const std::size_t statesBefore = doc.undoTreeInfo().size();
-    const MeshFilterRunResult r = doc.runFilter(key, {});
+
+    MeshFilterPluginManager manager;
+    manager.registerPlugin(std::make_unique<ThrowingPlugin>());
+    const MeshFilterRunResult r =
+        manager.runFilter(QStringLiteral("test.throwing::move_then_throw"), {}, doc);
     QVERIFY(!r.success);
     QVERIFY2(r.errorMessage.contains(QStringLiteral("PerFaceWedgeTexCoord")), qPrintable(r.errorMessage));
+    QVERIFY(doc.mesh(0).mesh.vert[0].P() == before);
     QCOMPARE(doc.undoTreeInfo().size(), statesBefore);
+
+    // The filter that used to throw this for real, given per-vertex UVs only, is now refused
+    // before it runs: it needs them per wedge, and says so.
+    doc.mesh(0).mesh.vert.EnableTexCoord();
+    doc.mesh(0).ioMask |= vcg::tri::io::Mask::IOM_VERTTEXCOORD;
+    const MeshFilterRunResult seams =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("select_vertex_texture_seams")), {});
+    QVERIFY(!seams.success);
+    QVERIFY2(seams.errorMessage.contains(QStringLiteral("per-wedge")), qPrintable(seams.errorMessage));
 }
 
 // The rubber-band tool's C and T modifiers set expand_to: grazing one triangle takes the
