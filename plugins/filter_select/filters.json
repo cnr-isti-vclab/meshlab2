@@ -782,7 +782,7 @@
       "incrementalSelection": true,
       "inputRequirements": {
         "requireFaces": true,
-        "requireTextureCoordinates": true
+        "requirePerWedgeTexCoords": true
       },
       "parameters": [],
       "outputModifies": [

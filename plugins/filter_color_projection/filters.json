@@ -145,7 +145,7 @@
       "tags": ["color", "raster", "projection", "texture", "multi"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireVertices": true, "requireFaces": true, "requireTextureCoordinates": true },
+      "inputRequirements": { "requireVertices": true, "requireFaces": true, "requirePerWedgeTexCoords": true },
       "parameters": [
         {
           "id": "textName",

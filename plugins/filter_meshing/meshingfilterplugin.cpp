@@ -1724,6 +1724,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             com.SmoothProject(mesh, params.getInt(QStringLiteral("iterations")),
                               float(params.getDouble(QStringLiteral("smoothWeight"))),
                               float(params.getDouble(QStringLiteral("projectWeight"))));
+            com.RefineCurveByBaseMesh(mesh);  // straight in every face: control points and edge crossings only
             mapAll(back);  // on failure the rollback restores the layer, frame included
             vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
             markGeometry(ci, QObject::tr("Smoothed '%1' on '%2'").arg(entry.name, surfEntry.name));

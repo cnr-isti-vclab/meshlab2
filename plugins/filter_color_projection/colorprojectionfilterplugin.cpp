@@ -299,8 +299,6 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
 
     // --- multi texture ---
     if (fid == QString::fromLatin1(kFilterMultiTexture)) {
-        if ((ent.ioMask & Mask::IOM_WEDGTEXCOORD) == 0)
-            return fail(QObject::tr("No wedge texcoords."));
         float eta = float(p.getDouble(QStringLiteral("deptheta"), 0.5));
         int ts = p.getInt(QStringLiteral("texsize"), 1024);
         bool dr = p.getBool(QStringLiteral("dorefill"), true);

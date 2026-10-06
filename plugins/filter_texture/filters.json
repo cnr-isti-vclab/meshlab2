@@ -359,7 +359,7 @@
         "requireVertices": true,
         "requireFaces": true,
         "requireVertexColor": true,
-        "requireTextureCoordinates": true
+        "requirePerWedgeTexCoords": true
       },
       "parameters": [
         {
