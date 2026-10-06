@@ -541,6 +541,7 @@ private slots:
     void cutGraphIsReproducibleAndRefusesWhatItCannotCut();
     void geodesicPathFollowsMeshEdgesBetweenTwoPoints();
     void derivedLayersKeepTheSourceLayerMatrix();
+    void measureFiltersReportPolylines();
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToComponentsAndUvIslands();
@@ -9000,6 +9001,79 @@ void FilterTests::derivedLayersKeepTheSourceLayerMatrix()
         ++checked;
     }
     QVERIFY(checked >= 9);  // the vcglib-only filters are always there
+}
+
+// One layer holding a Y (a junction, three ends, three strands) and a separate closed
+// square of side 2 (a loop: one strand, one cycle), moved by its matrix.
+void FilterTests::measureFiltersReportPolylines()
+{
+    VCGMesh poly;
+    const vcg::Point3f pts[] = { {0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {-1, -1, 0},   // Y: centre and three tips
+                                 {5, 0, 0}, {7, 0, 0}, {7, 2, 0}, {5, 2, 0} };   // square
+    vcg::tri::Allocator<VCGMesh>::AddVertices(poly, 8);
+    for (int i = 0; i < 8; ++i) poly.vert[i].P() = pts[i];
+    const int edges[][2] = { {0, 1}, {0, 2}, {0, 3}, {4, 5}, {5, 6}, {6, 7}, {7, 4} };
+    vcg::tri::Allocator<VCGMesh>::AddEdges(poly, 7);
+    for (int i = 0; i < 7; ++i) {
+        poly.edge[i].V(0) = &poly.vert[edges[i][0]];
+        poly.edge[i].V(1) = &poly.vert[edges[i][1]];
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(poly);
+    Document doc;
+    const int line = doc.addMesh(poly, QStringLiteral("shapes"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+    QMatrix4x4 mx;
+    mx.translate(10, 20, 30);
+    mx.rotate(90, 0, 0, 1);
+    doc.setMeshTransform(line, mx);
+    doc.setCurrentMeshIndex(line);
+
+    MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_topological_properties")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.outputValues.value(QStringLiteral("polyline_vertices")).toInt(), 8);
+    QCOMPARE(r.outputValues.value(QStringLiteral("polyline_edges")).toInt(), 7);
+    QCOMPARE(r.outputValues.value(QStringLiteral("polyline_connected_components")).toInt(), 2);
+    QCOMPARE(r.outputValues.value(QStringLiteral("polyline_ends")).toInt(), 3);
+    QCOMPARE(r.outputValues.value(QStringLiteral("polyline_junctions")).toInt(), 1);
+    QCOMPARE(r.outputValues.value(QStringLiteral("polyline_strands")).toInt(), 4);
+    QCOMPARE(r.outputValues.value(QStringLiteral("polyline_closed_loops")).toInt(), 1);
+    QCOMPARE(r.outputValues.value(QStringLiteral("polyline_independent_cycles")).toInt(), 1);
+    QCOMPARE(r.outputValues.value(QStringLiteral("is_polyline_simple")).toBool(), false);
+
+    r = doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_geometric_properties")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const double yLength = 1 + 1 + std::sqrt(2.0);
+    QVERIFY(std::abs(r.outputValues.value(QStringLiteral("polyline_length")).toDouble() - (yLength + 8)) < 1e-5);
+    QVERIFY(std::abs(r.outputValues.value(QStringLiteral("polyline_edge_length_max")).toDouble() - 2) < 1e-5);
+    QCOMPARE(r.outputValues.value(QStringLiteral("is_pointcloud")).toBool(), false);
+    QVERIFY(!r.outputValues.contains(QStringLiteral("surface_area")));
+    // The wire barycenter: each edge's midpoint weighted by its length, then moved by the matrix.
+    const vcg::Point3f local = ((vcg::Point3f(0.5f, 0, 0) + vcg::Point3f(0, 0.5f, 0)) * 1.0f
+                                + vcg::Point3f(-0.5f, -0.5f, 0) * float(std::sqrt(2.0))
+                                + vcg::Point3f(6, 1, 0) * 8.0f) / float(yLength + 8);
+    const QVector3D world = mx.map(QVector3D(local[0], local[1], local[2]));
+    QVERIFY(std::abs(r.outputValues.value(QStringLiteral("polyline_barycenter_x")).toDouble() - world.x()) < 1e-4);
+    QVERIFY(std::abs(r.outputValues.value(QStringLiteral("polyline_barycenter_y")).toDouble() - world.y()) < 1e-4);
+    QVERIFY(std::abs(r.outputValues.value(QStringLiteral("polyline_barycenter_z")).toDouble() - world.z()) < 1e-4);
+
+    // A cut graph of a torus has 2g = 2 independent cycles.
+    VCGMesh torus;
+    vcg::tri::Torus(torus, 3.0f, 1.0f, 32, 16);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(torus);
+    const int surface = doc.addMesh(torus, QStringLiteral("torus"));
+    doc.setCurrentMeshIndex(surface);
+    r = doc.runFilter(filterKeyForId(doc, QStringLiteral("create_polyline_from_cut_graph")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    doc.setCurrentMeshIndex(r.newMeshIndices.front());
+    r = doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_topological_properties")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.outputValues.value(QStringLiteral("polyline_independent_cycles")).toInt(), 2);
+    QCOMPARE(r.outputValues.value(QStringLiteral("polyline_closed_loops")).toInt(), 0);
+
+    // A point cloud has no topology.
+    VCGMesh cloud;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(cloud, 3);
+    doc.setCurrentMeshIndex(doc.addMesh(cloud, QStringLiteral("cloud")));
+    QVERIFY(!doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_topological_properties")), {}).success);
 }
 
 void FilterTests::cutGraphIsReproducibleAndRefusesWhatItCannotCut()

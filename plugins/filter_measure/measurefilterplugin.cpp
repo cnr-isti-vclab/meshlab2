@@ -160,6 +160,97 @@ MeshFilterRunResult fail(const QString &message)
     return { false, false, message };
 }
 
+// The real edges of a layer -- a polyline -- read as a graph: its pieces, its ends (degree
+// 1) and junctions (degree 3 or more), and the strands, the chains running between them. A
+// piece with no end and no junction is a closed loop, one strand by itself.
+void addPolylineTopology(const VCGMesh &mesh, MeshFilterRunResult &result)
+{
+    std::vector<int> degree(mesh.vert.size(), 0), parent(mesh.vert.size());
+    for (size_t i = 0; i < parent.size(); ++i) parent[i] = int(i);
+    auto find = [&](int i) { while (parent[i] != i) i = parent[i] = parent[parent[i]]; return i; };
+    int edges = 0;
+    for (const VCGEdge &e : mesh.edge) {
+        if (e.IsD()) continue;
+        const int a = int(vcg::tri::Index(mesh, e.cV(0))), b = int(vcg::tri::Index(mesh, e.cV(1)));
+        ++degree[a]; ++degree[b];
+        parent[find(a)] = find(b);
+        ++edges;
+    }
+    int vertices = 0, components = 0, ends = 0, junctions = 0, nodeEdgeEnds = 0, maxDegree = 0;
+    std::vector<bool> pieceHasNode(mesh.vert.size(), false);
+    for (size_t i = 0; i < degree.size(); ++i) {
+        if (mesh.vert[i].IsD() || degree[i] == 0) continue;
+        ++vertices;
+        components += find(int(i)) == int(i) ? 1 : 0;
+        ends += degree[i] == 1 ? 1 : 0;
+        junctions += degree[i] >= 3 ? 1 : 0;
+        maxDegree = std::max(maxDegree, degree[i]);
+        if (degree[i] != 2) { nodeEdgeEnds += degree[i]; pieceHasNode[size_t(find(int(i)))] = true; }
+    }
+    int loops = 0;
+    for (size_t i = 0; i < degree.size(); ++i)
+        if (!mesh.vert[i].IsD() && degree[i] > 0 && find(int(i)) == int(i) && !pieceHasNode[i]) ++loops;
+    const int strands = nodeEdgeEnds / 2 + loops;   // every strand ends twice on ends or junctions
+    const int cycles = edges - vertices + components;
+
+    result.infoMessages << QObject::tr("Polyline: %1 vertices, %2 edges, %3 connected piece(s)")
+                               .arg(vertices).arg(edges).arg(components)
+                        << QObject::tr("Polyline ends: %1, junctions: %2, strands: %3, closed loops: %4")
+                               .arg(ends).arg(junctions).arg(strands).arg(loops)
+                        << QObject::tr("Polyline independent cycles: %1").arg(cycles)
+                        << QObject::tr("Simple curves (no junction): %1")
+                               .arg(maxDegree <= 2 ? QObject::tr("yes") : QObject::tr("no"));
+    result.outputValues["polyline_vertices"] = vertices;
+    result.outputValues["polyline_edges"] = edges;
+    result.outputValues["polyline_connected_components"] = components;
+    result.outputValues["polyline_ends"] = ends;
+    result.outputValues["polyline_junctions"] = junctions;
+    result.outputValues["polyline_strands"] = strands;
+    result.outputValues["polyline_closed_loops"] = loops;
+    result.outputValues["polyline_independent_cycles"] = cycles;
+    result.outputValues["is_polyline_simple"] = maxDegree <= 2;
+}
+
+// Length measures of the real edges of a layer, already in world space. The barycenter and
+// the principal axes are those of the wire -- every point of every edge weighted alike --
+// not of its vertices, which would lean towards wherever the polyline is densely sampled.
+void addPolylineGeometry(const VCGMesh &mesh, MeshFilterRunResult &result)
+{
+    Distributionf lengths;
+    double total = 0;
+    Eigen::Vector3d first = Eigen::Vector3d::Zero();
+    Eigen::Matrix3d second = Eigen::Matrix3d::Zero();
+    for (const VCGEdge &e : mesh.edge) {
+        if (e.IsD()) continue;
+        const Eigen::Vector3d a(e.cP(0)[0], e.cP(0)[1], e.cP(0)[2]), b(e.cP(1)[0], e.cP(1)[1], e.cP(1)[2]);
+        const double l = (b - a).norm();
+        lengths.Add(float(l));
+        total += l;
+        first += l * (a + b) / 2;
+        second += l * ((a * a.transpose() + b * b.transpose()) / 3 + (a * b.transpose() + b * a.transpose()) / 6);
+    }
+    result.infoMessages << QObject::tr("Polyline length: %1 over %2 edges").arg(formatFloat(total)).arg(int(lengths.Cnt()))
+                        << QObject::tr("Polyline edge length: min %1, max %2, avg %3")
+                               .arg(formatFloat(lengths.Min())).arg(formatFloat(lengths.Max())).arg(formatFloat(lengths.Avg()));
+    result.outputValues["polyline_length"] = total;
+    result.outputValues["polyline_edge_length_min"] = double(lengths.Min());
+    result.outputValues["polyline_edge_length_max"] = double(lengths.Max());
+    result.outputValues["polyline_edge_length_avg"] = double(lengths.Avg());
+    if (!(total > 0))
+        return;
+    const Eigen::Vector3d c = first / total;
+    const vcg::Point3f bary(float(c.x()), float(c.y()), float(c.z()));
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(second / total - c * c.transpose());
+    vcg::Matrix33f axes;
+    axes.FromEigenMatrix(solver.eigenvectors());
+    result.infoMessages << QObject::tr("Polyline barycenter: %1").arg(formatPoint(bary))
+                        << QObject::tr("Polyline principal axes:")
+                        << formatMatrixRow(axes, 0) << formatMatrixRow(axes, 1) << formatMatrixRow(axes, 2);
+    result.outputValues["polyline_barycenter_x"] = c.x();
+    result.outputValues["polyline_barycenter_y"] = c.y();
+    result.outputValues["polyline_barycenter_z"] = c.z();
+}
+
 QString histogramCountString(double value, bool areaWeighted)
 {
     return areaWeighted ? formatFloat(value, 7) : QString::number(std::llround(value));
@@ -191,6 +282,13 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
     const QString meshName = entry.name;
 
     if (filterId == QString::fromLatin1(kFilterTopo)) {
+        if (mesh.FN() == 0) {
+            if (mesh.EN() == 0)
+                return fail(QObject::tr("'%1' has neither faces nor edges: a point cloud has no topology to measure.").arg(meshName));
+            MeshFilterRunResult result = successInfo({ QObject::tr("Mesh: %1").arg(meshName) });
+            addPolylineTopology(mesh, result);
+            return result;
+        }
         const SavedSelection saved = saveSelectionBits(mesh);
 
         const int edgeNonManifFFNum = vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh, true);
@@ -258,6 +356,8 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         result.outputValues["incident_faces_on_non_two_manifold_vertices"] = faceVertManif;
         result.outputValues["number_holes"] = (vertManifNum == 0 && edgeNonManifFFNum == 0) ? holeNum : -1;
         result.outputValues["genus"] = (vertManifNum == 0 && edgeNonManifFFNum == 0) ? genus : -1;
+        if (mesh.EN() > 0)
+            addPolylineTopology(mesh, result);
         return result;
     }
 
@@ -350,7 +450,8 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kFilterGeom)) {
         std::unique_ptr<VCGMesh> measureMesh = transformedCopy(entry);
-        const bool pointcloud = (measureMesh->FN() == 0) && (measureMesh->VN() != 0);
+        const bool polylineOnly = measureMesh->FN() == 0 && measureMesh->EN() > 0;
+        const bool pointcloud = (measureMesh->FN() == 0) && (measureMesh->VN() != 0) && !polylineOnly;
         QStringList info;
         info << QObject::tr("Mesh: %1").arg(meshName);
         if (!isIdentityTransform(entry.transform))
@@ -364,6 +465,25 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         info << QObject::tr("Bounding box diagonal: %1").arg(formatFloat(bbox.Diag()));
         info << QObject::tr("Bounding box min: %1").arg(formatPoint(bbox.min));
         info << QObject::tr("Bounding box max: %1").arg(formatPoint(bbox.max));
+        auto addBoxValues = [&bbox](MeshFilterRunResult &r) {
+            r.outputValues["bbox_dim_x"] = double(bbox.DimX());
+            r.outputValues["bbox_dim_y"] = double(bbox.DimY());
+            r.outputValues["bbox_dim_z"] = double(bbox.DimZ());
+            r.outputValues["bbox_diagonal"] = double(bbox.Diag());
+            r.outputValues["bbox_min_x"] = double(bbox.min.X());
+            r.outputValues["bbox_min_y"] = double(bbox.min.Y());
+            r.outputValues["bbox_min_z"] = double(bbox.min.Z());
+            r.outputValues["bbox_max_x"] = double(bbox.max.X());
+            r.outputValues["bbox_max_y"] = double(bbox.max.Y());
+            r.outputValues["bbox_max_z"] = double(bbox.max.Z());
+        };
+        if (polylineOnly) {   // no surface: area, volume and the face-based measures do not apply
+            MeshFilterRunResult result = successInfo(info);
+            addBoxValues(result);
+            result.outputValues["is_pointcloud"] = false;
+            addPolylineGeometry(*measureMesh, result);
+            return result;
+        }
 
         if (pointcloud) {
             vcg::Point3f bc = vcg::tri::Stat<VCGMesh>::ComputeCloudBarycenter(*measureMesh, false);
@@ -429,21 +549,14 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
             info << formatMatrixRow(pca, 2);
         }
         MeshFilterRunResult result = successInfo(info);
-        result.outputValues["bbox_dim_x"] = double(bbox.DimX());
-        result.outputValues["bbox_dim_y"] = double(bbox.DimY());
-        result.outputValues["bbox_dim_z"] = double(bbox.DimZ());
-        result.outputValues["bbox_diagonal"] = double(bbox.Diag());
-        result.outputValues["bbox_min_x"] = double(bbox.min.X());
-        result.outputValues["bbox_min_y"] = double(bbox.min.Y());
-        result.outputValues["bbox_min_z"] = double(bbox.min.Z());
-        result.outputValues["bbox_max_x"] = double(bbox.max.X());
-        result.outputValues["bbox_max_y"] = double(bbox.max.Y());
-        result.outputValues["bbox_max_z"] = double(bbox.max.Z());
+        addBoxValues(result);
         result.outputValues["is_pointcloud"] = pointcloud;
         if (!pointcloud) {
             result.outputValues["surface_area"] = area;
             result.outputValues["is_watertight"] = watertight;
         }
+        if (measureMesh->EN() > 0)
+            addPolylineGeometry(*measureMesh, result);
         return result;
     }
 
