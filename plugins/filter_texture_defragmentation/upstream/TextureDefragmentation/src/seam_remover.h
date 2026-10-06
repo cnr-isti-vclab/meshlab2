@@ -230,6 +230,10 @@ struct AlgoState {
     std::unordered_map<ClusteredSeamHandle, MatchingTransform> transform; // the rigid matching computed for each currently active move
     std::unordered_map<ClusteredSeamHandle, CostInfo::MatchingValue> mvalue;
 
+    // Lazy recompute set: clusters whose neighbor geometry changed but whose cost has not yet been refreshed.
+    // They remain in the queue at their old stale cost and are recomputed only if/when they are popped.
+    std::unordered_set<ClusteredSeamHandle> dirty;
+
     std::unordered_map<RegionID, std::set<RegionID>> failed;
 
     SeamMesh sm;

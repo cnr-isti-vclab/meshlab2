@@ -57,6 +57,8 @@ struct Perf {
 
 
 static void InsertNewClusterInQueue(ClusteredSeamHandle csh, AlgoStateHandle state, GraphHandle graph, const AlgoParameters& params);
+static void MarkClusterDirty(ClusteredSeamHandle csh, double oldCost, CostInfo::MatchingValue oldMv, AlgoStateHandle state, GraphHandle graph);
+static void RecomputeDirtyCluster(ClusteredSeamHandle csh, AlgoStateHandle state, GraphHandle graph, const AlgoParameters& params);
 static CostInfo ComputeCost(ClusteredSeamHandle csh, GraphHandle graph, const AlgoParameters& params, double penalty);
 static inline double GetPenalty(ClusteredSeamHandle csh, AlgoStateHandle state);
 static inline bool Valid(const WeightedSeam& ws, ConstAlgoStateHandle state);
@@ -117,6 +119,17 @@ static int reject = 0;
 static int num_retry = 0;
 static int retry_success = 0;
 
+// Lazy-recompute instrumentation
+static long recompute_fused = 0; // re-clustered shared seams (charts adjacent to BOTH a and b)
+static long recompute_infeasible = 0; // independent neighbors whose stale cost was already Infinity
+static long recompute_visit = 0; // visit-components island-lookahead requeues
+static long dirty_marks = 0; // neighbors marked dirty
+static long dirty_recomputed = 0; // dirty clusters that were popped and recomputed
+static double time_fused = 0;
+static double time_infeasible = 0;
+static double time_visit = 0;
+static double time_dirty_paid = 0;
+
 double mincost = 100000;
 double maxcost = -1;
 
@@ -171,6 +184,17 @@ static void ClearGlobals()
     // We zero them to take into account the current execution.
     num_retry = 0;
     retry_success = 0;
+
+    recompute_fused = 0;
+    recompute_infeasible = 0;
+    recompute_visit = 0;
+    dirty_marks = 0;
+    dirty_recomputed = 0;
+
+    time_fused = 0;
+    time_infeasible = 0;
+    time_visit = 0;
+    time_dirty_paid = 0;
 }
 
 /*!
@@ -192,6 +216,10 @@ void LogExecutionStats()
     LOG_INFO    << "ACCEPT     " << std::fixed << std::setprecision(3) << perf.t_accept / perf.timer.TimeElapsed()                              << " , " << std::defaultfloat << std::setprecision(6)<< perf.t_accept << " secs";
     LOG_INFO    << "  count:                    " << accept;
     LOG_INFO    << "  with retry:               " << retry_success;
+    LOG_INFO    << "  recompute fused:          " << recompute_fused << " , " << time_fused << " secs";
+    LOG_INFO    << "  recompute infeasible:     " << recompute_infeasible << " , " << time_infeasible << " secs";
+    LOG_INFO    << "  recompute visit:          " << recompute_visit << " , " << time_visit << " secs";
+    LOG_INFO    << "  recompute deferred:       " << dirty_recomputed << " of " << dirty_marks << " , " << time_dirty_paid << " secs";
     LOG_VERBOSE << "  min energy:               " << min_energy;
     LOG_VERBOSE << "  max energy:               " << max_energy;
     LOG_INFO    << "REJECT     " << std::fixed << std::setprecision(3) << perf.t_reject / perf.timer.TimeElapsed()                              << " , " << std::defaultfloat << std::setprecision(6)<< perf.t_reject << " secs";
@@ -483,6 +511,11 @@ void GreedyOptimization(GraphHandle graph, AlgoStateHandle state, const AlgoPara
         WeightedSeam ws = state->queue.top();
         state->queue.pop();
         if (Valid(ws, state)) {
+            if (state->dirty.count(ws.first)) {
+                // Stale cluster, recompute and re-queue
+                RecomputeDirtyCluster(ws.first, state, graph, params);
+                continue;
+            }
             if (ws.second == Infinity()) {
                 // sanity check
                 for (auto& entry : state->cost)
@@ -789,6 +822,104 @@ static void InsertNewClusterInQueue(ClusteredSeamHandle csh, AlgoStateHandle sta
     std::set<int> endpoints = GetEndpoints(csh);
     for (auto vi : endpoints)
         state->emap[vi].insert(csh);
+}
+
+/*!
+ * Lazy variant of `InsertNewClusterInQueue`: re-registers a seam whose adjacent charts changed after a merge,
+ * without recomputing its cost. The cost is computed by `RecomputeDirtyCluster` only if the seam ever reaches
+ * the top of the queue, so a seam that is dirtied many times, or never popped, pays `ComputeCost` at most once.
+ *
+ * @param csh: the seam to register.
+ * @param oldCost: the seam's cost before the merge, used as a stale priority.
+ * @param oldMv: the seam's feasibility status before the merge.
+ * @param state: the current state of the Texture Defragmentation procedure. It holds the priority queue
+ *               and all auxiliary lookup structures.
+ * @param graph: the parametrization graph.
+ */
+static void MarkClusterDirty(ClusteredSeamHandle csh, double oldCost, CostInfo::MatchingValue oldMv, AlgoStateHandle state, GraphHandle graph)
+{
+    // We color all faces adjacent to the seam in white, as `InsertNewClusterInQueue` does
+    // before evaluating a seam. The final color is assigned by `RecomputeDirtyCluster`.
+    ColorizeSeam(csh, vcg::Color4b::White);
+
+    // We push the seam in the priority queue with its stale pre-merge cost, so that the queue
+    // ordering still approximates the greedy one.
+    //
+    // The `transform` is left as identity: a dirty seam is always recomputed before it can be
+    // evaluated, so the value is never read.
+    state->queue.push(std::make_pair(csh, oldCost));
+    state->cost[csh] = oldCost;
+    state->transform[csh] = MatchingTransform::Identity();
+    state->status[csh] = UNKNOWN;
+    state->mvalue[csh] = oldMv;
+
+    // We update `chartSeamMap` and `emap` exactly as `InsertNewClusterInQueue` does, since the
+    // membership of the seam does not depend on its cost.
+    ChartPair p = GetCharts(csh, graph);
+    state->chartSeamMap[p.first->id].insert(csh);
+    state->chartSeamMap[p.second->id].insert(csh);
+
+    std::set<int> endpoints = GetEndpoints(csh);
+    for (auto vi : endpoints)
+        state->emap[vi].insert(csh);
+
+    // Finally, we flag the seam as dirty, so that the main loop recomputes it when popped.
+    state->dirty.insert(csh);
+    dirty_marks++;
+}
+
+/*!
+ * Pays the deferred `ComputeCost` for a dirty seam that reached the top of the queue, and re-pushes it with
+ * its true cost.
+ *
+ * The caller must not act on the pop that triggered this call: it re-enters the loop, so that the refreshed
+ * entry competes for the top on equal footing with the others.
+ *
+ * @param csh: the dirty seam to recompute.
+ * @param state: the current state of the Texture Defragmentation procedure. It holds the priority queue
+ *               and all auxiliary lookup structures.
+ * @param graph: the parametrization graph.
+ * @param params: the user-defined parameters for the defragmentation run.
+ */
+static void RecomputeDirtyCluster(ClusteredSeamHandle csh, AlgoStateHandle state, GraphHandle graph, const AlgoParameters& params)
+{
+    double t_d = perf.timer.TimeElapsed();
+    state->dirty.erase(csh);
+
+    // We compute the cost of merging the two charts separated by the seam, trimming it
+    // via `ReduceSeam` when the matching is unfeasible, as in `InsertNewClusterInQueue`.
+    CostInfo ci = ComputeCost(csh, graph, params, GetPenalty(csh, state));
+
+    if (params.reduce) {
+        while (ci.mvalue == CostInfo::UNFEASIBLE_MATCHING) {
+            ci = ReduceSeam(csh, state, graph, params);
+        }
+    }
+
+    // We replace the provisional white color assigned by `MarkClusterDirty` with the
+    // color corresponding to the seam's feasibility status, and update the statistics.
+    ColorizeSeam(csh, mvColor[ci.mvalue]);
+
+    feasibility[ci.mvalue]++;
+
+    if (ci.cost != Infinity()) {
+        mincost = std::min(mincost, ci.cost);
+        maxcost = std::max(maxcost, ci.cost);
+    }
+
+    // We push the seam in the priority queue with its true cost. The stale entry was already
+    // popped by the caller.
+    //
+    // `chartSeamMap` and `emap` were already updated by `MarkClusterDirty`, and `ComputeCost`
+    // does not modify the charts, so only the per-seam values need to be refreshed.
+    state->queue.push(std::make_pair(csh, ci.cost));
+    state->cost[csh] = ci.cost;
+    state->transform[csh] = ci.matching;
+    state->status[csh] = UNKNOWN;
+    state->mvalue[csh] = ci.mvalue;
+
+    dirty_recomputed++;
+    time_dirty_paid += perf.timer.TimeElapsed() - t_d;
 }
 
 // this function returns true if there exists a sequence of at most maxSteps operations
@@ -2393,6 +2524,7 @@ static void AcceptMove(const SeamData& sd, AlgoStateHandle state, GraphHandle gr
         ensure(clusterStatus != PASS);
 
         CostInfo::MatchingValue mv = state->mvalue[csh];
+        double oldCost = state->cost[csh];
 
         EraseSeam(csh, state, graph);
 
@@ -2404,8 +2536,14 @@ static void AcceptMove(const SeamData& sd, AlgoStateHandle state, GraphHandle gr
 
         if (invalidate || (params.ignoreOnReject && mv == CostInfo::REJECTED))
             InvalidateCluster(csh, state, graph, clusterStatus, 1.0);
-        else
-            InsertNewClusterInQueue(csh, state, graph, params);
+        else if (oldCost != Infinity())
+            MarkClusterDirty(csh, oldCost, mv, state, graph); // defer ComputeCost to pop time
+        else {
+            recompute_infeasible++;
+            double t_i = perf.timer.TimeElapsed();
+            InsertNewClusterInQueue(csh, state, graph, params); // infeasible-stale: recompute now
+            time_infeasible += perf.timer.TimeElapsed() - t_i;
+        }
     }
 
     for (auto csh : sharedClusters)
@@ -2413,7 +2551,10 @@ static void AcceptMove(const SeamData& sd, AlgoStateHandle state, GraphHandle gr
 
     std::vector<ClusteredSeamHandle> cshvec = ClusterSeamsByChartId(shared);
     for (auto csh : cshvec) {
+        recompute_fused++;
+        double t_f = perf.timer.TimeElapsed();
         InsertNewClusterInQueue(csh, state, graph, params);
+        time_fused += perf.timer.TimeElapsed() - t_f;
     }
 
     if (params.visitComponents) {
@@ -2428,8 +2569,11 @@ static void AcceptMove(const SeamData& sd, AlgoStateHandle state, GraphHandle gr
                     unfeasibleBoundaryAdj.insert(csh);
 
         for (ClusteredSeamHandle csh : unfeasibleBoundaryAdj) {
+            recompute_visit++;
+            double t_v = perf.timer.TimeElapsed();
             EraseSeam(csh, state, graph);
             InsertNewClusterInQueue(csh, state, graph, params);
+            time_visit += perf.timer.TimeElapsed() - t_v;
         }
     }
 
@@ -2496,6 +2640,8 @@ static void RejectMove(const SeamData& sd, AlgoStateHandle state, GraphHandle gr
 static void EraseSeam(ClusteredSeamHandle csh, AlgoStateHandle state, GraphHandle graph)
 {
     ensure(csh->size() > 0);
+
+    state->dirty.erase(csh); // any pending dirty flag is void once the seam is erased
 
     std::size_t n = state->cost.erase(csh);
     ensure(n > 0);
