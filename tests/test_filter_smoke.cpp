@@ -344,6 +344,7 @@ const QHash<QString, QString> &expectedRefusals()
         {QStringLiteral("rename_current_mesh_layer"),                      QStringLiteral("needs a new name")},
         {QStringLiteral("project_vertices_onto_line_of_sight"),            QStringLiteral("needs an attribute name")},
         {QStringLiteral("select_by_screen_rectangle"),                     QStringLiteral("needs a live camera state")},
+        {QStringLiteral("create_polyline_from_geodesic_path"),             QStringLiteral("needs two distinct endpoints; both default to the origin (FilterTests::geodesicPathFollowsMeshEdgesBetweenTwoPoints drives it)")},
         {QStringLiteral("reconstruct_surface_by_ball_pivoting_gruber"),    QStringLiteral("needs a ball radius; this backend has no guess of its own, unlike the vcglib one")},
 
 

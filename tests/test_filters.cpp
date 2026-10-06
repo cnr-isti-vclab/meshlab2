@@ -538,6 +538,7 @@ private slots:
     void smoothPolylineOnCylinderKeepsTheHelixWinding();
     void cutGraphThenEmbedThenCutGivesADisk();
     void cutGraphIsReproducibleAndRefusesWhatItCannotCut();
+    void geodesicPathFollowsMeshEdgesBetweenTwoPoints();
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToComponentsAndUvIslands();
@@ -8844,6 +8845,46 @@ void FilterTests::cutGraphThenEmbedThenCutGivesADisk()
         QVERIFY2(r.success, qPrintable(r.errorMessage));
         verifyTopologicalDisk(doc.mesh(surface).mesh, shape == 0 ? "torus" : "sphere");
     }
+}
+
+// Between opposite corners of the grid the path is a chain of grid edges close to the
+// diagonal's length 6*sqrt(2); the surface's own vertex quality survives.
+void FilterTests::geodesicPathFollowsMeshEdgesBetweenTwoPoints()
+{
+    VCGMesh grid;
+    makeGridMesh(grid, 6);
+    for (VCGVertex &v : grid.vert) v.Q() = 7.0f;
+    Document doc;
+    const int surface = doc.addMesh(grid, QStringLiteral("grid"), vcg::tri::io::Mask::IOM_VERTQUALITY);
+    QMatrix4x4 mx;
+    mx.translate(10, 0, 0);
+    doc.setMeshTransform(surface, mx);
+    doc.setCurrentMeshIndex(surface);
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("startPoint"), QVariant::fromValue(QVector3D(0.1f, 0.2f, 0.3f)));
+    p.insert(QStringLiteral("endPoint"), QVariant::fromValue(QVector3D(5.8f, 6.1f, 0)));
+    const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("create_polyline_from_geodesic_path")), p);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.newMeshIndices.size(), 1);
+    const int line = r.newMeshIndices.front();
+    const VCGMesh &m = doc.mesh(line).mesh;
+    QCOMPARE(m.vert.front().cP(), vcg::Point3f(0, 0, 0));
+    QCOMPARE(m.vert.back().cP(), vcg::Point3f(6, 6, 0));
+    for (const VCGEdge &e : m.edge) {   // a chain of grid edges: unit steps or the a-d diagonal
+        const vcg::Point3f d = e.cV(1)->cP() - e.cV(0)->cP();
+        const float ax = std::abs(d[0]), ay = std::abs(d[1]);
+        QVERIFY2((ax + ay == 1.0f) || (ax == 1.0f && ay == 1.0f && d[0] == d[1]),
+                 qPrintable(QStringLiteral("step (%1, %2)").arg(d[0]).arg(d[1])));
+    }
+    const double length = r.outputValues.value(QStringLiteral("length")).toDouble();
+    QVERIFY2(length < 1.1 * 6 * std::sqrt(2.0), qPrintable(QString::number(length)));
+    QCOMPARE(doc.mesh(line).transform, mx);  // in the frame of the surface
+    for (const VCGVertex &v : doc.mesh(surface).mesh.vert)
+        QCOMPARE(v.cQ(), 7.0f);
+
+    p.insert(QStringLiteral("endPoint"), QVariant::fromValue(QVector3D(0, 0.1f, 0)));
+    QVERIFY(!doc.runFilter(filterKeyForId(doc, QStringLiteral("create_polyline_from_geodesic_path")), p).success);
 }
 
 void FilterTests::cutGraphIsReproducibleAndRefusesWhatItCannotCut()

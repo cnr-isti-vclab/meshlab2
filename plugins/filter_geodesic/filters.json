@@ -79,6 +79,42 @@
       ]
     },
     {
+      "id": "create_polyline_from_geodesic_path",
+      "categories": ["Creation/Primitives"],
+      "name": "Create Polyline from Geodesic Path",
+      "pythonName": "create_polyline_from_geodesic_path",
+      "shortDescription": "Create a polyline along mesh edges approximating the shortest path on the surface between two points.",
+      "longDescriptionMarkdown": "Compute an approximate geodesic path between two points of the current mesh and add it as a new polyline layer. Each point is replaced by its closest mesh vertex; the approximate geodesic distance from the end vertex is propagated over the mesh, as in *Compute Geodesic Distance from Point*, and its shortest-path tree is followed back from the start vertex.\n\nThe result is a chain of **mesh edges**, so it zigzags wherever the true geodesic runs across faces, and is longer than the geodesic distance, which the filter reports alongside its length. *Smooth Polyline on Surface* straightens it towards the geodesic while keeping its ends fixed; *Embed Polyline in Surface* then selects it as mesh edges, which it already is.\n\nThe two points must lie on the same connected component. The vertex quality of the mesh is left as it was.",
+      "tags": ["geodesic", "shortest path", "polyline", "curve", "distance"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireFaces": true
+      },
+      "inputPrepare": ["VF"],
+      "outputTag": "geodesic path",
+      "parameters": [
+        {
+          "id": "startPoint",
+          "label": "Start Point",
+          "help": "Where the path starts; its closest mesh vertex is used.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "point",
+          "default": [0.0, 0.0, 0.0]
+        },
+        {
+          "id": "endPoint",
+          "label": "End Point",
+          "help": "Where the path ends; its closest mesh vertex is used.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "point",
+          "default": [0.0, 0.0, 0.0]
+        }
+      ]
+    },
+    {
       "id": "compute_geodesic_distance_from_selection_vcglib",
       "categories": ["Attribute/Scalar"],
       "name": "Compute Geodesic Distance from Selection (vcglib)",
