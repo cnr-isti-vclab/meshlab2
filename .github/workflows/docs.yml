@@ -27,12 +27,16 @@ jobs:
           arch: clang_64
           modules: qtshadertools
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Install Python dependencies
         run: |
-          pip install -r docs/requirements.txt
+          python -m pip install -r docs/requirements.txt
 
       - name: Install native dependencies
-        run: brew install eigen tbb glm
+        run: brew install ninja eigen tbb glm
 
       - name: Configure and build
         run: |
@@ -41,6 +45,8 @@ jobs:
             -DMESHLAB2_REQUIRE_VCPKG_DEPS=OFF \
             -DMESHLAB2_MACOS_BUNDLE_ICON=OFF \
             -DMESHLAB2_PYTHON_CONSOLE=ON \
+            -DPython_EXECUTABLE="$(which python)" \
+            -DPython_FIND_STRATEGY=LOCATION \
             -Dnanobind_DIR="$(python -m nanobind --cmake_dir)" \
             -DMESHLAB2_PLUGIN_OBJ_RAPIDOBJ=OFF \
             -DMESHLAB2_PLUGIN_E57=OFF \
