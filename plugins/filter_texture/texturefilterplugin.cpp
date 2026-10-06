@@ -523,6 +523,8 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         const int ioMask = Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL
             | (entry.ioMask & Mask::IOM_VERTCOLOR);
         const int newIndex = doc.addMesh(paraMesh, {}, ioMask);
+        if (newIndex >= 0)
+            doc.mesh(newIndex).transform = doc.mesh(meshIndex).transform;  // the same surface, in the same frame
         doc.finishFilterProgress(true, QObject::tr("Generated Voronoi atlas mesh."));
 
         MeshFilterRunResult result;

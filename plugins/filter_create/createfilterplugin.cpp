@@ -428,6 +428,8 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
 
         const int idx = doc.addMesh(m, {});
+        if (idx >= 0)
+            doc.mesh(idx).transform = doc.mesh(meshIndex).transform;  // fitted in its local coordinates
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -465,6 +467,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
             vcg::tri::io::Mask::IOM_VERTNORMAL);
         if (idx < 0)
             return { false, false, QObject::tr("Failed to add the convex hull layer.") };
+        doc.mesh(idx).transform = doc.mesh(meshIndex).transform;  // built from its local coordinates
         MeshFilterRunResult r = success(doc.mesh(idx).name, idx);
         r.infoMessages << QObject::tr("Hull: %1 vertices, %2 faces (from %3 input vertices).")
                               .arg(hull.VN()).arg(hull.FN()).arg(src.VN());

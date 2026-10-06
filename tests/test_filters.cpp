@@ -539,6 +539,7 @@ private slots:
     void cutGraphThenEmbedThenCutGivesADisk();
     void cutGraphIsReproducibleAndRefusesWhatItCannotCut();
     void geodesicPathFollowsMeshEdgesBetweenTwoPoints();
+    void derivedLayersKeepTheSourceLayerMatrix();
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToComponentsAndUvIslands();
@@ -8885,6 +8886,66 @@ void FilterTests::geodesicPathFollowsMeshEdgesBetweenTwoPoints()
 
     p.insert(QStringLiteral("endPoint"), QVariant::fromValue(QVector3D(0, 0.1f, 0)));
     QVERIFY(!doc.runFilter(filterKeyForId(doc, QStringLiteral("create_polyline_from_geodesic_path")), p).success);
+}
+
+// A filter that builds a new layer from the current layer's local coordinates must give it
+// that layer's matrix, or on a moved layer the result shows up somewhere else.
+void FilterTests::derivedLayersKeepTheSourceLayerMatrix()
+{
+    VCGMesh torus;
+    vcg::tri::Torus(torus, 3.0f, 1.0f, 32, 16);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(torus);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(torus);
+    for (VCGVertex &v : torus.vert) {
+        v.Q() = v.cP()[0];
+        v.SetS();
+    }
+    for (VCGFace &f : torus.face)
+        if (vcg::Barycenter(f)[0] > 0) f.SetS();
+    for (VCGFace &f : torus.face)
+        for (int i = 0; i < 3; ++i)
+            if (f.cV(i)->cP()[1] > 0 && f.cV((i + 1) % 3)->cP()[1] > 0) f.SetFaceEdgeS(i);
+    QMatrix4x4 mx;
+    mx.translate(5, -2, 7);
+    mx.rotate(30, 1, 2, 3);
+
+    const QStringList ids = {
+        QStringLiteral("simplify_by_vertex_clustering"),
+        QStringLiteral("create_polyline_from_selected_edges"),
+        QStringLiteral("create_polyline_from_cut_graph"),
+        QStringLiteral("create_reeb_graph_from_vertex_scalar"),
+        QStringLiteral("create_handle_and_tunnel_loops"),
+        QStringLiteral("create_polyline_from_selection_perimeter"),
+        QStringLiteral("create_polyline_from_planar_section"),
+        QStringLiteral("create_plane_from_selection"),
+        QStringLiteral("create_convex_hull"),
+        QStringLiteral("reconstruct_surface_by_alpha_wrapping"),
+        QStringLiteral("reconstruct_surface_by_alpha_shape"),
+        QStringLiteral("reconstruct_surface_by_advancing_front"),
+        QStringLiteral("repair_self_intersections_geogram"),
+        QStringLiteral("parametrize_by_voronoi_atlas_vcglib"),
+    };
+    int checked = 0;
+    for (const QString &id : ids) {
+        Document doc;
+        const int surface = doc.addMesh(torus, QStringLiteral("torus"),
+                                        vcg::tri::io::Mask::IOM_VERTQUALITY | vcg::tri::io::Mask::IOM_VERTNORMAL);
+        doc.setMeshTransform(surface, mx);
+        doc.setCurrentMeshIndex(surface);
+        const QString key = filterKeyForId(doc, id);
+        if (key.isEmpty())
+            continue;  // an optional plugin absent from this build
+        MeshFilterParameterValues p;
+        if (id == QStringLiteral("reconstruct_surface_by_alpha_shape"))
+            p.insert(QStringLiteral("alpha"), 2.0);  // the default 2% of the diagonal leaves the torus empty
+        const MeshFilterRunResult r = doc.runFilter(key, p);
+        QVERIFY2(r.success, qPrintable(id + QStringLiteral(": ") + r.errorMessage));
+        QVERIFY2(!r.newMeshIndices.isEmpty(), qPrintable(id));
+        for (int idx : r.newMeshIndices)
+            QVERIFY2(doc.mesh(idx).transform == mx, qPrintable(id + QStringLiteral(": layer '") + doc.mesh(idx).name + QStringLiteral("'")));
+        ++checked;
+    }
+    QVERIFY(checked >= 9);  // the vcglib-only filters are always there
 }
 
 void FilterTests::cutGraphIsReproducibleAndRefusesWhatItCannotCut()

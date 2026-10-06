@@ -359,6 +359,7 @@ MeshFilterRunResult runAlphaShape(const FilterParams &params, Document &doc)
         doc.finishFilterProgress(false, message);
         return fail(message);
     }
+    doc.mesh(newIndex).transform = doc.mesh(meshIndex).transform;  // built from its local coordinates
     doc.finishFilterProgress(true, QObject::tr("Generated alpha shape."));
 
     QStringList info;
@@ -545,6 +546,7 @@ MeshFilterRunResult runVoronoiFiltering(const FilterParams &params, Document &do
         doc.finishFilterProgress(false, message);
         return fail(message);
     }
+    doc.mesh(newIndex).transform = doc.mesh(meshIndex).transform;  // built from its local coordinates
     doc.finishFilterProgress(true, QObject::tr("Generated crust surface."));
 
     QStringList info;
@@ -614,12 +616,16 @@ MeshFilterRunResult finishReconstruction(
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
 
     const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+    // Every reconstruction reads the current layer's local coordinates, and the current
+    // layer is still the source until addMesh() moves it onto the new one.
+    const QMatrix4x4 sourceTransform = doc.mesh(doc.currentMeshIndex()).transform;
     const int newIndex = doc.addMesh(output, {}, ioMask);
     if (newIndex < 0) {
         const QString message = QObject::tr("Failed to add the %1 layer.").arg(layerName);
         doc.finishFilterProgress(false, message);
         return fail(message);
     }
+    doc.mesh(newIndex).transform = sourceTransform;
     doc.finishFilterProgress(true, QObject::tr("Generated %1.").arg(layerName));
 
     info << QObject::tr("Output mesh: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
@@ -1455,6 +1461,7 @@ MeshFilterRunResult CgalFilterPlugin::runFilter(
         doc.finishFilterProgress(false, message);
         return fail(message);
     }
+    doc.mesh(newIndex).transform = entry.transform;  // wrapped in its local coordinates
 
     doc.finishFilterProgress(true, QObject::tr("Generated Alpha Wrap mesh."));
 

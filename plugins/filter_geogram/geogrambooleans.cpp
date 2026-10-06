@@ -312,6 +312,7 @@ MeshFilterRunResult runRepairSelfIntersections(const FilterParams &params, Docum
         doc.finishFilterProgress(false, error);
         return fail(error);
     }
+    doc.mesh(newMeshIndex).transform = doc.mesh(meshIndex).transform;  // repaired in its local coordinates
 
     doc.finishFilterProgress(true, QObject::tr("Resolved self-intersections."));
 

@@ -202,7 +202,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
         const int idx = doc.addMesh(poly, {}, Mask::IOM_EDGEINDEX);
         if (idx < 0)
             return { false, false, QObject::tr("Failed to create the geodesic path layer.") };
-        doc.setMeshTransform(idx, doc.mesh(meshIndex).transform);
+        doc.mesh(idx).transform = doc.mesh(meshIndex).transform;  // in the frame of the surface
 
         MeshFilterRunResult result;
         result.success = true;

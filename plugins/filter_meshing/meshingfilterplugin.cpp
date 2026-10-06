@@ -705,6 +705,8 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             vcg::tri::UpdateBounding<VCGMesh>::Box(output);
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
             const int newIndex = doc.addMesh(output, {}, entry.ioMask);
+            if (newIndex >= 0)
+                doc.mesh(newIndex).transform = doc.mesh(ci).transform;  // in the frame of the layer it came from
             return success(true,
                 { QObject::tr("Clustering decimation: %1 → %2 vertices, %3 → %4 faces.")
                     .arg(srcVN).arg(output.VN()).arg(srcFN).arg(output.FN()) },
@@ -1667,6 +1669,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             const int idx = doc.addMesh(edgeMesh, {}, Mask::IOM_EDGEINDEX);
             if (idx < 0)
                 return fail(QObject::tr("Failed to create edge extraction layer."));
+            doc.mesh(idx).transform = doc.mesh(ci).transform;  // in the frame of the layer it came from
             return success(true, { QObject::tr("Created edge mesh from selected edges.") }, { idx });
         }
 
@@ -1690,6 +1693,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             const int idx = doc.addMesh(tree, {}, Mask::IOM_EDGEINDEX);
             if (idx < 0)
                 return fail(QObject::tr("Failed to create the cut graph layer."));
+            doc.mesh(idx).transform = doc.mesh(ci).transform;  // in the frame of the layer it came from
             MeshFilterRunResult r = success(true, {
                 QObject::tr("Cut graph: %1 edges.").arg(tree.EN()), seed.message() }, { idx });
             r.outputValues["edges"] = tree.EN();
@@ -1817,6 +1821,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             const int idx = doc.addMesh(graph, {}, Mask::IOM_EDGEINDEX | Mask::IOM_VERTQUALITY);
             if (idx < 0)
                 return fail(QObject::tr("Failed to create the Reeb graph layer."));
+            doc.mesh(idx).transform = doc.mesh(ci).transform;  // in the frame of the layer it came from
             MeshFilterRunResult r = success(true, {
                 QObject::tr("Reeb graph: %1 nodes, %2 arcs, %3 independent cycles (the genus, on a closed surface).")
                     .arg(graph.VN()).arg(graph.EN()).arg(cycles) }, { idx });
@@ -1861,6 +1866,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 const int idx = doc.addMesh(loops, {}, Mask::IOM_EDGEINDEX | Mask::IOM_EDGEQUALITY);
                 if (idx < 0)
                     return fail(QObject::tr("Failed to create the %1 loop layer.").arg(name));
+                doc.mesh(idx).transform = doc.mesh(ci).transform;  // in the frame of the layer it came from
                 created << idx;
                 info << QObject::tr("%1 %2 loop(s), length %3 to %4.")
                             .arg(family->size()).arg(name)
@@ -1950,6 +1956,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             const int idx = doc.addMesh(perimeter, {}, Mask::IOM_EDGEINDEX);
             if (idx < 0)
                 return fail(QObject::tr("Failed to create perimeter polyline layer."));
+            doc.mesh(idx).transform = doc.mesh(ci).transform;  // in the frame of the layer it came from
             return success(true, { QObject::tr("Created perimeter polyline layer.") }, { idx });
         }
 
@@ -2084,13 +2091,17 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
             QVector<int> created;
             const int secIdx = doc.addMesh(section, {}, Mask::IOM_EDGEINDEX);
-            if (secIdx >= 0)
+            if (secIdx >= 0) {
+                doc.mesh(secIdx).transform = doc.mesh(ci).transform;  // in the frame of the layer it came from
                 created.push_back(secIdx);
+            }
 
             if (createSectionSurface) {
                 const int capIdx = doc.addMesh(cap, {}, Mask::IOM_FACENORMAL | Mask::IOM_VERTNORMAL);
-                if (capIdx >= 0)
+                if (capIdx >= 0) {
+                    doc.mesh(capIdx).transform = doc.mesh(ci).transform;
                     created.push_back(capIdx);
+                }
             }
 
             if (params.getBool(QStringLiteral("splitSurfaceWithSection"))) {
