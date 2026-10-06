@@ -536,6 +536,7 @@ private slots:
     void embedPolylineRefusesWhatItCannotEmbed();
     void smoothPolylineOnSurfaceStaysOnItAndShortens();
     void smoothPolylineOnCylinderKeepsTheHelixWinding();
+    void smoothPolylineWithoutControlPointsFindsTheClosedGeodesic();
     void cutGraphThenEmbedThenCutGivesADisk();
     void cutGraphIsReproducibleAndRefusesWhatItCannotCut();
     void geodesicPathFollowsMeshEdgesBetweenTwoPoints();
@@ -8777,6 +8778,59 @@ void FilterTests::smoothPolylineOnCylinderKeepsTheHelixWinding()
     MeshFilterParameterValues self;
     self.insert(QStringLiteral("surface"), line);
     QVERIFY(!doc.runFilter(filterKeyForId(doc, QStringLiteral("smooth_polyline_on_surface")), self).success);
+}
+
+// With no fixed vertex a wobbly loop around the tube of a torus settles on the circle
+// around the tube, length 2*pi; an open polyline shortens from its ends until nothing is
+// left, and the filter refuses that rather than leave a point behind.
+void FilterTests::smoothPolylineWithoutControlPointsFindsTheClosedGeodesic()
+{
+    VCGMesh torus;
+    vcg::tri::Torus(torus, 3.0f, 1.0f, 64, 32);
+    vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(torus);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(torus);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(torus);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(torus);
+    Document doc;
+    doc.addMesh(torus, QStringLiteral("torus"));
+
+    std::vector<vcg::Point3f> pts;
+    for (int i = 0; i < 60; ++i) {
+        const float a = 2 * float(M_PI) * i / 60;
+        pts.push_back(vcg::Point3f(3 + std::cos(a), 0.3f * std::sin(5 * a), std::sin(a)));
+    }
+    VCGMesh loopMesh;
+    makePolyline(loopMesh, pts);
+    vcg::tri::Allocator<VCGMesh>::AddEdges(loopMesh, 1);   // close it
+    loopMesh.edge.back().V(0) = &loopMesh.vert.back();
+    loopMesh.edge.back().V(1) = &loopMesh.vert.front();
+    const int loop = doc.addMesh(loopMesh, QStringLiteral("loop"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+    doc.setCurrentMeshIndex(loop);
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("surface"), 0);
+    p.insert(QStringLiteral("iterations"), 200);
+    p.insert(QStringLiteral("controlPoints"), QStringLiteral("none"));
+    MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("smooth_polyline_on_surface")), p);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const double length = curveLength(doc.mesh(loop).mesh);
+    QVERIFY2(std::abs(length - 2 * M_PI) < 0.02 * 2 * M_PI, qPrintable(QString::number(length)));
+    for (const VCGVertex &v : doc.mesh(loop).mesh.vert)
+        QVERIFY(!v.IsS());
+
+    std::vector<vcg::Point3f> open;
+    for (int i = 0; i < 30; ++i) {
+        const float a = 1.5f * i / 29;
+        open.push_back(vcg::Point3f(3.5f * std::cos(a), 3.5f * std::sin(a), (i % 2) ? 0.4f : -0.4f));
+    }
+    VCGMesh openMesh;
+    makePolyline(openMesh, open);
+    const int line = doc.addMesh(openMesh, QStringLiteral("open"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+    doc.setCurrentMeshIndex(line);
+    p.insert(QStringLiteral("iterations"), 400);
+    r = doc.runFilter(filterKeyForId(doc, QStringLiteral("smooth_polyline_on_surface")), p);
+    QVERIFY(!r.success);
+    QVERIFY2(r.errorMessage.contains(QStringLiteral("contracted")), qPrintable(r.errorMessage));
+    QCOMPARE(doc.mesh(line).mesh.VN(), 30);   // rolled back
 }
 
 namespace {

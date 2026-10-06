@@ -1723,12 +1723,20 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             com.Init();
             const int before = mesh.VN();
             mapAll(toSurface);
-            com.SetControlPoints(mesh, params.getEnum(QStringLiteral("controlPoints")) == QStringLiteral("selected")
-                                           ? CoM::Selected : CoM::EndsAndNodes);
+            const QString controlPoints = params.getEnum(QStringLiteral("controlPoints"));
+            if (controlPoints == QStringLiteral("none"))
+                vcg::tri::UpdateSelection<VCGMesh>::VertexClear(mesh);  // then "selected" fixes nothing
+            com.SetControlPoints(mesh, controlPoints == QStringLiteral("ends_and_nodes") ? CoM::EndsAndNodes : CoM::Selected);
             com.SmoothProject(mesh, params.getInt(QStringLiteral("iterations")),
                               float(params.getDouble(QStringLiteral("smoothWeight"))),
                               float(params.getDouble(QStringLiteral("projectWeight"))));
             com.RefineCurveByBaseMesh(mesh);  // straight in every face: control points and edge crossings only
+            // Without control points an open polyline shortens from its ends, and a loop that
+            // can contract does, until nothing is left of it.
+            float length = 0;
+            for (const VCGEdge &e : mesh.edge) if (!e.IsD()) length += vcg::edge::Length(e);
+            if (!(length > surfEntry.mesh.bbox.Diag() * 1e-6f))
+                return fail(QObject::tr("The polyline contracted to a point: fix some of its vertices, or use fewer iterations."));
             mapAll(back);  // on failure the rollback restores the layer, frame included
             vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
             markGeometry(ci, QObject::tr("Smoothed '%1' on '%2'").arg(entry.name, surfEntry.name));
