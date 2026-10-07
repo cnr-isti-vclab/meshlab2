@@ -57,6 +57,7 @@ namespace {
 QString buildSectionCap(
     const VCGMesh &section,
     const vcg::Point3f &normal,
+    const vcg::PlanarRefinement &refinement,
     VCGMesh &cap)
 {
     using Contour = std::vector<vcg::Point3f>;
@@ -116,31 +117,51 @@ QString buildSectionCap(
     if (contours.empty())
         return QObject::tr("The planar section contains no closed contour to triangulate.");
 
+    // Triangulated in the plane's own orthonormal frame, where the refinement's circumcenters
+    // and angles are the true ones (an axis projection would distort them).
+    const vcg::Point3d n = vcg::Point3d::Construct(normal).Normalize();
+    vcg::Point3d u = std::abs(n[0]) < 0.9 ? vcg::Point3d(1, 0, 0) : vcg::Point3d(0, 1, 0);
+    u = (u - n * (n * u)).Normalize();
+    const vcg::Point3d v = n ^ u;
+    std::vector<std::vector<vcg::Point2d>> planar;
+    std::vector<vcg::Point3f> positions;
+    for (const Contour &contour : contours) {
+        planar.emplace_back();
+        for (const vcg::Point3f &p : contour) {
+            const vcg::Point3d q = vcg::Point3d::Construct(p);
+            planar.back().push_back({ u * q, v * q });
+            positions.push_back(p);
+        }
+    }
+    const double offset = n * vcg::Point3d::Construct(contours[0][0]);
     std::vector<int> triangles;
-    if (!vcg::TessellatePlanarContours3(contours, triangles, true))  // constrained Delaunay: no fans of slivers
+    if (!vcg::TessellatePlanarContours2(planar, triangles, true))
         return QObject::tr("The planar section contours could not be triangulated.");
-
-    size_t vertexCount = 0;
-    for (const Contour &contour : contours)
-        vertexCount += contour.size();
+    std::vector<vcg::Point2d> points;
+    for (const auto &c : planar) points.insert(points.end(), c.begin(), c.end());
+    const size_t inputCount = points.size();
+    std::vector<vcg::SteinerPoint> added;
+    if (refinement.minAngle > 0)
+        vcg::RefinePlanarTriangulation2(points, triangles, refinement, added);
+    for (size_t k = 0; k < added.size(); ++k) {
+        const vcg::SteinerPoint &h = added[k];
+        if (h.c < 0)   // on a section edge: exactly on it
+            positions.push_back(positions[size_t(h.a)] + (positions[size_t(h.b)] - positions[size_t(h.a)]) * float(h.t));
+        else {
+            const vcg::Point2d &q = points[inputCount + k];
+            positions.push_back(vcg::Point3f::Construct(u * q[0] + v * q[1] + n * offset));
+        }
+    }
 
     cap.Clear();
-    vcg::tri::Allocator<VCGMesh>::AddVertices(cap, vertexCount);
-    size_t vertexOffset = 0;
-    for (const Contour &contour : contours) {
-        for (size_t i = 0; i < contour.size(); ++i)
-            cap.vert[vertexOffset + i].P() = contour[i];
-        vertexOffset += contour.size();
-    }
+    vcg::tri::Allocator<VCGMesh>::AddVertices(cap, positions.size());
+    for (size_t i = 0; i < positions.size(); ++i)
+        cap.vert[i].P() = positions[i];
 
     vcg::tri::Allocator<VCGMesh>::AddFaces(cap, triangles.size() / 3);
     for (size_t i = 0; i < triangles.size(); i += 3) {
-        int a = triangles[i];
-        int b = triangles[i + 1];
-        int c = triangles[i + 2];
-        if (((cap.vert[size_t(b)].cP() - cap.vert[size_t(a)].cP())
-                ^ (cap.vert[size_t(c)].cP() - cap.vert[size_t(a)].cP())) * normal < 0)
-            std::swap(b, c);
+        // Counterclockwise in the (u, v) frame, and u x v = n: every face already faces n.
+        const int a = triangles[i], b = triangles[i + 1], c = triangles[i + 2];
         VCGFace &face = cap.face[i / 3];
         face.V(0) = &cap.vert[size_t(a)];
         face.V(1) = &cap.vert[size_t(b)];
@@ -2012,7 +2033,10 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             bool clipped = false;
             {
                 VCGMeshFFAdjScope _clipFFAdj(mesh);
-                clipped = vcg::tri::ClipMeshWithPlane(mesh, plane, closeCut, snap);
+                vcg::PlanarRefinement refinement;
+                refinement.minAngle = params.getDouble(QStringLiteral("capMinAngle"));
+                refinement.splitBoundary = params.getBool(QStringLiteral("capRefineBoundary"));
+                clipped = vcg::tri::ClipMeshWithPlane(mesh, plane, closeCut, snap, refinement);
             }
             if (!clipped)
                 return fail(QObject::tr("%1 left the mesh unchanged: the plane does not cut it.").arg(filterName));
@@ -2090,7 +2114,10 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             VCGMesh cap;
             const bool createSectionSurface = params.getBool(QStringLiteral("createSectionSurface"));
             if (createSectionSurface) {
-                const QString capError = buildSectionCap(section, axis, cap);
+                vcg::PlanarRefinement refinement;
+                refinement.minAngle = params.getDouble(QStringLiteral("capMinAngle"));
+                refinement.splitBoundary = params.getBool(QStringLiteral("capRefineBoundary"));
+                const QString capError = buildSectionCap(section, axis, refinement, cap);
                 if (!capError.isEmpty())
                     return fail(capError);
                 vcg::tri::UpdateBounding<VCGMesh>::Box(cap);

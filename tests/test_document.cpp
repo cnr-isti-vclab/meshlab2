@@ -66,6 +66,7 @@ private slots:
     void loadMeshAddsLayerAndEmitsSignal();
     void planarPolygonTessellationHandlesConcavity();
     void planarContoursTessellateToConstrainedDelaunayOnRequest();
+    void planarRefinementReachesTheMinimumAngle();
     void loadConcavePolygonFormatsPreserveFauxEdges();
     void loadObjWithMissingMaterialLibrary();
     void factoryDefaultObjImporterIsVcglib();
@@ -1027,6 +1028,98 @@ void DocumentTests::planarContoursTessellateToConstrainedDelaunayOnRequest()
     std::vector<int> tiltedTris;
     QVERIFY(vcg::TessellatePlanarContours3(tilted, tiltedTris, true));
     QVERIFY2(worstExcess(tiltedTris, tiltedFlat) < 1e-9, qPrintable(QString::number(worstExcess(tiltedTris, tiltedFlat))));
+}
+
+// Delaunay refinement of a cap-like region: a fine, slightly noisy outline with two holes
+// and nothing inside. Allowed to split the boundary, it reaches the minimum angle
+// everywhere (the outline has no sharp corner); kept to its boundary, it leaves it exactly
+// as it was and still improves. Every added point is where its description says, which is
+// what callers interpolate attributes from.
+void DocumentTests::planarRefinementReachesTheMinimumAngle()
+{
+    std::mt19937 rng(3);
+    std::uniform_real_distribution<double> noise(-0.05, 0.05);
+    std::vector<std::vector<vcg::Point2d>> contours(3);
+    for (int i = 0; i < 300; ++i) {
+        const double a = 2 * M_PI * i / 300;
+        contours[0].push_back({ 20 * std::cos(a) + noise(rng), 8 * std::sin(a) + noise(rng) });
+    }
+    for (int i = 0; i < 40; ++i) {
+        const double a = -2 * M_PI * i / 40;
+        contours[1].push_back({ -8 + 2 * std::cos(a), 2 * std::sin(a) });
+        contours[2].push_back({ 8 + 3 * std::cos(a), 1.5 * std::sin(a) });
+    }
+    const auto minAngleOf = [](const std::vector<vcg::Point2d> &p, const std::vector<int> &tris, size_t t) {
+        double m = 180;
+        for (int k = 0; k < 3; ++k) {
+            const vcg::Point2d u = p[size_t(tris[t + (k + 1) % 3])] - p[size_t(tris[t + k])];
+            const vcg::Point2d v = p[size_t(tris[t + (k + 2) % 3])] - p[size_t(tris[t + k])];
+            m = std::min(m, std::acos(std::clamp(u.dot(v) / std::sqrt(u.SquaredNorm() * v.SquaredNorm()), -1.0, 1.0)) * 180 / M_PI);
+        }
+        return m;
+    };
+    const auto boundaryEdges = [](const std::vector<int> &tris) {
+        std::map<std::pair<int, int>, int> count;
+        for (size_t i = 0; i < tris.size(); ++i) {
+            const int a = tris[i], b = tris[i - i % 3 + (i + 1) % 3];
+            ++count[{ std::min(a, b), std::max(a, b) }];
+        }
+        std::set<std::pair<int, int>> boundary;
+        for (const auto &[e, n] : count) if (n == 1) boundary.insert(e);
+        return boundary;
+    };
+    for (bool split : { true, false }) {
+        std::vector<int> tris;
+        QVERIFY(vcg::TessellatePlanarContours2(contours, tris, true));
+        std::vector<vcg::Point2d> points;
+        for (const auto &c : contours) points.insert(points.end(), c.begin(), c.end());
+        const std::vector<vcg::Point2d> input = points;
+        const auto boundaryBefore = boundaryEdges(tris);
+        double areaBefore = 0, worstBefore = 180;
+        int badBefore = 0;
+        for (size_t t = 0; t < tris.size(); t += 3) {
+            areaBefore += double(vcg::planar_polygon_detail::Orient2D(points[size_t(tris[t])], points[size_t(tris[t + 1])], points[size_t(tris[t + 2])]));
+            worstBefore = std::min(worstBefore, minAngleOf(points, tris, t));
+            badBefore += minAngleOf(points, tris, t) < 20;
+        }
+        vcg::PlanarRefinement opt;
+        opt.minAngle = 20;
+        opt.splitBoundary = split;
+        std::vector<vcg::SteinerPoint> added;
+        const int n = vcg::RefinePlanarTriangulation2(points, tris, opt, added);
+        QCOMPARE(size_t(n), added.size());
+        QCOMPARE(points.size(), input.size() + added.size());
+        QVERIFY(n > 0);
+        double area = 0, worst = 180;
+        int bad = 0;
+        for (size_t t = 0; t < tris.size(); t += 3) {
+            const long double o = vcg::planar_polygon_detail::Orient2D(points[size_t(tris[t])], points[size_t(tris[t + 1])], points[size_t(tris[t + 2])]);
+            QVERIFY(o > 0);
+            area += double(o);
+            worst = std::min(worst, minAngleOf(points, tris, t));
+            bad += minAngleOf(points, tris, t) < 20;
+        }
+        QVERIFY(std::abs(area - areaBefore) < 1e-9 * areaBefore);
+        for (size_t k = 0; k < added.size(); ++k) {   // each point where its description puts it
+            const vcg::SteinerPoint &h = added[k];
+            const vcg::Point2d &p = points[input.size() + k];
+            const vcg::Point2d expected = h.c < 0
+                ? points[size_t(h.a)] + (points[size_t(h.b)] - points[size_t(h.a)]) * h.t
+                : points[size_t(h.a)] * h.w[0] + points[size_t(h.b)] * h.w[1] + points[size_t(h.c)] * h.w[2];
+            QVERIFY2((p - expected).Norm() < 1e-9, qPrintable(QStringLiteral("point %1").arg(k)));
+            if (h.c < 0) QVERIFY(split && h.a < int(input.size()) && h.b < int(input.size()));
+        }
+        if (split) {
+            QVERIFY2(worst >= 20 - 1e-9, qPrintable(QString::number(worst)));
+            double lengthBefore = 0, length = 0;
+            for (const auto &e : boundaryBefore) lengthBefore += (input[size_t(e.first)] - input[size_t(e.second)]).Norm();
+            for (const auto &e : boundaryEdges(tris)) length += (points[size_t(e.first)] - points[size_t(e.second)]).Norm();
+            QVERIFY(std::abs(length - lengthBefore) < 1e-9 * lengthBefore);
+        } else {
+            QVERIFY(boundaryEdges(tris) == boundaryBefore);
+            QVERIFY2(bad < badBefore / 10 && worst > worstBefore, qPrintable(QStringLiteral("%1 -> %2 bad, %3 -> %4 deg").arg(badBefore).arg(bad).arg(worstBefore).arg(worst)));
+        }
+    }
 }
 
 void DocumentTests::loadConcavePolygonFormatsPreserveFauxEdges()

@@ -2821,6 +2821,25 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "capMinAngle",
+          "label": "Cap minimum angle",
+          "help": "Used when the cut is closed. Points are added inside the cap until no triangle has an angle below this many degrees (Delaunay refinement), except where the outline itself has a sharper corner. A cap's outline is as fine as the mesh while its inside is empty, so without them it is all long thin triangles reaching across. Zero leaves the cap a plain constrained Delaunay triangulation of the outline. Above about 30 degrees the number of added points grows quickly; 34 is the most allowed.",
+          "group": "advanced",
+          "type": "double",
+          "default": 20.0,
+          "min": 0.0,
+          "max": 34.0,
+          "decimals": 1
+        },
+        {
+          "id": "capRefineBoundary",
+          "label": "Refine the cap outline too",
+          "help": "Also add points on the outline of the cap, which brings the triangles next to it to the minimum angle as well. The mesh faces along the cut are split at the same points, so the mesh stays watertight, but they get thinner. Off, the outline and the mesh around it are left exactly as the cut made them.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
         }
       ],
       "outputModifies": ["FV", "VG"]
@@ -2921,6 +2940,25 @@
           "id": "createSectionSurface",
           "label": "Create also section surface",
           "help": "Create triangulated sections from closed contours, including holes and disconnected regions.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "capMinAngle",
+          "label": "Cap minimum angle",
+          "help": "Used for the section surface. Points are added inside the cap until no triangle has an angle below this many degrees (Delaunay refinement), except where the outline itself has a sharper corner. A cap's outline is as fine as the mesh while its inside is empty, so without them it is all long thin triangles reaching across. Zero leaves the cap a plain constrained Delaunay triangulation of the outline. Above about 30 degrees the number of added points grows quickly; 34 is the most allowed.",
+          "group": "advanced",
+          "type": "double",
+          "default": 20.0,
+          "min": 0.0,
+          "max": 34.0,
+          "decimals": 1
+        },
+        {
+          "id": "capRefineBoundary",
+          "label": "Refine the cap outline too",
+          "help": "Also add points on the outline of the section surface, which brings the triangles next to it to the minimum angle as well. The outline then has points the section polyline does not. Off, the outline is exactly the polyline's.",
           "group": "advanced",
           "type": "bool",
           "default": false

@@ -544,6 +544,7 @@ private slots:
     void measureFiltersReportPolylines();
     void handleAndTunnelLoopsEmbeddedThenCutGiveADisk();
     void embeddingStraightCurvesWithAllVerticesLeavesNoInvertedFace();
+    void planeCapsAreRefinedToTheMinimumAngle();
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToComponentsAndUvIslands();
@@ -9174,6 +9175,83 @@ void FilterTests::embeddingStraightCurvesWithAllVerticesLeavesNoInvertedFace()
             if (!f.IsD() && vcg::TriangleNormal(f)[2] <= 0) ++inverted;
         QVERIFY2(inverted == 0, qPrintable(QStringLiteral("trial %1: %2 inverted faces").arg(trial).arg(inverted)));
     }
+}
+
+// The caps of Trim Surface by Plane and of the section surface are refined with added
+// points: by default inside only, the cut outline left as it was; with the outline too,
+// every cap triangle reaches the minimum angle and the trimmed mesh stays watertight. A
+// scalar that is linear in space survives on the added vertices, which is what
+// interpolating them from the outline buys.
+void FilterTests::planeCapsAreRefinedToTheMinimumAngle()
+{
+    VCGMesh sphere;
+    vcg::tri::Sphere(sphere, 4);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(sphere);
+    for (VCGVertex &v : sphere.vert) v.Q() = v.cP()[1];
+    const vcg::Point3f normal = vcg::Point3f(0.3f, 0.8f, -0.5f).Normalize();
+    const auto capAngles = [&](const VCGMesh &m, int &capFaces, double &worst) {
+        capFaces = 0;
+        worst = 180;
+        for (const VCGFace &f : m.face) {
+            if (f.IsD()) continue;
+            bool onPlane = true;
+            for (int i = 0; i < 3; ++i) onPlane &= std::abs(f.cP(i) * normal) < 1e-4f;
+            if (!onPlane) continue;
+            ++capFaces;
+            for (int i = 0; i < 3; ++i)
+                worst = std::min(worst, double(vcg::math::ToDeg(vcg::Angle(f.cP((i + 1) % 3) - f.cP(i), f.cP((i + 2) % 3) - f.cP(i)))));
+        }
+    };
+    struct Mode { double minAngle; bool boundary; };
+    int plainFaces = 0;
+    for (const Mode mode : { Mode{ 0, false }, Mode{ 20, false }, Mode{ 20, true } }) {
+        Document doc;
+        const int index = doc.addMesh(sphere, QStringLiteral("sphere"), vcg::tri::io::Mask::IOM_VERTQUALITY);
+        doc.setCurrentMeshIndex(index);
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("planeNormal"), QVector3D(normal[0], normal[1], normal[2]));
+        p.insert(QStringLiteral("relativeTo"), QStringLiteral("origin"));
+        p.insert(QStringLiteral("closeCut"), true);
+        p.insert(QStringLiteral("capMinAngle"), mode.minAngle);
+        p.insert(QStringLiteral("capRefineBoundary"), mode.boundary);
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("trim_surface_by_plane")), p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        VCGMesh &m = doc.mesh(index).mesh;
+        m.face.EnableFFAdjacency();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+        int edges = 0, border = 0, nonManifold = 0;
+        vcg::tri::Clean<VCGMesh>::CountEdgeNum(m, edges, border, nonManifold);
+        m.face.DisableFFAdjacency();
+        QCOMPARE(border, 0);
+        QCOMPARE(nonManifold, 0);
+        for (const VCGVertex &v : m.vert)
+            if (!v.IsD()) QVERIFY2(std::abs(v.cQ() - v.cP()[1]) < 1e-4f, "the scalar was not interpolated");
+        int capFaces = 0;
+        double worst = 0;
+        capAngles(m, capFaces, worst);
+        if (mode.minAngle == 0) plainFaces = capFaces;
+        else QVERIFY(capFaces > plainFaces);   // points were added
+        if (mode.boundary) QVERIFY2(worst >= 20 - 1e-3, qPrintable(QString::number(worst)));
+    }
+
+    // The section surface, refined outline included, reaches the angle too.
+    Document doc;
+    doc.setCurrentMeshIndex(doc.addMesh(sphere, QStringLiteral("sphere")));
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("planeAxis"), QStringLiteral("custom"));
+    p.insert(QStringLiteral("customAxis"), QVector3D(normal[0], normal[1], normal[2]));
+    p.insert(QStringLiteral("createSectionSurface"), true);
+    p.insert(QStringLiteral("capRefineBoundary"), true);
+    const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("create_polyline_from_planar_section")), p);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.newMeshIndices.size(), 2);
+    int capFaces = 0;
+    double worst = 0;
+    capAngles(doc.mesh(r.newMeshIndices[1]).mesh, capFaces, worst);
+    QVERIFY(capFaces > 0);
+    QVERIFY2(worst >= 20 - 1e-3, qPrintable(QString::number(worst)));
+    for (const VCGFace &f : doc.mesh(r.newMeshIndices[1]).mesh.face)   // all facing the axis
+        QVERIFY(vcg::TriangleNormal(f) * normal > 0);
 }
 
 void FilterTests::cutGraphIsReproducibleAndRefusesWhatItCannotCut()
