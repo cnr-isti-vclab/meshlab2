@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Directional Port - MeshLab 0.1 documentation</title>
+        <title>Directional and Frame Fields - MeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -242,17 +242,18 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section class="tex2jax_ignore mathjax_ignore" id="directional-port">
-<h1>Directional Port<a class="headerlink" href="#directional-port" title="Link to this heading">¶</a></h1>
-<p>This document proposes a <code class="docutils literal notranslate"><span class="pre">filter_directional</span></code> plugin for field synthesis, analysis,
-visualization, seamless parametrization and field-driven polygon remeshing.
-<strong>Not implemented.</strong> Ten filters are proposed in three stages, starting with a
-face-based 4-RoSy field and the tools to inspect it. Choices below are
-recommendations, not completed rulings.</p>
-<p>See also: <a class="reference internal" href="frame_fields.html"><span class="std std-doc">Frame Fields</span></a> for the QuadWild/Instant Meshes consumer
-workflow, <a class="reference internal" href="cinolib_port.html"><span class="std std-doc">CinoLib Port</span></a>, <a class="reference internal" href="../history/geogram_port.html"><span class="std std-doc">Geogram Port</span></a>,
-<a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>, <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>,
-<a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a>, <a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a>.</p>
+          <section class="tex2jax_ignore mathjax_ignore" id="directional-and-frame-fields">
+<h1>Directional and Frame Fields<a class="headerlink" href="#directional-and-frame-fields" title="Link to this heading">¶</a></h1>
+<p>This document proposes making directional fields first-class MeshLab data through a
+<code class="docutils literal notranslate"><span class="pre">filter_directional</span></code> plugin, then using those fields for analysis, visualization,
+seamless parametrization, polygon remeshing, QuadWild and Instant Meshes.
+<strong>Not implemented.</strong> Ten Directional filters are proposed in three stages, followed
+by two existing-remesher integrations. Choices below are recommendations, not
+completed rulings.</p>
+<p>See also: <a class="reference internal" href="cinolib_port.html"><span class="std std-doc">CinoLib Port</span></a>,
+<a class="reference internal" href="../history/geogram_port.html"><span class="std std-doc">Geogram Port</span></a>, <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>,
+<a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>, <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a>,
+<a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a>.</p>
 <section id="status-and-evidence">
 <h2>Status and evidence<a class="headerlink" href="#status-and-evidence" title="Link to this heading">¶</a></h2>
 <p>Surveyed <strong>2026-10-03</strong> against Directional <code class="docutils literal notranslate"><span class="pre">master</span></code> at
@@ -261,8 +262,9 @@ headers, their implementations and relevant tutorials were read at that revision
 MeshLab storage and consumer references were checked in the current working tree.
 This is a source-level plan: no Directional compilation, numerical validation or
 performance measurement has been performed for this proposal.</p>
-<p>The older <a class="reference internal" href="frame_fields.html"><span class="std std-doc">Frame Fields</span></a> proposal identified the opportunity but
-several of its integration assumptions do not hold for the surveyed trees:</p>
+<p>The original frame-field survey identified the opportunity, but several of its
+integration assumptions do not hold for the surveyed trees. This merged proposal
+records the corrections rather than keeping a second, overlapping design:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -679,22 +681,124 @@ and bound streamline/meshing memory. Sparse factorizations may remain
 noninterruptible. A production mesher needs a cooperative budget hook or isolated
 worker if its internal growth cannot be bounded; an elapsed-time check after it
 returns is not a working timeout. Avoid global stdout redirection for diagnostics.</p>
-<p>The existing remeshers remain useful consumers, but are <strong>separate integration work</strong>:</p>
+</section>
+<section id="existing-remesher-integrations">
+<h2>Existing-remesher integrations<a class="headerlink" href="#existing-remesher-integrations" title="Link to this heading">¶</a></h2>
+<p>The ten filters above form a complete Directional workflow. QuadWild and Instant
+Meshes are additional consumers of the same field payload, with their own contracts
+and acceptance gates. Start both integrations with orthogonal face-based 4-RoSy
+fields. A nonorthogonal PolyVector frame cannot be reduced to one representative
+direction without losing information.</p>
+<p>Both remeshers already compute curvature-driven fields internally, so supplying an
+external field is not automatically an improvement. The value is in fields they
+cannot compute themselves: prescribed singularities, designed constraints, a
+painted field, or a field transferred from a related mesh. Compare each supplied
+field against the remesher’s native route on the same fixtures and settings.</p>
+<section id="quadwild">
+<h3>QuadWild<a class="headerlink" href="#quadwild" title="Link to this heading">¶</a></h3>
+<p>QuadWild already accepts a <code class="docutils literal notranslate"><span class="pre">.rosy</span></code> field file. <code class="docutils literal notranslate"><span class="pre">quadwild.cpp</span></code> recognizes the path
+and sets <code class="docutils literal notranslate"><span class="pre">parameters.hasField</span></code>; <code class="docutils literal notranslate"><span class="pre">quadwild/functions.cpp</span></code> then loads the field rather
+than calling the normal <code class="docutils literal notranslate"><span class="pre">MeshPrepocess&lt;FieldTriMesh&gt;::BatchProcess</span></code> route.
+<code class="docutils literal notranslate"><span class="pre">LoadField</span></code> dispatches <code class="docutils literal notranslate"><span class="pre">.rosy</span></code> through vcglib’s <code class="docutils literal notranslate"><span class="pre">ImporterFIELD::Load4ROSY</span></code>, then
+reorients the field coherently and recomputes singularities.</p>
+<p>The MeshLab integration therefore needs to:</p>
+<ol class="arabic simple">
+<li><p>validate that the current layer has a matching face-based, orthogonal 4-RoSy
+payload;</p></li>
+<li><p>serialize one representative direction per face beside the temporary OBJ while
+preserving exactly the same compact face order;</p></li>
+<li><p>pass the <code class="docutils literal notranslate"><span class="pre">.rosy</span></code> path to the helper, together with feature data when required;</p></li>
+<li><p>describe the supplied-field path separately from the normal preprocessing path.</p></li>
+</ol>
+<p>The current <code class="docutils literal notranslate"><span class="pre">VCGFace</span></code> has no curvature-direction component, so
+<code class="docutils literal notranslate"><span class="pre">ExporterFIELD&lt;VCGMesh&gt;::Save4ROSY</span></code> cannot simply be instantiated on the document
+mesh. Use a dedicated writer over the backend-independent field view, or an
+appropriately equipped temporary mesh. Enabled vertex curvature data does not prove
+that a compatible face field exists.</p>
+<p>The supplied-field branch skips considerably more than field computation:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Skipped <code class="docutils literal notranslate"><span class="pre">BatchProcess</span></code> step</p></th>
+<th class="head"><p>Consequence</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">UpdateDataStructures</span></code></p></td>
+<td><p>bookkeeping normally performed by preprocessing</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">InitSharpFeatures</span></code></p></td>
+<td><p>no normal sharp-feature detection</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">AutoRemesher::RemeshAdapt</span></code></p></td>
+<td><p>no adaptive preprocessing remesh</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">InitFeatureCoordsTable</span></code></p></td>
+<td><p>downstream feature table is not prepared normally</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SolveGeometricArtifacts</span></code></p></td>
+<td><p>no post-refinement artifact repair</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">RefineIfNeeded</span></code></p></td>
+<td><p>no refinement for field consistency</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshFieldSmoother::SmoothField</span></code></p></td>
+<td><p>the intended replacement: use the supplied field</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>In practice the input may need to be pre-remeshed and accompanied by a <code class="docutils literal notranslate"><span class="pre">.sharp</span></code>
+file. Measure whether supplied feature data is sufficient or whether QuadWild needs
+an upstream change separating field synthesis from the other preprocessing stages.
+The descriptor must state the difference; it must not present the two routes as
+equivalent.</p>
+<p>Acceptance evidence includes face-order correspondence, preserved feature lines,
+the same output settings as the native route, and a comparison of validity,
+singularities and element quality. Merely proving that the helper accepts the file
+is insufficient.</p>
+</section>
+<section id="instant-meshes">
+<h3>Instant Meshes<a class="headerlink" href="#instant-meshes" title="Link to this heading">¶</a></h3>
+<p>Instant Meshes is linked in-process. Its adapter already exposes the two plausible
+injection points:</p>
 <ul class="simple">
-<li><p><strong>QuadWild:</strong> its <code class="docutils literal notranslate"><span class="pre">.rosy</span></code> input expects a 4-RoSy representative per face. Serialize
-the new field view or use an appropriately equipped temporary mesh; the current
-<code class="docutils literal notranslate"><span class="pre">VCGFace</span></code> cannot simply be passed to <code class="docutils literal notranslate"><span class="pre">Save4ROSY</span></code>. Retain the warning from the
-consumer proposal: providing a field bypasses <code class="docutils literal notranslate"><span class="pre">BatchProcess</span></code>, including adaptive
-remeshing and sharp-feature detection. Test supplied <code class="docutils literal notranslate"><span class="pre">.sharp</span></code> data or a separated
-preprocessing path before presenting this as equivalent to the default workflow.</p></li>
-<li><p><strong>Instant Meshes:</strong> use <code class="docutils literal notranslate"><span class="pre">CQ()</span></code>/<code class="docutils literal notranslate"><span class="pre">CQw()</span></code> guidance after an explicit face-to-vertex
-transport and N-fold interpolation. Combing is only an aid to representative
-consistency. Check singularities and degeneracies after transfer; a visually
-smooth average is insufficient. Begin with orthogonal 4-RoSy fields, not arbitrary
-nonorthogonal PolyVector frames.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hierarchy.CQ()</span></code> / <code class="docutils literal notranslate"><span class="pre">CQw()</span></code> followed by <code class="docutils literal notranslate"><span class="pre">propagateConstraints(4,</span> <span class="pre">4)</span></code> supplies
+guidance constraints while retaining the multigrid orientation solve;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hierarchy.Q(0)</span></code> can replace the initial solution after <code class="docutils literal notranslate"><span class="pre">resetSolution()</span></code>, with
+orientation optimization shortened or skipped.</p></li>
 </ul>
-<p>A negative QuadWild comparison does not invalidate Directional’s independent field,
-parametrization and extraction features. Judge each workflow on its own results.</p>
+<p>Start with guidance constraints. Replacing the initial solution has a larger and
+less predictable effect and should follow only after the guidance route is measured.</p>
+<p>The stored Directional field is per-face while Instant Meshes consumes a per-vertex
+field. An N-RoSy field cannot be averaged component-wise: equivalent representatives
+differ by 90-degree rotations, and a naive mean can cancel. For each vertex the
+adapter must transport incident face directions into a common tangent plane, choose
+consistent representatives using matching information, compute a weighted N-fold
+average, and handle vanishing or ambiguous results. Boundary and sharp-feature
+weights need an explicit policy.</p>
+<p>Directional’s <code class="docutils literal notranslate"><span class="pre">principal_matching</span></code> and <code class="docutils literal notranslate"><span class="pre">combing</span></code> help keep representatives
+consistent on the face tangent bundle, but combing does <strong>not</strong> perform the
+face-to-vertex transfer. Verify the transferred field by recomputing or comparing
+singularity structure; a plausible smooth picture is not sufficient evidence.
+Begin with orthogonal 4-RoSy fields and reject general nonorthogonal frames.</p>
+<p>Acceptance evidence includes deterministic transport, defined behaviour at
+ambiguous vertices, preserved boundary alignment, singularity comparison before
+and after transfer, and output comparisons against Instant Meshes’ native field at
+the same resolution and optimization settings.</p>
+</section>
+<section id="consumer-delivery-order">
+<h3>Consumer delivery order<a class="headerlink" href="#consumer-delivery-order" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p>Establish field storage plus glyph, singularity and streamline inspection.</p></li>
+<li><p>Prototype QuadWild <code class="docutils literal notranslate"><span class="pre">.rosy</span></code> input on prepared meshes and measure the skipped
+preprocessing consequences.</p></li>
+<li><p>Prototype Instant Meshes guidance with explicit face-to-vertex transport.</p></li>
+<li><p>Keep each consumer only where measured results justify its extra controls.</p></li>
+</ol>
+<p>A negative result for either consumer does not invalidate Directional’s independent
+field design, parametrization or polygon-extraction features.</p>
+</section>
 </section>
 <section id="further-candidates-and-exclusions">
 <h2>Further candidates and exclusions<a class="headerlink" href="#further-candidates-and-exclusions" title="Link to this heading">¶</a></h2>
@@ -774,14 +878,18 @@ parametrization and extraction features. Judge each workflow on its own results.
 <td><p>Seamless integration, isolines, polygon extraction</p></td>
 <td><p>Correct corner layout and seams; integer transition checks; valid polygon/faux-edge round trips; extraction budgets and GMP configuration tested</p></td>
 </tr>
+<tr class="row-even"><td><p>4 — optional consumers</p></td>
+<td><p>QuadWild field input and Instant Meshes guidance</p></td>
+<td><p>Native-route comparisons; QuadWild feature/preprocessing contract; validated face-to-vertex transport and singularities</p></td>
+</tr>
 </tbody>
 </table>
 </div>
 <p>Planning estimates, not commitments: Phase 0 2–3 days; Phase 1 4–7 days; Phase 2
 4–7 days. Estimate Phase 3 after the integration and mesher probes; exact extraction,
-growth control and failure propagation can dominate the work. QuadWild/Instant
-Meshes consumers have their own acceptance gates and are not included in these
-ten filters.</p>
+growth control and failure propagation can dominate the work. Estimate the two
+consumer integrations after their prototypes; they modify existing filter controls
+and are not included in the ten-filter count.</p>
 <p>Use actual invariant tests rather than screenshots as the primary evidence:</p>
 <ul class="simple">
 <li><p>A planar patch with imposed direction: tangency, N-fold symmetry, hard-constraint
@@ -815,6 +923,8 @@ standard bump or a speculative compatibility patch.</p></li>
 vertex scalars for prescribed fractional singularity indices.</p></li>
 <li><p>Choose the tested exact-number backend and extraction budget mechanism after
 measurement. Keep polygon output explicit until pure-quad guarantees are proven.</p></li>
+<li><p>Decide independently whether the measured QuadWild and Instant Meshes consumer
+routes improve their native workflows enough to ship.</p></li>
 </ol>
 </section>
 </section>
@@ -856,7 +966,7 @@ measurement. Keep polygon output explicit until pure-quad guarantees are proven.
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Directional Port</a><ul>
+<li><a class="reference internal" href="#">Directional and Frame Fields</a><ul>
 <li><a class="reference internal" href="#status-and-evidence">Status and evidence</a></li>
 <li><a class="reference internal" href="#why-add-directional">Why add Directional</a></li>
 <li><a class="reference internal" href="#dependency-and-plugin-shape">Dependency and plugin shape</a></li>
@@ -868,6 +978,12 @@ measurement. Keep polygon output explicit until pure-quad guarantees are proven.
 </ul>
 </li>
 <li><a class="reference internal" href="#adapter-execution-and-consumer-contracts">Adapter, execution and consumer contracts</a></li>
+<li><a class="reference internal" href="#existing-remesher-integrations">Existing-remesher integrations</a><ul>
+<li><a class="reference internal" href="#quadwild">QuadWild</a></li>
+<li><a class="reference internal" href="#instant-meshes">Instant Meshes</a></li>
+<li><a class="reference internal" href="#consumer-delivery-order">Consumer delivery order</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#further-candidates-and-exclusions">Further candidates and exclusions</a></li>
 <li><a class="reference internal" href="#phases-and-acceptance-gates">Phases and acceptance gates</a></li>
 <li><a class="reference internal" href="#decisions-to-settle-before-implementation">Decisions to settle before implementation</a></li>

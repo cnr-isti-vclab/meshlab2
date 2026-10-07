@@ -632,6 +632,15 @@ framework renames every layer a <code class="docutils literal notranslate"><span
 names the layer as it will actually appear.</p></li>
 <li><p><strong>Report every layer you add in <code class="docutils literal notranslate"><span class="pre">newMeshIndices</span></code>.</strong> Naming, undo accounting and
 compaction all key off it, and a layer missing from the list is invisible to all three.</p></li>
+<li><p><strong>Give a layer you add the matrix of the frame its coordinates are in.</strong> <code class="docutils literal notranslate"><span class="pre">addMesh</span></code>
+leaves it at identity, and the framework does not change that. A layer built from the
+current layer’s own vertex positions (a sampling, a reconstruction, a polyline traced on
+it) is in that layer’s local frame: set <code class="docutils literal notranslate"><span class="pre">doc.mesh(newIndex).transform</span> <span class="pre">=</span> <span class="pre">doc.mesh(sourceIndex).transform</span></code>, directly rather than through <code class="docutils literal notranslate"><span class="pre">setMeshTransform</span></code>, which
+would log a transform change on a layer that has only just appeared. A layer computed in
+world space (TrueForm’s filters, the booleans, Screened Poisson) stays at identity.
+Forgetting this goes unnoticed until a layer with a matrix is used: the result then
+appears away from the object. <code class="docutils literal notranslate"><span class="pre">FilterTests::derivedLayersKeepTheSourceLayerMatrix</span></code> covers
+the filters that once did.</p></li>
 <li><p><strong>Return useful <code class="docutils literal notranslate"><span class="pre">infoMessages</span></code></strong> — they appear in the log; keep <code class="docutils literal notranslate"><span class="pre">errorMessage</span></code>
 actionable and return <code class="docutils literal notranslate"><span class="pre">success</span> <span class="pre">=</span> <span class="pre">false</span></code> on bad input rather than asserting.</p></li>
 <li><p><strong>Suggest a view change</strong> (optional) via <code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult::visualizationHints</span></code>

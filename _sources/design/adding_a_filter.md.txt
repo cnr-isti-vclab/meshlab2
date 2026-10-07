@@ -368,6 +368,16 @@ up front, or with a `success = false` result that says why.
   names the layer as it will actually appear.
 - **Report every layer you add in `newMeshIndices`.** Naming, undo accounting and
   compaction all key off it, and a layer missing from the list is invisible to all three.
+- **Give a layer you add the matrix of the frame its coordinates are in.** `addMesh`
+  leaves it at identity, and the framework does not change that. A layer built from the
+  current layer's own vertex positions (a sampling, a reconstruction, a polyline traced on
+  it) is in that layer's local frame: set `doc.mesh(newIndex).transform =
+  doc.mesh(sourceIndex).transform`, directly rather than through `setMeshTransform`, which
+  would log a transform change on a layer that has only just appeared. A layer computed in
+  world space (TrueForm's filters, the booleans, Screened Poisson) stays at identity.
+  Forgetting this goes unnoticed until a layer with a matrix is used: the result then
+  appears away from the object. `FilterTests::derivedLayersKeepTheSourceLayerMatrix` covers
+  the filters that once did.
 - **Return useful `infoMessages`** — they appear in the log; keep `errorMessage`
   actionable and return `success = false` on bad input rather than asserting.
 - **Suggest a view change** (optional) via `MeshFilterRunResult::visualizationHints`

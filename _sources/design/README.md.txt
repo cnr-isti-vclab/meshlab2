@@ -42,11 +42,10 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [Usage Statistics](proposals/usage_statistics.md) | Aggregate usage collection, designed for privacy. Not implemented. |
 | [Gaussian Splatting](proposals/gaussian_splatting.md) | Splat loading, rendering and editing. Not implemented; some decisions taken. |
 | [Edge Support](proposals/edge_support.md) | The two kinds of edge, what is missing in selection and rendering, and filters that would generate per-edge colour. Per-edge colour implemented; the rest not. |
-| [Frame Fields](proposals/frame_fields.md) | Supplying explicit 4-RoSy fields to QuadWild and Instant Meshes. Not implemented; consumer plan revised after the separate Directional source survey. |
 | [Coral Branch Phenotyping](proposals/coral_branch_phenotyping.md) | Mapping table for porting Yuri Andraccio's curve-skeleton branch segmentation and measurement plugin (and its three vcglib additions). Not implemented; awaiting approval; `curve skeleton` approved, five issues open. |
 | [OpenSCAD CSG](proposals/openscad_csg.md) | One filter exposing geogram's OpenSCAD-subset compiler, to build a mesh from a script. Not implemented; split out of the geogram port. |
 | [CinoLib Port](proposals/cinolib_port.md) | Nine proposed surface filters in three stages: UV mapping, polyharmonic fields, topology and polygon tools; source-verified integration constraints and a deferred-candidate survey. Not implemented. |
-| [Directional Port](proposals/directional_port.md) | Ten proposed field synthesis, visualization, analysis, seamless parametrization and polygon remeshing filters; storage and dependency gates. Not implemented; corrects the earlier frame-field survey. |
+| [Directional and Frame Fields](proposals/directional_port.md) | Ten proposed field synthesis, visualization, analysis, seamless parametrization and polygon remeshing filters, plus QuadWild and Instant Meshes consumers. Not implemented. |
 
 ## History
 

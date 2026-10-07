@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 370 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 371 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -2261,6 +2261,26 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 
 <hr class="docutils" />
 </section>
+<section id="create-polyline-from-geodesic-path">
+<span id="filter-create-polyline-from-geodesic-path"></span><h2>Create Polyline from Geodesic Path<a class="headerlink" href="#create-polyline-from-geodesic-path" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.geodesic</p>
+<p>Create a polyline along mesh edges approximating the shortest path on the surface between two points.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.create_polyline_from_geodesic_path">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_polyline_from_geodesic_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_polyline_from_geodesic_path" title="Link to this definition">¶</a></dt>
+<dd><p>Compute an approximate geodesic path between two points of the current mesh and add it as a new polyline layer. Each point is replaced by its closest mesh vertex; the approximate geodesic distance from the end vertex is propagated over the mesh, as in <em>Compute Geodesic Distance from Point</em>, and its shortest-path tree is followed back from the start vertex.</p>
+<p>The result is a chain of <strong>mesh edges</strong>, so it zigzags wherever the true geodesic runs across faces, and is longer than the geodesic distance, which the filter reports alongside its length. <em>Smooth Polyline on Surface</em> straightens it towards the geodesic while keeping its ends fixed; <em>Embed Polyline in Surface</em> then selects it as mesh edges, which it already is.</p>
+<p>The two points must lie on the same connected component. The vertex quality of the mesh is left as it was.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>startPoint</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Where the path starts; its closest mesh vertex is used.</p></li>
+<li><p><strong>endPoint</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Where the path ends; its closest mesh vertex is used.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="create-polyline-from-mesh-intersection-trueform">
 <span id="filter-create-polyline-from-mesh-intersection-trueform"></span><h2>Create Polyline from Mesh Intersection (TrueForm)<a class="headerlink" href="#create-polyline-from-mesh-intersection-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
@@ -4188,9 +4208,10 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.smooth_polyline_on_surface">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">smooth_polyline_on_surface</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.smooth_polyline_on_surface" title="Link to this definition">¶</a></dt>
-<dd><p>Smooth a polyline lying on a surface without letting it leave the surface: at every iteration each free vertex moves towards the average of its neighbours and is then pulled back onto the surface. The polyline is resampled as it goes, adding vertices where it strays from the surface and removing them where it is flat, and the last iteration projects it exactly.</p>
+<dd><p>Smooth a polyline lying on a surface without letting it leave the surface: at every iteration each free vertex moves towards the average of its neighbours and is then pulled back onto the surface. The polyline is resampled as it goes, adding vertices where it strays from the surface and removing them where it is flat. At the end it is traced on the surface: straight inside every face, its only vertices are the control points and the points where it crosses the surface edges, exactly on them.</p>
 <p>The curve is read as <strong>control points</strong> joined by <strong>strands</strong>. Control points are only projected; each strand between them shortens towards a geodesic of the surface, staying in its own homotopy class: a helix around a cylinder with fixed ends stays a helix. By default the control points are the ends of the polyline and its junctions; <em>Selected vertices</em> uses the vertex selection of the polyline. Afterwards the control points are the selected vertices of the polyline.</p>
-<p>The surface layer is not changed. The polyline must lie close to it; it can then be embedded with <em>Embed Polyline in Surface</em>.</p>
+<p>With <em>None</em> no vertex is fixed. A closed polyline then shortens towards a closed geodesic: a loop around the tube of a torus becomes the circle around it. An open polyline also shortens from its ends at every iteration, and a loop that can be contracted on the surface keeps contracting; if nothing is left, the filter says so.</p>
+<p>The surface layer is not changed. The polyline must lie close to it and must not cross a hole of it; it can then be embedded with <em>Embed Polyline in Surface</em>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>surface</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The surface layer the polyline lies on. It is left unchanged.</p></li>
@@ -4684,11 +4705,12 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <span id="filter-measure-geometric-properties"></span><h2>Measure Geometric Properties<a class="headerlink" href="#measure-geometric-properties" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.measure</p>
-<p>Compute a set of geometric measures of a mesh or point cloud.</p>
+<p>Compute a set of geometric measures of a mesh, point cloud or polyline.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.measure_geometric_properties">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">measure_geometric_properties</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.measure_geometric_properties" title="Link to this definition">¶</a></dt>
 <dd><p>Compute a set of geometric measures of a mesh/pointcloud. Bounding box extents and diagonal, principal axis, thin shell barycenter (mesh only), vertex barycenter and quality-weighted barycenter (pointcloud only), surface area (mesh only), volume (closed mesh) and inertia tensor matrix (closed mesh).</p>
+<p>For a <strong>polyline</strong> (the real edges of a layer) it reports the total length, the shortest, longest and average edge, and the barycenter and principal axes of the wire, every point of every edge weighing alike, so a densely sampled stretch does not pull them towards itself. A layer with both faces and edges gets both. Measures are taken in world space, through the layer matrix.</p>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -4934,11 +4956,13 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <span id="filter-measure-topological-properties"></span><h2>Measure Topological Properties<a class="headerlink" href="#measure-topological-properties" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.measure</p>
-<p>Compute a set of topological measures over a mesh.</p>
+<p>Compute a set of topological measures over a mesh or a polyline.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.measure_topological_properties">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">measure_topological_properties</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.measure_topological_properties" title="Link to this definition">¶</a></dt>
-<dd><p>This filter has no parameters.</p>
+<dd><p>Compute a set of topological measures over a mesh: vertex, edge and face counts, connected components, manifoldness, holes and genus.</p>
+<p>For a <strong>polyline</strong> (the real edges of a layer, as made by the <em>Create Polyline</em> filters) it reports instead its connected pieces; its <strong>ends</strong> (vertices with one edge) and <strong>junctions</strong> (three or more); the <strong>strands</strong>, the chains running between ends and junctions, a closed loop with neither counting as one strand; the closed loops; and the independent cycles, <span class="math notranslate nohighlight">\(E - V + C\)</span>. A tree has none; the cut graph of a closed surface of genus <span class="math notranslate nohighlight">\(g\)</span> has <span class="math notranslate nohighlight">\(2g\)</span>. A layer with both faces and edges gets both reports. A point cloud has no topology to measure.</p>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />
@@ -8708,6 +8732,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#create-polyline-from-cut-graph">Create Polyline from Cut Graph</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.create_polyline_from_cut_graph"><code class="docutils literal notranslate"><span class="pre">ms.create_polyline_from_cut_graph()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-polyline-from-geodesic-path">Create Polyline from Geodesic Path</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.create_polyline_from_geodesic_path"><code class="docutils literal notranslate"><span class="pre">ms.create_polyline_from_geodesic_path()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#create-polyline-from-mesh-intersection-trueform">Create Polyline from Mesh Intersection (TrueForm)</a><ul>

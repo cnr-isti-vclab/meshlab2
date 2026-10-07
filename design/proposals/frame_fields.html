@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Frame Fields - MeshLab 0.1 documentation</title>
+        <title>Frame Fields — moved - MeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -237,246 +237,16 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section class="tex2jax_ignore mathjax_ignore" id="frame-fields">
-<h1>Frame Fields<a class="headerlink" href="#frame-fields" title="Link to this heading">¶</a></h1>
-<p>This document proposes feeding an explicit <strong>frame field</strong> to the two quad
-remeshers that already ship. <strong>Not implemented.</strong> The computational library port
-is planned separately in <a class="reference internal" href="directional_port.html"><span class="std std-doc">Directional Port</span></a>.</p>
-<p>See also: <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>, <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>,
-<a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a>, <a class="reference internal" href="../history/geogram_port.html"><span class="std std-doc">Geogram Port</span></a> (one possible producer).</p>
-<section id="status">
-<h2>Status<a class="headerlink" href="#status" title="Link to this heading">¶</a></h2>
-<p>Originally surveyed 2026-09-20; revised <strong>2026-10-03</strong> after reading the current
-Directional source and MeshLab types. The <a class="reference internal" href="directional_port.html"><span class="std std-doc">Directional Port</span></a>
-now owns the filter roadmap, source pin, dependency and storage design. This
-proposal owns the two existing-remesher consumer workflows.</p>
-<p>The earlier survey incorrectly assumed that <code class="docutils literal notranslate"><span class="pre">VCGFace</span></code> already stored <code class="docutils literal notranslate"><span class="pre">PD1</span></code>, that
-combing implemented face-to-vertex transfer, and that Directional had no mesh
-extractor. Those assumptions are corrected below and in the port proposal.</p>
-</section>
-<section id="a-field-needs-its-own-representation">
-<h2>A field needs its own representation<a class="headerlink" href="#a-field-needs-its-own-representation" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">src/core/vcgmesh.h</span></code> stores principal-curvature directions on <strong>vertices</strong>.
-<code class="docutils literal notranslate"><span class="pre">VCGFace</span></code> does not have a curvature-direction component. The generic vcglib
-<code class="docutils literal notranslate"><span class="pre">Save4ROSY</span></code> exporter calling <code class="docutils literal notranslate"><span class="pre">face[i].PD1()</span></code> is not evidence that MeshLab’s current
-face type can instantiate it.</p>
-<p>The recommended storage is immutable plugin-owned <code class="docutils literal notranslate"><span class="pre">LayerData</span></code>, containing a
-face-based raw field with degree, symmetry and source-mapping metadata. See
-<a class="reference internal" href="directional_port.html#field-storage-is-the-first-implementation-gate"><span class="std std-ref">Directional Port — field storage</span></a>
-for undo, invalidation, memory accounting and the project-serialization limitation.
-A small backend-independent field view should connect producers and consumers.</p>
-<p>Start with orthogonal 4-RoSy fields for these two consumers. Arbitrary nonorthogonal
-PolyVector frames cannot be reduced to one representative direction without losing
-information. Directional’s richer frame and integration workflows remain useful
-independently of external-remesher support.</p>
-</section>
-<section id="consumer-1-quadwild">
-<h2>Consumer 1 — QuadWild<a class="headerlink" href="#consumer-1-quadwild" title="Link to this heading">¶</a></h2>
-<p><strong>Upstream already accepts a field file, and the format is ours.</strong></p>
-<p><a class="reference download internal" download="" href="../../_downloads/cf33232295f9649d5af39eec64f93126/quadwild.cpp"><span class="xref download myst"><code class="docutils literal notranslate"><span class="pre">quadwild.cpp:122</span></code></span></a> parses any
-argument containing <code class="docutils literal notranslate"><span class="pre">.rosy</span></code> and sets <code class="docutils literal notranslate"><span class="pre">parameters.hasField</span></code>. <code class="docutils literal notranslate"><span class="pre">functions.cpp:35</span></code> then
-branches:</p>
-<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">parameters</span><span class="p">.</span><span class="n">hasField</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">MeshPrepocess</span><span class="o">&lt;</span><span class="n">FieldTriMesh</span><span class="o">&gt;::</span><span class="n">BatchProcess</span><span class="p">(</span><span class="n">trimesh</span><span class="p">,</span><span class="w"> </span><span class="n">BPar</span><span class="p">,</span><span class="w"> </span><span class="n">FieldParam</span><span class="p">);</span>
-<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">success</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">trimesh</span><span class="p">.</span><span class="n">LoadField</span><span class="p">(</span><span class="n">fieldFilename</span><span class="p">.</span><span class="n">c_str</span><span class="p">());</span>
-<span class="w">    </span><span class="p">...</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">LoadField</span></code> (<a class="reference download internal" download="" href="../../_downloads/e1977c6aae979a76fabf86fee45bb309/triangle_mesh_type.h"><span class="xref download myst">triangle_mesh_type.h:328</span></a>)
-dispatches <code class="docutils literal notranslate"><span class="pre">.rosy</span></code> to <strong>vcglib’s</strong> <code class="docutils literal notranslate"><span class="pre">ImporterFIELD::Load4ROSY</span></code>
-(<a class="reference download internal" download="" href="../../_downloads/4036e5f8bb93f43d782ae6914e830916/import_field.h"><span class="xref download myst">import_field.h:222</span></a>) — the same
-vcglib this repo builds against — then reorients the field coherently and recomputes
-singularities.</p>
-<p>Because QuadWild runs as a helper process over files
-(<a class="reference download internal" download="" href="../../_downloads/4dc603768f6346be254eb994ecab92ed/quadwildfilterplugin.cpp"><span class="xref download myst">quadwildfilterplugin.cpp:188</span></a>),
-the plugin-side change is three things:</p>
-<ol class="arabic simple">
-<li><p>serialize the face-based 4-RoSy field beside the temp OBJ, preserving face
-order; use a dedicated writer or a temporary mesh with the required face
-component, since <code class="docutils literal notranslate"><span class="pre">ExporterFIELD&lt;VCGMesh&gt;::Save4ROSY</span></code> is not directly usable;</p></li>
-<li><p>append that path to the existing argument list
-(<code class="docutils literal notranslate"><span class="pre">{inputPath,</span> <span class="pre">&quot;2&quot;,</span> <span class="pre">prepConfig}</span></code> gains a fourth entry);</p></li>
-<li><p>gate the parameter on a valid, matching face-field payload; enabled vertex
-curvature storage is not evidence that such a field exists.</p></li>
-</ol>
-<p><code class="docutils literal notranslate"><span class="pre">SaveAllData</span></code> (<a class="reference download internal" download="" href="../../_downloads/10db3a7535f6c4edddce1711ba8acf65/mesh_manager.h"><span class="xref download myst">mesh_manager.h:775</span></a>)
-writes <code class="docutils literal notranslate"><span class="pre">_rem.obj</span></code>, <code class="docutils literal notranslate"><span class="pre">_rem.rosy</span></code> and <code class="docutils literal notranslate"><span class="pre">_rem.sharp</span></code> on both branches, so the downstream
-<code class="docutils literal notranslate"><span class="pre">quad_from_patches</span></code> plumbing is untouched.</p>
-<section id="the-catch-a-supplied-field-disables-much-more-than-field-computation">
-<h3>⚠ The catch: a supplied field disables much more than field computation<a class="headerlink" href="#the-catch-a-supplied-field-disables-much-more-than-field-computation" title="Link to this heading">¶</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">BatchProcess</span></code> (<a class="reference download internal" download="" href="../../_downloads/10db3a7535f6c4edddce1711ba8acf65/mesh_manager.h"><span class="xref download myst">mesh_manager.h:722</span></a>)
-is not a field routine that happens to be skipped. In order, it does:</p>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Step</p></th>
-<th class="head"><p>Lost when a field is supplied</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">UpdateDataStructures</span></code></p></td>
-<td><p>bookkeeping</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">InitSharpFeatures</span></code></p></td>
-<td><p><strong>sharp-feature detection</strong></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">AutoRemesher::RemeshAdapt</span></code></p></td>
-<td><p><strong>the adaptive remesh</strong></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">InitFeatureCoordsTable</span></code></p></td>
-<td><p>the feature table downstream reads</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SolveGeometricArtifacts</span></code></p></td>
-<td><p>artifact repair after refinement</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">RefineIfNeeded</span></code></p></td>
-<td><p>refinement for field consistency</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshFieldSmoother::SmoothField</span></code></p></td>
-<td><p>the field itself — the part we meant to replace</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>So the user gets their field at the cost of the remesh and the feature lines, on a tool
-whose paper is <em>Reliable <strong>Feature-Line Driven</strong> Quad-Remeshing</em>. In practice a <code class="docutils literal notranslate"><span class="pre">.sharp</span></code>
-file would have to be supplied alongside (the CLI accepts one on the same footing), and
-the input pre-remeshed by hand. This is an upstream design choice; nothing on the
-MeshLab side can hide it, and the descriptor must say so plainly rather than presenting
-the option as free.</p>
-<p><strong>Effort remains to be measured</strong> after the field view and export adapter exist.
-Include face-order correspondence, constraints, supplied feature data and the
-preprocessing difference in the test, not just whether the helper accepts a file.</p>
-</section>
-</section>
-<section id="consumer-2-instant-meshes">
-<h2>Consumer 2 — Instant Meshes<a class="headerlink" href="#consumer-2-instant-meshes" title="Link to this heading">¶</a></h2>
-<p>Instant Meshes is vendored and linked, so there is no file boundary to work through,
-and <a class="reference download internal" download="" href="../../_downloads/78b8c6667ea792b0de0bac6b468deb82/instantmeshes_adapter.cpp"><span class="xref download myst">the adapter</span></a>
-already touches the machinery involved. Two injection points, both with accessors
-already public in <a class="reference download internal" download="" href="../../_downloads/b56d5fcce0e3224f7e81ac520fb6944e/hierarchy.h"><span class="xref download myst">hierarchy.h:50-83</span></a>:</p>
-<ul class="simple">
-<li><p><strong>As a guidance constraint</strong> — <code class="docutils literal notranslate"><span class="pre">hierarchy.CQ()</span></code> / <code class="docutils literal notranslate"><span class="pre">CQw()</span></code> followed by
-<code class="docutils literal notranslate"><span class="pre">propagateConstraints(4,</span> <span class="pre">4)</span></code>. This is <em>exactly</em> the mechanism the existing
-<code class="docutils literal notranslate"><span class="pre">alignBoundaries</span></code> option uses, applied to every vertex rather than to boundary
-vertices. The field steers the optimizer instead of replacing it, so the multigrid
-solve still runs and a mediocre field degrades the result rather than wrecking it.</p></li>
-<li><p><strong>As the initial solution</strong> — <code class="docutils literal notranslate"><span class="pre">hierarchy.Q(0)</span></code> is a non-const accessor; write it
-after <code class="docutils literal notranslate"><span class="pre">resetSolution()</span></code> and shorten or skip <code class="docutils literal notranslate"><span class="pre">optimizeOrientations</span></code>.</p></li>
-</ul>
-<p><strong>The real work is neither.</strong> Instant Meshes’ field is <strong>per-vertex</strong>; the proposed stored field is
-<strong>per-face</strong>. 4-RoSy directions cannot be averaged naively — each is defined only up to
-a 90° rotation about the normal, so a plain mean of incident face directions cancels.
-Every contribution must be rotated into a common representative frame first. vcglib’s
-<code class="docutils literal notranslate"><span class="pre">CrossField</span></code> has the primitives (QuadWild leans on <code class="docutils literal notranslate"><span class="pre">OrientDirectionFaceCoherently</span></code> for
-the same reason), but it is fiddly and quietly wrong when done badly: a bad transfer
-yields a plausible-looking field whose <strong>singularity structure</strong> is different, and
-singularities are what determine the quad layout.</p>
-<p>Directional’s <code class="docutils literal notranslate"><span class="pre">principal_matching</span></code> and <code class="docutils literal notranslate"><span class="pre">combing</span></code> help with representative
-consistency, but <strong>do not implement this domain transfer</strong>. The current combing
-routine reorders vectors on an existing tangent bundle. Transport to vertex tangent
-planes, weighting, interpolation, degeneracy handling and verification remain
-adapter work. Estimate that work after a measured transfer prototype.</p>
-</section>
-<section id="where-a-field-would-come-from">
-<h2>Where a field would come from<a class="headerlink" href="#where-a-field-would-come-from" title="Link to this heading">¶</a></h2>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Producer</p></th>
-<th class="head"><p>Status</p></th>
-<th class="head"><p>Notes</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>Principal curvature directions</p></td>
-<td><p><strong>ships today, per vertex</strong></p></td>
-<td><p>A possible guidance source; needs a validated field conversion, not a face <code class="docutils literal notranslate"><span class="pre">PD1</span></code> passthrough</p></td>
-</tr>
-<tr class="row-odd"><td><p>geogram <code class="docutils literal notranslate"><span class="pre">GlobalParam2d::frame_field</span></code></p></td>
-<td><p>not ported</p></td>
-<td><p>per-facet <code class="docutils literal notranslate"><span class="pre">vec3</span></code> attribute, sharp edges as constraints; see <a class="reference internal" href="../history/geogram_port.html"><span class="std std-doc">Geogram Port</span></a></p></td>
-</tr>
-<tr class="row-even"><td><p>geogram <code class="docutils literal notranslate"><span class="pre">FrameField::create_from_surface_mesh</span></code></p></td>
-<td><p>not ported</p></td>
-<td><p>separate class, spatial search, handles volumetric fields too</p></td>
-</tr>
-<tr class="row-odd"><td><p>Directional (<code class="docutils literal notranslate"><span class="pre">power_field</span></code>, <code class="docutils literal notranslate"><span class="pre">polyvector_field</span></code>, <code class="docutils literal notranslate"><span class="pre">index_prescription</span></code>, …)</p></td>
-<td><p>not ported</p></td>
-<td><p>a whole family of designed fields nothing here can produce — see below</p></td>
-</tr>
-<tr class="row-even"><td><p>Transferred from another layer</p></td>
-<td><p>not implemented</p></td>
-<td><p>a <code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code> filter; needs the same rotation-into-a-common-frame care as above</p></td>
-</tr>
-<tr class="row-odd"><td><p>Painted / user-authored</p></td>
-<td><p>not implemented</p></td>
-<td><p>an interactive tool, not a filter</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><strong>The honest caveat, and the reason this is a proposal rather than a task.</strong> Both
-remeshers already compute curvature-driven fields internally — QuadWild’s
-<code class="docutils literal notranslate"><span class="pre">FieldSmoother</span></code> runs with <code class="docutils literal notranslate"><span class="pre">alpha_curv</span> <span class="pre">=</span> <span class="pre">0.3</span></code>. So feeding them <em>our</em> curvature
-directions is not obviously a win; it may well be a downgrade, since their internal
-fields are smoothed and singularity-aware while ours are raw. The value is in fields
-they <strong>cannot</strong> compute: geogram’s, a painted one, or one transferred from a related
-mesh so that two models quadrangulate compatibly.</p>
-<p>That means the question “what is the intended source?” has to be answered <strong>before</strong>
-the consumer plumbing is built, because it determines the constraints and transfer
-policy. A painted field, for instance, might want per-vertex input and a weight.</p>
-</section>
-<section id="directional-port-and-independent-value">
-<h2>Directional port and independent value<a class="headerlink" href="#directional-port-and-independent-value" title="Link to this heading">¶</a></h2>
-<p>The <a class="reference internal" href="directional_port.html"><span class="std std-doc">Directional Port</span></a> proposes ten filters in three stages:
-field synthesis and inspection; PolyVector frames, prescribed singularities and
-curl reduction; seamless integration, grid isolines and polygon extraction.</p>
-<p>It also replaces this document’s older dependency survey. The pinned current
-source uses C++20 across multiple active headers, keeps legacy methods under
-<code class="docutils literal notranslate"><span class="pre">Deprecated/</span></code>, and includes <code class="docutils literal notranslate"><span class="pre">setup_mesher</span></code>/<code class="docutils literal notranslate"><span class="pre">mesher</span></code> for polygon extraction. Combing
-is useful but is not a face-to-vertex interpolator. Neither a one-vector curvature
-slot nor a shared solver object is the proposed persistent field representation.</p>
-</section>
-<section id="suggested-consumer-order">
-<h2>Suggested consumer order<a class="headerlink" href="#suggested-consumer-order" title="Link to this heading">¶</a></h2>
-<ol class="arabic simple">
-<li><p>Establish the field payload and glyph/streamline visualization from the port
-proposal. Check tangency, symmetry, constraints and singularities before handing
-a field to a remesher.</p></li>
-<li><p>Prototype QuadWild <code class="docutils literal notranslate"><span class="pre">.rosy</span></code> input on prepared meshes, preserving face order and
-providing feature data where needed. Compare against its normal preprocessing
-path, documenting the operations bypassed by a supplied field.</p></li>
-<li><p>Prototype Instant Meshes guidance with explicit face-to-vertex transport and
-N-fold interpolation. Compare against its own field using the same resolution
-and boundary settings.</p></li>
-<li><p>Keep each consumer only if its results justify the extra controls. A negative
-QuadWild experiment does <strong>not</strong> block Directional’s independent field-design,
-parametrization or mesh-extraction features.</p></li>
-</ol>
-</section>
-<section id="open-consumer-questions">
-<h2>Open consumer questions<a class="headerlink" href="#open-consumer-questions" title="Link to this heading">¶</a></h2>
-<ol class="arabic simple">
-<li><p>Which designed fields improve each remesher’s output, and on which fixtures?</p></li>
-<li><p>Can QuadWild’s input-field route preserve the desired preprocessing and feature
-constraints through supplied files, or does it need an upstream separation?</p></li>
-<li><p>What transfer/weighting policy preserves useful singularity structure for
-Instant Meshes, and what should happen at an ambiguous or vanishing average?</p></li>
-<li><p>Should consumers use only guidance constraints, or also expose initial-field
-replacement once its consequences are measured?</p></li>
-</ol>
-<p>Storage, category, dependency and C++ standard choices are tracked in
-<a class="reference internal" href="directional_port.html#decisions-to-settle-before-implementation"><span class="std std-ref">Directional Port — decisions</span></a>,
-so there is one current implementation plan for the library.</p>
-</section>
+          <section class="tex2jax_ignore mathjax_ignore" id="frame-fields-moved">
+<h1>Frame Fields — moved<a class="headerlink" href="#frame-fields-moved" title="Link to this heading">¶</a></h1>
+<p>This proposal was merged into
+<a class="reference internal" href="directional_port.html"><span class="std std-doc">Directional and Frame Fields</span></a> on 2026-10-06. The old path is
+kept as a compatibility pointer for historical links.</p>
 </section>
 
         </article>
@@ -504,37 +274,8 @@ so there is one current implementation plan for the library.</p>
         
       </footer>
     </div>
-    <aside class="toc-drawer">
+    <aside class="toc-drawer no-toc">
       
-      
-      <div class="toc-sticky toc-scroll">
-        <div class="toc-title-container">
-          <span class="toc-title">
-            On this page
-          </span>
-        </div>
-        <div class="toc-tree-container">
-          <div class="toc-tree">
-            <ul>
-<li><a class="reference internal" href="#">Frame Fields</a><ul>
-<li><a class="reference internal" href="#status">Status</a></li>
-<li><a class="reference internal" href="#a-field-needs-its-own-representation">A field needs its own representation</a></li>
-<li><a class="reference internal" href="#consumer-1-quadwild">Consumer 1 — QuadWild</a><ul>
-<li><a class="reference internal" href="#the-catch-a-supplied-field-disables-much-more-than-field-computation">⚠ The catch: a supplied field disables much more than field computation</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#consumer-2-instant-meshes">Consumer 2 — Instant Meshes</a></li>
-<li><a class="reference internal" href="#where-a-field-would-come-from">Where a field would come from</a></li>
-<li><a class="reference internal" href="#directional-port-and-independent-value">Directional port and independent value</a></li>
-<li><a class="reference internal" href="#suggested-consumer-order">Suggested consumer order</a></li>
-<li><a class="reference internal" href="#open-consumer-questions">Open consumer questions</a></li>
-</ul>
-</li>
-</ul>
-
-          </div>
-        </div>
-      </div>
       
       
     </aside>

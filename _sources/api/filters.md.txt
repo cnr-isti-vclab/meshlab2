@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 370 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 371 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -2548,6 +2548,33 @@ The graph is found by visiting the faces in a random order and keeping only the 
 
 ---
 
+(filter-create-polyline-from-geodesic-path)=
+
+## Create Polyline from Geodesic Path
+
+**Categories:** `Creation/Primitives`
+
+**Plugin:** meshlab2.filter.geodesic
+
+Create a polyline along mesh edges approximating the shortest path on the surface between two points.
+
+```{py:function} ms.create_polyline_from_geodesic_path(**params)
+:module: _meshlab
+
+Compute an approximate geodesic path between two points of the current mesh and add it as a new polyline layer. Each point is replaced by its closest mesh vertex; the approximate geodesic distance from the end vertex is propagated over the mesh, as in *Compute Geodesic Distance from Point*, and its shortest-path tree is followed back from the start vertex.
+
+The result is a chain of **mesh edges**, so it zigzags wherever the true geodesic runs across faces, and is longer than the geodesic distance, which the filter reports alongside its length. *Smooth Polyline on Surface* straightens it towards the geodesic while keeping its ends fixed; *Embed Polyline in Surface* then selects it as mesh edges, which it already is.
+
+The two points must lie on the same connected component. The vertex quality of the mesh is left as it was.
+
+**Parameters:**
+
+- **startPoint** (*point3f*, default: `[0.0, 0.0, 0.0]`) — Where the path starts; its closest mesh vertex is used.
+- **endPoint** (*point3f*, default: `[0.0, 0.0, 0.0]`) — Where the path ends; its closest mesh vertex is used.
+```
+
+---
+
 (filter-create-polyline-from-mesh-intersection-trueform)=
 
 ## Create Polyline from Mesh Intersection (TrueForm)
@@ -4962,11 +4989,13 @@ Smooth the current polyline while keeping it on a surface layer, so each strand 
 ```{py:function} ms.smooth_polyline_on_surface(**params)
 :module: _meshlab
 
-Smooth a polyline lying on a surface without letting it leave the surface: at every iteration each free vertex moves towards the average of its neighbours and is then pulled back onto the surface. The polyline is resampled as it goes, adding vertices where it strays from the surface and removing them where it is flat, and the last iteration projects it exactly.
+Smooth a polyline lying on a surface without letting it leave the surface: at every iteration each free vertex moves towards the average of its neighbours and is then pulled back onto the surface. The polyline is resampled as it goes, adding vertices where it strays from the surface and removing them where it is flat. At the end it is traced on the surface: straight inside every face, its only vertices are the control points and the points where it crosses the surface edges, exactly on them.
 
 The curve is read as **control points** joined by **strands**. Control points are only projected; each strand between them shortens towards a geodesic of the surface, staying in its own homotopy class: a helix around a cylinder with fixed ends stays a helix. By default the control points are the ends of the polyline and its junctions; *Selected vertices* uses the vertex selection of the polyline. Afterwards the control points are the selected vertices of the polyline.
 
-The surface layer is not changed. The polyline must lie close to it; it can then be embedded with *Embed Polyline in Surface*.
+With *None* no vertex is fixed. A closed polyline then shortens towards a closed geodesic: a loop around the tube of a torus becomes the circle around it. An open polyline also shortens from its ends at every iteration, and a loop that can be contracted on the surface keeps contracting; if nothing is left, the filter says so.
+
+The surface layer is not changed. The polyline must lie close to it and must not cross a hole of it; it can then be embedded with *Embed Polyline in Surface*.
 
 **Parameters:**
 
@@ -5594,12 +5623,14 @@ This measures vertex to vertex, so it is sensitive to how densely each layer is 
 
 **Plugin:** meshlab2.filter.measure
 
-Compute a set of geometric measures of a mesh or point cloud.
+Compute a set of geometric measures of a mesh, point cloud or polyline.
 
 ```{py:function} ms.measure_geometric_properties(**params)
 :module: _meshlab
 
 Compute a set of geometric measures of a mesh/pointcloud. Bounding box extents and diagonal, principal axis, thin shell barycenter (mesh only), vertex barycenter and quality-weighted barycenter (pointcloud only), surface area (mesh only), volume (closed mesh) and inertia tensor matrix (closed mesh).
+
+For a **polyline** (the real edges of a layer) it reports the total length, the shortest, longest and average edge, and the barycenter and principal axes of the wire, every point of every edge weighing alike, so a densely sampled stretch does not pull them towards itself. A layer with both faces and edges gets both. Measures are taken in world space, through the layer matrix.
 
 This filter has no parameters.
 ```
@@ -5892,10 +5923,14 @@ Outputs vertex/edge/face counts and bounding-box metrics for the current mesh.
 
 **Plugin:** meshlab2.filter.measure
 
-Compute a set of topological measures over a mesh.
+Compute a set of topological measures over a mesh or a polyline.
 
 ```{py:function} ms.measure_topological_properties(**params)
 :module: _meshlab
+
+Compute a set of topological measures over a mesh: vertex, edge and face counts, connected components, manifoldness, holes and genus.
+
+For a **polyline** (the real edges of a layer, as made by the *Create Polyline* filters) it reports instead its connected pieces; its **ends** (vertices with one edge) and **junctions** (three or more); the **strands**, the chains running between ends and junctions, a closed loop with neither counting as one strand; the closed loops; and the independent cycles, $E - V + C$. A tree has none; the cut graph of a closed surface of genus $g$ has $2g$. A layer with both faces and edges gets both reports. A point cloud has no topology to measure.
 
 This filter has no parameters.
 ```

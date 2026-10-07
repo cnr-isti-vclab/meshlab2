@@ -1,15 +1,16 @@
-# Directional Port
+# Directional and Frame Fields
 
-This document proposes a `filter_directional` plugin for field synthesis, analysis,
-visualization, seamless parametrization and field-driven polygon remeshing.
-**Not implemented.** Ten filters are proposed in three stages, starting with a
-face-based 4-RoSy field and the tools to inspect it. Choices below are
-recommendations, not completed rulings.
+This document proposes making directional fields first-class MeshLab data through a
+`filter_directional` plugin, then using those fields for analysis, visualization,
+seamless parametrization, polygon remeshing, QuadWild and Instant Meshes.
+**Not implemented.** Ten Directional filters are proposed in three stages, followed
+by two existing-remesher integrations. Choices below are recommendations, not
+completed rulings.
 
-See also: [Frame Fields](frame_fields.md) for the QuadWild/Instant Meshes consumer
-workflow, [CinoLib Port](cinolib_port.md), [Geogram Port](../history/geogram_port.md),
-[Adding a Filter](../adding_a_filter.md), [Vocabulary](../vocabulary.md),
-[Data Model](../data_model.md), [Filter Organization](../filter_organization.md).
+See also: [CinoLib Port](cinolib_port.md),
+[Geogram Port](../history/geogram_port.md), [Adding a Filter](../adding_a_filter.md),
+[Vocabulary](../vocabulary.md), [Data Model](../data_model.md),
+[Filter Organization](../filter_organization.md).
 
 ## Status and evidence
 
@@ -20,8 +21,9 @@ MeshLab storage and consumer references were checked in the current working tree
 This is a source-level plan: no Directional compilation, numerical validation or
 performance measurement has been performed for this proposal.
 
-The older [Frame Fields](frame_fields.md) proposal identified the opportunity but
-several of its integration assumptions do not hold for the surveyed trees:
+The original frame-field survey identified the opportunity, but several of its
+integration assumptions do not hold for the surveyed trees. This merged proposal
+records the corrections rather than keeping a second, overlapping design:
 
 | Earlier assumption | Verified state and consequence |
 |---|---|
@@ -345,22 +347,108 @@ noninterruptible. A production mesher needs a cooperative budget hook or isolate
 worker if its internal growth cannot be bounded; an elapsed-time check after it
 returns is not a working timeout. Avoid global stdout redirection for diagnostics.
 
-The existing remeshers remain useful consumers, but are **separate integration work**:
+## Existing-remesher integrations
 
-- **QuadWild:** its `.rosy` input expects a 4-RoSy representative per face. Serialize
-  the new field view or use an appropriately equipped temporary mesh; the current
-  `VCGFace` cannot simply be passed to `Save4ROSY`. Retain the warning from the
-  consumer proposal: providing a field bypasses `BatchProcess`, including adaptive
-  remeshing and sharp-feature detection. Test supplied `.sharp` data or a separated
-  preprocessing path before presenting this as equivalent to the default workflow.
-- **Instant Meshes:** use `CQ()`/`CQw()` guidance after an explicit face-to-vertex
-  transport and N-fold interpolation. Combing is only an aid to representative
-  consistency. Check singularities and degeneracies after transfer; a visually
-  smooth average is insufficient. Begin with orthogonal 4-RoSy fields, not arbitrary
-  nonorthogonal PolyVector frames.
+The ten filters above form a complete Directional workflow. QuadWild and Instant
+Meshes are additional consumers of the same field payload, with their own contracts
+and acceptance gates. Start both integrations with orthogonal face-based 4-RoSy
+fields. A nonorthogonal PolyVector frame cannot be reduced to one representative
+direction without losing information.
 
-A negative QuadWild comparison does not invalidate Directional's independent field,
-parametrization and extraction features. Judge each workflow on its own results.
+Both remeshers already compute curvature-driven fields internally, so supplying an
+external field is not automatically an improvement. The value is in fields they
+cannot compute themselves: prescribed singularities, designed constraints, a
+painted field, or a field transferred from a related mesh. Compare each supplied
+field against the remesher's native route on the same fixtures and settings.
+
+### QuadWild
+
+QuadWild already accepts a `.rosy` field file. `quadwild.cpp` recognizes the path
+and sets `parameters.hasField`; `quadwild/functions.cpp` then loads the field rather
+than calling the normal `MeshPrepocess<FieldTriMesh>::BatchProcess` route.
+`LoadField` dispatches `.rosy` through vcglib's `ImporterFIELD::Load4ROSY`, then
+reorients the field coherently and recomputes singularities.
+
+The MeshLab integration therefore needs to:
+
+1. validate that the current layer has a matching face-based, orthogonal 4-RoSy
+   payload;
+2. serialize one representative direction per face beside the temporary OBJ while
+   preserving exactly the same compact face order;
+3. pass the `.rosy` path to the helper, together with feature data when required;
+4. describe the supplied-field path separately from the normal preprocessing path.
+
+The current `VCGFace` has no curvature-direction component, so
+`ExporterFIELD<VCGMesh>::Save4ROSY` cannot simply be instantiated on the document
+mesh. Use a dedicated writer over the backend-independent field view, or an
+appropriately equipped temporary mesh. Enabled vertex curvature data does not prove
+that a compatible face field exists.
+
+The supplied-field branch skips considerably more than field computation:
+
+| Skipped `BatchProcess` step | Consequence |
+|---|---|
+| `UpdateDataStructures` | bookkeeping normally performed by preprocessing |
+| `InitSharpFeatures` | no normal sharp-feature detection |
+| `AutoRemesher::RemeshAdapt` | no adaptive preprocessing remesh |
+| `InitFeatureCoordsTable` | downstream feature table is not prepared normally |
+| `SolveGeometricArtifacts` | no post-refinement artifact repair |
+| `RefineIfNeeded` | no refinement for field consistency |
+| `MeshFieldSmoother::SmoothField` | the intended replacement: use the supplied field |
+
+In practice the input may need to be pre-remeshed and accompanied by a `.sharp`
+file. Measure whether supplied feature data is sufficient or whether QuadWild needs
+an upstream change separating field synthesis from the other preprocessing stages.
+The descriptor must state the difference; it must not present the two routes as
+equivalent.
+
+Acceptance evidence includes face-order correspondence, preserved feature lines,
+the same output settings as the native route, and a comparison of validity,
+singularities and element quality. Merely proving that the helper accepts the file
+is insufficient.
+
+### Instant Meshes
+
+Instant Meshes is linked in-process. Its adapter already exposes the two plausible
+injection points:
+
+- `hierarchy.CQ()` / `CQw()` followed by `propagateConstraints(4, 4)` supplies
+  guidance constraints while retaining the multigrid orientation solve;
+- `hierarchy.Q(0)` can replace the initial solution after `resetSolution()`, with
+  orientation optimization shortened or skipped.
+
+Start with guidance constraints. Replacing the initial solution has a larger and
+less predictable effect and should follow only after the guidance route is measured.
+
+The stored Directional field is per-face while Instant Meshes consumes a per-vertex
+field. An N-RoSy field cannot be averaged component-wise: equivalent representatives
+differ by 90-degree rotations, and a naive mean can cancel. For each vertex the
+adapter must transport incident face directions into a common tangent plane, choose
+consistent representatives using matching information, compute a weighted N-fold
+average, and handle vanishing or ambiguous results. Boundary and sharp-feature
+weights need an explicit policy.
+
+Directional's `principal_matching` and `combing` help keep representatives
+consistent on the face tangent bundle, but combing does **not** perform the
+face-to-vertex transfer. Verify the transferred field by recomputing or comparing
+singularity structure; a plausible smooth picture is not sufficient evidence.
+Begin with orthogonal 4-RoSy fields and reject general nonorthogonal frames.
+
+Acceptance evidence includes deterministic transport, defined behaviour at
+ambiguous vertices, preserved boundary alignment, singularity comparison before
+and after transfer, and output comparisons against Instant Meshes' native field at
+the same resolution and optimization settings.
+
+### Consumer delivery order
+
+1. Establish field storage plus glyph, singularity and streamline inspection.
+2. Prototype QuadWild `.rosy` input on prepared meshes and measure the skipped
+   preprocessing consequences.
+3. Prototype Instant Meshes guidance with explicit face-to-vertex transport.
+4. Keep each consumer only where measured results justify its extra controls.
+
+A negative result for either consumer does not invalidate Directional's independent
+field design, parametrization or polygon-extraction features.
 
 ## Further candidates and exclusions
 
@@ -384,12 +472,13 @@ parametrization and extraction features. Judge each workflow on its own results.
 | 1 — four inspectable filters | Power field, glyphs, singularities, streamlines | GUI and Python agree; constraints respected; tangent/CCW vectors; correct closed-surface index sum; bounded valid edge geometry |
 | 2 — three field-design filters | PolyVector frame, prescribed singularities, curl reduction | Frame symmetry/length preservation; prescription residual and actual singularities; measured curl reduction without false hard-constraint guarantees |
 | 3 — three downstream filters | Seamless integration, isolines, polygon extraction | Correct corner layout and seams; integer transition checks; valid polygon/faux-edge round trips; extraction budgets and GMP configuration tested |
+| 4 — optional consumers | QuadWild field input and Instant Meshes guidance | Native-route comparisons; QuadWild feature/preprocessing contract; validated face-to-vertex transport and singularities |
 
 Planning estimates, not commitments: Phase 0 2–3 days; Phase 1 4–7 days; Phase 2
 4–7 days. Estimate Phase 3 after the integration and mesher probes; exact extraction,
-growth control and failure propagation can dominate the work. QuadWild/Instant
-Meshes consumers have their own acceptance gates and are not included in these
-ten filters.
+growth control and failure propagation can dominate the work. Estimate the two
+consumer integrations after their prototypes; they modify existing filter controls
+and are not included in the ten-filter count.
 
 Use actual invariant tests rather than screenshots as the primary evidence:
 
@@ -423,6 +512,8 @@ must pass before its filters are considered shipped.
    vertex scalars for prescribed fractional singularity indices.
 6. Choose the tested exact-number backend and extraction budget mechanism after
    measurement. Keep polygon output explicit until pure-quad guarantees are proven.
+7. Decide independently whether the measured QuadWild and Instant Meshes consumer
+   routes improve their native workflows enough to ship.
 
 [upstream]: https://github.com/avaxman/Directional/tree/25738730958f0bfa68289ae628a5cd3c4b719d61
 [power]: https://github.com/avaxman/Directional/blob/25738730958f0bfa68289ae628a5cd3c4b719d61/include/directional/power_field.h
