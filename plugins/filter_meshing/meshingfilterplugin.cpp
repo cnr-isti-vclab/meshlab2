@@ -2115,8 +2115,9 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             VCGMesh cap;
             const bool createSectionSurface = params.getBool(QStringLiteral("createSectionSurface"));
             if (createSectionSurface) {
-                vcg::PlanarRefinement refinement;
-                refinement.minAngle = params.getDouble(QStringLiteral("capMinAngle"));
+                vcg::PlanarRefinement refinement;   // opt-in: a minimum angle of 0 adds no points
+                refinement.minAngle = params.getBool(QStringLiteral("refineCap"))
+                    ? params.getDouble(QStringLiteral("capMinAngle")) : 0.0;
                 refinement.splitBoundary = params.getBool(QStringLiteral("capRefineBoundary"));
                 const QString capError = buildSectionCap(section, axis, refinement, cap);
                 if (!capError.isEmpty())

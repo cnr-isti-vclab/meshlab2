@@ -9177,8 +9177,8 @@ void FilterTests::embeddingStraightCurvesWithAllVerticesLeavesNoInvertedFace()
     }
 }
 
-// The caps of Trim Surface by Plane (on request) and of the section surface are refined
-// with added points: inside only, the cut outline left as it was; with the outline too,
+// On request, the caps of Trim Surface by Plane and the section surface are refined with
+// added points: inside only, the cut outline left as it was; with the outline too,
 // every cap triangle reaches the minimum angle and the trimmed mesh stays watertight. A
 // scalar that is linear in space survives on the added vertices, which is what
 // interpolating them from the outline buys.
@@ -9244,6 +9244,7 @@ void FilterTests::planeCapsAreRefinedToTheMinimumAngle()
     p.insert(QStringLiteral("planeAxis"), QStringLiteral("custom"));
     p.insert(QStringLiteral("customAxis"), QVector3D(normal[0], normal[1], normal[2]));
     p.insert(QStringLiteral("createSectionSurface"), true);
+    p.insert(QStringLiteral("refineCap"), true);
     p.insert(QStringLiteral("capRefineBoundary"), true);
     const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("create_polyline_from_planar_section")), p);
     QVERIFY2(r.success, qPrintable(r.errorMessage));

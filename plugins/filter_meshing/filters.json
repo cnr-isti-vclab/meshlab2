@@ -2956,15 +2956,25 @@
           "default": false
         },
         {
+          "id": "refineCap",
+          "label": "Refine the section surface",
+          "help": "Add points inside the section surface, so its faces are well-shaped triangles rather than the long thin ones that reach across a surface whose outline is as fine as the mesh. Off, it is a plain constrained Delaunay triangulation of the outline, with no new vertices.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false,
+          "enabledWhen": "createSectionSurface"
+        },
+        {
           "id": "capMinAngle",
           "label": "Cap minimum angle",
-          "help": "Used for the section surface. Points are added inside the cap until no triangle has an angle below this many degrees (Delaunay refinement), except where the outline itself has a sharper corner. A cap's outline is as fine as the mesh while its inside is empty, so without them it is all long thin triangles reaching across. Zero leaves the cap a plain constrained Delaunay triangulation of the outline. Above about 30 degrees the number of added points grows quickly; 34 is the most allowed.",
+          "help": "Used when the section surface is refined. Points are added inside the cap until no triangle has an angle below this many degrees (Delaunay refinement), except where the outline itself has a sharper corner. A cap's outline is as fine as the mesh while its inside is empty, so without them it is all long thin triangles reaching across. Above about 30 degrees the number of added points grows quickly; 34 is the most allowed.",
           "group": "advanced",
           "type": "double",
           "default": 20.0,
           "min": 0.0,
           "max": 34.0,
-          "decimals": 1
+          "decimals": 1,
+          "enabledWhen": "refineCap"
         },
         {
           "id": "capRefineBoundary",
@@ -2972,7 +2982,8 @@
           "help": "Also add points on the outline of the section surface, which brings the triangles next to it to the minimum angle as well. The outline then has points the section polyline does not. Off, the outline is exactly the polyline's.",
           "group": "advanced",
           "type": "bool",
-          "default": false
+          "default": false,
+          "enabledWhen": "refineCap"
         },
         {
           "id": "splitSurfaceWithSection",
