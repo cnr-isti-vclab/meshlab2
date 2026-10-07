@@ -9,12 +9,12 @@ git -C external/trueform fetch
 git -C external/trueform checkout <reviewed-commit>
 ```
 
-Currently pinned at **872775d0e** — v0.10.5 plus one upstream fix
-(2026-09-22): a tube swept along a closed polyline pinched at the seam,
-because the frame producer's wrap ran on the stored point count while a
-closed path stores its first point twice; the seam ring now carries the
-first ring's frame and *Create Tube from Polyline* is uniform around a
-closed loop. Everything from v0.10.0 through
+Currently pinned at **v0.10.6** (2026-10-06), which folds in the interim fix
+this file tracked ahead of the tag: a tube swept along a closed polyline
+pinched at the seam, because the frame producer's wrap ran on the stored
+point count while a closed path stores its first point twice; the seam ring
+now carries the first ring's frame and *Create Tube from Polyline* is uniform
+around a closed loop. Everything from v0.10.0 through
 v0.10.3 was additive, so neither plugin changed to take it: v0.10.1 repaired
 orientation and the Euler count; v0.10.2 reads every OBJ in parallel — 44.5 ms
 to 6.5 ms on a million-triangle dragon, and 76.3 ms to 8.3 ms for the reader
@@ -54,6 +54,25 @@ bounded domain read "inside operand 0" and an expression naming any other
 operand returned nothing. v0.10.5 is the first release where that checkbox is
 sound.
 
+v0.10.6 is four bug fixes and two new entry points, and cost this build
+zero call sites. `make_csg_domains`'s nesting census now sees every wall —
+sheets, disjoint boxes, welded rims — so a solid floating inside a severed
+region joins its own domain rather than the enclosing one; **Split into
+Solid Domains**, which calls `make_csg_domains` directly, and **Extract
+Outer Shell**, which reads the same classification tier through
+`make_outer_shell`, are the two filters this repairs (recorded below, since
+the compiler cannot see it either). `exclude_outer_shell` now always drops
+the unbounded outer region, a request neither filter here passes, so it
+changes nothing yet. `decimate_config` and `simplify_config` dropped their
+`use_quadric` toggle outright — it is a compile error to set it there now,
+the toggle having moved to the entries that actually honor it — but
+`runDecimate` and `runSimplify` never set it, so the crash it used to cause
+never reached this plugin. The fourth fix, an integer overflow in the exact
+crossing-point interpolation, repairs every cut-producing filter silently;
+no call site changes and no test here catches it either way. The two
+additions, `tf::fill_holes` and `tf::delaunay_tetrahedralizer`, are new
+entry points neither plugin calls yet.
+
 The step from v0.9.17 to v0.10.0 was the breaking one: the `cut` module was
 removed outright, with no compatibility shim, and its ground redistributed to
 `arrangement`, `iso` and `csg`. It cost MeshLab one call site, because both
@@ -75,6 +94,10 @@ covered by a test:
   region an operand covers twice now reads inside it, and a zero-thickness fold
   encloses nothing. Upstream measured no deterministic delta on a thousand
   corpus pairs, so clean input is unchanged; self-overlapping input is not.
+- **A solid floating inside a severed region joins its own domain as of
+  v0.10.6, not the enclosing one.** `make_csg_domains`'s nesting census missed
+  some walls in that configuration before; **Split into Solid Domains** and
+  **Extract Outer Shell** both read the repaired census now.
 
 ## Licensing and permission
 
