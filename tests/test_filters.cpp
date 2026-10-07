@@ -543,6 +543,7 @@ private slots:
     void derivedLayersKeepTheSourceLayerMatrix();
     void measureFiltersReportPolylines();
     void handleAndTunnelLoopsEmbeddedThenCutGiveADisk();
+    void embeddingStraightCurvesWithAllVerticesLeavesNoInvertedFace();
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToComponentsAndUvIslands();
@@ -9122,6 +9123,57 @@ void FilterTests::handleAndTunnelLoopsEmbeddedThenCutGiveADisk()
     r = cutFirst.runFilter(filterKeyForId(cutFirst, QStringLiteral("embed_polyline_in_surface")), embed);
     QVERIFY(!r.success);
     QVERIFY2(r.errorMessage.contains(QStringLiteral("cut seam")), qPrintable(r.errorMessage));
+}
+
+// A straight curve keeping every vertex (All vertices) has points inside a triangle on the
+// line between the two places it crosses the triangle's edges; recovering the curve alone
+// left a sliver there that turned over once stored in floating point. The constrained
+// Delaunay flips that follow remove it.
+void FilterTests::embeddingStraightCurvesWithAllVerticesLeavesNoInvertedFace()
+{
+    std::mt19937 rng(7);
+    std::uniform_real_distribution<float> jitter(-0.25f, 0.25f), unit(0.0f, 1.0f);
+    for (int trial = 0; trial < 20; ++trial) {
+        const int n = 12;
+        VCGMesh grid;
+        for (int j = 0; j <= n; ++j)
+            for (int i = 0; i <= n; ++i) {
+                const bool inside = i % n && j % n;
+                vcg::tri::Allocator<VCGMesh>::AddVertex(grid, vcg::Point3f(i + (inside ? jitter(rng) : 0), j + (inside ? jitter(rng) : 0), 0));
+            }
+        for (int j = 0; j < n; ++j)
+            for (int i = 0; i < n; ++i) {
+                const int a = j * (n + 1) + i, b = a + 1, c = a + n + 1, d = c + 1;
+                if (unit(rng) < 0.5f) { vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, b, d); vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, d, c); }
+                else { vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, b, c); vcg::tri::Allocator<VCGMesh>::AddFace(grid, b, d, c); }
+            }
+        vcg::tri::UpdateBounding<VCGMesh>::Box(grid);
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(grid);
+        // Three straight lines of six points each, two across and one along, crossing.
+        VCGMesh lines;
+        for (int k = 0; k < 3; ++k) {
+            vcg::Point3f a(0.3f + unit(rng) * (n - 0.6f), 0.3f, 0), b(0.3f + unit(rng) * (n - 0.6f), n - 0.3f, 0);
+            if (k == 1) { a = vcg::Point3f(0.3f, a[0], 0); b = vcg::Point3f(n - 0.3f, b[0], 0); }
+            std::vector<vcg::Point3f> pts;
+            for (int s = 0; s <= 5; ++s) pts.push_back(a + (b - a) * (s / 5.0f));
+            VCGMesh one;
+            makePolyline(one, pts);
+            vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(lines, one);
+        }
+        Document doc;
+        const int surface = doc.addMesh(grid, QStringLiteral("grid"));
+        const int curves = doc.addMesh(lines, QStringLiteral("lines"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+        doc.setCurrentMeshIndex(surface);
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("polyline"), curves);
+        p.insert(QStringLiteral("controlPoints"), QStringLiteral("all_vertices"));
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("embed_polyline_in_surface")), p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        int inverted = 0;
+        for (const VCGFace &f : doc.mesh(surface).mesh.face)
+            if (!f.IsD() && vcg::TriangleNormal(f)[2] <= 0) ++inverted;
+        QVERIFY2(inverted == 0, qPrintable(QStringLiteral("trial %1: %2 inverted faces").arg(trial).arg(inverted)));
+    }
 }
 
 void FilterTests::cutGraphIsReproducibleAndRefusesWhatItCannotCut()

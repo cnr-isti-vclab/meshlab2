@@ -65,6 +65,7 @@ private slots:
     void layerDataIsCountedInTheMemoryReport();
     void loadMeshAddsLayerAndEmitsSignal();
     void planarPolygonTessellationHandlesConcavity();
+    void planarContoursTessellateToConstrainedDelaunayOnRequest();
     void loadConcavePolygonFormatsPreserveFauxEdges();
     void loadObjWithMissingMaterialLibrary();
     void factoryDefaultObjImporterIsVcglib();
@@ -974,6 +975,58 @@ void DocumentTests::planarPolygonTessellationHandlesConcavity()
     contourTriangles = { 17 };
     QVERIFY(!vcg::TessellatePlanarContours2(touchingContours, contourTriangles));
     QCOMPARE(contourTriangles, std::vector<int>({ 17 }));
+}
+
+// With delaunay = true the contour tessellators flip the ear-clipped triangulation to the
+// constrained Delaunay one: every interior edge has opposite angles summing to at most pi.
+// On a tilted plane the angles are the plane's, not those of the axis projection used to
+// triangulate. An ellipse is used rather than a circle, whose points are all cocircular.
+void DocumentTests::planarContoursTessellateToConstrainedDelaunayOnRequest()
+{
+    std::vector<std::vector<vcg::Point3d>> contours3(2);
+    for (int i = 0; i < 48; ++i) {
+        const double a = 2 * M_PI * i / 48;
+        contours3[0].push_back({ 10 * std::cos(a), 3 * std::sin(a), 0 });
+    }
+    contours3[1] = { { 2, -1, 0 }, { 2, 1, 0 }, { 4, 1, 0 }, { 4, -1, 0 } };   // a hole
+    // Worst excess of opposite angles over pi on interior edges, measured on `points`.
+    const auto worstExcess = [](const std::vector<int> &tris, const std::vector<vcg::Point3d> &points) {
+        std::map<std::pair<int, int>, double> opposite;   // directed edge -> angle facing it
+        for (size_t t = 0; t < tris.size(); t += 3)
+            for (int k = 0; k < 3; ++k) {
+                const int a = tris[t + k], b = tris[t + (k + 1) % 3], c = tris[t + (k + 2) % 3];
+                opposite[{ a, b }] = vcg::Angle(points[size_t(a)] - points[size_t(c)], points[size_t(b)] - points[size_t(c)]);
+            }
+        double worst = -M_PI;
+        for (const auto &[edge, angle] : opposite) {
+            const auto twin = opposite.find({ edge.second, edge.first });
+            if (twin != opposite.end()) worst = std::max(worst, angle + twin->second - M_PI);
+        }
+        return worst;
+    };
+    std::vector<vcg::Point3d> flat;
+    std::vector<std::vector<vcg::Point2d>> contours2;
+    for (const auto &contour : contours3) {
+        contours2.emplace_back();
+        for (const vcg::Point3d &p : contour) { flat.push_back(p); contours2.back().push_back({ p.X(), p.Y() }); }
+    }
+    std::vector<int> earClipped, delaunay;
+    QVERIFY(vcg::TessellatePlanarContours2(contours2, earClipped));
+    QVERIFY(vcg::TessellatePlanarContours2(contours2, delaunay, true));
+    QCOMPARE(delaunay.size(), earClipped.size());
+    QVERIFY(worstExcess(earClipped, flat) > 0.1);   // the ear clipper alone is not Delaunay here
+    QVERIFY2(worstExcess(delaunay, flat) < 1e-9, qPrintable(QString::number(worstExcess(delaunay, flat))));
+
+    // Tilted by 44 degrees about the y axis, just short of where the projection would switch
+    // axis: projecting along z, the most it can distort, squeezes x by a factor 0.72.
+    std::vector<std::vector<vcg::Point3d>> tilted = contours3;
+    std::vector<vcg::Point3d> tiltedFlat;
+    const double c = std::cos(44 * M_PI / 180), sn = std::sin(44 * M_PI / 180);
+    for (auto &contour : tilted)
+        for (vcg::Point3d &p : contour) { p = { p.X() * c, p.Y(), p.X() * sn }; tiltedFlat.push_back(p); }
+    std::vector<int> tiltedTris;
+    QVERIFY(vcg::TessellatePlanarContours3(tilted, tiltedTris, true));
+    QVERIFY2(worstExcess(tiltedTris, tiltedFlat) < 1e-9, qPrintable(QString::number(worstExcess(tiltedTris, tiltedFlat))));
 }
 
 void DocumentTests::loadConcavePolygonFormatsPreserveFauxEdges()

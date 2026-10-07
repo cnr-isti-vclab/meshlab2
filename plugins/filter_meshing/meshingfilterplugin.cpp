@@ -117,7 +117,7 @@ QString buildSectionCap(
         return QObject::tr("The planar section contains no closed contour to triangulate.");
 
     std::vector<int> triangles;
-    if (!vcg::TessellatePlanarContours3(contours, triangles))
+    if (!vcg::TessellatePlanarContours3(contours, triangles, true))  // constrained Delaunay: no fans of slivers
         return QObject::tr("The planar section contours could not be triangulated.");
 
     size_t vertexCount = 0;
