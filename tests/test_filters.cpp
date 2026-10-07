@@ -542,6 +542,7 @@ private slots:
     void geodesicPathFollowsMeshEdgesBetweenTwoPoints();
     void derivedLayersKeepTheSourceLayerMatrix();
     void measureFiltersReportPolylines();
+    void handleAndTunnelLoopsEmbeddedThenCutGiveADisk();
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToComponentsAndUvIslands();
@@ -9074,6 +9075,53 @@ void FilterTests::measureFiltersReportPolylines()
     vcg::tri::Allocator<VCGMesh>::AddVertices(cloud, 3);
     doc.setCurrentMeshIndex(doc.addMesh(cloud, QStringLiteral("cloud")));
     QVERIFY(!doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_topological_properties")), {}).success);
+}
+
+// Embedding adds to the edge selection, so both loops can be embedded on the closed torus
+// and the surface cut once along the two: they cross once, and the cut opens it to a disk.
+void FilterTests::handleAndTunnelLoopsEmbeddedThenCutGiveADisk()
+{
+    VCGMesh torus;
+    vcg::tri::Torus(torus, 3.0f, 1.0f, 32, 16);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(torus);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(torus);
+    Document doc;
+    const int surface = doc.addMesh(torus, QStringLiteral("torus"));
+    doc.setCurrentMeshIndex(surface);
+    MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("create_handle_and_tunnel_loops")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.newMeshIndices.size(), 2);
+    const QVector<int> loops = r.newMeshIndices;
+    for (int loop : loops) {
+        doc.setCurrentMeshIndex(surface);
+        MeshFilterParameterValues embed;
+        embed.insert(QStringLiteral("polyline"), loop);
+        r = doc.runFilter(filterKeyForId(doc, QStringLiteral("embed_polyline_in_surface")), embed);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+    }
+    r = doc.runFilter(filterKeyForId(doc, QStringLiteral("cut_along_selected_edges")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    verifyTopologicalDisk(doc.mesh(surface).mesh, "torus cut along both loops");
+
+    // Cutting along the handle loop first leaves a seam the tunnel loop cannot cross; the
+    // refusal names it as a seam, not as a border.
+    Document cutFirst;
+    const int s2 = cutFirst.addMesh(torus, QStringLiteral("torus"));
+    cutFirst.setCurrentMeshIndex(s2);
+    r = cutFirst.runFilter(filterKeyForId(cutFirst, QStringLiteral("create_handle_and_tunnel_loops")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const QVector<int> loops2 = r.newMeshIndices;
+    cutFirst.setCurrentMeshIndex(s2);
+    MeshFilterParameterValues embed;
+    embed.insert(QStringLiteral("polyline"), loops2[0]);
+    r = cutFirst.runFilter(filterKeyForId(cutFirst, QStringLiteral("embed_polyline_in_surface")), embed);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    r = cutFirst.runFilter(filterKeyForId(cutFirst, QStringLiteral("cut_along_selected_edges")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    embed.insert(QStringLiteral("polyline"), loops2[1]);
+    r = cutFirst.runFilter(filterKeyForId(cutFirst, QStringLiteral("embed_polyline_in_surface")), embed);
+    QVERIFY(!r.success);
+    QVERIFY2(r.errorMessage.contains(QStringLiteral("cut seam")), qPrintable(r.errorMessage));
 }
 
 void FilterTests::cutGraphIsReproducibleAndRefusesWhatItCannotCut()
