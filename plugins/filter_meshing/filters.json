@@ -2823,15 +2823,25 @@
           "default": false
         },
         {
+          "id": "refineCap",
+          "label": "Refine the cap",
+          "help": "Add points inside the faces that close the cut, so they are well-shaped triangles rather than the long thin ones that reach across a cap whose outline is as fine as the mesh. Off, the cap is a plain constrained Delaunay triangulation of the outline, with no new vertices.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false,
+          "enabledWhen": "closeCut"
+        },
+        {
           "id": "capMinAngle",
           "label": "Cap minimum angle",
-          "help": "Used when the cut is closed. Points are added inside the cap until no triangle has an angle below this many degrees (Delaunay refinement), except where the outline itself has a sharper corner. A cap's outline is as fine as the mesh while its inside is empty, so without them it is all long thin triangles reaching across. Zero leaves the cap a plain constrained Delaunay triangulation of the outline. Above about 30 degrees the number of added points grows quickly; 34 is the most allowed.",
+          "help": "Used when the cap is refined. Points are added inside the cap until no triangle has an angle below this many degrees (Delaunay refinement), except where the outline itself has a sharper corner. A cap's outline is as fine as the mesh while its inside is empty, so without them it is all long thin triangles reaching across. Above about 30 degrees the number of added points grows quickly; 34 is the most allowed.",
           "group": "advanced",
           "type": "double",
           "default": 20.0,
           "min": 0.0,
           "max": 34.0,
-          "decimals": 1
+          "decimals": 1,
+          "enabledWhen": "refineCap"
         },
         {
           "id": "capRefineBoundary",
@@ -2839,7 +2849,8 @@
           "help": "Also add points on the outline of the cap, which brings the triangles next to it to the minimum angle as well. The mesh faces along the cut are split at the same points, so the mesh stays watertight, but they get thinner. Off, the outline and the mesh around it are left exactly as the cut made them.",
           "group": "advanced",
           "type": "bool",
-          "default": false
+          "default": false,
+          "enabledWhen": "refineCap"
         }
       ],
       "outputModifies": ["FV", "VG"]

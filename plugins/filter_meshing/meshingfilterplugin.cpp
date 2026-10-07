@@ -2033,8 +2033,9 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             bool clipped = false;
             {
                 VCGMeshFFAdjScope _clipFFAdj(mesh);
-                vcg::PlanarRefinement refinement;
-                refinement.minAngle = params.getDouble(QStringLiteral("capMinAngle"));
+                vcg::PlanarRefinement refinement;   // opt-in here: a minimum angle of 0 adds no points
+                refinement.minAngle = params.getBool(QStringLiteral("refineCap"))
+                    ? params.getDouble(QStringLiteral("capMinAngle")) : 0.0;
                 refinement.splitBoundary = params.getBool(QStringLiteral("capRefineBoundary"));
                 clipped = vcg::tri::ClipMeshWithPlane(mesh, plane, closeCut, snap, refinement);
             }
