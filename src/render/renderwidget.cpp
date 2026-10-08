@@ -3509,6 +3509,14 @@ void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
         return;
     if (e->button() != Qt::LeftButton)
         return;
+    // Debug level: if a double-click ever seems to do nothing, the log says whether the event
+    // reached the view and whether a pick was still outstanding when it did.
+    m_doc->writeLog(
+        tr("Double-click at (%1, %2): pick requested%3.")
+            .arg(e->position().toPoint().x()).arg(e->position().toPoint().y())
+            .arg(m_depthPickInFlight ? tr(", the previous one still in flight") : QString()),
+        Document::LogSource::Application,
+        Document::LogLevel::Debug);
     m_depthPickPos = e->position().toPoint();
     ++m_depthPickSequence;  /* bump sequence so stale async callbacks are rejected */
     m_depthPickPending = true;

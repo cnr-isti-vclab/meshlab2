@@ -43,16 +43,310 @@
 #include <vcg/complex/algorithms/update/topology.h>
 #include <vcg/math/base.h>
 #include <vcg/math/disjoint_set.h>
+#include <vcg/complex/algorithms/create/marching_cubes.h>
+#include <vcg/complex/algorithms/create/mc_trivial_walker.h>
+#include <vcg/complex/algorithms/closest.h>
 #include <vcg/space/fitting3.h>
+#include <vcg/space/hrbf.h>
+#include <vcg/space/index/grid_static_ptr.h>
 #include <vcg/space/planar_polygon_tessellation.h>
 #include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <memory>
+#include <thread>
 #include <vector>
 
 namespace {
+
+// The faces of each FF-connected component of m (FF must be up to date).
+std::vector<std::vector<size_t>> faceComponents(VCGMesh &m)
+{
+    std::vector<int> comp(m.face.size(), -1);
+    std::vector<std::vector<size_t>> out;
+    for (size_t seed = 0; seed < m.face.size(); ++seed) {
+        if (m.face[seed].IsD() || comp[seed] >= 0) continue;
+        out.emplace_back(1, seed);
+        comp[seed] = int(out.size()) - 1;
+        for (size_t k = 0; k < out.back().size(); ++k)
+            for (int z = 0; z < 3; ++z) {
+                const size_t g = vcg::tri::Index(m, m.face[out.back()[k]].FFp(z));
+                if (comp[g] < 0) { comp[g] = comp[seed]; out.back().push_back(g); }
+            }
+    }
+    return out;
+}
+
+// Create Surface from Polyline Loop (HRBF): the patch spanning the closed polyline \a poly
+// (its coordinates mapped into the surface frame by \a toSurface), as described in the
+// filter's documentation. Returns an error, or an empty string with the patch in \a patch.
+QString buildLoopSurface(const VCGMesh &poly, const QMatrix4x4 &toSurface, VCGMesh &surface, bool across,
+                         int sampleCount, int resolution, vcg::CallBackPos *cb, VCGMesh &patch, QStringList &info)
+{
+    // 1. The loop, in order.
+    std::vector<std::vector<int>> nb(poly.vert.size());
+    int edges = 0;
+    for (const VCGEdge &e : poly.edge) {
+        if (e.IsD()) continue;
+        const int a = int(vcg::tri::Index(poly, e.cV(0))), b = int(vcg::tri::Index(poly, e.cV(1)));
+        nb[size_t(a)].push_back(b);
+        nb[size_t(b)].push_back(a);
+        ++edges;
+    }
+    if (edges < 3)
+        return QObject::tr("The polyline must be a closed loop of at least three edges.");
+    int start = -1;
+    for (size_t v = 0; v < nb.size(); ++v) {
+        if (nb[v].empty()) continue;
+        if (nb[v].size() != 2)
+            return QObject::tr("The polyline must be a single closed loop, but a vertex of it has %1 edges.").arg(nb[v].size());
+        if (start < 0) start = int(v);
+    }
+    std::vector<vcg::Point3d> loop;
+    for (int prev = -1, cur = start; ; ) {
+        const QVector3D q = toSurface.map(QVector3D(poly.vert[size_t(cur)].cP()[0], poly.vert[size_t(cur)].cP()[1], poly.vert[size_t(cur)].cP()[2]));
+        loop.push_back(vcg::Point3d(q.x(), q.y(), q.z()));
+        const int next = nb[size_t(cur)][0] != prev ? nb[size_t(cur)][0] : nb[size_t(cur)][1];
+        prev = cur;
+        cur = next;
+        if (cur == start || int(loop.size()) > edges) break;
+    }
+    if (int(loop.size()) != edges)
+        return QObject::tr("The polyline must be a single closed loop, but it has several pieces.");
+
+    // 2. Samples at equal arc length.
+    const size_t n = loop.size();
+    std::vector<double> arc(n + 1, 0.0);
+    for (size_t i = 0; i < n; ++i) arc[i + 1] = arc[i] + vcg::Distance(loop[i], loop[(i + 1) % n]);
+    const double length = arc[n];
+    if (!(length > 0))
+        return QObject::tr("The loop has zero length.");
+    const int count = std::max(8, sampleCount);
+    const double spacing = length / count;
+    std::vector<vcg::Point3d> samples;
+    for (int k = 0, seg = 0; k < count; ++k) {
+        const double s = k * spacing;
+        while (arc[size_t(seg) + 1] < s) ++seg;
+        const double t = (s - arc[size_t(seg)]) / std::max(arc[size_t(seg) + 1] - arc[size_t(seg)], 1e-300);
+        samples.push_back(loop[size_t(seg)] + (loop[(size_t(seg) + 1) % n] - loop[size_t(seg)]) * t);
+    }
+
+    // 3. Their gradients: the surface normal there, or across the loop, in the surface and
+    //    perpendicular to it. Their orientation only has to be consistent along the loop.
+    vcg::GridStaticPtr<VCGFace, float> grid;
+    grid.Set(surface.face.begin(), surface.face.end());
+    std::vector<vcg::Point3d> normals;
+    for (int k = 0; k < count; ++k) {
+        const vcg::Point3f p = vcg::Point3f::Construct(samples[size_t(k)]);
+        float dist = surface.bbox.Diag();
+        vcg::Point3f closest, bary;
+        VCGFace *f = vcg::tri::GetClosestFaceBase(surface, grid, p, surface.bbox.Diag(), dist, closest);
+        if (!f)
+            return QObject::tr("The loop is not on the surface layer: no face near one of its points.");
+        vcg::Point3d nrm(0, 0, 0);
+        if (vcg::InterpolationParameters(*f, f->cN(), closest, bary))
+            for (int i = 0; i < 3; ++i) nrm += vcg::Point3d::Construct(f->cV(i)->cN()) * double(bary[i]);
+        if (!(nrm.Norm() > 0)) nrm = vcg::Point3d::Construct(f->cN());
+        nrm.Normalize();
+        const vcg::Point3d tangent = samples[size_t((k + 1) % count)] - samples[size_t((k + count - 1) % count)];
+        vcg::Point3d g = across ? (nrm ^ tangent) : nrm;
+        if (!(g.Norm() > 0))
+            return QObject::tr("The surface normal is undefined, or along the loop, at one of its points.");
+        normals.push_back(g.Normalize());
+    }
+    if (cb) (*cb)(10, "Fitting the HRBF");
+
+    // 4. The implicit function.
+    vcg::HRBF<double> hrbf;
+    try {
+        hrbf.Fit(samples, normals);
+    } catch (const std::exception &) {
+        return QObject::tr("The interpolation system is singular: try fewer samples.");
+    }
+
+    // 5. Its values on a grid around the loop, enlarged so that a surface bulging out of the
+    //    loop's plane fits; cells about the sample spacing, within reason.
+    vcg::Box3d box;
+    for (const vcg::Point3d &q : samples) box.Add(q);
+    const double reach = 0.5 * box.Diag();   // how far from the loop the surface may extend
+    box.Offset(reach);
+    const double longest = std::max({ box.DimX(), box.DimY(), box.DimZ() });
+    double cell = resolution > 0 ? longest / resolution : spacing;
+    cell = std::clamp(cell, longest / (resolution > 0 ? 400 : 128), longest / 24);
+    // Shifted off the loop's symmetries by odd fractions of a cell: a zero set passing through
+    // grid points, as a plane of symmetry of the loop would, makes marching cubes degenerate.
+    box.min -= vcg::Point3d(0.137, 0.291, 0.413) * cell;
+    const vcg::Point3i dims(int(std::ceil(box.DimX() / cell)) + 2, int(std::ceil(box.DimY() / cell)) + 2,
+                            int(std::ceil(box.DimZ() / cell)) + 2);
+    using Volume = vcg::SimpleVolume<vcg::SimpleVoxel<float>>;
+    Volume volume;
+    volume.Init(dims, vcg::Box3f(vcg::Point3f::Construct(box.min),
+                                 vcg::Point3f::Construct(box.min + vcg::Point3d(dims[0], dims[1], dims[2]) * cell)));
+    {
+        const int threads = std::max(1, int(std::thread::hardware_concurrency()));
+        std::vector<std::thread> pool;
+        for (int t = 0; t < threads; ++t)
+            pool.emplace_back([&, t] {
+                for (int z = t; z < dims[2]; z += threads)
+                    for (int y = 0; y < dims[1]; ++y)
+                        for (int x = 0; x < dims[0]; ++x)
+                            volume.Val(x, y, z) = float(hrbf.Value(box.min + vcg::Point3d(x, y, z) * cell));
+            });
+        for (std::thread &th : pool) th.join();
+    }
+    if (cb) (*cb)(50, "Extracting the isosurface");
+
+    // 6. The zero set, cleaned for the curve embedding: no duplicates, no zero-area faces,
+    //    edge-manifold, and only the piece the loop lies on.
+    VCGMesh iso;
+    {
+        using Walker = vcg::tri::TrivialWalker<VCGMesh, Volume>;
+        using MarchingCubes = vcg::tri::MarchingCubes<VCGMesh, Walker>;
+        Walker walker;
+        MarchingCubes mc(iso, walker);
+        walker.BuildMesh<MarchingCubes>(iso, volume, mc, 0.0f);
+    }
+    iso.face.EnableFFAdjacency();
+    iso.face.EnableMark();
+    iso.vert.EnableMark();
+    iso.vert.EnableVFAdjacency();
+    iso.face.EnableVFAdjacency();
+    vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(iso);
+    vcg::tri::Clean<VCGMesh>::RemoveZeroAreaFace(iso);
+    vcg::tri::Clean<VCGMesh>::RemoveDegenerateFace(iso);
+    vcg::tri::Clean<VCGMesh>::RemoveDuplicateFace(iso);
+    vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(iso);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(iso);
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(iso);
+    vcg::tri::Clean<VCGMesh>::RemoveNonManifoldFace(iso);
+    vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(iso);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(iso);
+    // Only what lies within reach of the loop, as the grid would with no corners: the rest of
+    // the sheet the grid clipped is never part of the result, and remeshing it is wasted.
+    for (VCGFace &f : iso.face) {
+        if (f.IsD()) continue;
+        bool near = false;
+        for (int i = 0; i < 3 && !near; ++i)
+            for (const vcg::Point3d &q : samples)
+                if (vcg::SquaredDistance(vcg::Point3d::Construct(f.cP(i)), q) < reach * reach) { near = true; break; }
+        if (!near) vcg::tri::Allocator<VCGMesh>::DeleteFace(iso, f);
+    }
+    vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(iso);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(iso);
+    if (iso.FN() == 0)
+        return QObject::tr("The implicit surface is empty around the loop.");
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(iso);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(iso);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(iso);
+    {
+        vcg::GridStaticPtr<VCGFace, float> isoGrid;
+        isoGrid.Set(iso.face.begin(), iso.face.end());
+        float dist = iso.bbox.Diag();
+        vcg::Point3f closest;
+        VCGFace *f = vcg::tri::GetClosestFaceBase(iso, isoGrid, vcg::Point3f::Construct(samples[0]), iso.bbox.Diag(), dist, closest);
+        if (!f)
+            return QObject::tr("The implicit surface does not pass near the loop.");
+        const size_t keep = vcg::tri::Index(iso, f);
+        for (const std::vector<size_t> &c : faceComponents(iso))
+            if (std::find(c.begin(), c.end(), keep) == c.end())
+                for (size_t fi : c) vcg::tri::Allocator<VCGMesh>::DeleteFace(iso, iso.face[fi]);
+        vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(iso);
+        vcg::tri::Allocator<VCGMesh>::CompactEveryVector(iso);
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(iso);
+    }
+    // Where the region around the loop clipped the implicit surface: a private flag, which
+    // cutting copies.
+    const int gridSide = VCGVertex::NewBitFlag();
+    vcg::tri::UpdateFlags<VCGMesh>::VertexBorderFromFaceAdj(iso);
+    for (VCGVertex &v : iso.vert) { if (v.IsB()) v.SetUserBit(gridSide); else v.ClearUserBit(gridSide); }
+    struct BitGuard { int bit; ~BitGuard() { VCGVertex::DeleteBitFlag(bit); } } bitGuard{ gridSide };
+    if (cb) (*cb)(65, "Embedding the loop");
+
+    // 7. The loop embedded in it, and cut along.
+    VCGMesh curve;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(curve, n);
+    vcg::tri::Allocator<VCGMesh>::AddEdges(curve, n);
+    for (size_t i = 0; i < n; ++i) {
+        curve.vert[i].P() = vcg::Point3f::Construct(loop[i]);
+        curve.edge[i].V(0) = &curve.vert[i];
+        curve.edge[i].V(1) = &curve.vert[(i + 1) % n];
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(curve);
+    curve.vert.EnableVEAdjacency();
+    {
+        using CoM = vcg::tri::CoM<VCGMesh>;
+        CoM com(iso);
+        com.Init();
+        com.SetControlPoints(curve);
+        com.SmoothProject(curve, 1, 0, 1);   // onto the implicit surface, no smoothing
+        com.RefineCurveByBaseMesh(curve);
+        vcg::tri::UpdateFlags<VCGMesh>::FaceClearFaceEdgeS(iso);
+        vcg::tri::CoMEmbed<VCGMesh>::SplitMeshWithPolyline(com, curve);
+    }
+    if (vcg::tri::UpdateSelection<VCGMesh>::FaceEdgeCount(iso) == 0)
+        return QObject::tr("The loop could not be embedded in the implicit surface.");
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(iso);
+    vcg::tri::CutMeshAlongSelectedFaceEdges(iso);
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(iso);
+
+    // 8. The inside: the piece the cut separated that does not reach where the implicit
+    //    surface was clipped; if several do not, the smallest.
+    const std::vector<std::vector<size_t>> pieces = faceComponents(iso);
+    int best = -1;
+    double bestArea = std::numeric_limits<double>::max();
+    for (size_t c = 0; c < pieces.size(); ++c) {
+        bool open = false;
+        double area = 0;
+        for (size_t fi : pieces[c]) {
+            VCGFace &f = iso.face[fi];
+            for (int i = 0; i < 3; ++i) open |= f.V(i)->IsUserBit(gridSide);
+            area += vcg::DoubleArea(f) / 2;
+        }
+        if (!open && area < bestArea) { bestArea = area; best = int(c); }
+    }
+    if (pieces.size() < 2 || best < 0)
+        return QObject::tr("The loop does not cut a piece off the implicit surface: the surface through it "
+                           "reaches past the region around the loop. Try the other gradient, or more samples.");
+    vcg::tri::UpdateSelection<VCGMesh>::FaceClear(iso);
+    for (size_t fi : pieces[size_t(best)]) iso.face[fi].SetS();
+    patch.Clear();
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(patch, iso, true);
+    vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(patch);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(patch);
+    // Remeshed into well-shaped triangles about a cell long, projected back onto itself, with
+    // its boundary -- the loop -- kept: marching cubes triangles are anything but.
+    {
+        patch.face.EnableFFAdjacency();
+        patch.face.EnableMark();
+        patch.vert.EnableMark();
+        patch.vert.EnableVFAdjacency();
+        patch.face.EnableVFAdjacency();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(patch);
+        VCGMesh reference;
+        reference.face.EnableMark();
+        vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(reference, patch);
+        vcg::tri::IsotropicRemeshing<VCGMesh>::Params rp;
+        rp.SetTargetLen(float(cell));
+        rp.SetFeatureAngleDeg(181);
+        rp.iter = 3;
+        rp.adapt = false;
+        rp.splitFlag = rp.collapseFlag = rp.swapFlag = rp.smoothFlag = rp.projectFlag = true;
+        vcg::tri::IsotropicRemeshing<VCGMesh>::Do(patch, reference, rp);
+        vcg::tri::Allocator<VCGMesh>::CompactEveryVector(patch);
+        patch.face.DisableFFAdjacency();
+        patch.face.DisableMark();
+        patch.vert.DisableMark();
+        patch.vert.DisableVFAdjacency();
+        patch.face.DisableVFAdjacency();
+    }
+    vcg::tri::UpdateSelection<VCGMesh>::FaceClear(patch);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(patch);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(patch);
+    info << QObject::tr("%1 samples, %2 x %3 x %4 grid.").arg(count).arg(dims[0]).arg(dims[1]).arg(dims[2])
+         << QObject::tr("Surface: %1 faces, area %2.").arg(patch.FN()).arg(bestArea, 0, 'g', 4);
+    return {};
+}
 
 QString buildSectionCap(
     const VCGMesh &section,
@@ -300,6 +594,7 @@ constexpr QLatin1StringView kIdSmoothPolyline("smooth_polyline_on_surface");
 constexpr QLatin1StringView kIdCutGraph("create_polyline_from_cut_graph");
 constexpr QLatin1StringView kIdReebGraph("create_reeb_graph_from_vertex_scalar");
 constexpr QLatin1StringView kIdHandleTunnel("create_handle_and_tunnel_loops");
+constexpr QLatin1StringView kIdLoopSurface("create_surface_from_polyline_loop_hrbf");
 constexpr QLatin1StringView kIdVAttrSeam("split_vertices_by_attribute_seam");
 constexpr QLatin1StringView kIdLS3Loop("subdivide_by_ls3_loop");
 
@@ -1858,11 +2153,41 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             return r;
         }
 
+        if (filterId == QString::fromLatin1(kIdLoopSurface)) {
+            const int si = params.getMesh(QStringLiteral("surface"));
+            if (si < 0 || si >= doc.meshCount() || si == ci)
+                return fail(QObject::tr("Choose a surface layer other than the polyline."));
+            auto &surfEntry = doc.mesh(si);
+            bool invertible = true;
+            const QMatrix4x4 toSurface = surfEntry.transform.inverted(&invertible) * entry.transform;
+            if (!invertible)
+                return fail(QObject::tr("The surface's matrix cannot be inverted."));
+            VCGMesh patch;
+            QStringList info;
+            const QString error = buildLoopSurface(mesh, toSurface, surfEntry.mesh,
+                params.getEnum(QStringLiteral("gradient")) == QStringLiteral("across"),
+                params.getInt(QStringLiteral("samples")), params.getInt(QStringLiteral("resolution")),
+                doc.progressCallback(), patch, info);
+            if (!error.isEmpty())
+                return fail(error);
+            const int idx = doc.addMesh(patch, {}, Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL);
+            if (idx < 0)
+                return fail(QObject::tr("Failed to create the surface layer."));
+            doc.mesh(idx).transform = doc.mesh(si).transform;   // built in the surface's frame
+            MeshFilterRunResult r = success(true, info, { idx });
+            r.outputValues["faces"] = doc.mesh(idx).mesh.FN();
+            return r;
+        }
+
         if (filterId == QString::fromLatin1(kIdHandleTunnel)) {
             using Loops = vcg::tri::HandleTunnelLoops<VCGMesh>;
             Loops::Param par;
             par.maxIter = params.getInt(QStringLiteral("tighteningRounds"));
             par.patience = params.getInt(QStringLiteral("patience"));
+            par.localMinima = params.getBool(QStringLiteral("localMinima"));
+            par.samples = params.getInt(QStringLiteral("samples"));
+            par.persistence = params.getDouble(QStringLiteral("persistence"));
+            par.maxLoops = params.getInt(QStringLiteral("maxLoops"));
             const RandomSeed seed = params.getRandomSeed();
             par.seed = seed.value;
             Loops ht;
@@ -1871,7 +2196,9 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (ht.genus == 0)
                 return fail(QObject::tr("The surface has genus 0, so it has no handle or tunnel loops."));
 
-            QStringList info{ QObject::tr("Genus %1.").arg(ht.genus) };
+            QStringList info{ par.localMinima
+                ? QObject::tr("Genus %1; local minima from %2 starting points.").arg(ht.genus).arg(par.samples)
+                : QObject::tr("Genus %1.").arg(ht.genus) };
             QVector<int> created;
             // Handles first, then tunnels: the order of the descriptor's outputTag.
             for (const auto &[family, name] : { std::pair{ &ht.handles, QObject::tr("handle") },

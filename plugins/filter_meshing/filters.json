@@ -2,6 +2,22 @@
   "pluginId": "meshlab2.filter.meshing",
   "references": [
     {
+      "id": "macedo2011hrbf",
+      "type": "article-journal",
+      "title": "Hermite radial basis functions implicits",
+      "author": [
+        { "family": "Macedo", "given": "Ives" },
+        { "family": "Gois", "given": "João Paulo" },
+        { "family": "Velho", "given": "Luiz" }
+      ],
+      "container-title": "Computer Graphics Forum",
+      "volume": "30",
+      "issue": "1",
+      "page": "27-42",
+      "issued": { "date-parts": [ [ 2011 ] ] },
+      "DOI": "10.1111/j.1467-8659.2010.01785.x"
+    },
+    {
       "id": "sloan1993cdt",
       "type": "article-journal",
       "title": "A fast algorithm for generating constrained Delaunay triangulations",
@@ -2583,7 +2599,7 @@
       "name": "Create Handle and Tunnel Loops",
       "pythonName": "create_handle_and_tunnel_loops",
       "shortDescription": "Create two polyline layers with short handle loops and tunnel loops of a surface of nonzero genus.",
-      "longDescriptionMarkdown": "A closed surface of genus $g$ bounds an inside and an outside. A **handle loop** bounds a disk inside but not outside: it circles a handle, like a meridian going around the tube of a torus. A **tunnel loop** bounds a disk outside but not inside: it circles a tunnel, like the inner equator going around the hole of a torus. The filter finds $g$ short handle loops and $g$ short tunnel loops, closed paths along mesh edges, and puts each family in a new polyline layer. They are what to cut to remove a spurious handle, or to fill to close a spurious tunnel, as when repairing the topology of a scanned or reconstructed surface. Each edge carries the number of its loop as its scalar, so *Colorize Edges by Scalar* tells the loops apart; the log reports the genus and the length of every loop.\n\nThe loops come from the Reeb graph of a random height function, classified as handles or tunnels and then shortened. Shortening is a heuristic: the loops are short, not the shortest. It dominates the running time, which grows with the size and genus of the mesh, from seconds to minutes; zero tightening rounds keeps the loops as found, which is fast but gives long loops, and may split one basis element into several loops.\n\nThe surface must be connected, orientable and edge-manifold. Small holes are allowed and are closed internally; large ones make the classification depend on how they would be closed. A surface of genus zero has no such loops, and the filter says so instead of creating empty layers.",
+      "longDescriptionMarkdown": "A closed surface of genus $g$ bounds an inside and an outside. A **handle loop** bounds a disk inside but not outside: it circles a handle, like a meridian going around the tube of a torus. A **tunnel loop** bounds a disk outside but not inside: it circles a tunnel, like the inner equator going around the hole of a torus. The filter finds $g$ short handle loops and $g$ short tunnel loops, closed paths along mesh edges, and puts each family in a new polyline layer. They are what to cut to remove a spurious handle, or to fill to close a spurious tunnel, as when repairing the topology of a scanned or reconstructed surface. Each edge carries the number of its loop as its scalar, so *Colorize Edges by Scalar* tells the loops apart; the log reports the genus and the length of every loop.\n\nThe loops come from the Reeb graph of a random height function, classified as handles or tunnels and then shortened. Shortening is a heuristic: the loops are short, not the shortest. It dominates the running time, which grows with the size and genus of the mesh, from seconds to minutes; zero tightening rounds keeps the loops as found, which is fast but gives long loops, and may split one basis element into several loops.\n\nWith **Local minima** the filter does not stop at a basis: it reports every place where a loop is locally short, which is what to look at when deciding where to cut a complex object. Starting from points spread over the surface, it finds the shortest loops of each kind through each of them, tightens them, merges those that share most of their vertices, and keeps the local minima of length: the two necks of a long handle come out as two loops, where a basis keeps one, and loops around several handles at once are reported too. A tube of constant section gives one loop, not one per cross-section. The loops are sorted shortest first, and each edge carries the rank of its loop as its scalar.\n\nThe surface must be connected, orientable and edge-manifold. Small holes are allowed and are closed internally; large ones make the classification depend on how they would be closed. A surface of genus zero has no such loops, and the filter says so instead of creating empty layers.",
       "tags": ["topology", "handle", "tunnel", "genus", "repair", "reeb graph", "polyline"],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
@@ -2596,7 +2612,7 @@
         {
           "id": "tighteningRounds",
           "label": "Tightening rounds",
-          "help": "Maximum number of rounds spent shortening the loops. Zero keeps the loops found on the Reeb graph, which is fast but gives long loops.",
+          "help": "Maximum number of rounds spent shortening the loops. Zero keeps the loops found on the Reeb graph, which is fast but gives long loops. With Local minima, the most rounds spent shortening each loop.",
           "group": "main",
           "type": "int",
           "default": 100,
@@ -2606,12 +2622,54 @@
         {
           "id": "patience",
           "label": "Patience",
-          "help": "Stop shortening after this many consecutive rounds without a shorter set of loops.",
+          "help": "Stop shortening after this many consecutive rounds without a shorter set of loops; with Local minima, without a shorter loop.",
           "group": "advanced",
           "type": "int",
           "default": 10,
           "min": 1,
           "max": 1000
+        },
+        {
+          "id": "localMinima",
+          "label": "Local minima",
+          "help": "Instead of a basis (one short loop per handle and per tunnel), report every locally shortest loop: several necks of the same handle, and loops around several handles at once. Slower: it starts from many points over the surface.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "samples",
+          "label": "Starting points",
+          "help": "How many points, spread evenly over the surface, the search for local minima starts from. A neck farther than about the spacing between them from all of them can be missed; more points find more, and take longer.",
+          "group": "advanced",
+          "type": "int",
+          "default": 100,
+          "min": 1,
+          "max": 100000,
+          "enabledWhen": "localMinima"
+        },
+        {
+          "id": "persistence",
+          "label": "Minimum depth",
+          "help": "A loop is reported only if any loop of its kind connecting it to a shorter one is at least this fraction longer: how clearly a neck must stand out from the shape around it. Lower values report shallower necks, and noise along tubes of nearly constant section.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.05,
+          "min": 0.0,
+          "max": 10.0,
+          "decimals": 3,
+          "enabledWhen": "localMinima"
+        },
+        {
+          "id": "maxLoops",
+          "label": "Most loops per kind",
+          "help": "Keep at most this many handle loops and this many tunnel loops, the shortest. Zero keeps them all.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 100000,
+          "enabledWhen": "localMinima"
         },
         {
           "id": "randomSeed",
@@ -2622,6 +2680,67 @@
           "default": 0,
           "min": 0,
           "max": 2147483647
+        }
+      ]
+    },
+    {
+      "id": "create_surface_from_polyline_loop_hrbf",
+      "categories": ["Creation/Reconstruction"],
+      "name": "Create Surface from Polyline Loop (HRBF)",
+      "pythonName": "create_surface_from_polyline_loop_hrbf",
+      "shortDescription": "Create a smooth surface spanning a closed polyline that lies on a surface layer, from a Hermite RBF implicit fitted along it.",
+      "referenceIds": ["macedo2011hrbf"],
+      "longDescriptionMarkdown": "Fill a closed polyline lying on a surface with a smooth surface spanning it, as a new layer. The loop is sampled at equal arc length, each sample is given a gradient, and a Hermite radial basis function implicit (HRBF) is fitted to them: a function that is zero at every sample with the given gradient there. Its zero set, extracted with marching cubes, is a smooth surface through the loop; the loop is embedded in it and cut out, and the piece it encloses is the result.\n\nThe **gradient** decides what kind of surface that is:\n\n- *Across the loop* (the default) gives a surface that meets the original one at right angles, spanning the loop transversally: for a loop around a handle, the disc that closes the cut through it. The gradient is the cross product of the surface normal and the direction of the loop.\n- *Surface normal* gives a surface tangent to the original one along the loop, continuing it across: for the boundary of a hole, a patch that closes it smoothly.\n\nThe polyline must be a single closed loop lying on the surface layer (adapt it first with *Smooth Polyline on Surface* or *Embed Polyline in Surface*, or take one from *Create Handle and Tunnel Loops*); the surface layer gives the normals and is not changed. The patch is a separate layer: its boundary follows the loop but is not welded to the surface.\n\nThe fit costs grow with the cube of the number of samples, so a few hundred are usually enough. The function is sampled on a grid around the loop with cells about the sample spacing, and the surface is remeshed into triangles about a cell long. The filter refuses when the zero set through the loop does not close a piece off within that region, as can happen with the gradient that does not suit the loop.",
+      "tags": ["polyline", "curve", "loop", "fill", "implicit", "hrbf", "reconstruction"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireEdges": true
+      },
+      "outputTag": "loop surface",
+      "parameters": [
+        {
+          "id": "surface",
+          "label": "Surface",
+          "help": "The surface layer the loop lies on, which gives the normals. It is left unchanged.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {"requireVertices": true, "requireFaces": true},
+          "meshPrepare": ["FMark", "VNorm"]
+        },
+        {
+          "id": "gradient",
+          "label": "Gradient",
+          "help": "The gradient given to the implicit function along the loop, which decides how the new surface meets the old one.",
+          "group": "main",
+          "type": "enum",
+          "default": "across",
+          "enumOptions": [
+            {"id": "across", "label": "Across the loop", "help": "Perpendicular to the surface: a surface spanning the loop transversally, such as the disc closing a cut through a handle."},
+            {"id": "surface_normal", "label": "Surface normal", "help": "Tangent to the surface: a surface continuing it across the loop, such as a patch closing a hole."}
+          ]
+        },
+        {
+          "id": "samples",
+          "label": "Samples",
+          "help": "How many points along the loop the implicit function interpolates. More follow the loop more closely; the fit takes time growing with the cube of their number.",
+          "group": "main",
+          "type": "int",
+          "default": 200,
+          "min": 8,
+          "max": 2000
+        },
+        {
+          "id": "resolution",
+          "label": "Grid resolution",
+          "help": "Cells along the longest side of the grid the function is sampled on. Zero chooses cells about the sample spacing, between 24 and 128 along the longest side. The surface is then remeshed into triangles about a cell long.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 400
         }
       ]
     },

@@ -815,6 +815,15 @@ struct SceneRasterProjectedDrawItem {
     int  m_depthPickSequence = 0;       /* monotonically incremented on each new pick */
     QPoint m_depthPickPos;
     std::unique_ptr<QRhiReadbackResult> m_depthPickReadbackResult;
+    // A pick whose readback has not reported back blocks every later pick, so one that never
+    // does would leave the view without double-click recentering for good. It is given up
+    // on after kDepthPickTimeoutMs; QRhi still holds the abandoned result, so that stays
+    // alive here until it reports, or until the QRhi goes.
+    static constexpr qint64 kDepthPickTimeoutMs = 1000;
+    QElapsedTimer m_depthPickSubmitted;
+    quint64 m_depthPickToken = 0;       /* names the readback in flight; changes when one is abandoned */
+    std::vector<std::unique_ptr<QRhiReadbackResult>> m_abandonedDepthPickResults;
+    bool m_depthPickResourcesReported = false;
     std::unique_ptr<QRhiTexture> m_currentMaskTexture;
     std::unique_ptr<QRhiRenderBuffer> m_currentMaskDepth;
     std::unique_ptr<QRhiTextureRenderTarget> m_currentMaskRt;

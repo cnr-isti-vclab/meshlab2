@@ -305,7 +305,11 @@ void RenderWidget::ensureDepthPickResources(const QSize &pixelSize)
     if (!m_rhi || pixelSize.isEmpty())
         return;
 
-    if (m_depthPickRt && m_depthPickSize == pixelSize)
+    // Complete means the target and everything drawn into it: a target that was made but
+    // whose bindings or pipelines were not would otherwise be kept at this size for good,
+    // with every later pick finding nothing to draw with.
+    if (m_depthPickRt && m_depthPickSize == pixelSize && m_depthPickSrb
+        && (m_depthPickFillPipeline || m_depthPickPointsPipeline))
         return;
 
     m_depthPickFillPipeline.reset();
@@ -597,6 +601,7 @@ void RenderWidget::ensureRenderResources()
         m_depthPickPending = false;
         m_depthPickInFlight = false;
         m_depthPickReadbackResult.reset();
+        m_abandonedDepthPickResults.clear();
         m_currentMaskBaseTexture.reset();
         m_currentMaskBaseRt.reset();
         m_currentMaskBaseRp.reset();

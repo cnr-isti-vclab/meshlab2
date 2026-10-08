@@ -1,8 +1,11 @@
 #include "renderwidget.h"
+#include <QTimer>
 #include "document.h"
 #include "interactivetool.h"
 #include "renderwidget_internal.h"
 #include <QPointer>
+#include <algorithm>
+#include <vector>
 
 using namespace RenderWidgetInternal;
 
@@ -114,14 +117,44 @@ void RenderWidget::executePendingDepthPick(
     const QSize &pixelSize,
     const ViewTile &tile)
 {
-    if (!m_depthPickPending || m_depthPickInFlight || !m_rhi || !cb || pixelSize.isEmpty())
+    if (!m_depthPickPending || !m_rhi || !cb || pixelSize.isEmpty())
         return;
 
+    if (m_depthPickInFlight) {
+        if (!m_depthPickSubmitted.hasExpired(kDepthPickTimeoutMs)) {
+            // The pick in flight normally reports back well within this. If it does not, this
+            // frame may be the last one anyone asks for, so ask for another once it is overdue.
+            QTimer::singleShot(kDepthPickTimeoutMs, this, qOverload<>(&QWidget::update));
+            return;
+        }
+        // Overdue: nothing is coming back for it, and while it counts as in flight no pick
+        // can run in this view again. Let it go, and keep its result alive for QRhi.
+        m_doc->writeLog(
+            tr("A depth pick did not report back within %1 ms and was abandoned, so double-click "
+               "recentering works again.").arg(kDepthPickTimeoutMs),
+            Document::LogSource::Application,
+            Document::LogLevel::Warning);
+        ++m_depthPickToken;
+        if (m_depthPickReadbackResult)
+            m_abandonedDepthPickResults.push_back(std::move(m_depthPickReadbackResult));
+        m_depthPickInFlight = false;
+    }
+
     ensureDepthPickResources(pixelSize);
-    if (!m_depthPickRt || !m_depthPickTexture || !m_depthPickSrb)
+    if (!m_depthPickRt || !m_depthPickTexture || !m_depthPickSrb
+        || (!m_depthPickFillPipeline && !m_depthPickPointsPipeline)) {
+        // Said once per failure, not once per frame it keeps failing.
+        if (!m_depthPickResourcesReported) {
+            m_depthPickResourcesReported = true;
+            m_doc->writeLog(
+                tr("The depth-pick resources could not be built, so double-click recentering "
+                   "and picking tools cannot work in this view."),
+                Document::LogSource::Application,
+                Document::LogLevel::Warning);
+        }
         return;
-    if (!m_depthPickFillPipeline && !m_depthPickPointsPipeline)
-        return;
+    }
+    m_depthPickResourcesReported = false;
 
     const float sx = float(pixelSize.width()) / float(qMax(1, width()));
     const float sy = float(pixelSize.height()) / float(qMax(1, height()));
@@ -228,6 +261,7 @@ void RenderWidget::executePendingDepthPick(
 
     QPointer<RenderWidget> self(this);
     const int pickSequence = m_depthPickSequence; /* capture at submit time */
+    const quint64 pickToken = m_depthPickToken;
     const PickPurpose purpose = m_depthPickPurpose;
     // The readback pixel is addressed in the whole pick target, but the geometry was
     // projected through the tile's viewport, so it is the tile that normalized device
@@ -235,20 +269,28 @@ void RenderWidget::executePendingDepthPick(
     // somewhere else entirely once a tile is smaller than the view.
     const QRect pickViewport = tile.rect;
     m_depthPickReadbackResult = std::make_unique<QRhiReadbackResult>();
-    m_depthPickReadbackResult->completed =
-        [self, pickSequence, purpose, invMvp, px, pyScreen, pickViewport, yUpInNdc, clipDepthZeroToOne]() {
+    // Named by address, not looked up through the member: by the time this reports, the
+    // result may have been abandoned and replaced by a newer pick's.
+    QRhiReadbackResult *const readback = m_depthPickReadbackResult.get();
+    readback->completed =
+        [self, pickSequence, pickToken, purpose, readback, invMvp, px, pyScreen, pickViewport, yUpInNdc, clipDepthZeroToOne]() {
         if (!self)
             return;
-        const QByteArray data =
-            self->m_depthPickReadbackResult ? self->m_depthPickReadbackResult->data : QByteArray();
-        const QRhiTexture::Format format = self->m_depthPickReadbackResult
-            ? self->m_depthPickReadbackResult->format
-            : QRhiTexture::UnknownFormat;
+        const QByteArray data = readback->data;
+        const QRhiTexture::Format format = readback->format;
         QMetaObject::invokeMethod(
             self,
-            [self, pickSequence, purpose, data, format, invMvp, px, pyScreen, pickViewport, yUpInNdc, clipDepthZeroToOne]() {
+            [self, pickSequence, pickToken, purpose, readback, data, format, invMvp, px, pyScreen, pickViewport, yUpInNdc, clipDepthZeroToOne]() {
             if (!self)
                 return;
+            /* A pick that was given up on reporting after all: only its result is left to free. */
+            if (pickToken != self->m_depthPickToken) {
+                auto &lost = self->m_abandonedDepthPickResults;
+                lost.erase(std::remove_if(lost.begin(), lost.end(),
+                                          [readback](const auto &r) { return r.get() == readback; }),
+                           lost.end());
+                return;
+            }
             /* Stale-callback guard: a newer double-click incremented the sequence. */
             if (pickSequence != self->m_depthPickSequence) {
                 self->m_depthPickInFlight = false;
@@ -300,6 +342,11 @@ void RenderWidget::executePendingDepthPick(
                     self->startCenterAnimation(worldPos);
                     emit self->trackballCenterPicked(worldPos);
                 }
+                self->m_doc->writeLog(
+                    haveWorldPos ? tr("Double-click: recentering on the surface point under the cursor.")
+                                 : tr("Double-click: no surface under the cursor, nothing to recenter on."),
+                    Document::LogSource::Application,
+                    Document::LogLevel::Debug);
             } else if (self->m_activeTool) {
                 SurfacePick result;
                 result.hit = hit && haveWorldPos;
@@ -324,6 +371,7 @@ void RenderWidget::executePendingDepthPick(
 
     m_depthPickPending = false;
     m_depthPickInFlight = true;
+    m_depthPickSubmitted.start();
 }
 
 void RenderWidget::renderCurrentMeshMask(

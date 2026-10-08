@@ -545,6 +545,8 @@ private slots:
     void handleAndTunnelLoopsEmbeddedThenCutGiveADisk();
     void embeddingStraightCurvesWithAllVerticesLeavesNoInvertedFace();
     void planeCapsAreRefinedToTheMinimumAngle();
+    void handleLoopsLocalMinimaFindEveryNeck();
+    void surfaceFromPolylineLoopSpansIt();
     void isocontourEdgesCarryTheirContourValue();
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToComponentsAndUvIslands();
@@ -9256,6 +9258,156 @@ void FilterTests::planeCapsAreRefinedToTheMinimumAngle()
     QVERIFY2(worst >= 20 - 1e-3, qPrintable(QString::number(worst)));
     for (const VCGFace &f : doc.mesh(r.newMeshIndices[1]).mesh.face)   // all facing the axis
         QVERIFY(vcg::TriangleNormal(f) * normal > 0);
+}
+
+// A torus whose tube is pinched at two places has one handle class but two necks. A basis
+// keeps the thinner; Local minima reports both, and not the cross-sections in between. An
+// unpinched torus, all of whose meridians are equally short, gives one loop.
+void FilterTests::handleLoopsLocalMinimaFindEveryNeck()
+{
+    const auto run = [](bool pinched, bool localMinima, std::vector<double> &handleLengths) {
+        VCGMesh torus;
+        vcg::tri::Torus(torus, 3.0f, 1.0f, 96, 32);
+        vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(torus);
+        vcg::tri::Allocator<VCGMesh>::CompactEveryVector(torus);
+        if (pinched)   // tube radius 0.5 at angle 0, 0.65 at angle pi, 1 in between
+            for (VCGVertex &v : torus.vert) {
+                const vcg::Point3f p = v.cP();
+                const float th = std::atan2(p[1], p[0]);
+                const vcg::Point3f c(3 * std::cos(th), 3 * std::sin(th), 0);
+                const float k = std::abs(th) < float(M_PI) / 2 ? 1 - 0.5f * std::pow(std::cos(th), 8.0f)
+                                                               : 1 - 0.35f * std::pow(std::cos(th), 8.0f);
+                v.P() = c + (p - c) * k;
+            }
+        vcg::tri::UpdateBounding<VCGMesh>::Box(torus);
+        Document doc;
+        doc.setCurrentMeshIndex(doc.addMesh(torus, QStringLiteral("torus")));
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("localMinima"), localMinima);
+        p.insert(QStringLiteral("randomSeed"), 1);
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("create_handle_and_tunnel_loops")), p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QCOMPARE(r.newMeshIndices.size(), 2);
+        handleLengths.clear();
+        for (const VCGEdge &e : doc.mesh(r.newMeshIndices[0]).mesh.edge) {   // edge scalar: the loop's rank
+            const size_t loop = size_t(e.cQ()) - 1;
+            if (handleLengths.size() <= loop) handleLengths.resize(loop + 1, 0.0);
+            handleLengths[loop] += vcg::edge::Length(e);
+        }
+    };
+    std::vector<double> lengths;
+    run(true, false, lengths);
+    QCOMPARE(lengths.size(), size_t(1));                      // a basis: near the thinner neck
+    QVERIFY2(lengths[0] < 0.5 * (M_PI + 1.3 * M_PI), qPrintable(QString::number(lengths[0])));
+    run(true, true, lengths);
+    QCOMPARE(lengths.size(), size_t(2));                      // local minima: both necks, shortest first
+    QVERIFY2(std::abs(lengths[0] - M_PI) < 0.2 && std::abs(lengths[1] - 1.3 * M_PI) < 0.2,
+             qPrintable(QStringLiteral("%1 %2").arg(lengths[0]).arg(lengths[1])));
+    run(false, true, lengths);
+    QCOMPARE(lengths.size(), size_t(1));                      // one per plateau, not per meridian
+}
+
+// Create Surface from Polyline Loop (HRBF). Across the loop, a circle around a cylinder is
+// spanned by a flat disc; along the surface normal, the rim of a hole cut in a sphere is
+// closed by a patch close to the sphere; and a handle loop of a torus by a disc across its tube.
+void FilterTests::surfaceFromPolylineLoopSpansIt()
+{
+    const auto patchOf = [](const VCGMesh &surface, const VCGMesh &loop, const QString &gradient, VCGMesh &patch, QString &message) {
+        Document doc;
+        const int s = doc.addMesh(surface, QStringLiteral("surface"));
+        const int l = doc.addMesh(loop, QStringLiteral("loop"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+        doc.setCurrentMeshIndex(l);
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("surface"), s);
+        p.insert(QStringLiteral("gradient"), gradient);
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("create_surface_from_polyline_loop_hrbf")), p);
+        message = r.success ? r.infoMessages.join(QStringLiteral(" ")) : r.errorMessage;
+        if (r.success) vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(patch, doc.mesh(r.newMeshIndices.front()).mesh);
+        return r.success;
+    };
+    const auto closedLoop = [](const std::vector<vcg::Point3f> &pts, VCGMesh &m) {
+        makePolyline(m, pts);
+        vcg::tri::Allocator<VCGMesh>::AddEdges(m, 1);
+        m.edge.back().V(0) = &m.vert.back();
+        m.edge.back().V(1) = &m.vert.front();
+    };
+    const auto area = [](const VCGMesh &m) { double a = 0; for (const VCGFace &f : m.face) if (!f.IsD()) a += vcg::DoubleArea(f) / 2; return a; };
+    QString msg;
+
+    // 1. Across: a circle around a cylinder of radius 1.
+    VCGMesh cyl;
+    vcg::tri::OrientedCylinder(cyl, vcg::Point3f(0, -2, 0), vcg::Point3f(0, 2, 0), 1.0f, false, 64, 32);
+    vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(cyl);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(cyl);
+    std::vector<vcg::Point3f> circle;
+    for (int i = 0; i < 64; ++i) circle.push_back(vcg::Point3f(std::cos(2 * M_PI * i / 64), 0.3f, std::sin(2 * M_PI * i / 64)));
+    VCGMesh circleLoop, disc;
+    closedLoop(circle, circleLoop);
+    QVERIFY2(patchOf(cyl, circleLoop, QStringLiteral("across"), disc, msg), qPrintable(msg));
+    float flat = 0;
+    for (const VCGVertex &v : disc.vert) flat = std::max(flat, std::abs(v.cP()[1] - 0.3f));
+    QVERIFY2(flat < 0.02f, qPrintable(QString::number(flat)));
+    QVERIFY2(std::abs(area(disc) - M_PI) < 0.05 * M_PI, qPrintable(QStringLiteral("area %1; %2").arg(area(disc)).arg(msg)));
+    verifyTopologicalDisk(disc, "disc in a cylinder");
+
+    // 2. Surface normal: the rim of a hole cut in a unit sphere above z = 0.6.
+    VCGMesh sphere;
+    vcg::tri::Sphere(sphere, 4);
+    for (VCGFace &f : sphere.face) if (vcg::Barycenter(f)[2] > 0.6f) vcg::tri::Allocator<VCGMesh>::DeleteFace(sphere, f);
+    vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(sphere);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(sphere);
+    VCGMesh rim;
+    {
+        sphere.face.EnableFFAdjacency();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(sphere);
+        std::map<VCGVertex *, VCGVertex *> next;
+        for (VCGFace &f : sphere.face)
+            for (int z = 0; z < 3; ++z) if (vcg::face::IsBorder(f, z)) next[f.V1(z)] = f.V0(z);
+        std::vector<vcg::Point3f> pts;
+        VCGVertex *v = next.begin()->first;
+        do { pts.push_back(v->cP()); v = next[v]; } while (v != next.begin()->first && pts.size() <= next.size());
+        closedLoop(pts, rim);
+        sphere.face.DisableFFAdjacency();
+    }
+    VCGMesh cap;
+    QVERIFY2(patchOf(sphere, rim, QStringLiteral("surface_normal"), cap, msg), qPrintable(msg));
+    float offSphere = 0;
+    for (const VCGVertex &v : cap.vert) offSphere = std::max(offSphere, std::abs(v.cP().Norm() - 1));
+    // Many smooth surfaces fit a circle with the sphere's normals along it; the HRBF's is
+    // close to the sphere, not the sphere itself.
+    QVERIFY2(offSphere < 0.08f, qPrintable(QStringLiteral("off sphere %1; %2").arg(offSphere).arg(msg)));
+    const double capArea = 2 * M_PI * (1 - 0.6);
+    QVERIFY2(std::abs(area(cap) - capArea) < 0.1 * capArea, qPrintable(QStringLiteral("area %1 vs %2; %3").arg(area(cap)).arg(capArea).arg(msg)));
+    verifyTopologicalDisk(cap, "cap of a sphere");
+
+    // 3. The handle loop of a torus, across: a disc across the tube of radius 1.
+    VCGMesh torus;
+    vcg::tri::Torus(torus, 3.0f, 1.0f, 48, 24);
+    vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(torus);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(torus);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(torus);
+    for (int seedValue : { 1, 2, 8 }) {   // 2: a loop in a plane of symmetry of the grid
+    VCGMesh handle;
+    {
+        Document doc;
+        doc.setCurrentMeshIndex(doc.addMesh(torus, QStringLiteral("torus")));
+        MeshFilterParameterValues seed;
+        seed.insert(QStringLiteral("randomSeed"), seedValue);
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("create_handle_and_tunnel_loops")), seed);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(handle, doc.mesh(r.newMeshIndices[0]).mesh);
+    }
+    VCGMesh across;
+    QVERIFY2(patchOf(torus, handle, QStringLiteral("across"), across, msg), qPrintable(QStringLiteral("seed %1: %2").arg(seedValue).arg(msg)));
+    QVERIFY2(std::abs(area(across) - M_PI) < 0.1 * M_PI, qPrintable(QStringLiteral("area %1; %2").arg(area(across)).arg(msg)));
+    verifyTopologicalDisk(across, "disc across a torus");
+    }
+
+    // An open polyline is refused.
+    VCGMesh open;
+    makePolyline(open, circle);
+    VCGMesh none;
+    QVERIFY(!patchOf(cyl, open, QStringLiteral("across"), none, msg));
 }
 
 void FilterTests::cutGraphIsReproducibleAndRefusesWhatItCannotCut()
