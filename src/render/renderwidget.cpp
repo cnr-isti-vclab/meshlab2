@@ -41,6 +41,7 @@
 #include <QVector3D>
 #include <QVector4D>
 #include <algorithm>
+#include <exception>
 #include <cmath>
 #include <limits>
 #include <utility>
@@ -2600,15 +2601,19 @@ RenderWidget::DecoratorCounts RenderWidget::computeDecoratorCounts(int meshIndex
         return n;
     };
 
-    {
+    // This feeds an overlay, so a library refusing a mesh (vcglib's Require* and MeshAssert
+    // checks throw) must cost it some numbers, not the application: a throw from here would
+    // cross the event loop and abort.
+    try {
         VCGMeshFFAdjScope ffScope(m);
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(m);
         const int geometricBorder = countBorderEdges(); // each border edge on 1 face
         c.boundaryEdges = geometricBorder;
-        c.boundaryLoops = vcg::tri::Clean<VCGMesh>::CountHoles(m);
         c.nonManifoldEdges = vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(m, false);
         c.nonManifoldVertices = vcg::tri::Clean<VCGMesh>::CountNonManifoldVertexFF(m);
+        // -1 when a non-manifold edge touches the boundary and the loops are not well defined.
+        c.boundaryLoops = vcg::tri::Clean<VCGMesh>::CountHoles(m);
 
         if (c.hasTexCoords) {
             // Re-derive adjacency from texture coords: seam edges become borders
@@ -2627,6 +2632,11 @@ RenderWidget::DecoratorCounts RenderWidget::computeDecoratorCounts(int meshIndex
             std::vector<std::pair<int, VCGFace *>> components;
             c.textureIslands = vcg::tri::Clean<VCGMesh>::ConnectedComponents(m, components);
         }
+    } catch (const std::exception &e) {
+        m_doc->writeLog(
+            tr("Topology counts for '%1' are incomplete: %2").arg(entry.name, QString::fromUtf8(e.what())),
+            Document::LogSource::Application,
+            Document::LogLevel::Warning);
     }
 
     for (size_t i = 0; i < m.vert.size(); ++i) {
@@ -2686,7 +2696,9 @@ void RenderWidget::updateDecoratorInfoOverlay()
 
     QStringList lines;
     if (wantBoundary)
-        lines << tr("Boundary: %1 edges, %2 loops").arg(c.boundaryEdges).arg(c.boundaryLoops);
+        lines << (c.boundaryLoops >= 0
+                      ? tr("Boundary: %1 edges, %2 loops").arg(c.boundaryEdges).arg(c.boundaryLoops)
+                      : tr("Boundary: %1 edges, loops undefined (non-manifold boundary)").arg(c.boundaryEdges));
     if (wantSeams && c.hasTexCoords)
         lines << tr("Texture: %1 seam edges, %2 islands").arg(c.seamEdges).arg(c.textureIslands);
     if (wantNmEdges)

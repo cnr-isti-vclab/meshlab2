@@ -551,6 +551,7 @@ private slots:
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToComponentsAndUvIslands();
     void libraryExceptionFailsTheRunInsteadOfAborting();
+    void countHolesIsDefinedWhereverTheBoundaryIsClean();
     void islandMergeCanTakeItsIslandsFromTheSelection();
     void islandMergeSurvivesATextureItCannotDecode();
     void hardcodedFilterKeysInTheUiStillResolve();
@@ -9534,6 +9535,47 @@ void FilterTests::stateJsonAcceptsBothNameSpellings()
     }
     // And the check is still a check.
     QVERIFY(runWithKind(QStringLiteral("Something.Else")).contains(QStringLiteral("invalid kind")));
+}
+
+// Clean::CountHoles walks the boundary, which only fails to be defined when a non-manifold edge
+// (more than two faces) touches it. A non-manifold edge elsewhere must not stop the count, and
+// a touching one must say so with -1 rather than loop or throw.
+void FilterTests::countHolesIsDefinedWhereverTheBoundaryIsClean()
+{
+    const auto holes = [](const std::vector<std::array<float, 3>> &points,
+                          const std::vector<std::array<int, 3>> &triangles) {
+        VCGMesh mesh;
+        vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, int(points.size()));
+        for (std::size_t i = 0; i < points.size(); ++i)
+            mesh.vert[i].P() = VCGMesh::CoordType(points[i][0], points[i][1], points[i][2]);
+        vcg::tri::Allocator<VCGMesh>::AddFaces(mesh, int(triangles.size()));
+        for (std::size_t f = 0; f < triangles.size(); ++f)
+            for (int c = 0; c < 3; ++c)
+                mesh.face[f].V(c) = &mesh.vert[std::size_t(triangles[f][std::size_t(c)])];
+        VCGMeshFFAdjScope adjacency(mesh);
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+        return vcg::tri::Clean<VCGMesh>::CountHoles(mesh);
+    };
+
+    // Two separate triangles: two loops, nothing non-manifold.
+    QCOMPARE(holes({{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {5, 0, 0}, {6, 0, 0}, {5, 1, 0}},
+                   {{0, 1, 2}, {3, 4, 5}}),
+             2);
+
+    // An open quad (one loop), and apart from it two tetrahedra sharing one edge: that edge has
+    // four faces, but nothing of the boundary is on it.
+    QCOMPARE(holes({{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0},
+                    {10, 0, 0}, {11, 0, 0}, {10, 1, 0}, {10, 0, 1}, {11, 1, 1}, {10, -1, 1}},
+                   {{0, 1, 2}, {0, 2, 3},
+                    {4, 5, 6}, {4, 7, 5}, {5, 7, 6}, {4, 6, 7},
+                    {4, 5, 8}, {4, 9, 5}, {5, 9, 8}, {4, 8, 9}}),
+             1);
+
+    // The same quad with a flap on its diagonal: the diagonal now has three faces and its ends
+    // are on the boundary, so the loops are undefined.
+    QCOMPARE(holes({{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}, {0.5f, 0.5f, 1}},
+                   {{0, 1, 2}, {0, 2, 3}, {0, 2, 4}}),
+             -1);
 }
 
 namespace {

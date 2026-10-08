@@ -941,7 +941,7 @@ struct SceneRasterProjectedDrawItem {
         std::uint64_t geometryRevision = ~0ull;
         bool hasTexCoords = false;
         int boundaryEdges = 0;
-        int boundaryLoops = 0;
+        int boundaryLoops = 0;   // -1 when undefined: non-manifold edges touch the boundary
         int seamEdges = 0;
         int textureIslands = 0;
         int nonManifoldEdges = 0;
