@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 371 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 372 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -2033,6 +2033,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_handle_and_tunnel_loops</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_handle_and_tunnel_loops" title="Link to this definition">¶</a></dt>
 <dd><p>A closed surface of genus <span class="math notranslate nohighlight">\(g\)</span> bounds an inside and an outside. A <strong>handle loop</strong> bounds a disk inside but not outside: it circles a handle, like a meridian going around the tube of a torus. A <strong>tunnel loop</strong> bounds a disk outside but not inside: it circles a tunnel, like the inner equator going around the hole of a torus. The filter finds <span class="math notranslate nohighlight">\(g\)</span> short handle loops and <span class="math notranslate nohighlight">\(g\)</span> short tunnel loops, closed paths along mesh edges, and puts each family in a new polyline layer. They are what to cut to remove a spurious handle, or to fill to close a spurious tunnel, as when repairing the topology of a scanned or reconstructed surface. Each edge carries the number of its loop as its scalar, so <em>Colorize Edges by Scalar</em> tells the loops apart; the log reports the genus and the length of every loop.</p>
 <p>The loops come from the Reeb graph of a random height function, classified as handles or tunnels and then shortened. Shortening is a heuristic: the loops are short, not the shortest. It dominates the running time, which grows with the size and genus of the mesh, from seconds to minutes; zero tightening rounds keeps the loops as found, which is fast but gives long loops, and may split one basis element into several loops.</p>
+<p>With <strong>Local minima</strong> the filter does not stop at a basis: it reports every place where a loop is locally short, which is what to look at when deciding where to cut a complex object. Starting from points spread over the surface, it finds the shortest loops of each kind through each of them, tightens them, merges those that share most of their vertices, and keeps the local minima of length: the two necks of a long handle come out as two loops, where a basis keeps one, and loops around several handles at once are reported too. A tube of constant section gives one loop, not one per cross-section. The loops are sorted shortest first, and each edge carries the rank of its loop as its scalar.</p>
 <p>The surface must be connected, orientable and edge-manifold. Small holes are allowed and are closed internally; large ones make the classification depend on how they would be closed. A surface of genus zero has no such loops, and the filter says so instead of creating empty layers.</p>
 <p><strong>References:</strong></p>
 <ul class="simple">
@@ -2041,8 +2042,12 @@ The saturation is done in a conservative way (quality is always decreased and ne
 </ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>tighteningRounds</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">100</span></code>) — Maximum number of rounds spent shortening the loops. Zero keeps the loops found on the Reeb graph, which is fast but gives long loops.</p></li>
-<li><p><strong>patience</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Stop shortening after this many consecutive rounds without a shorter set of loops.</p></li>
+<li><p><strong>tighteningRounds</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">100</span></code>) — Maximum number of rounds spent shortening the loops. Zero keeps the loops found on the Reeb graph, which is fast but gives long loops. With Local minima, the most rounds spent shortening each loop.</p></li>
+<li><p><strong>patience</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Stop shortening after this many consecutive rounds without a shorter set of loops; with Local minima, without a shorter loop.</p></li>
+<li><p><strong>localMinima</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Instead of a basis (one short loop per handle and per tunnel), report every locally shortest loop: several necks of the same handle, and loops around several handles at once. Slower: it starts from many points over the surface.</p></li>
+<li><p><strong>samples</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">100</span></code>) — How many points, spread evenly over the surface, the search for local minima starts from. A neck farther than about the spacing between them from all of them can be missed; more points find more, and take longer.</p></li>
+<li><p><strong>persistence</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.05</span></code>) — A loop is reported only if any loop of its kind connecting it to a shorter one is at least this fraction longer: how clearly a neck must stand out from the shape around it. Lower values report shallower necks, and noise along tubes of nearly constant section.</p></li>
+<li><p><strong>maxLoops</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Keep at most this many handle loops and this many tunnel loops, the shortest. Zero keeps them all.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seeds the random height direction and the projection directions. Zero draws a fresh seed on every run, so repeated applications may find different loops; any other value makes the run exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -2637,6 +2642,37 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <p>Reference:
 C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algorithm for Convex Hulls</strong>, ACM Transactions on Mathematical Software 22(4), 1996.</p>
 <p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="create-surface-from-polyline-loop-hrbf">
+<span id="filter-create-surface-from-polyline-loop-hrbf"></span><h2>Create Surface from Polyline Loop (HRBF)<a class="headerlink" href="#create-surface-from-polyline-loop-hrbf" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.meshing</p>
+<p>Create a smooth surface spanning a closed polyline that lies on a surface layer, from a Hermite RBF implicit fitted along it.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.create_surface_from_polyline_loop_hrbf">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_surface_from_polyline_loop_hrbf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_surface_from_polyline_loop_hrbf" title="Link to this definition">¶</a></dt>
+<dd><p>Fill a closed polyline lying on a surface with a smooth surface spanning it, as a new layer. The loop is sampled at equal arc length, each sample is given a gradient, and a Hermite radial basis function implicit (HRBF) is fitted to them: a function that is zero at every sample with the given gradient there. Its zero set, extracted with marching cubes, is a smooth surface through the loop; the loop is embedded in it and cut out, and the piece it encloses is the result.</p>
+<p>The <strong>gradient</strong> decides what kind of surface that is:</p>
+<ul class="simple">
+<li><p><em>Across the loop</em> (the default) gives a surface that meets the original one at right angles, spanning the loop transversally: for a loop around a handle, the disc that closes the cut through it. The gradient is the cross product of the surface normal and the direction of the loop.</p></li>
+<li><p><em>Surface normal</em> gives a surface tangent to the original one along the loop, continuing it across: for the boundary of a hole, a patch that closes it smoothly.</p></li>
+</ul>
+<p>The polyline must be a single closed loop lying on the surface layer (adapt it first with <em>Smooth Polyline on Surface</em> or <em>Embed Polyline in Surface</em>, or take one from <em>Create Handle and Tunnel Loops</em>); the surface layer gives the normals and is not changed. The patch is a separate layer: its boundary follows the loop but is not welded to the surface.</p>
+<p>The fit costs grow with the cube of the number of samples, so a few hundred are usually enough. The function is sampled on a grid around the loop with cells about the sample spacing, and the surface is remeshed into triangles about a cell long. The filter refuses when the zero set through the loop does not close a piece off within that region, as can happen with the gradient that does not suit the loop.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Ives Macedo, João Paulo Gois, Luiz Velho. <strong>Hermite radial basis functions implicits</strong>. <em>Computer Graphics Forum</em> (2011). <a class="reference external" href="https://doi.org/10.1111/j.1467-8659.2010.01785.x">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>surface</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The surface layer the loop lies on, which gives the normals. It is left unchanged.</p></li>
+<li><p><strong>gradient</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">across</span></code>) — The gradient given to the implicit function along the loop, which decides how the new surface meets the old one.</p></li>
+<li><p><strong>samples</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">200</span></code>) — How many points along the loop the implicit function interpolates. More follow the loop more closely; the fit takes time growing with the cube of their number.</p></li>
+<li><p><strong>resolution</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Cells along the longest side of the grid the function is sampled on. Zero chooses cells about the sample spacing, between 24 and 128 along the longest side. The surface is then remeshed into triangles about a cell long.</p></li>
+</ul>
 </dd></dl>
 
 <hr class="docutils" />
@@ -8816,6 +8852,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#create-convex-hull">Create Convex Hull</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.create_convex_hull"><code class="docutils literal notranslate"><span class="pre">ms.create_convex_hull()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-surface-from-polyline-loop-hrbf">Create Surface from Polyline Loop (HRBF)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.create_surface_from_polyline_loop_hrbf"><code class="docutils literal notranslate"><span class="pre">ms.create_surface_from_polyline_loop_hrbf()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#reconstruct-surface-by-advancing-front">Reconstruct Surface by Advancing Front</a><ul>

@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 371 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 372 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -2252,6 +2252,8 @@ A closed surface of genus $g$ bounds an inside and an outside. A **handle loop**
 
 The loops come from the Reeb graph of a random height function, classified as handles or tunnels and then shortened. Shortening is a heuristic: the loops are short, not the shortest. It dominates the running time, which grows with the size and genus of the mesh, from seconds to minutes; zero tightening rounds keeps the loops as found, which is fast but gives long loops, and may split one basis element into several loops.
 
+With **Local minima** the filter does not stop at a basis: it reports every place where a loop is locally short, which is what to look at when deciding where to cut a complex object. Starting from points spread over the surface, it finds the shortest loops of each kind through each of them, tightens them, merges those that share most of their vertices, and keeps the local minima of length: the two necks of a long handle come out as two loops, where a basis keeps one, and loops around several handles at once are reported too. A tube of constant section gives one loop, not one per cross-section. The loops are sorted shortest first, and each edge carries the rank of its loop as its scalar.
+
 The surface must be connected, orientable and edge-manifold. Small holes are allowed and are closed internally; large ones make the classification depend on how they would be closed. A surface of genus zero has no such loops, and the filter says so instead of creating empty layers.
 
 **References:**
@@ -2261,8 +2263,12 @@ The surface must be connected, orientable and edge-manifold. Small holes are all
 
 **Parameters:**
 
-- **tighteningRounds** (*int*, default: `100`) — Maximum number of rounds spent shortening the loops. Zero keeps the loops found on the Reeb graph, which is fast but gives long loops.
-- **patience** (*int*, default: `10`) — Stop shortening after this many consecutive rounds without a shorter set of loops.
+- **tighteningRounds** (*int*, default: `100`) — Maximum number of rounds spent shortening the loops. Zero keeps the loops found on the Reeb graph, which is fast but gives long loops. With Local minima, the most rounds spent shortening each loop.
+- **patience** (*int*, default: `10`) — Stop shortening after this many consecutive rounds without a shorter set of loops; with Local minima, without a shorter loop.
+- **localMinima** (*bool*, default: `False`) — Instead of a basis (one short loop per handle and per tunnel), report every locally shortest loop: several necks of the same handle, and loops around several handles at once. Slower: it starts from many points over the surface.
+- **samples** (*int*, default: `100`) — How many points, spread evenly over the surface, the search for local minima starts from. A neck farther than about the spacing between them from all of them can be missed; more points find more, and take longer.
+- **persistence** (*double*, default: `0.05`) — A loop is reported only if any loop of its kind connecting it to a shorter one is at least this fraction longer: how clearly a neck must stand out from the shape around it. Lower values report shallower necks, and noise along tubes of nearly constant section.
+- **maxLoops** (*int*, default: `0`) — Keep at most this many handle loops and this many tunnel loops, the shortest. Zero keeps them all.
 - **randomSeed** (*int*, default: `0`) — Seeds the random height direction and the projection directions. Zero draws a fresh seed on every run, so repeated applications may find different loops; any other value makes the run exactly reproducible.
 ```
 
@@ -3054,6 +3060,44 @@ Reference:
 C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, **The Quickhull Algorithm for Convex Hulls**, ACM Transactions on Mathematical Software 22(4), 1996.
 
 This filter has no parameters.
+```
+
+---
+
+(filter-create-surface-from-polyline-loop-hrbf)=
+
+## Create Surface from Polyline Loop (HRBF)
+
+**Categories:** `Creation/Reconstruction`
+
+**Plugin:** meshlab2.filter.meshing
+
+Create a smooth surface spanning a closed polyline that lies on a surface layer, from a Hermite RBF implicit fitted along it.
+
+```{py:function} ms.create_surface_from_polyline_loop_hrbf(**params)
+:module: _meshlab
+
+Fill a closed polyline lying on a surface with a smooth surface spanning it, as a new layer. The loop is sampled at equal arc length, each sample is given a gradient, and a Hermite radial basis function implicit (HRBF) is fitted to them: a function that is zero at every sample with the given gradient there. Its zero set, extracted with marching cubes, is a smooth surface through the loop; the loop is embedded in it and cut out, and the piece it encloses is the result.
+
+The **gradient** decides what kind of surface that is:
+
+- *Across the loop* (the default) gives a surface that meets the original one at right angles, spanning the loop transversally: for a loop around a handle, the disc that closes the cut through it. The gradient is the cross product of the surface normal and the direction of the loop.
+- *Surface normal* gives a surface tangent to the original one along the loop, continuing it across: for the boundary of a hole, a patch that closes it smoothly.
+
+The polyline must be a single closed loop lying on the surface layer (adapt it first with *Smooth Polyline on Surface* or *Embed Polyline in Surface*, or take one from *Create Handle and Tunnel Loops*); the surface layer gives the normals and is not changed. The patch is a separate layer: its boundary follows the loop but is not welded to the surface.
+
+The fit costs grow with the cube of the number of samples, so a few hundred are usually enough. The function is sampled on a grid around the loop with cells about the sample spacing, and the surface is remeshed into triangles about a cell long. The filter refuses when the zero set through the loop does not close a piece off within that region, as can happen with the gradient that does not suit the loop.
+
+**References:**
+
+- Ives Macedo, João Paulo Gois, Luiz Velho. **Hermite radial basis functions implicits**. *Computer Graphics Forum* (2011). [DOI](https://doi.org/10.1111/j.1467-8659.2010.01785.x)
+
+**Parameters:**
+
+- **surface** (*mesh*, default: `@otherMeshIndex`) — The surface layer the loop lies on, which gives the normals. It is left unchanged.
+- **gradient** (*enum*, default: `across`) — The gradient given to the implicit function along the loop, which decides how the new surface meets the old one.
+- **samples** (*int*, default: `200`) — How many points along the loop the implicit function interpolates. More follow the loop more closely; the fit takes time growing with the cube of their number.
+- **resolution** (*int*, default: `0`) — Cells along the longest side of the grid the function is sampled on. Zero chooses cells about the sample spacing, between 24 and 128 along the longest side. The surface is then remeshed into triangles about a cell long.
 ```
 
 ---
