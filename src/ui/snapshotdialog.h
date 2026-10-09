@@ -55,6 +55,7 @@ private:
     void schedulePreview();
     void refreshPreview();
     void browseForPath();
+    void applySizePreset(int width, int height);
 
     RenderWidget *m_view = nullptr;
     QLineEdit *m_pathEdit = nullptr;

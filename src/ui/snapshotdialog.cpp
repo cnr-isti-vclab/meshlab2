@@ -9,6 +9,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -105,6 +106,27 @@ SnapshotDialog::SnapshotDialog(RenderWidget *view, const QString &suggestedPath,
     form->addRow(tr("Height"), m_heightSpin);
     form->addRow(QString(), m_lockAspect);
 
+    // Presets fill both fields, which stay editable afterwards. Two rows of three, so the
+    // form column does not grow wider than the spin boxes above them.
+    struct Preset { const char *label; int width; int height; };
+    static const Preset kPresets[] = {
+        {"2048²", 2048, 2048}, {"4096²", 4096, 4096}, {"8192²", 8192, 8192},
+        {"HD", 1920, 1080},         {"4K", 3840, 2160},         {"8K", 7680, 4320},
+    };
+    auto *presetGrid = new QGridLayout();
+    presetGrid->setSpacing(4);
+    int presetIndex = 0;
+    for (const Preset &p : kPresets) {
+        auto *button = new QToolButton(this);
+        button->setText(QString::fromUtf8(p.label));
+        button->setToolTip(tr("%1 × %2 px").arg(p.width).arg(p.height));
+        button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        connect(button, &QToolButton::clicked, this, [this, p] { applySizePreset(p.width, p.height); });
+        presetGrid->addWidget(button, presetIndex / 3, presetIndex % 3);
+        ++presetIndex;
+    }
+    form->addRow(tr("Presets"), presetGrid);
+
     // --- background
     m_backgroundCombo = new QComboBox(this);
     m_backgroundCombo->addItem(tr("Transparent"), int(Background::Transparent));
@@ -168,6 +190,18 @@ SnapshotDialog::SnapshotDialog(RenderWidget *view, const QString &suggestedPath,
     connect(m_gizmosCheck, &QCheckBox::toggled, this, [this](bool) { schedulePreview(); });
 
     schedulePreview();
+}
+
+void SnapshotDialog::applySizePreset(int width, int height)
+{
+    // Set both fields directly: with the lock on, going through the spin boxes' own
+    // handlers would make the second value overwrite the first. The lock then keeps the
+    // preset's ratio, which is what "lock" means once you have chosen one.
+    m_resizingFromLock = true;
+    m_widthSpin->setValue(width);
+    m_heightSpin->setValue(height);
+    m_resizingFromLock = false;
+    m_aspect = double(width) / double(height);
 }
 
 QString SnapshotDialog::targetPath() const
