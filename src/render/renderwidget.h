@@ -364,6 +364,9 @@ struct SceneRasterProjectedDrawItem {
     // without them is a contact sheet you cannot read: every tile looks like a view of the
     // same scene until something says which layer it holds.
     void updateTileOverlays();
+    // Draws the same captions into a finished capture, which the labels above cannot reach:
+    // they are widgets, and a capture is the GPU frame alone.
+    void paintTileCaptions(QImage &image) const;
     void createOverlayButtons();
     void layoutOverlayButtons();
     // Move the camera onto the given world axis, keeping center and distance.

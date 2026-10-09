@@ -95,6 +95,14 @@
       "default": true
     },
     {
+      "id": "view.showDebugOptions",
+      "label": "Show debug options in the view settings",
+      "help": "The current-layer outline has tuning controls that exist for developing it rather than for using it: its width, the dilate and erode radii of its mask, and a debug view that shows the intermediate masks. They keep their values whether or not they are shown. Turn this on to get them back in the View Settings panel.",
+      "group": "view",
+      "type": "bool",
+      "default": false
+    },
+    {
       "id": "input.dragThreshold",
       "label": "Drag threshold",
       "help": "How far the pointer must move, in pixels, before a press becomes a drag rather than a click.",

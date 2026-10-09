@@ -31,7 +31,7 @@ int edge(int index, int count, int extent)
 
 } // namespace
 
-Shape chooseShape(int tileCount, QSize viewport)
+Shape chooseShape(int tileCount, QSize viewport, double targetTileAspect)
 {
     if (tileCount <= 1)
         return Shape{ 1, 1 };
@@ -39,6 +39,8 @@ Shape chooseShape(int tileCount, QSize viewport)
     const double width = double(qMax(1, viewport.width()));
     const double height = double(qMax(1, viewport.height()));
     const double viewportAspect = width / height;
+    if (!(targetTileAspect > 0.0))
+        targetTileAspect = 1.0;
 
     Shape best{ tileCount, 1 };
     double bestScore = 0.0;
@@ -53,7 +55,7 @@ Shape chooseShape(int tileCount, QSize viewport)
             continue;
 
         const double tileAspect = viewportAspect * double(rows) / double(columns);
-        const double squareness = std::abs(std::log(tileAspect));
+        const double squareness = std::abs(std::log(tileAspect / targetTileAspect));
         const double waste = double(columns * rows - tileCount) / double(tileCount);
         const double score = squareness + kEmptyCellPenalty * waste;
 
@@ -67,7 +69,8 @@ Shape chooseShape(int tileCount, QSize viewport)
     return best;
 }
 
-std::vector<QRect> tileRects(int tileCount, Shape shape, QSize viewport, int inset)
+std::vector<QRect> tileRects(int tileCount, Shape shape, QSize viewport, int inset,
+                             RowAlignment alignment)
 {
     std::vector<QRect> rects;
     if (tileCount <= 0)
@@ -84,11 +87,14 @@ std::vector<QRect> tileRects(int tileCount, Shape shape, QSize viewport, int ins
         const int row = qMin(index / columns, rows - 1);
         const int column = index % columns;
 
-        // A short last row is centred by shifting it half of the space its missing tiles
-        // would have taken. Widths stay on the column grid, so every tile in the grid is
-        // still the same size.
+        // A short last row is moved by the space its missing tiles would have taken: all of
+        // it to sit on the right, half to be centred. Widths stay on the column grid, so
+        // every tile in the grid is still the same size.
         const int tilesInRow = qMin(columns, tileCount - row * columns);
-        const int rowShift = (columns - tilesInRow) * width / (2 * columns);
+        const int missing = (columns - tilesInRow) * width;
+        const int rowShift = alignment == RowAlignment::Right ? missing / columns
+                           : alignment == RowAlignment::Center ? missing / (2 * columns)
+                           : 0;
 
         const int left = edge(column, columns, width) + rowShift;
         const int right = edge(column + 1, columns, width) + rowShift;

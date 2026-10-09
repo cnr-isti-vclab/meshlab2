@@ -905,17 +905,32 @@ std::vector<RenderWidget::ViewTile> RenderWidget::viewTiles(const QSize &viewpor
     if (layers.size() < 2)
         return { wholeView };
 
-    // The shape follows the aspect of what the user is looking at, which is the widget --
-    // so a snapshot rendered at some other resolution keeps the arrangement on screen
-    // instead of reflowing to the file's aspect ratio. A headless render context has no
-    // meaningful widget size (it keeps its container at 1x1 and renders into a fixed-size
-    // buffer), and there the requested size is all there is to go on.
     // The shape follows the aspect of what is being drawn. On screen that is the widget,
     // scaled by the device pixel ratio, so the tiles the mouse is tested against are the
     // tiles that were rendered. A snapshot at some other aspect ratio reflows to suit
-    // itself, which keeps a snapshot and its preview agreeing with each other.
+    // itself, which keeps a snapshot and its preview agreeing with each other. A headless
+    // render context has no meaningful widget size (it keeps its container at 1x1 and
+    // renders into a fixed-size buffer), and there the requested size is all there is.
+    //
+    // What the tiles aim for is the setting's: square, the window's own shape, or the shape
+    // of the image being drawn. They differ only in a capture of another aspect than the
+    // window, where "the window" is the widget and "the image" is the capture.
+    const double drawnAspect = double(contentRect.width()) / double(qMax(1, contentRect.height()));
+    double targetAspect = 1.0;
+    switch (m_renderSettings.gridTileShape) {
+    case GridTileShape::Square:
+        break;
+    case GridTileShape::MatchWindow:
+        targetAspect = (m_offscreenCaptureActive && width() > 1 && height() > 1)
+            ? double(width()) / double(height())
+            : drawnAspect;
+        break;
+    case GridTileShape::MatchSnapshot:
+        targetAspect = drawnAspect;
+        break;
+    }
     const ViewGridLayout::Shape shape =
-        ViewGridLayout::chooseShape(int(layers.size()), contentRect.size());
+        ViewGridLayout::chooseShape(int(layers.size()), contentRect.size(), targetAspect);
     const int inset = viewTileFrameInset(contentRect.size());
 
     // Tiles are inset on every side, so the gap between two of them is twice the inset.
@@ -928,7 +943,8 @@ std::vector<RenderWidget::ViewTile> RenderWidget::viewTiles(const QSize &viewpor
     if (field.width() > 4 * inset && field.height() > 4 * inset)
         field.adjust(inset, inset, -inset, -inset);
     const std::vector<QRect> rects =
-        ViewGridLayout::tileRects(int(layers.size()), shape, field.size(), inset);
+        ViewGridLayout::tileRects(int(layers.size()), shape, field.size(), inset,
+                                  m_renderSettings.gridLastRowAlignment);
 
     std::vector<ViewTile> tiles;
     tiles.reserve(layers.size());
@@ -1438,13 +1454,15 @@ QImage RenderWidget::renderOffscreenToImage(
     loop.exec();
     QObject::disconnect(frameConn);
 
-    const QImage result = grabFramebuffer();
+    QImage result = grabFramebuffer();
 
     setFixedColorBufferSize(oldFixedSize);
     update();
 
     if (result.isNull())
         return fail(tr("Render target capture failed"));
+    // While the capture flag is still set, so the tiles come out as they were rendered.
+    paintTileCaptions(result);
 
     if (errorMessage)
         errorMessage->clear();
@@ -2020,17 +2038,70 @@ void RenderWidget::createOverlayButtons()
     layoutOverlayButtons();
 }
 
+namespace {
+
+// The tile captions exist twice -- as labels on screen and painted into a capture -- so what
+// they say and how they look is decided here, once. Sizes are in logical pixels; the capture
+// path multiplies them by how much larger than the window the image is.
+constexpr int kCaptionPaddingX = 8;
+constexpr int kCaptionPaddingY = 2;
+constexpr int kCaptionBorder = 1;
+constexpr int kCaptionRadius = 5;
+constexpr int kCaptionMargin = 6;
+// Past a certain number of layers the tiles are too small for a caption to be anything but
+// an obstruction -- all label and no picture.
+constexpr int kCaptionMinTileWidth = 130;
+constexpr int kCaptionMinTileHeight = 90;
+// The tile size a caption at its on-screen size is comfortable in: in a capture, smaller
+// tiles shrink the caption in proportion instead of losing it.
+constexpr int kCaptionNaturalTileWidth = 150;
+constexpr int kCaptionNaturalTileHeight = 100;
+// Held well short of the full width: a caption stretching the whole way across reads as a
+// banner over the picture rather than a label on it.
+constexpr double kCaptionMaxWidthFraction = 0.75;
+
+struct CaptionColors {
+    QColor fill;
+    QColor border;
+    QColor text;
+};
+
+CaptionColors captionColors(bool isCurrent, const QColor &accent)
+{
+    CaptionColors c;
+    c.text = QColor(246, 246, 250, 248);
+    c.fill = isCurrent ? QColor(accent.red(), accent.green(), accent.blue(), 210)
+                       : QColor(20, 20, 24, 188);
+    c.border = isCurrent ? QColor(255, 255, 255, 150) : QColor(110, 110, 122, 190);
+    return c;
+}
+
+QString cssRgba(const QColor &c)
+{
+    return QStringLiteral("rgba(%1,%2,%3,%4)").arg(c.red()).arg(c.green()).arg(c.blue()).arg(c.alpha());
+}
+
+// A layer name is usually a file name and routinely wider than a tile, so elide it; the
+// middle of a file name is the part you least need to see.
+QString captionText(const QString &name, double tileWidth, const QFontMetrics &metrics, double scale)
+{
+    const int chrome = int(2 * (kCaptionPaddingX + kCaptionBorder) * scale);
+    const int available = int(kCaptionMaxWidthFraction * tileWidth);
+    return metrics.elidedText(name, Qt::ElideMiddle, qMax(int(16 * scale), available - chrome));
+}
+
+} // namespace
+
 void RenderWidget::updateTileOverlays()
 {
-    constexpr int kCaptionMargin = 6;
-
     const std::vector<ViewTile> tiles = viewTiles(size());
     // One tile is the overlay arrangement: naming the only layer on screen would just be
     // furniture, and the layer panel already says which one is current.
     const bool grid = tiles.size() > 1;
+    const bool captions = grid && m_renderSettings.showGridCaptions;
     const int currentMeshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
 
-    if (grid) {
+    if (captions) {
         while (m_tileCaptionLabels.size() < tiles.size()) {
             auto *label = new QLabel(this);
             label->setAttribute(Qt::WA_TransparentForMouseEvents, true);
@@ -2044,7 +2115,7 @@ void RenderWidget::updateTileOverlays()
         QLabel *label = m_tileCaptionLabels[i];
         if (!label)
             continue;
-        if (!grid || i >= tiles.size()) {
+        if (!captions || i >= tiles.size()) {
             label->hide();
             continue;
         }
@@ -2055,44 +2126,31 @@ void RenderWidget::updateTileOverlays()
             label->hide();
             continue;
         }
-        // Past a certain number of layers the tiles are too small for a caption to be
-        // anything but an obstruction -- all label and no picture.
-        constexpr int kCaptionMinTileWidth = 130;
-        constexpr int kCaptionMinTileHeight = 90;
         if (tile.rect.width() < kCaptionMinTileWidth
             || tile.rect.height() < kCaptionMinTileHeight) {
             label->hide();
             continue;
         }
 
-        const bool isCurrent = (meshIndex == currentMeshIndex);
-        const QColor accent = m_renderSettings.currentMeshOutlineColor;
+        const CaptionColors colors =
+            captionColors(meshIndex == currentMeshIndex, m_renderSettings.currentMeshOutlineColor);
         label->setStyleSheet(QStringLiteral(
             "QLabel {"
-            "  color: rgba(246,246,250,248);"
-            "  background: %1;"
-            "  border: 1px solid %2;"
-            "  border-radius: 5px;"
-            "  padding: 2px 8px;"
+            "  color: %1;"
+            "  background: %2;"
+            "  border: %3px solid %4;"
+            "  border-radius: %5px;"
+            "  padding: %6px %7px;"
             "}")
-            .arg(isCurrent
-                     ? QStringLiteral("rgba(%1,%2,%3,210)")
-                           .arg(accent.red()).arg(accent.green()).arg(accent.blue())
-                     : QStringLiteral("rgba(20,20,24,188)"),
-                 isCurrent
-                     ? QStringLiteral("rgba(255,255,255,150)")
-                     : QStringLiteral("rgba(110,110,122,190)")));
+            .arg(cssRgba(colors.text), cssRgba(colors.fill))
+            .arg(kCaptionBorder)
+            .arg(cssRgba(colors.border))
+            .arg(kCaptionRadius)
+            .arg(kCaptionPaddingY)
+            .arg(kCaptionPaddingX));
 
-        // A layer name is usually a file name and routinely wider than a tile, so elide it.
-        // Held well short of the full width: a caption stretching the whole way across reads
-        // as a banner over the picture rather than a label on it, and the middle of a file
-        // name is the part you least need to see.
-        constexpr double kCaptionMaxWidthFraction = 0.75;
-        const int available = int(kCaptionMaxWidthFraction * tile.rect.width());
-        const QFontMetrics metrics(label->font());
-        const int chrome = 2 * (8 + 1); // padding + border, from the stylesheet above
-        label->setText(metrics.elidedText(
-            m_doc->mesh(meshIndex).name, Qt::ElideMiddle, qMax(16, available - chrome)));
+        label->setText(captionText(
+            m_doc->mesh(meshIndex).name, tile.rect.width(), QFontMetrics(label->font()), 1.0));
         label->adjustSize();
 
         // Bottom centre: the view's own corners are already spoken for -- settings panel,
@@ -2101,7 +2159,9 @@ void RenderWidget::updateTileOverlays()
         const int y = tile.rect.bottom() - label->height() - kCaptionMargin + 1;
         label->move(qMax(tile.rect.x(), x), qMax(tile.rect.y(), y));
         label->show();
-        label->raise();
+        // Under the settings panel and the other overlays, which are raised after this runs:
+        // a caption is part of the picture, not something to float over the panel.
+        label->lower();
     }
 
     if (!m_currentTileIndicator) {
@@ -2126,8 +2186,69 @@ void RenderWidget::updateTileOverlays()
             .arg(accent.red()).arg(accent.green()).arg(accent.blue()));
         m_currentTileIndicator->setGeometry(tiles[std::size_t(currentTile)].rect);
         m_currentTileIndicator->show();
-        m_currentTileIndicator->raise();
+        m_currentTileIndicator->lower();
     }
+}
+
+void RenderWidget::paintTileCaptions(QImage &image) const
+{
+    if (!m_doc || !m_renderSettings.showGridCaptions || m_viewMode != ViewMode::Scene3D)
+        return;
+    const std::vector<ViewTile> tiles = viewTiles(image.size());
+    if (tiles.size() < 2)
+        return;
+
+    // Sized as they are on screen, scaled by how much larger than the window the image is,
+    // so a snapshot reads like the view it was taken from. A headless context has no real
+    // window to compare with. A snapshot of many layers can have tiles smaller than the ones
+    // on screen, and there the captions shrink with them rather than disappear: unlike the
+    // screen, where a smaller tile can be had by resizing, a snapshot's caption is the only
+    // thing that says which layer is which.
+    const double windowWidth = width() > 1 ? double(width()) : 1000.0;
+    int minTileWidth = image.width(), minTileHeight = image.height();
+    for (const ViewTile &tile : tiles) {
+        minTileWidth = qMin(minTileWidth, tile.rect.width());
+        minTileHeight = qMin(minTileHeight, tile.rect.height());
+    }
+    const double scale = qMin(double(image.width()) / windowWidth,
+                              qMin(minTileWidth / double(kCaptionNaturalTileWidth),
+                                   minTileHeight / double(kCaptionNaturalTileHeight)));
+    QFont font = this->font();
+    const int pixelSize = qRound(QFontInfo(font).pixelSize() * scale);
+    // Too small to read is worse than absent -- a history thumbnail of a grid, say.
+    if (pixelSize < 7)
+        return;
+    font.setPixelSize(pixelSize);
+    const QFontMetrics metrics(font);
+
+    const qreal dpr = image.devicePixelRatio();
+    image.setDevicePixelRatio(1.0);
+    QPainter painter(&image);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setFont(font);
+    const int currentMeshIndex = m_doc->currentMeshIndex();
+    for (const ViewTile &tile : tiles) {
+        if (tile.meshIndex < 0 || tile.meshIndex >= m_doc->meshCount())
+            continue;
+        const QString text = captionText(
+            m_doc->mesh(tile.meshIndex).name, tile.rect.width(), metrics, scale);
+        const CaptionColors colors = captionColors(
+            tile.meshIndex == currentMeshIndex, m_renderSettings.currentMeshOutlineColor);
+        const double border = qMax(1.0, kCaptionBorder * scale);
+        const double width = metrics.horizontalAdvance(text) + 2 * (kCaptionPaddingX + kCaptionBorder) * scale;
+        const double height = metrics.height() + 2 * (kCaptionPaddingY + kCaptionBorder) * scale;
+        const QRectF box(tile.rect.x() + (tile.rect.width() - width) / 2,
+                         tile.rect.bottom() - height - kCaptionMargin * scale + 1,
+                         width, height);
+        painter.setPen(QPen(colors.border, border));
+        painter.setBrush(colors.fill);
+        painter.drawRoundedRect(box.adjusted(border / 2, border / 2, -border / 2, -border / 2),
+                                kCaptionRadius * scale, kCaptionRadius * scale);
+        painter.setPen(colors.text);
+        painter.drawText(box, Qt::AlignCenter, text);
+    }
+    painter.end();
+    image.setDevicePixelRatio(dpr);
 }
 
 void RenderWidget::layoutOverlayButtons()

@@ -15,12 +15,14 @@ private slots:
     void shapesOnAFourThreeViewMatchTheSketchedLayout();
     void shapeFollowsTheViewportAspect();
     void shapeTransposesOnAPortraitViewport();
+    void shapeHonoursTheTargetTileAspect();
     void degenerateTileCountsGiveASingleTile();
     void everyShapeCoversTheTilesWithNoEmptyRow();
 
     void tilesAreRowMajorFromTheTopLeft();
     void aFullGridCoversTheViewportExactly();
     void aShortLastRowIsCentred();
+    void aShortLastRowCanSitOnEitherSide();
     void insetLeavesTwiceTheGapBetweenNeighbours();
     void insetNeverCollapsesATileToNothing();
     void tileCountIsHonouredEvenWhenTheGridHasSpareCells();
@@ -90,6 +92,22 @@ void ViewGridLayoutTests::shapeTransposesOnAPortraitViewport()
     compareShape(ViewGridLayout::chooseShape(5, portrait), 2, 3, 5);
     compareShape(ViewGridLayout::chooseShape(6, portrait), 2, 3, 6);
     compareShape(ViewGridLayout::chooseShape(2, portrait), 1, 2, 2);
+}
+
+// Asking for tiles shaped like the frame they sit in -- a target equal to the viewport's own
+// aspect -- turns the preference for squares into one for copies of the whole: on 16:9, three
+// tiles go in a 2x2 (each a 16:9 frame, one cell spare) rather than the 3x1 strip that suits
+// squares, and nine go in 3x3 rather than 5x2. A tall target does the opposite.
+void ViewGridLayoutTests::shapeHonoursTheTargetTileAspect()
+{
+    const double frame = double(kSixteenNine.width()) / double(kSixteenNine.height());
+    compareShape(ViewGridLayout::chooseShape(3, kSixteenNine, frame), 2, 2, 3);
+    compareShape(ViewGridLayout::chooseShape(9, kSixteenNine, frame), 3, 3, 9);
+    compareShape(ViewGridLayout::chooseShape(4, kSixteenNine, 0.5), 4, 1, 4);
+    // A target of 1 is the square rule, and a nonsensical one falls back to it.
+    compareShape(ViewGridLayout::chooseShape(9, kSixteenNine, 1.0), 5, 2, 9);
+    compareShape(ViewGridLayout::chooseShape(9, kSixteenNine, 0.0), 5, 2, 9);
+    compareShape(ViewGridLayout::chooseShape(9, kSixteenNine, -2.0), 5, 2, 9);
 }
 
 void ViewGridLayoutTests::degenerateTileCountsGiveASingleTile()
@@ -167,6 +185,21 @@ void ViewGridLayoutTests::aShortLastRowIsCentred()
     // Same width as the tiles above it, and the same margin either side.
     QCOMPARE(rects[2].width(), rects[0].width());
     QCOMPARE(rects[2].left(), kFourThree.width() - rects[2].right() - 1);
+}
+
+void ViewGridLayoutTests::aShortLastRowCanSitOnEitherSide()
+{
+    using ViewGridLayout::RowAlignment;
+    const auto left = ViewGridLayout::tileRects(3, Shape{ 2, 2 }, kFourThree, 0, RowAlignment::Left);
+    QCOMPARE(left[2], QRect(0, 300, 400, 300));
+    const auto right = ViewGridLayout::tileRects(3, Shape{ 2, 2 }, kFourThree, 0, RowAlignment::Right);
+    QCOMPARE(right[2], QRect(400, 300, 400, 300));
+    // The full first row does not move with the alignment.
+    QCOMPARE(left[0], right[0]);
+    QCOMPARE(left[1], right[1]);
+    // Five tiles in 3x2: two on the last row, and the right-hand one ends at the edge.
+    const auto five = ViewGridLayout::tileRects(5, Shape{ 3, 2 }, QSize(900, 600), 0, RowAlignment::Right);
+    QCOMPARE(five[4].right() + 1, 900);
 }
 
 void ViewGridLayoutTests::insetLeavesTwiceTheGapBetweenNeighbours()

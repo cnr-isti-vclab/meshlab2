@@ -67,6 +67,8 @@ private:
     QComboBox *m_backgroundCombo = nullptr;
     QCheckBox *m_gizmosCheck = nullptr;
     QCheckBox *m_rasterCheck = nullptr;
+    QComboBox *m_gridTileShapeCombo = nullptr;
+    QCheckBox *m_gridCaptionsCheck = nullptr;
     QLabel *m_previewLabel = nullptr;
     double m_aspect = 1.0;
     bool m_resizingFromLock = false;

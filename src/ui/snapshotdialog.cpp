@@ -152,6 +152,34 @@ SnapshotDialog::SnapshotDialog(RenderWidget *view, const QString &suggestedPath,
            "to publish, so they are left out by default."));
     form->addRow(tr("Gizmos"), m_gizmosCheck);
 
+    // The layer grid's tile shape, chosen for this snapshot alone: "Match snapshot" only has a
+    // meaning here, where the image drawn is not the window. It starts from the view's own
+    // setting and is not written back to it.
+    m_gridTileShapeCombo = new QComboBox(this);
+    m_gridTileShapeCombo->addItem(tr("Square"), int(GridTileShape::Square));
+    m_gridTileShapeCombo->addItem(tr("Match window"), int(GridTileShape::MatchWindow));
+    m_gridTileShapeCombo->addItem(tr("Match snapshot"), int(GridTileShape::MatchSnapshot));
+    m_gridTileShapeCombo->setToolTip(
+        tr("Shape of each tile when the layers are arranged in a grid. Square aims for square "
+           "tiles; Match window gives them the shape of the window you are looking at; Match "
+           "snapshot gives them the shape of this image."));
+    if (view) {
+        const int at = m_gridTileShapeCombo->findData(int(view->renderSettings().gridTileShape));
+        m_gridTileShapeCombo->setCurrentIndex(qMax(0, at));
+        m_gridTileShapeCombo->setEnabled(
+            view->renderSettings().layerArrangement == LayerArrangement::Grid);
+    }
+    form->addRow(tr("Grid tile ratio"), m_gridTileShapeCombo);
+    m_gridCaptionsCheck = new QCheckBox(tr("Name each tile of the layer grid"), this);
+    m_gridCaptionsCheck->setToolTip(
+        tr("Writes each layer's name under its tile, as it appears in the view."));
+    if (view) {
+        m_gridCaptionsCheck->setChecked(view->renderSettings().showGridCaptions);
+        m_gridCaptionsCheck->setEnabled(
+            view->renderSettings().layerArrangement == LayerArrangement::Grid);
+    }
+    form->addRow(tr("Grid captions"), m_gridCaptionsCheck);
+
     // The camera that took the picture is already known here, which is why this lives in the
     // dialog rather than as a separate command that had to guess size and settings.
     m_rasterCheck = new QCheckBox(tr("Add to the project as a raster layer"), this);
@@ -201,6 +229,9 @@ SnapshotDialog::SnapshotDialog(RenderWidget *view, const QString &suggestedPath,
     connect(m_backgroundCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
             [this](int) { schedulePreview(); });
     connect(m_gizmosCheck, &QCheckBox::toggled, this, [this](bool) { schedulePreview(); });
+    connect(m_gridTileShapeCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
+            [this](int) { schedulePreview(); });
+    connect(m_gridCaptionsCheck, &QCheckBox::toggled, this, [this](bool) { schedulePreview(); });
 
     schedulePreview();
 }
@@ -277,6 +308,8 @@ QImage SnapshotDialog::capture(const QSize &size, QString *errorMessage) const
         capture.sceneBackgroundTopColor = Qt::black;
         capture.sceneBackgroundBottomColor = Qt::black;
     }
+    capture.gridTileShape = static_cast<GridTileShape>(m_gridTileShapeCombo->currentData().toInt());
+    capture.showGridCaptions = m_gridCaptionsCheck->isChecked();
     if (!includeGizmos()) {
         capture.showTrackballGizmo = false;
         capture.highlightCurrentMesh = false;

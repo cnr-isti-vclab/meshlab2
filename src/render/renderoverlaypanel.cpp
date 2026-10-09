@@ -1,4 +1,5 @@
 #include "renderoverlaypanel.h"
+#include "preferences.h"
 #include "colormap.h"
 #include <QApplication>
 #include <QCheckBox>
@@ -508,6 +509,30 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     currentMeshForm->addRow(
         tr("Show View Cameras"),
         makeCenteredFieldContainer(m_showViewCamerasCheck, viewer3dPage));
+    // How the layer grid is arranged. These matter only while the grid is on, but they live
+    // with the other view settings rather than appearing and disappearing with it.
+    m_gridTileShapeCombo = new QComboBox(viewer3dPage);
+    m_gridTileShapeCombo->addItem(tr("Square"), static_cast<int>(GridTileShape::Square));
+    m_gridTileShapeCombo->addItem(tr("Match window"), static_cast<int>(GridTileShape::MatchWindow));
+    // "Match snapshot" is not offered here: on screen it is the same as the window, and it
+    // only means something in the snapshot dialog, which has it.
+    m_gridTileShapeCombo->setToolTip(
+        tr("The shape the layer grid aims for in each tile, which decides how many columns and "
+           "rows it uses. Square suits most meshes; Match window gives tiles the window's own "
+           "shape."));
+    m_gridLastRowCombo = new QComboBox(viewer3dPage);
+    m_gridLastRowCombo->addItem(tr("Left"), static_cast<int>(ViewGridLayout::RowAlignment::Left));
+    m_gridLastRowCombo->addItem(tr("Center"), static_cast<int>(ViewGridLayout::RowAlignment::Center));
+    m_gridLastRowCombo->addItem(tr("Right"), static_cast<int>(ViewGridLayout::RowAlignment::Right));
+    m_gridLastRowCombo->setToolTip(
+        tr("Where the last row of the layer grid sits when it has fewer tiles than the others."));
+    m_gridCaptionsCheck = new QCheckBox(viewer3dPage);
+    m_gridCaptionsCheck->setChecked(m_globalSettings.showGridCaptions);
+    m_gridCaptionsCheck->setToolTip(tr("Name each tile of the layer grid, on screen and in snapshots."));
+    currentMeshForm->addRow(
+        tr("Grid captions"), makeCenteredFieldContainer(m_gridCaptionsCheck, viewer3dPage));
+    currentMeshForm->addRow(tr("Grid tile ratio"), m_gridTileShapeCombo);
+    currentMeshForm->addRow(tr("Grid last row"), m_gridLastRowCombo);
     currentMeshForm->addRow(
         tr("Outline color"),
         makeCenteredFieldContainer(m_currentMeshOutlineColorButton, viewer3dPage));
@@ -523,6 +548,27 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         makeCenteredFieldContainer(m_sceneBackgroundBottomColorButton, viewer3dPage));
 
     applyUniformFormRowHeights(currentMeshForm);
+    // The outline's tuning rows are for developing it, so they appear only when asked for
+    // (view.showDebugOptions). Hidden, they keep their values and still apply.
+    const auto applyDebugRowsVisibility = [this, currentMeshForm] {
+        const bool show =
+            Preferences::instance().boolValue(QStringLiteral("view.showDebugOptions"));
+        for (QWidget *field : { static_cast<QWidget *>(m_currentMeshOutlineWidthSpin),
+                                static_cast<QWidget *>(m_currentMeshDilateRadiusSpin),
+                                static_cast<QWidget *>(m_currentMeshErodeRadiusSpin),
+                                static_cast<QWidget *>(m_currentMeshDebugViewCombo) })
+            currentMeshForm->setRowVisible(field, show);
+    };
+    applyDebugRowsVisibility();
+    connect(&Preferences::instance(), &Preferences::changed, this,
+            [this, applyDebugRowsVisibility](const QString &id) {
+        if (id != QLatin1String("view.showDebugOptions"))
+            return;
+        applyDebugRowsVisibility();
+        // The panel was sized for the rows it had; without this it keeps that height and
+        // squeezes the new ones in.
+        updateSettingsPanelGeometry();
+    });
     viewer3dLayout->addLayout(currentMeshForm);
     m_viewerSettingsStack->addWidget(viewer3dPage);
 
@@ -1442,6 +1488,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindGlobalFloatSpin(m_currentMeshDilateRadiusSpin, &GlobalRenderSettings::currentMeshDilateRadius);
     bindGlobalFloatSpin(m_currentMeshErodeRadiusSpin, &GlobalRenderSettings::currentMeshErodeRadius);
     bindGlobalEnumCombo(m_currentMeshDebugViewCombo, &GlobalRenderSettings::currentMeshDebugView);
+    bindGlobalCheckBox(m_gridCaptionsCheck, &GlobalRenderSettings::showGridCaptions);
+    bindGlobalEnumCombo(m_gridTileShapeCombo, &GlobalRenderSettings::gridTileShape);
+    bindGlobalEnumCombo(m_gridLastRowCombo, &GlobalRenderSettings::gridLastRowAlignment);
 
     bindMeshCheckBox(m_decoratorVertexNormalsCheck, &PerMeshRenderSettings::decoratorVertexNormals, true);
     bindMeshCheckBox(m_decoratorFaceNormalsCheck, &PerMeshRenderSettings::decoratorFaceNormals, true);

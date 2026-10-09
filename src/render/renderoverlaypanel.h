@@ -119,6 +119,9 @@ private:
     QDoubleSpinBox *m_currentMeshDilateRadiusSpin = nullptr;
     QDoubleSpinBox *m_currentMeshErodeRadiusSpin = nullptr;
     QComboBox *m_currentMeshDebugViewCombo = nullptr;
+    QComboBox *m_gridTileShapeCombo = nullptr;
+    QCheckBox *m_gridCaptionsCheck = nullptr;
+    QComboBox *m_gridLastRowCombo = nullptr;
     QCheckBox *m_currentMeshHighlightCheck = nullptr;
     QCheckBox *m_showTrackballGizmoCheck = nullptr;
     QCheckBox *m_showAxisGizmoCheck = nullptr;

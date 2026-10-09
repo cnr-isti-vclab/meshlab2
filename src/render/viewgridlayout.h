@@ -18,6 +18,14 @@
 // table rather than by resizing a window.
 namespace ViewGridLayout {
 
+// Where a last row with fewer tiles than the others sits. The tiles keep the column grid's
+// size either way; only the empty space moves.
+enum class RowAlignment {
+    Left = 0,
+    Center,
+    Right
+};
+
 struct Shape {
     int columns = 1;
     int rows = 1;
@@ -33,24 +41,26 @@ struct Shape {
 
 // Number of columns and rows to show `tileCount` tiles in a viewport of `viewport`.
 //
-// The objective is square tiles, which is what suits the roughly isotropic things a mesh
-// viewer shows: the shape minimizing |ln(tile width / tile height)| wins, with a mild
-// penalty per empty cell to settle near-ties in favour of filling the grid. Both terms
-// matter -- squareness alone puts three layers in a row on a wide display, and filling
-// alone puts nine layers in a 9x1 strip.
+// The objective is tiles of `targetTileAspect` (width / height), square by default, which is
+// what suits the roughly isotropic things a mesh viewer shows: the shape minimizing
+// |ln(tile aspect / target)| wins, with a mild penalty per empty cell to settle near-ties in
+// favour of filling the grid. Both terms matter -- squareness alone puts three layers in a
+// row on a wide display, and filling alone puts nine layers in a 9x1 strip. A target equal
+// to the viewport's own aspect asks for tiles shaped like the frame they sit in.
 //
 // The shape therefore depends on the viewport aspect, deliberately: nine tiles are 3x3 on
 // a 4:3 view and 5x2 on a 16:9 one, because those are the square-tiled answers in each
 // frame. Always returns at least 1x1, and columns*rows >= tileCount with no wholly empty
 // row.
-Shape chooseShape(int tileCount, QSize viewport);
+Shape chooseShape(int tileCount, QSize viewport, double targetTileAspect = 1.0);
 
 // Rectangles for `tileCount` tiles laid out row-major in `viewport`, index 0 top-left, in
 // the caller's own coordinate system (y down, origin top-left) -- so pass a size in device
 // pixels to place a GPU viewport and one in logical pixels to hit-test a mouse position.
 //
-// A short final row is centred, since a gap in the middle of the bottom edge reads as a
-// layout accident while a centred short row reads as intended.
+// A short final row is centred by default, since a gap in the middle of the bottom edge reads
+// as a layout accident while a centred short row reads as intended; `alignment` moves it to
+// either side instead.
 //
 // `inset` shrinks every tile on all four sides, which puts a gap of twice `inset` between
 // neighbours and `inset` around the outside. A gap is worth having: it is where a tile
@@ -59,7 +69,8 @@ Shape chooseShape(int tileCount, QSize viewport);
 // would allow keep their full extent in that dimension rather than collapsing to nothing.
 //
 // Returns exactly `tileCount` rectangles, or none when `tileCount` is not positive.
-std::vector<QRect> tileRects(int tileCount, Shape shape, QSize viewport, int inset = 0);
+std::vector<QRect> tileRects(int tileCount, Shape shape, QSize viewport, int inset = 0,
+                             RowAlignment alignment = RowAlignment::Center);
 
 // The same for a shape chosen by chooseShape().
 std::vector<QRect> tileRects(int tileCount, QSize viewport, int inset = 0);

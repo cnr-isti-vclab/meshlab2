@@ -185,9 +185,12 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     if (!fieldsEqual(*this, o, &SettingsType::member)) \
         return false;
 
-// 45 fields
+// 48 fields
 #define MESHLAB2_GLOBAL_SETTINGS_FIELDS(F) \
     F("layer_arrangement", layerArrangement) \
+    F("grid_tile_shape", gridTileShape) \
+    F("grid_last_row_alignment", gridLastRowAlignment) \
+    F("show_grid_captions", showGridCaptions) \
     F("highlight_current_mesh", highlightCurrentMesh) \
     F("show_trackball_gizmo", showTrackballGizmo) \
     F("show_axis_gizmo", showAxisGizmo) \

@@ -5,6 +5,8 @@
 #include <QString>
 #include <QVector3D>
 
+#include "viewgridlayout.h"
+
 enum class RenderPass {
     CurrentMesh = 0,
     BoundingBox,
@@ -157,6 +159,19 @@ enum class LayerArrangement {
     Grid
 };
 
+// What shape the tiles of the grid arrangement aim for, which together with the viewport's
+// aspect decides how many columns and rows it uses.
+enum class GridTileShape {
+    // Square tiles, whatever the frame around them.
+    Square = 0,
+    // Tiles shaped like the window being looked at. A snapshot of another aspect keeps the
+    // arrangement on screen, tile for tile.
+    MatchWindow,
+    // Tiles shaped like the image being drawn. On screen that is the window; in a snapshot
+    // it is the snapshot, so a wide snapshot gets wide tiles.
+    MatchSnapshot
+};
+
 enum class CurrentMeshDebugView {
     Outline = 0,
     FullMask,
@@ -246,6 +261,11 @@ Q_DECLARE_METATYPE(PerMeshRenderSettings)
 // View-level (global) rendering settings shared across all meshes in the scene.
 struct GlobalRenderSettings {
     LayerArrangement layerArrangement = LayerArrangement::Overlay;
+    GridTileShape gridTileShape = GridTileShape::Square;
+    // Where a last grid row with fewer tiles than the others sits.
+    ViewGridLayout::RowAlignment gridLastRowAlignment = ViewGridLayout::RowAlignment::Center;
+    // The layer name under each grid tile, on screen and in snapshots.
+    bool showGridCaptions = true;
     bool highlightCurrentMesh = true;
     bool showTrackballGizmo = true;
     // Separate from showTrackballGizmo on purpose: the orbit sphere and the corner
