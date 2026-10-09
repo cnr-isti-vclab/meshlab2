@@ -3454,6 +3454,13 @@ bool MainWindow::loadMeshFromPath(const QString &filePath, QString *errorMessage
 
     statusBar()->showMessage(tr("Loaded %1").arg(filePath), 3000);
     addRecentMesh(filePath);
+    // Every way of opening a file ends up here, but only the Open dialog used to record where
+    // it came from -- so after Open Recent, a drop or a command-line load nothing was
+    // remembered and the snapshot dialog fell back to the program's own folder. The
+    // snapshot folder follows the last file loaded; a snapshot saved somewhere else keeps
+    // that folder only until the next load.
+    FileDialogDirectory::remember(QStringLiteral("mesh"), filePath);
+    FileDialogDirectory::remember(QStringLiteral("snapshot"), filePath);
     return true;
 }
 
