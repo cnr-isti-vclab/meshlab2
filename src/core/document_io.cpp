@@ -123,7 +123,8 @@ void Document::mergeImportedStlVertices(const QString &path, VCGMesh &mesh)
         LogSource::Application);
 }
 
-int Document::loadMesh(const QString &filename, QString *errorMessage)
+int Document::loadMesh(const QString &filename, QString *errorMessage, const QString &label,
+                       const QMatrix4x4 *transform)
 {
     const auto reportError = [errorMessage](const QString &message) {
         if (errorMessage)
@@ -216,8 +217,12 @@ int Document::loadMesh(const QString &filename, QString *errorMessage)
     entry->meshId = m_nextMeshId++;
     entry->geometryRevision = m_nextGeometryRevision++;
     entry->materialRevision = 1;
-    entry->transform.setToIdentity();
-    entry->name = QFileInfo(filename).fileName();
+    if (transform)
+        entry->transform = *transform;
+    else
+        entry->transform.setToIdentity();
+    const QString trimmedLabel = label.trimmed();
+    entry->name = trimmedLabel.isEmpty() ? QFileInfo(filename).fileName() : trimmedLabel;
     entry->sourcePath = filename;
     entry->materialSet = normalizeMaterialSet(filename, loadedMaterialSet, entry->mesh);
 

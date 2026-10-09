@@ -188,7 +188,12 @@ public:
     // errorMessage, when given, receives why the load failed -- the importer's own
     // diagnosis, which the return code alone cannot carry. Callers that open several files
     // at once need it: a per-file status-bar message is overwritten by the next file.
-    int loadMesh(const QString &filename, QString *errorMessage = nullptr);
+    //
+    // label and transform, when given, are the layer's from the start. A project supplies
+    // them, and applying them after the load announced the layer meant it was first shown
+    // at the origin under its file name and then moved.
+    int loadMesh(const QString &filename, QString *errorMessage = nullptr,
+                 const QString &label = QString(), const QMatrix4x4 *transform = nullptr);
     int reloadMesh(int index);
     // STL stores every triangle with its own three corners, so a mesh read from it shares no
     // vertices. When set (the default), opening or reloading an STL merges vertices at the
@@ -232,6 +237,8 @@ public:
     QString undoText() const;
     QString redoText() const;
     bool isRestoringUndoRedo() const;
+    // True while a project is loading its layers; see bulkLoadFinished().
+    bool isBulkLoading() const { return m_bulkLoading; }
     // True while an undo step opened by an outer operation is still running. Nested
     // operations test this (with isRestoringUndoRedo()) to decide whether they own the
     // step, so that a caller bracketing several of them collapses into one undo entry.
@@ -469,6 +476,11 @@ public:
     std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> gpuMemoryStats() const;
 
 signals:
+    // A project load has put all its layers in. While it runs, meshAdded and its companions
+    // are still emitted per layer, but views that rebuild themselves from the whole
+    // document (the layer tree, the filter menus) wait for this instead: a rebuild that
+    // costs more with every layer, run once per layer, made loading 40 meshes quadratic.
+    void bulkLoadFinished();
     void meshAdded(int index);
     void meshRemoved(int index);
     void meshVisibilityChanged(int index, bool visible);

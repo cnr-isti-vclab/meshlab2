@@ -98,8 +98,13 @@ bool Document::handleLogCallback(int pos, const char *message)
     const qint64 nowMs = m_loadCallbackTimer.isValid() ? m_loadCallbackTimer.elapsed() : 0;
     const bool forceUiUpdate = (clampedPos == 0 || clampedPos == 100);
     const bool progressChanged = (clampedPos != m_lastProgressPos);
+    // A project load pumps events between every few percent of every layer, and each pump
+    // repaints the progress bar and the log; at the single-file rate that was a fifth of
+    // the load time. The layer count is the progress that matters there, so ask less often.
+    const qint64 uiThrottleMs = m_bulkLoading ? 120 : 33;
+    const qint64 pumpThrottleMs = m_bulkLoading ? 250 : 80;
     const bool uiThrottleElapsed =
-        (m_lastProgressEmitMs < 0) || (nowMs - m_lastProgressEmitMs >= 33);
+        (m_lastProgressEmitMs < 0) || (nowMs - m_lastProgressEmitMs >= uiThrottleMs);
 
     QString text;
     bool textDecoded = false;
@@ -134,7 +139,7 @@ bool Document::handleLogCallback(int pos, const char *message)
         }
 
         const bool processEventsThrottleElapsed =
-            (m_lastProcessEventsMs < 0) || (nowMs - m_lastProcessEventsMs >= 80);
+            (m_lastProcessEventsMs < 0) || (nowMs - m_lastProcessEventsMs >= pumpThrottleMs);
         if ((isLoadCallback || isFilterCallback) && (forceUiUpdate || processEventsThrottleElapsed)) {
             QElapsedTimer processTimer;
             processTimer.start();

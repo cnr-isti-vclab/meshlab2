@@ -1186,6 +1186,7 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     tableSplitter->setStretchFactor(1, 2);
 
     // Document connections — always rebuild
+    connect(m_doc, &Document::bulkLoadFinished, this, &LayerWidget::rebuild);
     connect(m_doc, &Document::meshAdded, this, [this](int) {
         scheduleRebuild();
     });
@@ -1235,7 +1236,9 @@ void LayerWidget::toggleViewMode()
 
 void LayerWidget::scheduleRebuild()
 {
-    if (m_rebuildPending)
+    // A project load rebuilds once when it is done; rebuilding per layer, with the tree
+    // costing more each time, is what made a 40-mesh project take twice as long to load.
+    if (m_rebuildPending || m_doc->isBulkLoading())
         return;
     m_rebuildPending = true;
     QMetaObject::invokeMethod(this, [this]() {

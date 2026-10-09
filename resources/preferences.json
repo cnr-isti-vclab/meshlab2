@@ -87,6 +87,14 @@
       ]
     },
     {
+      "id": "view.renderDuringProjectLoad",
+      "label": "Show layers while a project loads",
+      "help": "Draw the view as each layer of a project arrives, so you watch the scene fill in. Turn this off to draw nothing until the whole project is in, which loads a little faster -- about a tenth on a project of forty large meshes -- because the view is not redrawn with every added layer.",
+      "group": "view",
+      "type": "bool",
+      "default": true
+    },
+    {
       "id": "input.dragThreshold",
       "label": "Drag threshold",
       "help": "How far the pointer must move, in pixels, before a press becomes a drag rather than a click.",

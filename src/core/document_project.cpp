@@ -49,22 +49,15 @@ int Document::loadMeshLabProject(const QString &filename)
             continue;
         }
 
-        const int result = loadMesh(meshPath);
+        const int result = loadMesh(meshPath, nullptr, projectMesh.label,
+                                    projectMesh.hasTransform ? &projectMesh.transform : nullptr);
         if (result != 0) {
             writeLog(
                 tr("Failed to load project mesh: %1").arg(meshPath),
                 LogSource::Application, LogLevel::Warning);
             continue;
         }
-
-        const int meshIndex = currentMeshIndex();
-        if (meshIndex >= 0 && meshIndex < meshCount()) {
-            if (!projectMesh.label.trimmed().isEmpty())
-                setMeshName(meshIndex, projectMesh.label);
-            if (projectMesh.hasTransform)
-                setMeshTransform(meshIndex, projectMesh.transform);
-            ++loadedMeshes;
-        }
+        ++loadedMeshes;
     }
 
     int rasterIdx = 0;
@@ -130,6 +123,7 @@ int Document::loadMeshLabProject(const QString &filename)
     }
 
     m_bulkLoading = false;
+    emit bulkLoadFinished();
     // Emit a single rasterAdded to trigger one rebuild for all loaded rasters
     if (loadedRasters > 0)
         emit rasterAdded(rasterCount() - 1);

@@ -3,6 +3,7 @@
 #include "document.h"
 #include "interactivetool.h"
 #include "linerenderer.h"
+#include "preferences.h"
 #include "renderwidget_internal.h"
 #include "viewaxisgizmo.h"
 #include <QLabel>
@@ -257,6 +258,13 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 {
     ensureRenderResources();
     if (!m_rhi || !m_ubuf || !m_srb)
+        return;
+
+    // With "Show layers while a project loads" off, nothing is drawn until the load is over:
+    // a frame costs a full render of everything added so far, and bulkLoadFinished repaints
+    // once the project is complete.
+    if (m_doc->isBulkLoading()
+        && !Preferences::instance().boolValue(QStringLiteral("view.renderDuringProjectLoad")))
         return;
 
     resetDynamicUbufAllocators();

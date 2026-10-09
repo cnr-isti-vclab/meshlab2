@@ -589,6 +589,7 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     syncOverlaySettingsToCurrentMesh();
     refreshColorSourceAvailability();
 
+    connect(m_doc, &Document::bulkLoadFinished, this, [this] { update(); });
     connect(m_doc, &Document::meshAdded, this, [this](int index) {
         // A structural change invalidates any in-flight pick: the mesh id it
         // encoded no longer maps to the same index. Rejecting it avoids

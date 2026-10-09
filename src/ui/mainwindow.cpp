@@ -349,6 +349,7 @@ void MainWindow::appendLogItem(const Document::LogEntry &entry, int entryIndex, 
 {
     QListWidget *logWidget = m_logListWidget;
     QListWidgetItem *item = nullptr;
+    bool newRow = false;
     // Reuse the last row only when it really renders the entry being replaced: at a low
     // verbosity the document's previous entry may have been filtered out, and overwriting
     // whatever happens to be at the bottom would corrupt an unrelated line.
@@ -357,6 +358,7 @@ void MainWindow::appendLogItem(const Document::LogEntry &entry, int entryIndex, 
         item = logWidget->item(logWidget->count() - 1);
     } else {
         item = new QListWidgetItem(logWidget);
+        newRow = true;
     }
 
     const QString stamp = formatLogTimestamp(m_logTimestampMode, entry.epochMs);
@@ -367,7 +369,11 @@ void MainWindow::appendLogItem(const Document::LogEntry &entry, int entryIndex, 
     item->setForeground(QBrush(logLevelColor(entry.level)));
     item->setData(kLogEntryIndexRole, entryIndex);
 
-    logWidget->scrollToBottom();
+    // A rewritten row is already at the bottom. Scrolling anyway re-lays out the whole
+    // list, and the live progress line is rewritten every few milliseconds during a load,
+    // at a cost that grows with every line the log has accumulated.
+    if (newRow)
+        logWidget->scrollToBottom();
 }
 
 void MainWindow::rebuildLogPanel()
@@ -1279,6 +1285,7 @@ MainWindow::MainWindow(QWidget *parent)
         });
 #endif
     }
+    connect(m_doc, &Document::bulkLoadFinished, this, &MainWindow::refreshFilterUi);
     connect(m_doc, &Document::meshAdded, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
         scheduleFilterUiRefresh();
@@ -2166,7 +2173,8 @@ void MainWindow::refreshFiltersMenu()
 
 void MainWindow::scheduleFilterUiRefresh()
 {
-    if (m_filterUiRefreshPending)
+    // Deferred to bulkLoadFinished while a project loads, as the layer tree is.
+    if (m_filterUiRefreshPending || m_doc->isBulkLoading())
         return;
     m_filterUiRefreshPending = true;
     QMetaObject::invokeMethod(this, [this]() {
