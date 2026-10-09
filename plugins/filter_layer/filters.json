@@ -58,13 +58,12 @@
       "name": "Split into Connected Components",
       "pythonName": "split_into_connected_components",
       "shortDescription": "Split the current layer into one layer per connected component.",
-      "longDescriptionMarkdown": "Split current layer into many layers, one for each connected component.",
-      "tags": ["layer", "connected components", "split"],
+      "longDescriptionMarkdown": "Split current layer into many layers, one for each connected component. A layer of faces is split by the faces that share an edge; a layer with no faces, a graph or a collection of loops, by the edges that share a vertex, so each isolated graph or loop becomes a layer of its own. The layer is not touched, selection included, and the new layers start with no selection.",
+      "tags": ["layer", "connected components", "split", "edges", "graph"],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
       "inputRequirements": {
-        "requireVertices": true,
-        "requireFaces": true
+        "requireVertices": true
       },
       "outputTag": "part %1",
       "parameters": [
@@ -76,8 +75,7 @@
           "type": "bool",
           "default": false
         }
-      ],
-      "inputPrepare": ["FF"]
+      ]
     },
     {
       "id": "duplicate_current_layer",

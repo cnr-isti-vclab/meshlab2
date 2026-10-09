@@ -551,6 +551,7 @@ private slots:
     void stateJsonAcceptsBothNameSpellings();
     void rubberBandExpandsToComponentsAndUvIslands();
     void libraryExceptionFailsTheRunInsteadOfAborting();
+    void splitIntoComponentsHandlesEdgesAndLeavesSelectionAlone();
     void countHolesIsDefinedWhereverTheBoundaryIsClean();
     void islandMergeCanTakeItsIslandsFromTheSelection();
     void islandMergeSurvivesATextureItCannotDecode();
@@ -2077,6 +2078,80 @@ void FilterTests::splitConnectedComponentsAfterDuplicateVertexRemoval()
             for (int corner = 0; corner < 3; ++corner)
                 QVERIFY(face.cV(corner) != nullptr);
     }
+}
+
+// Splitting a layer cuts the parts out by selecting them, so the selection is scratch. What is
+// left behind must be the layer's own selection, not the scratch, and the parts must start
+// unselected. A layer with no faces, a collection of loops and chains, splits by its edges.
+void FilterTests::splitIntoComponentsHandlesEdgesAndLeavesSelectionAlone()
+{
+    const auto selectedCounts = [](const VCGMesh &m) {
+        int vertices = 0, edges = 0, faces = 0;
+        for (const auto &v : m.vert) vertices += (!v.IsD() && v.IsS());
+        for (const auto &e : m.edge) edges += (!e.IsD() && e.IsS());
+        for (const auto &f : m.face) faces += (!f.IsD() && f.IsS());
+        return std::array<int, 3>{vertices, edges, faces};
+    };
+
+    // Two triangles, as loops of edges, and a chain of two edges; nothing joins them.
+    VCGMesh graph;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(graph, 9);
+    for (int i = 0; i < 9; ++i)
+        graph.vert[std::size_t(i)].P() = VCGMesh::CoordType(float(i), float(i % 3), 0.0f);
+    const int edgeIds[8][2] = {{0, 1}, {1, 2}, {2, 0}, {3, 4}, {4, 5}, {5, 3}, {6, 7}, {7, 8}};
+    for (const auto &e : edgeIds) {
+        vcg::tri::Allocator<VCGMesh>::AddEdge(graph, e[0], e[1]);
+    }
+    Document doc;
+    const int layer = doc.addMesh(graph, QStringLiteral("graph"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_EDGEINDEX);
+    QVERIFY(layer >= 0);
+    doc.setCurrentMeshIndex(layer);
+    // The user has one edge selected, with its two vertices.
+    VCGMesh &source = doc.mesh(layer).mesh;
+    source.edge[3].SetS();
+    source.edge[3].V(0)->SetS();
+    source.edge[3].V(1)->SetS();
+    const auto selectedBefore = selectedCounts(source);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("split_into_connected_components"));
+    QVERIFY(!key.isEmpty());
+    const MeshFilterRunResult r = doc.runFilter(key, {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.newMeshIndices.size(), 3);
+    QList<int> edgeCounts;
+    for (int index : r.newMeshIndices) {
+        const VCGMesh &part = doc.mesh(index).mesh;
+        edgeCounts << part.EN();
+        QCOMPARE(part.FN(), 0);
+        QCOMPARE(part.VN(), 3); // a loop of three edges and a chain of two both have three
+        QCOMPARE(selectedCounts(part), (std::array<int, 3>{0, 0, 0}));
+    }
+    std::sort(edgeCounts.begin(), edgeCounts.end());
+    QCOMPARE(edgeCounts, (QList<int>{2, 3, 3}));
+    QCOMPARE(selectedCounts(doc.mesh(layer).mesh), selectedBefore);
+    QVERIFY(doc.mesh(layer).mesh.edge[3].IsS());
+
+    // Faces: the same promises. Two separate triangles, one of them selected.
+    VCGMesh faces;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(faces, 6);
+    const float p[6][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {5, 0, 0}, {6, 0, 0}, {5, 1, 0}};
+    for (int i = 0; i < 6; ++i)
+        faces.vert[std::size_t(i)].P() = VCGMesh::CoordType(p[i][0], p[i][1], p[i][2]);
+    vcg::tri::Allocator<VCGMesh>::AddFace(faces, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(faces, 3, 4, 5);
+    const int faceLayer = doc.addMesh(faces, QStringLiteral("faces"),
+                                      vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEINDEX);
+    QVERIFY(faceLayer >= 0);
+    doc.setCurrentMeshIndex(faceLayer);
+    doc.mesh(faceLayer).mesh.face[1].SetS();
+    const auto facesBefore = selectedCounts(doc.mesh(faceLayer).mesh);
+    const MeshFilterRunResult split = doc.runFilter(key, {});
+    QVERIFY2(split.success, qPrintable(split.errorMessage));
+    QCOMPARE(split.newMeshIndices.size(), 2);
+    for (int index : split.newMeshIndices)
+        QCOMPARE(selectedCounts(doc.mesh(index).mesh), (std::array<int, 3>{0, 0, 0}));
+    QCOMPARE(selectedCounts(doc.mesh(faceLayer).mesh), facesBefore);
 }
 
 void FilterTests::hausdorffRunsOnTransientMeshCopies()

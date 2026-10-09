@@ -57,6 +57,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(QT_NO_PRIVATE_MODULE_WARNING ON)
 
+# MSVC caps an object file at 65279 sections, which heavy template instantiation
+# reaches easily: a filter plugin that grows one more vcglib algorithm tips over
+# with "fatal error C1128" and nothing else changes. Three plugins have hit it so
+# far (screened_poisson, trueform, meshing), each discovered by a Windows CI build
+# failing after two hours, so set it once for everything rather than chasing the
+# next one. The flag only raises the section limit -- no runtime cost.
+if (MSVC)
+    add_compile_options(/bigobj)
+endif()
+
 option(MESHLAB2_REQUIRE_VCPKG_DEPS "Require vcpkg toolchain for non-Qt external dependencies" ON)
 option(MESHLAB2_MATH_HELP "Render LaTeX formulas in filter help" ON)
 if (MESHLAB2_REQUIRE_VCPKG_DEPS)

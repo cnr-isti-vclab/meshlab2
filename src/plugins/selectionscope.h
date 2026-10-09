@@ -41,6 +41,13 @@ struct Restriction
     bool derived = false; // taken from the other kind of selection
 };
 Restriction restriction(const VCGMesh &mesh, SelectionScope scope);
+// The same for a layer of the document, remembered while the layer's content stays what it
+// was (its geometry and selection revisions). Computing it walks the whole mesh, and the
+// Filters menu and panel ask once per scoped filter -- a hundred times on every layer
+// change -- so on a large layer that was most of the second the change took. For display
+// and defaults only: what a run is actually restricted to is decided by restriction() on
+// the mesh itself, which does not depend on whoever changed a selection saying so.
+Restriction cachedRestriction(const Document &doc, int meshIndex, SelectionScope scope);
 
 // "Only the 1,234 selected faces", "Only the 812 vertices inside the selected faces",
 // "No faces selected".

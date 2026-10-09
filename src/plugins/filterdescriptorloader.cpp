@@ -653,8 +653,8 @@ void FilterDescriptorLoader::resolveSymbolicBounds(
                         scopeMesh = p.defaultValue.toInt();
                 }
             }
-            const bool restricted = scopeMesh >= 0 && scopeMesh < doc.meshCount()
-                && SelectionScopes::restriction(doc.mesh(scopeMesh).mesh, fd.selectionScope).count > 0;
+            const bool restricted =
+                SelectionScopes::cachedRestriction(doc, scopeMesh, fd.selectionScope).count > 0;
             for (MeshFilterParameterDescriptor &p : fd.parameters) {
                 if (p.id == QLatin1String(SelectionScopes::kParameterId))
                     p.defaultValue = restricted;

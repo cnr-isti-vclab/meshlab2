@@ -145,11 +145,18 @@ jobs:
             ${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed
           # runner.arch is part of the key: runner.os is "macOS" for both Intel
           # and Apple Silicon, so an x64 cache must not reach an arm64 runner.
-          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}
+          # The run id keeps the entry refreshable: with a content-only key the save
+          # below was skipped as soon as it matched, pinning one snapshot forever.
+          # That is survivable while its ABI hashes still validate, and turns into a
+          # full rebuild of every package on every run once they do not -- which is
+          # what happened to the Windows job for three weeks.
+          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
           restore-keys: |
+            macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-
             macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install vcpkg dependencies
+        id: vcpkg-install
         run: |
           set -o pipefail
           "$VCPKG_ROOT/vcpkg" install \
@@ -158,18 +165,25 @@ jobs:
             --x-manifest-root="$GITHUB_WORKSPACE" \
             --x-install-root="$GITHUB_WORKSPACE/$BUILD_DIR/vcpkg_installed" \
             --clean-after-build 2>&1 | tee "$GITHUB_WORKSPACE/vcpkg-install.log"
+          # Whether anything was compiled decides whether the cache is worth
+          # rewriting below; in the steady state nothing is built and it is left alone.
+          if grep -q '^Building ' "$GITHUB_WORKSPACE/vcpkg-install.log"; then
+            echo "rebuilt=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rebuilt=false" >> "$GITHUB_OUTPUT"
+          fi
 
       # Save now rather than in a post-job hook, so a later compile/package
       # failure does not discard an otherwise successful dependency build.
       - name: Save vcpkg artifacts
-        if: steps.restore-vcpkg-cache.outputs.cache-hit != 'true'
+        if: steps.restore-vcpkg-cache.outputs.cache-hit != 'true' || steps.vcpkg-install.outputs.rebuilt == 'true'
         uses: actions/cache/save@v6
         with:
           path: |
             ~/Library/Caches/vcpkg/archives
             ${{ env.VCPKG_ROOT }}/downloads
             ${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed
-          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}
+          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
 
       - name: Upload vcpkg failure logs
         if: failure()

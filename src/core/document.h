@@ -351,6 +351,10 @@ public:
     // above a real message.
     void clearProgressLog();
 
+    // Names this document among all that have existed in the process, which mesh ids do not:
+    // each document numbers its own meshes from the start. For anything keyed on a mesh that
+    // outlives a document.
+    std::uint64_t instanceId() const { return m_instanceId; }
     int meshCount() const { return static_cast<int>(m_meshes.size()); }
     MeshEntry &mesh(int i) { return *m_meshes[i]; }
     const MeshEntry &mesh(int i) const { return *m_meshes[i]; }
@@ -508,6 +512,9 @@ public:
     void restoreUndoState(const UndoState &state);
 
 private:
+    static std::uint64_t nextInstanceId();
+    const std::uint64_t m_instanceId = nextInstanceId();
+
     enum class CallbackMode {
         None,
         Load,

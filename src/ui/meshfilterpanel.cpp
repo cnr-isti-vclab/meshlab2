@@ -843,9 +843,8 @@ void MeshFilterPanel::refreshSelectionScopeControl(bool reset)
     }
     const int meshIndex = currentSelectionScopeMeshIndex();
     const bool validMesh = meshIndex >= 0 && meshIndex < m_doc->meshCount();
-    const SelectionScopes::Restriction restriction = validMesh
-        ? SelectionScopes::restriction(m_doc->mesh(meshIndex).mesh, m_currentScope)
-        : SelectionScopes::Restriction{};
+    const SelectionScopes::Restriction restriction =
+        SelectionScopes::cachedRestriction(*m_doc, meshIndex, m_currentScope);
     QString text = SelectionScopes::describe(m_currentScope, restriction);
     // Name the layer when the scope is on one the filter picks by parameter rather than
     // on the current one, where it goes without saying.

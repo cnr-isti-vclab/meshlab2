@@ -45,11 +45,6 @@ target_link_libraries(MeshLab2PluginFilterTrueForm
 )
 
 target_compile_features(MeshLab2PluginFilterTrueForm PUBLIC cxx_std_17)
-if (MSVC)
-    # This template-heavy translation unit exceeds the section count supported
-    # by MSVC's default object-file format.
-    target_compile_options(MeshLab2PluginFilterTrueForm PRIVATE /bigobj)
-endif()
 
 qt_add_resources(MeshLab2PluginFilterTrueForm "filter_trueform_descriptors"
     PREFIX "/filters/meshlab2.filter.trueform"

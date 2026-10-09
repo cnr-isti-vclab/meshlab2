@@ -31,6 +31,13 @@ jobs:
       BUILD_DIR: build-win-release
       VCPKG_ROOT_WORKSPACE: ${{ github.workspace }}\vcpkg
       VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}\ci\vcpkg-triplets
+      # vcpkg's binary cache. It used to be addressed as ${{ env.LOCALAPPDATA }},
+      # which silently expands to the empty string -- the `env` context holds only
+      # what this workflow declares, never the runner's own environment -- so the
+      # cached path was a bare "\vcpkg\archives" and the real cache under
+      # %LOCALAPPDATA% was never saved or restored. Pointing vcpkg at a path we
+      # declare ourselves removes the dependency on the runner's home directory.
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg-archives
       VCPKG_TARGET_TRIPLET: x64-windows-release
       QT_VERSION: 6.11.0
       QT_ARCH: msvc2022_64
@@ -55,6 +62,8 @@ jobs:
         shell: pwsh
         run: |
           "VCPKG_ROOT=$env:VCPKG_ROOT_WORKSPACE" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # vcpkg refuses to start if the binary cache directory does not exist.
+          New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -154,14 +163,23 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: |
-            ${{ env.LOCALAPPDATA }}\vcpkg\archives
+            ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
             ${{ env.VCPKG_ROOT_WORKSPACE }}\downloads
             ${{ github.workspace }}\build-win-release\vcpkg_installed
-          key: windows-portable-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}
+          # The run id makes every key unique, so the entry is rewritten whenever the
+          # dependencies are rebuilt and the newest snapshot is what the next run
+          # restores. The previous key was content-only: once it matched, the save
+          # step below was skipped, so the entry created on 2026-09-21 was still
+          # being restored weeks later. Its ABI hashes no longer matched what vcpkg
+          # computed, so every run removed all 314 packages and rebuilt them from
+          # source -- 158 minutes of a 3 hour build, every push, forever.
+          key: windows-portable-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
           restore-keys: |
+            windows-portable-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-
             windows-portable-vcpkg-${{ runner.os }}-
 
       - name: Install vcpkg dependencies
+        id: vcpkg-install
         shell: pwsh
         run: |
           $installLog = Join-Path $env:GITHUB_WORKSPACE "vcpkg-install.log"
@@ -174,18 +192,27 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "vcpkg install failed with exit code $LASTEXITCODE"
           }
+          # Whether anything was compiled decides whether the cache is worth
+          # rewriting below. In the steady state vcpkg reports everything as
+          # already installed, nothing is built, and the entry is left alone.
+          $built = (Select-String -Path $installLog -Pattern '^Building ' -Quiet) -eq $true
+          "rebuilt=$($built.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "vcpkg rebuilt packages: $built"
 
       # Save now rather than in a post-job hook, so a later compile/package
       # failure does not discard an otherwise successful dependency build.
+      # Runs whenever vcpkg compiled something, not merely on a cache miss: a
+      # restored tree whose ABI no longer matches is rebuilt in place, and that
+      # work is lost unless the entry is rewritten.
       - name: Save vcpkg artifacts
-        if: steps.restore-vcpkg-cache.outputs.cache-hit != 'true'
+        if: steps.restore-vcpkg-cache.outputs.cache-hit != 'true' || steps.vcpkg-install.outputs.rebuilt == 'true'
         uses: actions/cache/save@v6
         with:
           path: |
-            ${{ env.LOCALAPPDATA }}\vcpkg\archives
+            ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
             ${{ env.VCPKG_ROOT_WORKSPACE }}\downloads
             ${{ github.workspace }}\build-win-release\vcpkg_installed
-          key: windows-portable-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}
+          key: windows-portable-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
 
       - name: Show vcpkg failure diagnostics
         if: failure()

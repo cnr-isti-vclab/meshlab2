@@ -3,6 +3,12 @@
 
 using namespace DocumentInternal;
 
+std::uint64_t Document::nextInstanceId()
+{
+    static std::atomic<std::uint64_t> next{1};
+    return next.fetch_add(1, std::memory_order_relaxed);
+}
+
 Document::Document(QObject *parent)
     : QObject(parent)
     , m_pluginManager(std::make_unique<MeshIOPluginManager>())

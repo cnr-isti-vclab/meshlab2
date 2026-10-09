@@ -20,6 +20,8 @@
 #include <vcg/complex/algorithms/update/selection.h>
 #include <vcg/complex/algorithms/update/topology.h>
 #include <algorithm>
+#include <numeric>
+#include <unordered_map>
 #include <cmath>
 #include <memory>
 #include <vector>
@@ -693,31 +695,88 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kSplitConnected)) {
-        if (entry.mesh.FN() <= 0)
-            return fail(QObject::tr("Current mesh has no faces."));
+        // A mesh of faces is split by face connectivity; one with no faces, a graph or a set of
+        // loops, by the edges. Faces win on a mesh that has both.
+        const bool byFaces = entry.mesh.FN() > 0;
+        if (!byFaces && entry.mesh.EN() <= 0)
+            return fail(QObject::tr("Current mesh has no faces or edges."));
 
-        // FF adjacency is already built by the framework via inputPrepare.
+        // The parts are cut out by selecting each and appending the selected elements, so the
+        // selection is the scratch here, and it is a copy's: the layer's own is never written.
+        // Append does not enable the optional components of what it appends to, so they are
+        // enabled by hand, on the copy and on each part.
+        const auto enableComponentsOf = [&entry](VCGMesh &m) {
+            if (entry.mesh.vert.IsTexCoordEnabled())
+                m.vert.EnableTexCoord();
+            if (entry.mesh.vert.IsCurvatureDirEnabled())
+                m.vert.EnableCurvatureDir();
+            if (entry.mesh.face.IsWedgeTexCoordEnabled())
+                m.face.EnableWedgeTexCoord();
+        };
+        VCGMesh src;
+        enableComponentsOf(src);
+        vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(src, entry.mesh);
+        Sel::VertexClear(src); // the copy has the layer's selection, which is not what to cut by
+        Sel::FaceClear(src);
+        Sel::EdgeClear(src);
+        if (byFaces) {
+            src.face.EnableFFAdjacency();
+            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(src);
+        }
+
+        // The edges of each component, for a mesh without faces: vertices that share an edge are
+        // one component.
+        std::vector<std::vector<std::size_t>> edgesOfComponent;
         std::vector<std::pair<int, VCGFace::FacePointer>> connectedCompVec;
-        const int numCC = vcg::tri::Clean<VCGMesh>::ConnectedComponents(entry.mesh, connectedCompVec);
-        Sel::FaceClear(entry.mesh);
-        Sel::VertexClear(entry.mesh);
+        int numCC = 0;
+        if (byFaces) {
+            numCC = vcg::tri::Clean<VCGMesh>::ConnectedComponents(src, connectedCompVec);
+        } else {
+            std::vector<std::size_t> parent(src.vert.size());
+            std::iota(parent.begin(), parent.end(), std::size_t(0));
+            const auto find = [&parent](std::size_t v) {
+                while (parent[v] != v)
+                    v = parent[v] = parent[parent[v]];
+                return v;
+            };
+            for (const auto &e : src.edge)
+                if (!e.IsD())
+                    parent[find(vcg::tri::Index(src, e.cV(0)))] = find(vcg::tri::Index(src, e.cV(1)));
+            std::unordered_map<std::size_t, std::size_t> componentOfRoot;
+            for (std::size_t i = 0; i < src.edge.size(); ++i) {
+                if (src.edge[i].IsD())
+                    continue;
+                const std::size_t root = find(vcg::tri::Index(src, src.edge[i].cV(0)));
+                const auto inserted = componentOfRoot.emplace(root, edgesOfComponent.size());
+                if (inserted.second)
+                    edgesOfComponent.emplace_back();
+                edgesOfComponent[inserted.first->second].push_back(i);
+            }
+            numCC = int(edgesOfComponent.size());
+        }
 
         QVector<int> newIndices;
         std::vector<std::uint64_t> newMeshIds;
-        newIndices.reserve(int(connectedCompVec.size()));
-        newMeshIds.reserve(connectedCompVec.size());
-        for (size_t i = 0; i < connectedCompVec.size(); ++i) {
-            connectedCompVec[i].second->SetS();
-            vcg::tri::UpdateSelection<VCGMesh>::FaceConnectedFF(entry.mesh);
-            vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceLoose(entry.mesh);
+        newIndices.reserve(numCC);
+        newMeshIds.reserve(std::size_t(numCC));
+        for (std::size_t i = 0; i < std::size_t(numCC); ++i) {
+            if (byFaces) {
+                connectedCompVec[i].second->SetS();
+                vcg::tri::UpdateSelection<VCGMesh>::FaceConnectedFF(src);
+                vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceLoose(src);
+            } else {
+                for (std::size_t ei : edgesOfComponent[i]) {
+                    src.edge[ei].SetS();
+                    src.edge[ei].V(0)->SetS();
+                    src.edge[ei].V(1)->SetS();
+                }
+            }
             VCGMesh componentMesh;
-            if (entry.mesh.vert.IsTexCoordEnabled())
-                componentMesh.vert.EnableTexCoord();
-            if (entry.mesh.vert.IsCurvatureDirEnabled())
-                componentMesh.vert.EnableCurvatureDir();
-            if (entry.mesh.face.IsWedgeTexCoordEnabled())
-                componentMesh.face.EnableWedgeTexCoord();
-            vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(componentMesh, entry.mesh, true);
+            enableComponentsOf(componentMesh);
+            vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(componentMesh, src, true);
+            Sel::VertexClear(componentMesh);
+            Sel::FaceClear(componentMesh);
+            Sel::EdgeClear(componentMesh);
             vcg::tri::Allocator<VCGMesh>::CompactEveryVector(componentMesh);
             vcg::tri::UpdateBounding<VCGMesh>::Box(componentMesh);
             if (componentMesh.FN() > 0)
@@ -732,8 +791,9 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
                 return fail(QObject::tr("Failed to create connected component layer %1.").arg(i));
             newIndices.push_back(newIndex);
             newMeshIds.push_back(doc.mesh(newIndex).meshId);
-            Sel::FaceClear(entry.mesh);
-            Sel::VertexClear(entry.mesh);
+            Sel::FaceClear(src);
+            Sel::VertexClear(src);
+            Sel::EdgeClear(src);
         }
 
         const bool deleteSourceMesh = params.getBool(QStringLiteral("delete_source_mesh"), false);

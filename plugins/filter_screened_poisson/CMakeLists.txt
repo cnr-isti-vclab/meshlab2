@@ -66,11 +66,6 @@ target_compile_definitions(MeshLab2PluginFilterScreenedPoisson
         FOR_RELEASE
 )
 
-if(MSVC)
-    # The bundled upstream PoissonRecon templates generate very large objects.
-    target_compile_options(MeshLab2PluginFilterScreenedPoisson PRIVATE /bigobj)
-endif()
-
 if (OpenMP_CXX_FOUND)
     target_link_libraries(MeshLab2PluginFilterScreenedPoisson PUBLIC OpenMP::OpenMP_CXX)
 endif()

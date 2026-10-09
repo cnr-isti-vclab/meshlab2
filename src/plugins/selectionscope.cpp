@@ -5,6 +5,9 @@
 
 #include <QObject>
 
+#include <map>
+#include <tuple>
+
 namespace SelectionScopes {
 
 namespace {
@@ -202,6 +205,27 @@ Restriction restriction(const VCGMesh &mesh, SelectionScope scope)
     r.count = derived;
     r.derived = derived > 0;
     return r;
+}
+
+Restriction cachedRestriction(const Document &doc, int meshIndex, SelectionScope scope)
+{
+    if (scope == SelectionScope::None || meshIndex < 0 || meshIndex >= doc.meshCount())
+        return {};
+    const Document::MeshEntry &entry = doc.mesh(meshIndex);
+    // Content identity, as the undo history uses it, within one document: mesh ids and
+    // revisions are numbered per document, so two documents would otherwise answer for each
+    // other. Few are ever live at once; the cache is dropped whole when it has seen many,
+    // rather than aged.
+    using Key = std::tuple<std::uint64_t, std::uint64_t, std::uint64_t, std::uint64_t, int>;
+    static std::map<Key, Restriction> cache;
+    const Key key{ doc.instanceId(), entry.meshId, entry.geometryRevision, entry.selectionRevision,
+                   int(scope) };
+    const auto hit = cache.find(key);
+    if (hit != cache.end())
+        return hit->second;
+    if (cache.size() > 256)
+        cache.clear();
+    return cache.emplace(key, restriction(entry.mesh, scope)).first->second;
 }
 
 QString describe(SelectionScope scope, const Restriction &restriction)
