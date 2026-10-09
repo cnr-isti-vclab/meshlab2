@@ -1507,7 +1507,7 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
     connect(view, &RenderWidget::trackballCenterPicked, this,
             [this, view](const QVector3D &worldPos) {
         setCurrentRenderWidget(view);
-        const QString msg = tr("Trackball center: (%1, %2, %3)")
+        const QString msg = tr("Trackball center: [%1, %2, %3]")
             .arg(worldPos.x(), 0, 'f', 6)
             .arg(worldPos.y(), 0, 'f', 6)
             .arg(worldPos.z(), 0, 'f', 6);
