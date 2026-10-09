@@ -57,7 +57,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          submodules: recursive
+          submodules: false
+
+      - name: Fetch submodules
+        run: |
+          # QuadWild's pinned Eigen revision is also available from this GitHub
+          # mirror; avoid depending on GitLab availability during recursive checkout.
+          git config --global url.https://github.com/eigenteam/eigen-git-mirror.git.insteadOf https://gitlab.com/libeigen/eigen.git
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --depth=1 --recursive
 
       - name: Validate signing secrets
         env:
