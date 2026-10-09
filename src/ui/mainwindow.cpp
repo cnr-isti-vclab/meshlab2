@@ -2844,7 +2844,7 @@ void MainWindow::showMemoryInfo()
     addRow(undoSection, tr("Unique geometry snapshots"), undoStats.geometryBytes,
            tr("%1 allocation(s), shared snapshots counted once")
                .arg(undoStats.uniqueGeometryCount));
-    addRow(undoSection, tr("Selection deltas"), undoStats.selectionBytes);
+    addRow(undoSection, tr("Attribute deltas"), undoStats.deltaBytes);
     addRow(undoSection, tr("History-only images"), undoStats.historyImageBytes,
            tr("%1 unique backing store(s); live images excluded")
                .arg(undoStats.uniqueHistoryImageCount));
@@ -2855,8 +2855,8 @@ void MainWindow::showMemoryInfo()
         pendingItem->setExpanded(true);
         if (undoStats.pendingGeometryBytes > 0)
             addRow(pendingItem, tr("Unique geometry"), undoStats.pendingGeometryBytes);
-        if (undoStats.pendingSelectionBytes > 0)
-            addRow(pendingItem, tr("Selection delta"), undoStats.pendingSelectionBytes);
+        if (undoStats.pendingDeltaBytes > 0)
+            addRow(pendingItem, tr("Attribute delta"), undoStats.pendingDeltaBytes);
         if (undoStats.pendingImageBytes > 0)
             addRow(pendingItem, tr("History-only images"), undoStats.pendingImageBytes);
     }
@@ -2866,11 +2866,11 @@ void MainWindow::showMemoryInfo()
         pathItem->setText(0, tr("Current path references (not additive)"));
         pathItem->setText(1, QStringLiteral("-"));
         for (const auto &step : undoStats.steps) {
-            const qint64 bytes = step.selectionDelta
-                ? step.selectionBytes
+            const qint64 bytes = step.attributeDelta
+                ? step.deltaBytes
                 : step.referencedGeometryBytes;
             addRow(pathItem, step.label, bytes,
-                   step.selectionDelta ? tr("owned selection storage")
+                   step.attributeDelta ? tr("owned attribute storage")
                                        : tr("shared geometry referenced by state"));
         }
     }
@@ -2953,7 +2953,7 @@ void MainWindow::showMemoryInfo()
     QJsonObject undoJson;
     undoJson.insert(QStringLiteral("nodeCount"), undoStats.nodeCount);
     undoJson.insert(QStringLiteral("geometryBytes"), double(undoStats.geometryBytes));
-    undoJson.insert(QStringLiteral("selectionBytes"), double(undoStats.selectionBytes));
+    undoJson.insert(QStringLiteral("deltaBytes"), double(undoStats.deltaBytes));
     undoJson.insert(QStringLiteral("historyImageBytes"), double(undoStats.historyImageBytes));
     undoJson.insert(QStringLiteral("pendingBytes"), double(undoStats.pendingBytes()));
     undoJson.insert(QStringLiteral("totalBytes"), double(undoStats.totalBytes()));

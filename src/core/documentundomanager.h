@@ -20,10 +20,10 @@ public:
     void beginStep(const QString &label, const ScriptAction &scriptAction = {});
     void endStep(bool commit = true, bool restoreOnCancel = false);
 
-    // Selection delta steps — skip full snapshot capture for selection-only changes.
-    // An optional scriptAction is recorded on the node so selection filters stay
-    // reproducible/scriptable despite using the lightweight delta storage.
-    void beginDeltaStep(const QString &label, int meshIndex,
+    // Attribute delta steps — skip full snapshot capture for a change confined to the
+    // attribute classes in `kinds`. An optional scriptAction is recorded on the node so
+    // such filters stay reproducible/scriptable despite the lightweight storage.
+    void beginDeltaStep(const QString &label, int meshIndex, std::uint32_t kinds,
                         std::optional<ScriptAction> scriptAction = std::nullopt);
     void endDeltaStep();
 
@@ -86,8 +86,8 @@ private:
         std::optional<ScriptAction> scriptAction = {});
     void pushDeltaStep(
         const QString &label,
-        SelectionDelta &&before,
-        SelectionDelta &&after,
+        MeshAttributeDelta &&before,
+        MeshAttributeDelta &&after,
         std::optional<ScriptAction> scriptAction = {});
     void pruneTreeToLimit();
     UndoPruneResult pruneToMemoryBudgetInternal(
@@ -109,8 +109,9 @@ private:
     QString m_undoStepLabel;
     std::optional<ScriptAction> m_pendingScriptAction;
     std::optional<UndoState> m_pendingUndoBefore;
-    std::optional<SelectionDelta> m_pendingDeltaBefore;
+    std::optional<MeshAttributeDelta> m_pendingDeltaBefore;
     std::optional<int> m_pendingDeltaMeshIndex;
+    std::uint32_t m_pendingDeltaKinds = MeshAttributeNone;
     bool m_restoringUndoRedo = false;
     bool m_suppressUndo = false;
     bool m_suppressUndoRedoSignals = false;

@@ -203,13 +203,18 @@ public:
     void beginUndoStep(const QString &label);
     void beginUndoStep(const QString &label,
                        const ScriptAction &scriptAction);
+    // Delta-storage steps: instead of a mesh deep-copy, record only the attribute
+    // classes named in `kinds` (MeshAttributeDeltaKind) for one mesh. Valid only when
+    // the action genuinely touches nothing else -- geometry is not captured, so a
+    // position moved under a colour-only step would not be undone.
     void beginUndoStep(const QString &label,
-                       int meshIndexForSelectionDelta);
-    // Delta-storage step that also records a ScriptAction (reproducible selection
-    // filters): cheap bit-packed undo for a selection-only change on one mesh.
+                       int meshIndexForDelta,
+                       std::uint32_t kinds);
+    // Same, recording a ScriptAction so the filter stays reproducible/scriptable.
     void beginUndoStep(const QString &label,
                        const ScriptAction &scriptAction,
-                       int meshIndexForSelectionDelta);
+                       int meshIndexForDelta,
+                       std::uint32_t kinds);
     void endUndoStep(bool commit = true, bool restoreOnCancel = false);
     void setViewStateFunctions(std::function<ViewState()> capture,
                                 std::function<void(const ViewState &, bool restoreCamera)> restore);
@@ -318,8 +323,8 @@ public:
     // undo geometry snapshot.  Changes to selection must therefore bump geometryRevision
     // so the undo cache produces a fresh deep-copy for the "after" checkpoint.
     void markMeshSelectionChanged(int index, const QString &contextMessage = {});
-    SelectionDelta captureSelectionDelta(int meshIndex) const;
-    void applySelectionDelta(const SelectionDelta &delta);
+    MeshAttributeDelta captureAttributeDelta(int meshIndex, std::uint32_t kinds) const;
+    void applyAttributeDelta(const MeshAttributeDelta &delta);
     // Wall-clock stamp taken when MeshLab2Core loaded, so a view can render an entry's
     // time as an elapsed offset from application start instead of a bare clock reading.
     static qint64 applicationStartMSecsSinceEpoch();

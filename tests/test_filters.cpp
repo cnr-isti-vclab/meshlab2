@@ -525,6 +525,7 @@ private slots:
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
     void createdCylinderHonoursRadiusHeightAndAxis();
     void edgeExpressionsSelectColorAndScaleAPolyline();
+    void colorAndScalarFiltersUndoThroughDeltas();
     void expressionsReadIntegerAttributes();
     void preparedAdjacencyIsReleasedAfterTheFilter();
     void preparationSurvivesAFilterRemovingItsLayer();
@@ -8257,6 +8258,86 @@ void FilterTests::isocontourEdgesCarryTheirContourValue()
 // that reads both endpoints and a derived quantity, then write a scalar and ramp it
 // into colour. Built on a polyline whose edges have deliberately different lengths,
 // because every interesting edge expression is a function of length or direction.
+// Colour and scalar changes are confined to the VCGMesh the way selection is, so a
+// filter that declares only VC/FC or VQ/FQ can be undone from a packed copy of that
+// one attribute instead of a whole mesh. Checks both that the cheap path is taken and
+// that it actually restores the values -- the first without the second is a data-loss
+// bug that no amount of saved memory excuses.
+void FilterTests::colorAndScalarFiltersUndoThroughDeltas()
+{
+    Document doc;
+    const QString sphereKey = filterKeyForId(doc, QStringLiteral("create_sphere"));
+    const QString setColorKey = filterKeyForId(doc, QStringLiteral("set_vertex_color"));
+    const QString faceScalarKey =
+        filterKeyForId(doc, QStringLiteral("compute_face_scalar_from_geometry"));
+    QVERIFY(!sphereKey.isEmpty());
+    QVERIFY(!setColorKey.isEmpty());
+    QVERIFY(!faceScalarKey.isEmpty());
+
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    const int index = doc.currentMeshIndex();
+    QVERIFY(doc.mesh(index).mesh.VN() > 0);
+
+    // A known starting colour, so undo has something specific to come back to.
+    for (auto &v : doc.mesh(index).mesh.vert)
+        v.C() = vcg::Color4b(11, 22, 33, 255);
+    doc.markMeshGeometryChanged(index);
+    doc.clearUndoHistory();
+
+    // --- colour -------------------------------------------------------------
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("color1"), QStringLiteral("#ff8000"));
+        const MeshFilterRunResult r = doc.runFilter(setColorKey, p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+    }
+    const UndoMemoryStats colorStats = doc.undoMemoryStats();
+    QCOMPARE(colorStats.steps.size(), std::size_t(1));
+    QVERIFY2(colorStats.steps.front().attributeDelta,
+             "set_vertex_color stored a full snapshot instead of a colour delta");
+    QCOMPARE(colorStats.steps.front().referencedGeometryBytes, qint64(0));
+    QVERIFY(colorStats.deltaBytes > 0);
+
+    QCOMPARE(int(doc.mesh(index).mesh.vert[0].cC()[0]), 255);
+    QCOMPARE(int(doc.mesh(index).mesh.vert[0].cC()[1]), 128);
+
+    QVERIFY(doc.undo());
+    QCOMPARE(int(doc.mesh(index).mesh.vert[0].cC()[0]), 11);
+    QCOMPARE(int(doc.mesh(index).mesh.vert[0].cC()[1]), 22);
+    QCOMPARE(int(doc.mesh(index).mesh.vert[0].cC()[2]), 33);
+    QVERIFY(doc.redo());
+    QCOMPARE(int(doc.mesh(index).mesh.vert[0].cC()[0]), 255);
+
+    // Geometry must be untouched by a colour delta in both directions.
+    QVERIFY(doc.mesh(index).mesh.VN() > 0);
+    QCOMPARE(doc.mesh(index).mesh.FN() > 0, true);
+
+    // --- scalar -------------------------------------------------------------
+    doc.clearUndoHistory();
+    for (auto &f : doc.mesh(index).mesh.face)
+        f.Q() = -1.0f;
+    doc.markMeshGeometryChanged(index);
+    doc.clearUndoHistory();
+
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("metric"), QStringLiteral("area_max_side"));
+        const MeshFilterRunResult r = doc.runFilter(faceScalarKey, p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+    }
+    const UndoMemoryStats scalarStats = doc.undoMemoryStats();
+    QCOMPARE(scalarStats.steps.size(), std::size_t(1));
+    QVERIFY2(scalarStats.steps.front().attributeDelta,
+             "compute_face_scalar_from_geometry stored a full snapshot");
+    QCOMPARE(scalarStats.steps.front().referencedGeometryBytes, qint64(0));
+
+    QVERIFY(doc.mesh(index).mesh.face[0].cQ() != -1.0f);
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.mesh(index).mesh.face[0].cQ(), -1.0f);
+    QVERIFY(doc.redo());
+    QVERIFY(doc.mesh(index).mesh.face[0].cQ() != -1.0f);
+}
+
 void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()
 {
     Document doc;
@@ -8304,9 +8385,9 @@ void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()
     {
         const UndoMemoryStats stats = doc.undoMemoryStats();
         QCOMPARE(stats.steps.size(), std::size_t(1));
-        QVERIFY2(stats.steps.front().selectionDelta,
+        QVERIFY2(stats.steps.front().attributeDelta,
                  "select_edges_by_expression stored a full snapshot instead of a delta");
-        QVERIFY(stats.selectionBytes > 0);
+        QVERIFY(stats.deltaBytes > 0);
         // A delta node references no geometry of its own; that is the whole point.
         QCOMPARE(stats.steps.front().referencedGeometryBytes, qint64(0));
     }

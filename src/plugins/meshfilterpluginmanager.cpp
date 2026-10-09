@@ -1011,19 +1011,40 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
         };
     }
 
-    // A filter that only touches selection bits (VS/FS/ES) on a single mesh can use
-    // the cheap bit-packed delta-undo path instead of a full geometry snapshot —
-    // critical for large meshes, where snapshotting is seconds of deep-copy.
-    const bool selectionOnlyUndo =
+    // A filter whose declared effects all fall inside one or more attribute classes
+    // -- selection, colour, scalar -- can use the delta-undo path instead of a full
+    // geometry snapshot. On a 200k-vertex mesh that is ~2 MB of packed attributes
+    // against a 15 MB deep copy, and for selection two orders of magnitude better.
+    //
+    // This trusts outputModifies completely: a filter that declares VC but also moves
+    // a vertex will not have that movement undone. The descriptor is load-bearing.
+    const auto deltaKindForCode = [](const QString &code) -> std::uint32_t {
+        if (code == QStringLiteral("VS") || code == QStringLiteral("FS")
+            || code == QStringLiteral("ES"))
+            return MeshAttributeSelection;
+        if (code == QStringLiteral("VC") || code == QStringLiteral("FC")
+            || code == QStringLiteral("EC"))
+            return MeshAttributeColor;
+        if (code == QStringLiteral("VQ") || code == QStringLiteral("FQ")
+            || code == QStringLiteral("EQ"))
+            return MeshAttributeScalar;
+        return MeshAttributeNone;
+    };
+    std::uint32_t deltaKinds = MeshAttributeNone;
+    bool deltaEligible =
         targetDescriptor->inputDomain == MeshFilterInputDomain::SingleMesh
-        && !targetDescriptor->outputModifies.isEmpty()
-        && std::all_of(
-               targetDescriptor->outputModifies.cbegin(),
-               targetDescriptor->outputModifies.cend(),
-               [](const QString &code) {
-                   return code == QStringLiteral("VS") || code == QStringLiteral("FS")
-                       || code == QStringLiteral("ES");
-               });
+        && !targetDescriptor->outputModifies.isEmpty();
+    if (deltaEligible) {
+        for (const QString &code : targetDescriptor->outputModifies) {
+            const std::uint32_t kind = deltaKindForCode(code);
+            if (kind == MeshAttributeNone) {
+                deltaEligible = false;
+                break;
+            }
+            deltaKinds |= kind;
+        }
+    }
+    const bool selectionOnlyUndo = deltaEligible && deltaKinds != MeshAttributeNone;
     const int originalCurrentMeshIndex = doc.currentMeshIndex();
     ScriptAction scriptAction;
     scriptAction.kind = QStringLiteral("filter");
@@ -1049,7 +1070,8 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     const bool ownUndoStep = !doc.isRestoringUndoRedo() && !doc.undoStepActive();
     if (ownUndoStep) {
         if (selectionOnlyUndo && originalCurrentMeshIndex >= 0)
-            doc.beginUndoStep(targetDescriptor->name, scriptAction, originalCurrentMeshIndex);
+            doc.beginUndoStep(targetDescriptor->name, scriptAction,
+                              originalCurrentMeshIndex, deltaKinds);
         else
             doc.beginUndoStep(targetDescriptor->name, scriptAction);
     }

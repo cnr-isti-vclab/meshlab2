@@ -21,17 +21,19 @@ void Document::beginUndoStep(
 
 void Document::beginUndoStep(
     const QString &label,
-    int meshIndexForSelectionDelta)
+    int meshIndexForDelta,
+    std::uint32_t kinds)
 {
-    m_undoManager->beginDeltaStep(label, meshIndexForSelectionDelta);
+    m_undoManager->beginDeltaStep(label, meshIndexForDelta, kinds);
 }
 
 void Document::beginUndoStep(
     const QString &label,
     const ScriptAction &scriptAction,
-    int meshIndexForSelectionDelta)
+    int meshIndexForDelta,
+    std::uint32_t kinds)
 {
-    m_undoManager->beginDeltaStep(label, meshIndexForSelectionDelta, scriptAction);
+    m_undoManager->beginDeltaStep(label, meshIndexForDelta, kinds, scriptAction);
 }
 
 void Document::endUndoStep(bool commit, bool restoreOnCancel)

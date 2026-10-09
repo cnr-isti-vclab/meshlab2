@@ -148,20 +148,46 @@ struct UndoActionRecord {
 };
 
 // ---------------------------------------
-// Selection delta — packed bit flags
+// Attribute delta — the payload of a Delta-storage undo node
 // ---------------------------------------
 
-struct SelectionDelta {
+// Which attribute classes a delta carries. A filter that only rewrites one of them
+// does not need a whole mesh copy to be undoable, and capturing only what it declared
+// is what keeps the saving: capturing all three on a selection-only change would cost
+// more than the selection bits by two orders of magnitude.
+enum MeshAttributeDeltaKind : std::uint32_t {
+    MeshAttributeNone      = 0u,
+    MeshAttributeSelection = 1u << 0,
+    MeshAttributeColor     = 1u << 1,
+    MeshAttributeScalar    = 1u << 2,
+};
+
+struct MeshAttributeDelta {
     std::uint64_t meshId = 0;
-    // One bit per element, LSB-first within each word. A VCGLib element's flags carry
-    // many unrelated bits -- deleted, visited, border, faux -- and only the selection
-    // one is captured here, hence the names: undoing a selection filter must not
-    // resurrect a deleted element or clear a border mark computed since.
+    // Bitwise OR of MeshAttributeDeltaKind: says which vectors below were captured,
+    // so apply() can tell "this attribute was not part of the change" from "this mesh
+    // has no elements of that kind".
+    std::uint32_t kinds = MeshAttributeNone;
+
+    // Selection: one bit per element, LSB-first within each word. A VCGLib element's
+    // flags carry many unrelated bits -- deleted, visited, border, faux -- and only the
+    // selection one is captured, hence the names: undoing a selection filter must not
+    // resurrect a deleted element or clear a border mark computed since. The edge
+    // vectors are polyline VCGEdge elements, not the per-face edge bits of a triangle
+    // mesh -- those live in the face flags and travel with the geometry.
     std::vector<std::uint32_t> vertexSelectionBits;
     std::vector<std::uint32_t> faceSelectionBits;
-    // Polyline edge elements (VCGEdge::IsS), not the per-face edge bits of a
-    // triangle mesh -- those live in the face flags and travel with the geometry.
     std::vector<std::uint32_t> edgeSelectionBits;
+
+    // Colour: one packed RGBA word per element.
+    std::vector<std::uint32_t> vertexColors;
+    std::vector<std::uint32_t> faceColors;
+    std::vector<std::uint32_t> edgeColors;
+
+    // Scalar (what the UI calls quality): one float per element.
+    std::vector<float> vertexScalars;
+    std::vector<float> faceScalars;
+    std::vector<float> edgeScalars;
 };
 
 // ---------------------------------------
@@ -204,10 +230,10 @@ struct UndoNode {
     std::optional<UndoActionRecord> actionRecord;
     std::vector<UndoActionRecord> trailingActionRecords;
 
-    // Optional selection deltas (used when storageKind == Delta).
-    // Storing compact bit flags instead of a full mesh deep-copy.
-    std::optional<SelectionDelta> beforeSelection;
-    std::optional<SelectionDelta> afterSelection;
+    // Optional attribute deltas (used when storageKind == Delta): the before and after
+    // values of just the attributes the action declared, instead of a mesh deep-copy.
+    std::optional<MeshAttributeDelta> beforeAttributes;
+    std::optional<MeshAttributeDelta> afterAttributes;
 };
 
 // ---------------------------------------
@@ -232,9 +258,9 @@ struct UndoTreeNodeInfo {
 
 struct UndoStepMemoryInfo {
     QString label;
-    bool selectionDelta = false;
+    bool attributeDelta = false;
     qint64 referencedGeometryBytes = 0;
-    qint64 selectionBytes = 0;
+    qint64 deltaBytes = 0;
 };
 
 struct UndoMemoryStats {
@@ -243,20 +269,20 @@ struct UndoMemoryStats {
     int uniqueGeometryCount = 0;
     int uniqueHistoryImageCount = 0;
     qint64 geometryBytes = 0;
-    qint64 selectionBytes = 0;
+    qint64 deltaBytes = 0;
     qint64 historyImageBytes = 0;
     qint64 pendingGeometryBytes = 0;
-    qint64 pendingSelectionBytes = 0;
+    qint64 pendingDeltaBytes = 0;
     qint64 pendingImageBytes = 0;
 
     qint64 pendingBytes() const
     {
-        return pendingGeometryBytes + pendingSelectionBytes + pendingImageBytes;
+        return pendingGeometryBytes + pendingDeltaBytes + pendingImageBytes;
     }
 
     qint64 totalBytes() const
     {
-        return geometryBytes + selectionBytes + historyImageBytes + pendingBytes();
+        return geometryBytes + deltaBytes + historyImageBytes + pendingBytes();
     }
 };
 

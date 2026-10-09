@@ -23,11 +23,17 @@ using namespace DocumentInternal;
 
 namespace {
 
-qint64 selectionDeltaBytes(const SelectionDelta &delta)
+qint64 attributeDeltaBytes(const MeshAttributeDelta &delta)
 {
-    return qint64(delta.vertexSelectionBits.capacity() + delta.faceSelectionBits.capacity()
-                  + delta.edgeSelectionBits.capacity())
-         * qint64(sizeof(std::uint32_t));
+    const qint64 words =
+        qint64(delta.vertexSelectionBits.capacity() + delta.faceSelectionBits.capacity()
+               + delta.edgeSelectionBits.capacity())
+        + qint64(delta.vertexColors.capacity() + delta.faceColors.capacity()
+                 + delta.edgeColors.capacity());
+    const qint64 floats =
+        qint64(delta.vertexScalars.capacity() + delta.faceScalars.capacity()
+               + delta.edgeScalars.capacity());
+    return words * qint64(sizeof(std::uint32_t)) + floats * qint64(sizeof(float));
 }
 
 qint64 referencedGeometryBytes(const UndoState &state)
@@ -126,7 +132,7 @@ void DocumentUndoManager::endStep(bool commit, bool restoreOnCancel)
         if (!commit) {
             if (restoreOnCancel && m_pendingDeltaBefore.has_value()) {
                 m_restoringUndoRedo = true;
-                m_doc.applySelectionDelta(*m_pendingDeltaBefore);
+                m_doc.applyAttributeDelta(*m_pendingDeltaBefore);
                 m_restoringUndoRedo = false;
             }
             m_pendingDeltaBefore.reset();
@@ -168,6 +174,7 @@ void DocumentUndoManager::endStep(bool commit, bool restoreOnCancel)
 }
 
 void DocumentUndoManager::beginDeltaStep(const QString &label, int meshIndex,
+                                        std::uint32_t kinds,
                                         std::optional<ScriptAction> scriptAction)
 {
     if (m_restoringUndoRedo || m_undoStepActive || m_suppressUndo)
@@ -177,8 +184,9 @@ void DocumentUndoManager::beginDeltaStep(const QString &label, int meshIndex,
     m_undoStepLabel = label.trimmed();
     if (m_undoStepLabel.isEmpty())
         m_undoStepLabel = QObject::tr("Edit");
-    m_pendingDeltaBefore = m_doc.captureSelectionDelta(meshIndex);
+    m_pendingDeltaBefore = m_doc.captureAttributeDelta(meshIndex, kinds);
     m_pendingDeltaMeshIndex = meshIndex;
+    m_pendingDeltaKinds = kinds;
     m_pendingScriptAction = std::move(scriptAction);
     m_pendingUndoBefore.reset();
 }
@@ -189,16 +197,18 @@ void DocumentUndoManager::endDeltaStep()
         return;
 
     const QString label = m_undoStepLabel;
-    SelectionDelta before = std::move(*m_pendingDeltaBefore);
+    MeshAttributeDelta before = std::move(*m_pendingDeltaBefore);
     const int meshIndex = *m_pendingDeltaMeshIndex;
+    const std::uint32_t kinds = m_pendingDeltaKinds;
     std::optional<ScriptAction> scriptAction = std::move(m_pendingScriptAction);
     m_pendingDeltaBefore.reset();
     m_pendingDeltaMeshIndex.reset();
+    m_pendingDeltaKinds = MeshAttributeNone;
     m_pendingScriptAction.reset();
     m_undoStepActive = false;
     m_undoStepLabel.clear();
 
-    SelectionDelta after = m_doc.captureSelectionDelta(meshIndex);
+    MeshAttributeDelta after = m_doc.captureAttributeDelta(meshIndex, kinds);
     pushDeltaStep(label, std::move(before), std::move(after), std::move(scriptAction));
     applyDeferredMemoryPressure();
 }
@@ -430,10 +440,10 @@ bool DocumentUndoManager::undo()
     qDebug() << "[UNDO]  from=" << m_undoCurrentNode << '(' << node.label << ')'
              << "to=" << parentId << '(' << target.label << ')';
 
-    if (node.storageKind == UndoStorageKind::Delta && node.beforeSelection.has_value()) {
+    if (node.storageKind == UndoStorageKind::Delta && node.beforeAttributes.has_value()) {
         // Delta undo: revert selection on live mesh, no full state restore.
         m_restoringUndoRedo = true;
-        m_doc.applySelectionDelta(*node.beforeSelection);
+        m_doc.applyAttributeDelta(*node.beforeAttributes);
         m_undoNodes[static_cast<size_t>(parentId)].preferredChild = m_undoCurrentNode;
         m_undoCurrentNode = parentId;
         emitStateChanged();
@@ -474,10 +484,10 @@ bool DocumentUndoManager::redo()
              << "to=" << childId << '(' << target.label << ')'
              << "prefChild=" << node.preferredChild
              << "children=" << QVector<int>(node.children.begin(), node.children.end());
-    if (target.storageKind == UndoStorageKind::Delta && target.afterSelection.has_value()) {
+    if (target.storageKind == UndoStorageKind::Delta && target.afterAttributes.has_value()) {
         // Delta redo: apply after-selection on live mesh, no full state restore.
         m_restoringUndoRedo = true;
-        m_doc.applySelectionDelta(*target.afterSelection);
+        m_doc.applyAttributeDelta(*target.afterAttributes);
         m_undoCurrentNode = childId;
         emitStateChanged();
         m_restoringUndoRedo = false;
@@ -925,8 +935,8 @@ void DocumentUndoManager::pushStep(const QString &label, UndoState &&before, Und
 
 void DocumentUndoManager::pushDeltaStep(
     const QString &label,
-    SelectionDelta &&before,
-    SelectionDelta &&after,
+    MeshAttributeDelta &&before,
+    MeshAttributeDelta &&after,
     std::optional<ScriptAction> scriptAction)
 {
     if (m_undoCurrentNode < 0) {
@@ -947,8 +957,8 @@ void DocumentUndoManager::pushDeltaStep(
     child.parentId = m_undoCurrentNode;
     child.prefixActionRecords = std::move(
         m_undoNodes[static_cast<size_t>(m_undoCurrentNode)].trailingActionRecords);
-    child.beforeSelection = std::move(before);
-    child.afterSelection = std::move(after);
+    child.beforeAttributes = std::move(before);
+    child.afterAttributes = std::move(after);
     if (scriptAction.has_value())
         child.actionRecord = UndoActionRecord::fromScriptAction(*scriptAction);
 
@@ -1105,12 +1115,12 @@ UndoMemoryStats DocumentUndoManager::memoryStats() const
         UndoStepMemoryInfo info;
         const UndoNode &node = m_undoNodes[static_cast<size_t>(path[pi])];
         info.label = node.label;
-        info.selectionDelta = node.storageKind == UndoStorageKind::Delta;
-        if (info.selectionDelta) {
-            if (node.beforeSelection)
-                info.selectionBytes += selectionDeltaBytes(*node.beforeSelection);
-            if (node.afterSelection)
-                info.selectionBytes += selectionDeltaBytes(*node.afterSelection);
+        info.attributeDelta = node.storageKind == UndoStorageKind::Delta;
+        if (info.attributeDelta) {
+            if (node.beforeAttributes)
+                info.deltaBytes += attributeDeltaBytes(*node.beforeAttributes);
+            if (node.afterAttributes)
+                info.deltaBytes += attributeDeltaBytes(*node.afterAttributes);
         } else {
             info.referencedGeometryBytes = referencedGeometryBytes(node.state);
         }
@@ -1120,10 +1130,10 @@ UndoMemoryStats DocumentUndoManager::memoryStats() const
     std::set<const VCGMesh *> seenGeometry;
     for (const auto &node : m_undoNodes) {
         accountGeometry(node.state, seenGeometry, stats.geometryBytes, &stats.uniqueGeometryCount);
-        if (node.beforeSelection)
-            stats.selectionBytes += selectionDeltaBytes(*node.beforeSelection);
-        if (node.afterSelection)
-            stats.selectionBytes += selectionDeltaBytes(*node.afterSelection);
+        if (node.beforeAttributes)
+            stats.deltaBytes += attributeDeltaBytes(*node.beforeAttributes);
+        if (node.afterAttributes)
+            stats.deltaBytes += attributeDeltaBytes(*node.afterAttributes);
     }
 
     // QImage copies in snapshots are implicit shares. Seed the set with live
@@ -1159,6 +1169,6 @@ UndoMemoryStats DocumentUndoManager::memoryStats() const
             stats.pendingImageBytes);
     }
     if (m_pendingDeltaBefore)
-        stats.pendingSelectionBytes = selectionDeltaBytes(*m_pendingDeltaBefore);
+        stats.pendingDeltaBytes = attributeDeltaBytes(*m_pendingDeltaBefore);
     return stats;
 }

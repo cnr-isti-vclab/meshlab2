@@ -1862,7 +1862,7 @@ void DocumentTests::selectionDeltaUndoCoversEdges()
     doc.markMeshSelectionChanged(index);
     doc.clearUndoHistory();
 
-    doc.beginUndoStep(QStringLiteral("Select edges"), index);
+    doc.beginUndoStep(QStringLiteral("Select edges"), index, MeshAttributeSelection);
     doc.mesh(index).mesh.edge[2].SetS();
     doc.mesh(index).mesh.edge[3].SetS();
     doc.markMeshSelectionChanged(index);
@@ -1871,8 +1871,8 @@ void DocumentTests::selectionDeltaUndoCoversEdges()
     // Stored as a delta, not a mesh copy.
     const UndoMemoryStats stats = doc.undoMemoryStats();
     QCOMPARE(stats.steps.size(), std::size_t(1));
-    QVERIFY(stats.steps.front().selectionDelta);
-    QVERIFY(stats.selectionBytes > 0);
+    QVERIFY(stats.steps.front().attributeDelta);
+    QVERIFY(stats.deltaBytes > 0);
 
     const auto edgeSelection = [&] {
         QVector<int> on;
@@ -1905,16 +1905,16 @@ void DocumentTests::memoryStatsIncludeSelectionAndPendingSnapshots()
     doc.setSuppressUndo(false);
     doc.clearUndoHistory();
 
-    doc.beginUndoStep(QStringLiteral("Select one"), 0);
+    doc.beginUndoStep(QStringLiteral("Select one"), 0, MeshAttributeSelection);
     doc.mesh(0).mesh.vert[0].SetS();
     doc.markMeshSelectionChanged(0);
     doc.endUndoStep(true);
 
     const UndoMemoryStats selectionStats = doc.undoMemoryStats();
-    QVERIFY(selectionStats.selectionBytes > 0);
+    QVERIFY(selectionStats.deltaBytes > 0);
     QCOMPARE(selectionStats.steps.size(), size_t(1));
-    QVERIFY(selectionStats.steps.front().selectionDelta);
-    QCOMPARE(selectionStats.steps.front().selectionBytes, selectionStats.selectionBytes);
+    QVERIFY(selectionStats.steps.front().attributeDelta);
+    QCOMPARE(selectionStats.steps.front().deltaBytes, selectionStats.deltaBytes);
 
     doc.clearUndoHistory();
     doc.beginUndoStep(QStringLiteral("Pending geometry"));
