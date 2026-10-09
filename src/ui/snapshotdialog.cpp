@@ -72,9 +72,14 @@ SnapshotDialog::SnapshotDialog(RenderWidget *view, const QString &suggestedPath,
     browse->setText(QStringLiteral("..."));
     browse->setToolTip(tr("Choose where to save"));
     connect(browse, &QToolButton::clicked, this, &SnapshotDialog::browseForPath);
+    auto *increment = new QToolButton(this);
+    increment->setText(QStringLiteral("+"));
+    increment->setToolTip(tr("Next file name: add one to the number at the end of the name"));
+    connect(increment, &QToolButton::clicked, this, &SnapshotDialog::incrementPath);
     auto *pathRow = new QHBoxLayout();
     pathRow->addWidget(new QLabel(tr("File"), this), 0);
     pathRow->addWidget(m_pathEdit, 1);
+    pathRow->addWidget(increment, 0);
     pathRow->addWidget(browse, 0);
     layout->addLayout(pathRow);
 
@@ -146,6 +151,14 @@ SnapshotDialog::SnapshotDialog(RenderWidget *view, const QString &suggestedPath,
         tr("The trackball sphere and the current-layer outline are there to work with, not "
            "to publish, so they are left out by default."));
     form->addRow(tr("Gizmos"), m_gizmosCheck);
+
+    // The camera that took the picture is already known here, which is why this lives in the
+    // dialog rather than as a separate command that had to guess size and settings.
+    m_rasterCheck = new QCheckBox(tr("Add to the project as a raster layer"), this);
+    m_rasterCheck->setToolTip(
+        tr("Adds this image, with the camera that produced it, as a raster layer. "
+           "Leave the file name empty to add the raster without writing a PNG."));
+    form->addRow(tr("Raster"), m_rasterCheck);
 
     // --- preview
     auto *previewColumn = new QVBoxLayout();
@@ -225,6 +238,11 @@ SnapshotDialog::Background SnapshotDialog::background() const
 bool SnapshotDialog::includeGizmos() const
 {
     return m_gizmosCheck->isChecked();
+}
+
+bool SnapshotDialog::addAsRaster() const
+{
+    return m_rasterCheck->isChecked();
 }
 
 QImage SnapshotDialog::capture(const QSize &size, QString *errorMessage) const
@@ -373,8 +391,14 @@ void SnapshotDialog::onSaveRequested()
 {
     const QString path = targetPath();
     if (path.isEmpty()) {
+        // No file is fine when the image is only wanted as a raster layer.
+        if (addAsRaster()) {
+            accept();
+            return;
+        }
         QMessageBox::warning(this, tr("Save Snapshot"),
-                             tr("Enter a file name for the snapshot."));
+                             tr("Enter a file name for the snapshot, or choose to add it as "
+                                "a raster layer."));
         m_pathEdit->setFocus();
         return;
     }
@@ -410,6 +434,34 @@ void SnapshotDialog::onSaveRequested()
     }
 
     accept();
+}
+
+void SnapshotDialog::incrementPath()
+{
+    // Works on the text as typed, which may not have its ".png" yet; only a real
+    // ".png" is set aside, so a name like "run.3" keeps its 3 for the increment.
+    QString path = m_pathEdit->text().trimmed();
+    if (path.isEmpty())
+        return;
+    QString suffix;
+    if (path.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+        suffix = path.right(4);
+        path.chop(4);
+    }
+
+    // The digits at the end are incremented keeping their width ("007" -> "008"); a name
+    // without any gets "_2", the second of that name.
+    int digits = 0;
+    while (digits < path.size() && path.at(path.size() - 1 - digits).isDigit())
+        ++digits;
+    if (digits == 0) {
+        path += QStringLiteral("_2");
+    } else {
+        const QString number = path.right(digits);
+        const QString next = QString::number(number.toLongLong() + 1).rightJustified(digits, QLatin1Char('0'));
+        path = path.left(path.size() - digits) + next;
+    }
+    m_pathEdit->setText(path + suffix);
 }
 
 void SnapshotDialog::browseForPath()

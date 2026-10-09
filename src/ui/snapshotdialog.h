@@ -38,6 +38,7 @@ public:
     QSize snapshotSize() const;
     Background background() const;
     bool includeGizmos() const;
+    bool addAsRaster() const;
 
     // Renders through the same path the preview uses, so the file matches what was shown.
     // Returns a null image and sets errorMessage on failure.
@@ -55,6 +56,7 @@ private:
     void schedulePreview();
     void refreshPreview();
     void browseForPath();
+    void incrementPath();
     void applySizePreset(int width, int height);
 
     RenderWidget *m_view = nullptr;
@@ -64,6 +66,7 @@ private:
     QCheckBox *m_lockAspect = nullptr;
     QComboBox *m_backgroundCombo = nullptr;
     QCheckBox *m_gizmosCheck = nullptr;
+    QCheckBox *m_rasterCheck = nullptr;
     QLabel *m_previewLabel = nullptr;
     double m_aspect = 1.0;
     bool m_resizingFromLock = false;

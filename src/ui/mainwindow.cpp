@@ -1217,7 +1217,6 @@ MainWindow::MainWindow(QWidget *parent)
         QKeySequence(QStringLiteral("Ctrl+Shift+S")),
         this,
         &MainWindow::saveSnapshotPng);
-    fileMenu->addAction(tr("Add Snapshot &Raster"), this, &MainWindow::addSnapshotRaster);
     m_openLastAction = fileMenu->addAction(tr("Open &Last Mesh"), this, &MainWindow::openLastMesh);
     m_openLastAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+L")));
     m_recentMenu = fileMenu->addMenu(tr("Open &Recent"));
@@ -2602,12 +2601,10 @@ void MainWindow::saveSnapshotPng()
     if (dialog.exec() != QDialog::Accepted)
         return;
 
+    // The path may be empty when the snapshot is only wanted as a raster layer.
     const QString targetPath = dialog.targetPath();
-    if (targetPath.isEmpty()) {
-        statusBar()->showMessage(tr("Snapshot needs a file name"), 3000);
-        return;
-    }
-    FileDialogDirectory::remember(QStringLiteral("snapshot"), targetPath);
+    if (!targetPath.isEmpty())
+        FileDialogDirectory::remember(QStringLiteral("snapshot"), targetPath);
 
     QString captureError;
     const QImage snapshot = dialog.capture(dialog.snapshotSize(), &captureError);
@@ -2621,53 +2618,32 @@ void MainWindow::saveSnapshotPng()
     QImage outImage = snapshot.convertToFormat(QImage::Format_RGBA8888);
     outImage.setText(QStringLiteral("MeshLab.CameraTrackballState"), view->cameraStateJson());
 
-    QImageWriter writer(targetPath, "png");
-    if (!writer.write(outImage)) {
-        const QString msg = tr("Failed to save snapshot: %1").arg(writer.errorString());
-        statusBar()->showMessage(msg, 4500);
+    if (!targetPath.isEmpty()) {
+        QImageWriter writer(targetPath, "png");
+        if (!writer.write(outImage)) {
+            const QString msg = tr("Failed to save snapshot: %1").arg(writer.errorString());
+            statusBar()->showMessage(msg, 4500);
+            m_doc->writeLog(msg, Document::LogSource::Application);
+            return;
+        }
+        const QString msg = tr("Snapshot saved to %1").arg(targetPath);
+        statusBar()->showMessage(msg, 3000);
         m_doc->writeLog(msg, Document::LogSource::Application);
-        return;
     }
 
-    const QString msg = tr("Snapshot saved to %1").arg(targetPath);
-    statusBar()->showMessage(msg, 3000);
-    m_doc->writeLog(msg, Document::LogSource::Application);
-}
-
-void MainWindow::addSnapshotRaster()
-{
-    RenderWidget *view = currentRenderWidget();
-    if (!view)
-        return;
-
-    const qreal dpr = qMax(1.0, view->devicePixelRatioF());
-    const QSize snapshotSize(
-        qMax(1, int(std::lround(double(view->width()) * dpr))),
-        qMax(1, int(std::lround(double(view->height()) * dpr))));
-
-    QString captureError;
-    QImage snapshot = view->renderOffscreenToImage(snapshotSize, false, &captureError);
-    if (snapshot.isNull()) {
-        const QString msg = tr("Failed to capture snapshot raster: %1").arg(captureError);
-        statusBar()->showMessage(msg, 3500);
+    if (dialog.addAsRaster()) {
+        // The same capture as the file, with the camera that produced it.
+        const CameraShot shot = view->cameraShotForViewport(outImage.size());
+        const QString name = tr("Snapshot %1").arg(m_doc->rasterCount() + 1);
+        const int index = m_doc->addRasterImage(outImage, name, QString(), shot);
+        if (index < 0) {
+            statusBar()->showMessage(tr("Failed to add snapshot raster"), 3500);
+            return;
+        }
+        const QString msg = tr("Added snapshot raster '%1'").arg(m_doc->raster(index).name);
+        statusBar()->showMessage(msg, 2500);
         m_doc->writeLog(msg, Document::LogSource::Application);
-        return;
     }
-
-    snapshot = snapshot.convertToFormat(QImage::Format_RGBA8888);
-    snapshot.setText(QStringLiteral("MeshLab.CameraTrackballState"), view->cameraStateJson());
-
-    const CameraShot shot = view->cameraShotForViewport(snapshotSize);
-    const QString name = tr("Snapshot %1").arg(m_doc->rasterCount() + 1);
-    const int index = m_doc->addRasterImage(snapshot, name, QString(), shot);
-    if (index < 0) {
-        statusBar()->showMessage(tr("Failed to add snapshot raster"), 3500);
-        return;
-    }
-
-    const QString msg = tr("Added snapshot raster '%1'").arg(m_doc->raster(index).name);
-    statusBar()->showMessage(msg, 2500);
-    m_doc->writeLog(msg, Document::LogSource::Application);
 }
 
 void MainWindow::openLastMesh()

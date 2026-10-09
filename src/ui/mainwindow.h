@@ -68,7 +68,6 @@ private slots:
     void saveCurrentMesh();
     void saveProjectAs();
     void saveSnapshotPng();
-    void addSnapshotRaster();
     void openFilterBrowser();
     void runFilterAction();
     void openLastMesh();
