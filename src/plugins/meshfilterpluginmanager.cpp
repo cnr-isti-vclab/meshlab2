@@ -1011,7 +1011,7 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
         };
     }
 
-    // A filter that only touches selection bits (VS/FS) on a single mesh can use
+    // A filter that only touches selection bits (VS/FS/ES) on a single mesh can use
     // the cheap bit-packed delta-undo path instead of a full geometry snapshot —
     // critical for large meshes, where snapshotting is seconds of deep-copy.
     const bool selectionOnlyUndo =
@@ -1021,7 +1021,8 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
                targetDescriptor->outputModifies.cbegin(),
                targetDescriptor->outputModifies.cend(),
                [](const QString &code) {
-                   return code == QStringLiteral("VS") || code == QStringLiteral("FS");
+                   return code == QStringLiteral("VS") || code == QStringLiteral("FS")
+                       || code == QStringLiteral("ES");
                });
     const int originalCurrentMeshIndex = doc.currentMeshIndex();
     ScriptAction scriptAction;

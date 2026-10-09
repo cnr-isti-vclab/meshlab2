@@ -25,7 +25,8 @@ namespace {
 
 qint64 selectionDeltaBytes(const SelectionDelta &delta)
 {
-    return qint64(delta.vertexBits.capacity() + delta.faceBits.capacity())
+    return qint64(delta.vertexSelectionBits.capacity() + delta.faceSelectionBits.capacity()
+                  + delta.edgeSelectionBits.capacity())
          * qint64(sizeof(std::uint32_t));
 }
 

@@ -8292,10 +8292,23 @@ void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()
     };
 
     // 1. Selection. Edges 2 and 3 are the ones longer than 2.5.
+    doc.clearUndoHistory();
     {
         MeshFilterParameterValues p;
         p.insert(QStringLiteral("condSelect"), QStringLiteral("elen > 2.5"));
         runWith(QStringLiteral("select_edges_by_expression"), p);
+    }
+    // Declaring only ES must route the filter onto the bit-packed delta undo rather
+    // than a full mesh snapshot -- the descriptor is what decides, so this is the
+    // check that the ES code is actually recognised.
+    {
+        const UndoMemoryStats stats = doc.undoMemoryStats();
+        QCOMPARE(stats.steps.size(), std::size_t(1));
+        QVERIFY2(stats.steps.front().selectionDelta,
+                 "select_edges_by_expression stored a full snapshot instead of a delta");
+        QVERIFY(stats.selectionBytes > 0);
+        // A delta node references no geometry of its own; that is the whole point.
+        QCOMPARE(stats.steps.front().referencedGeometryBytes, qint64(0));
     }
     const VCGMesh &m = doc.mesh(index).mesh;
     QCOMPARE(int(vcg::tri::UpdateSelection<VCGMesh>::EdgeCount(m)), 2);

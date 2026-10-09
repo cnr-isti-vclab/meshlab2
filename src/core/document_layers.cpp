@@ -733,17 +733,25 @@ SelectionDelta Document::captureSelectionDelta(int meshIndex) const
     const int vertCount = m.VN();
     const int faceCount = m.FN();
     if (vertCount > 0) {
-        delta.vertexBits.resize(size_t((vertCount + 31) / 32), 0);
+        delta.vertexSelectionBits.resize(size_t((vertCount + 31) / 32), 0);
         for (int i = 0; i < vertCount; ++i) {
             if (m.vert[i].IsS())
-                delta.vertexBits[size_t(i / 32)] |= (1u << (unsigned(i % 32)));
+                delta.vertexSelectionBits[size_t(i / 32)] |= (1u << (unsigned(i % 32)));
         }
     }
     if (faceCount > 0) {
-        delta.faceBits.resize(size_t((faceCount + 31) / 32), 0);
+        delta.faceSelectionBits.resize(size_t((faceCount + 31) / 32), 0);
         for (int i = 0; i < faceCount; ++i) {
             if (m.face[i].IsS())
-                delta.faceBits[size_t(i / 32)] |= (1u << (unsigned(i % 32)));
+                delta.faceSelectionBits[size_t(i / 32)] |= (1u << (unsigned(i % 32)));
+        }
+    }
+    const int edgeCount = m.EN();
+    if (edgeCount > 0) {
+        delta.edgeSelectionBits.resize(size_t((edgeCount + 31) / 32), 0);
+        for (int i = 0; i < edgeCount; ++i) {
+            if (m.edge[i].IsS())
+                delta.edgeSelectionBits[size_t(i / 32)] |= (1u << (unsigned(i % 32)));
         }
     }
     return delta;
@@ -758,13 +766,16 @@ void Document::applySelectionDelta(const SelectionDelta &delta)
         VCGMesh &m = entry.mesh;
         const int vertCount = m.VN();
         const int faceCount = m.FN();
+        const int edgeCount = m.EN();
         for (int vi = 0; vi < vertCount; ++vi)
             m.vert[vi].ClearS();
         for (int fi = 0; fi < faceCount; ++fi)
             m.face[fi].ClearS();
-        const size_t vertWords = delta.vertexBits.size();
+        for (int ei = 0; ei < edgeCount; ++ei)
+            m.edge[ei].ClearS();
+        const size_t vertWords = delta.vertexSelectionBits.size();
         for (size_t wi = 0; wi < vertWords; ++wi) {
-            std::uint32_t word = delta.vertexBits[wi];
+            std::uint32_t word = delta.vertexSelectionBits[wi];
             if (!word) continue;
             const int base = int(wi * 32);
             const int limit = std::min(base + 32, vertCount);
@@ -773,15 +784,26 @@ void Document::applySelectionDelta(const SelectionDelta &delta)
                     m.vert[vi].SetS();
             }
         }
-        const size_t faceWords = delta.faceBits.size();
+        const size_t faceWords = delta.faceSelectionBits.size();
         for (size_t wi = 0; wi < faceWords; ++wi) {
-            std::uint32_t word = delta.faceBits[wi];
+            std::uint32_t word = delta.faceSelectionBits[wi];
             if (!word) continue;
             const int base = int(wi * 32);
             const int limit = std::min(base + 32, faceCount);
             for (int fi = base; fi < limit; ++fi) {
                 if (word & (1u << (unsigned(fi - base))))
                     m.face[fi].SetS();
+            }
+        }
+        const size_t edgeWords = delta.edgeSelectionBits.size();
+        for (size_t wi = 0; wi < edgeWords; ++wi) {
+            std::uint32_t word = delta.edgeSelectionBits[wi];
+            if (!word) continue;
+            const int base = int(wi * 32);
+            const int limit = std::min(base + 32, edgeCount);
+            for (int ei = base; ei < limit; ++ei) {
+                if (word & (1u << (unsigned(ei - base))))
+                    m.edge[ei].SetS();
             }
         }
         // Refresh the GPU selection overlay for the restored bits (undo/redo).

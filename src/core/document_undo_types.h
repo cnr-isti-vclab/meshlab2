@@ -153,8 +153,15 @@ struct UndoActionRecord {
 
 struct SelectionDelta {
     std::uint64_t meshId = 0;
-    std::vector<std::uint32_t> vertexBits; // 1 bit per vertex, packed MSB-first
-    std::vector<std::uint32_t> faceBits;   // 1 bit per face
+    // One bit per element, LSB-first within each word. A VCGLib element's flags carry
+    // many unrelated bits -- deleted, visited, border, faux -- and only the selection
+    // one is captured here, hence the names: undoing a selection filter must not
+    // resurrect a deleted element or clear a border mark computed since.
+    std::vector<std::uint32_t> vertexSelectionBits;
+    std::vector<std::uint32_t> faceSelectionBits;
+    // Polyline edge elements (VCGEdge::IsS), not the per-face edge bits of a
+    // triangle mesh -- those live in the face flags and travel with the geometry.
+    std::vector<std::uint32_t> edgeSelectionBits;
 };
 
 // ---------------------------------------

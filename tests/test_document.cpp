@@ -87,6 +87,7 @@ private slots:
     void polylineLayerWalksItsEdgeGraph();
     void memoryStatsDeduplicateImagesAndTrackUndoOwnership();
     void memoryStatsIncludeSelectionAndPendingSnapshots();
+    void selectionDeltaUndoCoversEdges();
     void undoMemoryBudgetAndPressurePurgeSafely();
     void processMemoryInfoReportsCurrentProcess();
     void openDialogFilterContainsKnownFormats();
@@ -1831,6 +1832,67 @@ void DocumentTests::memoryStatsDeduplicateImagesAndTrackUndoOwnership()
     const UndoMemoryStats undoStats = doc.undoMemoryStats();
     QCOMPARE(undoStats.uniqueHistoryImageCount, 1);
     QCOMPARE(undoStats.historyImageBytes, qint64(image.sizeInBytes()));
+}
+
+// Edge selection goes through the same bit-packed delta as vertices and faces, so a
+// polyline layer costs a few words per undo step rather than a whole mesh copy. The
+// three sets must also stay independent: restoring one must not disturb the others.
+void DocumentTests::selectionDeltaUndoCoversEdges()
+{
+    Document doc;
+    VCGMesh polyline;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(polyline, 5);
+    for (int i = 0; i < 5; ++i)
+        polyline.vert[std::size_t(i)].P() = vcg::Point3f(float(i), 0.0f, 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddEdges(polyline, 4);
+    for (int i = 0; i < 4; ++i) {
+        polyline.edge[std::size_t(i)].V(0) = &polyline.vert[std::size_t(i)];
+        polyline.edge[std::size_t(i)].V(1) = &polyline.vert[std::size_t(i + 1)];
+    }
+    doc.setSuppressUndo(true);
+    const int index = doc.addMesh(polyline, QStringLiteral("Chain"),
+                                  vcg::tri::io::Mask::IOM_EDGEINDEX);
+    QVERIFY(index >= 0);
+    doc.setSuppressUndo(false);
+
+    // A starting state with one vertex and one edge already selected, so undo has
+    // something non-empty to restore rather than just clearing everything.
+    doc.mesh(index).mesh.vert[0].SetS();
+    doc.mesh(index).mesh.edge[0].SetS();
+    doc.markMeshSelectionChanged(index);
+    doc.clearUndoHistory();
+
+    doc.beginUndoStep(QStringLiteral("Select edges"), index);
+    doc.mesh(index).mesh.edge[2].SetS();
+    doc.mesh(index).mesh.edge[3].SetS();
+    doc.markMeshSelectionChanged(index);
+    doc.endUndoStep(true);
+
+    // Stored as a delta, not a mesh copy.
+    const UndoMemoryStats stats = doc.undoMemoryStats();
+    QCOMPARE(stats.steps.size(), std::size_t(1));
+    QVERIFY(stats.steps.front().selectionDelta);
+    QVERIFY(stats.selectionBytes > 0);
+
+    const auto edgeSelection = [&] {
+        QVector<int> on;
+        const VCGMesh &m = doc.mesh(index).mesh;
+        for (int i = 0; i < m.EN(); ++i)
+            if (m.edge[std::size_t(i)].IsS())
+                on << i;
+        return on;
+    };
+    QCOMPARE(edgeSelection(), QVector<int>({ 0, 2, 3 }));
+
+    QVERIFY(doc.undo());
+    QCOMPARE(edgeSelection(), QVector<int>({ 0 }));
+    // The vertex side of the same delta must come back untouched.
+    QVERIFY(doc.mesh(index).mesh.vert[0].IsS());
+    QVERIFY(!doc.mesh(index).mesh.vert[1].IsS());
+
+    QVERIFY(doc.redo());
+    QCOMPARE(edgeSelection(), QVector<int>({ 0, 2, 3 }));
+    QVERIFY(doc.mesh(index).mesh.vert[0].IsS());
 }
 
 void DocumentTests::memoryStatsIncludeSelectionAndPendingSnapshots()
