@@ -1147,9 +1147,13 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     auto *tableSplitter = new QSplitter(Qt::Vertical, this);
     m_stack->addWidget(tableSplitter); // page 1
 
-    // Mesh table — columns: Eye(0) | Name(1) | V(2) | E(3) | F(4) | Data(5)
-    m_meshTable = new QTableWidget(0, 6, this);
-    m_meshTable->setHorizontalHeaderLabels({QString(), tr("Name"), tr("V"), tr("E"), tr("F"), tr("Data")});
+    // Mesh table — columns: Eye(0) | Name(1) | Src(2) | V(3) | E(4) | F(5) | Data(6)
+    m_meshTable = new QTableWidget(0, 7, this);
+    m_meshTable->setHorizontalHeaderLabels(
+        {QString(), tr("Name"), tr("Src"), tr("V"), tr("E"), tr("F"), tr("Data")});
+    m_meshTable->horizontalHeaderItem(2)->setToolTip(
+        tr("Where the layer comes from: D loaded from a file, G generated in memory (no file). "
+           "A * means it has changed since."));
     m_meshTable->setSelectionMode(QAbstractItemView::SingleSelection);
     m_meshTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_meshTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
@@ -1280,6 +1284,9 @@ void LayerWidget::makeColumnsResizable(QTableWidget *table, int firstResizable)
         header->setSectionResizeMode(column, QHeaderView::Interactive);
     // The last column takes up whatever is left over, so the table has no ragged edge.
     header->setStretchLastSection(true);
+    // The style's default minimum is wider than a column of one digit needs, and it is what
+    // stops a column being dragged narrower.
+    header->setMinimumSectionSize(16);
 
     connect(header, &QHeaderView::sectionHandleDoubleClicked, this,
             [this, table](int column) {
@@ -1287,8 +1294,14 @@ void LayerWidget::makeColumnsResizable(QTableWidget *table, int firstResizable)
                 QSignalBlocker block(table->horizontalHeader());
                 table->resizeColumnToContents(column);
             });
-    connect(header, &QHeaderView::sectionResized, this, [this](int, int, int) {
-        if (!m_adjustingColumns)
+    // Qt also resizes sections by itself -- the stretching last one whenever the panel
+    // changes size, a first layout -- and none of that is the user taking an interest. It is
+    // theirs only when the left button is down over the header, which is how a handle is
+    // dragged; counting every resize had the columns settle at Qt's equal default widths
+    // and never fit their contents.
+    connect(header, &QHeaderView::sectionResized, this, [this, header](int, int, int) {
+        if (!m_adjustingColumns && (QApplication::mouseButtons() & Qt::LeftButton)
+            && header->viewport()->underMouse())
             m_columnsUserSized = true;
     });
 }
@@ -1306,6 +1319,11 @@ void LayerWidget::fitColumnsToContents()
             if (header->sectionResizeMode(column) == QHeaderView::Interactive)
                 table->resizeColumnToContents(column);
         }
+        // A long name is elided rather than allowed to push every number off the panel.
+        const int maxNameWidth = qMax(120, int(0.55 * table->viewport()->width()));
+        const int nameColumn = (table == m_meshTable) ? 1 : 2;
+        if (header->sectionSize(nameColumn) > maxNameWidth)
+            table->setColumnWidth(nameColumn, maxNameWidth);
     }
     m_adjustingColumns = false;
 }
@@ -1667,52 +1685,58 @@ void LayerWidget::rebuildTable()
             eyeItem->setCheckState(entry.visible ? Qt::Checked : Qt::Unchecked);
             m_meshTable->setItem(i, 0, eyeItem);
 
-            // Name column (1)
-            const bool loaded = !entry.sourcePath.trimmed().isEmpty();
-            QString displayName;
-            if (loaded)
-                displayName = QStringLiteral("[D]");
-            else
-                displayName = QStringLiteral("[G]");
-            if (entry.modified)
-                displayName.append(QLatin1Char('*'));
-            displayName.append(QLatin1Char(' '));
-            displayName += entry.name;
-
-            auto *nameItem = new QTableWidgetItem(displayName);
+            // Name column (1): the label as it is; where the layer comes from has a column of
+            // its own.
+            auto *nameItem = new QTableWidgetItem(entry.name);
             nameItem->setData(kRoleMeshIndex, i);
             nameItem->setFlags(nameItem->flags() | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
             nameItem->setToolTip(meshDataTooltip(entry, faceCount));
             m_meshTable->setItem(i, 1, nameItem);
 
-            // V column (2)
+            // Src column (2): D from disk, G generated, * changed since
+            const bool loaded = !entry.sourcePath.trimmed().isEmpty();
+            QString provenance = loaded ? QStringLiteral("D") : QStringLiteral("G");
+            QString provenanceTip = loaded
+                ? tr("Loaded from %1").arg(QDir::toNativeSeparators(entry.sourcePath))
+                : tr("Generated in memory: it has no file");
+            if (entry.modified) {
+                provenance.append(QLatin1Char('*'));
+                provenanceTip += QLatin1Char('\n') + tr("Changed since it was loaded or created");
+            }
+            auto *provenanceItem = new QTableWidgetItem(provenance);
+            provenanceItem->setFlags(provenanceItem->flags() & ~Qt::ItemIsEditable);
+            provenanceItem->setTextAlignment(Qt::AlignCenter);
+            provenanceItem->setToolTip(provenanceTip);
+            m_meshTable->setItem(i, 2, provenanceItem);
+
+            // V column (3)
             auto *vItem = new NumericTableItem(
                 locale.toString(static_cast<qlonglong>(entry.mesh.VN())),
                 static_cast<qlonglong>(entry.mesh.VN()));
             vItem->setFlags(vItem->flags() & ~Qt::ItemIsEditable);
             vItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-            m_meshTable->setItem(i, 2, vItem);
+            m_meshTable->setItem(i, 3, vItem);
 
-            // E column (3)
+            // E column (4)
             auto *eItem = new NumericTableItem(
                 locale.toString(static_cast<qlonglong>(entry.mesh.EN())),
                 static_cast<qlonglong>(entry.mesh.EN()));
             eItem->setFlags(eItem->flags() & ~Qt::ItemIsEditable);
             eItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-            m_meshTable->setItem(i, 3, eItem);
+            m_meshTable->setItem(i, 4, eItem);
 
-            // F column (4)
+            // F column (5)
             auto *fItem = new NumericTableItem(
                 locale.toString(static_cast<qlonglong>(faceCount)),
                 static_cast<qlonglong>(faceCount));
             fItem->setFlags(fItem->flags() & ~Qt::ItemIsEditable);
             fItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-            m_meshTable->setItem(i, 4, fItem);
+            m_meshTable->setItem(i, 5, fItem);
 
-            // Data column (5)
+            // Data column (6)
             auto *dItem = new QTableWidgetItem(meshDataSummary(entry));
             dItem->setFlags(dItem->flags() & ~Qt::ItemIsEditable);
-            m_meshTable->setItem(i, 5, dItem);
+            m_meshTable->setItem(i, 6, dItem);
         }
 
         m_meshTable->setSortingEnabled(true);
@@ -1858,8 +1882,8 @@ void LayerWidget::onMeshTableCellChanged(QTableWidgetItem *item)
 {
     if (m_rebuilding || !item)
         return;
-    // Only the eye column (0) is checkable
-    if (item->column() != 0)
+    // The eye (0) is checkable and the name (1) is editable; nothing else changes by hand.
+    if (item->column() != 0 && item->column() != 1)
         return;
 
     bool ok = false;
@@ -1867,8 +1891,33 @@ void LayerWidget::onMeshTableCellChanged(QTableWidgetItem *item)
     if (!ok || index < 0 || index >= m_doc->meshCount())
         return;
 
-    const bool visible = (item->checkState() == Qt::Checked);
-    m_doc->setMeshVisible(index, visible);
+    if (item->column() == 0) {
+        const bool visible = (item->checkState() == Qt::Checked);
+        m_doc->setMeshVisible(index, visible);
+        return;
+    }
+
+    // A rename is the Rename Current Mesh Layer filter, run on this row's layer, so it is
+    // an entry in the action history and in a generated script like any other rename.
+    const QString newName = item->text().trimmed();
+    if (newName.isEmpty() || newName == m_doc->mesh(index).name) {
+        scheduleRebuild(); // puts the name back
+        return;
+    }
+    QString renameKey;
+    for (const Document::FilterInfo &info : m_doc->filterInfos()) {
+        if (info.descriptor.id == QLatin1String("rename_current_mesh_layer")) {
+            renameKey = info.key;
+            break;
+        }
+    }
+    if (renameKey.isEmpty()) {
+        scheduleRebuild();
+        return;
+    }
+    m_doc->setCurrentMeshIndex(index);
+    emit filterRunRequested(renameKey, tr("Rename Current Mesh Layer"),
+                            QVariantMap{ { QStringLiteral("newName"), newName } });
 }
 
 void LayerWidget::onRasterTableCellChanged(QTableWidgetItem *item)

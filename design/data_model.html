@@ -279,6 +279,42 @@
 <p><code class="docutils literal notranslate"><span class="pre">RasterPlane</span></code> records a semantic role (<code class="docutils literal notranslate"><span class="pre">RGBA</span></code>, <code class="docutils literal notranslate"><span class="pre">MaskUInt8</span></code>, <code class="docutils literal notranslate"><span class="pre">MaskFloat</span></code>, <code class="docutils literal notranslate"><span class="pre">DepthFloat</span></code>, or extra float/RGBA planes), display/source metadata, pixel size, and optional <code class="docutils literal notranslate"><span class="pre">QImage</span></code> payload. The current implementation loads ordinary raster images as RGBA planes and keeps the plane abstraction ready for mask/depth/extra image channels.</p>
 <p><code class="docutils literal notranslate"><span class="pre">CameraShot</span></code> (<code class="docutils literal notranslate"><span class="pre">src/core/camerashot.*</span></code>) wraps a VCG shot for raster and snapshot workflows. It stores viewport, pixel size, focal length, distortion, camera type, and extrinsics, and exposes projection/unprojection, depth, view-matrix, and projection-matrix helpers.</p>
 </section>
+<section id="layer-provenance">
+<h2>Layer Provenance<a class="headerlink" href="#layer-provenance" title="Link to this heading">¶</a></h2>
+<p>A mesh layer carries three separate pieces of information about where it came from, and the Layers panel shows a fourth thing that is not stored at all.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>Field</p></th>
+<th class="head"><p>What it is</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Name</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshEntry::name</span></code></p></td>
+<td><p>The label: what the panel, the grid-view captions and a project’s <code class="docutils literal notranslate"><span class="pre">label</span></code> attribute show, and what the user edits. On load it is the file’s base name, or the project’s <code class="docutils literal notranslate"><span class="pre">label</span></code>. Renaming changes only this. <code class="docutils literal notranslate"><span class="pre">addMesh()</span></code> and <code class="docutils literal notranslate"><span class="pre">duplicateMesh()</span></code> make it unique (” 2”, “ 3”, …); loading and renaming do not check.</p></td>
+</tr>
+<tr class="row-odd"><td><p>File</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshEntry::sourcePath</span></code></p></td>
+<td><p>The full path of the file the layer was loaded from, or empty. Reload reads it; a project writes it (relative to the project folder) as the <code class="docutils literal notranslate"><span class="pre">MLMesh</span></code> <code class="docutils literal notranslate"><span class="pre">filename</span></code>. Nothing but loading sets it: saving does not.</p></td>
+</tr>
+<tr class="row-even"><td><p>Changed</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshEntry::modified</span></code></p></td>
+<td><p>Set by <code class="docutils literal notranslate"><span class="pre">markMeshGeometryChanged</span></code>, <code class="docutils literal notranslate"><span class="pre">markMeshMaterialChanged</span></code> and <code class="docutils literal notranslate"><span class="pre">markMeshSelectionChanged</span></code> – so a selection change counts – and cleared only by <code class="docutils literal notranslate"><span class="pre">reloadMesh</span></code>. A transform change does not set it, and neither does saving clear it.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The Layers panel prefixes each layer’s name with a tag built from the last two on every rebuild:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">[D]</span></code> – <code class="docutils literal notranslate"><span class="pre">sourcePath</span></code> is not empty: the layer came from disk.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">[G]</span></code> – <code class="docutils literal notranslate"><span class="pre">sourcePath</span></code> is empty: the layer exists only in memory.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">*</span></code> after the letter – <code class="docutils literal notranslate"><span class="pre">modified</span></code> is set.</p></li>
+</ul>
+<p>So the tag answers “does this layer have a file”, not “was it made by a filter”. Layers added through <code class="docutils literal notranslate"><span class="pre">Document::addMesh()</span></code> (the filters that create layers, the measure tool) and through <code class="docutils literal notranslate"><span class="pre">duplicateMesh()</span></code> have no file and are <code class="docutils literal notranslate"><span class="pre">[G]</span></code>; a duplicate of a <code class="docutils literal notranslate"><span class="pre">[D]</span></code> layer is therefore <code class="docutils literal notranslate"><span class="pre">[G]</span></code>. Saving a layer with Save Mesh leaves it <code class="docutils literal notranslate"><span class="pre">[G]</span></code> or <code class="docutils literal notranslate"><span class="pre">[D]*</span></code> as it was, since <code class="docutils literal notranslate"><span class="pre">saveMesh</span></code> records nothing back on the entry.</p>
+<p>The tag is part of the displayed text, not a field, so the panel cannot sort or filter on it. A separate provenance column (from disk / from disk and changed / generated) is the intended replacement.</p>
+</section>
 <section id="signals-and-reactivity">
 <h2>Signals and Reactivity<a class="headerlink" href="#signals-and-reactivity" title="Link to this heading">¶</a></h2>
 <ul class="simple">
@@ -294,9 +330,37 @@
 <h2>I/O Model<a class="headerlink" href="#i-o-model" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">Document::loadMesh()</span></code>: resolves import plugin, runs plugin load, merges duplicate vertices when the file is STL (a triangle soup with no shared vertices; on by default, <code class="docutils literal notranslate"><span class="pre">setMergeStlDuplicateVertices()</span></code>, driven by the <code class="docutils literal notranslate"><span class="pre">document.mergeStlDuplicateVertices</span></code> preference), compacts imported mesh storage, updates bbox/normals, initializes transform and material set, resolves texture paths/assets, logs stats, appends entry, clears the <code class="docutils literal notranslate"><span class="pre">modified</span></code> flag, emits signals. <code class="docutils literal notranslate"><span class="pre">reloadMesh(index)</span></code> follows the same path while preserving mesh identity. The VCG PLY path recognizes edge endpoint indices plus <code class="docutils literal notranslate"><span class="pre">red</span></code>/<code class="docutils literal notranslate"><span class="pre">green</span></code>/<code class="docutils literal notranslate"><span class="pre">blue</span></code> and optional <code class="docutils literal notranslate"><span class="pre">alpha</span></code> properties (including <code class="docutils literal notranslate"><span class="pre">diffuse_*</span></code> aliases), sets <code class="docutils literal notranslate"><span class="pre">IOM_EDGECOLOR</span></code>, and defaults missing edge alpha to 255.</p>
 <p><code class="docutils literal notranslate"><span class="pre">Document::loadRasterImage()</span></code>: loads a <code class="docutils literal notranslate"><span class="pre">QImage</span></code>, creates a <code class="docutils literal notranslate"><span class="pre">RasterEntry</span></code> with an RGBA <code class="docutils literal notranslate"><span class="pre">RasterPlane</span></code>, appends the raster layer, makes it current, and emits raster/current-layer signals. Ordinary image loads do not synthesize a calibrated camera; callers such as snapshot capture can pass a <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code> through <code class="docutils literal notranslate"><span class="pre">addRasterImage(...)</span></code>, and raster-mode mesh projection is enabled only when that shot is valid.</p>
-<p><code class="docutils literal notranslate"><span class="pre">Document::loadMeshLabProject()</span></code>: parses MeshLab project (<code class="docutils literal notranslate"><span class="pre">.mlp</span></code>) files directly, loads referenced meshes through the normal mesh plugin path, applies project labels/transforms, creates raster entries from project raster planes, stores project <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code> data, records a <code class="docutils literal notranslate"><span class="pre">load_project</span></code> script action, and groups the operation under one undo step. Missing mesh files are logged and skipped; missing raster plane images are logged but still kept as plane metadata with a viewport-size fallback when possible.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Document::loadMeshLabProject()</span></code>: parses MeshLab project (<code class="docutils literal notranslate"><span class="pre">.mlp</span></code>) files directly, loads referenced meshes through the normal mesh plugin path – passing each one’s project label and transform to <code class="docutils literal notranslate"><span class="pre">loadMesh()</span></code>, so a layer is announced already named and placed rather than at the origin under its file name – creates raster entries from project raster planes, stores project <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code> data, records a <code class="docutils literal notranslate"><span class="pre">load_project</span></code> script action, and groups the operation under one undo step. Missing mesh files are logged and skipped; missing raster plane images are logged but still kept as plane metadata with a viewport-size fallback when possible.</p>
 <p><code class="docutils literal notranslate"><span class="pre">Document::saveMesh(...)</span></code>: resolves export plugin, passes <code class="docutils literal notranslate"><span class="pre">MeshIOSaveOptions</span></code> (mask, binary, embed textures, copy associated textures, Draco options). PLY export exposes edge indices and edge color in the save mask and writes per-edge RGBA in both ASCII and binary modes when requested.</p>
-<p><code class="docutils literal notranslate"><span class="pre">Document::saveMeshLabProject(...)</span></code>: writes <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> project files directly from the current document. Save options can restrict export to visible meshes, re-save modified meshes, and copy external mesh/raster files into the project directory. Generated or source-less meshes are written under <code class="docutils literal notranslate"><span class="pre">meshes/</span></code>, raster snapshot images under <code class="docutils literal notranslate"><span class="pre">images/</span></code>, and the project XML preserves mesh transforms plus raster camera and plane metadata.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Document::saveMeshLabProject(...)</span></code>: writes a <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> project from the current document and changes nothing in the document: no layer gains a <code class="docutils literal notranslate"><span class="pre">sourcePath</span></code> and no <code class="docutils literal notranslate"><span class="pre">modified</span></code> flag is cleared.</p>
+<p>Each mesh layer is sorted into one of three cases by its provenance (see <a class="reference internal" href="#layer-provenance"><span class="xref myst">Layer Provenance</span></a>):</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Layer</p></th>
+<th class="head"><p>What the save does</p></th>
+<th class="head"><p>Project <code class="docutils literal notranslate"><span class="pre">filename</span></code></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>No file (<code class="docutils literal notranslate"><span class="pre">[G]</span></code>)</p></td>
+<td><p>Always written, as PLY, to <code class="docutils literal notranslate"><span class="pre">meshes/&lt;name&gt;.ply</span></code> in the project folder. The name is simplified and every character outside <code class="docutils literal notranslate"><span class="pre">[A-Za-z0-9_.-]</span></code> becomes <code class="docutils literal notranslate"><span class="pre">_</span></code>; two names that simplify to the same text overwrite each other.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshes/&lt;name&gt;.ply</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>From disk, changed (<code class="docutils literal notranslate"><span class="pre">[D]*</span></code>) with “Re-save modified meshes” on (the default)</p></td>
+<td><p><strong>Not written yet.</strong> The option marks the layer for re-saving over its own file, but nothing performs the write, so the project refers to the unchanged file and reopens without the change.</p></td>
+<td><p>the original file</p></td>
+</tr>
+<tr class="row-even"><td><p>From disk otherwise</p></td>
+<td><p>Not written; referenced where it is.</p></td>
+<td><p>the original file</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The “no file” case used to be skipped when the layer was unmodified, which dropped every filter-created layer from the saved project without a message; the regression test is <code class="docutils literal notranslate"><span class="pre">saveMeshLabProjectKeepsLayersWithoutAFile</span></code>.</p>
+<p>Options (<code class="docutils literal notranslate"><span class="pre">MeshLabProjectSaveOptions</span></code>, offered by the Save Project dialog): <code class="docutils literal notranslate"><span class="pre">onlyVisibleMeshes</span></code> leaves hidden layers out of the project altogether; <code class="docutils literal notranslate"><span class="pre">saveModifiedMeshes</span></code> is the re-save above; <code class="docutils literal notranslate"><span class="pre">copyFiles</span></code> lets the save proceed when some referenced meshes or rasters live outside the project folder. Without it, such a project is refused with an error rather than saved with paths that would break when the folder moves. With it the files are copied into <code class="docutils literal notranslate"><span class="pre">meshes/</span></code> and <code class="docutils literal notranslate"><span class="pre">images/</span></code>, but the project still names the original locations, so the copies are not what a reopened project loads. Paths in the file are relative to the project folder.</p>
+<p>What the file records for a mesh layer is its <code class="docutils literal notranslate"><span class="pre">label</span></code> (the name), <code class="docutils literal notranslate"><span class="pre">filename</span></code> and transform (six decimals); visibility is not stored. A raster layer records its <code class="docutils literal notranslate"><span class="pre">label</span></code>, camera (<code class="docutils literal notranslate"><span class="pre">VCGCamera</span></code>) and planes; a raster without a file (a snapshot) is written to <code class="docutils literal notranslate"><span class="pre">images/&lt;name&gt;.png</span></code>. Every plane of a raster is currently written with the first plane’s file name.</p>
 <p>Also exposes: <code class="docutils literal notranslate"><span class="pre">openDialogFilter()</span></code>, <code class="docutils literal notranslate"><span class="pre">saveDialogFilter()</span></code>, <code class="docutils literal notranslate"><span class="pre">saveMaskCapability()</span></code>, <code class="docutils literal notranslate"><span class="pre">importSupportedExtensions()</span></code>, <code class="docutils literal notranslate"><span class="pre">exportSupportedExtensions()</span></code>, <code class="docutils literal notranslate"><span class="pre">importPluginInfos()</span></code>, <code class="docutils literal notranslate"><span class="pre">exportPluginInfos()</span></code>.</p>
 </section>
 <section id="filter-model">
@@ -496,6 +560,7 @@
 <li><a class="reference internal" href="#document-ownership"><code class="docutils literal notranslate"><span class="pre">Document</span></code> Ownership</a></li>
 <li><a class="reference internal" href="#mesh-data-type">Mesh Data Type</a></li>
 <li><a class="reference internal" href="#raster-data-type">Raster Data Type</a></li>
+<li><a class="reference internal" href="#layer-provenance">Layer Provenance</a></li>
 <li><a class="reference internal" href="#signals-and-reactivity">Signals and Reactivity</a></li>
 <li><a class="reference internal" href="#i-o-model">I/O Model</a></li>
 <li><a class="reference internal" href="#filter-model">Filter Model</a></li>
