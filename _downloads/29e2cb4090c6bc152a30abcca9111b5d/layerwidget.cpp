@@ -2,6 +2,7 @@
 #include "textureassociationutils.h"
 #include "layerwidget.h"
 #include "document.h"
+#include "preferences.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
 #include <QDir>
@@ -31,6 +32,7 @@
 #include <QStyledItemDelegate>
 #include <QStackedWidget>
 #include <QSplitter>
+#include <QToolButton>
 #include <QToolTip>
 #include <functional>
 #include <QVBoxLayout>
@@ -1127,6 +1129,15 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     connect(m_rasterTree, &QTreeWidget::itemChanged, this, &LayerWidget::onTreeItemChanged);
     connect(m_rasterTree, &QTreeWidget::currentItemChanged, this, &LayerWidget::onTreeCurrentItemChanged);
 
+    for (QTreeWidget *tree : { m_meshTree, m_rasterTree }) {
+        const auto report = [this] {
+            if (!m_rebuilding)
+                emit expansionChanged(anyLayerExpanded());
+        };
+        connect(tree, &QTreeWidget::itemExpanded, this, report);
+        connect(tree, &QTreeWidget::itemCollapsed, this, report);
+    }
+
     treeSplitter->setStretchFactor(0, 3);
     treeSplitter->setStretchFactor(1, 2);
 
@@ -1184,6 +1195,8 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     // Set initial splitter proportions (60/40)
     tableSplitter->setStretchFactor(0, 3);
     tableSplitter->setStretchFactor(1, 2);
+
+    updateSummary();
 
     // Document connections — always rebuild
     connect(m_doc, &Document::bulkLoadFinished, this, &LayerWidget::rebuild);
@@ -1303,6 +1316,47 @@ void LayerWidget::rebuild()
         rebuildTable();
     else
         rebuildTree();
+    updateSummary();
+    emit expansionChanged(anyLayerExpanded());
+}
+
+void LayerWidget::updateSummary()
+{
+    qlonglong triangles = 0, edges = 0, vertices = 0;
+    for (int i = 0; i < m_doc->meshCount(); ++i) {
+        const Document::MeshEntry &entry = m_doc->mesh(i);
+        triangles += displayedFaceCount(entry);
+        edges += entry.mesh.EN();
+        vertices += entry.mesh.VN();
+    }
+    const QLocale locale = QLocale::system();
+    m_summaryText = tr("%1 T").arg(locale.toString(triangles))
+        + QStringLiteral("  ") + tr("%1 E").arg(locale.toString(edges))
+        + QStringLiteral("  ") + tr("%1 V").arg(locale.toString(vertices));
+    emit summaryChanged(m_summaryText);
+}
+
+bool LayerWidget::anyLayerExpanded() const
+{
+    for (const QTreeWidget *tree : { m_meshTree, m_rasterTree }) {
+        for (int row = 0; row < tree->topLevelItemCount(); ++row) {
+            if (tree->topLevelItem(row)->isExpanded())
+                return true;
+        }
+    }
+    return false;
+}
+
+void LayerWidget::toggleExpandAll()
+{
+    const bool collapse = anyLayerExpanded();
+    for (QTreeWidget *tree : { m_meshTree, m_rasterTree }) {
+        if (collapse)
+            tree->collapseAll();
+        else
+            tree->expandAll();
+    }
+    emit expansionChanged(anyLayerExpanded());
 }
 
 // ============================================================================
@@ -1327,6 +1381,11 @@ void LayerWidget::rebuildTree()
     };
     collectExpanded(m_meshTree);
     collectExpanded(m_rasterTree);
+    // A layer nobody has opened or closed yet starts expanded, unless there are so many that
+    // expanding them all would bury the list (view.collapseLayersAbove).
+    const int collapseAbove =
+        Preferences::instance().intValue(QStringLiteral("view.collapseLayersAbove"));
+    const bool collapseByDefault = m_doc->meshCount() > collapseAbove;
 
     // --- Rebuild mesh tree ---
     {
@@ -1470,7 +1529,7 @@ void LayerWidget::rebuildTree()
             dItem->setToolTip(2, dataTip);
 
             const auto it = expandedState.constFind(itemKey);
-            item->setExpanded(it != expandedState.constEnd() ? it.value() : true);
+            item->setExpanded(it != expandedState.constEnd() ? it.value() : !collapseByDefault);
 
             if (m_doc->currentLayerKind() == CurrentLayerKind::Mesh
                 && i == m_doc->currentMeshIndex()) {
@@ -1554,7 +1613,8 @@ void LayerWidget::rebuildTree()
             imageItem->setToolTip(2, dataTip);
 
             const auto it = expandedState.constFind(itemKey);
-            item->setExpanded(it != expandedState.constEnd() ? it.value() : true);
+            item->setExpanded(it != expandedState.constEnd() ? it.value()
+                                                              : m_doc->rasterCount() <= collapseAbove);
 
             if (m_doc->currentLayerKind() == CurrentLayerKind::Raster
                 && i == m_doc->currentRasterIndex()) {
