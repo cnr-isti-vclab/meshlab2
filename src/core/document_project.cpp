@@ -190,9 +190,13 @@ bool Document::saveMeshLabProject(
     for (int mi = 0; mi < meshCount(); ++mi) {
         const MeshEntry &entry = mesh(mi);
         if (options.onlyVisibleMeshes && !entry.visible) continue;
-        if (entry.modified && options.saveModifiedMeshes) {
-            // Will re-save
+        // A layer with no file exists only in memory -- a filter's output, a duplicate -- so
+        // it is always written: leaving it out would silently drop it from the project. A
+        // layer from disk is written back only if it has changed and the option asks for it,
+        // and referenced where it is otherwise.
+        if (entry.sourcePath.isEmpty() || (entry.modified && options.saveModifiedMeshes)) {
             if (!entry.sourcePath.isEmpty()) {
+                // Re-save, over the file it came from
                 meshSavePaths[mi].absPath = entry.sourcePath;
                 meshSavePaths[mi].needsCopy = false;
             } else {
@@ -205,12 +209,9 @@ bool Document::saveMeshLabProject(
                 meshSavePaths[mi].absPath = projectDir.filePath(QStringLiteral("meshes") + QDir::separator() + safeName);
                 meshSavePaths[mi].needsCopy = true;
             }
-        } else if (!entry.sourcePath.isEmpty()) {
+        } else {
             meshSavePaths[mi].absPath = entry.sourcePath;
             meshSavePaths[mi].needsCopy = false;
-        } else {
-            // No source path and not modified — skip
-            meshSavePaths[mi].absPath.clear();
         }
     }
 

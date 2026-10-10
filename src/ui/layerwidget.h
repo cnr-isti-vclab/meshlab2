@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QVariantMap>
 #include <QWidget>
 #include <QTreeWidget>
 #include <QTableWidget>
@@ -32,6 +33,10 @@ public:
     void toggleExpandAll();
 
 signals:
+    // Run a filter now, with these parameters, rather than opening its panel: what a layer
+    // rename typed into the table has to be, so that it is undoable, shows in the action
+    // history and lands in a generated script like any other rename.
+    void filterRunRequested(const QString &filterKey, const QString &label, const QVariantMap &parameters);
     void summaryChanged(const QString &text);
     // Emitted when the answer to anyLayerExpanded() may have changed.
     void expansionChanged(bool anyExpanded);

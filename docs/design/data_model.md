@@ -37,6 +37,26 @@ MeshLab is **single-document, multi-view**: one `Document` owns canonical meshes
 
 `CameraShot` (`src/core/camerashot.*`) wraps a VCG shot for raster and snapshot workflows. It stores viewport, pixel size, focal length, distortion, camera type, and extrinsics, and exposes projection/unprojection, depth, view-matrix, and projection-matrix helpers.
 
+## Layer Provenance
+
+A mesh layer carries three separate pieces of information about where it came from, and the Layers panel shows a fourth thing that is not stored at all.
+
+| | Field | What it is |
+|---|---|---|
+| Name | `MeshEntry::name` | The label: what the panel, the grid-view captions and a project's `label` attribute show, and what the user edits. On load it is the file's base name, or the project's `label`. Renaming changes only this. `addMesh()` and `duplicateMesh()` make it unique (" 2", " 3", ...); loading and renaming do not check. |
+| File | `MeshEntry::sourcePath` | The full path of the file the layer was loaded from, or empty. Reload reads it; a project writes it (relative to the project folder) as the `MLMesh` `filename`. Nothing but loading sets it: saving does not. |
+| Changed | `MeshEntry::modified` | Set by `markMeshGeometryChanged`, `markMeshMaterialChanged` and `markMeshSelectionChanged` -- so a selection change counts -- and cleared only by `reloadMesh`. A transform change does not set it, and neither does saving clear it. |
+
+The Layers panel prefixes each layer's name with a tag built from the last two on every rebuild:
+
+- `[D]` -- `sourcePath` is not empty: the layer came from disk.
+- `[G]` -- `sourcePath` is empty: the layer exists only in memory.
+- `*` after the letter -- `modified` is set.
+
+So the tag answers "does this layer have a file", not "was it made by a filter". Layers added through `Document::addMesh()` (the filters that create layers, the measure tool) and through `duplicateMesh()` have no file and are `[G]`; a duplicate of a `[D]` layer is therefore `[G]`. Saving a layer with Save Mesh leaves it `[G]` or `[D]*` as it was, since `saveMesh` records nothing back on the entry.
+
+The tag is part of the displayed text, not a field, so the panel cannot sort or filter on it. A separate provenance column (from disk / from disk and changed / generated) is the intended replacement.
+
 ## Signals and Reactivity
 
 - mesh lifecycle: `meshAdded`, `meshRemoved`, `meshDataChanged`, `meshSelectionChanged`
@@ -52,11 +72,25 @@ MeshLab is **single-document, multi-view**: one `Document` owns canonical meshes
 
 `Document::loadRasterImage()`: loads a `QImage`, creates a `RasterEntry` with an RGBA `RasterPlane`, appends the raster layer, makes it current, and emits raster/current-layer signals. Ordinary image loads do not synthesize a calibrated camera; callers such as snapshot capture can pass a `CameraShot` through `addRasterImage(...)`, and raster-mode mesh projection is enabled only when that shot is valid.
 
-`Document::loadMeshLabProject()`: parses MeshLab project (`.mlp`) files directly, loads referenced meshes through the normal mesh plugin path, applies project labels/transforms, creates raster entries from project raster planes, stores project `CameraShot` data, records a `load_project` script action, and groups the operation under one undo step. Missing mesh files are logged and skipped; missing raster plane images are logged but still kept as plane metadata with a viewport-size fallback when possible.
+`Document::loadMeshLabProject()`: parses MeshLab project (`.mlp`) files directly, loads referenced meshes through the normal mesh plugin path -- passing each one's project label and transform to `loadMesh()`, so a layer is announced already named and placed rather than at the origin under its file name -- creates raster entries from project raster planes, stores project `CameraShot` data, records a `load_project` script action, and groups the operation under one undo step. Missing mesh files are logged and skipped; missing raster plane images are logged but still kept as plane metadata with a viewport-size fallback when possible.
 
 `Document::saveMesh(...)`: resolves export plugin, passes `MeshIOSaveOptions` (mask, binary, embed textures, copy associated textures, Draco options). PLY export exposes edge indices and edge color in the save mask and writes per-edge RGBA in both ASCII and binary modes when requested.
 
-`Document::saveMeshLabProject(...)`: writes `.mlp` project files directly from the current document. Save options can restrict export to visible meshes, re-save modified meshes, and copy external mesh/raster files into the project directory. Generated or source-less meshes are written under `meshes/`, raster snapshot images under `images/`, and the project XML preserves mesh transforms plus raster camera and plane metadata.
+`Document::saveMeshLabProject(...)`: writes a `.mlp` project from the current document and changes nothing in the document: no layer gains a `sourcePath` and no `modified` flag is cleared.
+
+Each mesh layer is sorted into one of three cases by its provenance (see [Layer Provenance](#layer-provenance)):
+
+| Layer | What the save does | Project `filename` |
+|---|---|---|
+| No file (`[G]`) | Always written, as PLY, to `meshes/<name>.ply` in the project folder. The name is simplified and every character outside `[A-Za-z0-9_.-]` becomes `_`; two names that simplify to the same text overwrite each other. | `meshes/<name>.ply` |
+| From disk, changed (`[D]*`) with "Re-save modified meshes" on (the default) | **Not written yet.** The option marks the layer for re-saving over its own file, but nothing performs the write, so the project refers to the unchanged file and reopens without the change. | the original file |
+| From disk otherwise | Not written; referenced where it is. | the original file |
+
+The "no file" case used to be skipped when the layer was unmodified, which dropped every filter-created layer from the saved project without a message; the regression test is `saveMeshLabProjectKeepsLayersWithoutAFile`.
+
+Options (`MeshLabProjectSaveOptions`, offered by the Save Project dialog): `onlyVisibleMeshes` leaves hidden layers out of the project altogether; `saveModifiedMeshes` is the re-save above; `copyFiles` lets the save proceed when some referenced meshes or rasters live outside the project folder. Without it, such a project is refused with an error rather than saved with paths that would break when the folder moves. With it the files are copied into `meshes/` and `images/`, but the project still names the original locations, so the copies are not what a reopened project loads. Paths in the file are relative to the project folder.
+
+What the file records for a mesh layer is its `label` (the name), `filename` and transform (six decimals); visibility is not stored. A raster layer records its `label`, camera (`VCGCamera`) and planes; a raster without a file (a snapshot) is written to `images/<name>.png`. Every plane of a raster is currently written with the first plane's file name.
 
 Also exposes: `openDialogFilter()`, `saveDialogFilter()`, `saveMaskCapability()`, `importSupportedExtensions()`, `exportSupportedExtensions()`, `importPluginInfos()`, `exportPluginInfos()`.
 

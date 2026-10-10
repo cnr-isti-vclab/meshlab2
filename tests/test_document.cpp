@@ -78,6 +78,7 @@ private slots:
     void unreadableImageSaysWhyItCannotBeRead();
     void legacyTargaLoadsThroughTheStbFallback();
     void loadMeshLabProjectLoadsMeshesAndTransforms();
+    void saveMeshLabProjectKeepsLayersWithoutAFile();
     void loadMeshLabProjectLoadsRastersAndCamera();
     void rasterCameraUndoRedoRestoresShot();
     void undoRedoRestoresMeshList();
@@ -1553,6 +1554,28 @@ void DocumentTests::legacyTargaLoadsThroughTheStbFallback()
     QCOMPARE(image.size(), QSize(kWidth, kHeight));
     QCOMPARE(image.pixelColor(0, 0), QColor(Qt::red));
     QCOMPARE(image.pixelColor(kWidth - 1, kHeight - 1), QColor(Qt::blue));
+}
+
+// A layer that has no file -- a filter's output, a duplicate -- exists only in memory, so a
+// project has to write it out or it is simply gone from the saved project.
+void DocumentTests::saveMeshLabProjectKeepsLayersWithoutAFile()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("generated layer"));
+    QVERIFY(doc.mesh(0).sourcePath.isEmpty());
+
+    QString error;
+    const QString projectPath = dir.filePath(QStringLiteral("project.mlp"));
+    QVERIFY2(doc.saveMeshLabProject(projectPath, Document::MeshLabProjectSaveOptions{}, &error),
+             qPrintable(error));
+
+    QFile file(projectPath);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    const QString xml = QString::fromUtf8(file.readAll());
+    QVERIFY2(xml.contains(QStringLiteral("generated layer")), qPrintable(xml));
+    QVERIFY(QFileInfo(dir.filePath(QStringLiteral("meshes/generated_layer.ply"))).exists());
 }
 
 void DocumentTests::loadMeshLabProjectLoadsMeshesAndTransforms()

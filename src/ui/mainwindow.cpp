@@ -567,6 +567,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_layerWidget = new LayerWidget(m_doc, this);
     connect(m_layerWidget, &LayerWidget::filterActionRequested, this,
             &MainWindow::openFilterOrRunIfParameterless);
+    connect(m_layerWidget, &LayerWidget::filterRunRequested, this, &MainWindow::executeFilter);
     m_layerDock = new QDockWidget(tr("Layers"), this);
     m_layerDock->setWidget(m_layerWidget);
 
