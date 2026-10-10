@@ -242,6 +242,13 @@ struct PerMeshRenderSettings {
     QColor bboxWireColor = QColor(245, 190, 60);
     QColor pointColor = QColor(255, 191, 51);
     float pointSize = 4.0f;
+    // When set, a point is a dot of pointObjectSize in the mesh's own units, so it shrinks
+    // with distance like the surface around it, instead of pointSize pixels everywhere. Its
+    // size on screen is still held between 1 and kMaxObjectPointPixels.
+    bool pointSizeObjectSpace = false;
+    // Diameter in mesh units; 0 until first used, when the view fills in an estimate of the
+    // spacing between the mesh's points.
+    float pointObjectSize = 0.0f;
     // The edges pass draws polyline layers, which usually sit against the dark end of the
     // background gradient; near-black made them all but invisible on arrival.
     QColor edgeColor = QColor(255, 255, 255);

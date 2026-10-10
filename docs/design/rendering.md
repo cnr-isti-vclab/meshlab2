@@ -127,7 +127,7 @@ Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfac
 
 **Bounding box**: line topology; depth on, no depth write.
 
-**Points**: `QRhiGraphicsPipeline::Points`; depth test+write; point lighting, size, and color source from settings; quality variant LUT-sampled.
+**Points**: `QRhiGraphicsPipeline::Points`; depth test+write; point lighting, size, and color source from settings; quality variant LUT-sampled. The size is `pointSize` pixels, or, with `pointSizeObjectSpace`, a diameter of `pointObjectSize` in the mesh's own units: `pointParams.x` carries the pixel size as a positive number and the object size as a negative one (`encodedPointSize`). The vertex shader projects an offset of that length along the view's vertical, carried back into mesh space, so the dot is as tall on screen as the surface it stands for, under a perspective or an orthographic camera, and holds it between 1 and 64 pixels (`kMaxObjectPointPixels`). `depth_pick.vert` repeats the computation, so a pick hits the dot that was drawn. The first time a layer switches to object space with no size set, the view fills in the spacing its points would have spread evenly over its bounding box (diagonal / sqrt(vertex count), to two significant digits).
 
 **Decorators**: depth `LessOrEqual`, no depth write. Normals and curvature directions use the line pipeline. Boundary, seams, and non-manifold edges use the fat-decorator pipeline (`decoratorBoundaryWidth`) with line fallback. Non-manifold vertices use a point pipeline.
 

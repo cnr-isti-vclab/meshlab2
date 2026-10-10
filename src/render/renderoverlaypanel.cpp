@@ -736,6 +736,20 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_pointSizeSpin->setDecimals(1);
     m_pointSizeSpin->setSuffix(tr(" px"));
     m_pointSizeSpin->setValue(m_meshSettings.pointSize);
+    m_pointObjectSpaceCheck = new QCheckBox(pointsPage);
+    m_pointObjectSpaceCheck->setChecked(m_meshSettings.pointSizeObjectSpace);
+    m_pointObjectSpaceCheck->setToolTip(
+        tr("Size each point in the mesh's own units, so it shrinks with distance like the "
+           "surface around it, instead of the same number of pixels everywhere. On screen a "
+           "point is still kept between 1 and 64 pixels."));
+    m_pointObjectSizeSpin = new QDoubleSpinBox(pointsPage);
+    m_pointObjectSizeSpin->setRange(0.0, 1.0e9);
+    m_pointObjectSizeSpin->setDecimals(6);
+    m_pointObjectSizeSpin->setStepType(QAbstractSpinBox::AdaptiveDecimalStepType);
+    m_pointObjectSizeSpin->setValue(m_meshSettings.pointObjectSize);
+    m_pointObjectSizeSpin->setToolTip(
+        tr("Point diameter in the mesh's units. It starts from an estimate of the spacing "
+           "between the mesh's points."));
     m_pointLightingCheck = new QCheckBox(pointsPage);
     m_pointLightingCheck->setChecked(m_meshSettings.pointLighting);
     pointsForm->addRow(tr("Color source"), m_pointColorSourceCombo);
@@ -743,6 +757,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         tr("Point color"),
         makeCenteredFieldContainer(m_pointsColorButton, pointsPage));
     pointsForm->addRow(tr("Point size"), m_pointSizeSpin);
+    pointsForm->addRow(
+        tr("Object space size"),
+        makeCenteredFieldContainer(m_pointObjectSpaceCheck, pointsPage));
+    pointsForm->addRow(tr("Object size"), m_pointObjectSizeSpin);
     pointsForm->addRow(
         tr("Lighting"),
         makeCenteredFieldContainer(m_pointLightingCheck, pointsPage));
@@ -1546,6 +1564,13 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindMeshEnumCombo(m_pointColorSourceCombo, &PerMeshRenderSettings::pointColorSource);
     bindMeshColorButton(m_pointsColorButton, &PerMeshRenderSettings::pointColor, tr("Point Color"));
     bindMeshFloatSpin(m_pointSizeSpin, &PerMeshRenderSettings::pointSize);
+    bindMeshCheckBox(m_pointObjectSpaceCheck, &PerMeshRenderSettings::pointSizeObjectSpace, true);
+    bindMeshFloatSpin(m_pointObjectSizeSpin, &PerMeshRenderSettings::pointObjectSize);
+    // Only the size that is in use can be edited.
+    m_meshSyncers.push_back([this] {
+        m_pointSizeSpin->setEnabled(!m_meshSettings.pointSizeObjectSpace);
+        m_pointObjectSizeSpin->setEnabled(m_meshSettings.pointSizeObjectSpace);
+    });
     bindMeshCheckBox(m_pointLightingCheck, &PerMeshRenderSettings::pointLighting);
 
     bindMeshEnumCombo(m_edgeColorSourceCombo, &PerMeshRenderSettings::edgeColorSource);

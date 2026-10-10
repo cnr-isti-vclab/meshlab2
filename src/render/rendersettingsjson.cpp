@@ -236,7 +236,7 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("clip_plane_solid_cut", clipPlaneSolidCut) \
     F("clip_plane_solid_cut_color", clipPlaneSolidCutColor)
 
-// 45 flat fields; the three fill_* sub-objects are listed separately
+// 47 flat fields; the three fill_* sub-objects are listed separately
 #define MESHLAB2_PER_MESH_SETTINGS_FIELDS(F) \
     F("show_bounding_box", showBoundingBox) \
     F("bounding_box_style", boundingBoxStyle) \
@@ -278,6 +278,8 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("bbox_wire_color", bboxWireColor) \
     F("point_color", pointColor) \
     F("point_size", pointSize) \
+    F("point_size_object_space", pointSizeObjectSpace) \
+    F("point_object_size", pointObjectSize) \
     F("edge_color", edgeColor) \
     F("edge_size", edgeSize) \
     F("wire_color", wireColor) \

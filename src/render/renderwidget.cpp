@@ -1939,8 +1939,23 @@ void RenderWidget::createOverlayButtons()
         emit viewActivated(this);
         const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
         if (m_doc && meshIndex >= 0 && meshIndex < m_doc->meshCount()) {
-            const std::uint64_t meshId = m_doc->mesh(meshIndex).meshId;
-            m_meshRenderModes[meshId] = meshSettings;
+            const Document::MeshEntry &entry = m_doc->mesh(meshIndex);
+            PerMeshRenderSettings applied = meshSettings;
+            // The first switch to object-space points has no size to use yet: start from
+            // the spacing a mesh of this many points would have if they were spread evenly
+            // over its bounding box's extent, which is the scale at which the dots just touch.
+            if (applied.pointSizeObjectSpace && applied.pointObjectSize <= 0.0f) {
+                const float diagonal = entry.mesh.bbox.IsNull() ? 1.0f : float(entry.mesh.bbox.Diag());
+                const float spacing = diagonal / std::sqrt(float(qMax(1, entry.mesh.VN())));
+                // Two significant digits: a number someone can read and nudge.
+                const float magnitude = std::pow(10.0f, std::floor(std::log10(qMax(spacing, 1e-12f))) - 1.0f);
+                applied.pointObjectSize = std::max(magnitude, std::round(spacing / magnitude) * magnitude);
+                QTimer::singleShot(0, this, [this, applied] {
+                    if (m_overlayPanel)
+                        m_overlayPanel->setMeshSettings(applied);
+                });
+            }
+            m_meshRenderModes[entry.meshId] = applied;
         }
         updateBoundingBoxCornersOverlay();
         // A decorator toggle changes whether the info panel should be shown.
@@ -1967,6 +1982,8 @@ void RenderWidget::createOverlayButtons()
                 dst.showPoints     = meshSettings.showPoints;
                 dst.pointColor     = meshSettings.pointColor;
                 dst.pointSize      = meshSettings.pointSize;
+                dst.pointSizeObjectSpace = meshSettings.pointSizeObjectSpace;
+                dst.pointObjectSize = meshSettings.pointObjectSize;
                 dst.pointColorSource = meshSettings.pointColorSource;
                 dst.pointLighting  = meshSettings.pointLighting;
                 break;

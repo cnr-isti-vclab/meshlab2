@@ -147,6 +147,15 @@ inline QMatrix4x4 rasterViewClipMatrix(
     return transform;
 }
 
+// The point size as the shaders read it from pointParams.x: a positive diameter in pixels,
+// or minus a diameter in mesh units, which the vertex shader projects per point.
+inline float encodedPointSize(const PerMeshRenderSettings &settings)
+{
+    return (settings.pointSizeObjectSpace && settings.pointObjectSize > 0.0f)
+        ? -settings.pointObjectSize
+        : settings.pointSize;
+}
+
 struct MainStyleUbufKey {
     QColor bboxWireColor;
     QColor pointColor;
@@ -198,7 +207,7 @@ inline MainStyleUbufKey mainStyleUbufKeyFromSettings(
     MainStyleUbufKey key;
     key.bboxWireColor = settings.bboxWireColor;
     key.pointColor = settings.pointColor;
-    key.pointSize = settings.pointSize;
+    key.pointSize = encodedPointSize(settings);
     key.wireColor = settings.wireColor;
     key.wireSize = settings.wireSize;
     key.fillColor = settings.fillColor;
@@ -280,7 +289,7 @@ inline void writeMainStyleToUbuf(
     ubufData[kUbufPointColorOffset + 1] = settings.pointColor.greenF();
     ubufData[kUbufPointColorOffset + 2] = settings.pointColor.blueF();
     ubufData[kUbufPointColorOffset + 3] = settings.pointColor.alphaF();
-    ubufData[kUbufPointParamsOffset + 0] = settings.pointSize;
+    ubufData[kUbufPointParamsOffset + 0] = encodedPointSize(settings);
 
     ubufData[kUbufWireColorOffset + 0] = settings.wireColor.redF();
     ubufData[kUbufWireColorOffset + 1] = settings.wireColor.greenF();

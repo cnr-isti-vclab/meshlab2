@@ -169,6 +169,8 @@ private:
     QLabel *m_qualityHistogramMaxLabel = nullptr;
     QDoubleSpinBox *m_qualityHistogramMaxSpin = nullptr;
     QDoubleSpinBox *m_pointSizeSpin = nullptr;
+    QCheckBox *m_pointObjectSpaceCheck = nullptr;
+    QDoubleSpinBox *m_pointObjectSizeSpin = nullptr;
     QDoubleSpinBox *m_edgeSizeSpin = nullptr;
     QDoubleSpinBox *m_wireSizeSpin = nullptr;
     QComboBox *m_pointColorSourceCombo = nullptr;
