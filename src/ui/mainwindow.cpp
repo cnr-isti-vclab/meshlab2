@@ -570,11 +570,43 @@ MainWindow::MainWindow(QWidget *parent)
     m_layerDock = new QDockWidget(tr("Layers"), this);
     m_layerDock->setWidget(m_layerWidget);
 
-    // Custom title bar with tree/table toggle
+    // Custom title bar, on one line: the expand/collapse toggle at the far left, over the
+    // disclosure arrows of the tree below it, then the title, the recap of what the layers
+    // hold, and the tree/table toggle at the right.
     auto *titleBar = new QWidget();
     auto *titleLayout = new QHBoxLayout(titleBar);
-    titleLayout->setContentsMargins(8, 0, 4, 0);
-    titleLayout->addWidget(new QLabel(tr("Layers")));
+    titleLayout->setContentsMargins(2, 0, 4, 0);
+    titleLayout->setSpacing(6);
+    auto *expandBtn = new QToolButton();
+    expandBtn->setAutoRaise(true);
+    expandBtn->setFixedSize(22, 22);
+    // Keeps the title where it is when the table, which has nothing to expand, replaces the tree.
+    QSizePolicy expandPolicy = expandBtn->sizePolicy();
+    expandPolicy.setRetainSizeWhenHidden(true);
+    expandBtn->setSizePolicy(expandPolicy);
+    const auto showExpandState = [expandBtn](bool anyExpanded) {
+        expandBtn->setText(anyExpanded ? QStringLiteral("\u229F") : QStringLiteral("\u229E"));
+        expandBtn->setToolTip(anyExpanded ? tr("Collapse all layers") : tr("Expand all layers"));
+    };
+    showExpandState(m_layerWidget->anyLayerExpanded());
+    connect(expandBtn, &QToolButton::clicked, m_layerWidget, &LayerWidget::toggleExpandAll);
+    connect(m_layerWidget, &LayerWidget::expansionChanged, expandBtn, showExpandState);
+    titleLayout->addWidget(expandBtn);
+    auto *titleLabel = new QLabel(tr("Layers (%1)").arg(m_doc->meshCount()));
+    QFont titleFont = titleLabel->font();
+    titleFont.setBold(true);
+    titleLabel->setFont(titleFont);
+    titleLayout->addWidget(titleLabel);
+    auto *summaryLabel = new QLabel(m_layerWidget->summaryText());
+    QFont summaryFont = summaryLabel->font();
+    summaryFont.setPointSizeF(summaryFont.pointSizeF() * 0.85);
+    summaryLabel->setFont(summaryFont);
+    summaryLabel->setToolTip(tr("Total triangles (T), edges (E) and vertices (V) in all layers"));
+    connect(m_layerWidget, &LayerWidget::summaryChanged, this, [this, titleLabel, summaryLabel](const QString &text) {
+        summaryLabel->setText(text);
+        titleLabel->setText(tr("Layers (%1)").arg(m_doc->meshCount()));
+    });
+    titleLayout->addWidget(summaryLabel);
     titleLayout->addStretch();
     auto *toggleBtn = new QToolButton();
     toggleBtn->setText(tr("⬍ Table"));
@@ -582,9 +614,10 @@ MainWindow::MainWindow(QWidget *parent)
     toggleBtn->setCheckable(true);
     toggleBtn->setChecked(false);
     toggleBtn->setAutoRaise(true);
-    connect(toggleBtn, &QToolButton::toggled, this, [this, toggleBtn](bool checked) {
+    connect(toggleBtn, &QToolButton::toggled, this, [this, toggleBtn, expandBtn](bool checked) {
         m_layerWidget->setViewMode(checked ? LayerWidget::ViewMode::Table : LayerWidget::ViewMode::Tree);
         toggleBtn->setText(checked ? tr("⬍ Tree") : tr("⬍ Table"));
+        expandBtn->setVisible(!checked);
     });
     titleLayout->addWidget(toggleBtn);
     m_layerDock->setTitleBarWidget(titleBar);

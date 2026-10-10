@@ -23,7 +23,18 @@ public:
     void setViewMode(ViewMode mode);
     void toggleViewMode();
 
+    // The recap shown above the panel: the totals over all layers. The layer count is the
+    // document's, and the title bar shows it beside the title.
+    QString summaryText() const { return m_summaryText; }
+    // Whether any layer in the tree is expanded, which decides what toggleExpandAll() does.
+    bool anyLayerExpanded() const;
+    // Collapses every layer if any is open, and opens them all if none is.
+    void toggleExpandAll();
+
 signals:
+    void summaryChanged(const QString &text);
+    // Emitted when the answer to anyLayerExpanded() may have changed.
+    void expansionChanged(bool anyExpanded);
     void filterActionRequested(const QString &filterKey);
 
 protected:
@@ -31,6 +42,8 @@ protected:
 
 private:
     void rebuild();
+    // The line above the panel: how many layers, and the totals over all of them.
+    void updateSummary();
     // Posts a rebuild and drops any already posted. Every document signal below asks for
     // the same whole-panel rebuild, so a filter that adds forty layers was queueing forty
     // of them -- each one walking every layer, and each landing after the filter had
@@ -79,6 +92,7 @@ private:
     bool m_rebuildPending = false;
     ViewMode m_viewMode = ViewMode::Tree;
 
+    QString m_summaryText;
     QStackedWidget *m_stack = nullptr;
     QTreeWidget *m_meshTree = nullptr;
     QTreeWidget *m_rasterTree = nullptr;

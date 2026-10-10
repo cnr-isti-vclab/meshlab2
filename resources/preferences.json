@@ -103,6 +103,16 @@
       "default": false
     },
     {
+      "id": "view.collapseLayersAbove",
+      "label": "Collapse layers when there are more than",
+      "help": "How many layers the Layers panel lists expanded. A document with more layers than this shows them collapsed to one line each, which is how a project of dozens of meshes stays readable and quick to build; a document with fewer opens expanded, with each layer's counts and attributes beneath it. Layers you have expanded or collapsed yourself keep their state. The panel's Expand all and Collapse all buttons change every layer at once.",
+      "group": "view",
+      "type": "int",
+      "default": 20,
+      "min": 1,
+      "max": 100000
+    },
+    {
       "id": "input.dragThreshold",
       "label": "Drag threshold",
       "help": "How far the pointer must move, in pixels, before a press becomes a drag rather than a click.",
