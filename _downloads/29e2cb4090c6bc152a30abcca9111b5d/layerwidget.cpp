@@ -659,8 +659,6 @@ QString rasterCameraTypeLabel(CameraShot::CameraType type)
     switch (type) {
     case CameraShot::CameraType::Perspective:  return QObject::tr("Perspective");
     case CameraShot::CameraType::Orthographic: return QObject::tr("Orthographic");
-    case CameraShot::CameraType::Isometric:    return QObject::tr("Isometric");
-    case CameraShot::CameraType::Cavalieri:    return QObject::tr("Cavalieri");
     }
     return QObject::tr("Camera");
 }

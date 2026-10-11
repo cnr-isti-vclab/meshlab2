@@ -245,8 +245,12 @@
           <section class="tex2jax_ignore mathjax_ignore" id="orthographic-camera">
 <h1>Orthographic Camera<a class="headerlink" href="#orthographic-camera" title="Link to this heading">¶</a></h1>
 <p>This document proposes an orthographic projection for the 3D view and everything
-that consumes a camera. <strong>Nothing described here is implemented.</strong> The 3D view is
-perspective-only today.</p>
+that consumes a camera. <strong>All five stages of <a class="reference internal" href="#staging"><span class="xref myst">Staging</span></a> are implemented</strong> –
+the vcglib matrix fix; the view itself (state, JSON, projection, navigation, rays,
+lighting); and cameras as data (camera glyphs, snapshot and raster cameras, camera and
+raster filters); and occlusion (visible-only rectangle selection casts parallel rays) –
+and an orthographic state can be set through the camera JSON, the Python API or the camera
+filters, and from the View menu, the 5 key and a preference (stage 5). What remains is listed in <a class="reference internal" href="#open-questions"><span class="xref myst">Open questions</span></a>.</p>
 <p>See also: <a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a> (the QRhi pipeline, camera models, the
 render-state JSON), <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a> (what an undo state holds),
 <a class="reference internal" href="../architecture.html"><span class="std std-doc">Architecture</span></a>.</p>
@@ -316,19 +320,44 @@ are parallel. Everything below is a consequence of that.</p>
 ratio keep their meaning.</p>
 <ul class="simple">
 <li><p><strong>In orthographic, the wheel still changes <code class="docutils literal notranslate"><span class="pre">distance</span></code></strong>, so it still zooms, by
-changing <code class="docutils literal notranslate"><span class="pre">H</span></code>. Shift+wheel – the dolly-zoom that trades field of view for distance
-at constant <code class="docutils literal notranslate"><span class="pre">H</span></code> – has no visible effect in orthographic and is ignored there.</p></li>
+changing <code class="docutils literal notranslate"><span class="pre">H</span></code>.</p></li>
+<li><p><strong>Shift+wheel is the way in and out.</strong> It is the dolly-zoom that trades field of view
+for distance at constant <code class="docutils literal notranslate"><span class="pre">H</span></code>: forward narrows the field of view, flattening the
+perspective, and orthographic is the limit of that. It therefore does not stop at the
+narrowest field of view (10 degrees); it goes on into orthographic, at that field of
+view. Turned back, it leaves orthographic for perspective at the same field of view and
+widens from there. Forward again in orthographic does nothing – nothing is flatter than
+parallel. <code class="docutils literal notranslate"><span class="pre">H</span></code> is untouched throughout, so nothing jumps at the switch.</p></li>
 <li><p><strong>The projection matrix</strong> is <code class="docutils literal notranslate"><span class="pre">ortho(-W/2,</span> <span class="pre">W/2,</span> <span class="pre">-H/2,</span> <span class="pre">H/2,</span> <span class="pre">near,</span> <span class="pre">far)</span></code> with
-<code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">=</span> <span class="pre">H</span> <span class="pre">*</span> <span class="pre">aspect</span></code>. The scene lies at view-space depth <code class="docutils literal notranslate"><span class="pre">distance</span> <span class="pre">+-</span> <span class="pre">sceneRadius</span></code>, so
-<code class="docutils literal notranslate"><span class="pre">near</span> <span class="pre">=</span> <span class="pre">distance</span> <span class="pre">-</span> <span class="pre">k</span> <span class="pre">*</span> <span class="pre">sceneRadius</span></code> and <code class="docutils literal notranslate"><span class="pre">far</span> <span class="pre">=</span> <span class="pre">distance</span> <span class="pre">+</span> <span class="pre">k</span> <span class="pre">*</span> <span class="pre">sceneRadius</span></code>, with <code class="docutils literal notranslate"><span class="pre">k</span></code>
-slightly over one. <strong><code class="docutils literal notranslate"><span class="pre">near</span></code> may be negative</strong>: with the orbit centre inside the
-object the eye is inside it too, and an orthographic view still draws what is
-behind the eye. Perspective keeps <code class="docutils literal notranslate"><span class="pre">near</span> <span class="pre">=</span> <span class="pre">distance</span> <span class="pre">*</span> <span class="pre">nearClipRatio</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">=</span> <span class="pre">H</span> <span class="pre">*</span> <span class="pre">aspect</span></code>. <strong>The depth range is fitted to the scene</strong>: the view sets the
+world-space box of everything visible each frame (<code class="docutils literal notranslate"><span class="pre">setSceneBounds</span></code>), and the volume runs
+from just before the nearest corner of that box, as a distance in front of the eye, to
+just after the farthest, widened to hold the trackball gizmo about the orbit centre
+(which a small box would not cover). The slack is 5% of the range, so surfaces on the
+box faces, wide lines and the tips of normals are not cut, plus a thousandth of the
+view height for a box that is flat against the view. <strong><code class="docutils literal notranslate"><span class="pre">near</span></code> may be negative</strong>: with the
+orbit centre closer to the eye than the scene is deep, an orthographic view still draws
+what is behind the eye. Without bounds – before the first frame, or a camera rebuilt
+from JSON, where only x and y matter – it falls back to a symmetric reach of
+<code class="docutils literal notranslate"><span class="pre">4</span> <span class="pre">*</span> <span class="pre">max(radius,</span> <span class="pre">sceneRadius)</span></code> about the centre. Perspective keeps
+<code class="docutils literal notranslate"><span class="pre">near</span> <span class="pre">=</span> <span class="pre">distance</span> <span class="pre">*</span> <span class="pre">nearClipRatio</span></code> and its generous far plane.</p></li>
+<li><p><strong>The depth range follows the backend.</strong> The renderer hands QRhi the projection matrix
+uncorrected, with depth in [-1, 1], and the pick reads depth back as <code class="docutils literal notranslate"><span class="pre">ndcZ</span> <span class="pre">=</span> <span class="pre">depth01</span></code> on a
+backend that clips depth to [0, 1] (Metal, Direct3D, Vulkan). A perspective matrix
+survives that because its depth is nonlinear: it loses only the sliver in front of twice
+the near distance. An orthographic matrix has linear depth, so a volume mapped to
+[-1, 1] would lose its whole nearer half – the front of the object clipped away at the
+moment of switching. <code class="docutils literal notranslate"><span class="pre">ViewTrackball::setClipDepthZeroToOne</span></code>, set by the view from
+<code class="docutils literal notranslate"><span class="pre">QRhi::isClipDepthZeroToOne()</span></code>, makes the orthographic matrix map its volume to the range
+the backend keeps; the ray origin, and so the pick’s unprojection, follow. Perspective is
+deliberately left as it was.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">nearClipRatio</span></code> is a perspective depth-precision setting</strong> and is ignored in
 orthographic, where depth is linear over <code class="docutils literal notranslate"><span class="pre">[near,</span> <span class="pre">far]</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">viewFrustumFarDistance()</span></code> widens the far plane to contain a peer view’s camera
-glyph. In orthographic it widens the range on both sides, since a glyph may sit
-behind the eye.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">projectionMatrix(aspect,</span> <span class="pre">minFarDistance,</span> <span class="pre">maxNearDistance)</span></code></strong>: a peer view’s camera
+glyph can reach past the host’s far plane, and in orthographic it can lie behind the
+eye. <code class="docutils literal notranslate"><span class="pre">viewFrustumFarDistance()</span></code> and <code class="docutils literal notranslate"><span class="pre">viewFrustumNearDistance()</span></code> (the nearest corner of
+the glyphs’ bounds, negative behind the eye) widen the volume to hold them;
+perspective ignores the near request.</p></li>
 </ul>
 <section id="json">
 <h3>JSON<a class="headerlink" href="#json" title="Link to this heading">¶</a></h3>
@@ -394,8 +423,11 @@ already work for either projection and are not touched.</p>
 <code class="docutils literal notranslate"><span class="pre">fill_wire_overlay.frag:32</span></code> and <code class="docutils literal notranslate"><span class="pre">overlay_points.frag:41</span></code> as the light direction).
 In orthographic that vector is the constant <code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">0,</span> <span class="pre">1)</span></code>.</p>
 <p>The shaders need to know which projection is in use. <strong><code class="docutils literal notranslate"><span class="pre">lightDir.w</span></code></strong>, a component of
-the main uniform block that is written as 0 and read by nothing
-(<code class="docutils literal notranslate"><span class="pre">renderwidget_internal.h:52</span></code>), carries it: 0 for perspective, 1 for orthographic.
+the main uniform block that was written as 0 and read by nothing, carries it: 0 for
+perspective, 1 for orthographic. It is read from the projection matrix the frame is drawn
+with (<code class="docutils literal notranslate"><span class="pre">isOrthographicProjection</span></code>: a last row of <code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">0,</span> <span class="pre">0,</span> <span class="pre">1)</span></code>), not from the trackball, so
+it holds for whichever camera built the matrix – a raster’s included, once rasters are
+handled.
 <code class="docutils literal notranslate"><span class="pre">overlay_points.frag</span></code>, whose block declaration stops short of <code class="docutils literal notranslate"><span class="pre">lightDir</span></code>, extends it.
 No binding or buffer layout changes.</p>
 <p>Unchanged, and worth recording why:</p>
@@ -414,6 +446,8 @@ the result may look different rather than wrong; see <a class="reference interna
 <h2>Camera glyphs<a class="headerlink" href="#camera-glyphs" title="Link to this heading">¶</a></h2>
 <p>Both glyphs draw a pyramid: four edges from an apex to the corners of the far
 rectangle, plus the near and far rectangles.</p>
+<p><strong>Implemented (stage 3).</strong> What follows is the design; the implementation matches it,
+with the box drawn from the near rectangle (which may sit behind the eye) to the far one.</p>
 <ul class="simple">
 <li><p><strong>A peer view’s camera</strong> (<code class="docutils literal notranslate"><span class="pre">buildViewFrustumGizmo</span></code>) reads <code class="docutils literal notranslate"><span class="pre">cot(fovY/2)</span></code> out of
 <code class="docutils literal notranslate"><span class="pre">proj(1,1)</span></code>, which for an orthographic matrix is <code class="docutils literal notranslate"><span class="pre">2/H</span></code> and means nothing as a
@@ -422,7 +456,9 @@ cotangent. It must recognize an orthographic matrix – its last row is
 no apex. <code class="docutils literal notranslate"><span class="pre">PeerViewCamera</span></code> already carries the matrix, so nothing else is passed.</p></li>
 <li><p><strong>A raster layer’s camera</strong> (<code class="docutils literal notranslate"><span class="pre">renderwidget_raster.cpp</span></code>) builds its glyph from an
 apex and four unprojected corners. For an orthographic shot the apex lines become
-the four parallel edges of a box from the image plane to the glyph depth.</p></li>
+the four parallel edges of a box from the plane through the viewpoint to the glyph
+depth; the glyph’s vertex buffer holds up to 12 segments and the draw count follows
+the shape (8 for a pyramid).</p></li>
 </ul>
 </section>
 <section id="cameras-as-data">
@@ -430,7 +466,7 @@ the four parallel edges of a box from the image plane to the glyph depth.</p></l
 <p><code class="docutils literal notranslate"><span class="pre">CameraShot</span></code> is the camera of a raster layer and the form a view takes when it is
 exported – a snapshot added as a raster, <code class="docutils literal notranslate"><span class="pre">cameraShotForViewport()</span></code>, the
 <code class="docutils literal notranslate"><span class="pre">Render</span> <span class="pre">from</span> <span class="pre">Render-State</span> <span class="pre">JSON</span></code> filter’s output, <code class="docutils literal notranslate"><span class="pre">HeadlessRenderContext::cameraShot()</span></code>.</p>
-<ul class="simple">
+<ul>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">CameraShot::CameraType</span></code></strong> is reduced to <code class="docutils literal notranslate"><span class="pre">Perspective</span></code> and <code class="docutils literal notranslate"><span class="pre">Orthographic</span></code>.
 <code class="docutils literal notranslate"><span class="pre">fromVcgShot</span></code> maps vcglib’s <code class="docutils literal notranslate"><span class="pre">ISOMETRIC</span></code> and <code class="docutils literal notranslate"><span class="pre">CAVALIERI</span></code> to <code class="docutils literal notranslate"><span class="pre">Perspective</span></code>, and the
 project loader, which knows the file, logs a warning naming it: nothing downstream
@@ -441,12 +477,63 @@ volume: <code class="docutils literal notranslate"><span class="pre">ViewportPx<
 world units per pixel (<code class="docutils literal notranslate"><span class="pre">H</span> <span class="pre">/</span> <span class="pre">height</span></code>), and <code class="docutils literal notranslate"><span class="pre">FocalMm</span></code> unused. <code class="docutils literal notranslate"><span class="pre">Project</span></code>, <code class="docutils literal notranslate"><span class="pre">UnProject</span></code>
 and <code class="docutils literal notranslate"><span class="pre">Depth</span></code> already treat <code class="docutils literal notranslate"><span class="pre">ORTHO</span></code> correctly, so a snapshot added as a raster layer
 projects onto the mesh in the same place the view drew it.</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">vcg::Camera::GetMatrix</span></code></strong> is given the missing orthographic branch, in vcglib.
-This is the one change outside this repository; it follows the four-part procedure
-(commit in <code class="docutils literal notranslate"><span class="pre">vcglib/</span></code>, push to <code class="docutils literal notranslate"><span class="pre">origin/devel</span></code>, bump the gitlink, land the dependent
-MeshLab code in the same bump). <code class="docutils literal notranslate"><span class="pre">CameraShot::projectionMatrix()</span></code> then needs no
-change, and the raster overlay and the projected-raster pass, which both call it,
-become correct for an orthographic raster.</p></li>
+<li><p><strong>Implementation notes (stage 3).</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cameraShotForViewport()</span></code> also moves an orthographic shot’s <em>viewpoint</em> back along the
+axis until the whole scene is in front of it. Parallel rays do not care where the
+camera sits, but depth buffers and the projection filters read <code class="docutils literal notranslate"><span class="pre">depth</span> <span class="pre">&lt;=</span> <span class="pre">0</span></code> as “behind
+the camera”, and the orbit eye can lie inside the scene. The image is unchanged.</p></li>
+<li><p>A raster whose shot is orthographic draws in raster mode with a volume fitted to the
+scene (a little slack each end, the near plane free to be behind the viewpoint), and
+the same <code class="docutils literal notranslate"><span class="pre">[-1,</span> <span class="pre">1]</span></code> to <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">1]</span></code> depth fold the trackball uses on a zero-to-one backend
+(<code class="docutils literal notranslate"><span class="pre">ViewTrackball::depthFoldToZeroToOne</span></code>). <code class="docutils literal notranslate"><span class="pre">CameraShot::projectionMatrix</span></code> accepts a
+near plane at or behind the viewpoint for an orthographic shot.</p></li>
+<li><p>The framing filters <code class="docutils literal notranslate"><span class="pre">set_camera_from_direction</span></code> and <code class="docutils literal notranslate"><span class="pre">set_camera_to_view_selection</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">set_raster_camera</span></code>, take a <code class="docutils literal notranslate"><span class="pre">projection</span></code> parameter (<em>Keep current</em>, <em>Perspective</em>,
+<em>Orthographic</em>; default <em>Keep current</em>, which reads the current raster’s camera and is
+perspective without one). The visible height at the target is the same either way.
+<code class="docutils literal notranslate"><span class="pre">rotate_cameras</span></code>, <code class="docutils literal notranslate"><span class="pre">translate_cameras</span></code> and <code class="docutils literal notranslate"><span class="pre">scale_cameras</span></code> keep the intrinsics, and
+<code class="docutils literal notranslate"><span class="pre">RescalingWorld</span></code> scales an orthographic shot’s <code class="docutils literal notranslate"><span class="pre">PixelSizeMm</span></code>, which is world units per
+pixel, correctly.</p></li>
+<li><p>The loaders (<code class="docutils literal notranslate"><span class="pre">document_internal.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">layerfilterplugin.cpp</span></code>) read camera type 2 or 3
+as perspective and log a warning; <code class="docutils literal notranslate"><span class="pre">ImgPatchParam</span></code>’s orientation weight, the soft depth
+buffer’s front-facing test and the colour projection filters use <code class="docutils literal notranslate"><span class="pre">directionToCamera</span></code>.</p></li>
+</ul>
+</li>
+<li><p><strong>vcglib, two changes in <code class="docutils literal notranslate"><span class="pre">vcg/math/camera.ipp</span></code></strong>, the only work outside this
+repository. It follows the four-part procedure (commit in <code class="docutils literal notranslate"><span class="pre">vcglib/</span></code>, push to
+<code class="docutils literal notranslate"><span class="pre">origin/devel</span></code>, bump the gitlink, land the dependent MeshLab code in the same bump).
+<code class="docutils literal notranslate"><span class="pre">GetMatrix</span></code> has exactly one caller in the tree, <code class="docutils literal notranslate"><span class="pre">CameraShot::projectionMatrix()</span></code>.</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">GetMatrix</span></code> gets the missing orthographic branch.</strong> For an <code class="docutils literal notranslate"><span class="pre">ORTHO</span></code> camera it
+builds the <code class="docutils literal notranslate"><span class="pre">glOrtho</span></code> matrix from the frustum extents – <code class="docutils literal notranslate"><span class="pre">2/(r-l)</span></code>, <code class="docutils literal notranslate"><span class="pre">2/(t-b)</span></code>,
+<code class="docutils literal notranslate"><span class="pre">-2/(f-n)</span></code> on the diagonal, the translations in the last column, a last row of
+<code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">0,</span> <span class="pre">0,</span> <span class="pre">1)</span></code> – with the same clip-space convention as the perspective branch.
+Today it builds the perspective matrix whatever the type: for an <code class="docutils literal notranslate"><span class="pre">ORTHO</span></code> camera
+the GPU path disagrees with <code class="docutils literal notranslate"><span class="pre">Shot::Project</span></code> by hundreds of pixels (measured: 399 px
+worst case over random points).</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">GetFrustum</span></code> has the horizontal extent mirrored.</strong> Found while measuring the
+first change: <code class="docutils literal notranslate"><span class="pre">SetFrustum(left</span> <span class="pre">-1,</span> <span class="pre">right</span> <span class="pre">3,</span> <span class="pre">...)</span></code> followed by <code class="docutils literal notranslate"><span class="pre">GetFrustum</span></code> returns
+left -3, right 1. The vertical extents round-trip; the horizontal ones do not.
+<code class="docutils literal notranslate"><span class="pre">GetFrustum</span></code> returns <code class="docutils literal notranslate"><span class="pre">right</span> <span class="pre">=</span> <span class="pre">cx</span> <span class="pre">*</span> <span class="pre">p</span></code> and <code class="docutils literal notranslate"><span class="pre">left</span> <span class="pre">=</span> <span class="pre">-(W</span> <span class="pre">-</span> <span class="pre">cx)</span> <span class="pre">*</span> <span class="pre">p</span></code>, where <code class="docutils literal notranslate"><span class="pre">Project</span></code>
+and <code class="docutils literal notranslate"><span class="pre">SetFrustum</span></code> both mean <code class="docutils literal notranslate"><span class="pre">left</span> <span class="pre">=</span> <span class="pre">-cx</span> <span class="pre">*</span> <span class="pre">p</span></code> and <code class="docutils literal notranslate"><span class="pre">right</span> <span class="pre">=</span> <span class="pre">(W</span> <span class="pre">-</span> <span class="pre">cx)</span> <span class="pre">*</span> <span class="pre">p</span></code> (<code class="docutils literal notranslate"><span class="pre">cx</span></code> the
+principal point in pixels, <code class="docutils literal notranslate"><span class="pre">p</span></code> the pixel size, <code class="docutils literal notranslate"><span class="pre">W</span></code> the width). The two agree only
+when the principal point is centred, which is why nothing shows it on a synthetic
+camera. With an off-centre principal point – every calibrated photogrammetry
+camera – the existing perspective matrix places the optical axis at pixel
+<code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">-</span> <span class="pre">cx</span></code> instead of <code class="docutils literal notranslate"><span class="pre">cx</span></code>: an error of <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">*</span> <span class="pre">|W/2</span> <span class="pre">-</span> <span class="pre">cx|</span></code> pixels, in x only. The fix
+is the same two lines in <code class="docutils literal notranslate"><span class="pre">GetFrustum</span></code>, and it corrects <code class="docutils literal notranslate"><span class="pre">GetMatrix</span></code> and the GL
+wrapper (<code class="docutils literal notranslate"><span class="pre">wrap/gl/camera.h</span></code>) for every user at once. It is a change of behaviour
+for off-centre cameras and must be said so in the commit message.</p></li>
+</ul>
+<p>With both changes, <code class="docutils literal notranslate"><span class="pre">GetMatrix</span></code> followed by the view matrix agrees with
+<code class="docutils literal notranslate"><span class="pre">Shot::Project</span></code> to under 1e-3 pixel for random points, for both camera types and for
+centred and off-centre principal points (measured on a scratch copy of the
+functions). <code class="docutils literal notranslate"><span class="pre">CameraShot::projectionMatrix()</span></code> then needs no change, and the raster
+overlay and the projected-raster pass, which both call it, become correct for an
+orthographic raster – and for an off-centre perspective one, which they are not
+today.</p>
+</li>
 <li><p><strong>The camera filters</strong> (<code class="docutils literal notranslate"><span class="pre">filter_camera</span></code>) write a <code class="docutils literal notranslate"><span class="pre">trackball</span></code> payload and a shot with
 <code class="docutils literal notranslate"><span class="pre">PERSPECTIVE</span></code> hard-coded (<code class="docutils literal notranslate"><span class="pre">camerafilterplugin.cpp:633</span></code>, <code class="docutils literal notranslate"><span class="pre">:716</span></code>). They keep the
 projection of the camera they start from, and <em>Set Camera from Direction</em> and <em>Set
@@ -463,7 +550,15 @@ key (the key Blender users expect, and the one Marco Callieri asked for). It set
 <li><p><strong>The on-view readout</strong> that says <code class="docutils literal notranslate"><span class="pre">FOV:</span> <span class="pre">45.0</span> <span class="pre">deg</span></code> says <code class="docutils literal notranslate"><span class="pre">Orthographic</span></code> instead.</p></li>
 <li><p><strong>Preference <code class="docutils literal notranslate"><span class="pre">view.projection</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">perspective</span></code> | <code class="docutils literal notranslate"><span class="pre">orthographic</span></code>, default
 perspective): the projection a new or reset view starts in, beside
-<code class="docutils literal notranslate"><span class="pre">view.fieldOfView</span></code>. <em>Reset camera</em> keeps the current projection.</p></li>
+<code class="docutils literal notranslate"><span class="pre">view.fieldOfView</span></code>. <em>Reset camera</em> keeps the current projection.
+<strong>Implemented (stage 5).</strong> Differences from the sketch above: the <code class="docutils literal notranslate"><span class="pre">5</span></code> binding is attached
+only while a 3D view has focus (<code class="docutils literal notranslate"><span class="pre">MainWindow::updateViewShortcuts</span></code>, like Ctrl+C), because a
+bare digit would otherwise flip the projection while typing into a spin box or the console;
+the menu item is disabled outside 3D mode; <code class="docutils literal notranslate"><span class="pre">RenderWidget::setProjection</span></code> also shows a status
+line (“Orthographic projection” / “Perspective projection”); <code class="docutils literal notranslate"><span class="pre">ViewTrackball::resetToFrame</span></code>
+leaves the projection alone, so Reset Camera keeps it, and the preference is read once, when
+a view is created. The on-view readout is the Shift+wheel one from stage 2 (“FOV:
+orthographic”); there is no permanent readout.</p></li>
 <li><p><strong>Canonical views</strong> (the numeric-keypad views of the same request) need nothing
 beyond this: <code class="docutils literal notranslate"><span class="pre">snapCameraToAxis</span></code> keeps the field of view and the projection, and a
 canonical view in orthographic is the usual way to read one.</p></li>
@@ -544,7 +639,7 @@ listed so that the audit can be checked: each says why it needs nothing.</p>
 <td><p>Wheel and Shift+wheel</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">viewtrackball.cpp:366</span></code></p></td>
 <td><p>dolly; dolly-zoom with Shift</p></td>
-<td><p><strong>modify</strong>: Shift+wheel ignored in orthographic</p></td>
+<td><p><strong>modify</strong>: Shift+wheel passes the narrowest field of view into orthographic and back</p></td>
 </tr>
 <tr class="row-even"><td><p>11</p></td>
 <td><p>Gizmo radius</p></td>
@@ -691,10 +786,10 @@ listed so that the audit can be checked: each says why it needs nothing.</p>
 <td><p><strong>modify</strong>: keep or set the projection</p></td>
 </tr>
 <tr class="row-even"><td><p>35</p></td>
-<td><p>vcglib projection matrix</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">camera.ipp:144</span></code></p></td>
-<td><p>perspective whatever the type</p></td>
-<td><p><strong>modify</strong>: orthographic branch (vcglib)</p></td>
+<td><p>vcglib projection matrix and frustum</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera.ipp:144,184</span></code></p></td>
+<td><p>perspective whatever the type; horizontal frustum extent mirrored</p></td>
+<td><p><strong>modify</strong>: orthographic branch, and <code class="docutils literal notranslate"><span class="pre">GetFrustum</span></code> x (vcglib)</p></td>
 </tr>
 <tr class="row-odd"><td><p>36</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">CameraShot::projectionMatrix</span></code></p></td>
@@ -766,22 +861,36 @@ listed so that the audit can be checked: each says why it needs nothing.</p>
 <p>The interface (row 42) lands last in every stage plan, so that no stage leaves a
 reachable orthographic view that some consumer cannot draw.</p>
 <ol class="arabic simple">
-<li><p><strong>vcglib.</strong> Row 35 alone, with a test that <code class="docutils literal notranslate"><span class="pre">GetMatrix</span></code> agrees with <code class="docutils literal notranslate"><span class="pre">Project</span></code> for an
-<code class="docutils literal notranslate"><span class="pre">ORTHO</span></code> camera. Independent of everything else and landed by the four-part
-procedure.</p></li>
-<li><p><strong>The view.</strong> Rows 1, 2, 6, 7, 8, 10, 14, 15, 21, 22, 26. After it an orthographic
+<li><p><strong>vcglib. Done.</strong> Row 35 alone, with a test in this repository (vcglib has no test suite
+of its own) that <code class="docutils literal notranslate"><span class="pre">CameraShot::projectionMatrix()</span></code> through the view matrix agrees with
+<code class="docutils literal notranslate"><span class="pre">CameraShot::project()</span></code> for both camera types and for centred and off-centre
+principal points. Independent of everything else and landed by the four-part
+procedure; the off-centre correction is worth reporting to whoever uses raster
+overlays before it lands, since it moves them.</p></li>
+<li><p><strong>The view. Done.</strong> Rows 1, 2, 6, 7, 8, 10, 14, 15, 21, 22, 26. An orthographic
 state, set by JSON or the Python API, renders, navigates and lights correctly in a
 view, a snapshot and a headless render; there is no menu item yet.</p></li>
-<li><p><strong>Cameras as data.</strong> Rows 27, 28, 30, 34, 37, 38, 39 (and 36 and 40 follow from
+<li><p><strong>Cameras as data. Done.</strong> Rows 27, 28, 30, 34, 37, 38, 39 (and 36 and 40 follow from
 stage 1). Peer and raster camera glyphs, snapshot-to-raster, the camera filters
-and the raster filters.</p></li>
-<li><p><strong>Occlusion.</strong> Row 18.</p></li>
-<li><p><strong>Interface and documentation.</strong> Rows 42, 43, 44.</p></li>
+and the raster filters. The probe <code class="docutils literal notranslate"><span class="pre">tests/render_probes/orthographic</span></code> also renders an
+orthographic view into a raster and projects it back onto the sphere, including a
+camera whose orbit eye is inside the sphere.</p></li>
+<li><p><strong>Occlusion. Done.</strong> Row 18. <code class="docutils literal notranslate"><span class="pre">ViewpointOccluder::isOccludedAlong</span></code> is <code class="docutils literal notranslate"><span class="pre">isOccluded</span></code> with
+the far end of the segment a bounding-box diagonal (plus 10%) beyond the sample, so both
+backends needed no new query. <code class="docutils literal notranslate"><span class="pre">select_by_rectangle</span></code> picks the form from the camera’s
+projection and carries the view direction into layer space with <code class="docutils literal notranslate"><span class="pre">mapVector</span></code> of the
+inverse layer matrix. The test puts the orbit eye between two cubes of one layer, where
+the eye rule and the direction rule disagree about the upper cube.</p></li>
+<li><p><strong>Interface and documentation. Done.</strong> Rows 42, 43, 44: View &gt; Orthographic Projection
+(5), preference <code class="docutils literal notranslate"><span class="pre">view.projection</span></code>, quick help, <code class="docutils literal notranslate"><span class="pre">python_scripting.md</span></code>, <code class="docutils literal notranslate"><span class="pre">rendering.md</span></code>.</p></li>
 </ol>
 </section>
 <section id="tests">
 <h2>Tests<a class="headerlink" href="#tests" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">ViewTrackball</span></code> has no unit test today, so stage 2 adds one target for it.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ViewTrackball</span></code> had no unit test, so stage 2 added <code class="docutils literal notranslate"><span class="pre">MeshLab2ViewTrackballTests</span></code>, and the
+render probe <code class="docutils literal notranslate"><span class="pre">tests/render_probes/orthographic</span></code> (a sphere at constant <code class="docutils literal notranslate"><span class="pre">H</span></code>: orthographic
+coverage independent of the field of view, perspective not, perspective at the smallest
+field of view close to orthographic, a 2:1 frame at the same scale).</p>
 <ul class="simple">
 <li><p><strong>The invariant.</strong> For random states, a point on the plane through the orbit centre
 projects to the same normalized coordinates in both projections; a point <code class="docutils literal notranslate"><span class="pre">H/2</span></code>
@@ -792,8 +901,16 @@ for both, through <code class="docutils literal notranslate"><span class="pre">C
 <li><p><strong>JSON.</strong> Round trip; <code class="docutils literal notranslate"><span class="pre">perspective</span></code> omitted from the output; an absent key reads as
 perspective; an unknown value fails naming the key.</p></li>
 <li><p><strong>Glyphs.</strong> <code class="docutils literal notranslate"><span class="pre">buildViewFrustumGizmo</span></code> on an orthographic matrix gives twelve segments
-with the four depth edges parallel.</p></li>
-<li><p><strong>vcglib.</strong> <code class="docutils literal notranslate"><span class="pre">GetMatrix</span></code> against <code class="docutils literal notranslate"><span class="pre">Project</span></code> and <code class="docutils literal notranslate"><span class="pre">Depth</span></code> for <code class="docutils literal notranslate"><span class="pre">ORTHO</span></code> and <code class="docutils literal notranslate"><span class="pre">PERSPECTIVE</span></code>.</p></li>
+with the four depth edges parallel, and a near plane behind the eye is accepted
+(stage 3, <code class="docutils literal notranslate"><span class="pre">test_viewfrustumgizmo.cpp</span></code>).</p></li>
+<li><p><strong>Shots and filters (stage 3).</strong> <code class="docutils literal notranslate"><span class="pre">DocumentTests::cameraShotRaysAndDirectionsFollowTheProjection</span></code>
+(ray through a pixel hits the point that projects there; parallel rays and a constant
+direction to the camera for <code class="docutils literal notranslate"><span class="pre">ORTHO</span></code>), <code class="docutils literal notranslate"><span class="pre">cameraShotReadsUnsupportedTypesAsPerspective</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">FilterTests::cameraFramingFiltersMakeAndKeepOrthographicShots</span></code> (<em>Keep current</em> keeps,
+an explicit projection overrides).</p></li>
+<li><p><strong>vcglib.</strong> Through <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code>: the projection matrix against <code class="docutils literal notranslate"><span class="pre">project()</span></code> and
+<code class="docutils literal notranslate"><span class="pre">depth()</span></code> for <code class="docutils literal notranslate"><span class="pre">ORTHO</span></code> and <code class="docutils literal notranslate"><span class="pre">PERSPECTIVE</span></code>, with the principal point centred and
+off-centre in x and in y; and the <code class="docutils literal notranslate"><span class="pre">SetFrustum</span></code> / <code class="docutils literal notranslate"><span class="pre">GetFrustum</span></code> round trip.</p></li>
 <li><p><strong>Selection.</strong> <code class="docutils literal notranslate"><span class="pre">select_by_rectangle</span></code> with <em>visible only</em> in orthographic selects the
 face toward the viewer and not the one behind it.</p></li>
 <li><p><strong>Raster filters.</strong> A normal orientation against an orthographic raster camera uses
@@ -816,8 +933,9 @@ perspective. The same JSON through <code class="docutils literal notranslate"><s
 by <code class="docutils literal notranslate"><span class="pre">H</span></code> instead would make it independent of zoom; measure on a real scan before
 deciding, and leave it alone if the look is acceptable.</p></li>
 <li><p><strong>Near and far when zoomed far in.</strong> With <code class="docutils literal notranslate"><span class="pre">distance</span></code> much smaller than the scene the
-orthographic <code class="docutils literal notranslate"><span class="pre">near</span></code> is deeply negative. It is correct, but depth resolution is
-spread over the whole scene extent; check it on a large scan.</p></li>
+orthographic <code class="docutils literal notranslate"><span class="pre">near</span></code> is deeply negative. It is correct, and the fit keeps it as tight as
+the scene allows; check that nothing drawn outside the scene box – a tool overlay, a
+decorator – is cut by the 5% slack on a real scan.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">isOccludedAlong</span></code> and grazing rays.</strong> The tolerance the grid backend applies is
 proportional to the sample’s distance (<code class="docutils literal notranslate"><span class="pre">dist</span> <span class="pre">*</span> <span class="pre">1e-3</span></code>); with the far end placed one
 bounding-box diagonal away that tolerance is larger than for a perspective eye close

@@ -282,6 +282,18 @@ available in the desktop application when an active render view exists.</p>
 <span class="n">mlgui</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="s2">"/tmp/meshlab_snapshot.png"</span><span class="p">,</span> <span class="mi">1200</span><span class="p">,</span> <span class="mi">900</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>The camera and render-state JSON carry the projection as <code class="docutils literal notranslate"><span class="pre">&quot;projection&quot;:</span> <span class="pre">&quot;orthographic&quot;</span></code>
+inside the <code class="docutils literal notranslate"><span class="pre">trackball</span></code> object; it is left out for the default <code class="docutils literal notranslate"><span class="pre">&quot;perspective&quot;</span></code>. Both
+projections frame the same height at the orbit centre (<code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">*</span> <span class="pre">distance</span> <span class="pre">*</span> <span class="pre">tan(fov_y_degrees</span> <span class="pre">/</span> <span class="pre">2)</span></code>),
+so adding or removing the key changes how the scene is projected and nothing about what is
+framed:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="n">state</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">mlgui</span><span class="o">.</span><span class="n">camera_state_json</span><span class="p">())</span>
+<span class="n">state</span><span class="p">[</span><span class="s2">"trackball"</span><span class="p">][</span><span class="s2">"projection"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"orthographic"</span>
+<span class="n">mlgui</span><span class="o">.</span><span class="n">apply_camera_state_json</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">state</span><span class="p">))</span>
+<span class="n">png</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">render_snapshot</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">"trackball"</span><span class="p">:</span> <span class="n">state</span><span class="p">[</span><span class="s2">"trackball"</span><span class="p">]}),</span> <span class="mi">800</span><span class="p">,</span> <span class="mi">600</span><span class="p">)</span>
+</pre></div>
+</div>
 <p>Use <code class="docutils literal notranslate"><span class="pre">mlgui</span></code> for view state and rendering operations. It is not meant to be a
 general document API.</p>
 </section>

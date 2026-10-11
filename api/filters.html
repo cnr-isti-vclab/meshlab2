@@ -3418,6 +3418,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>target</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">mesh_bbox</span></code>) — What the camera should look at.</p></li>
 <li><p><strong>marginFactor</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Viewport margin multiplier. 1.0 = tight fit, 2.0 = zoom out.</p></li>
 <li><p><strong>fovYDeg</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">45.0</span></code>) — Vertical field of view in degrees.</p></li>
+<li><p><strong>projection</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">current</span></code>) — Perspective or orthographic camera. ‘Keep current’ uses the projection of the current raster’s camera, and perspective when there is none. The framing is the same either way: the camera sees the same height at the target.</p></li>
 </ul>
 </dd></dl>
 
@@ -3436,6 +3437,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <ul class="simple">
 <li><p><strong>marginFactor</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Viewport margin multiplier. 1.0 = tight fit, 1.5 = some padding.</p></li>
 <li><p><strong>fovYDeg</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">45.0</span></code>) — Vertical field of view in degrees.</p></li>
+<li><p><strong>projection</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">current</span></code>) — Perspective or orthographic camera. ‘Keep current’ uses the projection of the current raster’s camera, and perspective when there is none. The framing is the same either way: the camera sees the same height at the target.</p></li>
 <li><p><strong>useFaceNormals</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Average face normals to determine the view direction. If no faces are selected, falls back to vertex normals.</p></li>
 </ul>
 </dd></dl>
@@ -3476,7 +3478,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>viewpoint</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Camera position in world space.</p></li>
 <li><p><strong>direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">-1.0]</span></code>) — Camera viewing direction.</p></li>
 <li><p><strong>focalMm</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">50.0</span></code>) — Camera focal length in millimeters.</p></li>
-<li><p><strong>sensorWidthMm</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">36.0</span></code>) — Camera sensor width in millimeters.</p></li>
+<li><p><strong>sensorWidthMm</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">36.0</span></code>) — Camera sensor width in millimeters. For an orthographic camera, the width of the view volume in world units, and the focal length plays no part.</p></li>
+<li><p><strong>projection</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">current</span></code>) — Perspective or orthographic camera. ‘Keep current’ uses the projection of the raster’s present camera, and perspective when it has none.</p></li>
 </ul>
 </dd></dl>
 

@@ -4009,6 +4009,7 @@ Compute a camera that looks toward a target (mesh bounding box center or current
 - **target** (*enum*, default: `mesh_bbox`) — What the camera should look at.
 - **marginFactor** (*double*, default: `1.0`) — Viewport margin multiplier. 1.0 = tight fit, 2.0 = zoom out.
 - **fovYDeg** (*double*, default: `45.0`) — Vertical field of view in degrees.
+- **projection** (*enum*, default: `current`) — Perspective or orthographic camera. 'Keep current' uses the projection of the current raster's camera, and perspective when there is none. The framing is the same either way: the camera sees the same height at the target.
 ```
 
 ---
@@ -4032,6 +4033,7 @@ Compute a camera that frames the current selection in the viewport. The camera i
 
 - **marginFactor** (*double*, default: `1.0`) — Viewport margin multiplier. 1.0 = tight fit, 1.5 = some padding.
 - **fovYDeg** (*double*, default: `45.0`) — Vertical field of view in degrees.
+- **projection** (*enum*, default: `current`) — Perspective or orthographic camera. 'Keep current' uses the projection of the current raster's camera, and perspective when there is none. The framing is the same either way: the camera sees the same height at the target.
 - **useFaceNormals** (*bool*, default: `True`) — Average face normals to determine the view direction. If no faces are selected, falls back to vertex normals.
 ```
 
@@ -4082,7 +4084,8 @@ Set camera parameters for the current raster. The viewport is automatically reca
 - **viewpoint** (*point3f*, default: `[0.0, 0.0, 0.0]`) — Camera position in world space.
 - **direction** (*point3f*, default: `[0.0, 0.0, -1.0]`) — Camera viewing direction.
 - **focalMm** (*double*, default: `50.0`) — Camera focal length in millimeters.
-- **sensorWidthMm** (*double*, default: `36.0`) — Camera sensor width in millimeters.
+- **sensorWidthMm** (*double*, default: `36.0`) — Camera sensor width in millimeters. For an orthographic camera, the width of the view volume in world units, and the focal length plays no part.
+- **projection** (*enum*, default: `current`) — Perspective or orthographic camera. 'Keep current' uses the projection of the raster's present camera, and perspective when it has none.
 ```
 
 ---
