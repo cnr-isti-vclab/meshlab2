@@ -61,7 +61,7 @@ void RenderWidget::renderSceneDecoratorItems(
             "decorator");
         float decoratorData[kDecoratorUbufSize / sizeof(float)] = {};
         const QMatrix4x4 meshMvp = frameVp * m_doc->mesh(item.meshIndex).transform;
-        memcpy(decoratorData, meshMvp.constData(), 64);
+        memcpy(decoratorData, forBackend(meshMvp).constData(), 64);
         decoratorData[16] = item.color.redF();
         decoratorData[17] = item.color.greenF();
         decoratorData[18] = item.color.blueF();
@@ -88,7 +88,7 @@ void RenderWidget::renderSceneDecoratorItems(
             "decorator-fat");
         float fatData[kDecoratorFatUbufSize / sizeof(float)] = {};
         const QMatrix4x4 meshMvp = frameVp * m_doc->mesh(item.meshIndex).transform;
-        memcpy(fatData, meshMvp.constData(), 64);
+        memcpy(fatData, forBackend(meshMvp).constData(), 64);
         fatData[16] = item.color.redF();
         fatData[17] = item.color.greenF();
         fatData[18] = item.color.blueF();
@@ -171,7 +171,7 @@ void RenderWidget::renderSceneSelectionItems(
             "selection");
         float selectionData[kDecoratorUbufSize / sizeof(float)] = {};
         const QMatrix4x4 meshMvp = frameVp * m_doc->mesh(item.meshIndex).transform;
-        memcpy(selectionData, meshMvp.constData(), 64);
+        memcpy(selectionData, forBackend(meshMvp).constData(), 64);
         memcpy(selectionData + 16, kSelectionColor, sizeof(kSelectionColor));
         const QVector4D localClip = localClipPlaneFor(item.meshIndex);
         selectionData[20] = localClip.x();
@@ -284,7 +284,7 @@ void RenderWidget::renderSceneSolidCut(
 
     float ubuf[kRasterProjectedUbufSize / sizeof(float)] = {};
     const QMatrix4x4 mvp = fillPlan.proj * fillPlan.view;
-    memcpy(ubuf, mvp.constData(), 64);
+    memcpy(ubuf, forBackend(mvp).constData(), 64);
     ubuf[16] = float(base.redF()) * shade;
     ubuf[17] = float(base.greenF()) * shade;
     ubuf[18] = float(base.blueF()) * shade;

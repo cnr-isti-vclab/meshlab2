@@ -101,16 +101,16 @@ ratio keep their meaning.
   from JSON, where only x and y matter -- it falls back to a symmetric reach of
   `4 * max(radius, sceneRadius)` about the centre. Perspective keeps
   `near = distance * nearClipRatio` and its generous far plane.
-- **The depth range follows the backend.** The renderer hands QRhi the projection matrix
-  uncorrected, with depth in [-1, 1], and the pick reads depth back as `ndcZ = depth01` on a
-  backend that clips depth to [0, 1] (Metal, Direct3D, Vulkan). A perspective matrix
-  survives that because its depth is nonlinear: it loses only the sliver in front of twice
-  the near distance. An orthographic matrix has linear depth, so a volume mapped to
-  [-1, 1] would lose its whole nearer half -- the front of the object clipped away at the
-  moment of switching. `ViewTrackball::setClipDepthZeroToOne`, set by the view from
-  `QRhi::isClipDepthZeroToOne()`, makes the orthographic matrix map its volume to the range
-  the backend keeps; the ray origin, and so the pick's unprojection, follow. Perspective is
-  deliberately left as it was.
+- **The depth range is OpenGL's, in every matrix the camera builds.** An earlier version
+  of stage 2 made the orthographic matrix map its volume to [0, 1] on Metal-like backends,
+  because the renderer handed QRhi uncorrected OpenGL matrices and Metal then kept only
+  the half of the volume with clip depth >= 0 -- the front of an orthographic object was
+  clipped away at the moment of switching, and a perspective view lost a slice in front of
+  about twice its near distance (the whole front of the object once the near plane was
+  pushed out). That was a symptom of a missing step, not an orthographic property, and it
+  is fixed for everything: every matrix written to a GPU buffer goes through
+  `RenderWidget::forBackend`, which multiplies in `QRhi::clipSpaceCorrMatrix()`. The camera
+  and the CPU-side picking stay in OpenGL convention and know nothing about the backend.
 - **`nearClipRatio` is a perspective depth-precision setting** and is ignored in
   orthographic, where depth is linear over `[near, far]`.
 - **`projectionMatrix(aspect, minFarDistance, maxNearDistance)`**: a peer view's camera
@@ -249,9 +249,8 @@ exported -- a snapshot added as a raster, `cameraShotForViewport()`, the
     the camera", and the orbit eye can lie inside the scene. The image is unchanged.
   - A raster whose shot is orthographic draws in raster mode with a volume fitted to the
     scene (a little slack each end, the near plane free to be behind the viewpoint), and
-    the same `[-1, 1]` to `[0, 1]` depth fold the trackball uses on a zero-to-one backend
-    (`ViewTrackball::depthFoldToZeroToOne`). `CameraShot::projectionMatrix` accepts a
-    near plane at or behind the viewpoint for an orthographic shot.
+    the same backend correction as every other matrix. `CameraShot::projectionMatrix`
+    accepts a near plane at or behind the viewpoint for an orthographic shot.
   - The framing filters `set_camera_from_direction` and `set_camera_to_view_selection`, and
     `set_raster_camera`, take a `projection` parameter (*Keep current*, *Perspective*,
     *Orthographic*; default *Keep current*, which reads the current raster's camera and is

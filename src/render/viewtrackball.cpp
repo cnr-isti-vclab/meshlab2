@@ -524,22 +524,10 @@ QMatrix4x4 ViewTrackball::projectionMatrix(float aspect, float minFarDistance,
         const float halfH = m_distance * std::tan(0.5f * qDegreesToRadians(m_fovYDeg));
         const float halfW = halfH * aspect;
         proj.ortho(-halfW, halfW, -halfH, halfH, orthoNear, farPlane);
-        if (m_clipDepthZeroToOne) {
-            // ortho() maps the volume to depth [-1, 1]; fold that onto [0, 1].
-            proj = depthFoldToZeroToOne() * proj;
-        }
         return proj;
     }
     proj.perspective(m_fovYDeg, aspect, nearPlane, farPlane);
     return proj;
-}
-
-QMatrix4x4 ViewTrackball::depthFoldToZeroToOne()
-{
-    QMatrix4x4 fold;
-    fold(2, 2) = 0.5f;
-    fold(2, 3) = 0.5f;
-    return fold;
 }
 
 QVector3D ViewTrackball::viewPointForRotation(const QQuaternion &rotation) const
@@ -585,8 +573,7 @@ bool ViewTrackball::viewRayFromWindow(
     // Every ray leaves the eye in perspective; in orthographic the rays are parallel and
     // the pixel decides where each one starts, on the near plane.
     if (m_projection == Projection::Orthographic) {
-        // The near plane's depth in the backend's own range.
-        QVector4D pNear = invMvp * QVector4D(xNdc, yNdc, m_clipDepthZeroToOne ? 0.0f : -1.0f, 1.0f);
+        QVector4D pNear = invMvp * QVector4D(xNdc, yNdc, -1.0f, 1.0f);
         if (qFuzzyIsNull(pNear.w()))
             return false;
         pNear /= pNear.w();

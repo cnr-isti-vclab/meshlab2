@@ -69,7 +69,7 @@ void RenderWidget::prepareToolDepthCuedLines(
         const QColor lineColor =
             m_activeTool ? m_activeTool->toolLineColor() : QColor(170, 255, 255);
         float data[kToolLineUbufSize / sizeof(float)] = {};
-        memcpy(data, mvp.constData(), 16 * sizeof(float));
+        memcpy(data, forBackend(mvp).constData(), 16 * sizeof(float));
         data[16] = float(lineColor.redF());   // color.r
         data[17] = float(lineColor.greenF()); // color.g
         data[18] = float(lineColor.blueF());  // color.b
@@ -179,7 +179,7 @@ quint32 RenderWidget::uploadMainUbuf(
     float ubufData[kUbufFloatCount] = {};
     writeMainUbuf(
         ubufData,
-        mvp,
+        forBackend(mvp),
         modelView,
         normalMat,
         settings,
@@ -271,7 +271,6 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         return;
 
     resetDynamicUbufAllocators();
-    m_trackball.setClipDepthZeroToOne(m_rhi->isClipDepthZeroToOne());
 
     if (m_viewMode == ViewMode::ParametrizationUV) {
         renderParametrization(cb);
@@ -469,11 +468,6 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 farPlane = maxDepth + slack;
             }
             proj = rasterEntry->shot.projectionMatrix(nearPlane, farPlane);
-            // The renderer hands the backend GL-convention matrices (see
-            // ViewTrackball::setClipDepthZeroToOne): an orthographic volume would lose its
-            // nearer half on a backend that clips depth to [0, 1].
-            if (rasterOrthographic && m_rhi->isClipDepthZeroToOne())
-                proj = ViewTrackball::depthFoldToZeroToOne() * proj;
             if (RasterPlane *plane = rasterEntry->currentPlane()) {
                 Document::ensureRasterPlaneImage(*plane);
                 const QSize rasterSize = !plane->image.isNull()
@@ -506,7 +500,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             verts.data());
 
         float gizmoData[kTrackballGizmoUbufSize / sizeof(float)] = {};
-        memcpy(gizmoData, vp.constData(), 64);
+        memcpy(gizmoData, forBackend(vp).constData(), 64);
         const QVector3D center = m_trackball.center();
         gizmoData[16] = center.x();
         gizmoData[17] = center.y();

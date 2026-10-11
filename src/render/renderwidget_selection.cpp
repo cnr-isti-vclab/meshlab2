@@ -169,8 +169,6 @@ void RenderWidget::executePendingDepthPick(
     const int pyRead = m_rhi->isYUpInFramebuffer()
         ? (pixelSize.height() - 1 - pyScreen)
         : pyScreen;
-    const bool yUpInNdc = m_rhi->isYUpInNDC();
-    const bool clipDepthZeroToOne = m_rhi->isClipDepthZeroToOne();
 
     const auto fillVariant = Document::FillGpuVariant::Constant;
 
@@ -273,14 +271,14 @@ void RenderWidget::executePendingDepthPick(
     // result may have been abandoned and replaced by a newer pick's.
     QRhiReadbackResult *const readback = m_depthPickReadbackResult.get();
     readback->completed =
-        [self, pickSequence, pickToken, purpose, readback, invMvp, px, pyScreen, pickViewport, yUpInNdc, clipDepthZeroToOne]() {
+        [self, pickSequence, pickToken, purpose, readback, invMvp, px, pyScreen, pickViewport]() {
         if (!self)
             return;
         const QByteArray data = readback->data;
         const QRhiTexture::Format format = readback->format;
         QMetaObject::invokeMethod(
             self,
-            [self, pickSequence, pickToken, purpose, readback, data, format, invMvp, px, pyScreen, pickViewport, yUpInNdc, clipDepthZeroToOne]() {
+            [self, pickSequence, pickToken, purpose, readback, data, format, invMvp, px, pyScreen, pickViewport]() {
             if (!self)
                 return;
             /* A pick that was given up on reporting after all: only its result is left to free. */
@@ -325,8 +323,11 @@ void RenderWidget::executePendingDepthPick(
                     const float ndcX =
                         (2.0f * tileX / float(qMax(1, pickViewport.width()))) - 1.0f;
                     const float y01 = tileY / float(qMax(1, pickViewport.height()));
-                    const float ndcY = yUpInNdc ? (1.0f - 2.0f * y01) : (2.0f * y01 - 1.0f);
-                    const float ndcZ = clipDepthZeroToOne ? depth01 : (depth01 * 2.0f - 1.0f);
+                    // invMvp is in OpenGL convention (see forBackend), so the position is
+                    // too: Y up, and the depth buffer's [0, 1] back to [-1, 1] -- whatever
+                    // the backend, since the GPU was handed the corrected matrix.
+                    const float ndcY = 1.0f - 2.0f * y01;
+                    const float ndcZ = depth01 * 2.0f - 1.0f;
                     QVector4D world = invMvp * QVector4D(ndcX, ndcY, ndcZ, 1.0f);
                     if (std::abs(world.w()) >= 1e-8f) {
                         world /= world.w();

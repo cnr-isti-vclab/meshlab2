@@ -382,6 +382,15 @@ struct SceneRasterProjectedDrawItem {
     void updateGizmoOrbit(const QPointF &pos);
     void endGizmoOrbit();
     void showInteractionStatusOverlay(const QString &text, bool persistent = false);
+    // A projection or view-projection matrix, written for OpenGL, as the backend wants it:
+    // QRhi::clipSpaceCorrMatrix() maps clip depth [-1, 1] to [0, 1] on Metal and Direct3D and
+    // flips Y on Vulkan. Every matrix that goes to a GPU buffer passes through here; the
+    // matrices the CPU keeps for picking, projection of overlays and the like stay in OpenGL
+    // convention, so nothing on the CPU side knows which backend is running.
+    QMatrix4x4 forBackend(const QMatrix4x4 &glMatrix) const
+    {
+        return m_rhi ? m_rhi->clipSpaceCorrMatrix() * glMatrix : glMatrix;
+    }
     void emitCameraStateChangedIfNeeded();
     bool computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3D &maxCorner) const;
     // World-space bbox over all visible meshes' full geometry (not gated on the

@@ -366,7 +366,7 @@ void RenderWidget::renderSceneRasterProjected(
             continue;
 
         float ubuf[kRasterProjectedUbufSize / sizeof(float)] = {};
-        memcpy(ubuf, mvp.constData(), 64);
+        memcpy(ubuf, forBackend(mvp).constData(), 64);
         if (item.rasterIndex == kClipPlaneGizmoRasterIndex) {
             // Warm, and translucent enough to read as a plane you are looking through.
             ubuf[16] = 1.00f;

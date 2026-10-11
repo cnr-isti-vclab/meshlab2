@@ -1210,7 +1210,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             return;
 
         float decoData[kDecoratorUbufSize / sizeof(float)] = {};
-        memcpy(decoData, mvp.constData(), 16 * sizeof(float));
+        memcpy(decoData, forBackend(mvp).constData(), 16 * sizeof(float));
         decoData[16] = color.redF();
         decoData[17] = color.greenF();
         decoData[18] = color.blueF();
@@ -1369,7 +1369,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                 const quint32 selOffset =
                     allocateDynamicUbufOffset(m_selectionUbufAllocator, "selection");
                 float selData[kDecoratorUbufSize / sizeof(float)] = {};
-                memcpy(selData, mvp.constData(), 64);
+                memcpy(selData, forBackend(mvp).constData(), 64);
                 selData[16] = 1.0f; // red, 50% alpha — same as the scene overlay
                 selData[17] = 0.0f;
                 selData[18] = 0.0f;

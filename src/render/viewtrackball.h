@@ -112,18 +112,10 @@ public:
     // The JSON spelling of a projection, as the camera and render-state payloads carry it.
     static QString projectionJsonName(Projection projection);
     void setSceneRadius(float sceneRadius) { m_sceneRadius = qMax(0.0f, sceneRadius); }
-    // Whether the graphics backend clips depth to [0, 1] (Metal, Direct3D, Vulkan) rather than
-    // [-1, 1] (OpenGL). The renderer hands the backend the projection matrix as it is, with no
-    // correction, so a perspective matrix is used with depth in [-1, 1] and loses only the thin
-    // sliver in front of twice the near distance; an orthographic one, whose depth is linear,
-    // would lose the whole nearer half of its volume. So the orthographic matrix maps its
-    // volume to the range the backend keeps. The view says which that is; not part of the
-    // camera state.
-    // The matrix that folds clip-space depth from [-1, 1] onto [0, 1]; multiply a projection
-    // by it for a backend that clips to [0, 1].
-    static QMatrix4x4 depthFoldToZeroToOne();
-    void setClipDepthZeroToOne(bool zeroToOne) { m_clipDepthZeroToOne = zeroToOne; }
-    bool clipDepthZeroToOne() const { return m_clipDepthZeroToOne; }
+    // Every matrix here is in OpenGL convention (clip depth [-1, 1], Y up). What a backend
+    // needs on top of that -- Metal and Direct3D keep depth in [0, 1], Vulkan has Y down -- is
+    // QRhi::clipSpaceCorrMatrix(), which the view multiplies in where it writes a matrix to the
+    // GPU; nothing in the camera depends on the backend.
     // The world-space box of everything visible (transient, set per frame by the view); it
     // fits the orthographic depth range. clearSceneBounds() when there is nothing to fit.
     void setSceneBounds(const QVector3D &minCorner, const QVector3D &maxCorner)
@@ -198,7 +190,6 @@ private:
     QVector3D m_sceneMin;       // whole-scene box, for the orthographic depth range (transient)
     QVector3D m_sceneMax;
     bool m_sceneBoundsValid = false;
-    bool m_clipDepthZeroToOne = false;
     float m_fovYDeg = 45.0f;
     Projection m_projection = Projection::Perspective;
     float m_nearClipRatio = 0.0033333333f;

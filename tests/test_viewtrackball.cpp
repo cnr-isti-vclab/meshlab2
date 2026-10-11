@@ -25,7 +25,6 @@ private slots:
     void theOrthographicVolumeStartsBehindTheEyeWhenTheCentreIsClose();
     void aCloserNearPlaneIsHonouredOnlyByOrthographic();
     void theOrthographicVolumeJustContainsTheSceneBox();
-    void aZeroToOneBackendGetsTheWholeVolumeNotItsFarHalf();
     void aSmallBoxStillLeavesRoomForTheGizmo();
     void perspectiveIgnoresTheSceneBox();
     void theFieldOfViewWheelPassesThroughTheNarrowestFieldIntoOrthographic();
@@ -242,45 +241,6 @@ void ViewTrackballTests::theOrthographicVolumeJustContainsTheSceneBox()
         const float z = ndc(tb, kAspect, p).z();
         QVERIFY2(z > -1.0f && z < 1.0f, qPrintable(QString::number(z)));
     }
-}
-
-// The renderer gives Metal the projection matrix uncorrected, so depth is kept only where it
-// lands in [0, 1]. A matrix that maps its orthographic volume to [-1, 1] would lose the whole
-// nearer half of the scene -- the object clipped the moment you switch to orthographic.
-void ViewTrackballTests::aZeroToOneBackendGetsTheWholeVolumeNotItsFarHalf()
-{
-    ViewTrackball tb = makeTrackball(Projection::Orthographic);
-    const QVector3D lo(-3, -3, -3), hi(3, 3, 3);
-    tb.setSceneBounds(lo, hi);
-    tb.setClipDepthZeroToOne(true);
-
-    float nearest, farthest;
-    boxDepths(tb, lo, hi, nearest, farthest);
-    // Every corner of the scene, not just the far half, lands inside [0, 1].
-    float lowest = 1.0f, highest = 0.0f;
-    for (int c = 0; c < 8; ++c) {
-        const QVector3D p((c & 1) ? hi.x() : lo.x(), (c & 2) ? hi.y() : lo.y(),
-                          (c & 4) ? hi.z() : lo.z());
-        const float z = ndc(tb, kAspect, p).z();
-        QVERIFY2(z >= 0.0f && z <= 1.0f, qPrintable(QString::number(z)));
-        lowest = std::min(lowest, z);
-        highest = std::max(highest, z);
-    }
-    // And it uses the range: the nearest corner is near 0, the farthest near 1, not squeezed
-    // into the upper half.
-    QVERIFY2(lowest < 0.2f && highest > 0.8f, qPrintable(QStringLiteral("%1 .. %2").arg(lowest).arg(highest)));
-
-    // The ray's origin is still on the near plane, in this convention too.
-    ViewRay ray;
-    QVERIFY(tb.viewRay(QPointF(300, 700), kViewport, ray));
-    const float alongAxis = QVector3D::dotProduct(ray.origin - tb.cameraEyePosition(), tb.cameraViewDirection());
-    QVERIFY(near(alongAxis, tb.nearClipPlaneDistance(), 1e-3f));
-
-    // Perspective is left as it was: it has always been used with depth in [-1, 1].
-    ViewTrackball persp = makeTrackball(Projection::Perspective);
-    const QMatrix4x4 before = persp.projectionMatrix(kAspect);
-    persp.setClipDepthZeroToOne(true);
-    QCOMPARE(persp.projectionMatrix(kAspect), before);
 }
 
 void ViewTrackballTests::aSmallBoxStillLeavesRoomForTheGizmo()
