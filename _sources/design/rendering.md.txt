@@ -99,6 +99,18 @@ Default fill color source preference: texture → per-vertex → per-face → pe
 
 Default explicit-edge color source preference: per-edge → per-vertex → constant. Availability is clamped to `IOM_EDGECOLOR` and `IOM_VERTCOLOR`; unavailable choices are disabled in the overlay panel. Edge-only PLY layers carrying edge colors therefore open with `PerEdge` selected automatically.
 
+## Clip-space convention
+
+Every projection the application builds -- the trackball's, a raster's, the 2D UV view's -- is in
+OpenGL convention: clip depth in [-1, 1], Y up. The backend may want otherwise (Metal and
+Direct3D keep depth in [0, 1], Vulkan has Y down), and that is Qt's to describe, not ours:
+`QRhi::clipSpaceCorrMatrix()` is the matrix that converts. `RenderWidget::forBackend()` applies
+it, and it is applied where a matrix is written into a GPU buffer -- never to the matrices the CPU
+keeps. The depth pick therefore unprojects in OpenGL convention too (`ndcZ = depth * 2 - 1`, Y up),
+and nothing outside `forBackend` asks which backend is running. A new pass that uploads a
+view-projection must go through it; `tests/render_probes/clip_space` fails if a pass forgets, as a
+near plane pushed in front of an object cuts the object on Metal.
+
 ## `Scene3D` Frame Sequence
 
 1. Advance animation/camera state, sync per-mesh render modes, and update the camera frame when needed.
@@ -377,7 +389,7 @@ application's own `--generate-docs <dir>` hook, which execs `<dir>/generate_api.
 with a render-state JSON, and asserts on the returned raw RGBA8888.
 
 `tests/render_probes/` holds these -- `clip_plane` for the clipping plane and solid cut,
-`boundary_decorators` for what the boundary decorator marks and in which colors,
+`clip_space` for the backend correction of clip space, `orthographic` for the orthographic camera through snapshots and projection filters, `boundary_decorators` for what the boundary decorator marks and in which colors,
 `quality_histogram_layout` for captures staying full-frame while the histogram is open. Each is a
 directory with a `generate_api.py`, because that is the filename the hook runs:
 

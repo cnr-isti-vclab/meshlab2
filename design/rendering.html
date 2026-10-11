@@ -335,6 +335,18 @@ tracked CPU allocations and OS physical footprint.</p>
 <p>Default fill color source preference: texture → per-vertex → per-face → per-vertex-quality → per-face-quality → constant, clamped to mesh <code class="docutils literal notranslate"><span class="pre">ioMask</span></code> + texture availability. Texture availability is based on <code class="docutils literal notranslate"><span class="pre">Document::meshTextureAssociationCount(...)</span></code>.</p>
 <p>Default explicit-edge color source preference: per-edge → per-vertex → constant. Availability is clamped to <code class="docutils literal notranslate"><span class="pre">IOM_EDGECOLOR</span></code> and <code class="docutils literal notranslate"><span class="pre">IOM_VERTCOLOR</span></code>; unavailable choices are disabled in the overlay panel. Edge-only PLY layers carrying edge colors therefore open with <code class="docutils literal notranslate"><span class="pre">PerEdge</span></code> selected automatically.</p>
 </section>
+<section id="clip-space-convention">
+<h2>Clip-space convention<a class="headerlink" href="#clip-space-convention" title="Link to this heading">¶</a></h2>
+<p>Every projection the application builds – the trackball’s, a raster’s, the 2D UV view’s – is in
+OpenGL convention: clip depth in [-1, 1], Y up. The backend may want otherwise (Metal and
+Direct3D keep depth in [0, 1], Vulkan has Y down), and that is Qt’s to describe, not ours:
+<code class="docutils literal notranslate"><span class="pre">QRhi::clipSpaceCorrMatrix()</span></code> is the matrix that converts. <code class="docutils literal notranslate"><span class="pre">RenderWidget::forBackend()</span></code> applies
+it, and it is applied where a matrix is written into a GPU buffer – never to the matrices the CPU
+keeps. The depth pick therefore unprojects in OpenGL convention too (<code class="docutils literal notranslate"><span class="pre">ndcZ</span> <span class="pre">=</span> <span class="pre">depth</span> <span class="pre">*</span> <span class="pre">2</span> <span class="pre">-</span> <span class="pre">1</span></code>, Y up),
+and nothing outside <code class="docutils literal notranslate"><span class="pre">forBackend</span></code> asks which backend is running. A new pass that uploads a
+view-projection must go through it; <code class="docutils literal notranslate"><span class="pre">tests/render_probes/clip_space</span></code> fails if a pass forgets, as a
+near plane pushed in front of an object cuts the object on Metal.</p>
+</section>
 <section id="scene3d-frame-sequence">
 <h2><code class="docutils literal notranslate"><span class="pre">Scene3D</span></code> Frame Sequence<a class="headerlink" href="#scene3d-frame-sequence" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
@@ -598,7 +610,7 @@ application’s own <code class="docutils literal notranslate"><span class="pre"
 <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> module importable; a probe there builds a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code>, calls <code class="docutils literal notranslate"><span class="pre">render_snapshot()</span></code>
 with a render-state JSON, and asserts on the returned raw RGBA8888.</p>
 <p><code class="docutils literal notranslate"><span class="pre">tests/render_probes/</span></code> holds these – <code class="docutils literal notranslate"><span class="pre">clip_plane</span></code> for the clipping plane and solid cut,
-<code class="docutils literal notranslate"><span class="pre">boundary_decorators</span></code> for what the boundary decorator marks and in which colors,
+<code class="docutils literal notranslate"><span class="pre">clip_space</span></code> for the backend correction of clip space, <code class="docutils literal notranslate"><span class="pre">orthographic</span></code> for the orthographic camera through snapshots and projection filters, <code class="docutils literal notranslate"><span class="pre">boundary_decorators</span></code> for what the boundary decorator marks and in which colors,
 <code class="docutils literal notranslate"><span class="pre">quality_histogram_layout</span></code> for captures staying full-frame while the histogram is open. Each is a
 directory with a <code class="docutils literal notranslate"><span class="pre">generate_api.py</span></code>, because that is the filename the hook runs:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">build</span><span class="o">-</span><span class="n">release</span><span class="o">/</span><span class="n">MeshLab</span><span class="o">.</span><span class="n">app</span><span class="o">/</span><span class="n">Contents</span><span class="o">/</span><span class="n">MacOS</span><span class="o">/</span><span class="n">MeshLab</span> <span class="o">--</span><span class="n">generate</span><span class="o">-</span><span class="n">docs</span> <span class="n">tests</span><span class="o">/</span><span class="n">render_probes</span><span class="o">/</span><span class="n">clip_plane</span>
@@ -661,6 +673,7 @@ must leave the image <strong>exactly</strong> unchanged, so equality is the asse
 <li><a class="reference internal" href="#scene3d-request-and-plan-pipeline">Scene3D Request and Plan Pipeline</a></li>
 <li><a class="reference internal" href="#shared-gpu-cache-meshgpuresourcecache">Shared GPU Cache (<code class="docutils literal notranslate"><span class="pre">MeshGpuResourceCache</span></code>)</a></li>
 <li><a class="reference internal" href="#per-mesh-render-modes">Per-Mesh Render Modes</a></li>
+<li><a class="reference internal" href="#clip-space-convention">Clip-space convention</a></li>
 <li><a class="reference internal" href="#scene3d-frame-sequence"><code class="docutils literal notranslate"><span class="pre">Scene3D</span></code> Frame Sequence</a></li>
 <li><a class="reference internal" href="#scene3d-pass-details"><code class="docutils literal notranslate"><span class="pre">Scene3D</span></code> Pass Details</a></li>
 <li><a class="reference internal" href="#current-mesh-highlight">Current Mesh Highlight</a></li>
