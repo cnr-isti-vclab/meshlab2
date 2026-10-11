@@ -1251,20 +1251,40 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (selectedVertCount(mesh) == 0 && selectedFaceCount(mesh) == 0)
                 return fail(QObject::tr("Cannot compute rotation: there is no selection."));
 
-            if (selectedVertCount(mesh) == 0 && selectedFaceCount(mesh) > 0) {
-                vcg::tri::UpdateSelection<VCGMesh>::VertexClear(mesh);
-                vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceLoose(mesh);
-            }
-
+            // The plane is always fitted to a set of points. A vertex selection is used
+            // as it stands; a face-only selection contributes the vertices of the
+            // selected faces, each once -- the same set VertexFromFaceLoose would mark,
+            // built here without writing to the mesh. This filter does not declare VS,
+            // so overwriting the user's vertex selection would be an undeclared edit
+            // that undo could not restore.
             vcg::Box3f selBox;
             selBox.SetNull();
             std::vector<vcg::Point3f> selectedPts;
-            selectedPts.reserve(static_cast<size_t>(std::max(1, selectedVertCount(mesh))));
-            for (VCGVertex &v : mesh.vert) {
-                if (!v.IsS())
-                    continue;
-                selBox.Add(v.P());
-                selectedPts.push_back(v.P());
+            if (selectedVertCount(mesh) > 0) {
+                selectedPts.reserve(static_cast<size_t>(selectedVertCount(mesh)));
+                for (const VCGVertex &v : mesh.vert) {
+                    if (v.IsD() || !v.IsS())
+                        continue;
+                    selBox.Add(v.cP());
+                    selectedPts.push_back(v.cP());
+                }
+            } else {
+                std::vector<bool> taken(mesh.vert.size(), false);
+                for (const VCGFace &f : mesh.face) {
+                    if (f.IsD() || !f.IsS())
+                        continue;
+                    for (int k = 0; k < 3; ++k) {
+                        const VCGVertex *v = f.cV(k);
+                        if (!v || v->IsD())
+                            continue;
+                        const size_t vi = vcg::tri::Index(mesh, v);
+                        if (vi >= taken.size() || taken[vi])
+                            continue;
+                        taken[vi] = true;
+                        selBox.Add(v->cP());
+                        selectedPts.push_back(v->cP());
+                    }
+                }
             }
             if (selectedPts.empty())
                 return fail(QObject::tr("Cannot compute rotation: empty selected vertices."));

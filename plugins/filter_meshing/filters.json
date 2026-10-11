@@ -1079,7 +1079,7 @@
       "name": "Rotate to Fitted Plane",
       "pythonName": "rotate_to_fitted_plane",
       "shortDescription": "Rotate selection to fit a reference plane.",
-      "longDescriptionMarkdown": "Generate a matrix transformation that rotates the mesh so that the selection fits one of the main planes XY YZ ZX. May also translate such that the selection centroid rest on the origin. It reports on the log the average error of the fitting (in mesh units).",
+      "longDescriptionMarkdown": "Rotates the whole mesh so that a plane fitted through the **selected vertices** lies on one of the main planes XY, YZ or ZX \u2014 the usual way to put a scanned object flat on the ground, by selecting the part that should become its base.\n\nThe fit uses selected **vertices**. If nothing is selected but some faces are, the vertices of those faces are used instead, boundary vertices shared with unselected faces included; the selection itself is left untouched either way. A vertex selection takes precedence, so a stale one left by an earlier filter is used in preference to the faces \u2014 clear it first if that is not what you want.\n\nEvery point counts equally: the fit is purely positional, so face areas do not weight it and a densely tessellated region pulls the plane towards itself.\n\nThe average distance from the selected points to the fitted plane is reported in the log, in mesh units, as a measure of how planar the selection actually was.",
       "tags": [
         "meshing"
       ],
@@ -1141,7 +1141,7 @@
         {
           "id": "ToOrigin",
           "label": "Move to Origin",
-          "help": "Translate so selection centroid rests on origin.",
+          "help": "Also translate the mesh so that the centre of the selection's bounding box sits at the origin. Note this is the bounding-box centre of the selected points, not their centroid: for an uneven selection the two differ.",
           "group": "main",
           "type": "bool",
           "default": true

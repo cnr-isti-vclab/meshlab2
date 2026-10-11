@@ -529,6 +529,8 @@ private slots:
     void createdCylinderHonoursRadiusHeightAndAxis();
     void edgeExpressionsSelectColorAndScaleAPolyline();
     void colorAndScalarFiltersUndoThroughDeltas();
+    void rotateToFittedPlaneUsesSelectionWithoutChangingIt();
+    void triOptimizeLeavesTheSelectionAsItFoundIt();
     void expressionsReadIntegerAttributes();
     void preparedAdjacencyIsReleasedAfterTheFilter();
     void preparationSurvivesAFilterRemovingItsLayer();
@@ -8374,6 +8376,144 @@ void FilterTests::isocontourEdgesCarryTheirContourValue()
 // one attribute instead of a whole mesh. Checks both that the cheap path is taken and
 // that it actually restores the values -- the first without the second is a data-loss
 // bug that no amount of saved memory excuses.
+// The filter fits a plane through selected points, and will take them from selected
+// faces when no vertex is selected. Deriving that point set must not rewrite the
+// mesh's vertex selection: the filter does not declare VS, so such an edit would be
+// invisible to undo. Also pins the documented precedence of vertices over faces.
+// The TriOptimize filters restrict themselves to a face selection and derive per-vertex
+// write-locks and smoothing sets from it. None of them declares VS, so whatever they
+// derive internally must not survive the run.
+void FilterTests::triOptimizeLeavesTheSelectionAsItFoundIt()
+{
+    const struct { const char *id; const char *extra; } cases[] = {
+        { "flip_edges_by_planarity", "iterations" },
+        { "flip_edges_by_curvature", nullptr },
+        { "smooth_vertices_by_surface_preserving_laplacian_vcglib", "iterations" },
+    };
+
+    for (const auto &c : cases) {
+        Document doc;
+        const QString sphereKey = filterKeyForId(doc, QStringLiteral("create_sphere"));
+        QVERIFY(!sphereKey.isEmpty());
+        QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+        const int index = doc.currentMeshIndex();
+        VCGMesh &mesh = doc.mesh(index).mesh;
+
+        // Half the faces selected, no vertex selected: the state a user is in after
+        // picking faces, and the one the derived sets would overwrite.
+        vcg::tri::UpdateSelection<VCGMesh>::VertexClear(mesh);
+        vcg::tri::UpdateSelection<VCGMesh>::FaceClear(mesh);
+        for (int i = 0; i < mesh.FN() / 2; ++i)
+            mesh.face[std::size_t(i)].SetS();
+        doc.markMeshSelectionChanged(index);
+
+        const int facesBefore = int(vcg::tri::UpdateSelection<VCGMesh>::FaceCount(mesh));
+        QVERIFY(facesBefore > 0);
+
+        const QString key = filterKeyForId(doc, QString::fromLatin1(c.id));
+        QVERIFY2(!key.isEmpty(), c.id);
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("selectedOnly"), true);
+        if (c.extra)
+            params.insert(QString::fromLatin1(c.extra), 1);
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(c.id, r.errorMessage)));
+
+        const VCGMesh &after = doc.mesh(index).mesh;
+        QVERIFY2(int(vcg::tri::UpdateSelection<VCGMesh>::VertexCount(after)) == 0,
+                 qPrintable(QStringLiteral("%1 left vertices selected").arg(c.id)));
+        QVERIFY2(int(vcg::tri::UpdateSelection<VCGMesh>::FaceCount(after)) == facesBefore,
+                 qPrintable(QStringLiteral("%1 changed the face selection").arg(c.id)));
+    }
+}
+
+void FilterTests::rotateToFittedPlaneUsesSelectionWithoutChangingIt()
+{
+    const QString rotateId = QStringLiteral("rotate_to_fitted_plane");
+
+    // A grid in the z = 0 plane, tilted 30 degrees about X so the fit has work to do.
+    const auto makeTilted = [](Document &doc) {
+        VCGMesh m;
+        vcg::tri::Grid<VCGMesh>(m, 8, 8, 2.0f, 2.0f);
+        const float a = float(M_PI) / 6.0f;
+        for (auto &v : m.vert) {
+            const float y = v.P().Y(), z = v.P().Z();
+            v.P().Y() = y * std::cos(a) - z * std::sin(a);
+            v.P().Z() = y * std::sin(a) + z * std::cos(a);
+        }
+        vcg::tri::UpdateBounding<VCGMesh>::Box(m);
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
+        return doc.addMesh(m, QStringLiteral("Tilted"));
+    };
+
+    const auto flatness = [](const VCGMesh &m) {
+        float lo = std::numeric_limits<float>::max();
+        float hi = std::numeric_limits<float>::lowest();
+        for (const auto &v : m.vert) {
+            lo = std::min(lo, v.cP().Z());
+            hi = std::max(hi, v.cP().Z());
+        }
+        return hi - lo;
+    };
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("targetPlane"), QStringLiteral("xy"));
+    params.insert(QStringLiteral("rotAxis"), QStringLiteral("any"));
+    params.insert(QStringLiteral("ToOrigin"), false);
+
+    // --- a face-only selection drives the fit, and survives it untouched ----------
+    float faceDrivenFlatness = 0.0f;
+    {
+        Document doc;
+        const int index = makeTilted(doc);
+        QVERIFY(index >= 0);
+        const QString key = filterKeyForId(doc, rotateId);
+        QVERIFY(!key.isEmpty());
+
+        vcg::tri::UpdateSelection<VCGMesh>::FaceAll(doc.mesh(index).mesh);
+        vcg::tri::UpdateSelection<VCGMesh>::VertexClear(doc.mesh(index).mesh);
+        doc.markMeshSelectionChanged(index);
+        QCOMPARE(int(vcg::tri::UpdateSelection<VCGMesh>::VertexCount(doc.mesh(index).mesh)), 0);
+
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+        // The tilt is gone: every vertex now shares a z.
+        faceDrivenFlatness = flatness(doc.mesh(index).mesh);
+        QVERIFY2(faceDrivenFlatness < 1e-4f,
+                 qPrintable(QStringLiteral("not flattened: span %1").arg(faceDrivenFlatness)));
+
+        // ...and the vertex selection was not written to on the way.
+        QCOMPARE(int(vcg::tri::UpdateSelection<VCGMesh>::VertexCount(doc.mesh(index).mesh)), 0);
+        QVERIFY(vcg::tri::UpdateSelection<VCGMesh>::FaceCount(doc.mesh(index).mesh) > 0);
+    }
+
+    // --- the same points selected as vertices must give the same rotation ---------
+    {
+        Document doc;
+        const int index = makeTilted(doc);
+        const QString key = filterKeyForId(doc, rotateId);
+        vcg::tri::UpdateSelection<VCGMesh>::VertexAll(doc.mesh(index).mesh);
+        vcg::tri::UpdateSelection<VCGMesh>::FaceClear(doc.mesh(index).mesh);
+        doc.markMeshSelectionChanged(index);
+
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QVERIFY(std::abs(flatness(doc.mesh(index).mesh) - faceDrivenFlatness) < 1e-4f);
+    }
+
+    // --- with no selection at all it must refuse rather than fit the whole mesh ---
+    {
+        Document doc;
+        const int index = makeTilted(doc);
+        const QString key = filterKeyForId(doc, rotateId);
+        vcg::tri::UpdateSelection<VCGMesh>::VertexClear(doc.mesh(index).mesh);
+        vcg::tri::UpdateSelection<VCGMesh>::FaceClear(doc.mesh(index).mesh);
+        doc.markMeshSelectionChanged(index);
+        QVERIFY(!doc.runFilter(key, params).success);
+    }
+}
+
 void FilterTests::colorAndScalarFiltersUndoThroughDeltas()
 {
     Document doc;
