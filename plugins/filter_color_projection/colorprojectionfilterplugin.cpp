@@ -169,7 +169,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
                 v.C() = vcg::Color4b(blank.red(), blank.green(), blank.blue(), blank.alpha());
                 continue;
             }
-            QVector3D pray = (shot.viewPoint() - wv).normalized();
+            QVector3D pray = shot.directionToCamera(wv);
             if (QVector3D::dotProduct(pray, -cz) > 0.0f) {
                 v.C() = vcg::Color4b(blank.red(), blank.green(), blank.blue(), blank.alpha());
                 continue;
@@ -177,7 +177,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
             float d = shot.depth(wv);
             float pd = dbuf->getval(int(pp.x()), int(pp.y()));
             if (d <= pd + eta) {
-                QRgb c = rimg.pixel(int(pp.x()), ih - int(pp.y()));
+                QRgb c = rimg.pixel(int(pp.x()), ih - 1 - int(pp.y()));
                 v.C() = vcg::Color4b(qRed(c), qGreen(c), qBlue(c), 255);
             } else if (!preserveOccluded) {
                 v.C() = vcg::Color4b(blank.red(), blank.green(), blank.blue(), blank.alpha());
@@ -243,12 +243,12 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
                     QVector3D wv = transformPoint(ent.transform, v.cP());
                     QVector2D pp = shot.project(wv);
                     if (pp.x() >= 0 && pp.y() >= 0 && pp.x() < float(iw) && pp.y() < float(ih)) {
-                        QVector3D pray = (shot.viewPoint() - wv).normalized();
+                        QVector3D pray = shot.directionToCamera(wv);
                         if (QVector3D::dotProduct(pray, -cz) <= 0) {
                             float d = shot.depth(wv);
                             float pd = dbuf->getval(int(pp.x()), int(pp.y()));
                             if (d <= pd + eta) {
-                                QRgb c = rimg.pixel(int(pp.x()), ih - int(pp.y()));
+                                QRgb c = rimg.pixel(int(pp.x()), ih - 1 - int(pp.y()));
                                 double pw = 1.0;
                                 if (ua) {
                                     const vcg::Point3f &mn = v.cN();
@@ -372,12 +372,12 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
                 QVector3D &mp = td[tc].mp, &mn = td[tc].mn;
                 QVector2D pp = shot.project(mp);
                 if (pp.x() <= 0 || pp.y() <= 0 || pp.x() >= float(iw) || pp.y() >= float(ih)) continue;
-                QVector3D pray = (shot.viewPoint() - mp).normalized();
+                QVector3D pray = shot.directionToCamera(mp);
                 if (QVector3D::dotProduct(pray, -cz) > 0) continue;
                 float d = shot.depth(mp);
                 float pd = dbuf->getval(int(pp.x()), int(pp.y()));
                 if (d > pd + eta) continue;
-                QRgb c = rimg.pixel(int(pp.x()), ih - int(pp.y()));
+                QRgb c = rimg.pixel(int(pp.x()), ih - 1 - int(pp.y()));
                 double pw = 1.0;
                 if (ua) pw *= double(std::min(1.0f, std::abs(QVector3D::dotProduct(mn, pray))));
                 if (ud && allMx>allMn) {

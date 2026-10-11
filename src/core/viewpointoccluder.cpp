@@ -62,8 +62,16 @@ struct RobustRayFaceIsectFunctor
 // selection filter repeatedly on the same mesh, and rebuilding the acceleration
 // structure each time dominates the cost. Guarded because queries fan out to
 // worker threads, but getOrBuild itself is only entered single-threaded.
+//
+// The cached occluder is deliberately never destroyed: it owns an Embree scene, and a static
+// destructor would release that scene at exit after Embree's own statics are gone, which
+// crashes the process on the way out. The operating system takes the memory back.
 std::mutex g_cacheMutex;
-std::shared_ptr<ViewpointOccluder> g_cached;
+std::shared_ptr<ViewpointOccluder> &cachedOccluder()
+{
+    static auto *cached = new std::shared_ptr<ViewpointOccluder>();
+    return *cached;
+}
 VCGMesh *g_cachedMesh = nullptr;
 std::uint64_t g_cachedRev = ~std::uint64_t(0);
 
@@ -76,12 +84,14 @@ struct ViewpointOccluder::Impl
 #endif
     vcg::GridStaticPtr<VCGFace, VCGMesh::ScalarType> grid;
     float occlEps = 0.0f;
+    float bboxDiag = 0.0f;
 };
 
 ViewpointOccluder::ViewpointOccluder(VCGMesh &mesh)
     : d(std::make_unique<Impl>())
 {
-    d->occlEps = mesh.bbox.IsNull() ? 0.0f : float(mesh.bbox.Diag()) * 1e-4f;
+    d->bboxDiag = mesh.bbox.IsNull() ? 0.0f : float(mesh.bbox.Diag());
+    d->occlEps = d->bboxDiag * 1e-4f;
 #if MESHLAB2_EMBREE_ENABLED
     // Builds the embree scene once (copies vertex/index buffers) and keeps it.
     // preprocess=false: a visibility query is read-only, so leave the mesh's
@@ -98,12 +108,13 @@ std::shared_ptr<ViewpointOccluder> ViewpointOccluder::getOrBuild(VCGMesh &mesh,
                                                                  std::uint64_t geometryRevision)
 {
     std::lock_guard<std::mutex> lock(g_cacheMutex);
-    if (g_cached && g_cachedMesh == &mesh && g_cachedRev == geometryRevision)
-        return g_cached;
-    g_cached = std::shared_ptr<ViewpointOccluder>(new ViewpointOccluder(mesh));
+    std::shared_ptr<ViewpointOccluder> &cached = cachedOccluder();
+    if (cached && g_cachedMesh == &mesh && g_cachedRev == geometryRevision)
+        return cached;
+    cached = std::shared_ptr<ViewpointOccluder>(new ViewpointOccluder(mesh));
     g_cachedMesh = &mesh;
     g_cachedRev = geometryRevision;
-    return g_cached;
+    return cached;
 }
 
 bool ViewpointOccluder::usesEmbree() const
@@ -136,4 +147,13 @@ bool ViewpointOccluder::isOccluded(const vcg::Point3f &sample, const vcg::Point3
         return false;
     const float tol = std::max(dist * 1e-3f, d->occlEps);
     return t < dist - tol; // a surface meaningfully closer than the sample
+}
+
+bool ViewpointOccluder::isOccludedAlong(const vcg::Point3f &sample,
+                                        const vcg::Point3f &towardViewer) const
+{
+    // A sample on the mesh is at most one bounding-box diagonal from any point of it, so a
+    // point a diagonal and a bit further along the ray is beyond all of the mesh.
+    const float reach = d->bboxDiag * 1.1f + 1e-6f;
+    return isOccluded(sample, sample + towardViewer * reach);
 }

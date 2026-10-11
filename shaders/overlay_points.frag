@@ -11,6 +11,10 @@ layout(std140, binding = 0) uniform buf {
     vec4 wireParams;
     vec4 fillColor;
     vec4 lightingParams;
+    vec4 edgeColor;
+    vec4 materialFlags;
+    vec4 materialParams;
+    vec4 lightDir;
 } ub;
 
 layout(location = 0) in vec4 vMeshColor;
@@ -18,6 +22,15 @@ layout(location = 1) in vec4 vNormalAndFlag;
 layout(location = 2) in vec3 vViewPos;
 layout(binding = 2) uniform sampler2D qualityLutTex;
 layout(location = 0) out vec4 fragColor;
+
+// Unit vector from a point towards the eye. Rays leave a single eye in a perspective view,
+// and run parallel in an orthographic one, where it is the same everywhere: (0, 0, 1) in
+// view space. The main uniform block's lightDir.w says which.
+vec3 towardsEye(vec3 viewPos)
+{
+    float len = length(viewPos);
+    return (ub.lightDir.w > 0.5 || len < 1e-6) ? vec3(0.0, 0.0, 1.0) : -viewPos / len;
+}
 
 void main()
 {
@@ -38,12 +51,7 @@ void main()
             N /= nLen;
         else
             N = vec3(0.0, 0.0, 1.0);
-        vec3 lightDir = -vViewPos;
-        float lLen = length(lightDir);
-        if (lLen > 1e-6)
-            lightDir /= lLen;
-        else
-            lightDir = vec3(0.0, 0.0, 1.0);
+        vec3 lightDir = towardsEye(vViewPos);
         float diff = clamp(abs(dot(N, lightDir)), 0.0, 1.0);
         // Keep a strong ambient term so sparse/rough normals do not appear "culled".
         float ambient = 0.75;

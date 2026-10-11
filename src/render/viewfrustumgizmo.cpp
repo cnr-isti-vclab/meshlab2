@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace {
 
@@ -17,10 +18,17 @@ ViewFrustumGizmo buildViewFrustumGizmo(
 {
     ViewFrustumGizmo gizmo;
 
-    if (!(nearDist > 0.0f) || !(farDist > nearDist))
+    // An orthographic projection has a 1 where a perspective one has its -1 and 0, and its
+    // proj(1,1) is 1/halfHeight, not a cotangent: the volume is a box rather than a pyramid.
+    const bool orthographic = std::abs(proj(3, 3)) > 0.5f;
+    // Perspective cannot start at or behind the eye. An orthographic volume can, and often
+    // does, because it is fitted to the scene rather than to the eye.
+    if (!std::isfinite(nearDist) || !std::isfinite(farDist) || !(farDist > nearDist)
+        || (!orthographic && !(nearDist > 0.0f))) {
         return gizmo;
-    // proj(1,1) is cot(fovY/2) and proj(0,0) is that over the aspect, so both must be
-    // positive and finite for the frustum to have a shape at all.
+    }
+    // proj(1,1) is cot(fovY/2) -- or 1/halfHeight -- and proj(0,0) is that over the aspect,
+    // so both must be positive and finite for the volume to have a shape at all.
     const float cotHalfFovY = proj(1, 1);
     const float cotHalfFovX = proj(0, 0);
     if (!std::isfinite(cotHalfFovY) || !std::isfinite(cotHalfFovX)
@@ -41,7 +49,8 @@ ViewFrustumGizmo buildViewFrustumGizmo(
     const QVector3D forward = -QVector3D(invView(0, 2), invView(1, 2), invView(2, 2));
 
     const auto cornersAt = [&](float distance) {
-        const float halfH = tanHalfFovY * distance;
+        // The rectangle grows with distance in a pyramid and stays the same in a box.
+        const float halfH = orthographic ? tanHalfFovY : tanHalfFovY * distance;
         const float halfW = halfH * aspect;
         const QVector3D centre = apex + forward * distance;
         Corners c;
@@ -84,12 +93,21 @@ ViewFrustumGizmo buildViewFrustumGizmo(
     const Corners nearCorners = cornersAt(nearDist);
     const Corners farCorners = cornersAt(farDist);
 
-    // The body runs the whole depth of the frustum, apex to far plane, so the two
-    // rectangles read as what they are: positions along an edge that is really there.
-    segment(apex, farCorners.bl);
-    segment(apex, farCorners.br);
-    segment(apex, farCorners.tl);
-    segment(apex, farCorners.tr);
+    if (orthographic) {
+        // A box: the two rectangles and the four parallel edges between them. There is no
+        // apex, and no point of the glyph that marks the eye; the box is the whole camera.
+        segment(nearCorners.bl, farCorners.bl);
+        segment(nearCorners.br, farCorners.br);
+        segment(nearCorners.tl, farCorners.tl);
+        segment(nearCorners.tr, farCorners.tr);
+    } else {
+        // The body runs the whole depth of the frustum, apex to far plane, so the two
+        // rectangles read as what they are: positions along an edge that is really there.
+        segment(apex, farCorners.bl);
+        segment(apex, farCorners.br);
+        segment(apex, farCorners.tl);
+        segment(apex, farCorners.tr);
+    }
     rectangle(nearCorners);
     rectangle(farCorners);
 
@@ -112,4 +130,18 @@ float farthestDistanceInView(
         farthest = std::max(farthest, -(view * p).z());
     }
     return farthest;
+}
+
+float nearestDistanceInView(
+    const QMatrix4x4 &view, const QVector3D &boundsMin, const QVector3D &boundsMax)
+{
+    float nearest = std::numeric_limits<float>::infinity();
+    for (int corner = 0; corner < 8; ++corner) {
+        const QVector3D p(
+            (corner & 1) ? boundsMax.x() : boundsMin.x(),
+            (corner & 2) ? boundsMax.y() : boundsMin.y(),
+            (corner & 4) ? boundsMax.z() : boundsMin.z());
+        nearest = std::min(nearest, -(view * p).z());
+    }
+    return nearest;
 }

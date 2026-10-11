@@ -170,7 +170,8 @@ quint32 RenderWidget::uploadMainUbuf(
     MainUbufMaterialOverrides materialOverrides,
     quint32 offset,
     float pickId,
-    const QVector4D &localClipPlane)
+    const QVector4D &localClipPlane,
+    bool orthographic)
 {
     if (!m_rhi || !m_ubuf || !cb)
         return 0;
@@ -185,7 +186,8 @@ quint32 RenderWidget::uploadMainUbuf(
         pixelSize,
         enableLighting,
         lightDir,
-        materialOverrides);
+        materialOverrides,
+        orthographic);
     // pointParams.y is otherwise unused; the depth-pick shaders read it as the
     // encoded mesh id and write it to the pick target's alpha channel.
     ubufData[kUbufPointParamsOffset + 1] = pickId;
@@ -251,7 +253,8 @@ quint32 RenderWidget::uploadMainUbufForMesh(
         materialOverrides,
         offset,
         pickId,
-        localClipPlaneFor(meshIndex));
+        localClipPlaneFor(meshIndex),
+        isOrthographicProjection(proj));
 }
 
 void RenderWidget::render(QRhiCommandBuffer *cb)
@@ -268,6 +271,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         return;
 
     resetDynamicUbufAllocators();
+    m_trackball.setClipDepthZeroToOne(m_rhi->isClipDepthZeroToOne());
 
     if (m_viewMode == ViewMode::ParametrizationUV) {
         renderParametrization(cb);
@@ -301,8 +305,12 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         // Keep the far plane wide enough for the whole scene regardless of how
         // tightly the camera is framed (e.g. after Center on Selection).
         QVector3D sceneMin, sceneMax;
-        if (computeWorldSceneBBox(sceneMin, sceneMax))
+        if (computeWorldSceneBBox(sceneMin, sceneMax)) {
             m_trackball.setSceneRadius(0.5f * (sceneMax - sceneMin).length());
+            m_trackball.setSceneBounds(sceneMin, sceneMax);
+        } else {
+            m_trackball.clearSceneBounds();
+        }
     }
 
     const bool drawTrackballGizmo =
@@ -407,9 +415,10 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             ? &m_doc->raster(rasterIndex)
             : nullptr;
         if (rasterEntry && rasterEntry->shot.isValid()) {
+            const bool rasterOrthographic = rasterEntry->shot.isOrthographic();
             bool hasDepthRange = false;
             float minDepth = std::numeric_limits<float>::max();
-            float maxDepth = 0.0f;
+            float maxDepth = rasterOrthographic ? std::numeric_limits<float>::lowest() : 0.0f;
             for (int meshIndex = 0; meshIndex < m_doc->meshCount(); ++meshIndex) {
                 if (!meshVisible(meshIndex))
                     continue;
@@ -433,7 +442,9 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                         ? transformed.toVector3DAffine()
                         : transformed.toVector3D();
                     const float depth = rasterEntry->shot.depth(worldCorner);
-                    if (!std::isfinite(depth) || depth <= 1e-4f)
+                    // Perspective cannot see what is behind the camera; an orthographic
+                    // volume can start there.
+                    if (!std::isfinite(depth) || (depth <= 1e-4f && !rasterOrthographic))
                         continue;
                     minDepth = std::min(minDepth, depth);
                     maxDepth = std::max(maxDepth, depth);
@@ -450,7 +461,19 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 nearPlane = std::max(0.001f, minDepth * 0.5f);
                 farPlane = std::max(nearPlane + 0.01f, maxDepth + range * 0.2f);
             }
+            if (rasterOrthographic && hasDepthRange) {
+                // Parallel rays need no near plane close to the eye: fit the volume to the
+                // scene, with a little slack at each end, and let it start behind the camera.
+                const float slack = std::max(1e-3f, (maxDepth - minDepth) * 0.05f);
+                nearPlane = minDepth - slack;
+                farPlane = maxDepth + slack;
+            }
             proj = rasterEntry->shot.projectionMatrix(nearPlane, farPlane);
+            // The renderer hands the backend GL-convention matrices (see
+            // ViewTrackball::setClipDepthZeroToOne): an orthographic volume would lose its
+            // nearer half on a backend that clips depth to [0, 1].
+            if (rasterOrthographic && m_rhi->isClipDepthZeroToOne())
+                proj = ViewTrackball::depthFoldToZeroToOne() * proj;
             if (RasterPlane *plane = rasterEntry->currentPlane()) {
                 Document::ensureRasterPlaneImage(*plane);
                 const QSize rasterSize = !plane->image.isNull()
@@ -467,7 +490,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         const float aspect =
             float(referenceViewport.width()) / float(qMax(1, referenceViewport.height()));
         view = m_trackball.viewMatrix();
-        proj = m_trackball.projectionMatrix(aspect, viewFrustumFarDistance(view));
+        proj = m_trackball.projectionMatrix(
+            aspect, viewFrustumFarDistance(view), viewFrustumNearDistance(view));
     }
     vp = proj * view;
 
@@ -586,7 +610,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         if (!rasterMode && tile.rect.size() != referenceViewport) {
             frameRequest.proj = m_trackball.projectionMatrix(
                 float(tile.rect.width()) / float(qMax(1, tile.rect.height())),
-                viewFrustumFarDistance(view));
+                viewFrustumFarDistance(view), viewFrustumNearDistance(view));
         }
         frameRequest.view = view;
         frameRequest.lightDir = frameLightDir;

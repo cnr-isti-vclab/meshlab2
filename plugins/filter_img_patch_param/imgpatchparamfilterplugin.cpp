@@ -167,13 +167,16 @@ float faceWeight(const VCGMesh &mesh, VCGFace &f,
         vcg::Point3f fn = f.cN();
         if (fn == vcg::Point3f(0, 0, 0))
             fn = ((f.cP(1) - f.cP(0)) ^ (f.cP(2) - f.cP(0))).Normalize();
-        vcg::Point3f vp = rc.shot->toVcgShot().GetViewPoint();
-        float dot = (vp - wcP).Normalize() * fn;
-        w *= dot;
+        const QVector3D toCamera = rc.shot->directionToCamera(QVector3D(wcP[0], wcP[1], wcP[2]));
+        w *= toCamera.x() * fn[0] + toCamera.y() * fn[1] + toCamera.z() * fn[2];
     }
 
     if ((weightMask & W_DISTANCE) && w > 0.0f) {
-        float d = (rc.shot->toVcgShot().GetViewPoint() - wcP).Norm();
+        // How far the face is from the camera, on the scale of the depth range below:
+        // along the axis for parallel rays, which have no single point to measure from.
+        const float d = rc.shot->isOrthographic()
+            ? rc.shot->depth(QVector3D(wcP[0], wcP[1], wcP[2]))
+            : (rc.shot->toVcgShot().GetViewPoint() - wcP).Norm();
         w *= (rc.farPlane - d) * rc.depthRangeInv;
     }
 

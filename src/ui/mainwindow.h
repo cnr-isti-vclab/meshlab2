@@ -184,6 +184,7 @@ private:
     // Ctrl+C / Ctrl+V for the camera, bound only while a 3D view has focus so every other
     // panel keeps its own copy and paste; see updateViewShortcuts().
     QAction *m_copyCameraAction = nullptr;
+    QAction *m_orthographicAction = nullptr;
     QAction *m_pasteCameraAction = nullptr;
     // Rebuilt with the Filters menu, so it is kept here to keep its Ctrl+F binding in step
     // with updateTextEditingShortcuts().

@@ -243,7 +243,12 @@ bool parseVcgCamera(
             errorMessage = QObject::tr("Invalid CameraType attribute.");
             return false;
         }
-        cam.cameraType = static_cast<vcg::Camera<float>::CameraType>(type);
+        // Only perspective and orthographic are drawn; the other vcg types (isometric,
+        // cavalieri) are read as perspective rather than refused, so the project still opens.
+        cam.cameraType = type == vcg::Camera<float>::ORTHO ? vcg::Camera<float>::ORTHO
+                                                            : vcg::Camera<float>::PERSPECTIVE;
+        if (type != vcg::Camera<float>::PERSPECTIVE && type != vcg::Camera<float>::ORTHO)
+            qWarning("Camera type %d is not supported; reading it as perspective.", type);
     }
 
     std::vector<float> translationValues;

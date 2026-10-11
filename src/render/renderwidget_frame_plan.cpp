@@ -1,3 +1,4 @@
+#include <limits>
 #include "renderwidget.h"
 #include "linerenderer.h"
 #include "clipplane.h"
@@ -403,6 +404,13 @@ float RenderWidget::viewFrustumFarDistance(const QMatrix4x4 &view) const
     if (!m_viewFrustumBoundsValid)
         return 0.0f;
     return farthestDistanceInView(view, m_viewFrustumBoundsMin, m_viewFrustumBoundsMax);
+}
+
+float RenderWidget::viewFrustumNearDistance(const QMatrix4x4 &view) const
+{
+    if (!m_viewFrustumBoundsValid)
+        return std::numeric_limits<float>::infinity();
+    return nearestDistanceInView(view, m_viewFrustumBoundsMin, m_viewFrustumBoundsMax);
 }
 
 void RenderWidget::planViewFrustumPasses(

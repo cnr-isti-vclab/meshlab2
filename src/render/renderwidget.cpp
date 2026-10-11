@@ -200,6 +200,7 @@ bool fuzzyStateEqual(const ViewTrackball::State &a, const ViewTrackball::State &
         && fuzzyFloatEqual(a.distance, b.distance)
         && fuzzyFloatEqual(a.radius, b.radius)
         && fuzzyFloatEqual(a.fovYDeg, b.fovYDeg)
+        && a.projection == b.projection
         && fuzzyFloatEqual(a.nearClipRatio, b.nearClipRatio)
         && fuzzyFloatEqual(a.gizmoBaseRadius, b.gizmoBaseRadius)
         && fuzzyFloatEqual(a.gizmoReferenceDistance, b.gizmoReferenceDistance)
@@ -439,6 +440,10 @@ QJsonObject trackballStateToJsonObject(
     putFloat(QStringLiteral("distance"), state.distance, def.distance);
     putFloat(QStringLiteral("radius"), state.radius, def.radius);
     putFloat(QStringLiteral("fov_y_degrees"), state.fovYDeg, def.fovYDeg);
+    if (!defaults || state.projection != def.projection) {
+        trackball.insert(
+            QStringLiteral("projection"), ViewTrackball::projectionJsonName(state.projection));
+    }
     putFloat(QStringLiteral("near_clip_ratio"), state.nearClipRatio, def.nearClipRatio);
     putFloat(QStringLiteral("gizmo_base_radius"), state.gizmoBaseRadius, def.gizmoBaseRadius);
     putFloat(
@@ -549,6 +554,14 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         Preferences::instance().stringValue(QStringLiteral("scalar.defaultColorMap"));
     m_renderSettings.qualityHistogramBins =
         Preferences::instance().intValue(QStringLiteral("scalar.histogramBins"));
+
+    // The projection a new view starts in; after that the view owns it (the menu, Shift+wheel
+    // and the camera JSON change it, and Reset Camera leaves it alone).
+    m_trackball.setProjection(
+        Preferences::instance().stringValue(QStringLiteral("view.projection"))
+                == ViewTrackball::projectionJsonName(Projection::Orthographic)
+            ? Projection::Orthographic
+            : Projection::Perspective);
 
     setFocusPolicy(Qt::StrongFocus); // receive key events for interactive tools
     setMouseTracking(true); // interactive tools need button-free hover feedback
@@ -1383,7 +1396,9 @@ CameraShot RenderWidget::cameraShotForViewport(const QSize &pixelSize) const
         return {};
 
     CameraShot::VcgShot shot;
-    shot.Intrinsics.cameraType = vcg::Camera<float>::PERSPECTIVE;
+    const bool orthographic = m_trackball.isOrthographic();
+    shot.Intrinsics.cameraType =
+        orthographic ? vcg::Camera<float>::ORTHO : vcg::Camera<float>::PERSPECTIVE;
     shot.Intrinsics.ViewportPx = vcg::Point2i(pixelSize.width(), pixelSize.height());
     shot.Intrinsics.CenterPx =
         vcg::Point2f(float(pixelSize.width()) * 0.5f, float(pixelSize.height()) * 0.5f);
@@ -1399,13 +1414,34 @@ CameraShot RenderWidget::cameraShotForViewport(const QSize &pixelSize) const
     if (!(tanHalfFov > 0.0f) || !std::isfinite(tanHalfFov))
         return {};
     shot.Intrinsics.FocalMm = float(pixelSize.height()) / (2.0f * tanHalfFov);
+    if (orthographic) {
+        // The view volume is the height visible at the orbit centre, H = 2 * distance *
+        // tan(fovY / 2), the same H a perspective view with this field of view frames; an
+        // orthographic camera's PixelSizeMm is world units per pixel. FocalMm plays no part
+        // in projecting, and keeps the perspective value so the shot reads back unchanged.
+        const float worldPerPixel =
+            2.0f * m_trackball.state().distance * tanHalfFov / float(pixelSize.height());
+        if (!(worldPerPixel > 0.0f) || !std::isfinite(worldPerPixel))
+            return {};
+        shot.Intrinsics.PixelSizeMm = vcg::Point2f(worldPerPixel, worldPerPixel);
+    }
 
-    const QVector3D eye = m_trackball.cameraEyePosition();
+    QVector3D eye = m_trackball.cameraEyePosition();
     const QVector3D viewDir = m_trackball.cameraViewDirection().normalized();
     const QVector3D up =
         m_trackball.state().rotation.conjugated().rotatedVector(QVector3D(0.0f, 1.0f, 0.0f)).normalized();
     if (viewDir.isNull() || up.isNull())
         return {};
+    if (orthographic) {
+        // Parallel rays do not care where along the axis the camera sits, but whoever uses
+        // the shot -- a depth buffer, a projection filter -- takes depth <= 0 to mean
+        // "behind the camera". The orbit eye can be inside the scene, so move the viewpoint
+        // back along the axis until the whole scene is in front of it; the image is unchanged.
+        const float clearance = 1.0e-3f * 2.0f * m_trackball.state().distance * tanHalfFov;
+        const float nearDist = m_trackball.nearClipPlaneDistance();
+        if (nearDist < clearance)
+            eye -= viewDir * (clearance - nearDist);
+    }
 
     const QVector3D at = eye + viewDir;
     shot.LookAt(
@@ -2426,6 +2462,20 @@ void RenderWidget::setHelpOverlayVisible(bool visible)
     }
     layoutOverlayButtons();
     update();
+}
+
+void RenderWidget::setProjection(Projection projection)
+{
+    if (m_viewMode != ViewMode::Scene3D)
+        return;
+    if (m_trackball.projection() != projection) {
+        cancelCenterAnimation();
+        m_trackball.setProjection(projection);
+        update();
+    }
+    showInteractionStatusOverlay(projection == Projection::Orthographic
+                                     ? tr("Orthographic projection")
+                                     : tr("Perspective projection"));
 }
 
 void RenderWidget::emitCameraStateChangedIfNeeded()
@@ -3889,13 +3939,17 @@ void RenderWidget::wheelEvent(QWheelEvent *e)
             e->accept();
         return;
     }
-    if (m_trackball.wheel(e)) {
-        if (fovMode) {
-            showInteractionStatusOverlay(
-                tr("FOV: %1 deg").arg(m_trackball.fovYDegrees(), 0, 'f', 1));
-        }
-        update();
+    const bool changed = m_trackball.wheel(e);
+    // Orthographic has no field of view to read out, and a notch that goes nowhere further in
+    // it is still worth confirming -- otherwise the wheel looks dead.
+    if (fovMode && (changed || m_trackball.isOrthographic())) {
+        showInteractionStatusOverlay(
+            m_trackball.isOrthographic()
+                ? tr("FOV: orthographic")
+                : tr("FOV: %1 deg").arg(m_trackball.fovYDegrees(), 0, 'f', 1));
     }
+    if (changed)
+        update();
 }
 
 void RenderWidget::showStatePreview(const QPixmap &snapshot, const QString &label)

@@ -67,7 +67,8 @@ inline constexpr int kOutlineUbufSize = 48;
 inline constexpr int kRasterBackplateUbufSize = 32; // vec4 rect + vec4 params
 inline constexpr int kRasterProjectedUbufSize = 80; // mat4 mvp + vec4 color
 inline constexpr int kRasterProjectedVertexStrideFloats = 3;
-inline constexpr int kRasterProjectedFrustumVertexCount = 16;
+// The camera glyph of a raster: a pyramid (8 segments) or, orthographic, a box (12).
+inline constexpr int kRasterProjectedMaxVertexCount = 24;
 // Sentinel raster indices on a SceneRasterProjectedDrawItem: the line-gizmo pipeline is
 // shared, and the index says which gizmo it is drawing and therefore what colour.
 inline constexpr int kViewFrustumGizmoRasterIndex = -1;
@@ -273,12 +274,21 @@ inline QRhiViewport rhiViewportFor(const QRect &rect, const QSize &targetPixelSi
         float(qMax(1, rect.height())));
 }
 
+// Whether a projection matrix is orthographic: its last row is (0, 0, 0, 1), where a
+// perspective one has (0, 0, -1, 0). Read from the matrix rather than from the camera that
+// made it, so it holds for whichever camera -- the trackball's, a raster's -- built it.
+inline bool isOrthographicProjection(const QMatrix4x4 &proj)
+{
+    return std::abs(proj(3, 3)) > 0.5f;
+}
+
 inline void writeMainStyleToUbuf(
     float *ubufData,
     const PerMeshRenderSettings &settings,
     const QSize &pixelSize,
     bool enableLighting,
-    const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f))
+    const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f),
+    bool orthographic = false)
 {
     ubufData[kUbufBBoxColorOffset + 0] = settings.bboxWireColor.redF();
     ubufData[kUbufBBoxColorOffset + 1] = settings.bboxWireColor.greenF();
@@ -360,7 +370,9 @@ inline void writeMainStyleToUbuf(
     ubufData[kUbufLightDirOffset + 0] = lightDir.x();
     ubufData[kUbufLightDirOffset + 1] = lightDir.y();
     ubufData[kUbufLightDirOffset + 2] = lightDir.z();
-    ubufData[kUbufLightDirOffset + 3] = 0.0f;
+    // w says which projection the shaders are lit under: the vector to the eye is the constant
+    // (0, 0, 1) when the rays are parallel, and a per-point one when they leave a single eye.
+    ubufData[kUbufLightDirOffset + 3] = orthographic ? 1.0f : 0.0f;
 }
 
 inline void writeMainMaterialOverridesToUbuf(
@@ -381,10 +393,11 @@ inline void writeMainUbuf(
     const QSize &pixelSize,
     bool enableLighting,
     const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f),
-    MainUbufMaterialOverrides overrides = MainUbufMaterialOverrides{})
+    MainUbufMaterialOverrides overrides = MainUbufMaterialOverrides{},
+    bool orthographic = false)
 {
     writeMainMatricesToUbuf(ubufData, mvp, modelView, normalMat);
-    writeMainStyleToUbuf(ubufData, settings, pixelSize, enableLighting, lightDir);
+    writeMainStyleToUbuf(ubufData, settings, pixelSize, enableLighting, lightDir, orthographic);
     // Override fill color with per-mesh color if set
     if (overrides.fillColorOverride.isValid()) {
         ubufData[kUbufFillColorOffset + 0] = overrides.fillColorOverride.redF();

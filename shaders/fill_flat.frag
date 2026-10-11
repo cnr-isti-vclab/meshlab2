@@ -88,6 +88,15 @@ vec3 applyClipRim(vec3 color)
     return mix(color, ub.clipRim.rgb, band);
 }
 
+// Unit vector from a point towards the eye. Rays leave a single eye in a perspective view,
+// and run parallel in an orthographic one, where it is the same everywhere: (0, 0, 1) in
+// view space. The main uniform block's lightDir.w says which.
+vec3 towardsEye(vec3 viewPos)
+{
+    float len = length(viewPos);
+    return (ub.lightDir.w > 0.5 || len < 1e-6) ? vec3(0.0, 0.0, 1.0) : -viewPos / len;
+}
+
 void main()
 {
     vec3 baseColor = ub.fillColor.rgb;
@@ -123,7 +132,7 @@ void main()
             N = applyObjectSpaceNormalMap(N, uv);
 
         vec3 L = normalize(ub.lightDir.xyz);
-        vec3 V = normalize(-vViewPos);
+        vec3 V = towardsEye(vViewPos);
         vec3 H = normalize(L + V);
         float diff = max(dot(N, L), 0.0);
 

@@ -88,16 +88,15 @@ inline std::unique_ptr<FloatBuffer> buildDepthBuffer(
     proj.resize(size_t(vn));
     depths.resize(size_t(vn));
     frontFace.resize(size_t(vn));
-    const QVector3D viewPt = shot.viewPoint();
     const QVector3D viewDir = shot.referenceAxis(2); // camera forward = into scene
     for (int vi = 0; vi < vn; ++vi) {
         const auto &v = mesh.vert[size_t(vi)];
         const QVector3D wv = transformPoint(transform, v.cP());
         proj[size_t(vi)] = shot.project(wv);
         depths[size_t(vi)] = shot.depth(wv);
-        // face-normal check: dot(viewPt-vertex, vertexNormal) > 0 means front-facing
+        // face-normal check: dot(direction to the camera, vertexNormal) > 0 means front-facing
         const QVector3D n(v.cN()[0], v.cN()[1], v.cN()[2]);
-        frontFace[size_t(vi)] = QVector3D::dotProduct((viewPt - wv).normalized(), n.normalized()) > 0.0f;
+        frontFace[size_t(vi)] = QVector3D::dotProduct(shot.directionToCamera(wv), n.normalized()) > 0.0f;
     }
 
     // Rasterize faces using pre-computed per-vertex data

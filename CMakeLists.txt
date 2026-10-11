@@ -769,6 +769,25 @@ target_link_libraries(MeshLab2ViewGridLayoutTests PRIVATE
 
 add_test(NAME MeshLab2ViewGridLayoutTests COMMAND MeshLab2ViewGridLayoutTests)
 
+qt_add_executable(MeshLab2ViewTrackballTests
+    tests/test_viewtrackball.cpp
+)
+
+target_include_directories(MeshLab2ViewTrackballTests PRIVATE
+    ${MESHLAB2_SOURCE_DIR}
+    ${MESHLAB2_SOURCE_DIR}/src/render
+)
+
+# Camera arithmetic only -- no GPU, not even a widget. The trackball reads its defaults from
+# the preferences, and MeshLab2Core's Document pulls in the plugin registries, so link the
+# aggregate that carries them.
+target_link_libraries(MeshLab2ViewTrackballTests PRIVATE
+    MeshLab2Plugins
+    Qt6::Test
+)
+
+add_test(NAME MeshLab2ViewTrackballTests COMMAND MeshLab2ViewTrackballTests)
+
 qt_add_executable(MeshLab2ViewFrustumGizmoTests
     tests/test_viewfrustumgizmo.cpp
 )

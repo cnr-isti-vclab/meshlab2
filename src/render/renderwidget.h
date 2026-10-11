@@ -110,6 +110,10 @@ public:
     bool helpOverlayVisible() const { return m_helpOverlayVisible; }
     void setHelpOverlayVisible(bool visible);
     void toggleHelpOverlayVisible() { setHelpOverlayVisible(!m_helpOverlayVisible); }
+    Projection projection() const { return m_trackball.projection(); }
+    // Switches this view between perspective and orthographic (3D mode only), with a status
+    // line saying which it is now. The view keeps framing the same height at its orbit centre.
+    void setProjection(Projection projection);
     void showQualityVisualization(int meshIndex, bool faceQuality);
     void showTextureVisualization(int meshIndex);
     void showEdgeColorVisualization(int meshIndex);
@@ -122,6 +126,9 @@ public:
     QVector3D trackballCenter() const { return m_trackball.center(); }
     QVector3D cameraEyePosition() const { return m_trackball.cameraEyePosition(); }
     QVector3D cameraViewDirection() const { return m_trackball.cameraViewDirection(); }
+    // The view as one full-frame camera: perspective, or orthographic with the view volume of
+    // the orthographic trackball (an orthographic shot's viewpoint may sit behind the orbit
+    // eye, so that the whole scene is in front of it).
     CameraShot cameraShotForViewport(const QSize &pixelSize) const;
     // Offscreen render — blocks until one frame is ready, then grabs the framebuffer.
     // Set transparentBackground=true to clear the color buffer to (0,0,0,0).
@@ -450,7 +457,9 @@ struct SceneRasterProjectedDrawItem {
         quint32 offset = 0,
         float pickId = 0.0f,
         // Default zero = no clipping, which is what UV mode wants.
-        const QVector4D &localClipPlane = QVector4D());
+        const QVector4D &localClipPlane = QVector4D(),
+        // The matrices were built for an orthographic view; see writeMainStyleToUbuf.
+        bool orthographic = false);
     quint32 uploadMainUbufForMesh(
         QRhiCommandBuffer *cb,
         int meshIndex,
@@ -500,6 +509,9 @@ struct SceneRasterProjectedDrawItem {
     // Distance from the eye, along the view direction, of the farthest gizmo point;
     // 0 when there is nothing to draw.
     float viewFrustumFarDistance(const QMatrix4x4 &view) const;
+    // The matching near distance, infinite when there is no gizmo to hold; see
+    // ViewTrackball::projectionMatrix.
+    float viewFrustumNearDistance(const QMatrix4x4 &view) const;
     void planViewFrustumPasses(RenderFramePlan &plan);
     void planDecoratorPasses(
         const RenderFramePassRequests &requests,

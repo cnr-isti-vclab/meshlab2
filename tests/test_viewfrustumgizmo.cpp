@@ -21,10 +21,13 @@ private slots:
     void theGizmoFollowsTheCameraPose();
     void boundsEncloseEveryPointDrawn();
     void aDegenerateClipRangeDrawsNothing();
-    void aProjectionThatIsNotAFinitePerspectiveDrawsNothing();
+    void aProjectionThatIsNotFiniteDrawsNothing();
+    void anOrthographicProjectionDrawsABox();
+    void anOrthographicBoxMayStartBehindTheEye();
 
     void theFarDistanceCoversTheWholeGizmo();
     void theFarDistanceIsZeroForABoxBehindTheEye();
+    void theNearestDistanceIsNegativeForABoxBehindTheEye();
 };
 
 namespace {
@@ -240,7 +243,7 @@ void ViewFrustumGizmoTests::aDegenerateClipRangeDrawsNothing()
     }
 }
 
-void ViewFrustumGizmoTests::aProjectionThatIsNotAFinitePerspectiveDrawsNothing()
+void ViewFrustumGizmoTests::aProjectionThatIsNotFiniteDrawsNothing()
 {
     QMatrix4x4 zero;
     zero.fill(0.0f);
@@ -253,6 +256,49 @@ void ViewFrustumGizmoTests::aProjectionThatIsNotAFinitePerspectiveDrawsNothing()
     QMatrix4x4 notANumber = perspective();
     notANumber(0, 0) = std::numeric_limits<float>::quiet_NaN();
     QVERIFY(!buildViewFrustumGizmo(QMatrix4x4(), notANumber, kNear, kFar).valid);
+}
+
+// Parallel rays: the same two rectangles, but the same size, joined by four edges parallel to
+// the axis, and nothing at the eye. Drawn as a pyramid it would be a different, wrong shape.
+void ViewFrustumGizmoTests::anOrthographicProjectionDrawsABox()
+{
+    QMatrix4x4 ortho;
+    ortho.ortho(-4.0f, 4.0f, -3.0f, 3.0f, kNear, kFar);
+    const ViewFrustumGizmo g = buildViewFrustumGizmo(QMatrix4x4(), ortho, kNear, kFar);
+    QVERIFY(g.valid);
+    QCOMPARE(g.segmentCount, kSegmentCount);
+
+    // Four depth edges, each parallel to the view axis and as long as the clip range.
+    for (int i = 0; i < kBodySegments; ++i) {
+        const QVector3D a = vertexAt(g, i, 0);
+        const QVector3D b = vertexAt(g, i, 1);
+        QVERIFY(qAbs(a.x() - b.x()) < 1.0e-5f);
+        QVERIFY(qAbs(a.y() - b.y()) < 1.0e-5f);
+        QCOMPARE(a.z(), -kNear);
+        QCOMPARE(b.z(), -kFar);
+        QCOMPARE(qAbs(a.x()), 4.0f);
+        QCOMPARE(qAbs(a.y()), 3.0f);
+    }
+    // The two rectangles are the same size.
+    for (int i = 0; i < 4; ++i) {
+        const QVector3D n = vertexAt(g, kNearRectFirst + i, 0);
+        const QVector3D f = vertexAt(g, kFarRectFirst + i, 0);
+        QCOMPARE(qAbs(n.x()), qAbs(f.x()));
+        QCOMPARE(qAbs(n.y()), qAbs(f.y()));
+    }
+}
+
+void ViewFrustumGizmoTests::anOrthographicBoxMayStartBehindTheEye()
+{
+    QMatrix4x4 ortho;
+    ortho.ortho(-4.0f, 4.0f, -3.0f, 3.0f, -2.0f, 10.0f);
+    const ViewFrustumGizmo g = buildViewFrustumGizmo(QMatrix4x4(), ortho, -2.0f, 10.0f);
+    QVERIFY(g.valid);
+    QCOMPARE(vertexAt(g, kNearRectFirst, 0).z(), 2.0f); // behind the eye: +Z
+    QCOMPARE(vertexAt(g, kFarRectFirst, 0).z(), -10.0f);
+
+    // A perspective projection has no such volume.
+    QVERIFY(!buildViewFrustumGizmo(QMatrix4x4(), perspective(), -2.0f, 10.0f).valid);
 }
 
 void ViewFrustumGizmoTests::theFarDistanceCoversTheWholeGizmo()
@@ -289,6 +335,18 @@ void ViewFrustumGizmoTests::theFarDistanceIsZeroForABoxBehindTheEye()
     QCOMPARE(farthestDistanceInView(hostView, QVector3D(-1.0f, -1.0f, 10.0f),
                                     QVector3D(1.0f, 1.0f, 20.0f)),
              0.0f);
+}
+
+// What an orthographic host view needs to start its volume behind the eye, as far as the gizmo
+// reaches. A perspective host cannot use it, which is why the far distance above never goes
+// negative and this one does.
+void ViewFrustumGizmoTests::theNearestDistanceIsNegativeForABoxBehindTheEye()
+{
+    QMatrix4x4 view; // the eye at the origin, looking down -Z
+    // In front, straddling the eye, and entirely behind it.
+    QCOMPARE(nearestDistanceInView(view, QVector3D(-1, -1, -9), QVector3D(1, 1, -3)), 3.0f);
+    QCOMPARE(nearestDistanceInView(view, QVector3D(-1, -1, -2), QVector3D(1, 1, 5)), -5.0f);
+    QCOMPARE(nearestDistanceInView(view, QVector3D(-1, -1, 4), QVector3D(1, 1, 8)), -8.0f);
 }
 
 QTEST_APPLESS_MAIN(ViewFrustumGizmoTests)

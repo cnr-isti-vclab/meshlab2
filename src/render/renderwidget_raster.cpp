@@ -170,24 +170,42 @@ void RenderWidget::ensureRasterResources(
         if (!std::isfinite(depth) || depth <= 0.0f)
             return vertices;
 
-        const QVector3D apex = entry.shot.viewPoint();
-        const QVector3D bl = entry.shot.unproject(QVector2D(0.0f, 0.0f), depth);
-        const QVector3D br = entry.shot.unproject(QVector2D(float(viewport.width()), 0.0f), depth);
-        const QVector3D tl = entry.shot.unproject(QVector2D(0.0f, float(viewport.height())), depth);
-        const QVector3D tr =
-            entry.shot.unproject(QVector2D(float(viewport.width()), float(viewport.height())), depth);
-        if (!isFinite(apex) || !isFinite(bl) || !isFinite(br) || !isFinite(tl) || !isFinite(tr))
-            return vertices;
+        // Corners of the image, on the plane `depth` in front of the camera.
+        const QVector2D pixels[4] = {
+            QVector2D(0.0f, 0.0f),
+            QVector2D(float(viewport.width()), 0.0f),
+            QVector2D(float(viewport.width()), float(viewport.height())),
+            QVector2D(0.0f, float(viewport.height()))
+        };
+        QVector3D farCorner[4];
+        for (int i = 0; i < 4; ++i) {
+            farCorner[i] = entry.shot.unproject(pixels[i], depth);
+            if (!isFinite(farCorner[i]))
+                return vertices;
+        }
 
-        vertices.reserve(kRasterProjectedFrustumVertexCount * kRasterProjectedVertexStrideFloats);
-        appendProjectedRasterLine(vertices, apex, bl);
-        appendProjectedRasterLine(vertices, apex, br);
-        appendProjectedRasterLine(vertices, apex, tl);
-        appendProjectedRasterLine(vertices, apex, tr);
-        appendProjectedRasterLine(vertices, bl, br);
-        appendProjectedRasterLine(vertices, br, tr);
-        appendProjectedRasterLine(vertices, tr, tl);
-        appendProjectedRasterLine(vertices, tl, bl);
+        vertices.reserve(kRasterProjectedMaxVertexCount * kRasterProjectedVertexStrideFloats);
+        if (entry.shot.isOrthographic()) {
+            // A box: the image rectangle on the plane through the viewpoint, the same one
+            // `depth` away, and the four parallel edges between them. Rays do not meet at
+            // the viewpoint, so there is no apex to draw.
+            QVector3D nearCorner[4];
+            for (int i = 0; i < 4; ++i)
+                nearCorner[i] = farCorner[i] - entry.shot.viewDirection() * depth;
+            for (int i = 0; i < 4; ++i) {
+                appendProjectedRasterLine(vertices, nearCorner[i], farCorner[i]);
+                appendProjectedRasterLine(vertices, nearCorner[i], nearCorner[(i + 1) % 4]);
+                appendProjectedRasterLine(vertices, farCorner[i], farCorner[(i + 1) % 4]);
+            }
+        } else {
+            const QVector3D apex = entry.shot.viewPoint();
+            if (!isFinite(apex))
+                return vertices;
+            for (int i = 0; i < 4; ++i)
+                appendProjectedRasterLine(vertices, apex, farCorner[i]);
+            for (int i = 0; i < 4; ++i)
+                appendProjectedRasterLine(vertices, farCorner[i], farCorner[(i + 1) % 4]);
+        }
         return vertices;
     };
 
@@ -229,7 +247,7 @@ void RenderWidget::ensureRasterResources(
             }
 
             constexpr int vertexBytes =
-                kRasterProjectedFrustumVertexCount
+                kRasterProjectedMaxVertexCount
                 * kRasterProjectedVertexStrideFloats
                 * int(sizeof(float));
             if (!gpu.projectedVbuf) {
@@ -246,17 +264,17 @@ void RenderWidget::ensureRasterResources(
             }
 
             const std::vector<float> vertices = buildProjectedVertices(entry);
-            if (int(vertices.size())
-                != kRasterProjectedFrustumVertexCount * kRasterProjectedVertexStrideFloats) {
+            const int vertexCount = int(vertices.size()) / kRasterProjectedVertexStrideFloats;
+            if (vertexCount <= 0 || vertexCount > kRasterProjectedMaxVertexCount) {
                 gpu.projectedVertexCount = 0;
                 return;
             }
             ensureUpdates()->updateDynamicBuffer(
                 gpu.projectedVbuf.get(),
                 0,
-                vertexBytes,
+                int(vertices.size() * sizeof(float)),
                 vertices.data());
-            gpu.projectedVertexCount = kRasterProjectedFrustumVertexCount;
+            gpu.projectedVertexCount = vertexCount;
             return;
         }
 

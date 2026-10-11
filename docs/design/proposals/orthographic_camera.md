@@ -1,8 +1,12 @@
 # Orthographic Camera
 
 This document proposes an orthographic projection for the 3D view and everything
-that consumes a camera. **Nothing described here is implemented.** The 3D view is
-perspective-only today.
+that consumes a camera. **All five stages of [Staging](#staging) are implemented** --
+the vcglib matrix fix; the view itself (state, JSON, projection, navigation, rays,
+lighting); and cameras as data (camera glyphs, snapshot and raster cameras, camera and
+raster filters); and occlusion (visible-only rectangle selection casts parallel rays) --
+and an orthographic state can be set through the camera JSON, the Python API or the camera
+filters, and from the View menu, the 5 key and a preference (stage 5). What remains is listed in [Open questions](#open-questions).
 
 See also: [Rendering](../rendering.md) (the QRhi pipeline, camera models, the
 render-state JSON), [Data Model](../data_model.md) (what an undo state holds),
@@ -76,19 +80,44 @@ are parallel. Everything below is a consequence of that.
 ratio keep their meaning.
 
 - **In orthographic, the wheel still changes `distance`**, so it still zooms, by
-  changing `H`. Shift+wheel -- the dolly-zoom that trades field of view for distance
-  at constant `H` -- has no visible effect in orthographic and is ignored there.
+  changing `H`.
+- **Shift+wheel is the way in and out.** It is the dolly-zoom that trades field of view
+  for distance at constant `H`: forward narrows the field of view, flattening the
+  perspective, and orthographic is the limit of that. It therefore does not stop at the
+  narrowest field of view (10 degrees); it goes on into orthographic, at that field of
+  view. Turned back, it leaves orthographic for perspective at the same field of view and
+  widens from there. Forward again in orthographic does nothing -- nothing is flatter than
+  parallel. `H` is untouched throughout, so nothing jumps at the switch.
 - **The projection matrix** is `ortho(-W/2, W/2, -H/2, H/2, near, far)` with
-  `W = H * aspect`. The scene lies at view-space depth `distance +- sceneRadius`, so
-  `near = distance - k * sceneRadius` and `far = distance + k * sceneRadius`, with `k`
-  slightly over one. **`near` may be negative**: with the orbit centre inside the
-  object the eye is inside it too, and an orthographic view still draws what is
-  behind the eye. Perspective keeps `near = distance * nearClipRatio`.
+  `W = H * aspect`. **The depth range is fitted to the scene**: the view sets the
+  world-space box of everything visible each frame (`setSceneBounds`), and the volume runs
+  from just before the nearest corner of that box, as a distance in front of the eye, to
+  just after the farthest, widened to hold the trackball gizmo about the orbit centre
+  (which a small box would not cover). The slack is 5% of the range, so surfaces on the
+  box faces, wide lines and the tips of normals are not cut, plus a thousandth of the
+  view height for a box that is flat against the view. **`near` may be negative**: with the
+  orbit centre closer to the eye than the scene is deep, an orthographic view still draws
+  what is behind the eye. Without bounds -- before the first frame, or a camera rebuilt
+  from JSON, where only x and y matter -- it falls back to a symmetric reach of
+  `4 * max(radius, sceneRadius)` about the centre. Perspective keeps
+  `near = distance * nearClipRatio` and its generous far plane.
+- **The depth range follows the backend.** The renderer hands QRhi the projection matrix
+  uncorrected, with depth in [-1, 1], and the pick reads depth back as `ndcZ = depth01` on a
+  backend that clips depth to [0, 1] (Metal, Direct3D, Vulkan). A perspective matrix
+  survives that because its depth is nonlinear: it loses only the sliver in front of twice
+  the near distance. An orthographic matrix has linear depth, so a volume mapped to
+  [-1, 1] would lose its whole nearer half -- the front of the object clipped away at the
+  moment of switching. `ViewTrackball::setClipDepthZeroToOne`, set by the view from
+  `QRhi::isClipDepthZeroToOne()`, makes the orthographic matrix map its volume to the range
+  the backend keeps; the ray origin, and so the pick's unprojection, follow. Perspective is
+  deliberately left as it was.
 - **`nearClipRatio` is a perspective depth-precision setting** and is ignored in
   orthographic, where depth is linear over `[near, far]`.
-- `viewFrustumFarDistance()` widens the far plane to contain a peer view's camera
-  glyph. In orthographic it widens the range on both sides, since a glyph may sit
-  behind the eye.
+- **`projectionMatrix(aspect, minFarDistance, maxNearDistance)`**: a peer view's camera
+  glyph can reach past the host's far plane, and in orthographic it can lie behind the
+  eye. `viewFrustumFarDistance()` and `viewFrustumNearDistance()` (the nearest corner of
+  the glyphs' bounds, negative behind the eye) widen the volume to hold them;
+  perspective ignores the near request.
 
 ### JSON
 
@@ -159,8 +188,11 @@ Four fragment shaders light with the vector to the eye taken as `-viewPos`
 In orthographic that vector is the constant `(0, 0, 1)`.
 
 The shaders need to know which projection is in use. **`lightDir.w`**, a component of
-the main uniform block that is written as 0 and read by nothing
-(`renderwidget_internal.h:52`), carries it: 0 for perspective, 1 for orthographic.
+the main uniform block that was written as 0 and read by nothing, carries it: 0 for
+perspective, 1 for orthographic. It is read from the projection matrix the frame is drawn
+with (`isOrthographicProjection`: a last row of `(0, 0, 0, 1)`), not from the trackball, so
+it holds for whichever camera built the matrix -- a raster's included, once rasters are
+handled.
 `overlay_points.frag`, whose block declaration stops short of `lightDir`, extends it.
 No binding or buffer layout changes.
 
@@ -180,6 +212,9 @@ Unchanged, and worth recording why:
 Both glyphs draw a pyramid: four edges from an apex to the corners of the far
 rectangle, plus the near and far rectangles.
 
+**Implemented (stage 3).** What follows is the design; the implementation matches it,
+with the box drawn from the near rectangle (which may sit behind the eye) to the far one.
+
 - **A peer view's camera** (`buildViewFrustumGizmo`) reads `cot(fovY/2)` out of
   `proj(1,1)`, which for an orthographic matrix is `2/H` and means nothing as a
   cotangent. It must recognize an orthographic matrix -- its last row is
@@ -187,7 +222,9 @@ rectangle, plus the near and far rectangles.
   no apex. `PeerViewCamera` already carries the matrix, so nothing else is passed.
 - **A raster layer's camera** (`renderwidget_raster.cpp`) builds its glyph from an
   apex and four unprojected corners. For an orthographic shot the apex lines become
-  the four parallel edges of a box from the image plane to the glyph depth.
+  the four parallel edges of a box from the plane through the viewpoint to the glyph
+  depth; the glyph's vertex buffer holds up to 12 segments and the draw count follows
+  the shape (8 for a pyramid).
 
 ## Cameras as data
 
@@ -205,6 +242,26 @@ exported -- a snapshot added as a raster, `cameraShotForViewport()`, the
   world units per pixel (`H / height`), and `FocalMm` unused. `Project`, `UnProject`
   and `Depth` already treat `ORTHO` correctly, so a snapshot added as a raster layer
   projects onto the mesh in the same place the view drew it.
+- **Implementation notes (stage 3).**
+  - `cameraShotForViewport()` also moves an orthographic shot's *viewpoint* back along the
+    axis until the whole scene is in front of it. Parallel rays do not care where the
+    camera sits, but depth buffers and the projection filters read `depth <= 0` as "behind
+    the camera", and the orbit eye can lie inside the scene. The image is unchanged.
+  - A raster whose shot is orthographic draws in raster mode with a volume fitted to the
+    scene (a little slack each end, the near plane free to be behind the viewpoint), and
+    the same `[-1, 1]` to `[0, 1]` depth fold the trackball uses on a zero-to-one backend
+    (`ViewTrackball::depthFoldToZeroToOne`). `CameraShot::projectionMatrix` accepts a
+    near plane at or behind the viewpoint for an orthographic shot.
+  - The framing filters `set_camera_from_direction` and `set_camera_to_view_selection`, and
+    `set_raster_camera`, take a `projection` parameter (*Keep current*, *Perspective*,
+    *Orthographic*; default *Keep current*, which reads the current raster's camera and is
+    perspective without one). The visible height at the target is the same either way.
+    `rotate_cameras`, `translate_cameras` and `scale_cameras` keep the intrinsics, and
+    `RescalingWorld` scales an orthographic shot's `PixelSizeMm`, which is world units per
+    pixel, correctly.
+  - The loaders (`document_internal.cpp`, `layerfilterplugin.cpp`) read camera type 2 or 3
+    as perspective and log a warning; `ImgPatchParam`'s orientation weight, the soft depth
+    buffer's front-facing test and the colour projection filters use `directionToCamera`.
 - **vcglib, two changes in `vcg/math/camera.ipp`**, the only work outside this
   repository. It follows the four-part procedure (commit in `vcglib/`, push to
   `origin/devel`, bump the gitlink, land the dependent MeshLab code in the same bump).
@@ -253,6 +310,15 @@ Added last, so that nothing can be switched on before everything works:
 - **Preference `view.projection`** (`perspective` | `orthographic`, default
   perspective): the projection a new or reset view starts in, beside
   `view.fieldOfView`. *Reset camera* keeps the current projection.
+**Implemented (stage 5).** Differences from the sketch above: the `5` binding is attached
+only while a 3D view has focus (`MainWindow::updateViewShortcuts`, like Ctrl+C), because a
+bare digit would otherwise flip the projection while typing into a spin box or the console;
+the menu item is disabled outside 3D mode; `RenderWidget::setProjection` also shows a status
+line ("Orthographic projection" / "Perspective projection"); `ViewTrackball::resetToFrame`
+leaves the projection alone, so Reset Camera keeps it, and the preference is read once, when
+a view is created. The on-view readout is the Shift+wheel one from stage 2 ("FOV:
+orthographic"); there is no permanent readout.
+
 - **Canonical views** (the numeric-keypad views of the same request) need nothing
   beyond this: `snapCameraToAxis` keeps the field of view and the projection, and a
   canonical view in orthographic is the usual way to read one.
@@ -275,7 +341,7 @@ listed so that the audit can be checked: each says why it needs nothing.
 | 7 | Near and far planes | `viewtrackball.cpp:230`, `.h:70` | ratios of `distance` | **modify**: extents-based in orthographic |
 | 8 | Peer-glyph far plane | `renderwidget_frame_plan.cpp:401` | widens far only | **modify**: widen both sides |
 | 9 | Pan | `viewtrackball.cpp:352` | `distance * tan(fov/2)` | unchanged: that is `H/2` |
-| 10 | Wheel and Shift+wheel | `viewtrackball.cpp:366` | dolly; dolly-zoom with Shift | **modify**: Shift+wheel ignored in orthographic |
+| 10 | Wheel and Shift+wheel | `viewtrackball.cpp:366` | dolly; dolly-zoom with Shift | **modify**: Shift+wheel passes the narrowest field of view into orthographic and back |
 | 11 | Gizmo radius | `viewtrackball.cpp:219` | `distance * tan(fov/2)` scaling | unchanged: a statement about `H` |
 | 12 | Framing | `setFrame`, `resetToFrame`, `renderwidget.cpp:1630` | `distance` from radius and field of view | unchanged: same |
 | 13 | Canonical views | `renderwidget.cpp:2397` | `setFromLookAt` keeps field of view | unchanged: keeps projection too |
@@ -319,24 +385,35 @@ listed so that the audit can be checked: each says why it needs nothing.
 The interface (row 42) lands last in every stage plan, so that no stage leaves a
 reachable orthographic view that some consumer cannot draw.
 
-1. **vcglib.** Row 35 alone, with a test in this repository (vcglib has no test suite
+1. **vcglib. Done.** Row 35 alone, with a test in this repository (vcglib has no test suite
    of its own) that `CameraShot::projectionMatrix()` through the view matrix agrees with
    `CameraShot::project()` for both camera types and for centred and off-centre
    principal points. Independent of everything else and landed by the four-part
    procedure; the off-centre correction is worth reporting to whoever uses raster
    overlays before it lands, since it moves them.
-2. **The view.** Rows 1, 2, 6, 7, 8, 10, 14, 15, 21, 22, 26. After it an orthographic
+2. **The view. Done.** Rows 1, 2, 6, 7, 8, 10, 14, 15, 21, 22, 26. An orthographic
    state, set by JSON or the Python API, renders, navigates and lights correctly in a
    view, a snapshot and a headless render; there is no menu item yet.
-3. **Cameras as data.** Rows 27, 28, 30, 34, 37, 38, 39 (and 36 and 40 follow from
+3. **Cameras as data. Done.** Rows 27, 28, 30, 34, 37, 38, 39 (and 36 and 40 follow from
    stage 1). Peer and raster camera glyphs, snapshot-to-raster, the camera filters
-   and the raster filters.
-4. **Occlusion.** Row 18.
-5. **Interface and documentation.** Rows 42, 43, 44.
+   and the raster filters. The probe `tests/render_probes/orthographic` also renders an
+   orthographic view into a raster and projects it back onto the sphere, including a
+   camera whose orbit eye is inside the sphere.
+4. **Occlusion. Done.** Row 18. `ViewpointOccluder::isOccludedAlong` is `isOccluded` with
+   the far end of the segment a bounding-box diagonal (plus 10%) beyond the sample, so both
+   backends needed no new query. `select_by_rectangle` picks the form from the camera's
+   projection and carries the view direction into layer space with `mapVector` of the
+   inverse layer matrix. The test puts the orbit eye between two cubes of one layer, where
+   the eye rule and the direction rule disagree about the upper cube.
+5. **Interface and documentation. Done.** Rows 42, 43, 44: View > Orthographic Projection
+   (5), preference `view.projection`, quick help, `python_scripting.md`, `rendering.md`.
 
 ## Tests
 
-`ViewTrackball` has no unit test today, so stage 2 adds one target for it.
+`ViewTrackball` had no unit test, so stage 2 added `MeshLab2ViewTrackballTests`, and the
+render probe `tests/render_probes/orthographic` (a sphere at constant `H`: orthographic
+coverage independent of the field of view, perspective not, perspective at the smallest
+field of view close to orthographic, a 2:1 frame at the same scale).
 
 - **The invariant.** For random states, a point on the plane through the orbit centre
   projects to the same normalized coordinates in both projections; a point `H/2`
@@ -347,7 +424,13 @@ reachable orthographic view that some consumer cannot draw.
 - **JSON.** Round trip; `perspective` omitted from the output; an absent key reads as
   perspective; an unknown value fails naming the key.
 - **Glyphs.** `buildViewFrustumGizmo` on an orthographic matrix gives twelve segments
-  with the four depth edges parallel.
+  with the four depth edges parallel, and a near plane behind the eye is accepted
+  (stage 3, `test_viewfrustumgizmo.cpp`).
+- **Shots and filters (stage 3).** `DocumentTests::cameraShotRaysAndDirectionsFollowTheProjection`
+  (ray through a pixel hits the point that projects there; parallel rays and a constant
+  direction to the camera for `ORTHO`), `cameraShotReadsUnsupportedTypesAsPerspective`, and
+  `FilterTests::cameraFramingFiltersMakeAndKeepOrthographicShots` (*Keep current* keeps,
+  an explicit projection overrides).
 - **vcglib.** Through `CameraShot`: the projection matrix against `project()` and
   `depth()` for `ORTHO` and `PERSPECTIVE`, with the principal point centred and
   off-centre in x and in y; and the `SetFrustum` / `GetFrustum` round trip.
@@ -371,8 +454,9 @@ reachable orthographic view that some consumer cannot draw.
   by `H` instead would make it independent of zoom; measure on a real scan before
   deciding, and leave it alone if the look is acceptable.
 - **Near and far when zoomed far in.** With `distance` much smaller than the scene the
-  orthographic `near` is deeply negative. It is correct, but depth resolution is
-  spread over the whole scene extent; check it on a large scan.
+  orthographic `near` is deeply negative. It is correct, and the fit keeps it as tight as
+  the scene allows; check that nothing drawn outside the scene box -- a tool overlay, a
+  decorator -- is cut by the 5% slack on a real scan.
 - **`isOccludedAlong` and grazing rays.** The tolerance the grid backend applies is
   proportional to the sample's distance (`dist * 1e-3`); with the far end placed one
   bounding-box diagonal away that tolerance is larger than for a perspective eye close

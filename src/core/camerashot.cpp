@@ -21,8 +21,6 @@ vcg::Camera<float>::CameraType toVcgCameraType(CameraShot::CameraType type)
     switch (type) {
     case CameraShot::CameraType::Perspective:  return VcgCamera::PERSPECTIVE;
     case CameraShot::CameraType::Orthographic: return VcgCamera::ORTHO;
-    case CameraShot::CameraType::Isometric:    return VcgCamera::ISOMETRIC;
-    case CameraShot::CameraType::Cavalieri:    return VcgCamera::CAVALIERI;
     }
     return VcgCamera::PERSPECTIVE;
 }
@@ -33,8 +31,8 @@ CameraShot::CameraType fromVcgCameraType(vcg::Camera<float>::CameraType type)
     switch (type) {
     case VcgCamera::PERSPECTIVE: return CameraShot::CameraType::Perspective;
     case VcgCamera::ORTHO:       return CameraShot::CameraType::Orthographic;
-    case VcgCamera::ISOMETRIC:   return CameraShot::CameraType::Isometric;
-    case VcgCamera::CAVALIERI:   return CameraShot::CameraType::Cavalieri;
+    case VcgCamera::ISOMETRIC:
+    case VcgCamera::CAVALIERI:   break;
     }
     return CameraShot::CameraType::Perspective;
 }
@@ -233,6 +231,34 @@ float CameraShot::depth(const QVector3D &worldPoint) const
     return m_shot.Depth(toVcgPoint(worldPoint));
 }
 
+bool CameraShot::viewRayThrough(const QVector2D &pixelPoint, QVector3D &origin,
+                                QVector3D &direction) const
+{
+    if (!isValid())
+        return false;
+    // One unit in front of the viewpoint is enough to give either projection its direction:
+    // perspective rays pass through the viewpoint, orthographic ones are parallel to the axis.
+    const QVector3D eye = viewPoint();
+    const QVector3D onPlane = unproject(pixelPoint, 1.0f);
+    if (!std::isfinite(onPlane.x()) || !std::isfinite(onPlane.y()) || !std::isfinite(onPlane.z()))
+        return false;
+    if (isOrthographic()) {
+        direction = viewDirection();
+        origin = onPlane - direction;
+    } else {
+        direction = (onPlane - eye).normalized();
+        origin = eye;
+    }
+    return !direction.isNull();
+}
+
+QVector3D CameraShot::directionToCamera(const QVector3D &worldPoint) const
+{
+    if (isOrthographic())
+        return -viewDirection();
+    return (viewPoint() - worldPoint).normalized();
+}
+
 QMatrix4x4 CameraShot::viewMatrix() const
 {
     if (!isValid())
@@ -246,7 +272,9 @@ QMatrix4x4 CameraShot::projectionMatrix(float nearPlane, float farPlane) const
     if (!isValid()
         || !std::isfinite(nearPlane)
         || !std::isfinite(farPlane)
-        || nearPlane <= 0.0f
+        // A perspective volume starts in front of the eye; an orthographic one can start
+        // behind it.
+        || (nearPlane <= 0.0f && !isOrthographic())
         || farPlane <= nearPlane) {
         return {};
     }

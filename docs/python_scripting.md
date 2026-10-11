@@ -46,6 +46,20 @@ print(mlgui.render_state_json())
 mlgui.save_snapshot("/tmp/meshlab_snapshot.png", 1200, 900)
 ```
 
+The camera and render-state JSON carry the projection as `"projection": "orthographic"`
+inside the `trackball` object; it is left out for the default `"perspective"`. Both
+projections frame the same height at the orbit centre (`2 * distance * tan(fov_y_degrees / 2)`),
+so adding or removing the key changes how the scene is projected and nothing about what is
+framed:
+
+```python
+import json
+state = json.loads(mlgui.camera_state_json())
+state["trackball"]["projection"] = "orthographic"
+mlgui.apply_camera_state_json(json.dumps(state))
+png = ms.render_snapshot(json.dumps({"trackball": state["trackball"]}), 800, 600)
+```
+
 Use `mlgui` for view state and rendering operations. It is not meant to be a
 general document API.
 

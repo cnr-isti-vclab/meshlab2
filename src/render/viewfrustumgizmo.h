@@ -7,7 +7,7 @@
 
 // The wireframe that shows one 3D view where another view's camera is.
 //
-// It is the frustum itself and nothing else: the apex at the eye, the four edges running
+// It is the view volume itself and nothing else: the apex at the eye, the four edges running
 // out to the far plane, and a rectangle on each of the near and far planes at the exact
 // distances that view clips at. An earlier version drew the body out to an invented
 // "reference depth" of 12% of the scene diagonal, which read as the near plane and was
@@ -33,8 +33,12 @@ struct ViewFrustumGizmo
 // recovering from `proj`, since a projection built for an infinite far plane carries no
 // usable far distance. The field of view and aspect do come from `proj`.
 //
-// Returns an invalid gizmo when the projection is not a finite perspective one or the
-// distances are not a sane near < far pair.
+// An orthographic `proj` gives a box instead of a pyramid: the same two rectangles, joined
+// by four parallel edges, with no apex. Its near distance may be zero or negative -- a box
+// fitted to the scene can start behind the eye -- which a perspective one cannot.
+//
+// Returns an invalid gizmo when the projection is not finite or the distances are not a sane
+// near < far pair.
 ViewFrustumGizmo buildViewFrustumGizmo(
     const QMatrix4x4 &view, const QMatrix4x4 &proj, float nearDist, float farDist);
 
@@ -44,4 +48,10 @@ ViewFrustumGizmo buildViewFrustumGizmo(
 // a view would choose for its own scene. Never negative: a box entirely behind the eye
 // asks for nothing.
 float farthestDistanceInView(
+    const QMatrix4x4 &view, const QVector3D &boundsMin, const QVector3D &boundsMax);
+
+// The same for the nearest corner. Negative when part of the box is behind the eye, which a
+// perspective view cannot show and an orthographic one can, by starting its volume behind
+// the eye; the view needs its near plane at least this close.
+float nearestDistanceInView(
     const QMatrix4x4 &view, const QVector3D &boundsMin, const QVector3D &boundsMax);

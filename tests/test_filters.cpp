@@ -13,6 +13,7 @@
 #include <vcg/complex/algorithms/bitquad_support.h>
 #include <random>
 
+#include "camerashot.h"
 #include "document.h"
 #include "meshfilterpluginmanager.h"
 #include "selectionscope.h"
@@ -416,6 +417,8 @@ private slots:
     void isosurfacesCloseAtTheVolumeBoundary();
     void trimByPlaneReproducesTheViewportClippingPlane();
     void trimByPlaneClosesObliqueCutsToo();
+    void cameraFramingFiltersMakeAndKeepOrthographicShots();
+    void visibleOnlySelectionCastsParallelRaysInAnOrthographicView();
     void filterParameterValidation();
     void meshFixRepairsOpenCube();
     void qslimSimplifiesCube();
@@ -1585,6 +1588,114 @@ void FilterTests::trimByPlaneRefusesRatherThanEmptyTheLayer()
     const MeshFilterRunResult zeroNormal = doc.runFilter(key, params);
     QVERIFY2(!zeroNormal.success, "a zero normal must refuse");
     QCOMPARE(doc.mesh(meshIndex).mesh.VN(), verticesBefore);
+}
+
+// "Keep current" is the default of the framing filters, so a raster that is orthographic stays
+// so under them, and perspective stays perspective; asking for a projection overrides it.
+// Either way the camera frames the same height at the target, so the cube centre lands on the
+// image centre in both.
+void FilterTests::cameraFramingFiltersMakeAndKeepOrthographicShots()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    QVERIFY(doc.addMesh(cube, QStringLiteral("cube")) >= 0);
+    QImage image(32, 24, QImage::Format_RGBA8888);
+    image.fill(Qt::white);
+    QCOMPARE(doc.addRasterImage(image, QStringLiteral("view")), 0);
+    doc.setCurrentRasterIndex(0);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("set_camera_from_direction"));
+    QVERIFY(!key.isEmpty());
+    const auto run = [&](const QString &projection) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("direction"), QVector3D(0.0f, 0.0f, -1.0f));
+        params.insert(QStringLiteral("target"), QStringLiteral("mesh_bbox"));
+        params.insert(QStringLiteral("projection"), projection);
+        const MeshFilterRunResult result = doc.runFilter(key, params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+    };
+
+    run(QStringLiteral("current")); // no camera yet: perspective
+    QVERIFY(doc.raster(0).shot.isValid());
+    QVERIFY(!doc.raster(0).shot.isOrthographic());
+
+    run(QStringLiteral("orthographic"));
+    QVERIFY(doc.raster(0).shot.isOrthographic());
+    const QVector3D centre(0.5f, 0.5f, 0.5f);
+    const QVector2D pixel = doc.raster(0).shot.project(centre);
+    QVERIFY(std::abs(pixel.x() - 400.0f) < 1e-2f);
+    QVERIFY(std::abs(pixel.y() - 300.0f) < 1e-2f);
+    // Parallel rays: every ray runs along the view direction, whichever pixel it goes through.
+    QVector3D origin, direction;
+    QVERIFY(doc.raster(0).shot.viewRayThrough(QVector2D(10.0f, 20.0f), origin, direction));
+    QVERIFY((direction - doc.raster(0).shot.viewDirection()).length() < 1e-5f);
+
+    run(QStringLiteral("current")); // keeps what is there
+    QVERIFY(doc.raster(0).shot.isOrthographic());
+
+    run(QStringLiteral("perspective"));
+    QVERIFY(!doc.raster(0).shot.isOrthographic());
+}
+
+// Visible-only rectangle selection in an orthographic view casts rays along the view
+// direction, not towards the orbit eye. The eye here sits between two cubes of one layer, so
+// the two rules disagree about the upper cube: seen from the eye its top face is behind the
+// cube's own body, seen along the axis it is the first thing in the way.
+void FilterTests::visibleOnlySelectionCastsParallelRaysInAnOrthographicView()
+{
+    Document doc;
+    VCGMesh lower;
+    makeCubeMesh(lower, 0.0f, 0.0f, 0.0f);
+    VCGMesh upper;
+    makeCubeMesh(upper, 0.0f, 0.0f, 3.0f);
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(lower, upper);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(lower);
+    const int layer = doc.addMesh(lower, QStringLiteral("two cubes"));
+    QVERIFY(layer >= 0);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("select_by_screen_rectangle"));
+    QVERIFY(!key.isEmpty());
+    // Looking down -Z from z = 2, the orbit centre at z = 1.5, wide enough to take everything.
+    const QString camera = QStringLiteral(
+        R"({"kind":"MeshLab.CameraState","version":1,"trackball":{"center":[0.5,0.5,1.5],)"
+        R"("rotation_xyzw":[0,0,0,1],"distance":0.5,"radius":1,"fov_y_degrees":120,)"
+        R"("projection":"orthographic"}})");
+    const auto select = [&](bool visibleOnly) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("space"), QStringLiteral("view3d"));
+        params.insert(QStringLiteral("camera_state"), camera);
+        params.insert(QStringLiteral("aspect"), 1.0);
+        params.insert(QStringLiteral("rect_min_x"), 0.0);
+        params.insert(QStringLiteral("rect_max_x"), 1.0);
+        params.insert(QStringLiteral("rect_min_y"), 0.0);
+        params.insert(QStringLiteral("rect_max_y"), 1.0);
+        params.insert(QStringLiteral("element"), QStringLiteral("face"));
+        params.insert(QStringLiteral("mode"), QStringLiteral("replace"));
+        params.insert(QStringLiteral("visible_only"), visibleOnly);
+        params.insert(QStringLiteral("expand_to"), QStringLiteral("none"));
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+    };
+    // How many selected faces lie flat at height z (their centroid and a vertex agree).
+    const auto selectedOnPlane = [&](float z) {
+        int count = 0;
+        for (const VCGFace &f : doc.mesh(layer).mesh.face) {
+            const bool flat = std::abs(f.cP(0).Z() - z) < 1e-5f && std::abs(f.cP(1).Z() - z) < 1e-5f
+                && std::abs(f.cP(2).Z() - z) < 1e-5f;
+            if (flat && f.IsS())
+                ++count;
+        }
+        return count;
+    };
+
+    select(false);
+    QCOMPARE(selectedOnPlane(4.0f), 2);
+    QCOMPARE(selectedOnPlane(1.0f), 2);
+
+    select(true);
+    QCOMPARE(selectedOnPlane(4.0f), 2); // the top of the upper cube: nothing above it
+    QCOMPARE(selectedOnPlane(1.0f), 0); // the top of the lower cube: the upper cube is in the way
 }
 
 void FilterTests::filterParameterValidation()

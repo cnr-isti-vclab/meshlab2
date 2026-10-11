@@ -25,7 +25,7 @@ Schema (`kind = "MeshLab.RenderState"`, `version = 1`) includes:
 
 - `view_mode`: `Scene3D` | `ParametrizationUV` | `RasterImage`
 - `raster_opacity`: float in `[0, 1]`
-- `trackball`: same trackball payload used by camera JSON (`center`, `rotation_xyzw`, `distance`, `radius`, `fov_y_degrees`, near-clip and gizmo fields)
+- `trackball`: same trackball payload used by camera JSON (`center`, `rotation_xyzw`, `distance`, `radius`, `fov_y_degrees`, near-clip and gizmo fields, and `projection`: `"orthographic"`, omitted for the default `"perspective"`; see [Orthographic Camera](proposals/orthographic_camera.md))
 - `render_settings`: sparse `GlobalRenderSettings` payload (background, histogram settings, UV options, current-mesh highlight settings, etc.; default-valued fields are omitted)
 - `mesh_visibility`: per-view visibility bool array, emitted only when at least one mesh is hidden in the view
 - `mesh_render_modes`: array of `{ mesh_id, settings }`, where `settings` is a sparse `PerMeshRenderSettings` payload
@@ -137,7 +137,7 @@ Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfac
 
 Simple buffer pass execution (wire, edges, bbox, points), decorator execution, and selection execution are isolated in `renderwidget_scene_passes.cpp`. Their draw order remains controlled by `renderwidget_render.cpp`.
 
-**Rasters**: `renderwidget_raster.cpp` owns per-raster texture upload and draw execution. In `Scene3D`, rasters with valid camera shots draw as small line frustums with the apex at the raster camera origin and the base oriented by the camera view frustum; the current raster frustum is highlighted in warm yellow while other raster frustums use blue. Rasters without cameras are not drawn in the 3D view. The raster image itself is not pasted into the 3D scene. In `RasterImage`, only the active raster layer is requested as the full-viewport background reference, and mesh passes are included only when that raster has a valid camera.
+**Rasters**: `renderwidget_raster.cpp` owns per-raster texture upload and draw execution. In `Scene3D`, rasters with valid camera shots draw as small line frustums with the apex at the raster camera origin and the base oriented by the camera view frustum (an orthographic shot draws as a box instead: no apex, four parallel edges between two equal rectangles, as does a peer view's camera when that view is orthographic); the current raster frustum is highlighted in warm yellow while other raster frustums use blue. Rasters without cameras are not drawn in the 3D view. The raster image itself is not pasted into the 3D scene. In `RasterImage`, only the active raster layer is requested as the full-viewport background reference, and mesh passes are included only when that raster has a valid camera.
 
 ## Current Mesh Highlight
 
@@ -275,7 +275,7 @@ Double click schedules an offscreen depth-pick frame: depth encoded in RGB → o
 
 ## `Scene3D` Camera and Interaction
 
-`ViewTrackball`: left drag = arcball/hyperbola rotation; middle/right drag or `Ctrl+Left` = pan; wheel = dolly; `Shift+Wheel` = vertigo (FOV + compensating dolly); double click = depth-pick + animated recenter. `Ctrl+Shift+Left` rotates the view-space headlight and shows the light gizmo while dragging. `Ctrl+Wheel` slides the clipping plane and `Alt+Left` tips it (see [Clipping Plane](#clipping-plane)). Gizmos are depth-aware and scale-stable across dolly/FOV changes. The corner `ViewAxisGizmo` uses the `view.axisGizmoSize` preference and lets axis clicks snap the 3D camera orientation. `MainWindow` can optionally synchronize camera state across 3D views and exposes a `Center on Selection` camera command; UV views keep independent pan/zoom.
+`ViewTrackball`: left drag = arcball/hyperbola rotation; middle/right drag or `Ctrl+Left` = pan; wheel = dolly; `Shift+Wheel` = vertigo (FOV + compensating dolly), which past the narrowest field of view goes on into orthographic and back; `5` or View > Orthographic Projection toggles the projection of the current 3D view (the `view.projection` preference sets where a new view starts); double click = depth-pick + animated recenter. `Ctrl+Shift+Left` rotates the view-space headlight and shows the light gizmo while dragging. `Ctrl+Wheel` slides the clipping plane and `Alt+Left` tips it (see [Clipping Plane](#clipping-plane)). Gizmos are depth-aware and scale-stable across dolly/FOV changes. The corner `ViewAxisGizmo` uses the `view.axisGizmoSize` preference and lets axis clicks snap the 3D camera orientation. `MainWindow` can optionally synchronize camera state across 3D views and exposes a `Center on Selection` camera command; UV views keep independent pan/zoom.
 
 ## Interactive Tools
 

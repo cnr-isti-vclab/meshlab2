@@ -100,13 +100,26 @@
         {
           "id": "sensorWidthMm",
           "label": "Sensor width (mm)",
-          "help": "Camera sensor width in millimeters.",
+          "help": "Camera sensor width in millimeters. For an orthographic camera, the width of the view volume in world units, and the focal length plays no part.",
           "group": "main",
           "type": "double",
           "default": 36.0,
           "min": 1.0,
           "max": 1000.0,
           "decimals": 1
+        },
+        {
+          "id": "projection",
+          "label": "Projection",
+          "help": "Perspective or orthographic camera. 'Keep current' uses the projection of the raster's present camera, and perspective when it has none.",
+          "group": "main",
+          "type": "enum",
+          "default": "current",
+          "enumOptions": [
+            { "id": "current", "label": "Keep current" },
+            { "id": "perspective", "label": "Perspective" },
+            { "id": "orthographic", "label": "Orthographic" }
+          ]
         }
       ]
     },
@@ -554,6 +567,19 @@
           "decimals": 1
         },
         {
+          "id": "projection",
+          "label": "Projection",
+          "help": "Perspective or orthographic camera. 'Keep current' uses the projection of the current raster's camera, and perspective when there is none. The framing is the same either way: the camera sees the same height at the target.",
+          "group": "main",
+          "type": "enum",
+          "default": "current",
+          "enumOptions": [
+            { "id": "current", "label": "Keep current" },
+            { "id": "perspective", "label": "Perspective" },
+            { "id": "orthographic", "label": "Orthographic" }
+          ]
+        },
+        {
           "id": "useFaceNormals",
           "label": "Use face normals",
           "help": "Average face normals to determine the view direction. If no faces are selected, falls back to vertex normals.",
@@ -616,6 +642,19 @@
           "min": 5.0,
           "max": 120.0,
           "decimals": 1
+        },
+        {
+          "id": "projection",
+          "label": "Projection",
+          "help": "Perspective or orthographic camera. 'Keep current' uses the projection of the current raster's camera, and perspective when there is none. The framing is the same either way: the camera sees the same height at the target.",
+          "group": "main",
+          "type": "enum",
+          "default": "current",
+          "enumOptions": [
+            { "id": "current", "label": "Keep current" },
+            { "id": "perspective", "label": "Perspective" },
+            { "id": "orthographic", "label": "Orthographic" }
+          ]
         }
       ]
     }

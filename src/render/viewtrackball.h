@@ -6,21 +6,47 @@
 #include <QSize>
 #include <QVector3D>
 #include <QVector4D>
+#include <limits>
 
 class QMouseEvent;
 class QWheelEvent;
 class QJsonObject;
 class QString;
 
+// How the scene is projected onto the view.
+enum class Projection {
+    Perspective = 0,
+    // Parallel rays. The view volume is as tall as the perspective view's visible height at
+    // the orbit centre, 2 * distance * tan(fovY / 2), so switching projection keeps the
+    // framing of everything on the plane through the centre; see ViewTrackball::State.
+    Orthographic
+};
+
+// A ray through a pixel, in world space. `direction` is a unit vector.
+struct ViewRay {
+    QVector3D origin;
+    QVector3D direction;
+};
+
 class ViewTrackball
 {
 public:
+    // The camera is an orbit about `center`: the eye sits `distance` away along the view axis,
+    // and `fovYDeg` and `distance` together fix H = 2 * distance * tan(fovY / 2), the world
+    // height visible at the centre. Perspective and orthographic both frame that height, which
+    // is why the same distance and field of view serve for both, why switching between them
+    // changes nothing about what is framed, and why pan, zoom and the gizmo radius -- all
+    // statements about H -- do not depend on the projection. What differs is the eye: in
+    // perspective rays leave it, in orthographic they are parallel and it only says where
+    // depth is measured from.
     struct State {
         QVector3D center = QVector3D(0.0f, 0.0f, 0.0f);
         QQuaternion rotation;
         float distance = 3.0f;
         float radius = 1.0f;
         float fovYDeg = 45.0f;
+        // Kept in both projections, so that switching back restores the perspective view.
+        Projection projection = Projection::Perspective;
         float nearClipRatio = 0.0033333333f;
         float gizmoBaseRadius = 1.0f;
         float gizmoReferenceDistance = 3.0f;
@@ -62,13 +88,51 @@ public:
     QVector3D cameraUp() const;
     float radius() const { return m_radius; }
     float fovYDegrees() const { return m_fovYDeg; }
+    Projection projection() const { return m_projection; }
+    bool isOrthographic() const { return m_projection == Projection::Orthographic; }
+    // Changes only the projection: centre, distance and field of view stay, and with them the
+    // height visible at the centre, so what was framed stays framed.
+    void setProjection(Projection projection) { m_projection = projection; }
     float nearClipRatio() const { return m_nearClipRatio; }
+    // Distances of the clipping planes from the eye. Perspective: the near plane is a fraction
+    // of `distance`, and the far plane a generous reach from the orbit centre (below).
+    //
+    // Orthographic has no depth-precision reason for a near plane close to the eye, so it is
+    // fitted: the volume starts just before the nearest point of the scene bounding box, which
+    // the view sets with setSceneBounds(), and ends just after the farthest, widened to hold
+    // the trackball gizmo about the orbit centre. That can put it *behind the eye*, a negative
+    // distance, whenever the centre is closer to the eye than the scene is deep. Without
+    // bounds -- before the first frame, or a camera rebuilt from JSON -- it falls back to the
+    // generous symmetric reach the perspective far plane uses.
     float nearClipPlaneDistance() const;
     // Far plane must enclose the whole scene, not just the framing radius — when
     // zoomed onto a small detail m_radius is tiny but the scene extends far. The
     // scene radius (set per frame by the view) keeps the far plane wide enough.
-    float farClipPlaneDistance() const { return m_distance + 4.0f * qMax(m_radius, m_sceneRadius); }
+    float farClipPlaneDistance() const;
+    // The JSON spelling of a projection, as the camera and render-state payloads carry it.
+    static QString projectionJsonName(Projection projection);
     void setSceneRadius(float sceneRadius) { m_sceneRadius = qMax(0.0f, sceneRadius); }
+    // Whether the graphics backend clips depth to [0, 1] (Metal, Direct3D, Vulkan) rather than
+    // [-1, 1] (OpenGL). The renderer hands the backend the projection matrix as it is, with no
+    // correction, so a perspective matrix is used with depth in [-1, 1] and loses only the thin
+    // sliver in front of twice the near distance; an orthographic one, whose depth is linear,
+    // would lose the whole nearer half of its volume. So the orthographic matrix maps its
+    // volume to the range the backend keeps. The view says which that is; not part of the
+    // camera state.
+    // The matrix that folds clip-space depth from [-1, 1] onto [0, 1]; multiply a projection
+    // by it for a backend that clips to [0, 1].
+    static QMatrix4x4 depthFoldToZeroToOne();
+    void setClipDepthZeroToOne(bool zeroToOne) { m_clipDepthZeroToOne = zeroToOne; }
+    bool clipDepthZeroToOne() const { return m_clipDepthZeroToOne; }
+    // The world-space box of everything visible (transient, set per frame by the view); it
+    // fits the orthographic depth range. clearSceneBounds() when there is nothing to fit.
+    void setSceneBounds(const QVector3D &minCorner, const QVector3D &maxCorner)
+    {
+        m_sceneMin = minCorner;
+        m_sceneMax = maxCorner;
+        m_sceneBoundsValid = true;
+    }
+    void clearSceneBounds() { m_sceneBoundsValid = false; }
     float gizmoWorldRadius() const;
 
     QMatrix4x4 viewMatrix() const;
@@ -81,7 +145,17 @@ public:
     // pushed out to cut into the object, where widening far to any distance costs at most
     // 1/(1 - near/far) -- about 1.4x at a cut halfway through a framed object. That goes
     // away once the clipping plane retires the near-plane cutting trick.
-    QMatrix4x4 projectionMatrix(float aspect, float minFarDistance = 0.0f) const;
+    //
+    // `maxNearDistance` is the same for the other end: an orthographic view can start its
+    // volume behind the eye, and does so as far back as this says. Perspective cannot see
+    // behind the eye and ignores it.
+    QMatrix4x4 projectionMatrix(float aspect, float minFarDistance = 0.0f,
+                                float maxNearDistance = std::numeric_limits<float>::infinity()) const;
+    // The ray through the pixel `pos` of a viewport of `viewportSize`, for the current
+    // rotation. Perspective: it starts at the eye and passes through the pixel. Orthographic:
+    // it runs along the view direction and starts where the pixel meets the near plane.
+    // False for a degenerate viewport or matrix.
+    bool viewRay(const QPointF &pos, const QSize &viewportSize, ViewRay &ray) const;
 
     void mousePress(const QMouseEvent *e, const QSize &viewportSize);
     void mouseRelease(const QMouseEvent *e);
@@ -95,6 +169,11 @@ private:
         Pan
     };
 
+    // How far the scene can reach from the orbit centre along the view axis, with margin.
+    float depthHalfSpan() const { return 4.0f * qMax(m_radius, m_sceneRadius); }
+    // The distances, in front of the eye, of the nearest and farthest things an orthographic
+    // view must hold; false when the scene bounds are not known.
+    bool orthographicDepthRange(float &nearDist, float &farDist) const;
     QVector3D projectOnArcball(const QPointF &pos, const QSize &viewportSize) const;
     QMatrix4x4 viewMatrixForRotation(const QQuaternion &rotation) const;
     QVector3D viewPointForRotation(const QQuaternion &rotation) const;
@@ -116,7 +195,12 @@ private:
     float m_distance = 3.0f;
     float m_radius = 1.0f;
     float m_sceneRadius = 1.0f; // whole-scene extent for far-plane clipping (transient)
+    QVector3D m_sceneMin;       // whole-scene box, for the orthographic depth range (transient)
+    QVector3D m_sceneMax;
+    bool m_sceneBoundsValid = false;
+    bool m_clipDepthZeroToOne = false;
     float m_fovYDeg = 45.0f;
+    Projection m_projection = Projection::Perspective;
     float m_nearClipRatio = 0.0033333333f;
     float m_gizmoBaseRadius = 1.0f;
     float m_gizmoReferenceDistance = 3.0f;

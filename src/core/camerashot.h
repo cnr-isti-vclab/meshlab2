@@ -24,11 +24,12 @@ class CameraShot
 public:
     using VcgShot = vcg::Shot<float>;
 
+    // The two projections MeshLab renders. vcg::Camera also names ISOMETRIC and CAVALIERI,
+    // which no code here ever drew; a project file carrying one reads as Perspective, with a
+    // warning from the loader.
     enum class CameraType {
         Perspective,
-        Orthographic,
-        Isometric,
-        Cavalieri
+        Orthographic
     };
 
     CameraShot();
@@ -73,7 +74,18 @@ public:
     QVector2D project(const QVector3D &worldPoint) const;
     QVector3D unproject(const QVector2D &pixelPoint, float depth) const;
     float depth(const QVector3D &worldPoint) const;
+    bool isOrthographic() const { return cameraType() == CameraType::Orthographic; }
+    // The ray through a pixel, in world space; `direction` is a unit vector. Perspective: it
+    // starts at the viewpoint. Orthographic: it runs along the view direction and starts on
+    // the plane through the viewpoint. False for an invalid shot.
+    bool viewRayThrough(const QVector2D &pixelPoint, QVector3D &origin, QVector3D &direction) const;
+    // Unit vector from a world point towards the camera: towards the viewpoint in
+    // perspective, against the view direction (the same everywhere) in orthographic. What a
+    // raster filter means by "the direction the camera sees this point from".
+    QVector3D directionToCamera(const QVector3D &worldPoint) const;
     QMatrix4x4 viewMatrix() const;
+    // Depth range in distances from the viewpoint. Orthographic accepts a near plane at or
+    // behind the viewpoint; perspective needs it in front.
     QMatrix4x4 projectionMatrix(float nearPlane, float farPlane) const;
 
     // Transform the shot's extrinsic parameters

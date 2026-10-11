@@ -26,6 +26,24 @@
       "decimals": 1
     },
     {
+      "id": "view.projection",
+      "label": "Projection",
+      "help": "The projection a new 3D view starts in. **Perspective** is the usual camera; **Orthographic** has parallel rays, so size does not change with distance and parallel lines stay parallel, which is what you want to measure or compare against a drawing. Either way you can switch a view at any time with View > Orthographic Projection (5), or by turning Shift+wheel past the narrowest field of view. The two frame the same height at the point the camera orbits, so switching keeps what you were looking at. Reset Camera keeps the view's current projection.",
+      "group": "view",
+      "type": "enum",
+      "default": "perspective",
+      "enumOptions": [
+        {
+          "id": "perspective",
+          "label": "Perspective"
+        },
+        {
+          "id": "orthographic",
+          "label": "Orthographic"
+        }
+      ]
+    },
+    {
       "id": "view.nearClipRatio",
       "label": "Near clip ratio",
       "help": "Near clipping plane, as a fraction of the distance from the camera to the point it orbits. It sets depth precision: raise it if surfaces flicker against each other, lower it if geometry close to the camera gets cut away. To cut into an object, use the clipping plane instead (Ctrl+wheel in a 3D view).",

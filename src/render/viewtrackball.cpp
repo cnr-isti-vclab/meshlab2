@@ -58,6 +58,15 @@ bool ViewTrackball::stateFromJson(const QJsonObject &obj, State &outState, QStri
     const auto readFloat = [&](const char *key, float &dst) {
         return !obj.contains(QLatin1String(key)) || jsonReadFloat(obj.value(QLatin1String(key)), dst);
     };
+    if (obj.contains(QStringLiteral("projection"))) {
+        const QString name = obj.value(QStringLiteral("projection")).toString();
+        if (name == projectionJsonName(Projection::Perspective))
+            outState.projection = Projection::Perspective;
+        else if (name == projectionJsonName(Projection::Orthographic))
+            outState.projection = Projection::Orthographic;
+        else
+            return fail(QStringLiteral("'projection' must be \"perspective\" or \"orthographic\"."));
+    }
     if (obj.contains(QStringLiteral("center"))
         && !jsonReadVec3(obj.value(QStringLiteral("center")), outState.center))
         return fail(QStringLiteral("'center' must be [x, y, z]."));
@@ -97,6 +106,12 @@ ViewTrackball::ViewTrackball()
     m_rotation = defaultTrackballRotation();
 }
 
+QString ViewTrackball::projectionJsonName(Projection projection)
+{
+    return projection == Projection::Orthographic ? QStringLiteral("orthographic")
+                                                  : QStringLiteral("perspective");
+}
+
 ViewTrackball::State ViewTrackball::state() const
 {
     State s;
@@ -105,6 +120,7 @@ ViewTrackball::State ViewTrackball::state() const
     s.distance = m_distance;
     s.radius = m_radius;
     s.fovYDeg = m_fovYDeg;
+    s.projection = m_projection;
     s.nearClipRatio = m_nearClipRatio;
     s.gizmoBaseRadius = m_gizmoBaseRadius;
     s.gizmoReferenceDistance = m_gizmoReferenceDistance;
@@ -118,6 +134,7 @@ void ViewTrackball::setState(const State &state)
     m_radius = qMax(1e-4f, state.radius);
     m_distance = qMax(0.01f * m_radius, state.distance);
     m_fovYDeg = std::clamp(state.fovYDeg, kMinTrackballFovYDeg, kMaxTrackballFovYDeg);
+    m_projection = state.projection;
     m_nearClipRatio = std::clamp(state.nearClipRatio, kMinNearClipRatio, kMaxNearClipRatio);
 
     const float rotLen2 = state.rotation.lengthSquared();
@@ -227,8 +244,52 @@ float ViewTrackball::gizmoWorldRadius() const
     return qMax(1e-4f, m_gizmoBaseRadius * scale);
 }
 
+bool ViewTrackball::orthographicDepthRange(float &nearDist, float &farDist) const
+{
+    if (!m_sceneBoundsValid)
+        return false;
+    // The eight corners of the box, as distances in front of the eye.
+    const QMatrix4x4 view = viewMatrix();
+    float lo = std::numeric_limits<float>::infinity();
+    float hi = -lo;
+    for (int corner = 0; corner < 8; ++corner) {
+        const QVector3D p((corner & 1) ? m_sceneMax.x() : m_sceneMin.x(),
+                          (corner & 2) ? m_sceneMax.y() : m_sceneMin.y(),
+                          (corner & 4) ? m_sceneMax.z() : m_sceneMin.z());
+        const float dist = -(view * p).z();
+        lo = std::min(lo, dist);
+        hi = std::max(hi, dist);
+    }
+    // The gizmo about the orbit centre, which is `distance` in front of the eye, is drawn in
+    // the scene's depth and reaches past a small box.
+    const float gizmo = gizmoWorldRadius();
+    lo = std::min(lo, m_distance - gizmo);
+    hi = std::max(hi, m_distance + gizmo);
+    // A little slack, so that surfaces lying on the box faces, wide lines and the tips of
+    // normals are not cut; and some for a box flat against the view, which has no depth.
+    const float height = 2.0f * m_distance * std::tan(0.5f * qDegreesToRadians(m_fovYDeg));
+    const float pad = 0.05f * (hi - lo) + 1.0e-3f * height;
+    nearDist = lo - pad;
+    farDist = hi + pad;
+    return true;
+}
+
+float ViewTrackball::farClipPlaneDistance() const
+{
+    float nearDist, farDist;
+    if (m_projection == Projection::Orthographic && orthographicDepthRange(nearDist, farDist))
+        return farDist;
+    return m_distance + depthHalfSpan();
+}
+
 float ViewTrackball::nearClipPlaneDistance() const
 {
+    if (m_projection == Projection::Orthographic) {
+        float nearDist, farDist;
+        if (orthographicDepthRange(nearDist, farDist))
+            return nearDist;
+        return m_distance - depthHalfSpan();
+    }
     const float r = qMax(1e-4f, m_radius);
     const float dist = qMax(1e-4f, m_distance);
     return std::clamp(dist * m_nearClipRatio, 1e-5f * r, 1000.0f * r);
@@ -378,11 +439,24 @@ bool ViewTrackball::wheel(const QWheelEvent *e)
     // from the preferences.
     const bool fovMode = (e->modifiers() & Qt::ShiftModifier);
     if (fovMode) {
+        // The field-of-view wheel trades field of view for distance at constant H: forward
+        // narrows the field of view, flattening the perspective, and the limit of that is the
+        // orthographic view. So the wheel does not stop at the narrowest field of view: it
+        // goes on into orthographic, and turning it back leaves orthographic for perspective
+        // at that same field of view. H is untouched throughout, so nothing jumps.
+        if (m_projection == Projection::Orthographic) {
+            if (steps > 0.0f)
+                return false; // nothing flatter than parallel
+            m_projection = Projection::Perspective;
+        }
+
         const float oldFovRad = qDegreesToRadians(m_fovYDeg);
         const float oldTanHalfFov = qMax(1e-6f, std::tan(0.5f * oldFovRad));
         const float constantScreenScale = m_distance * oldTanHalfFov;
 
         float newFov = m_fovYDeg * std::pow(0.90f, steps);
+        if (newFov < kMinTrackballFovYDeg && steps > 0.0f)
+            m_projection = Projection::Orthographic;
         newFov = std::clamp(newFov, kMinTrackballFovYDeg, kMaxTrackballFovYDeg);
         m_fovYDeg = newFov;
 
@@ -428,7 +502,8 @@ QVector3D ViewTrackball::cameraUp() const
     return m_rotation.conjugated().rotatedVector(QVector3D(0.0f, 1.0f, 0.0f));
 }
 
-QMatrix4x4 ViewTrackball::projectionMatrix(float aspect, float minFarDistance) const
+QMatrix4x4 ViewTrackball::projectionMatrix(float aspect, float minFarDistance,
+                                           float maxNearDistance) const
 {
     const float nearPlane = nearClipPlaneDistance();
     float farPlane = farClipPlaneDistance();
@@ -439,8 +514,32 @@ QMatrix4x4 ViewTrackball::projectionMatrix(float aspect, float minFarDistance) c
         farPlane = qMin(minFarDistance, farPlane * 1.0e4f);
     }
     QMatrix4x4 proj;
+    if (m_projection == Projection::Orthographic) {
+        // The volume is H tall, H = 2 * distance * tan(fovY / 2), the height perspective
+        // frames at the orbit centre, and as wide as the aspect makes it. Depth is linear,
+        // so the planes cost no precision however far apart they are; `near` may be negative.
+        float orthoNear = nearPlane;
+        if (std::isfinite(maxNearDistance) && maxNearDistance < orthoNear)
+            orthoNear = qMax(maxNearDistance, orthoNear - 1.0e4f * (farPlane - orthoNear));
+        const float halfH = m_distance * std::tan(0.5f * qDegreesToRadians(m_fovYDeg));
+        const float halfW = halfH * aspect;
+        proj.ortho(-halfW, halfW, -halfH, halfH, orthoNear, farPlane);
+        if (m_clipDepthZeroToOne) {
+            // ortho() maps the volume to depth [-1, 1]; fold that onto [0, 1].
+            proj = depthFoldToZeroToOne() * proj;
+        }
+        return proj;
+    }
     proj.perspective(m_fovYDeg, aspect, nearPlane, farPlane);
     return proj;
+}
+
+QMatrix4x4 ViewTrackball::depthFoldToZeroToOne()
+{
+    QMatrix4x4 fold;
+    fold(2, 2) = 0.5f;
+    fold(2, 3) = 0.5f;
+    return fold;
 }
 
 QVector3D ViewTrackball::viewPointForRotation(const QQuaternion &rotation) const
@@ -451,6 +550,11 @@ QVector3D ViewTrackball::viewPointForRotation(const QQuaternion &rotation) const
         return QVector3D(0.0f, 0.0f, 0.0f);
     const QVector4D vp = invView * QVector4D(0.0f, 0.0f, 0.0f, 1.0f);
     return vp.toVector3D();
+}
+
+bool ViewTrackball::viewRay(const QPointF &pos, const QSize &viewportSize, ViewRay &ray) const
+{
+    return viewRayFromWindow(pos, viewportSize, m_rotation, ray.origin, ray.direction);
 }
 
 bool ViewTrackball::viewRayFromWindow(
@@ -478,7 +582,18 @@ bool ViewTrackball::viewRayFromWindow(
         return false;
     pFar /= pFar.w();
 
-    rayOrigin = viewPointForRotation(rotation);
+    // Every ray leaves the eye in perspective; in orthographic the rays are parallel and
+    // the pixel decides where each one starts, on the near plane.
+    if (m_projection == Projection::Orthographic) {
+        // The near plane's depth in the backend's own range.
+        QVector4D pNear = invMvp * QVector4D(xNdc, yNdc, m_clipDepthZeroToOne ? 0.0f : -1.0f, 1.0f);
+        if (qFuzzyIsNull(pNear.w()))
+            return false;
+        pNear /= pNear.w();
+        rayOrigin = pNear.toVector3D();
+    } else {
+        rayOrigin = viewPointForRotation(rotation);
+    }
     rayDir = pFar.toVector3D() - rayOrigin;
     const float d2 = rayDir.lengthSquared();
     if (d2 < 1e-12f)

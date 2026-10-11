@@ -47,6 +47,8 @@ private slots:
     void cameraShotUnprojectsImageCenter();
     void cameraShotRenderMatricesMatchProjection();
     void cameraShotRenderMatricesMatchProjectionOffCentreAndOrthographic();
+    void cameraShotRaysAndDirectionsFollowTheProjection();
+    void cameraShotReadsUnsupportedTypesAsPerspective();
     void cameraFrustumRoundTripsThroughSetFrustum();
     void logReplaceLastEntryOnCarriageReturn();
     void logEntriesCarryASeverityLevel();
@@ -249,6 +251,60 @@ void DocumentTests::cameraShotRenderMatricesMatchProjectionOffCentreAndOrthograp
 
 // SetFrustum takes the extents of a view volume and GetFrustum gives them back; the
 // horizontal pair used to come back mirrored.
+// What a raster filter asks of a camera: the ray through a pixel, and the direction from a
+// point back to it. Rays leave the viewpoint in perspective and run parallel in orthographic,
+// which has no single point to look back at.
+void DocumentTests::cameraShotRaysAndDirectionsFollowTheProjection()
+{
+    for (const bool orthographic : { false, true }) {
+        CameraShot::VcgShot vcgShot;
+        vcg::Camera<float> &camera = vcgShot.Intrinsics;
+        camera.cameraType = orthographic ? vcg::Camera<float>::ORTHO : vcg::Camera<float>::PERSPECTIVE;
+        camera.ViewportPx = vcg::Point2i(800, 600);
+        camera.CenterPx = vcg::Point2f(400, 300);
+        camera.PixelSizeMm = orthographic ? vcg::Point2f(0.01f, 0.01f) : vcg::Point2f(0.05f, 0.05f);
+        camera.FocalMm = 40.0f;
+        vcgShot.LookAt(5, 3, 20, 0.5f, 0.2f, 0, 0, 1, 0);
+        const CameraShot shot = CameraShot::fromVcgShot(vcgShot);
+        QVERIFY(shot.isValid());
+        QCOMPARE(shot.isOrthographic(), orthographic);
+
+        // A ray through a pixel hits the world point that projects to that pixel, from any depth.
+        const QVector3D world(1.0f, -2.0f, 3.0f);
+        const QVector2D pixel = shot.project(world);
+        QVector3D origin, direction;
+        QVERIFY(shot.viewRayThrough(pixel, origin, direction));
+        QVERIFY(qAbs(direction.length() - 1.0f) < 1e-5f);
+        const float t = QVector3D::dotProduct(world - origin, direction);
+        QVERIFY2((origin + direction * t - world).length() < 1e-3f, orthographic ? "ortho" : "persp");
+
+        if (orthographic) {
+            // Every pixel's ray is parallel to the axis; the viewpoint is not special.
+            QVector3D otherOrigin, otherDirection;
+            QVERIFY(shot.viewRayThrough(QVector2D(0.0f, 0.0f), otherOrigin, otherDirection));
+            QVERIFY((otherDirection - direction).length() < 1e-5f);
+            QVERIFY((shot.directionToCamera(world) + shot.viewDirection()).length() < 1e-5f);
+            QVERIFY((shot.directionToCamera(QVector3D(9, 9, 9)) - shot.directionToCamera(world)).length() < 1e-6f);
+        } else {
+            QVERIFY((origin - shot.viewPoint()).length() < 1e-4f);
+            const QVector3D toEye = (shot.viewPoint() - world).normalized();
+            QVERIFY((shot.directionToCamera(world) - toEye).length() < 1e-5f);
+        }
+    }
+    QVector3D unusedOrigin, unusedDirection;
+    QVERIFY(!CameraShot().viewRayThrough(QVector2D(0, 0), unusedOrigin, unusedDirection));
+}
+
+// The vcg camera also names isometric and cavalieri, which nothing here draws.
+void DocumentTests::cameraShotReadsUnsupportedTypesAsPerspective()
+{
+    for (const auto type : { vcg::Camera<float>::ISOMETRIC, vcg::Camera<float>::CAVALIERI }) {
+        CameraShot::VcgShot vcgShot;
+        vcgShot.Intrinsics.cameraType = type;
+        QCOMPARE(CameraShot::fromVcgShot(vcgShot).cameraType(), CameraShot::CameraType::Perspective);
+    }
+}
+
 void DocumentTests::cameraFrustumRoundTripsThroughSetFrustum()
 {
     vcg::Camera<float> camera;

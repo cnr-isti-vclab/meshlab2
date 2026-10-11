@@ -1389,6 +1389,24 @@ MainWindow::MainWindow(QWidget *parent)
         this,
         &MainWindow::centerCameraOnSelection);
     viewMenu->addSeparator();
+    // The 5 key, as in Blender. A bare digit has to belong to a 3D view only, or typing one
+    // into a spin box or the console would flip the projection: the binding follows focus in
+    // updateViewShortcuts(), like Ctrl+C below.
+    m_orthographicAction = viewMenu->addAction(tr("Orthographic Projection"));
+    m_orthographicAction->setCheckable(true);
+    m_orthographicAction->setShortcutContext(Qt::WindowShortcut);
+    connect(m_orthographicAction, &QAction::triggered, this, [this] {
+        if (RenderWidget *view = currentRenderWidget())
+            view->setProjection(view->projection() == Projection::Orthographic
+                                    ? Projection::Perspective
+                                    : Projection::Orthographic);
+    });
+    connect(viewMenu, &QMenu::aboutToShow, this, [this] {
+        const RenderWidget *view = currentRenderWidget();
+        m_orthographicAction->setChecked(view && view->projection() == Projection::Orthographic);
+        m_orthographicAction->setEnabled(view && view->viewMode() == RenderWidget::ViewMode::Scene3D);
+    });
+    viewMenu->addSeparator();
     // Ctrl+C and Ctrl+V copy and paste the camera only while a 3D view has focus; the
     // binding follows focus in updateViewShortcuts(). The menu entries fire from the menu
     // whatever is focused, so the commands stay reachable with no view active.
@@ -1509,6 +1527,8 @@ void MainWindow::updateViewShortcuts(QWidget *focused)
     bool inView = false;
     for (QWidget *w = focused; w && !inView; w = w->parentWidget())
         inView = qobject_cast<RenderWidget *>(w) != nullptr;
+    if (m_orthographicAction)
+        m_orthographicAction->setShortcut(inView ? QKeySequence(Qt::Key_5) : QKeySequence());
     if (m_copyCameraAction)
         m_copyCameraAction->setShortcut(inView ? QKeySequence(QKeySequence::Copy) : QKeySequence());
     if (m_pasteCameraAction)

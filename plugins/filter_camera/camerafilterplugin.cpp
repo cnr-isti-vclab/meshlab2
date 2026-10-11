@@ -160,6 +160,78 @@ void applyTransformToVisibleMeshes(Document &doc, const QMatrix4x4 &transf)
     }
 }
 
+// Whether a framing filter makes an orthographic camera: asked for, or left on "current" and
+// the current raster's camera is one. Without a raster, "current" means perspective.
+bool framingIsOrthographic(const FilterParams &p, Document &doc)
+{
+    const QString projection = p.getEnum(QStringLiteral("projection"));
+    if (projection == QStringLiteral("orthographic"))
+        return true;
+    if (projection == QStringLiteral("perspective"))
+        return false;
+    const int ri = doc.currentRasterIndex();
+    return ri >= 0 && doc.raster(ri).shot.isOrthographic();
+}
+
+// A camera at `eye` looking at `center` that frames a sphere of radius `halfDiag` (scaled by
+// `margin`): writes it to the log as a CameraState and puts it on the current raster, if any.
+// The visible height at `center` is the same in both projections, H = 2 * distance *
+// tan(fovY / 2), so the distance is the one a perspective camera would need either way.
+QString frameWithCamera(Document &doc, const QVector3D &eye, const QVector3D &center,
+                        float halfDiag, float fovYDeg, bool orthographic)
+{
+    ViewTrackball tb;
+    tb.setFromLookAt(eye, center, fovYDeg);
+    auto state = tb.state();
+    state.radius = qMax(halfDiag, 1e-4f);
+    if (orthographic)
+        state.projection = Projection::Orthographic;
+
+    QJsonObject trackball;
+    trackball.insert(QStringLiteral("center"), QJsonArray{state.center.x(), state.center.y(), state.center.z()});
+    QJsonArray rot{state.rotation.x(), state.rotation.y(), state.rotation.z(), state.rotation.scalar()};
+    trackball.insert(QStringLiteral("rotation_xyzw"), rot);
+    trackball.insert(QStringLiteral("distance"), state.distance);
+    trackball.insert(QStringLiteral("radius"), state.radius);
+    trackball.insert(QStringLiteral("fov_y_degrees"), state.fovYDeg);
+    if (orthographic)
+        trackball.insert(QStringLiteral("projection"),
+                         ViewTrackball::projectionJsonName(state.projection));
+
+    QJsonObject root;
+    root.insert(QStringLiteral("kind"), QStringLiteral("MeshLab.CameraState"));
+    root.insert(QStringLiteral("version"), 1);
+    root.insert(QStringLiteral("trackball"), trackball);
+
+    const QString json = QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Indented));
+    doc.writeLog(json, Document::LogSource::Application);
+
+    const int ri = doc.currentRasterIndex();
+    if (ri >= 0) {
+        const float fovYRad = float(qDegreesToRadians(fovYDeg));
+        const float tanHalfFov = std::tan(fovYRad * 0.5f);
+        const QVector3D viewDir = (center - eye).normalized();
+        CameraShot shot;
+        auto vcgShot = shot.toVcgShot();
+        vcgShot.Intrinsics.cameraType =
+            orthographic ? vcg::Camera<float>::ORTHO : vcg::Camera<float>::PERSPECTIVE;
+        vcgShot.Intrinsics.ViewportPx = vcg::Point2i(800, 600);
+        vcgShot.Intrinsics.CenterPx = vcg::Point2f(400, 300);
+        // Orthographic: world units per pixel, so that 600 pixels span H. Perspective: the
+        // fictitious unit pixel, with the focal length that gives the field of view.
+        const float pixel = orthographic ? 2.0f * state.distance * tanHalfFov / 600.0f : 1.0f;
+        vcgShot.Intrinsics.PixelSizeMm = vcg::Point2f(pixel, pixel);
+        vcgShot.Intrinsics.FocalMm = 600.0f / (2.0f * tanHalfFov);
+        QVector3D up(0, 1, 0);
+        if (std::abs(QVector3D::dotProduct(viewDir, up)) > 0.99f) up = QVector3D(1, 0, 0);
+        vcgShot.LookAt(eye.x(), eye.y(), eye.z(),
+                       center.x(), center.y(), center.z(),
+                       up.x(), up.y(), up.z());
+        doc.raster(ri).shot = CameraShot::fromVcgShot(vcgShot);
+    }
+    return json;
+}
+
 } // anonymous namespace
 
 // ---------------------------------------------------------------------------
@@ -205,6 +277,8 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
         }
         CameraShot shot;
         setShotFromParams(shot, vp, dir, focal, sensorW, vpSize);
+        if (framingIsOrthographic(p, doc))
+            shot.setCameraType(CameraShot::CameraType::Orthographic);
         re.shot = shot;
         doc.writeLog(QObject::tr("Set camera for raster '%1'.").arg(re.name),
                      Document::LogSource::Application);
@@ -505,7 +579,7 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
                 const CameraShot &shot = cameraShots[size_t(camIdx)];
                 if (!shot.isValid()) continue;
                 QVector3D wv = transformPoint(ent.transform, v.cP());
-                QVector3D viewDir = (shot.viewPoint() - wv).normalized();
+                QVector3D viewDir = shot.directionToCamera(wv);
                 vcg::Point3f n(v.cN()[0], v.cN()[1], v.cN()[2]);
                 if (viewDir.x() * n[0] + viewDir.y() * n[1] + viewDir.z() * n[2] < 0.0f)
                     v.N() = -n;
@@ -524,7 +598,7 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
             for (int ri = 0; ri < doc.rasterCount(); ++ri) {
                 auto &re = doc.raster(ri);
                 if (!re.visible || !re.shot.isValid()) continue;
-                QVector3D dir = (re.shot.viewPoint() - wv).normalized();
+                QVector3D dir = re.shot.directionToCamera(wv);
                 vcg::Point3f n(v.cN()[0], v.cN()[1], v.cN()[2]);
                 float score = dir.x() * n[0] + dir.y() * n[1] + dir.z() * n[2];
                 if (score > bestScore) { bestScore = score; bestDir = dir; }
@@ -601,47 +675,8 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
 
         QVector3D eye = centroid - viewDir * distance;
 
-        ViewTrackball tb;
-        tb.setFromLookAt(eye, centroid, fovYDeg);
-        auto state = tb.state();
-        state.radius = qMax(halfDiag, 1e-4f);
-
-        // Serialize to CameraState JSON
-        QJsonObject trackball;
-        trackball.insert(QStringLiteral("center"), QJsonArray{state.center.x(), state.center.y(), state.center.z()});
-        QJsonArray rot{state.rotation.x(), state.rotation.y(), state.rotation.z(), state.rotation.scalar()};
-        trackball.insert(QStringLiteral("rotation_xyzw"), rot);
-        trackball.insert(QStringLiteral("distance"), state.distance);
-        trackball.insert(QStringLiteral("radius"), state.radius);
-        trackball.insert(QStringLiteral("fov_y_degrees"), state.fovYDeg);
-
-        QJsonObject root;
-        root.insert(QStringLiteral("kind"), QStringLiteral("MeshLab.CameraState"));
-        root.insert(QStringLiteral("version"), 1);
-        root.insert(QStringLiteral("trackball"), trackball);
-
-        QString json = QString::fromUtf8(
-            QJsonDocument(root).toJson(QJsonDocument::Indented));
-
-        doc.writeLog(json, Document::LogSource::Application);
-
-        // Apply to current raster if available
-        int ri = doc.currentRasterIndex();
-        if (ri >= 0) {
-            CameraShot shot;
-            auto vcgShot = shot.toVcgShot();
-            vcgShot.Intrinsics.cameraType = vcg::Camera<float>::PERSPECTIVE;
-            vcgShot.Intrinsics.ViewportPx = vcg::Point2i(800, 600);
-            vcgShot.Intrinsics.CenterPx = vcg::Point2f(400, 300);
-            vcgShot.Intrinsics.PixelSizeMm = vcg::Point2f(1, 1);
-            vcgShot.Intrinsics.FocalMm = 600.0f / (2.0f * std::tan(fovYRad * 0.5f));
-            QVector3D up(0, 1, 0);
-            if (std::abs(QVector3D::dotProduct(viewDir, up)) > 0.99f) up = QVector3D(1, 0, 0);
-            vcgShot.LookAt(eye.x(), eye.y(), eye.z(),
-                           centroid.x(), centroid.y(), centroid.z(),
-                           up.x(), up.y(), up.z());
-            doc.raster(ri).shot = CameraShot::fromVcgShot(vcgShot);
-        }
+        const QString json = frameWithCamera(doc, eye, centroid, halfDiag, fovYDeg,
+                                             framingIsOrthographic(p, doc));
 
         return ok({QObject::tr("Camera state (selection view):\n%1").arg(json)});
     }
@@ -686,45 +721,8 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
         float distance = (halfDiag / std::tan(fovYRad * 0.5f)) * margin;
         QVector3D eye = center - direction * distance;
 
-        ViewTrackball tb;
-        tb.setFromLookAt(eye, center, fovYDeg);
-        auto state = tb.state();
-        state.radius = qMax(halfDiag, 1e-4f);
-
-        QJsonObject trackball;
-        trackball.insert(QStringLiteral("center"), QJsonArray{state.center.x(), state.center.y(), state.center.z()});
-        QJsonArray rot{state.rotation.x(), state.rotation.y(), state.rotation.z(), state.rotation.scalar()};
-        trackball.insert(QStringLiteral("rotation_xyzw"), rot);
-        trackball.insert(QStringLiteral("distance"), state.distance);
-        trackball.insert(QStringLiteral("radius"), state.radius);
-        trackball.insert(QStringLiteral("fov_y_degrees"), state.fovYDeg);
-
-        QJsonObject root;
-        root.insert(QStringLiteral("kind"), QStringLiteral("MeshLab.CameraState"));
-        root.insert(QStringLiteral("version"), 1);
-        root.insert(QStringLiteral("trackball"), trackball);
-
-        QString json = QString::fromUtf8(
-            QJsonDocument(root).toJson(QJsonDocument::Indented));
-
-        doc.writeLog(json, Document::LogSource::Application);
-
-        int ri = doc.currentRasterIndex();
-        if (ri >= 0) {
-            CameraShot shot;
-            auto vcgShot = shot.toVcgShot();
-            vcgShot.Intrinsics.cameraType = vcg::Camera<float>::PERSPECTIVE;
-            vcgShot.Intrinsics.ViewportPx = vcg::Point2i(800, 600);
-            vcgShot.Intrinsics.CenterPx = vcg::Point2f(400, 300);
-            vcgShot.Intrinsics.PixelSizeMm = vcg::Point2f(1, 1);
-            vcgShot.Intrinsics.FocalMm = 600.0f / (2.0f * std::tan(fovYRad * 0.5f));
-            QVector3D up(0, 1, 0);
-            if (std::abs(QVector3D::dotProduct(direction, up)) > 0.99f) up = QVector3D(1, 0, 0);
-            vcgShot.LookAt(eye.x(), eye.y(), eye.z(),
-                           center.x(), center.y(), center.z(),
-                           up.x(), up.y(), up.z());
-            doc.raster(ri).shot = CameraShot::fromVcgShot(vcgShot);
-        }
+        const QString json = frameWithCamera(doc, eye, center, halfDiag, fovYDeg,
+                                             framingIsOrthographic(p, doc));
 
         return ok({QObject::tr("Camera state (direction):\n%1").arg(json)});
     }

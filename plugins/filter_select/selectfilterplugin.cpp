@@ -157,6 +157,10 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         const float aspect = float(params.getDouble(QStringLiteral("aspect")));
         QMatrix4x4 mvp;
         vcg::Point3f eyeLocal(0.0f, 0.0f, 0.0f); // camera eye in mesh-local space (view3d)
+        // Orthographic view: parallel rays, so occlusion is along a direction rather than
+        // towards an eye. Unit vector towards the viewer, in mesh-local space.
+        bool orthographicView = false;
+        vcg::Point3f towardViewerLocal(0.0f, 0.0f, 1.0f);
         if (uvSpace) {
             // Rebuild the exact ortho MVP the UV renderer uses (pan/zoom/aspect).
             const float xLim = aspect >= 1.0f ? aspect : 1.0f;
@@ -188,6 +192,10 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             mvp = cam.projectionMatrix(aspect > 1e-6f ? aspect : 1.0f) * cam.viewMatrix() * entry.transform;
             const QVector3D e = entry.transform.inverted().map(cam.cameraEyePosition());
             eyeLocal = vcg::Point3f(e.x(), e.y(), e.z());
+            orthographicView = cam.isOrthographic();
+            const QVector3D t =
+                entry.transform.inverted().mapVector(-cam.cameraViewDirection()).normalized();
+            towardViewerLocal = vcg::Point3f(t.x(), t.y(), t.z());
         }
 
         const double lox = std::min(params.getDouble(QStringLiteral("rect_min_x")),
@@ -216,7 +224,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
 
         // "Visible only": keep only faces not occluded from the viewpoint. A ray
         // is cast from the camera eye to each candidate face centroid and the face
-        // is dropped if any geometry lies in between. The occlusion query is
+        // is dropped if any geometry lies in between (an orthographic view casts parallel rays
+        // along the view direction instead). The occlusion query is
         // delegated to ViewpointOccluder (embree when built, vcglib grid otherwise),
         // cached by geometryRevision so repeated drags reuse it. 3D + faces only.
         const bool visibleOnly =
@@ -318,7 +327,9 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                         const vcg::Point3f b = vcg::Barycenter(f);
                         if (!inRect(b.X(), b.Y(), b.Z()))
                             continue;
-                        if (visibleOnly && occluder->isOccluded(b, eyeLocal))
+                        if (visibleOnly
+                            && (orthographicView ? occluder->isOccludedAlong(b, towardViewerLocal)
+                                                 : occluder->isOccluded(b, eyeLocal)))
                             continue;
                         if (subtract) {
                             if (f.IsS()) { f.ClearS(); ++local; }
