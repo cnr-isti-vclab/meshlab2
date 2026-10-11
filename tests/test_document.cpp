@@ -46,6 +46,8 @@ private slots:
     void cameraShotProjectsThroughImageCenter();
     void cameraShotUnprojectsImageCenter();
     void cameraShotRenderMatricesMatchProjection();
+    void cameraShotRenderMatricesMatchProjectionOffCentreAndOrthographic();
+    void cameraFrustumRoundTripsThroughSetFrustum();
     void logReplaceLastEntryOnCarriageReturn();
     void logEntriesCarryASeverityLevel();
     void logEntriesCarryATimestampOutsideTheMessage();
@@ -198,6 +200,66 @@ void DocumentTests::cameraShotRenderMatricesMatchProjection()
                            .arg(actual.y(), 0, 'f', 6)
                            .arg(expected.y(), 0, 'f', 6)));
     }
+}
+
+// The matrices the GPU path draws with must put a point where project() says it is, whatever
+// the camera type and wherever the principal point is: a raster overlay is only correct if
+// the two agree. A centred principal point hides the horizontal half of this, because the
+// two extents of an axis only differ in which one is called "left"; a calibrated camera
+// never has it exactly centred.
+void DocumentTests::cameraShotRenderMatricesMatchProjectionOffCentreAndOrthographic()
+{
+    constexpr int kWidth = 800;
+    constexpr int kHeight = 600;
+    const QPointF centres[] = { { 400, 300 }, { 380, 300 }, { 400, 310 }, { 365, 322 } };
+    for (const bool orthographic : { false, true }) {
+        for (const QPointF &centre : centres) {
+            CameraShot::VcgShot vcgShot;
+            vcg::Camera<float> &camera = vcgShot.Intrinsics;
+            camera.cameraType = orthographic ? vcg::Camera<float>::ORTHO
+                                             : vcg::Camera<float>::PERSPECTIVE;
+            camera.ViewportPx = vcg::Point2i(kWidth, kHeight);
+            camera.CenterPx = vcg::Point2f(float(centre.x()), float(centre.y()));
+            // Orthographic: world units per pixel, an 8 x 6 view volume. Perspective: mm.
+            camera.PixelSizeMm = orthographic ? vcg::Point2f(0.01f, 0.01f) : vcg::Point2f(0.05f, 0.05f);
+            camera.FocalMm = 40.0f;
+            vcgShot.LookAt(5, 3, 20, 0.5f, 0.2f, 0, 0, 1, 0);
+            const CameraShot shot = CameraShot::fromVcgShot(vcgShot);
+            QVERIFY(shot.isValid());
+
+            const QMatrix4x4 mvp = shot.projectionMatrix(2.0f, 80.0f) * shot.viewMatrix();
+            for (int i = 0; i < 125; ++i) {
+                const QVector3D world(float(i % 5) - 2.0f, float((i / 5) % 5) - 2.0f,
+                                      float(i / 25) - 2.0f);
+                QVector4D clip = mvp * QVector4D(world, 1.0f);
+                QVERIFY(clip.w() > 0.0f);
+                clip /= clip.w();
+                const QVector2D expected = shot.project(world);
+                const QString where = QStringLiteral("%1, centre %2,%3, point %4")
+                                          .arg(orthographic ? "orthographic" : "perspective")
+                                          .arg(centre.x()).arg(centre.y()).arg(i);
+                QVERIFY2(std::abs((clip.x() * 0.5f + 0.5f) * kWidth - expected.x()) < 1e-2f,
+                         qPrintable(where));
+                QVERIFY2(std::abs((clip.y() * 0.5f + 0.5f) * kHeight - expected.y()) < 1e-2f,
+                         qPrintable(where));
+            }
+        }
+    }
+}
+
+// SetFrustum takes the extents of a view volume and GetFrustum gives them back; the
+// horizontal pair used to come back mirrored.
+void DocumentTests::cameraFrustumRoundTripsThroughSetFrustum()
+{
+    vcg::Camera<float> camera;
+    camera.SetFrustum(-1.0f, 3.0f, -2.0f, 2.0f, 10.0f, vcg::Point2i(400, 200));
+    float left, right, bottom, top, focal;
+    camera.GetFrustum(left, right, bottom, top, focal);
+    QCOMPARE(left, -1.0f);
+    QCOMPARE(right, 3.0f);
+    QCOMPARE(bottom, -2.0f);
+    QCOMPARE(top, 2.0f);
+    QCOMPARE(focal, 10.0f);
 }
 
 void DocumentTests::logReplaceLastEntryOnCarriageReturn()

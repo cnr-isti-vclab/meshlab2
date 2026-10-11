@@ -205,12 +205,38 @@ exported -- a snapshot added as a raster, `cameraShotForViewport()`, the
   world units per pixel (`H / height`), and `FocalMm` unused. `Project`, `UnProject`
   and `Depth` already treat `ORTHO` correctly, so a snapshot added as a raster layer
   projects onto the mesh in the same place the view drew it.
-- **`vcg::Camera::GetMatrix`** is given the missing orthographic branch, in vcglib.
-  This is the one change outside this repository; it follows the four-part procedure
-  (commit in `vcglib/`, push to `origin/devel`, bump the gitlink, land the dependent
-  MeshLab code in the same bump). `CameraShot::projectionMatrix()` then needs no
-  change, and the raster overlay and the projected-raster pass, which both call it,
-  become correct for an orthographic raster.
+- **vcglib, two changes in `vcg/math/camera.ipp`**, the only work outside this
+  repository. It follows the four-part procedure (commit in `vcglib/`, push to
+  `origin/devel`, bump the gitlink, land the dependent MeshLab code in the same bump).
+  `GetMatrix` has exactly one caller in the tree, `CameraShot::projectionMatrix()`.
+  - **`GetMatrix` gets the missing orthographic branch.** For an `ORTHO` camera it
+    builds the `glOrtho` matrix from the frustum extents -- `2/(r-l)`, `2/(t-b)`,
+    `-2/(f-n)` on the diagonal, the translations in the last column, a last row of
+    `(0, 0, 0, 1)` -- with the same clip-space convention as the perspective branch.
+    Today it builds the perspective matrix whatever the type: for an `ORTHO` camera
+    the GPU path disagrees with `Shot::Project` by hundreds of pixels (measured: 399 px
+    worst case over random points).
+  - **`GetFrustum` has the horizontal extent mirrored.** Found while measuring the
+    first change: `SetFrustum(left -1, right 3, ...)` followed by `GetFrustum` returns
+    left -3, right 1. The vertical extents round-trip; the horizontal ones do not.
+    `GetFrustum` returns `right = cx * p` and `left = -(W - cx) * p`, where `Project`
+    and `SetFrustum` both mean `left = -cx * p` and `right = (W - cx) * p` (`cx` the
+    principal point in pixels, `p` the pixel size, `W` the width). The two agree only
+    when the principal point is centred, which is why nothing shows it on a synthetic
+    camera. With an off-centre principal point -- every calibrated photogrammetry
+    camera -- the existing perspective matrix places the optical axis at pixel
+    `W - cx` instead of `cx`: an error of `2 * |W/2 - cx|` pixels, in x only. The fix
+    is the same two lines in `GetFrustum`, and it corrects `GetMatrix` and the GL
+    wrapper (`wrap/gl/camera.h`) for every user at once. It is a change of behaviour
+    for off-centre cameras and must be said so in the commit message.
+
+  With both changes, `GetMatrix` followed by the view matrix agrees with
+  `Shot::Project` to under 1e-3 pixel for random points, for both camera types and for
+  centred and off-centre principal points (measured on a scratch copy of the
+  functions). `CameraShot::projectionMatrix()` then needs no change, and the raster
+  overlay and the projected-raster pass, which both call it, become correct for an
+  orthographic raster -- and for an off-centre perspective one, which they are not
+  today.
 - **The camera filters** (`filter_camera`) write a `trackball` payload and a shot with
   `PERSPECTIVE` hard-coded (`camerafilterplugin.cpp:633`, `:716`). They keep the
   projection of the camera they start from, and *Set Camera from Direction* and *Set
@@ -274,7 +300,7 @@ listed so that the audit can be checked: each says why it needs nothing.
 | 32 | PNG camera metadata | `mainwindow.cpp:2661` | writes the camera JSON | unchanged: inherits |
 | 33 | Python camera JSON | `module.cpp:135` | passes the JSON through | unchanged: inherits; docs gain the key |
 | 34 | Camera filters | `camerafilterplugin.cpp:554-720` | trackball JSON and shot, `PERSPECTIVE` fixed | **modify**: keep or set the projection |
-| 35 | vcglib projection matrix | `camera.ipp:144` | perspective whatever the type | **modify**: orthographic branch (vcglib) |
+| 35 | vcglib projection matrix and frustum | `camera.ipp:144,184` | perspective whatever the type; horizontal frustum extent mirrored | **modify**: orthographic branch, and `GetFrustum` x (vcglib) |
 | 36 | `CameraShot::projectionMatrix` | `camerashot.cpp:244` | forwards to row 35 | unchanged once 35 lands |
 | 37 | Camera type enum | `camerashot.h:26`, `camerashot.cpp:23,35` | four types | **modify**: two |
 | 38 | Shot rays | `CameraShot` | none | **new**: `viewRayThrough`, `directionToCamera` |
@@ -293,9 +319,12 @@ listed so that the audit can be checked: each says why it needs nothing.
 The interface (row 42) lands last in every stage plan, so that no stage leaves a
 reachable orthographic view that some consumer cannot draw.
 
-1. **vcglib.** Row 35 alone, with a test that `GetMatrix` agrees with `Project` for an
-   `ORTHO` camera. Independent of everything else and landed by the four-part
-   procedure.
+1. **vcglib.** Row 35 alone, with a test in this repository (vcglib has no test suite
+   of its own) that `CameraShot::projectionMatrix()` through the view matrix agrees with
+   `CameraShot::project()` for both camera types and for centred and off-centre
+   principal points. Independent of everything else and landed by the four-part
+   procedure; the off-centre correction is worth reporting to whoever uses raster
+   overlays before it lands, since it moves them.
 2. **The view.** Rows 1, 2, 6, 7, 8, 10, 14, 15, 21, 22, 26. After it an orthographic
    state, set by JSON or the Python API, renders, navigates and lights correctly in a
    view, a snapshot and a headless render; there is no menu item yet.
@@ -319,7 +348,9 @@ reachable orthographic view that some consumer cannot draw.
   perspective; an unknown value fails naming the key.
 - **Glyphs.** `buildViewFrustumGizmo` on an orthographic matrix gives twelve segments
   with the four depth edges parallel.
-- **vcglib.** `GetMatrix` against `Project` and `Depth` for `ORTHO` and `PERSPECTIVE`.
+- **vcglib.** Through `CameraShot`: the projection matrix against `project()` and
+  `depth()` for `ORTHO` and `PERSPECTIVE`, with the principal point centred and
+  off-centre in x and in y; and the `SetFrustum` / `GetFrustum` round trip.
 - **Selection.** `select_by_rectangle` with *visible only* in orthographic selects the
   face toward the viewer and not the one behind it.
 - **Raster filters.** A normal orientation against an orthographic raster camera uses
