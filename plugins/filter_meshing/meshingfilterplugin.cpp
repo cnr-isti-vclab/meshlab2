@@ -563,6 +563,7 @@ constexpr QLatin1StringView kIdNormalSmoothPc("smooth_point_cloud_normals");
 constexpr QLatin1StringView kIdCurvDir("compute_principal_curvature_directions_vcglib");
 constexpr QLatin1StringView kIdSlicePlane("create_polyline_from_planar_section");
 constexpr QLatin1StringView kIdTrimByPlane("trim_surface_by_plane");
+constexpr QLatin1StringView kIdTrimPointCloudByPlane("trim_point_cloud_by_plane");
 constexpr QLatin1StringView kIdPerimeterPolyline("create_polyline_from_selection_perimeter");
 constexpr QLatin1StringView kIdMidpoint("subdivide_by_midpoint");
 constexpr QLatin1StringView kIdReorient("orient_faces_consistently_vcglib");
@@ -597,6 +598,42 @@ constexpr QLatin1StringView kIdHandleTunnel("create_handle_and_tunnel_loops");
 constexpr QLatin1StringView kIdLoopSurface("create_surface_from_polyline_loop_hrbf");
 constexpr QLatin1StringView kIdVAttrSeam("split_vertices_by_attribute_seam");
 constexpr QLatin1StringView kIdLS3Loop("subdivide_by_ls3_loop");
+
+// The oriented plane of the two trim-by-plane filters, which share its four parameters
+// (planeNormal, relativeTo, planeOffset, flip). The plane faces the side that is kept. An
+// empty return is success; otherwise it is the message to fail with.
+QString trimPlaneFromParams(const FilterParams &params, VCGMesh &mesh, const QString &filterName,
+                            vcg::Plane3f &plane)
+{
+    // One control, not two: the point3f direction editor already offers the six
+    // axis presets and the view direction, so an enum beside it would be the same
+    // choice asked twice. Create Polyline from Planar Section still has that older
+    // pair; this filter does not copy it.
+    const QVector3D nv = params.getPoint3f(QStringLiteral("planeNormal"));
+    vcg::Point3f normal(float(nv.x()), float(nv.y()), float(nv.z()));
+    const float length = normal.Norm();
+    if (!std::isfinite(length) || length <= 1e-9f)
+        return QObject::tr("%1 needs a plane normal that is not zero.").arg(filterName);
+    normal /= length;
+    // Which side survives: the clip keeps what the normal points at.
+    if (params.getBool(QStringLiteral("flip")))
+        normal = -normal;
+
+    if (mesh.bbox.IsNull())
+        vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    const QString rel = params.getEnum(QStringLiteral("relativeTo"));
+    vcg::Point3f reference(0, 0, 0);
+    if (rel == QStringLiteral("center"))
+        reference = mesh.bbox.Center();
+    else if (rel == QStringLiteral("min"))
+        reference = mesh.bbox.min;
+    else if (rel == QStringLiteral("max"))
+        reference = mesh.bbox.max;
+    const float offset = float(params.getDouble(QStringLiteral("planeOffset")));
+
+    plane.Init(reference + normal * offset, normal);
+    return {};
+}
 
 int selectedFaceCount(const VCGMesh &mesh)
 {
@@ -2341,34 +2378,10 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (mesh.VN() <= 0 || mesh.FN() <= 0)
                 return fail(QObject::tr("%1 requires a mesh with faces.").arg(filterName));
 
-            // One control, not two: the point3f direction editor already offers the six
-            // axis presets and the view direction, so an enum beside it would be the same
-            // choice asked twice. Create Polyline from Planar Section still has that older
-            // pair; this filter does not copy it.
-            const QVector3D nv = params.getPoint3f(QStringLiteral("planeNormal"));
-            vcg::Point3f normal(float(nv.x()), float(nv.y()), float(nv.z()));
-            const float length = normal.Norm();
-            if (!std::isfinite(length) || length <= 1e-9f)
-                return fail(QObject::tr("%1 needs a plane normal that is not zero.").arg(filterName));
-            normal /= length;
-            // Which side survives: the clip keeps what the normal points at.
-            if (params.getBool(QStringLiteral("flip")))
-                normal = -normal;
-
-            if (mesh.bbox.IsNull())
-                vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
-            const QString rel = params.getEnum(QStringLiteral("relativeTo"));
-            vcg::Point3f reference(0, 0, 0);
-            if (rel == QStringLiteral("center"))
-                reference = mesh.bbox.Center();
-            else if (rel == QStringLiteral("min"))
-                reference = mesh.bbox.min;
-            else if (rel == QStringLiteral("max"))
-                reference = mesh.bbox.max;
-            const float offset = float(params.getDouble(QStringLiteral("planeOffset")));
-
             vcg::Plane3f plane;
-            plane.Init(reference + normal * offset, normal);
+            const QString planeError = trimPlaneFromParams(params, mesh, filterName, plane);
+            if (!planeError.isEmpty())
+                return fail(planeError);
 
             const bool closeCut = params.getBool(QStringLiteral("closeCut"));
             // All of the geometry is vcglib's: the refine framework splits the faces at the
@@ -2423,6 +2436,46 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                              : QObject::tr("Could not close %1 edge(s) of the cut; they were left open.").arg(open));
             }
             return success(true, info);
+        }
+
+        if (filterId == QString::fromLatin1(kIdTrimPointCloudByPlane)) {
+            const QString filterName = QObject::tr("Trim Point Cloud by Plane");
+            if (mesh.VN() <= 0)
+                return fail(QObject::tr("%1 requires a layer with points.").arg(filterName));
+            // Dropping a vertex of a mesh would leave its faces and edges dangling, and the
+            // clean answer for those is another filter, so say which.
+            if (mesh.FN() > 0 || mesh.EN() > 0)
+                return fail(QObject::tr("%1 needs a point cloud, and this layer has faces or edges. "
+                                        "Use Trim Surface by Plane.").arg(filterName));
+
+            vcg::Plane3f plane;
+            const QString planeError = trimPlaneFromParams(params, mesh, filterName, plane);
+            if (!planeError.isEmpty())
+                return fail(planeError);
+
+            // Points on the plane are kept, as the viewport's clipping plane keeps them.
+            const auto behindPlane = [&](const VCGVertex &v) {
+                return !v.IsD() && vcg::tri::PlaneDistance(plane, v.cP()) < 0.0f;
+            };
+            // Counted before anything is deleted, so a trim that would leave nothing, or
+            // nothing different, changes nothing.
+            const int removed = int(std::count_if(mesh.vert.begin(), mesh.vert.end(), behindPlane));
+            if (removed == 0)
+                return fail(QObject::tr("%1 left the point cloud unchanged: the plane does not cut it.")
+                                .arg(filterName));
+            if (removed >= mesh.VN())
+                return fail(QObject::tr("%1 would remove every point. It was left unchanged.").arg(filterName));
+            for (VCGVertex &v : mesh.vert) {
+                if (behindPlane(v))
+                    vcg::tri::Allocator<VCGMesh>::DeleteVertex(mesh, v);
+            }
+
+            vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+            const QString contextMessage =
+                QObject::tr("Trimmed point cloud '%1': kept %2 points, removed %3.")
+                    .arg(entry.name).arg(mesh.VN()).arg(removed);
+            markGeometry(ci, contextMessage);
+            return success(true, { contextMessage });
         }
 
         if (filterId == QString::fromLatin1(kIdSlicePlane)) {

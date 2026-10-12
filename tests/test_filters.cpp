@@ -407,6 +407,7 @@ private slots:
     void basicFiltersRunOnLoadedMesh();
     void planarSectionSurfaceUsesCpuTessellator();
     void trimByPlaneCutsAtThePlaneAndKeepsTheScalar();
+    void trimPointCloudByPlaneDropsThePointsBehindIt();
     void trimByPlaneRefusesRatherThanEmptyTheLayer();
     void trimByPlaneClosesTheCutOnRequest();
     void trimByPlaneClosesAConcentricCutAsAnAnnulus();
@@ -1556,6 +1557,78 @@ void FilterTests::trimByPlaneClosesObliqueCutsToo()
                                 + result.infoMessages.join(QStringLiteral(" / "))));
         }
     }
+}
+
+// The point-cloud counterpart: no faces to split, so the points behind the plane are dropped and
+// the rest keep everything they carried. It is what the viewport's Trim Current Layer runs on a
+// layer of bare points, with the same four parameters as the surface filter.
+void FilterTests::trimPointCloudByPlaneDropsThePointsBehindIt()
+{
+    Document doc;
+    VCGMesh cloud;
+    constexpr int kSide = 10;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(cloud, kSide * kSide * kSide);
+    for (int i = 0; i < kSide * kSide * kSide; ++i) {
+        VCGVertex &v = cloud.vert[std::size_t(i)];
+        v.P() = vcg::Point3f(float(i % kSide), float((i / kSide) % kSide), float(i / (kSide * kSide)));
+        v.N() = vcg::Point3f(0.0f, 0.0f, 1.0f);
+        v.Q() = v.P().X();
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(cloud);
+    const int layer = doc.addMesh(cloud, QStringLiteral("cloud"));
+    QVERIFY(layer >= 0);
+    doc.mesh(layer).ioMask |= vcg::tri::io::Mask::IOM_VERTQUALITY;
+
+    const QString key = filterKeyForId(doc, QStringLiteral("trim_point_cloud_by_plane"));
+    QVERIFY(!key.isEmpty());
+
+    // A plane across x = 4.5, the way the viewport's button hands one over: a normal and an
+    // offset measured from the origin.
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("planeNormal"), QVector3D(1.0f, 0.0f, 0.0f));
+    params.insert(QStringLiteral("relativeTo"), QStringLiteral("origin"));
+    params.insert(QStringLiteral("planeOffset"), 4.5);
+    params.insert(QStringLiteral("flip"), false);
+    const MeshFilterRunResult result = doc.runFilter(key, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    const VCGMesh &kept = doc.mesh(layer).mesh;
+    QCOMPARE(kept.VN(), 5 * kSide * kSide);   // x = 5..9
+    for (const VCGVertex &v : kept.vert) {
+        if (v.IsD())
+            continue;
+        QVERIFY2(v.cP().X() > 4.5f, "a point survived behind the plane");
+        QCOMPARE(v.cQ(), v.cP().X());          // the scalar stayed with its point
+        QCOMPARE(v.cN(), vcg::Point3f(0.0f, 0.0f, 1.0f));
+    }
+    QVERIFY(std::abs(kept.bbox.min.X() - 5.0f) < 1e-5f);
+
+    // A plane that cuts nothing, or everything, changes nothing and says so.
+    params.insert(QStringLiteral("planeOffset"), -1.0);
+    QVERIFY(!doc.runFilter(key, params).success);
+    params.insert(QStringLiteral("planeOffset"), 100.0);
+    const MeshFilterRunResult all = doc.runFilter(key, params);
+    QVERIFY(!all.success);
+    QCOMPARE(doc.mesh(layer).mesh.VN(), 5 * kSide * kSide);
+
+    // Keep other side, and a plane exactly through points keeps them. The offset is measured
+    // along the normal after the flip, so a plane at x = 7 is an offset of -7 here.
+    params.insert(QStringLiteral("planeOffset"), -7.0);
+    params.insert(QStringLiteral("flip"), true);
+    QVERIFY(doc.runFilter(key, params).success);
+    QCOMPARE(doc.mesh(layer).mesh.VN(), 3 * kSide * kSide);   // x = 5, 6, 7
+
+    // A layer with faces is for the surface filter, and says so.
+    Document surface;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    QVERIFY(surface.addMesh(cube, QStringLiteral("cube")) >= 0);
+    params.insert(QStringLiteral("planeOffset"), 0.5);
+    params.insert(QStringLiteral("flip"), false);
+    const MeshFilterRunResult refused =
+        surface.runFilter(filterKeyForId(surface, QStringLiteral("trim_point_cloud_by_plane")), params);
+    QVERIFY(!refused.success);
+    QVERIFY(refused.errorMessage.contains(QStringLiteral("Trim Surface by Plane")));
 }
 
 void FilterTests::trimByPlaneRefusesRatherThanEmptyTheLayer()

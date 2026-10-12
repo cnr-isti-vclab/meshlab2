@@ -3257,13 +3257,25 @@ void RenderWidget::applyClipPlaneToCurrentLayer()
     params.insert(QStringLiteral("planeNormal"), normal);
     params.insert(QStringLiteral("relativeTo"), QStringLiteral("origin"));
     params.insert(QStringLiteral("planeOffset"), double(-m_frameClipPlane.w()));
-    // The normal already carries the flip. Whether the cut is closed follows what the
-    // viewport is showing: a solid cut on screen becomes a closed cut in the geometry.
+    // The normal already carries the flip.
     params.insert(QStringLiteral("flip"), false);
-    params.insert(QStringLiteral("closeCut"), m_renderSettings.clipPlaneSolidCut);
 
-    const QString filterKey = QStringLiteral("meshlab2.filter.meshing::trim_surface_by_plane");
-    const QString label = tr("Trim Surface by Plane");
+    // A layer of bare points is trimmed by dropping the points behind the plane; anything
+    // with faces or edges is cut along it.
+    const VCGMesh &layer = m_doc->mesh(meshIndex).mesh;
+    const bool pointCloud = layer.VN() > 0 && layer.FN() == 0 && layer.EN() == 0;
+    QString filterKey;
+    QString label;
+    if (pointCloud) {
+        filterKey = QStringLiteral("meshlab2.filter.meshing::trim_point_cloud_by_plane");
+        label = tr("Trim Point Cloud by Plane");
+    } else {
+        // Whether the cut is closed follows what the viewport is showing: a solid cut on
+        // screen becomes a closed cut in the geometry.
+        params.insert(QStringLiteral("closeCut"), m_renderSettings.clipPlaneSolidCut);
+        filterKey = QStringLiteral("meshlab2.filter.meshing::trim_surface_by_plane");
+        label = tr("Trim Surface by Plane");
+    }
     m_doc->beginFilterProgress(label);
     const MeshFilterRunResult result = m_doc->runFilter(filterKey, params);
 

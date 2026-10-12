@@ -286,6 +286,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         auto *btn = new QToolButton(this);
         btn->setIcon(QIcon(iconPath));
         btn->setToolTip(passButtonToolTip(pass));
+        // The buttons show only an icon, so this is the name a screen reader, and any
+        // script driving the UI through the accessibility tree, finds them by.
+        btn->setAccessibleName(passName(pass));
         btn->setCheckable(true);
         btn->setAutoRaise(false);
         btn->setIconSize(QSize(kPassIconSize, kPassIconSize));
@@ -1228,8 +1231,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_clipPlaneApplyButton->setToolTip(
         tr("Cut the current layer along this plane for real, and turn the clipping plane "
            "off. The result matches what the viewport is showing: the cut is closed when "
-           "it is shown as solid, and only the current layer is trimmed. Run Trim Surface "
-           "by Plane from the Filters panel for the rest of its options."));
+           "it is shown as solid, and only the current layer is trimmed. A layer of points "
+           "loses the points behind the plane. Run Trim Surface by Plane or Trim Point Cloud "
+           "by Plane from the Filters panel for the rest of the options."));
 
     clipPlaneForm->addRow(tr("Normal"), m_clipPlaneAxisCombo);
     clipPlaneForm->addRow(tr("Reference"), m_clipPlaneReferenceCombo);

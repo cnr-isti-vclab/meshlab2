@@ -338,6 +338,9 @@ const QHash<QString, QString> &expectedRefusals()
         {QStringLiteral("embed_polyline_in_surface"),                      QStringLiteral("needs a polyline layer beside the surface; every rung is one layer (FilterTests::embedPolylineThenCutSplitsTheSurface drives it)")},
         {QStringLiteral("create_handle_and_tunnel_loops"),                 QStringLiteral("needs a surface of nonzero genus; every rung has genus 0 (FilterTests::torusHasOneHandleAndOneTunnelLoop drives it)")},
 
+        // Needs a mesh shape the ladder does not build: every rung has faces.
+        {QStringLiteral("trim_point_cloud_by_plane"),                      QStringLiteral("needs a point cloud; every rung has faces (FilterTests::trimPointCloudByPlaneDropsThePointsBehindIt drives it)")},
+
         // Needs a selection the ladder does not build: its rungs select everything or nothing.
         {QStringLiteral("select_coplanar_faces"),                          QStringLiteral("needs a face selection lying on one plane")},
 

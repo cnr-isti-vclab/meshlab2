@@ -2975,6 +2975,70 @@
       "outputModifies": ["FV", "VG"]
     },
     {
+      "id": "trim_point_cloud_by_plane",
+      "categories": ["Meshing/Remeshing"],
+      "name": "Trim Point Cloud by Plane",
+      "pythonName": "trim_point_cloud_by_plane",
+      "shortDescription": "Removes the points of a point cloud that lie behind an oriented plane.",
+      "longDescriptionMarkdown": "Trims the current point cloud along an oriented plane, discarding every point behind it. Points exactly on the plane are kept. All the other per-point data -- normals, colours, scalars -- stays with the points that remain.\n\nFor a layer with faces use *Trim Surface by Plane*, which splits the faces along the plane instead of dropping vertices.",
+      "tags": [
+        "plane",
+        "trimming",
+        "clip",
+        "point cloud"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "planeNormal",
+          "label": "Plane normal",
+          "help": "Direction the cutting plane faces. Everything behind the plane is discarded. It need not be unit length.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [1.0, 0.0, 0.0]
+        },
+        {
+          "id": "relativeTo",
+          "label": "Plane reference",
+          "help": "Point the offset is measured from.",
+          "group": "main",
+          "type": "enum",
+          "default": "center",
+          "enumOptions": [
+            { "id": "center", "label": "Bounding box center" },
+            { "id": "origin", "label": "Origin" },
+            { "id": "min", "label": "Bounding box min" },
+            { "id": "max", "label": "Bounding box max" }
+          ]
+        },
+        {
+          "id": "planeOffset",
+          "label": "Plane offset",
+          "help": "Distance from the reference point to the plane, measured along the plane normal.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": -1000000.0,
+          "max": 1000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "flip",
+          "label": "Keep other side",
+          "help": "If enabled, the side that would have been discarded is kept instead. The same as negating the plane normal, kept as a control because reversing a cut is a thing you do often.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": ["VG"]
+    },
+    {
       "id": "create_polyline_from_planar_section",
       "categories": ["Creation/Primitives"],
       "name": "Create Polyline from Planar Section",
