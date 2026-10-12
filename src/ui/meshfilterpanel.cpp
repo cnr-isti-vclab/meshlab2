@@ -447,6 +447,13 @@ void MeshFilterPanel::onApplyClicked()
     emit runRequested(m_currentFilterKey, parameters, info->descriptor.name);
 }
 
+void MeshFilterPanel::forgetRememberedParameters()
+{
+    m_filterParameterCache.clear();
+    if (!m_currentFilterKey.trimmed().isEmpty())
+        onResetParametersClicked();
+}
+
 void MeshFilterPanel::onResetParametersClicked()
 {
     const QString filterKey = m_currentFilterKey.trimmed();

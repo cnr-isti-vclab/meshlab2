@@ -1964,17 +1964,39 @@ void MainWindow::newDocument()
         const auto answer = QMessageBox::question(
             this,
             tr("New Document"),
-            tr("This will close all layers and clear the undo history.\nContinue?"),
+            tr("This will close all layers, clear the undo history and the log, and put the "
+               "view and the filters' remembered parameters back to their defaults.\n"
+               "Continue?"),
             QMessageBox::Yes | QMessageBox::No,
             QMessageBox::No);
         if (answer != QMessageBox::Yes)
             return;
     }
+    exitActiveTool();   // before the layers go: a tool may be holding one
     m_doc->setSuppressUndo(true);
     m_doc->clearAllLayers();
     m_doc->setSuppressUndo(false);
     m_doc->clearUndoHistory();
     m_doc->clearLog();
+
+    // Everything the user could have changed besides the layers: the split views, back to the
+    // one a launch opens with (the current one stays), each view's camera and render
+    // settings, the camera synchronisation, and the values the filter panel remembers from
+    // last time (and the tool in hand, above). Preferences are the application's, not the
+    // document's, and stay.
+    RenderWidget *keep = currentRenderWidget();
+    if (!keep && !m_renderWidgets.isEmpty())
+        keep = m_renderWidgets.first();
+    const QList<RenderWidget *> views = m_renderWidgets;
+    for (RenderWidget *view : views) {
+        if (view != keep)
+            closeRenderWidget(view);
+    }
+    for (RenderWidget *view : m_renderWidgets)
+        view->resetToDefaults();
+    m_cameraSyncEnabled = false;
+    if (m_filterPanel)
+        m_filterPanel->forgetRememberedParameters();
     statusBar()->showMessage(tr("New document"), 2000);
 }
 

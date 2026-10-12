@@ -36,6 +36,9 @@ public:
     // Opens a filter with a specific set of values rather than the remembered or default
     // ones — used to replay a recorded invocation from the undo history.
     void openFilterWithParameters(const QString &filterKey, const QVariantMap &parameters);
+    // Forgets every filter's remembered values, so each opens with its defaults again; the
+    // filter on screen, if any, is rebuilt with them.
+    void forgetRememberedParameters();
 
     // The editors live in ParameterFormBuilder now; the alias keeps existing
     // callers of setViewContextProvider() unchanged.

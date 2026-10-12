@@ -125,6 +125,11 @@ public:
 
     ViewState captureViewState() const;
     void restoreViewState(const ViewState &vs, bool restoreCamera = true);
+    // Puts the view back as a newly created one is: default render settings (seeded from the
+    // preferences), no per-layer render modes, the default camera and projection, headlight,
+    // 3D mode, and the UV and raster views fitted again. The camera is framed on whatever
+    // arrives next. Used by File > New.
+    void resetToDefaults();
     ViewTrackball::State trackballState() const { return m_trackball.state(); }
     void applySynchronizedTrackballState(const ViewTrackball::State &state);
     QVector3D trackballCenter() const { return m_trackball.center(); }

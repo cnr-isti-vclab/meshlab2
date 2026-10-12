@@ -549,6 +549,33 @@ int decimalsForStep(double step)
 }
 }
 
+namespace {
+
+// Seed the per-view defaults from the application preferences. Only the initial value comes
+// from here: once a view exists the user drives it from the overlay panel, and the
+// render-state JSON carries whatever they chose.
+RenderSettings preferenceRenderSettings()
+{
+    RenderSettings settings;
+    settings.qualityHistogramColorMapId =
+        Preferences::instance().stringValue(QStringLiteral("scalar.defaultColorMap"));
+    settings.qualityHistogramBins =
+        Preferences::instance().intValue(QStringLiteral("scalar.histogramBins"));
+    return settings;
+}
+
+// The projection a new view starts in; after that the view owns it (the menu, Shift+wheel
+// and the camera JSON change it, and Reset Camera leaves it alone).
+Projection preferenceProjection()
+{
+    return Preferences::instance().stringValue(QStringLiteral("view.projection"))
+               == ViewTrackball::projectionJsonName(Projection::Orthographic)
+        ? Projection::Orthographic
+        : Projection::Perspective;
+}
+
+} // namespace
+
 QKeySequence RenderWidget::resetCameraShortcut()
 {
 #ifdef Q_OS_MACOS
@@ -561,21 +588,8 @@ QKeySequence RenderWidget::resetCameraShortcut()
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     : QRhiWidget(parent), m_doc(doc)
 {
-    // Seed the per-view defaults from the application preferences. Only the initial
-    // value comes from here: once a view exists the user drives it from the overlay
-    // panel, and the render-state JSON carries whatever they chose.
-    m_renderSettings.qualityHistogramColorMapId =
-        Preferences::instance().stringValue(QStringLiteral("scalar.defaultColorMap"));
-    m_renderSettings.qualityHistogramBins =
-        Preferences::instance().intValue(QStringLiteral("scalar.histogramBins"));
-
-    // The projection a new view starts in; after that the view owns it (the menu, Shift+wheel
-    // and the camera JSON change it, and Reset Camera leaves it alone).
-    m_trackball.setProjection(
-        Preferences::instance().stringValue(QStringLiteral("view.projection"))
-                == ViewTrackball::projectionJsonName(Projection::Orthographic)
-            ? Projection::Orthographic
-            : Projection::Perspective);
+    m_renderSettings = preferenceRenderSettings();
+    m_trackball.setProjection(preferenceProjection());
 
     setFocusPolicy(Qt::StrongFocus); // receive key events for interactive tools
     setMouseTracking(true); // interactive tools need button-free hover feedback
@@ -1074,6 +1088,43 @@ void RenderWidget::restoreViewState(const ViewState &vs, bool restoreCamera)
     m_meshRenderModes = vs.meshRenderModes;
     setRenderSettings(vs.renderSettings);   // also updates overlay panel + calls update()
     syncOverlaySettingsToCurrentMesh();
+    update();
+}
+
+void RenderWidget::resetToDefaults()
+{
+    cancelCenterAnimation();
+    m_rotationAnimActive = false;
+    invalidateToolPick();
+    if (m_activeTool)
+        m_activeTool->cancelGesture();
+    // Back to 3D first: the modes' own state is reset below, and 3D is always available.
+    if (m_viewMode != ViewMode::Scene3D)
+        setViewMode(ViewMode::Scene3D);
+
+    // A default trackball, in the projection the preferences ask for. Its field of view and
+    // clipping ratio, and the headlight, are applied from the preferences when the next layer
+    // frames the camera (updateCameraFrameIfNeeded waits for one): the same path as Reset Camera.
+    m_trackball = ViewTrackball();
+    m_trackball.setProjection(preferenceProjection());
+    m_lightRotation = QQuaternion();
+    m_reframeCameraRequested = true;
+    m_resetTrackballRequested = true;
+    m_lastBroadcastTrackballStateValid = false;
+
+    m_meshRenderModes.clear();
+    m_meshVisibility.clear();
+    ensureVisibilitySize();
+    m_uvZoom = 1.0f;
+    m_uvPan = QVector2D(0.5f, 0.5f);
+    m_uvFitRequested = true;
+    resetRasterView();
+    m_rasterOpacity = 0.75f;
+
+    setRenderSettings(preferenceRenderSettings());
+    syncPerMeshRenderModesWithDocument();
+    syncOverlaySettingsToCurrentMesh();
+    updateBoundingBoxCornersOverlay();
     update();
 }
 
