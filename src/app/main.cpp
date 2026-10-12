@@ -12,6 +12,7 @@ extern "C" PyObject *PyInit__meshlab();
 #include "helperprocess.h"
 #include "mainwindow.h"
 #include <QApplication>
+#include <QFileInfo>
 #include <QIcon>
 #include <QImageReader>
 #include <QSettings>
@@ -133,6 +134,11 @@ int main(int argc, char *argv[])
     if (!appIcon.isNull())
         w.setWindowIcon(appIcon);
     w.show();
+    // Files named on the command line open as if chosen in the Open dialog.
+    for (const QString &arg : app.arguments().mid(1)) {
+        if (QFileInfo::exists(arg))
+            w.loadMeshFromPath(arg);
+    }
 
     return app.exec();
 }

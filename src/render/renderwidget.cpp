@@ -3247,16 +3247,19 @@ void RenderWidget::applyClipPlaneToCurrentLayer()
         return;
     }
 
-    // The resolved world plane, handed over as-is rather than by copying the settings
-    // across: the view measures its offset in diagonals of the whole visible scene while
-    // the filter measures a distance against one layer's bounding box, so the same numbers
-    // would mean different planes as soon as there is more than one layer. A normal
-    // measured from the origin says exactly one thing.
-    const QVector3D normal = m_frameClipPlane.toVector3D();
+    // The resolved plane, handed over as a normal measured from the origin rather than by
+    // copying the settings across: the view measures its offset in diagonals of the whole
+    // visible scene while the filter measures a distance against one layer's bounding box,
+    // so the same numbers would mean different planes as soon as there is more than one
+    // layer. A normal measured from the origin says exactly one thing -- but the filters
+    // work in the layer's own coordinates, so it is the plane as that layer's vertices see
+    // it, the one its shaders clip with, and not the world plane: with the layer moved the
+    // two are different planes.
+    const QVector4D plane = localClipPlaneFor(meshIndex);
     MeshFilterParameterValues params;
-    params.insert(QStringLiteral("planeNormal"), normal);
+    params.insert(QStringLiteral("planeNormal"), plane.toVector3D());
     params.insert(QStringLiteral("relativeTo"), QStringLiteral("origin"));
-    params.insert(QStringLiteral("planeOffset"), double(-m_frameClipPlane.w()));
+    params.insert(QStringLiteral("planeOffset"), double(-plane.w()));
     // The normal already carries the flip.
     params.insert(QStringLiteral("flip"), false);
 

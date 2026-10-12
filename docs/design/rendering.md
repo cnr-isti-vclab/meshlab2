@@ -268,14 +268,17 @@ edge, which vcglib's boundary walk cannot cross.
 is a bare point cloud (vertices, no faces or edges),
 `meshlab2.filter.meshing::trim_point_cloud_by_plane`, which drops the points behind the plane
 and has no cut to close -- and then switches the clipping plane off, so what is on screen
-becomes the geometry rather than a view of it. It
-hands over the resolved world plane as a normal measured from the origin rather than
-copying the settings across: the view measures its offset in diagonals of the whole visible
-scene while the filter measures a distance against one layer's bounding box, so the same
-numbers would mean different planes as soon as there is more than one layer. It matches
-what the viewport shows -- one layer, and the cut closed when it is shown as solid
-(`closeCut` follows `clipPlaneSolidCut`); the Filters panel has the rest of the filter's
-options.
+becomes the geometry rather than a view of it.
+
+The plane is handed over as a normal measured from the origin rather than copied across as
+the settings: the view measures its offset in diagonals of the whole visible scene while the
+filter measures a distance against one layer's bounding box, so the same numbers would mean
+different planes as soon as there is more than one layer. And it is the plane in the layer's
+own coordinates (`ClipPlane::toLocal`, what the shaders clip with), because the filters work
+in those and ignore the layer matrix; the world plane would cut a different slab once the
+layer has been moved. It matches what the viewport shows -- one layer, and the cut closed when
+it is shown as solid (`closeCut` follows `clipPlaneSolidCut`); the Filters panel has the rest
+of the filter's options.
 
 **Interaction.** `Ctrl`+wheel slides the plane along its normal at 0.02 diagonals a notch;
 `Alt`+drag tips it, switching the axis to `Custom`. Both enable clipping if it is off, and

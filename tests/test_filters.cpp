@@ -408,6 +408,7 @@ private slots:
     void planarSectionSurfaceUsesCpuTessellator();
     void trimByPlaneCutsAtThePlaneAndKeepsTheScalar();
     void trimPointCloudByPlaneDropsThePointsBehindIt();
+    void trimByPlaneOnAMovedLayerReproducesTheViewportClippingPlane();
     void trimByPlaneRefusesRatherThanEmptyTheLayer();
     void trimByPlaneClosesTheCutOnRequest();
     void trimByPlaneClosesAConcentricCutAsAnAnnulus();
@@ -1629,6 +1630,71 @@ void FilterTests::trimPointCloudByPlaneDropsThePointsBehindIt()
         surface.runFilter(filterKeyForId(surface, QStringLiteral("trim_point_cloud_by_plane")), params);
     QVERIFY(!refused.success);
     QVERIFY(refused.errorMessage.contains(QStringLiteral("Trim Surface by Plane")));
+}
+
+// The same contract for a layer whose matrix is not the identity. The viewport clips in the
+// layer's own coordinates (ClipPlane::toLocal), and the filters work in them too, so the button
+// hands over the local plane; handing over the world one cuts a different slab as soon as the
+// layer has been moved. What survives has to be what the viewport was still drawing, for the
+// surface filter and the point-cloud one alike.
+void FilterTests::trimByPlaneOnAMovedLayerReproducesTheViewportClippingPlane()
+{
+    QMatrix4x4 moved;
+    moved.translate(10.0f, -4.0f, 3.0f);
+    moved.rotate(35.0f, QVector3D(0.3f, 1.0f, 0.2f));
+    moved.scale(1.5f);
+    // A world plane through the middle of where the layer now is, not through its origin.
+    const QVector3D worldNormal = QVector3D(0.4f, 0.8f, -0.3f).normalized();
+    const QVector4D worldPlane(worldNormal, -QVector3D::dotProduct(worldNormal, QVector3D(10.0f, -4.0f, 3.0f)));
+    const QVector4D localPlane = ClipPlane::toLocal(worldPlane, moved);
+
+    for (const bool pointCloud : { false, true }) {
+        Document doc;
+        VCGMesh mesh;
+        if (pointCloud) {
+            vcg::tri::Sphere(mesh, 3);
+            mesh.fn = 0;
+            mesh.face.clear();
+        } else {
+            vcg::tri::Sphere(mesh, 3);
+        }
+        vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+        const int layer = doc.addMesh(mesh, QStringLiteral("moved"));
+        QVERIFY(layer >= 0);
+        doc.mesh(layer).transform = moved;
+        if (pointCloud)
+            QCOMPARE(doc.mesh(layer).mesh.FN(), 0);
+
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("planeNormal"), localPlane.toVector3D());
+        params.insert(QStringLiteral("relativeTo"), QStringLiteral("origin"));
+        params.insert(QStringLiteral("planeOffset"), double(-localPlane.w()));
+        params.insert(QStringLiteral("flip"), false);
+        if (!pointCloud)
+            params.insert(QStringLiteral("closeCut"), false);
+        const QString id = pointCloud ? QStringLiteral("trim_point_cloud_by_plane")
+                                      : QStringLiteral("trim_surface_by_plane");
+        const MeshFilterRunResult result = doc.runFilter(filterKeyForId(doc, id), params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+        const VCGMesh &kept = doc.mesh(layer).mesh;
+        QVERIFY(kept.VN() > 0);
+        // Where the viewport would have drawn every surviving vertex: through the layer matrix,
+        // in front of the world plane. And the cut must not have taken too much: the sphere
+        // reaches both sides of the plane, so roughly half of it has to be left.
+        float worstWrongSide = 0.0f;
+        for (const VCGVertex &v : kept.vert) {
+            if (v.IsD())
+                continue;
+            const QVector3D world = moved.map(QVector3D(v.cP().X(), v.cP().Y(), v.cP().Z()));
+            worstWrongSide = std::min(worstWrongSide,
+                                      QVector3D::dotProduct(worldPlane.toVector3D(), world) + worldPlane.w());
+        }
+        QVERIFY2(worstWrongSide > -1e-3f,
+                 qPrintable(QStringLiteral("%1: a vertex survived %2 behind the plane")
+                                .arg(id).arg(-worstWrongSide)));
+        QVERIFY2(kept.VN() > 100, qPrintable(QStringLiteral("%1 kept only %2 vertices").arg(id).arg(kept.VN())));
+    }
 }
 
 void FilterTests::trimByPlaneRefusesRatherThanEmptyTheLayer()
