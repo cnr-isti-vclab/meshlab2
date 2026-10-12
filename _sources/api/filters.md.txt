@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 372 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 373 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -5456,13 +5456,19 @@ Rotate selection to fit a reference plane.
 ```{py:function} ms.rotate_to_fitted_plane(**params)
 :module: _meshlab
 
-Generate a matrix transformation that rotates the mesh so that the selection fits one of the main planes XY YZ ZX. May also translate such that the selection centroid rest on the origin. It reports on the log the average error of the fitting (in mesh units).
+Rotates the whole mesh so that a plane fitted through the **selected vertices** lies on one of the main planes XY, YZ or ZX — the usual way to put a scanned object flat on the ground, by selecting the part that should become its base.
+
+The fit uses selected **vertices**. If nothing is selected but some faces are, the vertices of those faces are used instead, boundary vertices shared with unselected faces included; the selection itself is left untouched either way. A vertex selection takes precedence, so a stale one left by an earlier filter is used in preference to the faces — clear it first if that is not what you want.
+
+Every point counts equally: the fit is purely positional, so face areas do not weight it and a densely tessellated region pulls the plane towards itself.
+
+The average distance from the selected points to the fitted plane is reported in the log, in mesh units, as a measure of how planar the selection actually was.
 
 **Parameters:**
 
 - **targetPlane** (*enum*, default: `xy`) — Target plane.
 - **rotAxis** (*enum*, default: `any`) — Rotation axis constraint.
-- **ToOrigin** (*bool*, default: `True`) — Translate so selection centroid rests on origin.
+- **ToOrigin** (*bool*, default: `True`) — Also translate the mesh so that the centre of the selection's bounding box sits at the origin. Note this is the bounding-box centre of the selected points, not their centroid: for an uneven selection the two differ.
 ```
 
 ---
@@ -7091,6 +7097,33 @@ Create a new mesh that is a resampled version of the current one.<br>The resampl
 - **discretize** (*bool*, default: `False`) — Use fixed edge midpoints instead of linear interpolation for a stair-step appearance.
 - **multisample** (*bool*, default: `False`) — Compute the distance field more accurately by multisampling the volume.
 - **absDist** (*bool*, default: `False`) — Use an unsigned distance field to create an inner and outer shell around the input mesh.
+```
+
+---
+
+(filter-trim-point-cloud-by-plane)=
+
+## Trim Point Cloud by Plane
+
+**Categories:** `Meshing/Remeshing`
+
+**Plugin:** meshlab2.filter.meshing
+
+Removes the points of a point cloud that lie behind an oriented plane.
+
+```{py:function} ms.trim_point_cloud_by_plane(**params)
+:module: _meshlab
+
+Trims the current point cloud along an oriented plane, discarding every point behind it. Points exactly on the plane are kept. All the other per-point data -- normals, colours, scalars -- stays with the points that remain.
+
+For a layer with faces use *Trim Surface by Plane*, which splits the faces along the plane instead of dropping vertices.
+
+**Parameters:**
+
+- **planeNormal** (*point3f*, default: `[1.0, 0.0, 0.0]`) — Direction the cutting plane faces. Everything behind the plane is discarded. It need not be unit length.
+- **relativeTo** (*enum*, default: `center`) — Point the offset is measured from.
+- **planeOffset** (*double*, default: `0.0`) — Distance from the reference point to the plane, measured along the plane normal.
+- **flip** (*bool*, default: `False`) — If enabled, the side that would have been discarded is kept instead. The same as negating the plane normal, kept as a control because reversing a cut is a thing you do often.
 ```
 
 ---

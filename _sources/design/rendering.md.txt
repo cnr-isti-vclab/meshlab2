@@ -264,8 +264,11 @@ holes that the tessellator rejects, and a hole that needs ear cutting beside a n
 edge, which vcglib's boundary walk cannot cross.
 
 **Making the cut real.** The clip-plane page's *Trim Current Layer* button runs
-`meshlab2.filter.meshing::trim_surface_by_plane` on the current layer and then switches the
-clipping plane off, so what is on screen becomes the geometry rather than a view of it. It
+`meshlab2.filter.meshing::trim_surface_by_plane` on the current layer -- or, when the layer
+is a bare point cloud (vertices, no faces or edges),
+`meshlab2.filter.meshing::trim_point_cloud_by_plane`, which drops the points behind the plane
+and has no cut to close -- and then switches the clipping plane off, so what is on screen
+becomes the geometry rather than a view of it. It
 hands over the resolved world plane as a normal measured from the origin rather than
 copying the settings across: the view measures its offset in diagonals of the whole visible
 scene while the filter measures a distance against one layer's bounding box, so the same

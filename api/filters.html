@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 372 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 373 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -4574,12 +4574,15 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.rotate_to_fitted_plane">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">rotate_to_fitted_plane</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.rotate_to_fitted_plane" title="Link to this definition">¶</a></dt>
-<dd><p>Generate a matrix transformation that rotates the mesh so that the selection fits one of the main planes XY YZ ZX. May also translate such that the selection centroid rest on the origin. It reports on the log the average error of the fitting (in mesh units).</p>
+<dd><p>Rotates the whole mesh so that a plane fitted through the <strong>selected vertices</strong> lies on one of the main planes XY, YZ or ZX — the usual way to put a scanned object flat on the ground, by selecting the part that should become its base.</p>
+<p>The fit uses selected <strong>vertices</strong>. If nothing is selected but some faces are, the vertices of those faces are used instead, boundary vertices shared with unselected faces included; the selection itself is left untouched either way. A vertex selection takes precedence, so a stale one left by an earlier filter is used in preference to the faces — clear it first if that is not what you want.</p>
+<p>Every point counts equally: the fit is purely positional, so face areas do not weight it and a densely tessellated region pulls the plane towards itself.</p>
+<p>The average distance from the selected points to the fitted plane is reported in the log, in mesh units, as a measure of how planar the selection actually was.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>targetPlane</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">xy</span></code>) — Target plane.</p></li>
 <li><p><strong>rotAxis</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">any</span></code>) — Rotation axis constraint.</p></li>
-<li><p><strong>ToOrigin</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Translate so selection centroid rests on origin.</p></li>
+<li><p><strong>ToOrigin</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Also translate the mesh so that the centre of the selection’s bounding box sits at the origin. Note this is the bounding-box centre of the selected points, not their centroid: for an uneven selection the two differ.</p></li>
 </ul>
 </dd></dl>
 
@@ -5877,6 +5880,27 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>discretize</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Use fixed edge midpoints instead of linear interpolation for a stair-step appearance.</p></li>
 <li><p><strong>multisample</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Compute the distance field more accurately by multisampling the volume.</p></li>
 <li><p><strong>absDist</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Use an unsigned distance field to create an inner and outer shell around the input mesh.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="trim-point-cloud-by-plane">
+<span id="filter-trim-point-cloud-by-plane"></span><h2>Trim Point Cloud by Plane<a class="headerlink" href="#trim-point-cloud-by-plane" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.meshing</p>
+<p>Removes the points of a point cloud that lie behind an oriented plane.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.trim_point_cloud_by_plane">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">trim_point_cloud_by_plane</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.trim_point_cloud_by_plane" title="Link to this definition">¶</a></dt>
+<dd><p>Trims the current point cloud along an oriented plane, discarding every point behind it. Points exactly on the plane are kept. All the other per-point data – normals, colours, scalars – stays with the points that remain.</p>
+<p>For a layer with faces use <em>Trim Surface by Plane</em>, which splits the faces along the plane instead of dropping vertices.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>planeNormal</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[1.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Direction the cutting plane faces. Everything behind the plane is discarded. It need not be unit length.</p></li>
+<li><p><strong>relativeTo</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">center</span></code>) — Point the offset is measured from.</p></li>
+<li><p><strong>planeOffset</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Distance from the reference point to the plane, measured along the plane normal.</p></li>
+<li><p><strong>flip</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the side that would have been discarded is kept instead. The same as negating the plane normal, kept as a control because reversing a cut is a thing you do often.</p></li>
 </ul>
 </dd></dl>
 
@@ -9407,6 +9431,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#remesh-uniformly-by-volumetric-resampling">Remesh Uniformly by Volumetric Resampling</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.remesh_uniformly_by_volumetric_resampling"><code class="docutils literal notranslate"><span class="pre">ms.remesh_uniformly_by_volumetric_resampling()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#trim-point-cloud-by-plane">Trim Point Cloud by Plane</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.trim_point_cloud_by_plane"><code class="docutils literal notranslate"><span class="pre">ms.trim_point_cloud_by_plane()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#trim-surface-by-plane">Trim Surface by Plane</a><ul>
