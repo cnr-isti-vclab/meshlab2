@@ -19,7 +19,6 @@
 #include <QSizePolicy>
 #include <QStackedWidget>
 #include <QStyle>
-#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <algorithm>
@@ -120,7 +119,6 @@ constexpr int kPassArrowWidth = 28;
 constexpr int kPassArrowHeight = 10;
 constexpr int kSettingsRowHeight = 20;
 constexpr int kColorButtonSize = 16;
-constexpr int kSettingsAutoCloseDelayMs = 5000;
 constexpr Qt::Alignment kSettingsLabelAlignment = Qt::AlignRight | Qt::AlignVCenter;
 constexpr int kPbrSourceRole = Qt::UserRole + 100;
 constexpr int kPbrTextureIndexRole = Qt::UserRole + 101;
@@ -253,16 +251,6 @@ public:
 RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     : QWidget(parent)
 {
-    m_settingsAutoCloseTimer = new QTimer(this);
-    m_settingsAutoCloseTimer->setSingleShot(true);
-    m_settingsAutoCloseTimer->setInterval(kSettingsAutoCloseDelayMs);
-    connect(m_settingsAutoCloseTimer, &QTimer::timeout, this, [this]() {
-        if (m_settingsContainer && m_settingsContainer->isVisible())
-            setSettingsVisible(false);
-    });
-    if (qApp)
-        qApp->installEventFilter(this);
-
     auto *panelLayout = new QVBoxLayout(this);
     panelLayout->setContentsMargins(0, 0, 0, 0);
     panelLayout->setSpacing(1);
@@ -1986,33 +1974,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     syncViewerSettingsModeUi();
     if (m_settingsContainer)
         m_settingsContainer->setVisible(m_globalSettings.settingsPanelVisible);
-    if (!m_globalSettings.settingsPanelVisible)
-        stopSettingsAutoCloseTimer();
     updateSettingsPanelGeometry();
     syncRenderPassUiState();
-}
-
-RenderOverlayPanel::~RenderOverlayPanel()
-{
-    if (qApp)
-        qApp->removeEventFilter(this);
-}
-
-bool RenderOverlayPanel::eventFilter(QObject *watched, QEvent *event)
-{
-    if (m_settingsContainer && m_settingsContainer->isVisible()) {
-        if (event->type() == QEvent::MouseButtonPress) {
-            auto *mouseEvent = static_cast<QMouseEvent *>(event);
-            const QPoint localPos = mapFromGlobal(mouseEvent->globalPosition().toPoint());
-            if (rect().contains(localPos))
-                stopSettingsAutoCloseTimer();
-            else
-                startSettingsAutoCloseTimer();
-        } else if (event->type() == QEvent::WindowDeactivate) {
-            startSettingsAutoCloseTimer();
-        }
-    }
-    return QWidget::eventFilter(watched, event);
 }
 
 int RenderOverlayPanel::renderPassPageIndex(RenderPass pass) const
@@ -2049,7 +2012,6 @@ void RenderOverlayPanel::setCurrentRenderPass(RenderPass pass)
 
 void RenderOverlayPanel::setSettingsVisible(bool visible)
 {
-    stopSettingsAutoCloseTimer();
     if (m_globalSettings.settingsPanelVisible == visible)
         return;
     m_globalSettings.settingsPanelVisible = visible;
@@ -2059,18 +2021,6 @@ void RenderOverlayPanel::setSettingsVisible(bool visible)
     adjustSize();
     syncRenderPassUiState();
     emit globalSettingsChanged(m_globalSettings);
-}
-
-void RenderOverlayPanel::startSettingsAutoCloseTimer()
-{
-    if (m_settingsAutoCloseTimer && m_settingsContainer && m_settingsContainer->isVisible())
-        m_settingsAutoCloseTimer->start();
-}
-
-void RenderOverlayPanel::stopSettingsAutoCloseTimer()
-{
-    if (m_settingsAutoCloseTimer)
-        m_settingsAutoCloseTimer->stop();
 }
 
 void RenderOverlayPanel::updateSettingsPanelGeometry()
@@ -2207,8 +2157,6 @@ void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
     syncQualityHistogramUiState();
     if (m_settingsContainer)
         m_settingsContainer->setVisible(m_globalSettings.settingsPanelVisible);
-    if (!m_globalSettings.settingsPanelVisible)
-        stopSettingsAutoCloseTimer();
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_globalSettings.currentPass));
     syncViewerSettingsModeUi();
