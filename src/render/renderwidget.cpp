@@ -214,8 +214,13 @@ QString quickHelpOverlayHtml()
         return cached;
 
     QFile file(QStringLiteral(":/resources/quick_help_overlay.html"));
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         cached = QString::fromUtf8(file.readAll());
+        // The reset-camera key differs by platform, so the page names it by a placeholder.
+        cached.replace(QStringLiteral("%RESET_CAMERA_SHORTCUT%"),
+                       RenderWidget::resetCameraShortcut().toString(QKeySequence::NativeText)
+                           .toHtmlEscaped());
+    }
 
     if (cached.isEmpty()) {
         cached = QStringLiteral(
@@ -542,6 +547,15 @@ int decimalsForStep(double step)
     }
     return 4;
 }
+}
+
+QKeySequence RenderWidget::resetCameraShortcut()
+{
+#ifdef Q_OS_MACOS
+    return QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_H);
+#else
+    return QKeySequence(Qt::CTRL | Qt::Key_H);
+#endif
 }
 
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)

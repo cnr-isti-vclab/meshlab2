@@ -1380,7 +1380,7 @@ MainWindow::MainWindow(QWidget *parent)
     viewMenu->addSeparator();
     viewMenu->addAction(
         tr("Reset Camera"),
-        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_H),
+        RenderWidget::resetCameraShortcut(),
         this,
         &MainWindow::resetCamera);
     viewMenu->addAction(

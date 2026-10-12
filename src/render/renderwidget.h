@@ -110,6 +110,10 @@ public:
     bool helpOverlayVisible() const { return m_helpOverlayVisible; }
     void setHelpOverlayVisible(bool visible);
     void toggleHelpOverlayVisible() { setHelpOverlayVisible(!m_helpOverlayVisible); }
+    // The key that resets the camera. Ctrl+H where the platform leaves it free; on macOS Ctrl is
+    // Cmd, and Cmd+H hides the application, so it takes Shift as well. One place, so the menu
+    // and the quick help say the same thing.
+    static QKeySequence resetCameraShortcut();
     Projection projection() const { return m_trackball.projection(); }
     // Switches this view between perspective and orthographic (3D mode only), with a status
     // line saying which it is now. The view keeps framing the same height at its orbit centre.
