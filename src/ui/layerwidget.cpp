@@ -1013,7 +1013,7 @@ QString layerItemKey(QTreeWidgetItem *item)
     return idOk ? layerItemKey(kind, id) : QString();
 }
 
-// The tree of mesh layers, whose rows can be dragged to another place in the list. Qt would
+// A tree of layers (the meshes, or the rasters), whose rows can be dragged to another place in the list. Qt would
 // move the item itself, and "on" another item makes it that item's child, neither of which
 // means anything here: the document owns the order, so a drop is turned into a request for
 // the document to move the layer and the tree is rebuilt from the result. Only a layer row
@@ -1022,7 +1022,8 @@ QString layerItemKey(QTreeWidgetItem *item)
 class LayerTreeWidget : public QTreeWidget
 {
 public:
-    explicit LayerTreeWidget(QWidget *parent) : QTreeWidget(parent)
+    // `indexRole` is the data role, on a layer row's first column, that holds the layer's position.
+    LayerTreeWidget(int indexRole, QWidget *parent) : QTreeWidget(parent), m_indexRole(indexRole)
     {
         setDragEnabled(true);
         setAcceptDrops(true);
@@ -1045,12 +1046,12 @@ protected:
         QTreeWidgetItem *target = topLevelOf(itemAt(event->position().toPoint()));
         bool ok = false;
         const int from = (dragged && !dragged->parent())
-            ? dragged->data(0, kRoleMeshIndex).toInt(&ok) : -1;
+            ? dragged->data(0, m_indexRole).toInt(&ok) : -1;
         // Where the drop lands relative to the row it is over: above or below it, or, over its
         // middle, whichever half the pointer is in.
         int insertBefore = topLevelItemCount();
         if (target) {
-            const int targetIndex = target->data(0, kRoleMeshIndex).toInt();
+            const int targetIndex = target->data(0, m_indexRole).toInt();
             const QRect rect = visualItemRect(target);
             const bool above = dropIndicatorPosition() == QAbstractItemView::AboveItem
                 || (dropIndicatorPosition() == QAbstractItemView::OnItem
@@ -1068,6 +1069,9 @@ protected:
                 moveRequested(from, to);
         }
     }
+
+private:
+    int m_indexRole;
 };
 
 // Numeric sort helper for table columns
@@ -1155,7 +1159,7 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     // --- Tree view (page 0) ---
     auto *treeSplitter = new QSplitter(Qt::Vertical, this);
 
-    auto *meshTree = new LayerTreeWidget(this);
+    auto *meshTree = new LayerTreeWidget(kRoleMeshIndex, this);
     meshTree->moveRequested = [this](int from, int to) { m_doc->moveMesh(from, to); };
     m_meshTree = meshTree;
     m_meshTree->setColumnCount(3);
@@ -1172,7 +1176,9 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     connect(m_meshTree, &QTreeWidget::itemChanged, this, &LayerWidget::onTreeItemChanged);
     connect(m_meshTree, &QTreeWidget::currentItemChanged, this, &LayerWidget::onTreeCurrentItemChanged);
 
-    m_rasterTree = new QTreeWidget(this);
+    auto *rasterTree = new LayerTreeWidget(kRoleRasterIndex, this);
+    rasterTree->moveRequested = [this](int from, int to) { m_doc->moveRaster(from, to); };
+    m_rasterTree = rasterTree;
     m_rasterTree->setColumnCount(3);
     m_rasterTree->setHeaderHidden(true);
     m_rasterTree->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -1303,6 +1309,7 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
         scheduleRebuild();
     });
     connect(m_doc, &Document::rasterRemoved, this, &LayerWidget::rebuild);
+    connect(m_doc, &Document::rasterMoved, this, [this](int, int) { scheduleRebuild(); });
     connect(m_doc, &Document::rasterVisibilityChanged, this, [this](int, bool) {
         scheduleRebuild();
     });

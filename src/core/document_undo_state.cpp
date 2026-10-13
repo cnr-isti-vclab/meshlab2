@@ -220,6 +220,22 @@ void Document::restoreUndoState(const UndoState &state)
             emit rasterAdded(static_cast<int>(m_rasters.size() - 1));
             ++added;
         }
+        // The kept rasters stayed where they were and the added ones went to the end, but the
+        // order is part of the state too (moveRaster): put them in the snapshot's.
+        {
+            std::vector<std::unique_ptr<RasterEntry>> ordered;
+            ordered.reserve(m_rasters.size());
+            for (const auto &snap : state.rasters) {
+                for (auto &live : m_rasters) {
+                    if (live && live->rasterId == snap.rasterId) {
+                        ordered.push_back(std::move(live));
+                        break;
+                    }
+                }
+            }
+            if (ordered.size() == m_rasters.size())
+                m_rasters = std::move(ordered);
+        }
         writeLog(tr("Undo/redo — rasters: %1 ms (skipped %2, removed %3, added %4)")
             .arg(t.elapsed()).arg(skipped).arg(removed).arg(added),
             LogSource::Application, LogLevel::Debug);

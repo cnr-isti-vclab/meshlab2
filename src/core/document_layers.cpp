@@ -322,6 +322,37 @@ void Document::removeRaster(int index)
         endUndoStep(true);
 }
 
+void Document::moveRaster(int from, int to)
+{
+    if (from < 0 || from >= rasterCount() || to < 0 || to >= rasterCount() || from == to)
+        return;
+
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("Move Raster"));
+
+    const std::uint64_t currentId =
+        (m_currentRasterIndex >= 0) ? raster(m_currentRasterIndex).rasterId : 0;
+    std::unique_ptr<RasterEntry> entry = std::move(m_rasters[std::size_t(from)]);
+    const QString name = entry->name;
+    m_rasters.erase(m_rasters.begin() + from);
+    m_rasters.insert(m_rasters.begin() + to, std::move(entry));
+
+    writeLog(tr("Moved raster '%1' from position %2 to %3").arg(name).arg(from).arg(to),
+             LogSource::Application);
+    emit rasterMoved(from, to);
+    if (currentId != 0) {
+        for (int i = 0; i < rasterCount(); ++i) {
+            if (raster(i).rasterId == currentId) {
+                setCurrentRasterIndexInternal(i, m_currentLayerKind == CurrentLayerKind::Raster);
+                break;
+            }
+        }
+    }
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
 void Document::clearAllLayers()
 {
     for (const auto &entry : m_meshes)

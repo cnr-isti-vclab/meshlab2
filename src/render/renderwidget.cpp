@@ -755,6 +755,12 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         syncRasterCacheWithDocument();
         update();
     });
+    connect(m_doc, &Document::rasterMoved, this, [this](int, int) {
+        // Rasters are looked up by id and by the current index, which Document keeps on the same
+        // raster; nothing here is positional, but what is drawn may be the current raster's.
+        syncRasterCacheWithDocument();
+        update();
+    });
     connect(m_doc, &Document::rasterRemoved, this, [this](int) {
         syncRasterCacheWithDocument();
         update();

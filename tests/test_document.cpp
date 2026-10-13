@@ -87,6 +87,7 @@ private slots:
     void rasterCameraUndoRedoRestoresShot();
     void undoRedoRestoresMeshList();
     void movingALayerChangesItsPositionAndNotItsId();
+    void movingARasterChangesItsPositionAndNotItsId();
     void undoTreeBranchingPreservesAlternateFuture();
     void undoSerialsSurviveRenumbering();
     void memoryStatsCountCustomAttributes();
@@ -1810,6 +1811,42 @@ void DocumentTests::movingALayerChangesItsPositionAndNotItsId()
     QCOMPARE(doc.mesh(0).meshId, ids[0]);
     QVERIFY(doc.redo());
     QCOMPARE(names(), QStringLiteral("bcda"));
+}
+
+void DocumentTests::movingARasterChangesItsPositionAndNotItsId()
+{
+    Document doc;
+    QImage image(8, 8, QImage::Format_RGBA8888);
+    image.fill(Qt::red);
+    for (const char *name : { "r0", "r1", "r2" })
+        QVERIFY(doc.addRasterImage(image, QString::fromLatin1(name)) >= 0);
+    std::vector<std::uint64_t> ids;
+    for (int i = 0; i < 3; ++i)
+        ids.push_back(doc.raster(i).rasterId);
+    const auto names = [&] {
+        QStringList list;
+        for (int i = 0; i < doc.rasterCount(); ++i)
+            list << doc.raster(i).name;
+        return list.join(QLatin1Char(','));
+    };
+    doc.setCurrentRasterIndex(0);
+    QSignalSpy moved(&doc, &Document::rasterMoved);
+
+    doc.moveRaster(0, 2);
+    QCOMPARE(names(), QStringLiteral("r1,r2,r0"));
+    QCOMPARE(moved.count(), 1);
+    QCOMPARE(doc.currentRasterIndex(), 2);   // still "r0"
+    QCOMPARE(doc.raster(2).rasterId, ids[0]);
+    QCOMPARE(doc.raster(0).rasterId, ids[1]);
+
+    doc.moveRaster(1, 1);
+    doc.moveRaster(0, 5);
+    QCOMPARE(moved.count(), 1);
+
+    QVERIFY(doc.undo());
+    QCOMPARE(names(), QStringLiteral("r0,r1,r2"));
+    QVERIFY(doc.redo());
+    QCOMPARE(names(), QStringLiteral("r1,r2,r0"));
 }
 
 void DocumentTests::undoRedoRestoresMeshList()

@@ -277,6 +277,8 @@ public:
     // only the position changes, which is the order of the layer list, of grid arrangements
     // and of a saved project. The current layer is still the same layer. One undo step.
     void moveMesh(int from, int to);
+    // The same for the raster list; a raster's id (rasterId) stays with it.
+    void moveRaster(int from, int to);
     int duplicateMesh(int sourceIndex, const QString &newName = {});
     int loadRasterImage(const QString &filename);
     int loadMeshLabProject(const QString &filename);
@@ -491,6 +493,7 @@ signals:
     // A layer changed position (moveMesh): everything positional -- a view's per-layer
     // visibility -- has to move with it. Not emitted for the wholesale rebuild of an undo.
     void meshMoved(int from, int to);
+    void rasterMoved(int from, int to);
     void meshVisibilityChanged(int index, bool visible);
     void currentMeshChanged(int index);
     void meshDataChanged(int index);
