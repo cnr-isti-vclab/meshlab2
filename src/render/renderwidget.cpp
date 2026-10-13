@@ -561,6 +561,7 @@ RenderSettings preferenceRenderSettings()
         Preferences::instance().stringValue(QStringLiteral("scalar.defaultColorMap"));
     settings.qualityHistogramBins =
         Preferences::instance().intValue(QStringLiteral("scalar.histogramBins"));
+    settings.referenceGrid = defaultReferenceGrid();
     return settings;
 }
 
@@ -590,6 +591,13 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
 {
     m_renderSettings = preferenceRenderSettings();
     m_trackball.setProjection(preferenceProjection());
+    // The grid's look is read from the preferences every frame; this is what makes a change in the
+    // dialog show without waiting for something else to repaint.
+    connect(&Preferences::instance(), &Preferences::changed, this,
+            [this](const QString &id, const QVariant &) {
+        if (id.startsWith(QLatin1String("view.grid.")))
+            update();
+    });
 
     setFocusPolicy(Qt::StrongFocus); // receive key events for interactive tools
     setMouseTracking(true); // interactive tools need button-free hover feedback

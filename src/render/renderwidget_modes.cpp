@@ -144,6 +144,9 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
         preferences.intValue(QStringLiteral("render.wireframeOnLoadMaxFaces"));
     const int flatShadingMaxFaces =
         preferences.intValue(QStringLiteral("render.flatShadingMaxFaces"));
+    mode.pointSize = float(preferences.doubleValue(QStringLiteral("render.pointSize")));
+    mode.edgeSize = float(preferences.doubleValue(QStringLiteral("render.edgeSize")));
+    mode.wireSize = float(preferences.doubleValue(QStringLiteral("render.wireSize")));
 
     if (faceCount > 0) {
         mode.showFill = true;
@@ -195,7 +198,7 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
         mode.showPoints = false;
         // The default of render.selectedEdgeWidth follows this, so a selection on a polyline
         // covers the edges it marks.
-        mode.edgeSize = 4.0f;
+        mode.edgeSize = float(preferences.doubleValue(QStringLiteral("render.edgeLayerWidth")));
         mode.fillLighting = false;
         mode.pointLighting = false;
         mode.wireLighting = false;

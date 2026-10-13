@@ -148,6 +148,16 @@ enum class QualityHistogramSource {
     FaceQuality
 };
 
+// The grid drawn in the 3D view as a reference for where the origin is and how big things are:
+// a plane through the origin ruled in powers of ten, the world axes in it coloured. XZ is for
+// scenes that stand on Y, XY for those that stand on Z; see viewgrid.h. Not to be confused with
+// LayerArrangement::Grid, the tiling of layers.
+enum class ReferenceGrid {
+    None = 0,
+    XY,
+    XZ
+};
+
 // How the visible layers share the 3D view.
 enum class LayerArrangement {
     // Every visible layer drawn in one shared space, which is what a 3D viewer normally
@@ -267,6 +277,7 @@ Q_DECLARE_METATYPE(PerMeshRenderSettings)
 
 // View-level (global) rendering settings shared across all meshes in the scene.
 struct GlobalRenderSettings {
+    ReferenceGrid referenceGrid = ReferenceGrid::None;
     LayerArrangement layerArrangement = LayerArrangement::Overlay;
     GridTileShape gridTileShape = GridTileShape::Square;
     // Where a last grid row with fewer tiles than the others sits.

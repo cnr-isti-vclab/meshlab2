@@ -84,6 +84,12 @@ int Preferences::intValue(const QString &id) const { return value(id).toInt(); }
 double Preferences::doubleValue(const QString &id) const { return value(id).toDouble(); }
 QString Preferences::stringValue(const QString &id) const { return value(id).toString(); }
 
+QColor Preferences::colorValue(const QString &id) const
+{
+    const QVariant v = value(id);
+    return v.userType() == QMetaType::QColor ? v.value<QColor>() : QColor(v.toString());
+}
+
 void Preferences::setValue(const QString &id, const QVariant &newValue)
 {
     ensureLoaded();

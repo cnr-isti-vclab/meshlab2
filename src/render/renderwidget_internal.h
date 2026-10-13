@@ -92,6 +92,7 @@ inline constexpr int kDecoratorSlotNonManifoldVertices = 5;
 inline constexpr int kDecoratorSlotCurvaturePD1 = 6;
 inline constexpr int kDecoratorSlotCurvaturePD2 = 7;
 inline constexpr int kDecoratorSlotCount = 8;
+inline constexpr int kGridUbufSize = 192; // mat4 mvp + eight vec4: two axes, centre+radius, levels, two axis colours, strengths+axis width, line colour
 inline constexpr int kTrackballGizmoUbufSize = 96; // mat4 mvp + vec4(center.xyz, radius) + vec4(camera.xyz, backShade)
 inline constexpr int kTrackballGizmoSteps = 96;
 inline constexpr int kLightGizmoUbufSize = 96;  // mat4 mvp + vec4 lightDir + vec4 params

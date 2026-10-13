@@ -401,6 +401,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     QMatrix4x4 proj;
     QMatrix4x4 view;
     QMatrix4x4 vp;
+    FrameGrid frameGrid;
     // Before the projection, because in trackball mode the far plane is opened up to hold
     // the result: a peer frustum routinely reaches past this view's own far plane, and
     // without that its far rectangle -- the part that says where that view stops seeing --
@@ -484,10 +485,50 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         const float aspect =
             float(referenceViewport.width()) / float(qMax(1, referenceViewport.height()));
         view = m_trackball.viewMatrix();
-        proj = m_trackball.projectionMatrix(
-            aspect, viewFrustumFarDistance(view), viewFrustumNearDistance(view));
+        frameGrid = computeFrameGrid(view, aspect, referenceViewport.height());
+        proj = sceneProjection(aspect, view, frameGrid);
     }
     vp = proj * view;
+
+    if (frameGrid.active && m_gridUbuf && m_gridVbuf && m_gridPipeline) {
+        if (!u)
+            u = m_rhi->nextResourceUpdateBatch();
+        const QVector3D c = frameGrid.center;
+        QVector3D axes[2];
+        axes[0][frameGrid.plane.uAxis] = 1.0f;
+        axes[1][frameGrid.plane.vAxis] = 1.0f;
+        const float r = frameGrid.halfSize;
+        // A triangle strip: (-u,-v), (+u,-v), (-u,+v), (+u,+v).
+        const QVector3D corner[4] = {
+            c - axes[0] * r - axes[1] * r, c + axes[0] * r - axes[1] * r,
+            c - axes[0] * r + axes[1] * r, c + axes[0] * r + axes[1] * r
+        };
+        float quad[12];
+        for (int i = 0; i < 4; ++i) {
+            quad[3 * i] = corner[i].x();
+            quad[3 * i + 1] = corner[i].y();
+            quad[3 * i + 2] = corner[i].z();
+        }
+        u->updateDynamicBuffer(m_gridVbuf.get(), 0, sizeof(quad), quad);
+
+        const ViewGridLevels levels = viewGridLevels(frameGrid.unitsPerPixel);
+        float data[kGridUbufSize / sizeof(float)] = {};
+        memcpy(data, forBackend(vp).constData(), 64);
+        data[16 + 0] = axes[0].x(); data[16 + 1] = axes[0].y(); data[16 + 2] = axes[0].z();
+        data[20 + 0] = axes[1].x(); data[20 + 1] = axes[1].y(); data[20 + 2] = axes[1].z();
+        data[24 + 0] = c.x(); data[24 + 1] = c.y(); data[24 + 2] = c.z(); data[24 + 3] = r;
+        data[28 + 0] = levels.fine; data[28 + 1] = levels.fineWeight; data[28 + 2] = levels.coarseWeight;
+        const ViewGridStyle style = viewGridStyle();
+        const QVector3D colorU = style.axisColor[frameGrid.plane.uAxis];
+        const QVector3D colorV = style.axisColor[frameGrid.plane.vAxis];
+        data[32 + 0] = colorU.x(); data[32 + 1] = colorU.y(); data[32 + 2] = colorU.z();
+        data[36 + 0] = colorV.x(); data[36 + 1] = colorV.y(); data[36 + 2] = colorV.z();
+        data[40 + 0] = style.fineOpacity; data[40 + 1] = style.midOpacity;
+        data[40 + 2] = style.coarseOpacity; data[40 + 3] = style.axisWidthPixels;
+        data[44 + 0] = style.lineColor.x(); data[44 + 1] = style.lineColor.y();
+        data[44 + 2] = style.lineColor.z();
+        u->updateDynamicBuffer(m_gridUbuf.get(), 0, kGridUbufSize, data);
+    }
 
     if (drawTrackballGizmo && m_trackballGizmoUbuf && m_trackballGizmoVbuf) {
         if (!u)
@@ -602,9 +643,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         frameRequest.proj = proj;
         // Tiles are congruent, so this only matters if a future layout stops making them so.
         if (!rasterMode && tile.rect.size() != referenceViewport) {
-            frameRequest.proj = m_trackball.projectionMatrix(
-                float(tile.rect.width()) / float(qMax(1, tile.rect.height())),
-                viewFrustumFarDistance(view), viewFrustumNearDistance(view));
+            frameRequest.proj = sceneProjection(
+                float(tile.rect.width()) / float(qMax(1, tile.rect.height())), view, frameGrid);
         }
         frameRequest.view = view;
         frameRequest.lightDir = frameLightDir;
@@ -689,6 +729,17 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         renderSceneBufferItems(cb, plan, plan.boundingBoxItems);
     for (const RenderFramePlan &plan : tilePlans)
         renderSceneBufferItems(cb, plan, plan.pointItems);
+    // Under the layers where they are in front of it, over them where they are behind: tested
+    // against the depth of everything drawn so far, writing none of its own. One tile, as the
+    // trackball gizmo: the camera is shared.
+    if (frameGrid.active && m_gridPipeline && m_gridSrb && m_gridVbuf) {
+        cb->setGraphicsPipeline(m_gridPipeline.get());
+        cb->setShaderResources(m_gridSrb.get());
+        cb->setViewport(RenderWidgetInternal::rhiViewportFor(referenceTile.rect, sz));
+        const QRhiCommandBuffer::VertexInput gridInput(m_gridVbuf.get(), 0);
+        cb->setVertexInput(0, 1, &gridInput);
+        cb->draw(4);
+    }
     for (const RenderFramePlan &plan : tilePlans) {
         if (plan.hasRasterProjectedPass())
             renderSceneRasterProjected(cb, plan);

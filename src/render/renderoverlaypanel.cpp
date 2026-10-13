@@ -495,6 +495,19 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     currentMeshForm->addRow(
         tr("Axis gizmo"),
         makeCenteredFieldContainer(m_showAxisGizmoCheck, viewer3dPage));
+    // A reference for where the origin is and how big things are: a plane through the origin,
+    // ruled in powers of ten, the two world axes in it drawn red (X), green (Y) and blue (Z).
+    m_referenceGridCombo = new QComboBox(viewer3dPage);
+    m_referenceGridCombo->addItem(tr("None"), static_cast<int>(ReferenceGrid::None));
+    m_referenceGridCombo->addItem(tr("XY"), static_cast<int>(ReferenceGrid::XY));
+    m_referenceGridCombo->addItem(tr("XZ"), static_cast<int>(ReferenceGrid::XZ));
+    m_referenceGridCombo->setToolTip(
+        tr("A grid through the origin, ruled in powers of ten, with the world axes in red (X), "
+           "green (Y) and blue (Z): a reference for where the origin is and how big things are. "
+           "XY is the floor of a scene that stands on Z, XZ of one that stands on Y. An "
+           "orthographic view looking straight down an axis always shows the plane across its "
+           "line of sight instead, so there is something to measure with."));
+    currentMeshForm->addRow(tr("Reference grid"), m_referenceGridCombo);
     m_showViewCamerasCheck = new QCheckBox(viewer3dPage);
     m_showViewCamerasCheck->setChecked(m_globalSettings.showViewCameras);
     currentMeshForm->addRow(
@@ -1500,6 +1513,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindGlobalEnumCombo(m_currentMeshDebugViewCombo, &GlobalRenderSettings::currentMeshDebugView);
     bindGlobalCheckBox(m_gridCaptionsCheck, &GlobalRenderSettings::showGridCaptions);
     bindGlobalEnumCombo(m_gridTileShapeCombo, &GlobalRenderSettings::gridTileShape);
+    bindGlobalEnumCombo(m_referenceGridCombo, &GlobalRenderSettings::referenceGrid);
     bindGlobalEnumCombo(m_gridLastRowCombo, &GlobalRenderSettings::gridLastRowAlignment);
 
     bindMeshCheckBox(m_decoratorVertexNormalsCheck, &PerMeshRenderSettings::decoratorVertexNormals, true);

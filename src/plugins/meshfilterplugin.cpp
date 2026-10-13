@@ -1,6 +1,8 @@
 #include "meshfilterplugin.h"
 #include "filterdescriptorloader.h"
 
+#include <QColor>
+
 #include <algorithm>
 #include <cmath>
 
@@ -221,6 +223,16 @@ bool sameParameterValue(const QVariant &a, const QVariant &b)
         const double x = a.toDouble();
         const double y = b.toDouble();
         return std::abs(x - y) <= 1e-9 * std::max({ 1.0, std::abs(x), std::abs(y) });
+    }
+    // A color is a "#rrggbb" string in a declaration and a QColor from an editor; they are the
+    // same value when they name the same color.
+    const auto asColor = [](const QVariant &v) {
+        return v.userType() == QMetaType::QColor ? v.value<QColor>() : QColor(v.toString());
+    };
+    if (a.userType() == QMetaType::QColor || b.userType() == QMetaType::QColor) {
+        const QColor x = asColor(a), y = asColor(b);
+        if (x.isValid() && y.isValid())
+            return x.rgba() == y.rgba();
     }
     return a == b;
 }

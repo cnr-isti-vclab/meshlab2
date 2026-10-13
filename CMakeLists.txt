@@ -202,6 +202,7 @@ add_library(MeshLab2Core STATIC
     src/render/viewstate.h
     src/render/viewgridlayout.h src/render/viewgridlayout.cpp
     src/render/viewfrustumgizmo.h src/render/viewfrustumgizmo.cpp
+    src/render/viewgrid.h src/render/viewgrid.cpp
     src/render/clipplane.h src/render/clipplane.cpp
     src/render/viewsplitterlayout.h src/render/viewsplitterlayout.cpp
     src/render/viewaxisgizmo.h src/render/viewaxisgizmo.cpp
@@ -455,6 +456,8 @@ qt_add_shaders(MeshLab2 "shaders"
         shaders/overlay_decorator.frag
         shaders/overlay_trackball_gizmo.vert
         shaders/overlay_trackball_gizmo.frag
+        shaders/grid.vert
+        shaders/grid.frag
         shaders/overlay_light_gizmo.vert
         shaders/overlay_light_gizmo.frag
         shaders/selection_mask.vert
@@ -804,6 +807,24 @@ target_link_libraries(MeshLab2ViewFrustumGizmoTests PRIVATE
 )
 
 add_test(NAME MeshLab2ViewFrustumGizmoTests COMMAND MeshLab2ViewFrustumGizmoTests)
+
+qt_add_executable(MeshLab2ViewGridTests
+    tests/test_viewgrid.cpp
+)
+
+target_include_directories(MeshLab2ViewGridTests PRIVATE
+    ${MESHLAB2_SOURCE_DIR}
+    ${MESHLAB2_SOURCE_DIR}/src/render
+)
+
+# Which plane and how finely ruled -- no GPU. The style is read from the preferences, which
+# reach the plugin registry, hence the plugins rather than the core alone.
+target_link_libraries(MeshLab2ViewGridTests PRIVATE
+    MeshLab2Plugins
+    Qt6::Test
+)
+
+add_test(NAME MeshLab2ViewGridTests COMMAND MeshLab2ViewGridTests)
 
 qt_add_executable(MeshLab2ClipPlaneTests
     tests/test_clipplane.cpp

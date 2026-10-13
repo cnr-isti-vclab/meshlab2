@@ -4,6 +4,7 @@
 #include "renderwidget_internal.h"
 #include "meshgpuresourcecache.h"
 #include "camerashot.h"
+#include "viewgrid.h"
 #include "viewtrackball.h"
 #include "viewstate.h"
 #include <QRhiWidget>
@@ -527,6 +528,23 @@ struct SceneRasterProjectedDrawItem {
     // Distance from the eye, along the view direction, of the farthest gizmo point;
     // 0 when there is nothing to draw.
     float viewFrustumFarDistance(const QMatrix4x4 &view) const;
+    // What the reference grid needs of this frame: its plane, the point on it nearest the orbit
+    // centre, how far from the eye that is, and the radius the grid fades out by. Inactive when
+    // the grid is off, or the view is not a 3D scene.
+    struct FrameGrid {
+        bool active = false;
+        ViewGridPlane plane;
+        QVector3D center;
+        float depth = 0.0f;
+        float halfSize = 0.0f;
+        float unitsPerPixel = 1.0f;
+    };
+    FrameGrid computeFrameGrid(const QMatrix4x4 &view, float aspect, int pixelHeight) const;
+    // The scene's projection for a tile of the given aspect: the camera's, with its depth range
+    // opened as far as the peer-view glyphs and the grid plane need. A perspective view cannot
+    // show what is behind its eye and lets the grid's far reaches go; an orthographic one has
+    // no reason not to include the plane, wherever the scene is relative to the origin.
+    QMatrix4x4 sceneProjection(float aspect, const QMatrix4x4 &view, const FrameGrid &grid) const;
     // The matching near distance, infinite when there is no gizmo to hold; see
     // ViewTrackball::projectionMatrix.
     float viewFrustumNearDistance(const QMatrix4x4 &view) const;
@@ -898,6 +916,11 @@ struct SceneRasterProjectedDrawItem {
     std::unique_ptr<QRhiSampler> m_outlineSampler;
     std::unique_ptr<QRhiShaderResourceBindings> m_outlineSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_outlinePipeline;
+    // The reference grid (see viewgrid.h): one quad, ruled by its fragment shader.
+    std::unique_ptr<QRhiBuffer> m_gridUbuf;
+    std::unique_ptr<QRhiBuffer> m_gridVbuf;
+    std::unique_ptr<QRhiShaderResourceBindings> m_gridSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_gridPipeline;
     std::unique_ptr<QRhiBuffer> m_trackballGizmoUbuf;
     std::unique_ptr<QRhiBuffer> m_trackballGizmoVbuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_trackballGizmoSrb;

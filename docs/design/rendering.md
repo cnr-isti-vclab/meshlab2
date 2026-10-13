@@ -99,6 +99,50 @@ Default fill color source preference: texture → per-vertex → per-face → pe
 
 Default explicit-edge color source preference: per-edge → per-vertex → constant. Availability is clamped to `IOM_EDGECOLOR` and `IOM_VERTCOLOR`; unavailable choices are disabled in the overlay panel. Edge-only PLY layers carrying edge colors therefore open with `PerEdge` selected automatically.
 
+## Reference grid
+
+`GlobalRenderSettings::referenceGrid` (`None`, `XY`, `XZ`; JSON `reference_grid`; *Reference grid* in the
+View Settings panel) draws a plane through the world origin, ruled in powers of ten, with the two
+world axes in it drawn red (X), green (Y) and blue (Z): a reference for where the origin is and how big
+things are. It is a different thing from the layer grid (`LayerArrangement::Grid`), the tiling of layers.
+
+**One quad, ruled by its fragment shader** (`shaders/grid.frag`; one draw in `render()`, after the
+fills and the point/edge/box items and before the decorators). The quad is `halfSize` wide about the
+point of the plane nearest the orbit centre -- so it follows a pan -- and the shader fades the grid out
+over its outer part, so no edge is seen. It is depth-tested against the scene and writes no depth.
+Lines are one pixel wide whatever the zoom (from the screen-space derivative of the cell coordinate)
+and the axes about two.
+
+**Three decades are drawn at once**, each ten times the last (`viewGridLevels`): from the world size of
+a pixel at the orbit centre, the fine one is between 1 and 10 pixels apart, the middle one 10 to 100 and
+the coarse one 100 to 1000. The middle is always drawn in full; the fine fades out as it gets too dense
+to read and the coarse fades in as it becomes sparse enough to, so a decade never pops in or out when
+zooming (the weights are one fraction and its complement, and line up across a decade). Each level also
+fades by how many of its cells fall in a pixel, which is what lets a plane seen at a grazing angle go
+quietly to nothing in the distance instead of to noise.
+
+**Which plane** (`chooseViewGridPlane`): the setting names XY (a scene standing on Z) or XZ (on Y). An
+*orthographic* view looking straight down a coordinate axis (within about one degree) -- front, side, top,
+which the axis gizmo and the numeric views give -- always gets the plane *across* its line of sight
+whatever the setting, so the grid is never seen edge-on and an orthographic view with the grid on always
+has something to measure with. An orthographic view off the axes uses the chosen plane.
+
+**Depth.** An orthographic view fits its depth range to the scene, and the plane through the origin may be
+nowhere near it, so `sceneProjection` widens the volume to hold the plane (both ends, as for the peer-view
+glyphs). A perspective view lets the far reaches of the grid be clipped by its far plane; they have faded
+by then. The setting is part of the render-state JSON, so snapshots and scripted renders draw it too.
+
+**Preferences.** `view.referenceGrid` is the grid a new view starts with (read when a view is created and by
+File > New), and `view.grid.*` set how it looks: the strength of the fine, middle and coarse lines, the width
+of the axis lines, the reach (a multiple of the default radius the grid fades out by), and the colours of the
+rules and of the three axes. They are read every frame (`viewGridStyle()`), and a change in the dialog repaints
+the views. A newly loaded layer's point size, edge width, edge-only-layer width and wireframe width start from
+`render.pointSize`, `render.edgeSize`, `render.edgeLayerWidth` and `render.wireSize`.
+
+Tests: `ViewGridTests` (plane choice and level arithmetic) and the render probe
+`tests/render_probes/reference_grid` (the axis colours, the orthographic rule, and the grid far from the
+scene).
+
 ## Resetting the views
 
 *File > New* closes the layers, the undo history and the log, and then puts everything else the
@@ -406,7 +450,7 @@ application's own `--generate-docs <dir>` hook, which execs `<dir>/generate_api.
 with a render-state JSON, and asserts on the returned raw RGBA8888.
 
 `tests/render_probes/` holds these -- `clip_plane` for the clipping plane and solid cut,
-`clip_space` for the backend correction of clip space, `orthographic` for the orthographic camera through snapshots and projection filters, `boundary_decorators` for what the boundary decorator marks and in which colors,
+`clip_space` for the backend correction of clip space, `reference_grid` for the reference grid, `orthographic` for the orthographic camera through snapshots and projection filters, `boundary_decorators` for what the boundary decorator marks and in which colors,
 `quality_histogram_layout` for captures staying full-frame while the histogram is open. Each is a
 directory with a `generate_api.py`, because that is the filename the hook runs:
 

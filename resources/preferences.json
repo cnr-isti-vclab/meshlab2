@@ -65,6 +65,115 @@
       "max": 256
     },
     {
+      "id": "view.referenceGrid",
+      "label": "Reference grid on new views",
+      "help": "The grid a new 3D view starts with: **None**, or a plane through the origin ruled in powers of ten with the world axes in red (X), green (Y) and blue (Z). **XY** is the floor of a scene that stands on Z, **XZ** of one that stands on Y. A view can be switched from View Settings at any time; File > New puts it back to this. An orthographic view looking straight down an axis shows the plane across its line of sight whatever this says.",
+      "group": "view",
+      "type": "enum",
+      "default": "none",
+      "enumOptions": [
+        {
+          "id": "none",
+          "label": "None"
+        },
+        {
+          "id": "xy",
+          "label": "XY"
+        },
+        {
+          "id": "xz",
+          "label": "XZ"
+        }
+      ]
+    },
+    {
+      "id": "view.grid.fineOpacity",
+      "label": "Grid: fine lines",
+      "help": "How strongly the finest of the three decades of grid lines is drawn, from 0 (invisible) to 1. It fades out by itself as it gets too dense to read.",
+      "group": "view",
+      "type": "double",
+      "default": 0.14,
+      "min": 0.0,
+      "max": 1.0,
+      "decimals": 2
+    },
+    {
+      "id": "view.grid.midOpacity",
+      "label": "Grid: middle lines",
+      "help": "How strongly the middle decade of grid lines is drawn, from 0 to 1. It is always shown; the other two fade in and out around it as you zoom.",
+      "group": "view",
+      "type": "double",
+      "default": 0.24,
+      "min": 0.0,
+      "max": 1.0,
+      "decimals": 2
+    },
+    {
+      "id": "view.grid.coarseOpacity",
+      "label": "Grid: coarse lines",
+      "help": "How strongly the coarsest decade of grid lines is drawn, from 0 to 1. It fades in as the view zooms out far enough for it to be readable.",
+      "group": "view",
+      "type": "double",
+      "default": 0.36,
+      "min": 0.0,
+      "max": 1.0,
+      "decimals": 2
+    },
+    {
+      "id": "view.grid.axisWidth",
+      "label": "Grid: axis line width",
+      "help": "Width, in pixels, of the coloured lines that mark the world axes in the grid.",
+      "group": "view",
+      "type": "double",
+      "default": 2.0,
+      "min": 1.0,
+      "max": 8.0,
+      "decimals": 1
+    },
+    {
+      "id": "view.grid.extent",
+      "label": "Grid: reach",
+      "help": "How far the grid extends before it fades out, as a multiple of the default. Raise it for a scene seen from a long way off, or to see more of the floor towards the horizon; lower it to keep the grid close to what you are looking at.",
+      "group": "view",
+      "type": "double",
+      "default": 1.0,
+      "min": 0.25,
+      "max": 4.0,
+      "decimals": 2
+    },
+    {
+      "id": "view.grid.lineColor",
+      "label": "Grid: line color",
+      "help": "Color of the grid lines. The axes have their own colors, below.",
+      "group": "view",
+      "type": "color",
+      "default": "#9e9e9e"
+    },
+    {
+      "id": "view.grid.axisXColor",
+      "label": "Grid: X axis color",
+      "help": "Color of the X axis in the grid.",
+      "group": "view",
+      "type": "color",
+      "default": "#ed404d"
+    },
+    {
+      "id": "view.grid.axisYColor",
+      "label": "Grid: Y axis color",
+      "help": "Color of the Y axis in the grid.",
+      "group": "view",
+      "type": "color",
+      "default": "#80cc40"
+    },
+    {
+      "id": "view.grid.axisZColor",
+      "label": "Grid: Z axis color",
+      "help": "Color of the Z axis in the grid.",
+      "group": "view",
+      "type": "color",
+      "default": "#4580f2"
+    },
+    {
       "id": "view.reframeOnMeshAdded",
       "label": "Reframe camera when a mesh is added",
       "help": "Whether opening a mesh, or a filter creating a layer, moves the camera to frame the scene.\n\n**When the new mesh is off-screen** keeps the camera where you put it and reframes only when the addition would land outside the current view, so what arrives is always visible without a camera you set being thrown away.\n\n**Always** reframes on every addition. **Never** leaves the camera alone; use View > Reset Camera to reframe by hand.\n\nThe first mesh into an empty document always frames the scene, whatever this is set to -- otherwise the view would open pointed at nothing.",
@@ -169,6 +278,50 @@
       "default": 4.0,
       "min": 1.0,
       "max": 20.0,
+      "decimals": 1
+    },
+    {
+      "id": "render.pointSize",
+      "label": "Point size",
+      "help": "Size, in pixels, of the points of a newly loaded layer. A layer's own setting, in View Settings, changes it for that layer afterwards.",
+      "group": "render",
+      "type": "double",
+      "default": 4.0,
+      "min": 1.0,
+      "max": 32.0,
+      "decimals": 1
+    },
+    {
+      "id": "render.edgeSize",
+      "label": "Edge width",
+      "help": "Width, in pixels, of the explicit edges of a newly loaded layer that also has faces. A layer made only of edges takes the next preference instead.",
+      "group": "render",
+      "type": "double",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 100.0,
+      "decimals": 1
+    },
+    {
+      "id": "render.edgeLayerWidth",
+      "label": "Edge-only layer width",
+      "help": "Width, in pixels, of the edges of a newly loaded layer that has edges and nothing else (a polyline). It is wider than the others because a polyline is all there is to see of it.",
+      "group": "render",
+      "type": "double",
+      "default": 4.0,
+      "min": 0.0,
+      "max": 100.0,
+      "decimals": 1
+    },
+    {
+      "id": "render.wireSize",
+      "label": "Wireframe width",
+      "help": "Width, in pixels, of the wireframe of a newly loaded layer.",
+      "group": "render",
+      "type": "double",
+      "default": 1.5,
+      "min": 0.5,
+      "max": 8.0,
       "decimals": 1
     },
     {

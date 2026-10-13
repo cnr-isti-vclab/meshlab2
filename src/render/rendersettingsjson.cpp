@@ -185,8 +185,9 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     if (!fieldsEqual(*this, o, &SettingsType::member)) \
         return false;
 
-// 48 fields
+// 49 fields
 #define MESHLAB2_GLOBAL_SETTINGS_FIELDS(F) \
+    F("reference_grid", referenceGrid) \
     F("layer_arrangement", layerArrangement) \
     F("grid_tile_shape", gridTileShape) \
     F("grid_last_row_alignment", gridLastRowAlignment) \

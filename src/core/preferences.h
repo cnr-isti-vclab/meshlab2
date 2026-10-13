@@ -2,6 +2,7 @@
 
 #include "meshfilterplugin.h"
 
+#include <QColor>
 #include <QObject>
 #include <QString>
 #include <QVariant>
@@ -38,6 +39,8 @@ public:
     int intValue(const QString &id) const;
     double doubleValue(const QString &id) const;
     QString stringValue(const QString &id) const;
+    // A color preference: the dialog stores a QColor, the declaration is a "#rrggbb" string.
+    QColor colorValue(const QString &id) const;
 
     // No-ops when the value is unchanged, so wiring a signal to a widget that echoes
     // it back cannot loop. Only a value that differs from the default is stored; setting

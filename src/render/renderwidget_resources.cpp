@@ -643,6 +643,10 @@ void RenderWidget::ensureRenderResources()
         m_outlineSampler.reset();
         m_outlineSrb.reset();
         m_outlinePipeline.reset();
+        m_gridUbuf.reset();
+        m_gridVbuf.reset();
+        m_gridSrb.reset();
+        m_gridPipeline.reset();
         m_trackballGizmoUbuf.reset();
         m_trackballGizmoVbuf.reset();
         m_trackballGizmoSrb.reset();
@@ -2329,6 +2333,68 @@ void RenderWidget::ensureRenderResources()
             if (!m_outlinePipeline->create()) {
                 qWarning("Failed to create outline pipeline");
                 m_outlinePipeline.reset();
+            }
+        }
+    }
+
+    // The reference grid: one quad, whose rules are drawn by the fragment shader. Translucent
+    // lines over the scene, depth-tested against it but writing no depth of their own.
+    if (!m_gridUbuf) {
+        m_gridUbuf.reset(m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kGridUbufSize));
+        if (!m_gridUbuf || !m_gridUbuf->create())
+            m_gridUbuf.reset();
+    }
+    if (!m_gridVbuf) {
+        m_gridVbuf.reset(m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::VertexBuffer, 4 * 3 * sizeof(float)));
+        if (!m_gridVbuf || !m_gridVbuf->create())
+            m_gridVbuf.reset();
+    }
+    if (!m_gridSrb && m_gridUbuf) {
+        m_gridSrb.reset(m_rhi->newShaderResourceBindings());
+        m_gridSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+                m_gridUbuf.get())
+        });
+        if (!m_gridSrb->create())
+            m_gridSrb.reset();
+    }
+    if (!m_gridPipeline && m_gridSrb) {
+        m_gridPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/grid.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/grid.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load grid shaders");
+            m_gridPipeline.reset();
+        } else {
+            m_gridPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_gridPipeline->setTopology(QRhiGraphicsPipeline::TriangleStrip);
+            m_gridPipeline->setDepthTest(true);
+            m_gridPipeline->setDepthWrite(false);
+            m_gridPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_gridPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiGraphicsPipeline::TargetBlend blend;
+            blend.enable = true;
+            blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+            blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opColor = QRhiGraphicsPipeline::Add;
+            blend.srcAlpha = QRhiGraphicsPipeline::One;
+            blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opAlpha = QRhiGraphicsPipeline::Add;
+            m_gridPipeline->setTargetBlends({ blend });
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { 3 * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_gridPipeline->setVertexInputLayout(layout);
+            m_gridPipeline->setShaderResourceBindings(m_gridSrb.get());
+            m_gridPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_gridPipeline->create()) {
+                qWarning("Failed to create grid pipeline");
+                m_gridPipeline.reset();
             }
         }
     }

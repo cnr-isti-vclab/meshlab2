@@ -27,6 +27,10 @@ The two memory-related document preferences are intentionally conservative:
 `document.purgeUndoOnMemoryPressure` defaults to `false`. See
 [Memory Accounting](memory_accounting.md) for their pruning semantics.
 
+The `view.grid.*` colours are the first **color** preferences. A declaration gives one as a `"#rrggbb"` string
+and the dialog stores a `QColor`; `sameParameterValue` treats the two as the same color, so the reset button and
+"only overrides are stored" work, and `Preferences::colorValue(id)` reads either.
+
 ## Declaring one
 
 Entries in `resources/preferences.json` use exactly the parameter schema documented in

@@ -399,6 +399,52 @@ void RenderWidget::rebuildViewFrustumGizmos()
     }
 }
 
+RenderWidget::FrameGrid RenderWidget::computeFrameGrid(
+    const QMatrix4x4 &view, float aspect, int pixelHeight) const
+{
+    FrameGrid grid;
+    if (m_viewMode != ViewMode::Scene3D || m_renderSettings.referenceGrid == ReferenceGrid::None)
+        return grid;
+    const bool orthographic = m_trackball.isOrthographic();
+    grid.plane = chooseViewGridPlane(
+        m_renderSettings.referenceGrid, m_trackball.cameraViewDirection(), orthographic);
+    if (!grid.plane.valid)
+        return grid;
+
+    // The plane goes through the origin; the grid is centred on the point of it nearest what
+    // the camera orbits, so it follows a pan and is always under the view.
+    grid.center = m_trackball.center();
+    grid.center[grid.plane.normalAxis] = 0.0f;
+    const ViewTrackball::State state = m_trackball.state();
+    const float visibleHeight =
+        2.0f * state.distance * std::tan(0.5f * qDegreesToRadians(state.fovYDeg));
+    grid.unitsPerPixel = visibleHeight / float(std::max(1, pixelHeight));
+    grid.halfSize = orthographic
+        ? 8.0f * visibleHeight * std::max(1.0f, aspect)
+        : std::max(m_trackball.farClipPlaneDistance(), 10.0f * state.distance);
+    grid.halfSize *= viewGridStyle().extent;
+    // Distance in front of the eye, which is what the depth range is measured in.
+    grid.depth = -(view * grid.center).z();
+    grid.active = std::isfinite(grid.unitsPerPixel) && grid.unitsPerPixel > 0.0f
+        && std::isfinite(grid.halfSize);
+    return grid;
+}
+
+QMatrix4x4 RenderWidget::sceneProjection(
+    float aspect, const QMatrix4x4 &view, const FrameGrid &grid) const
+{
+    float farRequest = viewFrustumFarDistance(view);
+    float nearRequest = viewFrustumNearDistance(view);
+    if (grid.active && m_trackball.isOrthographic()) {
+        const float visibleHeight = 2.0f * m_trackball.state().distance
+            * std::tan(0.5f * qDegreesToRadians(m_trackball.fovYDegrees()));
+        const float slack = 0.05f * visibleHeight;
+        farRequest = std::max(farRequest, grid.depth + slack);
+        nearRequest = std::min(nearRequest, grid.depth - slack);
+    }
+    return m_trackball.projectionMatrix(aspect, farRequest, nearRequest);
+}
+
 float RenderWidget::viewFrustumFarDistance(const QMatrix4x4 &view) const
 {
     if (!m_viewFrustumBoundsValid)
