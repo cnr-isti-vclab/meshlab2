@@ -186,7 +186,6 @@ private:
     class FillMaterialRenderer;
     class PlainFillRenderer;
     class PbrFillRenderer;
-    class RadianceScalingFillRenderer;
     struct SceneFillDrawItem {
         int meshIndex;
         QRhiGraphicsPipeline *pipeline = nullptr;

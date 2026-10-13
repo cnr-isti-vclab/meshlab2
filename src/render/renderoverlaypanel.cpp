@@ -845,7 +845,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillMaterialCombo = new QComboBox(fillPage);
     m_fillMaterialCombo->addItem(tr("Plain"), static_cast<int>(FillMaterial::Plain));
     m_fillMaterialCombo->addItem(tr("PBR"), static_cast<int>(FillMaterial::Pbr));
-    m_fillMaterialCombo->addItem(tr("Radiance Scaling"), static_cast<int>(FillMaterial::RadianceScaling));
     fillForm->addRow(tr("Material"), m_fillMaterialCombo);
     m_fillColorButton = makeColorButton(fillPage);
     m_fillColorSourceCombo = new QComboBox(fillPage);
@@ -911,6 +910,25 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillPlainForm->addRow(
         tr("Lighting"),
         makeCenteredFieldContainer(m_fillLightingCheck, fillPage));
+    // Radiance scaling (Vergne et al., 2010): the lighting is scaled by the surface's curvature in
+    // screen space, so convexities brighten and concavities darken, whatever the colour source.
+    m_fillRsCheck = new QCheckBox(fillPage);
+    m_fillRsCheck->setChecked(m_meshSettings.fillPlain.radianceScaling);
+    m_fillRsCheck->setToolTip(
+        tr("Enhance the shape: the lighting is scaled by the surface's curvature as seen on "
+           "screen, so convexities brighten and concavities darken. The curvature is measured in "
+           "pixels, so a smaller object comes out crisper."));
+    m_fillPlainForm->addRow(
+        tr("Radiance scaling"), makeCenteredFieldContainer(m_fillRsCheck, fillPage));
+    m_fillRsEnhancementSpin = new QDoubleSpinBox(fillPage);
+    m_fillRsEnhancementSpin->setRange(0.0, 1.0);
+    m_fillRsEnhancementSpin->setSingleStep(0.05);
+    m_fillRsEnhancementSpin->setDecimals(2);
+    m_fillRsEnhancementSpin->setValue(m_meshSettings.fillPlain.rsEnhancement);
+    m_fillPlainForm->addRow(tr("Enhancement"), m_fillRsEnhancementSpin);
+    m_fillRsInvertCheck = new QCheckBox(fillPage);
+    m_fillRsInvertCheck->setChecked(m_meshSettings.fillPlain.rsInvert);
+    m_fillPlainForm->addRow(tr("Invert"), makeCenteredFieldContainer(m_fillRsInvertCheck, fillPage));
     applyUniformFormRowHeights(m_fillPlainForm);
     fillPlainLayout->addLayout(m_fillPlainForm);
     m_fillMaterialStack->addWidget(fillPlainPage);
@@ -952,35 +970,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     fillPbrLayout->addLayout(fillPbrForm);
     m_fillMaterialStack->addWidget(fillPbrPage);
 
-    auto *fillRsPage = new QWidget(m_fillMaterialStack);
-    auto *fillRsLayout = new QVBoxLayout(fillRsPage);
-    fillRsLayout->setContentsMargins(0, 0, 0, 0);
-    fillRsLayout->setSpacing(2);
-    auto *fillRsForm = new QFormLayout();
-    fillRsForm->setContentsMargins(0, 0, 0, 0);
-    fillRsForm->setHorizontalSpacing(6);
-    fillRsForm->setVerticalSpacing(1);
-    fillRsForm->setLabelAlignment(kSettingsLabelAlignment);
-    m_fillRsEnhancementSpin = new QDoubleSpinBox(fillPage);
-    m_fillRsEnhancementSpin->setRange(0.0, 1.0);
-    m_fillRsEnhancementSpin->setSingleStep(0.05);
-    m_fillRsEnhancementSpin->setDecimals(2);
-    m_fillRsEnhancementSpin->setValue(m_meshSettings.fillRs.enhancement);
-    fillRsForm->addRow(tr("Enhancement"), m_fillRsEnhancementSpin);
-    m_fillRsDisplayModeCombo = new QComboBox(fillPage);
-    m_fillRsDisplayModeCombo->addItem(tr("Lambertian RS"), 0);
-    m_fillRsDisplayModeCombo->addItem(tr("Colored Descriptor"), 1);
-    m_fillRsDisplayModeCombo->addItem(tr("Grey Descriptor"), 2);
-    fillRsForm->addRow(tr("Display"), m_fillRsDisplayModeCombo);
-    m_fillRsInvertCheck = new QCheckBox(fillPage);
-    m_fillRsInvertCheck->setChecked(m_meshSettings.fillRs.invert);
-    fillRsForm->addRow(tr("Invert"), makeCenteredFieldContainer(m_fillRsInvertCheck, fillPage));
-    m_fillRsFlatCheck = new QCheckBox(fillPage);
-    m_fillRsFlatCheck->setChecked(m_meshSettings.fillRs.shading == FillShading::Flat);
-    fillRsForm->addRow(tr("Flat shading"), makeCenteredFieldContainer(m_fillRsFlatCheck, fillPage));
-    applyUniformFormRowHeights(fillRsForm);
-    fillRsLayout->addLayout(fillRsForm);
-    m_fillMaterialStack->addWidget(fillRsPage);
 
     applyUniformFormRowHeights(fillForm);
     fillLayout->addLayout(fillForm);
@@ -1703,34 +1692,21 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         m_meshSettings.fillPbr.normalMapSpace = value;
         emit meshSettingsChanged(m_meshSettings);
     });
+    connect(m_fillRsCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        if (m_meshSettings.fillPlain.radianceScaling == checked) return;
+        m_meshSettings.fillPlain.radianceScaling = checked;
+        syncFillPbrUiState();
+        emit meshSettingsChanged(m_meshSettings);
+    });
     connect(m_fillRsEnhancementSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
         const float fv = static_cast<float>(v);
-        if (m_meshSettings.fillRs.enhancement == fv) return;
-        m_meshSettings.fillRs.enhancement = fv;
+        if (m_meshSettings.fillPlain.rsEnhancement == fv) return;
+        m_meshSettings.fillPlain.rsEnhancement = fv;
         emit meshSettingsChanged(m_meshSettings);
     });
-    connect(
-        m_fillRsDisplayModeCombo,
-        qOverload<int>(&QComboBox::currentIndexChanged),
-        this,
-        [this](int idx) {
-            if (!m_fillRsDisplayModeCombo) return;
-            const QVariant data = m_fillRsDisplayModeCombo->itemData(idx);
-            if (!data.isValid()) return;
-            const int value = data.toInt();
-            if (m_meshSettings.fillRs.displayMode == value) return;
-            m_meshSettings.fillRs.displayMode = value;
-            emit meshSettingsChanged(m_meshSettings);
-        });
     connect(m_fillRsInvertCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_meshSettings.fillRs.invert == checked) return;
-        m_meshSettings.fillRs.invert = checked;
-        emit meshSettingsChanged(m_meshSettings);
-    });
-    connect(m_fillRsFlatCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        const FillShading s = checked ? FillShading::Flat : FillShading::Smooth;
-        if (m_meshSettings.fillRs.shading == s) return;
-        m_meshSettings.fillRs.shading = s;
+        if (m_meshSettings.fillPlain.rsInvert == checked) return;
+        m_meshSettings.fillPlain.rsInvert = checked;
         emit meshSettingsChanged(m_meshSettings);
     });
     connect(m_fillOcclusionStrengthSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
@@ -2238,26 +2214,17 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
             }
         }
     }
+    if (m_fillRsCheck) {
+        QSignalBlocker blocker(m_fillRsCheck);
+        m_fillRsCheck->setChecked(m_meshSettings.fillPlain.radianceScaling);
+    }
     if (m_fillRsEnhancementSpin) {
         QSignalBlocker blocker(m_fillRsEnhancementSpin);
-        m_fillRsEnhancementSpin->setValue(m_meshSettings.fillRs.enhancement);
-    }
-    if (m_fillRsDisplayModeCombo) {
-        QSignalBlocker blocker(m_fillRsDisplayModeCombo);
-        for (int i = 0; i < m_fillRsDisplayModeCombo->count(); ++i) {
-            if (m_fillRsDisplayModeCombo->itemData(i).toInt() == m_meshSettings.fillRs.displayMode) {
-                m_fillRsDisplayModeCombo->setCurrentIndex(i);
-                break;
-            }
-        }
+        m_fillRsEnhancementSpin->setValue(m_meshSettings.fillPlain.rsEnhancement);
     }
     if (m_fillRsInvertCheck) {
         QSignalBlocker blocker(m_fillRsInvertCheck);
-        m_fillRsInvertCheck->setChecked(m_meshSettings.fillRs.invert);
-    }
-    if (m_fillRsFlatCheck) {
-        QSignalBlocker blocker(m_fillRsFlatCheck);
-        m_fillRsFlatCheck->setChecked(m_meshSettings.fillRs.shading == FillShading::Flat);
+        m_fillRsInvertCheck->setChecked(m_meshSettings.fillPlain.rsInvert);
     }
     if (m_fillOcclusionStrengthSpin) {
         QSignalBlocker blocker(m_fillOcclusionStrengthSpin);
@@ -2589,29 +2556,24 @@ void RenderOverlayPanel::syncFillPbrSourceCombo(
 void RenderOverlayPanel::syncFillPbrUiState()
 {
     const bool usePbr = (m_meshSettings.fillMaterial == FillMaterial::Pbr);
-    const bool useRs  = (m_meshSettings.fillMaterial == FillMaterial::RadianceScaling);
-    const bool usePlain = !usePbr && !useRs;
+    const bool usePlain = !usePbr;
+    const bool useRs = usePlain && m_meshSettings.fillPlain.radianceScaling;
     const bool textureColorSource =
         (m_meshSettings.fillPlain.colorSource == FillColorSource::Texture);
     if (m_fillPlainForm)
         m_fillPlainForm->setRowVisible(m_fillPlainTextureCombo, usePlain && textureColorSource);
 
     if (m_fillMaterialStack) {
-        int stackIdx = 0;
-        if (usePbr)  stackIdx = 1;
-        if (useRs)   stackIdx = 2;
-        m_fillMaterialStack->setCurrentIndex(stackIdx);
+        m_fillMaterialStack->setCurrentIndex(usePbr ? 1 : 0);
     }
     updateSettingsPanelGeometry();
 
+    // The gain and its direction mean something only with the option on; shown always, like the
+    // other plain controls, but greyed.
     if (m_fillRsEnhancementSpin)
         m_fillRsEnhancementSpin->setEnabled(useRs);
-    if (m_fillRsDisplayModeCombo)
-        m_fillRsDisplayModeCombo->setEnabled(useRs);
     if (m_fillRsInvertCheck)
         m_fillRsInvertCheck->setEnabled(useRs);
-    if (m_fillRsFlatCheck)
-        m_fillRsFlatCheck->setEnabled(useRs);
 
     const bool constantAlbedo = (m_meshSettings.fillPbr.albedoSource == FillPbrTextureSource::Constant);
     if (m_fillPbrAlbedoCombo)

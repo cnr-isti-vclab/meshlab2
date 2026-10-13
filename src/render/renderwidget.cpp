@@ -2142,7 +2142,6 @@ void RenderWidget::createOverlayButtons()
                 dst.fillMaterial   = meshSettings.fillMaterial;
                 dst.fillPlain      = meshSettings.fillPlain;
                 dst.fillPbr        = meshSettings.fillPbr;
-                dst.fillRs         = meshSettings.fillRs;
                 break;
             case RenderPass::Selection:
                 dst.showSelection         = meshSettings.showSelection;

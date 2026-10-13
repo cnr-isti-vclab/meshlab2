@@ -170,7 +170,6 @@ struct MainStyleUbufKey {
     bool fillLighting = false;
     FillMaterial fillMaterial = FillMaterial::Plain;
     PbrFillParams fillPbr;
-    RsFillParams  fillRs;
     PlainFillParams fillPlain;
     QColor edgeColor;
     float edgeSize = 0.0f;
@@ -188,7 +187,6 @@ struct MainStyleUbufKey {
             && fillLighting == other.fillLighting
             && fillMaterial == other.fillMaterial
             && fillPbr == other.fillPbr
-            && fillRs == other.fillRs
             && fillPlain == other.fillPlain
             && edgeColor == other.edgeColor
             && edgeSize == other.edgeSize;
@@ -218,7 +216,6 @@ inline MainStyleUbufKey mainStyleUbufKeyFromSettings(
     key.fillLighting = includeLighting ? settings.fillLighting : false;
     key.fillMaterial = settings.fillMaterial;
     key.fillPbr = settings.fillPbr;
-    key.fillRs = settings.fillRs;
     key.fillPlain = settings.fillPlain;
     key.edgeColor = settings.edgeColor;
     key.edgeSize = settings.edgeSize;
@@ -330,7 +327,8 @@ inline void writeMainStyleToUbuf(
     ubufData[kUbufEdgeColorOffset + 3] = settings.edgeColor.alphaF();
 
     const bool enablePbr = settings.fillMaterial == FillMaterial::Pbr;
-    const bool enableRs  = settings.fillMaterial == FillMaterial::RadianceScaling;
+    // Radiance scaling belongs to the plain material; PBR does not use it.
+    const bool enableRs = !enablePbr && settings.fillPlain.radianceScaling;
     auto encodePbrSource = [enablePbr](FillPbrTextureSource source) -> float {
         if (!enablePbr)
             return 0.0f;
@@ -338,34 +336,30 @@ inline void writeMainStyleToUbuf(
     };
     // materialFlags: PBR -> source modes (x=normal: 0 none, 1 constant, 2 tangent texture, 3 object texture,
     //                                    y=ao, z=roughness, w=albedo)
-    //                RS  → invert flag (x) + display mode (y) + flat shading (z)
-    if (enableRs) {
-        ubufData[kUbufMaterialFlagsOffset + 0] = settings.fillRs.invert ? 1.0f : 0.0f;
-        ubufData[kUbufMaterialFlagsOffset + 1] = static_cast<float>(settings.fillRs.displayMode);
-        ubufData[kUbufMaterialFlagsOffset + 2] = (settings.fillRs.shading == FillShading::Flat) ? 1.0f : 0.0f;
-        ubufData[kUbufMaterialFlagsOffset + 3] = 0.0f;
-    } else {
-        float normalMode = encodePbrSource(settings.fillPbr.normalSource);
-        if (enablePbr
-            && settings.fillPbr.normalSource == FillPbrTextureSource::Texture
-            && settings.fillPbr.normalMapSpace == FillPbrNormalMapSpace::Object) {
-            normalMode = 3.0f;
-        }
-        ubufData[kUbufMaterialFlagsOffset + 0] = normalMode;
-        ubufData[kUbufMaterialFlagsOffset + 1] = encodePbrSource(settings.fillPbr.occlusionSource);
-        ubufData[kUbufMaterialFlagsOffset + 2] = encodePbrSource(settings.fillPbr.roughnessSource);
-        // PBR: encode the chosen albedo source.  Plain: signal texture usage via
-        // the same slot so the shader can sample albedoTex in plain mode too.
-        ubufData[kUbufMaterialFlagsOffset + 3] = enablePbr
-            ? encodePbrSource(settings.fillPbr.albedoSource)
-            : (settings.fillPlain.colorSource == FillColorSource::Texture ? 2.0f : 0.0f);
+    float normalMode = encodePbrSource(settings.fillPbr.normalSource);
+    if (enablePbr
+        && settings.fillPbr.normalSource == FillPbrTextureSource::Texture
+        && settings.fillPbr.normalMapSpace == FillPbrNormalMapSpace::Object) {
+        normalMode = 3.0f;
     }
+    ubufData[kUbufMaterialFlagsOffset + 0] = normalMode;
+    ubufData[kUbufMaterialFlagsOffset + 1] = encodePbrSource(settings.fillPbr.occlusionSource);
+    ubufData[kUbufMaterialFlagsOffset + 2] = encodePbrSource(settings.fillPbr.roughnessSource);
+    // PBR: encode the chosen albedo source.  Plain: signal texture usage via
+    // the same slot so the shader can sample albedoTex in plain mode too.
+    ubufData[kUbufMaterialFlagsOffset + 3] = enablePbr
+        ? encodePbrSource(settings.fillPbr.albedoSource)
+        : (settings.fillPlain.colorSource == FillColorSource::Texture ? 2.0f : 0.0f);
 
-    // materialParams: x=param0 (RS enhancement OR PBR normal scale), y=aoStrength, z=roughness, w=material-id
-    ubufData[kUbufMaterialParamsOffset + 0] = enableRs ? settings.fillRs.enhancement : settings.fillPbr.normalScale;
+    // materialParams: x=PBR normal scale, or the radiance-scaling gain (negative when inverted: the
+    // curvature signal is odd in it, so the sign is the whole of "invert"), y=aoStrength,
+    // z=roughness, w=material: 0 plain, 1 PBR, 2 plain with radiance scaling.
+    ubufData[kUbufMaterialParamsOffset + 0] = enableRs
+        ? (settings.fillPlain.rsInvert ? -settings.fillPlain.rsEnhancement : settings.fillPlain.rsEnhancement)
+        : settings.fillPbr.normalScale;
     ubufData[kUbufMaterialParamsOffset + 1] = settings.fillPbr.occlusionStrength;
     ubufData[kUbufMaterialParamsOffset + 2] = std::max(settings.fillPbr.roughnessFactor, 0.0f);
-    ubufData[kUbufMaterialParamsOffset + 3] = enablePbr ? 1.0f : 0.0f;
+    ubufData[kUbufMaterialParamsOffset + 3] = enablePbr ? 1.0f : (enableRs ? 2.0f : 0.0f);
 
     // lightDir: view-space light direction (w unused)
     ubufData[kUbufLightDirOffset + 0] = lightDir.x();

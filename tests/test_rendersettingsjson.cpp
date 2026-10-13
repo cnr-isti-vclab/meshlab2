@@ -143,6 +143,8 @@ private slots:
     void defaultsAreOmittedWhenDefaultsGiven();
     void everyFieldAffectsGlobalEquality();
     void everyFieldAffectsPerMeshEquality();
+    void radianceScalingAsAMaterialIsRefused();
+    void radianceScalingIsAnOptionOfThePlainMaterial();
 };
 
 // The count is the tie between the struct and the writer: add a field without adding
@@ -217,6 +219,40 @@ void RenderSettingsJsonTests::everyFieldAffectsPerMeshEquality()
             return parsePerMeshSettings(o, s, e);
         },
         "PerMeshRenderSettings");
+}
+
+// Radiance scaling used to be a third fill material (fill_material 2, with a fill_rs block). A state
+// that still says so is refused with a message that names where it went, rather than read as
+// something else and drawn differently without a word.
+void RenderSettingsJsonTests::radianceScalingAsAMaterialIsRefused()
+{
+    for (const QJsonObject &old : { QJsonObject{ { "fill_material", 2 } },
+                                    QJsonObject{ { "fill_rs", QJsonObject{ { "enhancement", 0.5 } } } } }) {
+        PerMeshRenderSettings settings;
+        QString error;
+        QVERIFY(!parsePerMeshSettings(old, settings, &error));
+        QVERIFY2(error.contains(QStringLiteral("radiance")), qPrintable(error));
+    }
+    // The two materials that exist are still accepted.
+    for (const int material : { 0, 1 }) {
+        PerMeshRenderSettings settings;
+        QVERIFY(parsePerMeshSettings(QJsonObject{ { "fill_material", material } }, settings, nullptr));
+    }
+}
+
+void RenderSettingsJsonTests::radianceScalingIsAnOptionOfThePlainMaterial()
+{
+    PerMeshRenderSettings settings;
+    settings.fillPlain.radianceScaling = true;
+    settings.fillPlain.rsEnhancement = 0.8f;
+    settings.fillPlain.rsInvert = true;
+    const QJsonObject json = perMeshSettingsToJson(settings, nullptr);
+    const QJsonObject plain = json.value(QStringLiteral("fill_plain")).toObject();
+    QVERIFY(plain.value(QStringLiteral("radiance_scaling")).toBool());
+    QVERIFY(plain.value(QStringLiteral("rs_invert")).toBool());
+    PerMeshRenderSettings back;
+    QVERIFY(parsePerMeshSettings(json, back, nullptr));
+    QCOMPARE(back, settings);
 }
 
 QTEST_MAIN(RenderSettingsJsonTests)

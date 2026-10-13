@@ -5,9 +5,10 @@
 * Renders (gx, gy, logZ, 1.0) into an RGBA32F intermediate texture.        *
 * Fragments not covered by mesh geometry remain cleared to vec4(0).        *
 *                                                                           *
-* Pass 2 (fill_radscale.frag) reads this texture with a 3x3 neighbourhood  *
-* to compute the Hessian and depth-discontinuity weight exactly as          *
-* in the original two-pass implementation.                                  *
+* Pass 2 -- the radiance-scaling option of fill_smooth.frag and             *
+* fill_flat.frag -- reads this texture with a 3x3 neighbourhood to compute  *
+* the Hessian and depth-discontinuity weight exactly as in the original     *
+* two-pass implementation.                                                  *
 ****************************************************************************/
 #version 440
 
@@ -45,18 +46,16 @@ void main()
     const float eps           = 0.01;
     const float foreshortening = 0.4;
 
-    // Use per-face (flat) normal when materialFlags.z > 0.5, otherwise
-    // use the interpolated per-vertex normal from the vertex shader.
+    // The normal the layer is shaded with. Smooth: the interpolated per-vertex one. Flat
+    // (materialParams.y > 0.5, set by the pass for a flat-shaded layer): the face's own, from the
+    // derivatives of the view position, so the curvature is zero inside a face and high across
+    // the edges between faces -- the convex ones read as bright lines, which is what radiance
+    // scaling is expected to do to a faceted layer. (From the smooth normals instead, the
+    // curvature spreads over every face and whitens it towards the silhouette.)
     vec3 n;
-    if (ub.materialFlags.z > 0.5) {
-        // Derive the constant face normal from view-space position derivatives.
-        // dFdx/dFdy give edge vectors across the triangle; their cross product
-        // is the face normal in view space (pointing toward the camera for
-        // front-facing triangles).
-        vec3 dx = dFdx(v_viewPos);
-        vec3 dy = dFdy(v_viewPos);
-        n = normalize(cross(dx, dy));
-        // Ensure it faces toward the viewer (positive z in view space).
+    if (ub.materialParams.y > 0.5) {
+        n = normalize(cross(dFdx(v_viewPos), dFdy(v_viewPos)));
+        // Facing the viewer: positive z in view space.
         if (n.z < 0.0)
             n = -n;
     } else {

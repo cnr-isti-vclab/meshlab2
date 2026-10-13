@@ -38,10 +38,11 @@ enum class FillColorSource {
     PerMesh
 };
 
+// Radiance scaling is not a material: it is an option of the plain one (PlainFillParams), applied
+// to its lighting. Render states from before that, which name it as material 2, are refused.
 enum class FillMaterial {
     Plain = 0,
-    Pbr,
-    RadianceScaling
+    Pbr
 };
 
 enum class FillPbrTextureSource {
@@ -84,23 +85,18 @@ struct PlainFillParams {
     FillShading     shading      = FillShading::Smooth;
     FillColorSource colorSource  = FillColorSource::Constant;
     int             textureIndex = -1;
+    // Radiance scaling (Vergne et al., I3D 2010): the lighting is scaled by a function of the
+    // surface's curvature in screen space, so convexities brighten and concavities darken. It
+    // enhances shape whatever the colour source. `rsEnhancement` is the gain of the curvature and
+    // `rsInvert` swaps which way it works.
+    bool            radianceScaling = false;
+    float           rsEnhancement = 0.5f;
+    bool            rsInvert = false;
 
     // Defined in rendersettingsjson.cpp, generated from the same field list as the
     // JSON conversions so the two cannot drift apart.
     bool operator==(const PlainFillParams &o) const;
     bool operator!=(const PlainFillParams &o) const { return !(*this == o); }
-};
-
-struct RsFillParams {
-    FillShading shading       = FillShading::Smooth;
-    float enhancement = 0.5f;
-    int   displayMode = 0;   // 0=Lambertian, 1=Colored Descriptor, 2=Grey Descriptor
-    bool  invert      = false;
-
-    // Defined in rendersettingsjson.cpp, generated from the same field list as the
-    // JSON conversions so the two cannot drift apart.
-    bool operator==(const RsFillParams &o) const;
-    bool operator!=(const RsFillParams &o) const { return !(*this == o); }
 };
 
 // Which way the clipping plane faces. `View` follows the camera, which is how the near
@@ -232,7 +228,6 @@ struct PerMeshRenderSettings {
     bool fillBackfaceCulling = false;
     FillMaterial fillMaterial = FillMaterial::Plain;
     PbrFillParams fillPbr;
-    RsFillParams  fillRs;
     PlainFillParams fillPlain;
     PointColorSource pointColorSource = PointColorSource::Constant;
     EdgeColorSource edgeColorSource = EdgeColorSource::Constant;

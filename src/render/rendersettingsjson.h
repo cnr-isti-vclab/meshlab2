@@ -61,6 +61,6 @@ bool parsePerMeshSettings(const QJsonObject &obj, PerMeshRenderSettings &out, QS
 // adding it to the serialiser fails a test instead of silently dropping out of every
 // saved render state. Update alongside the struct.
 constexpr int kGlobalSettingsFieldCount = 49;
-constexpr int kPerMeshSettingsFieldCount = 50;
+constexpr int kPerMeshSettingsFieldCount = 49;
 
 } // namespace RenderSettingsJson

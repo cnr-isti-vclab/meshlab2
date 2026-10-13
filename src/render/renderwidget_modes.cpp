@@ -627,14 +627,7 @@ QRhiTexture *RenderWidget::resolveSelectedPbrTexture(
 // Each fill shader pair must share the same SRB layout (5 texture samplers + shared UBO).
 static std::pair<QString, QString> fillShaderPaths(FillMaterial material, FillShading shading)
 {
-    switch (material) {
-    case FillMaterial::RadianceScaling:
-        // RS always uses smooth per-vertex normals; the vert shader is shared with plain/smooth.
-        return { QStringLiteral(":/shaders/fill_smooth.vert.qsb"),
-                 QStringLiteral(":/shaders/fill_radscale.frag.qsb") };
-    default:
-        break;
-    }
+    Q_UNUSED(material);
     // Plain and PBR are differentiated purely by UBO data; they share the same shader pairs.
     if (shading == FillShading::Flat)
         return { QStringLiteral(":/shaders/fill_flat.vert.qsb"),
@@ -648,13 +641,10 @@ QRhiGraphicsPipeline *RenderWidget::fillPipelineForSettings(const PerMeshRenderS
     if (!m_rhi || !m_srb || !renderTarget())
         return nullptr;
 
-    // PBR has its own per-material shading setting; RS always needs smooth normals.
-    FillShading effectiveShading;
-    switch (settings.fillMaterial) {
-    case FillMaterial::Pbr:             effectiveShading = settings.fillPbr.shading; break;
-    case FillMaterial::RadianceScaling: effectiveShading = FillShading::Smooth;      break;
-    default: /* Plain */                effectiveShading = settings.fillPlain.shading;   break;
-    }
+    // PBR has its own per-material shading setting.
+    const FillShading effectiveShading = settings.fillMaterial == FillMaterial::Pbr
+        ? settings.fillPbr.shading
+        : settings.fillPlain.shading;
 
     // Key encodes: material * 4 + shading * 2 + backfaceCulling
     const int key = int(settings.fillMaterial) * 4

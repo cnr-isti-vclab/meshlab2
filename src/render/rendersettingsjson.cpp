@@ -237,7 +237,7 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("clip_plane_solid_cut", clipPlaneSolidCut) \
     F("clip_plane_solid_cut_color", clipPlaneSolidCutColor)
 
-// 47 flat fields; the three fill_* sub-objects are listed separately
+// 47 flat fields; the two fill_* sub-objects are listed separately
 #define MESHLAB2_PER_MESH_SETTINGS_FIELDS(F) \
     F("show_bounding_box", showBoundingBox) \
     F("bounding_box_style", boundingBoxStyle) \
@@ -291,7 +291,10 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
 #define MESHLAB2_FILL_PLAIN_FIELDS(F) \
     F("shading", shading) \
     F("color_source", colorSource) \
-    F("texture_index", textureIndex)
+    F("texture_index", textureIndex) \
+    F("radiance_scaling", radianceScaling) \
+    F("rs_enhancement", rsEnhancement) \
+    F("rs_invert", rsInvert)
 
 // PbrFillParams
 #define MESHLAB2_FILL_PBR_FIELDS(F) \
@@ -308,13 +311,6 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("normal_scale", normalScale) \
     F("occlusion_strength", occlusionStrength) \
     F("roughness_factor", roughnessFactor)
-
-// RsFillParams
-#define MESHLAB2_FILL_RS_FIELDS(F) \
-    F("shading", shading) \
-    F("enhancement", enhancement) \
-    F("display_mode", displayMode) \
-    F("invert", invert)
 
 // Each nested fill material is the same pattern one level down.
 #define MESHLAB2_DEFINE_NESTED(Type, FieldList, jsonName) \
@@ -334,7 +330,6 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
 
 MESHLAB2_DEFINE_NESTED(PlainFillParams, MESHLAB2_FILL_PLAIN_FIELDS, "fill_plain")
 MESHLAB2_DEFINE_NESTED(PbrFillParams, MESHLAB2_FILL_PBR_FIELDS, "fill_pbr")
-MESHLAB2_DEFINE_NESTED(RsFillParams, MESHLAB2_FILL_RS_FIELDS, "fill_rs")
 
 #undef MESHLAB2_DEFINE_NESTED
 
@@ -407,9 +402,6 @@ QJsonObject perMeshSettingsToJson(
     insertNested(
         "fill_pbr",
         PbrFillParamsToJson(s.fillPbr, defaults ? &defaults->fillPbr : nullptr));
-    insertNested(
-        "fill_rs",
-        RsFillParamsToJson(s.fillRs, defaults ? &defaults->fillRs : nullptr));
     return o;
 }
 
@@ -419,9 +411,20 @@ bool parsePerMeshSettings(const QJsonObject &obj, PerMeshRenderSettings &out, QS
         using SettingsType = PerMeshRenderSettings;
         MESHLAB2_PER_MESH_SETTINGS_FIELDS(MESHLAB2_READ_FIELD)
     }
+    // Radiance scaling used to be a third material, with a block of its own. A state that names it
+    // would otherwise be read as something else and look different without saying why, so it is
+    // refused: there is no one to preserve it for, and the message says where it went.
+    if (obj.contains(QLatin1String("fill_rs"))
+        || (obj.contains(QLatin1String("fill_material"))
+            && obj.value(QLatin1String("fill_material")).toInt() > int(FillMaterial::Pbr))) {
+        if (error) {
+            *error = QObject::tr("Invalid render-state JSON: radiance scaling is no longer a fill "
+                                 "material; it is the 'radiance_scaling' option of 'fill_plain'.");
+        }
+        return false;
+    }
     return readNested(obj, "fill_plain", out.fillPlain, PlainFillParamsFromJson, error)
-        && readNested(obj, "fill_pbr", out.fillPbr, PbrFillParamsFromJson, error)
-        && readNested(obj, "fill_rs", out.fillRs, RsFillParamsFromJson, error);
+        && readNested(obj, "fill_pbr", out.fillPbr, PbrFillParamsFromJson, error);
 }
 
 } // namespace RenderSettingsJson
@@ -443,14 +446,13 @@ bool parsePerMeshSettings(const QJsonObject &obj, PerMeshRenderSettings &out, QS
 
 MESHLAB2_DEFINE_EQUALITY(PlainFillParams, MESHLAB2_FILL_PLAIN_FIELDS)
 MESHLAB2_DEFINE_EQUALITY(PbrFillParams, MESHLAB2_FILL_PBR_FIELDS)
-MESHLAB2_DEFINE_EQUALITY(RsFillParams, MESHLAB2_FILL_RS_FIELDS)
 
 bool PerMeshRenderSettings::operator==(const PerMeshRenderSettings &o) const
 {
     using namespace RenderSettingsJson;
     using SettingsType = PerMeshRenderSettings;
     MESHLAB2_PER_MESH_SETTINGS_FIELDS(MESHLAB2_EQUAL_FIELD)
-    return fillPbr == o.fillPbr && fillRs == o.fillRs && fillPlain == o.fillPlain;
+    return fillPbr == o.fillPbr && fillPlain == o.fillPlain;
 }
 
 bool GlobalRenderSettings::operator==(const GlobalRenderSettings &o) const

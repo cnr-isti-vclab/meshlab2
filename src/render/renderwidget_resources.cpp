@@ -490,13 +490,16 @@ void RenderWidget::ensureRsGradResources(const QSize &pixelSize)
         return;
     }
 
-    // Minimal SRB: only the shared UBO at binding 0.
+    // Minimal SRB: only the shared UBO at binding 0. With a dynamic offset, like every other
+    // binding of that buffer: each layer's matrices sit at their own offset in it, and the pre-pass
+    // passes one per draw. Without it the offset is not part of the binding's layout.
     m_rsGradSrb.reset(m_rhi->newShaderResourceBindings());
     m_rsGradSrb->setBindings({
-        QRhiShaderResourceBinding::uniformBuffer(
+        QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
             0,
             QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-            m_ubuf.get())
+            m_ubuf.get(),
+            kUbufSize)
     });
     if (!m_rsGradSrb->create()) {
         m_rsGradSrb.reset();
@@ -747,6 +750,12 @@ void RenderWidget::ensureRenderResources()
         m_srb.reset();
         m_depthPickSrb.reset();
         m_textureSrbs.clear();
+        // The radiance-scaling gradient pass binds this buffer too. Its resources are rebuilt on
+        // demand (ensureRsGradResources, which drops the lot when the size is unset); left alone, the
+        // SRB would keep the pointer to the buffer replaced below.
+        m_rsGradPipeline.reset();
+        m_rsGradSrb.reset();
+        m_rsGradSize = QSize();
         m_ubuf.reset(m_rhi->newBuffer(
             QRhiBuffer::Dynamic,
             QRhiBuffer::UniformBuffer,
