@@ -172,14 +172,6 @@ void applyUniformFormRowHeights(QFormLayout *form)
     }
 }
 
-void setHistogramRowVisible(QLabel *label, QWidget *field, bool visible)
-{
-    if (label)
-        label->setVisible(visible);
-    if (field)
-        field->setVisible(visible);
-}
-
 class PassArrowButton final : public QToolButton
 {
 public:
@@ -1119,6 +1111,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_qualityBakeVertexColorButton = makeActionButton(tr("Bake to Vertex Color"), histogramPage);
     m_qualityBakeVertexColorButton->setToolTip(
         tr("Bake the current per-vertex scalar color mapping into per-vertex colors. Isolines are ignored."));
+    m_qualityHistogramForm = histogramForm;
     applyUniformFormRowHeights(histogramForm);
     histogramLayout->addLayout(histogramForm);
     // Below the form rather than in it, so it can line up with Apply to all on the right: on
@@ -2664,16 +2657,19 @@ void RenderOverlayPanel::syncQualityHistogramUiState()
 {
     const bool fixedRange = m_globalSettings.qualityHistogramFixedRange;
 
-    setHistogramRowVisible(
-        m_qualityHistogramCenterOnZeroLabel,
+    // Whole rows, through the form, and not their widgets one by one: hiding the widgets leaves the
+    // form's cached height as it was -- measured, the panel stayed at its old height after the
+    // hide, and only caught up on a later layout, which is the panel hopping -- where setRowVisible
+    // takes the row out of the layout and invalidates it. The two pairs trade places, so the
+    // page keeps its row count and the height only moves with the content.
+    if (!m_qualityHistogramForm)
+        return;
+    m_qualityHistogramForm->setRowVisible(
         m_qualityHistogramCenterOnZeroCheck ? m_qualityHistogramCenterOnZeroCheck->parentWidget() : nullptr,
         !fixedRange);
-    setHistogramRowVisible(
-        m_qualityHistogramPercentileCropLabel,
-        m_qualityHistogramPercentileCropSpin,
-        !fixedRange);
-    setHistogramRowVisible(m_qualityHistogramMinLabel, m_qualityHistogramMinSpin, fixedRange);
-    setHistogramRowVisible(m_qualityHistogramMaxLabel, m_qualityHistogramMaxSpin, fixedRange);
+    m_qualityHistogramForm->setRowVisible(m_qualityHistogramPercentileCropSpin, !fixedRange);
+    m_qualityHistogramForm->setRowVisible(m_qualityHistogramMinSpin, fixedRange);
+    m_qualityHistogramForm->setRowVisible(m_qualityHistogramMaxSpin, fixedRange);
     updateSettingsPanelGeometry();
 }
 
