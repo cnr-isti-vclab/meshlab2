@@ -335,6 +335,44 @@ tracked CPU allocations and OS physical footprint.</p>
 <p>Default fill color source preference: texture → per-vertex → per-face → per-vertex-quality → per-face-quality → constant, clamped to mesh <code class="docutils literal notranslate"><span class="pre">ioMask</span></code> + texture availability. Texture availability is based on <code class="docutils literal notranslate"><span class="pre">Document::meshTextureAssociationCount(...)</span></code>.</p>
 <p>Default explicit-edge color source preference: per-edge → per-vertex → constant. Availability is clamped to <code class="docutils literal notranslate"><span class="pre">IOM_EDGECOLOR</span></code> and <code class="docutils literal notranslate"><span class="pre">IOM_VERTCOLOR</span></code>; unavailable choices are disabled in the overlay panel. Edge-only PLY layers carrying edge colors therefore open with <code class="docutils literal notranslate"><span class="pre">PerEdge</span></code> selected automatically.</p>
 </section>
+<section id="reference-grid">
+<h2>Reference grid<a class="headerlink" href="#reference-grid" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">GlobalRenderSettings::referenceGrid</span></code> (<code class="docutils literal notranslate"><span class="pre">None</span></code>, <code class="docutils literal notranslate"><span class="pre">XY</span></code>, <code class="docutils literal notranslate"><span class="pre">XZ</span></code>; JSON <code class="docutils literal notranslate"><span class="pre">reference_grid</span></code>; <em>Reference grid</em> in the
+View Settings panel) draws a plane through the world origin, ruled in powers of ten, with the two
+world axes in it drawn red (X), green (Y) and blue (Z): a reference for where the origin is and how big
+things are. It is a different thing from the layer grid (<code class="docutils literal notranslate"><span class="pre">LayerArrangement::Grid</span></code>), the tiling of layers.</p>
+<p><strong>One quad, ruled by its fragment shader</strong> (<code class="docutils literal notranslate"><span class="pre">shaders/grid.frag</span></code>; one draw in <code class="docutils literal notranslate"><span class="pre">render()</span></code>, after the
+fills and the point/edge/box items and before the decorators). The quad is <code class="docutils literal notranslate"><span class="pre">halfSize</span></code> wide about the
+point of the plane nearest the orbit centre – so it follows a pan – and the shader fades the grid out
+over its outer part, so no edge is seen. It is depth-tested against the scene and writes no depth.
+Lines are one pixel wide whatever the zoom (from the screen-space derivative of the cell coordinate)
+and the axes about two.</p>
+<p><strong>Three decades are drawn at once</strong>, each ten times the last (<code class="docutils literal notranslate"><span class="pre">viewGridLevels</span></code>): from the world size of
+a pixel at the orbit centre, the fine one is between 1 and 10 pixels apart, the middle one 10 to 100 and
+the coarse one 100 to 1000. The middle is always drawn in full; the fine fades out as it gets too dense
+to read and the coarse fades in as it becomes sparse enough to, so a decade never pops in or out when
+zooming (the weights are one fraction and its complement, and line up across a decade). Each level also
+fades by how many of its cells fall in a pixel, which is what lets a plane seen at a grazing angle go
+quietly to nothing in the distance instead of to noise.</p>
+<p><strong>Which plane</strong> (<code class="docutils literal notranslate"><span class="pre">chooseViewGridPlane</span></code>): the setting names XY (a scene standing on Z) or XZ (on Y). An
+<em>orthographic</em> view looking straight down a coordinate axis (within about one degree) – front, side, top,
+which the axis gizmo and the numeric views give – always gets the plane <em>across</em> its line of sight
+whatever the setting, so the grid is never seen edge-on and an orthographic view with the grid on always
+has something to measure with. An orthographic view off the axes uses the chosen plane.</p>
+<p><strong>Depth.</strong> An orthographic view fits its depth range to the scene, and the plane through the origin may be
+nowhere near it, so <code class="docutils literal notranslate"><span class="pre">sceneProjection</span></code> widens the volume to hold the plane (both ends, as for the peer-view
+glyphs). A perspective view lets the far reaches of the grid be clipped by its far plane; they have faded
+by then. The setting is part of the render-state JSON, so snapshots and scripted renders draw it too.</p>
+<p><strong>Preferences.</strong> <code class="docutils literal notranslate"><span class="pre">view.referenceGrid</span></code> is the grid a new view starts with (read when a view is created and by
+File &gt; New), and <code class="docutils literal notranslate"><span class="pre">view.grid.*</span></code> set how it looks: the strength of the fine, middle and coarse lines, the width
+of the axis lines, the reach (a multiple of the default radius the grid fades out by), and the colours of the
+rules and of the three axes. They are read every frame (<code class="docutils literal notranslate"><span class="pre">viewGridStyle()</span></code>), and a change in the dialog repaints
+the views. A newly loaded layer’s point size, edge width, edge-only-layer width and wireframe width start from
+<code class="docutils literal notranslate"><span class="pre">render.pointSize</span></code>, <code class="docutils literal notranslate"><span class="pre">render.edgeSize</span></code>, <code class="docutils literal notranslate"><span class="pre">render.edgeLayerWidth</span></code> and <code class="docutils literal notranslate"><span class="pre">render.wireSize</span></code>.</p>
+<p>Tests: <code class="docutils literal notranslate"><span class="pre">ViewGridTests</span></code> (plane choice and level arithmetic) and the render probe
+<code class="docutils literal notranslate"><span class="pre">tests/render_probes/reference_grid</span></code> (the axis colours, the orthographic rule, and the grid far from the
+scene).</p>
+</section>
 <section id="resetting-the-views">
 <h2>Resetting the views<a class="headerlink" href="#resetting-the-views" title="Link to this heading">¶</a></h2>
 <p><em>File &gt; New</em> closes the layers, the undo history and the log, and then puts everything else the
@@ -626,7 +664,7 @@ application’s own <code class="docutils literal notranslate"><span class="pre"
 <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> module importable; a probe there builds a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code>, calls <code class="docutils literal notranslate"><span class="pre">render_snapshot()</span></code>
 with a render-state JSON, and asserts on the returned raw RGBA8888.</p>
 <p><code class="docutils literal notranslate"><span class="pre">tests/render_probes/</span></code> holds these – <code class="docutils literal notranslate"><span class="pre">clip_plane</span></code> for the clipping plane and solid cut,
-<code class="docutils literal notranslate"><span class="pre">clip_space</span></code> for the backend correction of clip space, <code class="docutils literal notranslate"><span class="pre">orthographic</span></code> for the orthographic camera through snapshots and projection filters, <code class="docutils literal notranslate"><span class="pre">boundary_decorators</span></code> for what the boundary decorator marks and in which colors,
+<code class="docutils literal notranslate"><span class="pre">clip_space</span></code> for the backend correction of clip space, <code class="docutils literal notranslate"><span class="pre">reference_grid</span></code> for the reference grid, <code class="docutils literal notranslate"><span class="pre">orthographic</span></code> for the orthographic camera through snapshots and projection filters, <code class="docutils literal notranslate"><span class="pre">boundary_decorators</span></code> for what the boundary decorator marks and in which colors,
 <code class="docutils literal notranslate"><span class="pre">quality_histogram_layout</span></code> for captures staying full-frame while the histogram is open. Each is a
 directory with a <code class="docutils literal notranslate"><span class="pre">generate_api.py</span></code>, because that is the filename the hook runs:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">build</span><span class="o">-</span><span class="n">release</span><span class="o">/</span><span class="n">MeshLab</span><span class="o">.</span><span class="n">app</span><span class="o">/</span><span class="n">Contents</span><span class="o">/</span><span class="n">MacOS</span><span class="o">/</span><span class="n">MeshLab</span> <span class="o">--</span><span class="n">generate</span><span class="o">-</span><span class="n">docs</span> <span class="n">tests</span><span class="o">/</span><span class="n">render_probes</span><span class="o">/</span><span class="n">clip_plane</span>
@@ -689,6 +727,7 @@ must leave the image <strong>exactly</strong> unchanged, so equality is the asse
 <li><a class="reference internal" href="#scene3d-request-and-plan-pipeline">Scene3D Request and Plan Pipeline</a></li>
 <li><a class="reference internal" href="#shared-gpu-cache-meshgpuresourcecache">Shared GPU Cache (<code class="docutils literal notranslate"><span class="pre">MeshGpuResourceCache</span></code>)</a></li>
 <li><a class="reference internal" href="#per-mesh-render-modes">Per-Mesh Render Modes</a></li>
+<li><a class="reference internal" href="#reference-grid">Reference grid</a></li>
 <li><a class="reference internal" href="#resetting-the-views">Resetting the views</a></li>
 <li><a class="reference internal" href="#clip-space-convention">Clip-space convention</a></li>
 <li><a class="reference internal" href="#scene3d-frame-sequence"><code class="docutils literal notranslate"><span class="pre">Scene3D</span></code> Frame Sequence</a></li>

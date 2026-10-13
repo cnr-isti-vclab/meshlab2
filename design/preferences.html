@@ -266,6 +266,9 @@ to write.</p>
 <code class="docutils literal notranslate"><span class="pre">document.undoMemoryLimitMiB</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">0</span></code> (disabled), and
 <code class="docutils literal notranslate"><span class="pre">document.purgeUndoOnMemoryPressure</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">false</span></code>. See
 <a class="reference internal" href="memory_accounting.html"><span class="std std-doc">Memory Accounting</span></a> for their pruning semantics.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">view.grid.*</span></code> colours are the first <strong>color</strong> preferences. A declaration gives one as a <code class="docutils literal notranslate"><span class="pre">&quot;#rrggbb&quot;</span></code> string
+and the dialog stores a <code class="docutils literal notranslate"><span class="pre">QColor</span></code>; <code class="docutils literal notranslate"><span class="pre">sameParameterValue</span></code> treats the two as the same color, so the reset button and
+“only overrides are stored” work, and <code class="docutils literal notranslate"><span class="pre">Preferences::colorValue(id)</span></code> reads either.</p>
 <section id="declaring-one">
 <h2>Declaring one<a class="headerlink" href="#declaring-one" title="Link to this heading">¶</a></h2>
 <p>Entries in <code class="docutils literal notranslate"><span class="pre">resources/preferences.json</span></code> use exactly the parameter schema documented in
