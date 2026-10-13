@@ -1,5 +1,6 @@
 #include <QtTest/QtTest>
 
+#include "preferences.h"
 #include "viewgrid.h"
 
 #include <cmath>
@@ -103,26 +104,40 @@ void ViewGridTests::theDecadesSlideIntoEachOtherWithoutAJump()
 
 void ViewGridTests::theAxesHaveTheirUsualColours()
 {
-    // Out of the box, from the declared preferences: no stored override in this test's settings.
-    const ViewGridStyle style = viewGridStyle();
+    // The style's own members, which are the grid out of the box; what a user has stored in their
+    // settings is theirs and not this test's business.
+    const ViewGridStyle style;
     const QVector3D x = style.axisColor[0], y = style.axisColor[1], z = style.axisColor[2];
     QVERIFY(x.x() > x.y() + 0.3f && x.x() > x.z() + 0.3f);   // red
     QVERIFY(y.y() > y.x() + 0.2f && y.y() > y.z() + 0.3f);   // green
     QVERIFY(z.z() > z.x() + 0.3f && z.z() > z.y() + 0.2f);   // blue
 }
 
-// The declared defaults of view.grid.* are what the grid looked like before they were
-// preferences, and the colour ones round-trip through the "#rrggbb" a declaration uses.
+// The declared defaults of view.grid.* are kept equal to ViewGridStyle's own members, which are what
+// the grid looks like out of the box, and the colour ones are "#rrggbb" strings that name the same
+// colours. The declarations are compared, not the stored values: those are the user's.
 void ViewGridTests::theStyleComesFromThePreferencesAndTheirDefaultsAreTheShadersOwn()
 {
-    const ViewGridStyle style = viewGridStyle();
-    QVERIFY(std::abs(style.fineOpacity - 0.14f) < 1e-5f);
-    QVERIFY(std::abs(style.midOpacity - 0.24f) < 1e-5f);
-    QVERIFY(std::abs(style.coarseOpacity - 0.36f) < 1e-5f);
-    QVERIFY(std::abs(style.axisWidthPixels - 2.0f) < 1e-5f);
-    QVERIFY(std::abs(style.extent - 1.0f) < 1e-5f);
-    QVERIFY(std::abs(style.lineColor.x() - 0.62f) < 0.01f);
-    QCOMPARE(defaultReferenceGrid(), ReferenceGrid::None);
+    const Preferences &preferences = Preferences::instance();
+    const auto declared = [&](const char *id) {
+        const MeshFilterParameterDescriptor *d = preferences.descriptor(QString::fromLatin1(id));
+        return d ? d->defaultValue : QVariant();
+    };
+    const ViewGridStyle style;
+    QVERIFY(std::abs(declared("view.grid.fineOpacity").toFloat() - style.fineOpacity) < 1e-5f);
+    QVERIFY(std::abs(declared("view.grid.midOpacity").toFloat() - style.midOpacity) < 1e-5f);
+    QVERIFY(std::abs(declared("view.grid.coarseOpacity").toFloat() - style.coarseOpacity) < 1e-5f);
+    QVERIFY(std::abs(declared("view.grid.axisWidth").toFloat() - style.axisWidthPixels) < 1e-5f);
+    QVERIFY(std::abs(declared("view.grid.extent").toFloat() - style.extent) < 1e-5f);
+    const auto close = [](const QColor &c, const QVector3D &v) {
+        return std::abs(float(c.redF()) - v.x()) < 0.01f && std::abs(float(c.greenF()) - v.y()) < 0.01f
+            && std::abs(float(c.blueF()) - v.z()) < 0.01f;
+    };
+    QVERIFY(close(QColor(declared("view.grid.lineColor").toString()), style.lineColor));
+    QVERIFY(close(QColor(declared("view.grid.axisXColor").toString()), style.axisColor[0]));
+    QVERIFY(close(QColor(declared("view.grid.axisYColor").toString()), style.axisColor[1]));
+    QVERIFY(close(QColor(declared("view.grid.axisZColor").toString()), style.axisColor[2]));
+    QCOMPARE(declared("view.referenceGrid").toString(), QStringLiteral("none"));
 }
 
 QTEST_APPLESS_MAIN(ViewGridTests)

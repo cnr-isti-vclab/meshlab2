@@ -89,34 +89,34 @@
     {
       "id": "view.grid.fineOpacity",
       "label": "Grid: fine lines",
-      "help": "How strongly the finest of the three decades of grid lines is drawn, from 0 (invisible) to 1. It fades out by itself as it gets too dense to read.",
+      "help": "How strongly the finest of the three decades of grid lines is drawn: 0 is invisible, 1 a full-strength line, and more makes the lines brighter still (they saturate at fully opaque). It fades out by itself as it gets too dense to read.",
       "group": "view",
       "type": "double",
-      "default": 0.14,
+      "default": 0.4,
       "min": 0.0,
-      "max": 1.0,
+      "max": 3.0,
       "decimals": 2
     },
     {
       "id": "view.grid.midOpacity",
       "label": "Grid: middle lines",
-      "help": "How strongly the middle decade of grid lines is drawn, from 0 to 1. It is always shown; the other two fade in and out around it as you zoom.",
+      "help": "How strongly the middle decade of grid lines is drawn: 0 is invisible, 1 a full-strength line, more brighter. It is always shown; the other two fade in and out around it as you zoom.",
       "group": "view",
       "type": "double",
-      "default": 0.24,
+      "default": 0.8,
       "min": 0.0,
-      "max": 1.0,
+      "max": 3.0,
       "decimals": 2
     },
     {
       "id": "view.grid.coarseOpacity",
       "label": "Grid: coarse lines",
-      "help": "How strongly the coarsest decade of grid lines is drawn, from 0 to 1. It fades in as the view zooms out far enough for it to be readable.",
+      "help": "How strongly the coarsest decade of grid lines is drawn: 0 is invisible, 1 a full-strength line, more brighter. It fades in as the view zooms out far enough for it to be readable.",
       "group": "view",
       "type": "double",
-      "default": 0.36,
+      "default": 1.5,
       "min": 0.0,
-      "max": 1.0,
+      "max": 3.0,
       "decimals": 2
     },
     {

@@ -67,5 +67,6 @@ void main()
     float axisAlpha = axis * 0.9;
     float alpha = max(grid, axisAlpha);
     vec3 color = axisAlpha >= grid ? axisColor : gridColor;
-    fragColor = vec4(color, alpha * fade);
+    // The strengths are preferences and may exceed one; a line cannot be more opaque than opaque.
+    fragColor = vec4(color, min(alpha * fade, 1.0));
 }

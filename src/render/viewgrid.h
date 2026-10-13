@@ -48,9 +48,9 @@ ViewGridLevels viewGridLevels(float unitsPerPixel);
 // drawn, how wide the axis lines are, how far the grid reaches relative to the default, and the
 // colours. Read each frame, so a change in the dialog shows at once.
 struct ViewGridStyle {
-    float fineOpacity = 0.14f;
-    float midOpacity = 0.24f;
-    float coarseOpacity = 0.36f;
+    float fineOpacity = 0.4f;
+    float midOpacity = 0.8f;
+    float coarseOpacity = 1.5f;
     float axisWidthPixels = 2.0f;
     float extent = 1.0f;
     QVector3D lineColor = QVector3D(0.62f, 0.62f, 0.62f);
