@@ -335,6 +335,17 @@ tracked CPU allocations and OS physical footprint.</p>
 <p>Default fill color source preference: texture → per-vertex → per-face → per-vertex-quality → per-face-quality → constant, clamped to mesh <code class="docutils literal notranslate"><span class="pre">ioMask</span></code> + texture availability. Texture availability is based on <code class="docutils literal notranslate"><span class="pre">Document::meshTextureAssociationCount(...)</span></code>.</p>
 <p>Default explicit-edge color source preference: per-edge → per-vertex → constant. Availability is clamped to <code class="docutils literal notranslate"><span class="pre">IOM_EDGECOLOR</span></code> and <code class="docutils literal notranslate"><span class="pre">IOM_VERTCOLOR</span></code>; unavailable choices are disabled in the overlay panel. Edge-only PLY layers carrying edge colors therefore open with <code class="docutils literal notranslate"><span class="pre">PerEdge</span></code> selected automatically.</p>
 </section>
+<section id="resetting-the-views">
+<h2>Resetting the views<a class="headerlink" href="#resetting-the-views" title="Link to this heading">¶</a></h2>
+<p><em>File &gt; New</em> closes the layers, the undo history and the log, and then puts everything else the
+user could have changed back as a fresh start has it: <code class="docutils literal notranslate"><span class="pre">RenderWidget::resetToDefaults()</span></code> on the
+remaining view (render settings seeded from the preferences again, per-layer render modes dropped, default
+camera and projection, headlight, 3D mode, UV and raster views refitted), the active tool, the
+camera synchronisation, and the values the filter panel remembers
+(<code class="docutils literal notranslate"><span class="pre">MeshFilterPanel::forgetRememberedParameters()</span></code>). The camera is framed by the next layer, by the
+same path as Reset Camera. Split views are closed down to one, the current view, as a launch opens with. Preferences are kept. State a new
+view carries should be added to <code class="docutils literal notranslate"><span class="pre">resetToDefaults()</span></code>, or New will not clear it.</p>
+</section>
 <section id="clip-space-convention">
 <h2>Clip-space convention<a class="headerlink" href="#clip-space-convention" title="Link to this heading">¶</a></h2>
 <p>Every projection the application builds – the trackball’s, a raster’s, the 2D UV view’s – is in
@@ -678,6 +689,7 @@ must leave the image <strong>exactly</strong> unchanged, so equality is the asse
 <li><a class="reference internal" href="#scene3d-request-and-plan-pipeline">Scene3D Request and Plan Pipeline</a></li>
 <li><a class="reference internal" href="#shared-gpu-cache-meshgpuresourcecache">Shared GPU Cache (<code class="docutils literal notranslate"><span class="pre">MeshGpuResourceCache</span></code>)</a></li>
 <li><a class="reference internal" href="#per-mesh-render-modes">Per-Mesh Render Modes</a></li>
+<li><a class="reference internal" href="#resetting-the-views">Resetting the views</a></li>
 <li><a class="reference internal" href="#clip-space-convention">Clip-space convention</a></li>
 <li><a class="reference internal" href="#scene3d-frame-sequence"><code class="docutils literal notranslate"><span class="pre">Scene3D</span></code> Frame Sequence</a></li>
 <li><a class="reference internal" href="#scene3d-pass-details"><code class="docutils literal notranslate"><span class="pre">Scene3D</span></code> Pass Details</a></li>

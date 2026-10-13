@@ -372,9 +372,11 @@ defaults at the time each action was recorded.</p>
 <li><p><strong>index</strong> – the 0-based position in the layer list. Every operation above
 (<code class="docutils literal notranslate"><span class="pre">mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">set_current_mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">set_mesh_visibility</span></code>, <code class="docutils literal notranslate"><span class="pre">is_mesh_visible</span></code>) takes
 an index, and it is what the GUI writes into exported scripts. An index
-shifts whenever a layer below it is removed.</p></li>
+shifts whenever a layer before it is removed, or a layer is dragged to another
+place in the list (the Layers panel’s tree view allows that).</p></li>
 <li><p><strong>id</strong> – a persistent opaque handle, minted from 1 and never reused. It
-survives removals and reordering, and it is what the render-state JSON keys
+survives removals and reordering (it is not saved in project files: ids are
+minted again on load), and it is what the render-state JSON keys
 <code class="docutils literal notranslate"><span class="pre">mesh_render_modes</span></code> by. Obtain one with <code class="docutils literal notranslate"><span class="pre">current_mesh_id()</span></code>, <code class="docutils literal notranslate"><span class="pre">mesh_id(index)</span></code>
 or <code class="docutils literal notranslate"><span class="pre">Mesh.id()</span></code>; check it is still live with <code class="docutils literal notranslate"><span class="pre">mesh_id_exists(id)</span></code>.</p></li>
 </ul>

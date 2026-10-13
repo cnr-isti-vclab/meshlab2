@@ -140,9 +140,11 @@ A mesh is addressed two ways, and they are not interchangeable:
 - **index** -- the 0-based position in the layer list. Every operation above
   (`mesh`, `set_current_mesh`, `set_mesh_visibility`, `is_mesh_visible`) takes
   an index, and it is what the GUI writes into exported scripts. An index
-  shifts whenever a layer below it is removed.
+  shifts whenever a layer before it is removed, or a layer is dragged to another
+  place in the list (the Layers panel's tree view allows that).
 - **id** -- a persistent opaque handle, minted from 1 and never reused. It
-  survives removals and reordering, and it is what the render-state JSON keys
+  survives removals and reordering (it is not saved in project files: ids are
+  minted again on load), and it is what the render-state JSON keys
   `mesh_render_modes` by. Obtain one with `current_mesh_id()`, `mesh_id(index)`
   or `Mesh.id()`; check it is still live with `mesh_id_exists(id)`.
 

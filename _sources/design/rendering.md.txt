@@ -99,6 +99,17 @@ Default fill color source preference: texture → per-vertex → per-face → pe
 
 Default explicit-edge color source preference: per-edge → per-vertex → constant. Availability is clamped to `IOM_EDGECOLOR` and `IOM_VERTCOLOR`; unavailable choices are disabled in the overlay panel. Edge-only PLY layers carrying edge colors therefore open with `PerEdge` selected automatically.
 
+## Resetting the views
+
+*File > New* closes the layers, the undo history and the log, and then puts everything else the
+user could have changed back as a fresh start has it: `RenderWidget::resetToDefaults()` on the
+remaining view (render settings seeded from the preferences again, per-layer render modes dropped, default
+camera and projection, headlight, 3D mode, UV and raster views refitted), the active tool, the
+camera synchronisation, and the values the filter panel remembers
+(`MeshFilterPanel::forgetRememberedParameters()`). The camera is framed by the next layer, by the
+same path as Reset Camera. Split views are closed down to one, the current view, as a launch opens with. Preferences are kept. State a new
+view carries should be added to `resetToDefaults()`, or New will not clear it.
+
 ## Clip-space convention
 
 Every projection the application builds -- the trackball's, a raster's, the 2D UV view's -- is in
