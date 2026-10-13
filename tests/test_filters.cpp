@@ -6991,7 +6991,7 @@ void FilterTests::ambientOcclusionIsScaleInvariant()
 {
     Document probe;
     const QString aoKey = filterKeyForId(
-        probe, QStringLiteral("compute_face_ambient_occlusion"));
+        probe, QStringLiteral("compute_mesh_ambient_occlusion"));
     if (aoKey.isEmpty())
         QSKIP("Embree plugin is not available in this build.");
     const QString sphereKey = filterKeyForId(probe, QStringLiteral("create_sphere"));

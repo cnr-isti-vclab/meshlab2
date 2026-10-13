@@ -17,7 +17,7 @@
 
 namespace {
 constexpr QLatin1StringView kFilterObscurance("compute_obscurance");
-constexpr QLatin1StringView kFilterFaceAmbientOcclusion("compute_face_ambient_occlusion");
+constexpr QLatin1StringView kFilterMeshAmbientOcclusion("compute_mesh_ambient_occlusion");
 constexpr QLatin1StringView kFilterPointCloudAmbientOcclusion(
     "compute_point_cloud_ambient_occlusion");
 constexpr QLatin1StringView kFilterShapeDiameter("compute_shape_diameter_function");
@@ -122,9 +122,9 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
         return { false, false, QObject::tr("Filter interrupted by user.") };
     };
 
-    const bool faceAmbient = filterId == QString::fromLatin1(kFilterFaceAmbientOcclusion);
+    const bool meshAmbient = filterId == QString::fromLatin1(kFilterMeshAmbientOcclusion);
     const bool pointAmbient = filterId == QString::fromLatin1(kFilterPointCloudAmbientOcclusion);
-    if (faceAmbient || pointAmbient) {
+    if (meshAmbient || pointAmbient) {
         const float bias = std::clamp(
             float(params.getDouble(QStringLiteral("directional_bias"))), 0.0f, 1.0f);
         const QVector3D dv = params.getPoint3f(QStringLiteral("cone_direction"));
@@ -136,7 +136,7 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
         const std::vector<vcg::Point3f> directions =
             ambientDirections(rays, bias, coneDirection, coneAngle);
 
-        if (faceAmbient) {
+        if (meshAmbient) {
             if (entry.mesh.FN() <= 0)
                 return { false, false, QObject::tr("Current mesh has no faces.") };
 
@@ -151,10 +151,10 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
             entry.ioMask |= Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY;
             doc.markMeshGeometryChanged(
                 current->index,
-                QObject::tr("Computed face ambient occlusion for '%1'").arg(entry.name));
+                QObject::tr("Computed mesh ambient occlusion for '%1'").arg(entry.name));
             return qualityResult(
                 current->index, MeshFilterVisualizationAttribute::FaceQuality,
-                { QObject::tr("Computed face ambient occlusion using %1 rays").arg(rays) });
+                { QObject::tr("Computed mesh ambient occlusion using %1 rays").arg(rays) });
         }
 
         if (entry.mesh.FN() > 0) {

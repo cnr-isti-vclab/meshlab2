@@ -7,7 +7,7 @@
       "name": "Compute Obscurance",
       "pythonName": "compute_obscurance",
       "shortDescription": "Computes volumetric obscurance and stores it in quality.",
-      "longDescriptionMarkdown": "Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>\t<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;\t<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved into face quality. The filter does not bake colors; after it runs MeshLab switches the view to face-quality color visualization. <br /><b>For further details see the reference paper: Iones Krupkin Sbert Zhukov Fast, Realistic Lighting for Video Games IEEECG&A 2003 </b> <br />This filter uses Embree3 library by INTEL.",
+      "longDescriptionMarkdown": "Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>\t<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;\t<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved per face, and each vertex takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written. The filter does not bake colors; after it runs the view switches to showing the per-face scalar. <br /><b>For further details see the reference paper: Iones Krupkin Sbert Zhukov Fast, Realistic Lighting for Video Games IEEECG&A 2003 </b> <br />This filter uses Embree3 library by INTEL.",
       "tags": [
         "quality",
         "embree",
@@ -47,12 +47,12 @@
       ]
     },
     {
-      "id": "compute_face_ambient_occlusion",
+      "id": "compute_mesh_ambient_occlusion",
       "categories": ["Attribute/Scalar"],
-      "name": "Compute Face Ambient Occlusion",
-      "pythonName": "compute_face_ambient_occlusion",
-      "shortDescription": "Computes cosine-weighted ambient visibility on a surface mesh.",
-      "longDescriptionMarkdown": "Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored in face quality and interpolated to vertex quality; a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute `BentNormal`. By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Half-Angle**: `0` is fully uniform ambient illumination and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; MeshLab switches to face-quality visualization after completion.",
+      "name": "Compute Mesh Ambient Occlusion",
+      "pythonName": "compute_mesh_ambient_occlusion",
+      "shortDescription": "Computes cosine-weighted ambient visibility of a surface mesh, per face and per vertex.",
+      "longDescriptionMarkdown": "Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored per face, and each vertex then takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written (replacing any they held); a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute `BentNormal`. By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Half-Angle**: `0` is fully uniform ambient illumination and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; the view switches to showing the per-face scalar after completion. For a layer without faces use *Compute Point Cloud Ambient Occlusion*.",
       "tags": [
         "quality",
         "embree",
