@@ -3664,9 +3664,12 @@ void RenderWidget::keyPressEvent(QKeyEvent *e)
         }
         // Other keys go to the tool only while it owns the mouse.
         if (toolLive() && m_activeTool->keyPress(e)) {
-            // A toggle (faces/vertices, visible-only) may change cursor + badge.
+            // A toggle (faces/vertices, visible-only, the shape) may change the cursor, the
+            // badge and the hint that says what the tool does now.
             applyToolCursor();
             updateToolBadge();
+            if (!m_activeTool->statusHint().isEmpty())
+                showInteractionStatusOverlay(m_activeTool->statusHint(), true);
             e->accept();
             update();
             return;
@@ -3767,6 +3770,11 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
 void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
 {
     emit viewActivated(this);
+    if (e && toolAllowedInCurrentMode() && toolLive() && m_activeTool->mouseDoubleClick(e)) {
+        e->accept();
+        update();
+        return;
+    }
     if (m_viewMode == ViewMode::ParametrizationUV) {
         if (e && e->button() == Qt::LeftButton) {
             const QSize sz(qMax(1, width()), qMax(1, height()));

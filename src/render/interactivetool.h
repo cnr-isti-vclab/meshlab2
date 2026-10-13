@@ -69,6 +69,9 @@ public:
     virtual bool mousePress(QMouseEvent *e) { (void)e; return false; }
     virtual bool mouseMove(QMouseEvent *e) { (void)e; return false; }
     virtual bool mouseRelease(QMouseEvent *e) { (void)e; return false; }
+    // The second press of a double click arrives here instead of as a press. Without a
+    // handler the view treats it as a request to recentre on the picked point.
+    virtual bool mouseDoubleClick(QMouseEvent *e) { (void)e; return false; }
     virtual bool keyPress(QKeyEvent *e) { (void)e; return false; }
 
     // Optional screen-space overlay. The matrix maps world coordinates to clip

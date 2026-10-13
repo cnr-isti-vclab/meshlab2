@@ -978,6 +978,162 @@
       ]
     },
     {
+      "id": "select_by_screen_polygon",
+      "categories": [
+        "Selection/by Visibility"
+      ],
+      "name": "Select by Screen Polygon",
+      "pythonName": "select_by_screen_polygon",
+      "shortDescription": "Select vertices or faces whose screen projection falls inside a polygon.",
+      "longDescriptionMarkdown": "Screen-space lasso selection. Given a camera and a polygon in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside it. The polygon is a list of at least three points, closed implicitly, and is tested with the even-odd rule, so a lasso that crosses itself leaves the doubly-enclosed part out. This is the filter committed by the interactive selection tool's polygon mode (**P**), and is equally usable from scripting.\n\nEverything else -- *Composition*, *Visible faces only*, *Expand to* -- is as in *Select by Screen Rectangle*.",
+      "tags": [
+        "selection"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "camera_state",
+          "label": "Camera",
+          "help": "Camera state (MeshLab.CameraState JSON) defining the projection.",
+          "group": "main",
+          "type": "camerastate"
+        },
+        {
+          "id": "aspect",
+          "label": "Aspect ratio",
+          "help": "Viewport width/height used to build the projection.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0
+        },
+        {
+          "id": "space",
+          "label": "Projection space",
+          "help": "Whether the polygon is in the 3D view or the UV/parametrization view.",
+          "group": "main",
+          "type": "enum",
+          "default": "view3d",
+          "enumOptions": [
+            {
+              "id": "view3d",
+              "label": "3D view"
+            },
+            {
+              "id": "uv",
+              "label": "UV / parametrization"
+            }
+          ]
+        },
+        {
+          "id": "uv_pan_x",
+          "label": "UV pan X",
+          "help": "UV-view pan (X), used when space = uv.",
+          "group": "main",
+          "type": "double",
+          "default": 0.5
+        },
+        {
+          "id": "uv_pan_y",
+          "label": "UV pan Y",
+          "help": "UV-view pan (Y), used when space = uv.",
+          "group": "main",
+          "type": "double",
+          "default": 0.5
+        },
+        {
+          "id": "uv_zoom",
+          "label": "UV zoom",
+          "help": "UV-view zoom, used when space = uv.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0
+        },
+        {
+          "id": "polygon",
+          "label": "Polygon",
+          "help": "The outline, as a JSON array of [x, y] points in normalized viewport coordinates (origin bottom-left, y up, 0..1): at least three, closed implicitly. The default covers the whole viewport.",
+          "group": "main",
+          "type": "string",
+          "default": "[[0,0],[1,0],[1,1],[0,1]]"
+        },
+        {
+          "id": "element",
+          "label": "Elements",
+          "help": "Whether to select vertices or faces (by centroid).",
+          "group": "main",
+          "type": "enum",
+          "default": "face",
+          "enumOptions": [
+            {
+              "id": "vertex",
+              "label": "Vertices"
+            },
+            {
+              "id": "face",
+              "label": "Faces"
+            }
+          ]
+        },
+        {
+          "id": "mode",
+          "label": "Composition",
+          "help": "Replace the current selection, add to it, or subtract from it.",
+          "group": "main",
+          "type": "enum",
+          "default": "replace",
+          "enumOptions": [
+            {
+              "id": "replace",
+              "label": "Replace"
+            },
+            {
+              "id": "add",
+              "label": "Add"
+            },
+            {
+              "id": "subtract",
+              "label": "Subtract"
+            }
+          ]
+        },
+        {
+          "id": "visible_only",
+          "label": "Visible faces only",
+          "help": "When selecting faces in the 3D view, keep only faces not occluded from the current viewpoint (ray-traced visibility).",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "expand_to",
+          "label": "Expand to",
+          "type": "enum",
+          "group": "main",
+          "default": "none",
+          "enumOptions": [
+            {
+              "id": "none",
+              "label": "None"
+            },
+            {
+              "id": "connected_components",
+              "label": "Connected components"
+            },
+            {
+              "id": "uv_islands",
+              "label": "UV islands"
+            }
+          ],
+          "help": "Grow what the polygon touched to the whole piece it belongs to, so grazing one triangle takes all of it. *Connected components* follow the mesh's own connectivity. *UV islands* also stop at UV seams, the edges whose two sides have different UVs, so each island is one piece of the UV layout; the mesh needs UVs for it. The growth starts from what the polygon hit rather than from the finished selection, so it composes with the modes as you would expect: subtract removes the whole piece under the polygon instead of growing whatever was left behind. Vertices are grown through their faces, so a vertex on a seam takes the islands on both sides. Face-face adjacency is built on demand, so this costs more than a plain drag."
+        }
+      ],
+      "outputModifies": [
+        "VS",
+        "FS"
+      ]
+    },
+    {
       "id": "select_by_screen_rectangle",
       "categories": [
         "Selection/by Visibility"

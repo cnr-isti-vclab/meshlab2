@@ -6,9 +6,11 @@
 #include "viewtrackball.h"
 #include <QColor>
 #include <QElapsedTimer>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
+#include <QPointF>
 #include <QMatrix4x4>
 #include <QVector3D>
 #include <QVector4D>
@@ -63,7 +65,50 @@ constexpr QLatin1StringView kFilterSelectFacesByEdge("select_faces_by_edge_lengt
 constexpr QLatin1StringView kFilterSelectCoplanar("select_coplanar_faces");
 constexpr QLatin1StringView kFilterSelectOutlier("select_outliers");
 constexpr QLatin1StringView kFilterSelectByRectangle("select_by_screen_rectangle");
+constexpr QLatin1StringView kFilterSelectByPolygon("select_by_screen_polygon");
 
+
+// The polygon of select_by_screen_polygon: a JSON array of [x, y] points in normalized screen
+// coordinates (origin bottom-left, y up), at least three, implicitly closed.
+bool parseScreenPolygon(const QString &text, std::vector<QPointF> &polygon, QString &error)
+{
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(text.toUtf8(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isArray()) {
+        error = QObject::tr("the polygon is not a JSON array of [x, y] points.");
+        return false;
+    }
+    polygon.clear();
+    for (const QJsonValue &value : doc.array()) {
+        const QJsonArray point = value.toArray();
+        if (point.size() != 2 || !point.at(0).isDouble() || !point.at(1).isDouble()
+            || !std::isfinite(point.at(0).toDouble()) || !std::isfinite(point.at(1).toDouble())) {
+            error = QObject::tr("every polygon point must be a pair of finite numbers.");
+            return false;
+        }
+        polygon.push_back(QPointF(point.at(0).toDouble(), point.at(1).toDouble()));
+    }
+    if (polygon.size() < 3) {
+        error = QObject::tr("the polygon needs at least three points.");
+        return false;
+    }
+    return true;
+}
+
+// Even-odd rule: a point is inside when a ray to the right of it crosses the outline an odd
+// number of times.
+bool pointInPolygon(const std::vector<QPointF> &polygon, double x, double y)
+{
+    bool inside = false;
+    for (std::size_t i = 0, j = polygon.size() - 1; i < polygon.size(); j = i++) {
+        const QPointF &a = polygon[i];
+        const QPointF &b = polygon[j];
+        if ((a.y() > y) != (b.y() > y)
+            && x < (b.x() - a.x()) * (y - a.y()) / (b.y() - a.y()) + a.x())
+            inside = !inside;
+    }
+    return inside;
+}
 
 void updateGeometryAfterDeletion(VCGMesh &mesh)
 {
@@ -148,7 +193,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             QObject::tr("Clear selection on '%1'").arg(entry.name));
     }
 
-    if (filterId == QString::fromLatin1(kFilterSelectByRectangle)) {
+    if (filterId == QString::fromLatin1(kFilterSelectByRectangle)
+        || filterId == QString::fromLatin1(kFilterSelectByPolygon)) {
         // Build the projection that maps a mesh element to normalized screen
         // coordinates. Two spaces are supported: the 3D trackball view, and the
         // UV/parametrization view (ortho projection of texture coordinates).
@@ -198,24 +244,40 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             towardViewerLocal = vcg::Point3f(t.x(), t.y(), t.z());
         }
 
-        const double lox = std::min(params.getDouble(QStringLiteral("rect_min_x")),
-                                    params.getDouble(QStringLiteral("rect_max_x")));
-        const double hix = std::max(params.getDouble(QStringLiteral("rect_min_x")),
-                                    params.getDouble(QStringLiteral("rect_max_x")));
-        const double loy = std::min(params.getDouble(QStringLiteral("rect_min_y")),
-                                    params.getDouble(QStringLiteral("rect_max_y")));
-        const double hiy = std::max(params.getDouble(QStringLiteral("rect_min_y")),
-                                    params.getDouble(QStringLiteral("rect_max_y")));
+        // The region of the screen that selects, in normalized coordinates (origin
+        // bottom-left, y up): the rectangle, or the polygon the lasso drew.
+        std::vector<QPointF> polygon;
+        if (filterId == QString::fromLatin1(kFilterSelectByPolygon)) {
+            QString polygonError;
+            if (!parseScreenPolygon(params.getString(QStringLiteral("polygon")), polygon, polygonError))
+                return fail(QObject::tr("select_by_screen_polygon: %1").arg(polygonError));
+        } else {
+            const double x0 = params.getDouble(QStringLiteral("rect_min_x"));
+            const double x1 = params.getDouble(QStringLiteral("rect_max_x"));
+            const double y0 = params.getDouble(QStringLiteral("rect_min_y"));
+            const double y1 = params.getDouble(QStringLiteral("rect_max_y"));
+            polygon = { {x0, y0}, {x1, y0}, {x1, y1}, {x0, y1} };
+        }
+        double lox = polygon.front().x(), hix = lox, loy = polygon.front().y(), hiy = loy;
+        for (const QPointF &p : polygon) {
+            lox = std::min(lox, p.x()); hix = std::max(hix, p.x());
+            loy = std::min(loy, p.y()); hiy = std::max(hiy, p.y());
+        }
+        // A rectangle is its own bounding box; anything else is tested against the outline
+        // (even-odd, so a lasso that crosses itself leaves the doubly-wound part out).
+        const bool boxOnly = filterId != QString::fromLatin1(kFilterSelectByPolygon);
 
         // Project a point (3D position, or UV coordinate with z=0) and test it
-        // against the normalized rect (origin bottom-left, y up).
+        // against the normalized region.
         auto inRect = [&](float x, float y, float z) -> bool {
             const QVector4D clip = mvp * QVector4D(x, y, z, 1.0f);
             if (clip.w() <= 1e-6f)
                 return false;
             const float sx = (clip.x() / clip.w()) * 0.5f + 0.5f;
             const float sy = (clip.y() / clip.w()) * 0.5f + 0.5f;
-            return sx >= lox && sx <= hix && sy >= loy && sy <= hiy;
+            if (sx < lox || sx > hix || sy < loy || sy > hiy)
+                return false;
+            return boxOnly || pointInPolygon(polygon, sx, sy);
         };
 
         const QString element = params.getEnum(QStringLiteral("element"));

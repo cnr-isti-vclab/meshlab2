@@ -421,6 +421,7 @@ private slots:
     void trimByPlaneClosesObliqueCutsToo();
     void cameraFramingFiltersMakeAndKeepOrthographicShots();
     void visibleOnlySelectionCastsParallelRaysInAnOrthographicView();
+    void polygonSelectionTakesWhatTheLassoEncloses();
     void filterParameterValidation();
     void meshFixRepairsOpenCube();
     void qslimSimplifiesCube();
@@ -1837,6 +1838,75 @@ void FilterTests::visibleOnlySelectionCastsParallelRaysInAnOrthographicView()
     select(true);
     QCOMPARE(selectedOnPlane(4.0f), 2); // the top of the upper cube: nothing above it
     QCOMPARE(selectedOnPlane(1.0f), 0); // the top of the lower cube: the upper cube is in the way
+}
+
+// The lasso's filter: the polygon is in normalized screen coordinates (origin bottom-left, y up),
+// closed implicitly, tested even-odd. An orthographic camera makes the screen position of the
+// cube's corners exact: with H = 2 the view spans 2 units about the centre, so the cube's corners
+// at 0 and 1 land at 0.25 and 0.75 on both axes.
+void FilterTests::polygonSelectionTakesWhatTheLassoEncloses()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int layer = doc.addMesh(cube, QStringLiteral("cube"));
+    QVERIFY(layer >= 0);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("select_by_screen_polygon"));
+    QVERIFY(!key.isEmpty());
+    const QString camera = QStringLiteral(
+        R"({"kind":"MeshLab.CameraState","version":1,"trackball":{"center":[0.5,0.5,0.5],)"
+        R"("rotation_xyzw":[0,0,0,1],"distance":1,"radius":1,"fov_y_degrees":90,)"
+        R"("projection":"orthographic"}})");
+    const auto select = [&](const QString &polygon, const QString &mode = QStringLiteral("replace")) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("space"), QStringLiteral("view3d"));
+        params.insert(QStringLiteral("camera_state"), camera);
+        params.insert(QStringLiteral("aspect"), 1.0);
+        params.insert(QStringLiteral("polygon"), polygon);
+        params.insert(QStringLiteral("element"), QStringLiteral("vertex"));
+        params.insert(QStringLiteral("mode"), mode);
+        params.insert(QStringLiteral("visible_only"), false);
+        params.insert(QStringLiteral("expand_to"), QStringLiteral("none"));
+        return doc.runFilter(key, params);
+    };
+    // The corners of the cube whose screen position is inside the lasso, by (x, y) of the corner.
+    const auto selectedCorners = [&] {
+        QSet<QString> corners;
+        for (const VCGVertex &v : doc.mesh(layer).mesh.vert)
+            if (v.IsS())
+                corners.insert(QStringLiteral("%1,%2").arg(int(v.cP().X())).arg(int(v.cP().Y())));
+        return corners;
+    };
+
+    // A triangle round the lower-left corner only (0.25, 0.25): the corners at (1, 0) and (0, 1)
+    // are at 0.75 on one axis and past the slanted edge.
+    QVERIFY2(select(QStringLiteral("[[0,0],[0.6,0],[0,0.6]]")).success, "triangle");
+    QCOMPARE(selectedCorners(), QSet<QString>({QStringLiteral("0,0")}));
+
+    // A concave lasso that goes round the lower-right corner leaves the upper-left one out.
+    QVERIFY(select(QStringLiteral("[[0.5,0.1],[0.9,0.1],[0.9,0.9],[0.5,0.9],[0.5,0.5],[0.7,0.5],[0.7,0.3],[0.5,0.3]]"),
+                   QStringLiteral("replace")).success);
+    // (0.75, 0.25) is inside the right-hand lobe; (0.75, 0.75) too; (0.25, *) is out.
+    QCOMPARE(selectedCorners(), QSet<QString>({QStringLiteral("1,0"), QStringLiteral("1,1")}));
+
+    // Add and subtract compose with it as for the rectangle.
+    QVERIFY(select(QStringLiteral("[[0,0],[0.6,0],[0,0.6]]"), QStringLiteral("add")).success);
+    QCOMPARE(selectedCorners(), QSet<QString>({QStringLiteral("0,0"), QStringLiteral("1,0"), QStringLiteral("1,1")}));
+    QVERIFY(select(QStringLiteral("[[0,0],[0.6,0],[0,0.6]]"), QStringLiteral("subtract")).success);
+    QCOMPARE(selectedCorners(), QSet<QString>({QStringLiteral("1,0"), QStringLiteral("1,1")}));
+
+    // The same square as a rectangle and as a polygon select the same.
+    QVERIFY(select(QStringLiteral("[[0.1,0.1],[0.9,0.1],[0.9,0.9],[0.1,0.9]]")).success);
+    QCOMPARE(selectedCorners().size(), 4);
+
+    // A polygon that is not one is refused, and the selection stays as it was.
+    for (const QString &bad : { QStringLiteral("[[0,0],[1,1]]"), QStringLiteral("not json"),
+                                QStringLiteral("[[0,0],[1],[1,1]]") }) {
+        const MeshFilterRunResult refused = select(bad);
+        QVERIFY2(!refused.success, qPrintable(bad));
+        QCOMPARE(selectedCorners().size(), 4);
+    }
 }
 
 void FilterTests::filterParameterValidation()
