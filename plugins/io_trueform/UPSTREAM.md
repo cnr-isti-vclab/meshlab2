@@ -9,7 +9,7 @@ git -C external/trueform fetch
 git -C external/trueform checkout <reviewed-commit>
 ```
 
-Currently pinned at **v0.10.6** (2026-10-06), which folds in the interim fix
+Currently pinned at **v0.10.7** (2026-10-12), which folds in the interim fix
 this file tracked ahead of the tag: a tube swept along a closed polyline
 pinched at the seam, because the frame producer's wrap ran on the stored
 point count while a closed path stores its first point twice; the seam ring
@@ -72,6 +72,16 @@ crossing-point interpolation, repairs every cut-producing filter silently;
 no call site changes and no test here catches it either way. The two
 additions, `tf::fill_holes` and `tf::delaunay_tetrahedralizer`, are new
 entry points neither plugin calls yet.
+
+v0.10.7 cost this build zero call sites. The domain decomposition is
+deterministic at any thread count: `make_csg_domains` ranks components by their
+first member once the labels close, so **Split into Solid Domains** returns the
+same cells in the same order, single-threaded or parallel, run after run. The
+rest is the cut pipeline's own repair — a radial fan certifies its order or
+withholds it, every entrant takes the plane its name states, a face's cut never
+leaves the face, a tolerance pulls vertices through committed planes, and a
+fused wall reads its sheets off their layers — all behind the same entry
+points, so no filter changed to take it.
 
 The step from v0.9.17 to v0.10.0 was the breaking one: the `cut` module was
 removed outright, with no compatibility shim, and its ground redistributed to
