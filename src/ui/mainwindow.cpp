@@ -593,7 +593,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(expandBtn, &QToolButton::clicked, m_layerWidget, &LayerWidget::toggleExpandAll);
     connect(m_layerWidget, &LayerWidget::expansionChanged, expandBtn, showExpandState);
     titleLayout->addWidget(expandBtn);
-    auto *titleLabel = new QLabel(tr("Layers (%1)").arg(m_doc->meshCount()));
+    auto *titleLabel = new QLabel(tr("Layers"));
     QFont titleFont = titleLabel->font();
     titleFont.setBold(true);
     titleLabel->setFont(titleFont);
@@ -603,10 +603,16 @@ MainWindow::MainWindow(QWidget *parent)
     summaryFont.setPointSizeF(summaryFont.pointSizeF() * 0.85);
     summaryLabel->setFont(summaryFont);
     summaryLabel->setToolTip(tr("Total triangles (T), edges (E) and vertices (V) in all layers"));
-    connect(m_layerWidget, &LayerWidget::summaryChanged, this, [this, titleLabel, summaryLabel](const QString &text) {
+    // How many layers there are, and what they hold in all, say something only once there is more
+    // than one: with a single layer the count is 1 and the totals are that layer's own.
+    const auto showSummary = [this, titleLabel, summaryLabel](const QString &text) {
+        const bool several = m_doc->meshCount() > 1;
+        titleLabel->setText(several ? tr("Layers (%1)").arg(m_doc->meshCount()) : tr("Layers"));
         summaryLabel->setText(text);
-        titleLabel->setText(tr("Layers (%1)").arg(m_doc->meshCount()));
-    });
+        summaryLabel->setVisible(several);
+    };
+    showSummary(m_layerWidget->summaryText());
+    connect(m_layerWidget, &LayerWidget::summaryChanged, this, showSummary);
     titleLayout->addWidget(summaryLabel);
     titleLayout->addStretch();
     auto *toggleBtn = new QToolButton();
