@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 373 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 374 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -9743,6 +9743,40 @@ Select vertices from selected faces.
 **Parameters:**
 
 - **Inclusive** (*bool*, default: `True`) — If true only vertices with all incident faces selected are selected. Otherwise any vertex with at least one incident selected face is selected.
+```
+
+---
+
+(filter-select-by-screen-polygon)=
+
+## Select by Screen Polygon
+
+**Categories:** `Selection/by Visibility`
+
+**Plugin:** meshlab2.filter.select
+
+Select vertices or faces whose screen projection falls inside a polygon.
+
+```{py:function} ms.select_by_screen_polygon(**params)
+:module: _meshlab
+
+Screen-space lasso selection. Given a camera and a polygon in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside it. The polygon is a list of at least three points, closed implicitly, and is tested with the even-odd rule, so a lasso that crosses itself leaves the doubly-enclosed part out. This is the filter committed by the interactive selection tool's polygon mode (**P**), and is equally usable from scripting.
+
+Everything else -- *Composition*, *Visible faces only*, *Expand to* -- is as in *Select by Screen Rectangle*.
+
+**Parameters:**
+
+- **camera_state** (*camerastate*) — Camera state (MeshLab.CameraState JSON) defining the projection.
+- **aspect** (*double*, default: `1.0`) — Viewport width/height used to build the projection.
+- **space** (*enum*, default: `view3d`) — Whether the polygon is in the 3D view or the UV/parametrization view.
+- **uv_pan_x** (*double*, default: `0.5`) — UV-view pan (X), used when space = uv.
+- **uv_pan_y** (*double*, default: `0.5`) — UV-view pan (Y), used when space = uv.
+- **uv_zoom** (*double*, default: `1.0`) — UV-view zoom, used when space = uv.
+- **polygon** (*string*, default: `[[0,0],[1,0],[1,1],[0,1]]`) — The outline, as a JSON array of [x, y] points in normalized viewport coordinates (origin bottom-left, y up, 0..1): at least three, closed implicitly. The default covers the whole viewport.
+- **element** (*enum*, default: `face`) — Whether to select vertices or faces (by centroid).
+- **mode** (*enum*, default: `replace`) — Replace the current selection, add to it, or subtract from it.
+- **visible_only** (*bool*, default: `False`) — When selecting faces in the 3D view, keep only faces not occluded from the current viewpoint (ray-traced visibility).
+- **expand_to** (*enum*, default: `none`) — Grow what the polygon touched to the whole piece it belongs to, so grazing one triangle takes all of it. *Connected components* follow the mesh's own connectivity. *UV islands* also stop at UV seams, the edges whose two sides have different UVs, so each island is one piece of the UV layout; the mesh needs UVs for it. The growth starts from what the polygon hit rather than from the finished selection, so it composes with the modes as you would expect: subtract removes the whole piece under the polygon instead of growing whatever was left behind. Vertices are grown through their faces, so a vertex on a seam takes the islands on both sides. Face-face adjacency is built on demand, so this costs more than a plain drag.
 ```
 
 ---

@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 373 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 374 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -7944,6 +7944,34 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
+<section id="select-by-screen-polygon">
+<span id="filter-select-by-screen-polygon"></span><h2>Select by Screen Polygon<a class="headerlink" href="#select-by-screen-polygon" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Visibility</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.select</p>
+<p>Select vertices or faces whose screen projection falls inside a polygon.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.select_by_screen_polygon">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_by_screen_polygon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_by_screen_polygon" title="Link to this definition">¶</a></dt>
+<dd><p>Screen-space lasso selection. Given a camera and a polygon in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside it. The polygon is a list of at least three points, closed implicitly, and is tested with the even-odd rule, so a lasso that crosses itself leaves the doubly-enclosed part out. This is the filter committed by the interactive selection tool’s polygon mode (<strong>P</strong>), and is equally usable from scripting.</p>
+<p>Everything else – <em>Composition</em>, <em>Visible faces only</em>, <em>Expand to</em> – is as in <em>Select by Screen Rectangle</em>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>camera_state</strong> (<em>camerastate</em>) — Camera state (MeshLab.CameraState JSON) defining the projection.</p></li>
+<li><p><strong>aspect</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Viewport width/height used to build the projection.</p></li>
+<li><p><strong>space</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">view3d</span></code>) — Whether the polygon is in the 3D view or the UV/parametrization view.</p></li>
+<li><p><strong>uv_pan_x</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — UV-view pan (X), used when space = uv.</p></li>
+<li><p><strong>uv_pan_y</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — UV-view pan (Y), used when space = uv.</p></li>
+<li><p><strong>uv_zoom</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — UV-view zoom, used when space = uv.</p></li>
+<li><p><strong>polygon</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">[[0,0],[1,0],[1,1],[0,1]]</span></code>) — The outline, as a JSON array of [x, y] points in normalized viewport coordinates (origin bottom-left, y up, 0..1): at least three, closed implicitly. The default covers the whole viewport.</p></li>
+<li><p><strong>element</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">face</span></code>) — Whether to select vertices or faces (by centroid).</p></li>
+<li><p><strong>mode</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">replace</span></code>) — Replace the current selection, add to it, or subtract from it.</p></li>
+<li><p><strong>visible_only</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — When selecting faces in the 3D view, keep only faces not occluded from the current viewpoint (ray-traced visibility).</p></li>
+<li><p><strong>expand_to</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">none</span></code>) — Grow what the polygon touched to the whole piece it belongs to, so grazing one triangle takes all of it. <em>Connected components</em> follow the mesh’s own connectivity. <em>UV islands</em> also stop at UV seams, the edges whose two sides have different UVs, so each island is one piece of the UV layout; the mesh needs UVs for it. The growth starts from what the polygon hit rather than from the finished selection, so it composes with the modes as you would expect: subtract removes the whole piece under the polygon instead of growing whatever was left behind. Vertices are grown through their faces, so a vertex on a seam takes the islands on both sides. Face-face adjacency is built on demand, so this costs more than a plain drag.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="select-by-screen-rectangle">
 <span id="filter-select-by-screen-rectangle"></span><h2>Select by Screen Rectangle<a class="headerlink" href="#select-by-screen-rectangle" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Visibility</span></code></p>
@@ -9827,6 +9855,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#select-vertices-from-faces">Select Vertices from Faces</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.select_vertices_from_faces"><code class="docutils literal notranslate"><span class="pre">ms.select_vertices_from_faces()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#select-by-screen-polygon">Select by Screen Polygon</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.select_by_screen_polygon"><code class="docutils literal notranslate"><span class="pre">ms.select_by_screen_polygon()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#select-by-screen-rectangle">Select by Screen Rectangle</a><ul>
