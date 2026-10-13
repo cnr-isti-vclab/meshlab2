@@ -46,6 +46,33 @@ void Document::removeMesh(int index)
         endUndoStep(true);
 }
 
+void Document::moveMesh(int from, int to)
+{
+    if (from < 0 || from >= meshCount() || to < 0 || to >= meshCount() || from == to)
+        return;
+
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("Move Layer"));
+
+    // The entries are heap objects, so moving the pointers leaves every address -- and the
+    // GPU resources and caches keyed by them or by the id -- as it was.
+    const std::uint64_t currentId =
+        (m_currentMeshIndex >= 0) ? mesh(m_currentMeshIndex).meshId : 0;
+    std::unique_ptr<MeshEntry> entry = std::move(m_meshes[std::size_t(from)]);
+    const QString name = entry->name;
+    m_meshes.erase(m_meshes.begin() + from);
+    m_meshes.insert(m_meshes.begin() + to, std::move(entry));
+
+    writeLog(tr("Moved layer '%1' from position %2 to %3").arg(name).arg(from).arg(to),
+             LogSource::Application);
+    emit meshMoved(from, to);
+    if (currentId != 0)
+        setCurrentMeshIndexInternal(indexOfMeshId(currentId), m_currentLayerKind == CurrentLayerKind::Mesh);
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
 // Layer names are how a person tells one layer from another, so two layers must not
 // carry the same one. Filters produced duplicates freely before this -- three convex
 // hulls were three layers all called "Convex Hull" -- and the naming scheme makes it

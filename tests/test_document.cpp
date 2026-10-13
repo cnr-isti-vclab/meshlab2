@@ -86,6 +86,7 @@ private slots:
     void loadMeshLabProjectLoadsRastersAndCamera();
     void rasterCameraUndoRedoRestoresShot();
     void undoRedoRestoresMeshList();
+    void movingALayerChangesItsPositionAndNotItsId();
     void undoTreeBranchingPreservesAlternateFuture();
     void undoSerialsSurviveRenumbering();
     void memoryStatsCountCustomAttributes();
@@ -1761,6 +1762,54 @@ void DocumentTests::rasterCameraUndoRedoRestoresShot()
     QCOMPARE(doc.rasterCount(), 1);
     QVERIFY(doc.raster(0).shot.isValid());
     QCOMPARE(doc.raster(0).shot.viewPoint(), QVector3D(1.0f, 2.0f, 3.0f));
+}
+
+// Reordering the layer list: the position (the index, the # column) changes, the id does not, the
+// current layer is still the same layer, listeners hear about it, and it is one undo step.
+void DocumentTests::movingALayerChangesItsPositionAndNotItsId()
+{
+    Document doc;
+    for (const char *name : { "a", "b", "c", "d" })
+        QVERIFY(addTinyMesh(doc, QString::fromLatin1(name)) >= 0);
+    std::vector<std::uint64_t> ids;
+    for (int i = 0; i < 4; ++i)
+        ids.push_back(doc.mesh(i).meshId);
+    const auto names = [&] {
+        QStringList list;
+        for (int i = 0; i < doc.meshCount(); ++i)
+            list << doc.mesh(i).name;
+        return list.join(QString());
+    };
+    doc.setCurrentMeshIndex(1);   // "b"
+    doc.mesh(1).transform.translate(5.0f, 0.0f, 0.0f);
+    QSignalSpy moved(&doc, &Document::meshMoved);
+
+    // "a" to the end: b, c, d, a. The current layer follows its own layer, "b", now first.
+    doc.moveMesh(0, 3);
+    QCOMPARE(names(), QStringLiteral("bcda"));
+    QCOMPARE(moved.count(), 1);
+    QCOMPARE(moved.first().at(0).toInt(), 0);
+    QCOMPARE(moved.first().at(1).toInt(), 3);
+    QCOMPARE(doc.currentMeshIndex(), 0);
+    QCOMPARE(doc.mesh(doc.currentMeshIndex()).name, QStringLiteral("b"));
+    // The ids went with their layers, and so did everything else about them.
+    QCOMPARE(doc.mesh(3).meshId, ids[0]);
+    QCOMPARE(doc.mesh(0).meshId, ids[1]);
+    QCOMPARE(doc.indexOfMeshId(ids[2]), 1);
+    QCOMPARE(doc.mesh(0).transform(0, 3), 5.0f);
+
+    // Moving to the same place, or out of range, does nothing.
+    doc.moveMesh(2, 2);
+    doc.moveMesh(-1, 1);
+    doc.moveMesh(0, 9);
+    QCOMPARE(moved.count(), 1);
+
+    // One step: undo puts the order back, redo moves it again.
+    QVERIFY(doc.undo());
+    QCOMPARE(names(), QStringLiteral("abcd"));
+    QCOMPARE(doc.mesh(0).meshId, ids[0]);
+    QVERIFY(doc.redo());
+    QCOMPARE(names(), QStringLiteral("bcda"));
 }
 
 void DocumentTests::undoRedoRestoresMeshList()

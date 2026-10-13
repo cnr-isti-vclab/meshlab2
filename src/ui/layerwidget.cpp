@@ -28,6 +28,7 @@
 #include <QQuaternion>
 #include <QMatrix3x3>
 #include <QPainter>
+#include <QSettings>
 #include <QSignalBlocker>
 #include <QStyledItemDelegate>
 #include <QStackedWidget>
@@ -1012,6 +1013,63 @@ QString layerItemKey(QTreeWidgetItem *item)
     return idOk ? layerItemKey(kind, id) : QString();
 }
 
+// The tree of mesh layers, whose rows can be dragged to another place in the list. Qt would
+// move the item itself, and "on" another item makes it that item's child, neither of which
+// means anything here: the document owns the order, so a drop is turned into a request for
+// the document to move the layer and the tree is rebuilt from the result. Only a layer row
+// can be dragged -- the rows of attributes under it are not layers -- and dropping on a
+// layer's attribute rows counts as dropping on the layer.
+class LayerTreeWidget : public QTreeWidget
+{
+public:
+    explicit LayerTreeWidget(QWidget *parent) : QTreeWidget(parent)
+    {
+        setDragEnabled(true);
+        setAcceptDrops(true);
+        setDropIndicatorShown(true);
+        setDragDropMode(QAbstractItemView::InternalMove);
+    }
+
+    // Called with the position the layer is moving from and the one it should end up at.
+    std::function<void(int from, int to)> moveRequested;
+
+protected:
+    void dropEvent(QDropEvent *event) override
+    {
+        const auto topLevelOf = [](QTreeWidgetItem *item) {
+            while (item && item->parent())
+                item = item->parent();
+            return item;
+        };
+        const QTreeWidgetItem *dragged = currentItem();
+        QTreeWidgetItem *target = topLevelOf(itemAt(event->position().toPoint()));
+        bool ok = false;
+        const int from = (dragged && !dragged->parent())
+            ? dragged->data(0, kRoleMeshIndex).toInt(&ok) : -1;
+        // Where the drop lands relative to the row it is over: above or below it, or, over its
+        // middle, whichever half the pointer is in.
+        int insertBefore = topLevelItemCount();
+        if (target) {
+            const int targetIndex = target->data(0, kRoleMeshIndex).toInt();
+            const QRect rect = visualItemRect(target);
+            const bool above = dropIndicatorPosition() == QAbstractItemView::AboveItem
+                || (dropIndicatorPosition() == QAbstractItemView::OnItem
+                    && event->position().toPoint().y() < rect.center().y());
+            insertBefore = above ? targetIndex : targetIndex + 1;
+        }
+        event->setDropAction(Qt::IgnoreAction);   // Qt must not move the item itself
+        event->accept();
+        setState(QAbstractItemView::NoState);
+        viewport()->update();
+        if (ok && from >= 0 && moveRequested) {
+            // The position after the layer has left its old one.
+            const int to = insertBefore > from ? insertBefore - 1 : insertBefore;
+            if (to != from)
+                moveRequested(from, to);
+        }
+    }
+};
+
 // Numeric sort helper for table columns
 class NumericTableItem : public QTableWidgetItem
 {
@@ -1097,7 +1155,9 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     // --- Tree view (page 0) ---
     auto *treeSplitter = new QSplitter(Qt::Vertical, this);
 
-    m_meshTree = new QTreeWidget(this);
+    auto *meshTree = new LayerTreeWidget(this);
+    meshTree->moveRequested = [this](int from, int to) { m_doc->moveMesh(from, to); };
+    m_meshTree = meshTree;
     m_meshTree->setColumnCount(3);
     m_meshTree->setHeaderHidden(true);
     m_meshTree->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -1145,10 +1205,17 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     auto *tableSplitter = new QSplitter(Qt::Vertical, this);
     m_stack->addWidget(tableSplitter); // page 1
 
-    // Mesh table — columns: Eye(0) | Name(1) | Src(2) | V(3) | E(4) | F(5) | Data(6)
-    m_meshTable = new QTableWidget(0, 7, this);
+    // Mesh table -- columns: Eye(0) | Name(1) | Src(2) | V(3) | E(4) | F(5) | Data(6) | #(7) | ID(8)
+    // The last two are off until asked for (see makeColumnsOptional) and sit after Name.
+    m_meshTable = new QTableWidget(0, 9, this);
     m_meshTable->setHorizontalHeaderLabels(
-        {QString(), tr("Name"), tr("Src"), tr("V"), tr("E"), tr("F"), tr("Data")});
+        {QString(), tr("Name"), tr("Src"), tr("V"), tr("E"), tr("F"), tr("Data"), tr("#"), tr("ID")});
+    m_meshTable->horizontalHeaderItem(7)->setToolTip(
+        tr("Position of the layer in the document, counting from 0: the order of the tree view, "
+           "and the index a script gives to set_current_mesh. Sort by it to get that order back."));
+    m_meshTable->horizontalHeaderItem(8)->setToolTip(
+        tr("The layer's id: given when it is created, never reused, and what stays with the "
+           "layer when others come and go (a script asks mesh_id_exists for it)."));
     m_meshTable->horizontalHeaderItem(2)->setToolTip(
         tr("Where the layer comes from: D loaded from a file, G generated in memory (no file). "
            "A * means it has changed since."));
@@ -1157,6 +1224,10 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     m_meshTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
     m_meshTable->setColumnWidth(0, 24);
     makeColumnsResizable(m_meshTable, 1);
+    makeColumnsOptional(m_meshTable, QStringLiteral("layers/meshTableColumns"),
+                        {{2, tr("Source")}, {3, tr("Vertices")}, {4, tr("Edges")}, {5, tr("Faces")},
+                         {6, tr("Data")}, {7, tr("Position (#)")}, {8, tr("Id")}},
+                        {7, 8}, {7, 8});
     m_meshTable->verticalHeader()->setVisible(false);
     m_meshTable->setSortingEnabled(true);
     m_meshTable->setShowGrid(false);
@@ -1171,8 +1242,13 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     tableSplitter->addWidget(m_meshTable);
 
     // Raster table — columns: Eye(0) | Thumb(1) | Name(2) | Size(3) | Planes(4) | Camera(5)
-    m_rasterTable = new QTableWidget(0, 6, this);
-    m_rasterTable->setHorizontalHeaderLabels({QString(), tr("Thumb"), tr("Name"), tr("Size"), tr("Planes"), tr("Camera")});
+    m_rasterTable = new QTableWidget(0, 8, this);
+    m_rasterTable->setHorizontalHeaderLabels(
+        {QString(), tr("Thumb"), tr("Name"), tr("Size"), tr("Planes"), tr("Camera"), tr("#"), tr("ID")});
+    m_rasterTable->horizontalHeaderItem(6)->setToolTip(
+        tr("Position of the raster in the document, counting from 0. Sort by it to get that order back."));
+    m_rasterTable->horizontalHeaderItem(7)->setToolTip(
+        tr("The raster's id: given when it is created, never reused."));
     m_rasterTable->setSelectionMode(QAbstractItemView::SingleSelection);
     m_rasterTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_rasterTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
@@ -1180,6 +1256,10 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     m_rasterTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
     m_rasterTable->setColumnWidth(1, 56);
     makeColumnsResizable(m_rasterTable, 2);
+    makeColumnsOptional(m_rasterTable, QStringLiteral("layers/rasterTableColumns"),
+                        {{3, tr("Size")}, {4, tr("Planes")}, {5, tr("Camera")},
+                         {6, tr("Position (#)")}, {7, tr("Id")}},
+                        {6, 7}, {6, 7});
     m_rasterTable->verticalHeader()->setVisible(false);
     m_rasterTable->verticalHeader()->setDefaultSectionSize(56);
     m_rasterTable->setSortingEnabled(true);
@@ -1206,6 +1286,7 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
         scheduleRebuild();
     });
     connect(m_doc, &Document::meshRemoved, this, &LayerWidget::rebuild);
+    connect(m_doc, &Document::meshMoved, this, [this](int, int) { scheduleRebuild(); });
     connect(m_doc, &Document::meshVisibilityChanged, this, [this](int, bool) {
         scheduleRebuild();
     });
@@ -1301,6 +1382,58 @@ void LayerWidget::makeColumnsResizable(QTableWidget *table, int firstResizable)
         if (!m_adjustingColumns && (QApplication::mouseButtons() & Qt::LeftButton)
             && header->viewport()->underMouse())
             m_columnsUserSized = true;
+    });
+}
+
+// Which columns of a table are shown is the user's: a right-click on the header lists the ones
+// that may be hidden, and what they chose is remembered across runs. `optional` pairs each such
+// column with the name the menu gives it, `hiddenByDefault` are the ones off until asked for, and
+// `placedAfterName` are moved to sit beside the name instead of at the far end, where a column
+// added later would otherwise land. Hiding keeps the column's logical index, so nothing that
+// reads a cell by column has to know.
+void LayerWidget::makeColumnsOptional(
+    QTableWidget *table, const QString &settingsKey,
+    const QList<QPair<int, QString>> &optional,
+    const QList<int> &hiddenByDefault, const QList<int> &placedAfterName)
+{
+    QHeaderView *header = table->horizontalHeader();
+    int visualPosition = 2;   // after the eye and the name
+    for (int column : placedAfterName)
+        header->moveSection(header->visualIndex(column), visualPosition++);
+
+    const auto toStrings = [](const QList<int> &columns) {
+        QStringList list;
+        for (int column : columns)
+            list << QString::number(column);
+        return list;
+    };
+    QSettings settings;
+    const QStringList hidden =
+        settings.value(settingsKey, toStrings(hiddenByDefault)).toStringList();
+    for (const auto &entry : optional)
+        table->setColumnHidden(entry.first, hidden.contains(QString::number(entry.first)));
+
+    header->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(header, &QHeaderView::customContextMenuRequested, this,
+            [this, table, header, settingsKey, optional](const QPoint &pos) {
+        QMenu menu(table);
+        for (const auto &entry : optional) {
+            QAction *action = menu.addAction(entry.second);
+            action->setCheckable(true);
+            action->setChecked(!table->isColumnHidden(entry.first));
+            connect(action, &QAction::toggled, table, [this, table, settingsKey, optional,
+                                                       column = entry.first](bool shown) {
+                table->setColumnHidden(column, !shown);
+                if (shown)
+                    table->resizeColumnToContents(column);
+                QStringList hiddenNow;
+                for (const auto &other : optional)
+                    if (table->isColumnHidden(other.first))
+                        hiddenNow << QString::number(other.first);
+                QSettings().setValue(settingsKey, hiddenNow);
+            });
+        }
+        menu.exec(header->mapToGlobal(pos));
     });
 }
 
@@ -1735,6 +1868,16 @@ void LayerWidget::rebuildTable()
             auto *dItem = new QTableWidgetItem(meshDataSummary(entry));
             dItem->setFlags(dItem->flags() & ~Qt::ItemIsEditable);
             m_meshTable->setItem(i, 6, dItem);
+
+            // # and ID columns (7, 8)
+            const auto numberItem = [](qlonglong value) {
+                auto *item = new NumericTableItem(QString::number(value), value);
+                item->setFlags(item->flags() & ~Qt::ItemIsEditable);
+                item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+                return item;
+            };
+            m_meshTable->setItem(i, 7, numberItem(i));
+            m_meshTable->setItem(i, 8, numberItem(qlonglong(entry.meshId)));
         }
 
         m_meshTable->setSortingEnabled(true);
@@ -1804,6 +1947,16 @@ void LayerWidget::rebuildTable()
             camItem->setFlags(camItem->flags() & ~Qt::ItemIsEditable);
             camItem->setToolTip(rasterCameraTooltip(entry));
             m_rasterTable->setItem(i, 5, camItem);
+
+            // # and ID columns (6, 7)
+            const auto numberItem = [](qlonglong value) {
+                auto *item = new NumericTableItem(QString::number(value), value);
+                item->setFlags(item->flags() & ~Qt::ItemIsEditable);
+                item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+                return item;
+            };
+            m_rasterTable->setItem(i, 6, numberItem(i));
+            m_rasterTable->setItem(i, 7, numberItem(qlonglong(entry.rasterId)));
         }
 
         m_rasterTable->setSortingEnabled(true);

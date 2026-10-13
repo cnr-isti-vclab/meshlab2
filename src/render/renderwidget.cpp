@@ -672,6 +672,24 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         layoutOverlayButtons();
         update();
     });
+    connect(m_doc, &Document::meshMoved, this, [this](int from, int to) {
+        // The same layer, somewhere else in the list: its visibility moves with it, and a pick
+        // in flight named a position that now holds another layer.
+        invalidateToolPick();
+        if (m_activeTool) {
+            m_activeTool->cancelGesture();
+            updateToolBadge();
+        }
+        ensureVisibilitySize();
+        if (from >= 0 && from < int(m_meshVisibility.size()) && to >= 0
+            && to < int(m_meshVisibility.size())) {
+            const bool visible = m_meshVisibility[size_t(from)];
+            m_meshVisibility.erase(m_meshVisibility.begin() + from);
+            m_meshVisibility.insert(m_meshVisibility.begin() + to, visible);
+        }
+        updateBoundingBoxCornersOverlay();
+        update();
+    });
     connect(m_doc, &Document::meshRemoved, this, [this](int index) {
         invalidateToolPick(); // invalidate in-flight picks (see meshAdded)
         if (m_activeTool) {

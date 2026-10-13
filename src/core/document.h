@@ -272,6 +272,11 @@ public:
     void setSuppressUndo(bool s);
     int addMesh(const VCGMesh &mesh, const QString &name = {}, int ioMask = 0);
     void removeMesh(int index);
+    // Moves the layer at `from` so that it ends up at position `to` (both positions in the
+    // current order), shifting the layers between. Its id, and everything else about it, stay;
+    // only the position changes, which is the order of the layer list, of grid arrangements
+    // and of a saved project. The current layer is still the same layer. One undo step.
+    void moveMesh(int from, int to);
     int duplicateMesh(int sourceIndex, const QString &newName = {});
     int loadRasterImage(const QString &filename);
     int loadMeshLabProject(const QString &filename);
@@ -483,6 +488,9 @@ signals:
     void bulkLoadFinished();
     void meshAdded(int index);
     void meshRemoved(int index);
+    // A layer changed position (moveMesh): everything positional -- a view's per-layer
+    // visibility -- has to move with it. Not emitted for the wholesale rebuild of an undo.
+    void meshMoved(int from, int to);
     void meshVisibilityChanged(int index, bool visible);
     void currentMeshChanged(int index);
     void meshDataChanged(int index);

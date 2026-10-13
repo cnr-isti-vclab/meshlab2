@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QPair>
 #include <QVariantMap>
 #include <QWidget>
 #include <QTreeWidget>
@@ -59,6 +60,11 @@ private:
     // Columns track their contents until the user drags one, after which they are the
     // user's and nothing moves them again.
     void makeColumnsResizable(QTableWidget *table, int firstResizable);
+    // Lets the user hide and show the listed columns from a right-click on the header,
+    // remembered under `settingsKey`; see the definition.
+    void makeColumnsOptional(QTableWidget *table, const QString &settingsKey,
+                             const QList<QPair<int, QString>> &optional,
+                             const QList<int> &hiddenByDefault, const QList<int> &placedAfterName);
     void fitColumnsToContents();
     int kvRoleForColumn(int col) const { return Qt::UserRole + 100 + col; }
 
