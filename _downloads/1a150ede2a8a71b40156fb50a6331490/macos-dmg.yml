@@ -1,0 +1,344 @@
+name: macOS DMG
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    # A documentation-only commit cannot break packaging. paths-ignore only skips
+    # the run when *every* changed file matches, so a commit touching both docs
+    # and code still builds.
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/workflows/docs.yml'
+
+permissions:
+  contents: read
+
+# One build per branch. Pushing again while a build is in flight cancels it rather
+# than queueing a second: only the newest commit is worth packaging. A run started by
+# hand gets a group of its own, so a push cannot cancel a release build and two manual
+# runs cannot cancel each other.
+concurrency:
+  group: macos-dmg-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'push' }}
+  cancel-in-progress: true
+
+jobs:
+  build-dmg:
+    name: Build Signed and Notarized DMG
+    # Apple Silicon only: macOS 26 is Apple's last Intel release.
+    #
+    # The minimum supported macOS is now declared explicitly, in two places that
+    # must agree: CMAKE_OSX_DEPLOYMENT_TARGET in CMakeLists.txt for the app, and
+    # VCPKG_OSX_DEPLOYMENT_TARGET in ci/vcpkg-triplets/arm64-osx.cmake for the
+    # dependencies. The runner no longer decides it.
+    #
+    # Still pinned rather than macos-latest so the SDK matches that deployment
+    # target. On a newer runner, calling an API introduced after macOS 15 is only
+    # a warning, and the failure surfaces as a crash on a user's machine; on a
+    # matching runner it is a compile error here.
+    runs-on: macos-15
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      APP_NAME: MeshLab
+      BUILD_DIR: build-release
+      # Pinned to the last known-good patch: newly published Qt patch releases can
+      # appear in aqt's metadata before download.qt.io serves all matching
+      # checksums, which makes install-qt-action fail transiently during CI.
+      QT_VERSION: 6.11.2
+      QT_ARCH: clang_64
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      VCPKG_TARGET_TRIPLET: arm64-osx
+      # Overlay shadows the builtin arm64-osx to pin VCPKG_OSX_DEPLOYMENT_TARGET,
+      # so dependencies target the same minimum macOS as the application.
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/ci/vcpkg-triplets
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Validate signing secrets
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+        run: |
+          for name in \
+            MACOS_CERTIFICATE_P12 \
+            MACOS_CERTIFICATE_PASSWORD \
+            APPLE_API_KEY_ID \
+            APPLE_API_ISSUER_ID \
+            APPLE_API_PRIVATE_KEY; do
+            [ -n "${!name}" ] || { echo "Missing repository secret: $name" >&2; exit 1; }
+          done
+
+      - name: Install macOS build dependencies
+        run: |
+          # GMP is built from source by vcpkg on macOS and its autoreconf step
+          # needs the complete GNU autotools toolchain.
+          #
+          # libomp is the one dependency neither CMAKE_OSX_DEPLOYMENT_TARGET nor the
+          # vcpkg triplet governs: Homebrew serves a bottle built for the runner's
+          # own macOS, and that dylib is bundled into the app. On this pinned
+          # macos-15 runner the bottle matches the 15.0 target, but if the pin ever
+          # moves, watch the link step for "was built for newer version" — a bundled
+          # libomp newer than the deployment target can fail on a user's macOS 15.
+          brew install \
+            ninja \
+            libomp \
+            autoconf \
+            autoconf-archive \
+            automake \
+            libtool
+
+      - name: Expose build tools
+        run: |
+          echo "$(brew --prefix ninja)/bin" >> "$GITHUB_PATH"
+          echo "OpenMP_ROOT=$(brew --prefix libomp)" >> "$GITHUB_ENV"
+          echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> "$GITHUB_ENV"
+          echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> "$GITHUB_ENV"
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          arch: ${{ env.QT_ARCH }}
+          # qtimageformats carries the tga/tiff/webp/icns image plugins. Without it
+          # QImageReader reads none of those, so a .tga texture fails to load with
+          # nothing but "Unknown error" -- and macdeployqt can only bundle the plugins
+          # that the Qt it is pointed at actually has.
+          modules: qtshadertools qtimageformats
+          cache: true
+          cache-key-prefix: meshlab-qt-macos-imgfmt
+
+      - name: Expose Qt tools
+        run: |
+          echo "$QT_ROOT_DIR/bin" >> "$GITHUB_PATH"
+          echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR;$(brew --prefix libomp)" >> "$GITHUB_ENV"
+          echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> "$GITHUB_ENV"
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
+          VCPKG_BASELINE="$(python3 - <<'PY'
+          import json
+          with open("vcpkg.json", "r", encoding="utf-8") as f:
+              print(json.load(f)["builtin-baseline"])
+          PY
+          )"
+          git -C "$VCPKG_ROOT" checkout --detach "$VCPKG_BASELINE"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: Restore vcpkg artifacts
+        id: restore-vcpkg-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/Library/Caches/vcpkg/archives
+            ${{ env.VCPKG_ROOT }}/downloads
+            ${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed
+          # runner.arch is part of the key: runner.os is "macOS" for both Intel
+          # and Apple Silicon, so an x64 cache must not reach an arm64 runner.
+          # The run id keeps the entry refreshable: with a content-only key the save
+          # below was skipped as soon as it matched, pinning one snapshot forever.
+          # That is survivable while its ABI hashes still validate, and turns into a
+          # full rebuild of every package on every run once they do not -- which is
+          # what happened to the Windows job for three weeks.
+          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
+          restore-keys: |
+            macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-
+            macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install vcpkg dependencies
+        id: vcpkg-install
+        run: |
+          set -o pipefail
+          "$VCPKG_ROOT/vcpkg" install \
+            --triplet "$VCPKG_TARGET_TRIPLET" \
+            --overlay-triplets="$VCPKG_OVERLAY_TRIPLETS" \
+            --x-manifest-root="$GITHUB_WORKSPACE" \
+            --x-install-root="$GITHUB_WORKSPACE/$BUILD_DIR/vcpkg_installed" \
+            --clean-after-build 2>&1 | tee "$GITHUB_WORKSPACE/vcpkg-install.log"
+          # Whether anything was compiled decides whether the cache is worth
+          # rewriting below; in the steady state nothing is built and it is left alone.
+          if grep -q '^Building ' "$GITHUB_WORKSPACE/vcpkg-install.log"; then
+            echo "rebuilt=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rebuilt=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Save now rather than in a post-job hook, so a later compile/package
+      # failure does not discard an otherwise successful dependency build.
+      - name: Save vcpkg artifacts
+        if: steps.restore-vcpkg-cache.outputs.cache-hit != 'true' || steps.vcpkg-install.outputs.rebuilt == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/Library/Caches/vcpkg/archives
+            ${{ env.VCPKG_ROOT }}/downloads
+            ${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed
+          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
+
+      - name: Upload vcpkg failure logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: meshlab-macos-vcpkg-logs
+          path: |
+            ${{ github.workspace }}/vcpkg-install.log
+            ${{ env.VCPKG_ROOT }}/buildtrees/**/*.log
+            ${{ env.VCPKG_ROOT }}/buildtrees/**/*.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Configure
+        run: |
+          cmake --preset vcpkg-manifest \
+            -B "$BUILD_DIR" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
+            -DOpenMP_ROOT="$OpenMP_ROOT" \
+            -DOpenMP_CXX_INCLUDE_DIR="$OpenMP_ROOT/include" \
+            -DOpenMP_CXX_LIB_NAMES=omp \
+            -DOpenMP_omp_LIBRARY="$OpenMP_ROOT/lib/libomp.dylib" \
+            -DVCPKG_TARGET_TRIPLET="$VCPKG_TARGET_TRIPLET" \
+            -DVCPKG_OVERLAY_TRIPLETS="$VCPKG_OVERLAY_TRIPLETS" \
+            -DVCPKG_INSTALLED_DIR="$GITHUB_WORKSPACE/$BUILD_DIR/vcpkg_installed" \
+            -DVCPKG_MANIFEST_INSTALL=OFF \
+            -DCMAKE_MAKE_PROGRAM="$(brew --prefix ninja)/bin/ninja"
+
+      - name: Build
+        run: |
+          cmake --build "$BUILD_DIR" -j"$(sysctl -n hw.ncpu)"
+
+      - name: Define release artifact name
+        id: release-metadata
+        run: |
+          RELEASE_DATE="$(date -u +%Y-%m-%d)"
+          SHORT_SHA="${GITHUB_SHA:0:8}"
+          echo "artifact_stem=$APP_NAME-$RELEASE_DATE-$SHORT_SHA-macos-arm64" >> "$GITHUB_OUTPUT"
+
+      - name: Import Developer ID certificate
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/meshlab-developer-id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/meshlab-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+
+          printf '%s' "$MACOS_CERTIFICATE_P12" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+
+          SIGNING_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" |
+            awk -F\" '/Developer ID Application/ {print $2; exit}')"
+          [ -n "$SIGNING_IDENTITY" ] || {
+            echo "The certificate does not contain a Developer ID Application identity" >&2
+            exit 1
+          }
+          echo "MACOS_SIGNING_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
+          echo "SIGNING_KEYCHAIN=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "SIGNING_CERTIFICATE_PATH=$CERTIFICATE_PATH" >> "$GITHUB_ENV"
+
+      - name: Package signed DMG
+        env:
+          RELEASE_ARTIFACT_STEM: ${{ steps.release-metadata.outputs.artifact_stem }}
+        run: |
+          ./scripts/package-macos-dmg.sh \
+            --no-build \
+            --build-dir "$BUILD_DIR" \
+            --sign-identity "$MACOS_SIGNING_IDENTITY"
+          PACKAGED_DMG="$GITHUB_WORKSPACE/$BUILD_DIR/$APP_NAME-macos-$(uname -m).dmg"
+          [ -f "$PACKAGED_DMG" ] || { echo "Signed DMG was not produced" >&2; exit 1; }
+          DMG_PATH="$GITHUB_WORKSPACE/$BUILD_DIR/$RELEASE_ARTIFACT_STEM.dmg"
+          mv "$PACKAGED_DMG" "$DMG_PATH"
+          echo "DMG_PATH=$DMG_PATH" >> "$GITHUB_ENV"
+
+      - name: Notarize and staple DMG
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+        run: |
+          API_KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          NOTARY_SUBMIT_JSON="$RUNNER_TEMP/notarytool-submit.json"
+          NOTARY_LOG_PATH="$RUNNER_TEMP/notarytool-log.json"
+          printf '%s' "$APPLE_API_PRIVATE_KEY" > "$API_KEY_PATH"
+          echo "NOTARY_API_KEY_PATH=$API_KEY_PATH" >> "$GITHUB_ENV"
+          echo "NOTARY_LOG_PATH=$NOTARY_LOG_PATH" >> "$GITHUB_ENV"
+
+          set +e
+          xcrun notarytool submit "$DMG_PATH" \
+            --key "$API_KEY_PATH" \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER_ID" \
+            --wait \
+            --timeout 60m \
+            --output-format json | tee "$NOTARY_SUBMIT_JSON"
+          NOTARY_EXIT_CODE="${PIPESTATUS[0]}"
+          set -e
+
+          NOTARY_SUBMISSION_ID="$(plutil -extract id raw -o - \
+            "$NOTARY_SUBMIT_JSON" 2>/dev/null || true)"
+          NOTARY_STATUS="$(plutil -extract status raw -o - \
+            "$NOTARY_SUBMIT_JSON" 2>/dev/null || true)"
+
+          if [ -n "$NOTARY_SUBMISSION_ID" ]; then
+            xcrun notarytool log \
+              --key "$API_KEY_PATH" \
+              --key-id "$APPLE_API_KEY_ID" \
+              --issuer "$APPLE_API_ISSUER_ID" \
+              "$NOTARY_SUBMISSION_ID" "$NOTARY_LOG_PATH" || true
+            [ ! -f "$NOTARY_LOG_PATH" ] || cat "$NOTARY_LOG_PATH"
+          fi
+
+          if [ "$NOTARY_EXIT_CODE" -ne 0 ] || [ "$NOTARY_STATUS" != "Accepted" ]; then
+            echo "Notarization failed with status: ${NOTARY_STATUS:-unknown}" >&2
+            exit 1
+          fi
+
+          xcrun stapler staple "$DMG_PATH"
+          xcrun stapler validate "$DMG_PATH"
+          spctl --assess --type open --context context:primary-signature \
+            --verbose=2 "$DMG_PATH"
+
+      - name: Remove signing credentials
+        if: always()
+        run: |
+          [ -z "${SIGNING_KEYCHAIN:-}" ] || security delete-keychain "$SIGNING_KEYCHAIN" || true
+          [ -z "${SIGNING_CERTIFICATE_PATH:-}" ] || rm -f "$SIGNING_CERTIFICATE_PATH"
+          [ -z "${NOTARY_API_KEY_PATH:-}" ] || rm -f "$NOTARY_API_KEY_PATH"
+
+      - name: Upload notarization log
+        if: ${{ always() && env.NOTARY_LOG_PATH != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.release-metadata.outputs.artifact_stem }}-notarization-log
+          path: ${{ env.NOTARY_LOG_PATH }}
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.release-metadata.outputs.artifact_stem }}
+          path: ${{ github.workspace }}/build-release/${{ steps.release-metadata.outputs.artifact_stem }}.dmg
+          if-no-files-found: error
+          # Every push builds one of these, so they have to expire or the artifact
+          # list becomes unusable. Two weeks is long enough to go back to last
+          # week's build; a release worth keeping should be attached to a release.
+          retention-days: 14

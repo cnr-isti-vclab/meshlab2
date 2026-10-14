@@ -262,6 +262,12 @@ currently target upstream <code class="docutils literal notranslate"><span class
 must be pinned before implementation. This is a design and provenance study,
 not a benchmark or build-compatibility result. No Open3D code has been compiled
 or exercised in MeshLab.</p>
+<p>A second pass on <strong>2026-10-14</strong> read <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code>, <code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code> and
+<code class="docutils literal notranslate"><span class="pre">3rdparty/find_dependencies.cmake</span></code> at tag <strong>v0.20.0</strong> (released 2026-09-16) and
+measured this checkout’s current dependency footprint. It found one fact that
+dominates the cost of the whole plan and was absent from the first draft — see
+<em>The dependency cost is VTK</em> — and one that removes most of the risk from the
+RGB-D phase. Both are recorded below.</p>
 </section>
 <section id="why-open3d-given-current-meshlab-filters">
 <h2>Why Open3D, given current MeshLab filters<a class="headerlink" href="#why-open3d-given-current-meshlab-filters" title="Link to this heading">¶</a></h2>
@@ -333,6 +339,46 @@ produce reconstruction results as new tagged layers.</p>
 reviewable set of C++ filters through the normal MeshLab registry and descriptor
 schema. Use Open3D’s CPU path first. CUDA/SYCL variants are not implied by the
 presence of Open3D and should not be made a build or runtime requirement.</p>
+<section id="the-dependency-cost-is-vtk">
+<h3>The dependency cost is VTK<a class="headerlink" href="#the-dependency-cost-is-vtk" title="Link to this heading">¶</a></h3>
+<p>Measured at v0.20.0:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Bundled third-party components in the source tree</p></td>
+<td><p><strong>48</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>Upstream’s own <code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code> dependencies</p></td>
+<td><p><strong>21</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>Of those, already in this project’s <code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code></p></td>
+<td><p>about 4 (<code class="docutils literal notranslate"><span class="pre">embree</span></code>, <code class="docutils literal notranslate"><span class="pre">tbb</span></code>, Eigen and zlib transitively)</p></td>
+</tr>
+<tr class="row-odd"><td><p>This project’s current dependency count</p></td>
+<td><p>15</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Upstream 0.20 has a <strong>vcpkg mode</strong>: <code class="docutils literal notranslate"><span class="pre">if(OPEN3D_USE_VCPKG)</span></code> flips roughly twenty
+<code class="docutils literal notranslate"><span class="pre">USE_SYSTEM_*</span></code> options ON, and the repository ships a top-level <code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code>.
+That largely answers this document’s own requirement that configure-time
+dependency fetching be disallowed — the mechanism exists upstream and does not
+have to be invented.</p>
+<p><strong>But VTK is unconditional.</strong> <code class="docutils literal notranslate"><span class="pre">3rdparty/find_dependencies.cmake</span></code> has exactly two
+branches for it — <code class="docutils literal notranslate"><span class="pre">if(USE_SYSTEM_VTK)</span></code> finds it, <code class="docutils literal notranslate"><span class="pre">if(NOT</span> <span class="pre">USE_SYSTEM_VTK)</span></code>
+imports it — and no third. There is no no-VTK build. Yet the only consumer in
+the tree is <code class="docutils literal notranslate"><span class="pre">cpp/open3d/t/geometry/VtkUtils.cpp</span></code>, part of the <strong>tensor API this
+document explicitly defers</strong>. Adopting Open3D therefore means adding one of the
+largest C++ libraries in existence to this project’s dependency set, to support
+code the plan has already decided not to call.</p>
+<p>Nothing else in the plan comes close to this in cost, and no filter choice
+changes it. It is the question Phase 0 exists to answer.</p>
 <p>Open3D’s core project is MIT-licensed, but that does not settle the notices,
 availability, binary size or redistribution conditions of its dependency graph
 and optional components. Before choosing a source submodule or package route,
@@ -358,20 +404,107 @@ revision, local patches, enabled options and notices in
 Build gate: <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PLUGIN_FILTER_OPEN3D</span></code>. These identifiers are proposals and
 must be checked against repository conventions when implementation begins.</p>
 </section>
+</section>
 <section id="candidate-filters-and-staging">
 <h2>Candidate filters and staging<a class="headerlink" href="#candidate-filters-and-staging" title="Link to this heading">¶</a></h2>
 <section id="phase-0-feasibility-gate">
 <h3>Phase 0 — feasibility gate<a class="headerlink" href="#phase-0-feasibility-gate" title="Link to this heading">¶</a></h3>
-<p>Before adding descriptors or UI, pin a release and prove a minimal headless C++
-build against the project’s supported platforms and toolchain. Measure configure
-time, compile time, binary growth, runtime library closure and representative
-scan memory use. Verify that the Open3D build can disable its visualization,
-Python and unused I/O/dependency components. Check license notices and packaging
-on each supported platform. Use these measurements to choose staging and
-packaging; existing filters with the same operation are not a rejection gate.</p>
+<p>Before adding descriptors or UI, pin <strong>v0.20.0</strong> and answer one blocking
+question:</p>
+<blockquote>
+<div><p><strong>Can Open3D be built on arm64 macOS against a dependency set we are willing
+to ship — and does it link statically?</strong></p>
+</div></blockquote>
+<p>Everything else in this document is contingent on it. If VTK proves unavoidable
+<em>and</em> shared-only, the honest answer may be to take the three cheap point-cloud
+filters and stop, rather than to stage the full plan.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Question</p></th>
+<th class="head"><p>Why it blocks</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Does <code class="docutils literal notranslate"><span class="pre">OPEN3D_USE_VCPKG</span></code> mode configure against our baseline, and what does it force us to add?</p></td>
+<td><p>Upstream’s manifest lists 21 packages; we have ~4 of them</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Is VTK genuinely unavoidable?</p></td>
+<td><p>Only <code class="docutils literal notranslate"><span class="pre">t/geometry/VtkUtils.cpp</span></code> uses it, and the tensor API is deferred — but <code class="docutils literal notranslate"><span class="pre">find_dependencies.cmake</span></code> offers no no-VTK branch. A patch may be cheaper than the dependency</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Static or shared?</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BUILD_SHARED_LIBS</span></code> defaults ON. geogram’s single dylib already cost an rpath fix, a bundling block, a signing loop and 64 stale rpath entries; Open3D plus VTK is that problem multiplied</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>What does it cost the CI cache budget?</p></td>
+<td><p>See below — this is a measurement, not a guess</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Can visualization, Python, examples, CUDA/SYCL, RealSense and Kinect all be disabled?</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BUILD_GUI</span></code>, <code class="docutils literal notranslate"><span class="pre">BUILD_PYTHON_MODULE</span></code>, <code class="docutils literal notranslate"><span class="pre">BUILD_EXAMPLES</span></code>, <code class="docutils literal notranslate"><span class="pre">WITH_IPP</span></code> and the sensor toggles all exist; confirm the resulting closure</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Licence notices for everything actually linked</p></td>
+<td><p>48 bundled components upstream; vcpkg mode shrinks but does not eliminate the audit</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Existing filters with the same operation are not a rejection gate. Dependency
+weight is.</p>
+<section id="the-ci-cache-budget-is-a-real-constraint">
+<h4>The CI cache budget is a real constraint<a class="headerlink" href="#the-ci-cache-budget-is-a-real-constraint" title="Link to this heading">¶</a></h4>
+<p>The first local build is close to a one-time cost: vcpkg keys its binary cache
+on an ABI hash, so a package is rebuilt only when the baseline, the triplet, the
+feature set or <strong>the compiler</strong> changes. An Xcode upgrade invalidates everything.</p>
+<p>CI is already set up for this —
+<a class="reference download internal" download="" href="../../_downloads/1a150ede2a8a71b40156fb50a6331490/macos-dmg.yml"><span class="xref download myst"><code class="docutils literal notranslate"><span class="pre">macos-dmg.yml</span></code></span></a> caches
+<code class="docutils literal notranslate"><span class="pre">~/Library/Caches/vcpkg/archives</span></code>, <code class="docutils literal notranslate"><span class="pre">$VCPKG_ROOT/downloads</span></code> and
+<code class="docutils literal notranslate"><span class="pre">vcpkg_installed</span></code>, keyed on <code class="docutils literal notranslate"><span class="pre">hashFiles('vcpkg.json',</span> <span class="pre">'ci/vcpkg-triplets/*.cmake')</span></code>
+with prefix <code class="docutils literal notranslate"><span class="pre">restore-keys</span></code>. Adding <code class="docutils literal notranslate"><span class="pre">open3d</span></code> changes that hash, but the
+restore-keys still recover the archive directory, so only the new packages
+compile. That part is fine.</p>
+<p>The limit is size. Measured in this checkout on 2026-10-14:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">vcpkg_installed</span></code></p></td>
+<td><p>1.4 GB</p></td>
+</tr>
+<tr class="row-odd"><td><p>local binary cache</p></td>
+<td><p>2.2 GB</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">vcpkg/buildtrees</span></code></p></td>
+<td><p>5.9 GB</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>GitHub Actions allows <strong>10 GB of cache per repository</strong>, evicted least-recently-used,
+and the cache key deliberately includes <code class="docutils literal notranslate"><span class="pre">github.run_id</span></code> so each rebuild writes a
+fresh entry. Open3D plus VTK could plausibly double the cached set. If the total
+crosses the limit, entries begin evicting <em>each other</em> and the steady state
+becomes a cold rebuild on every run — which the workflow’s own comments record
+having happened to the Windows job for three weeks, from a different cause. No
+job in this repository sets <code class="docutils literal notranslate"><span class="pre">timeout-minutes</span></code>, so the ceiling is the GitHub
+default of six hours; a cold build including VTK should be measured against it.</p>
 </section>
-<section id="phase-1-rgb-d-sequence-reconstruction-primary">
-<h3>Phase 1 — RGB-D sequence reconstruction (primary)<a class="headerlink" href="#phase-1-rgb-d-sequence-reconstruction-primary" title="Link to this heading">¶</a></h3>
+</section>
+<section id="phase-1-point-cloud-preparation-and-surface-reconstruction">
+<h3>Phase 1 — point-cloud preparation and surface reconstruction<a class="headerlink" href="#phase-1-point-cloud-preparation-and-surface-reconstruction" title="Link to this heading">¶</a></h3>
+<p>The cheapest filters, scheduled first <strong>on purpose</strong>: they are the smallest set
+that exercises the whole adapter — point cloud in, attributes across, mesh out —
+so the build, packaging and bundling story is proven before anything expensive
+depends on it. The geogram port used the same reasoning and it held.</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -381,34 +514,80 @@ packaging; existing filters with the same operation are not a rejection gate.</p
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Reconstruct Surface from RGB-D Sequence (Open3D)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_from_rgbd_sequence_open3d</span></code></p></td>
-<td><p>Ordered RGB-D frame set plus calibration; new mesh layer tagged <code class="docutils literal notranslate"><span class="pre">rgbd</span> <span class="pre">reconstruction</span></code></p></td>
+<tr class="row-even"><td><p>Sample Point Cloud by Voxel Grid (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_point_cloud_by_voxel_grid_open3d</span></code></p></td>
+<td><p>Point-cloud layer; new point-cloud layer tagged <code class="docutils literal notranslate"><span class="pre">voxel</span> <span class="pre">sampled</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Point Cloud Outliers by Radius (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_point_cloud_outliers_by_radius_open3d</span></code></p></td>
+<td><p>Point-cloud layer; select rejected vertices</p></td>
+</tr>
+<tr class="row-even"><td><p>Select Point Cloud Outliers Statistically (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_point_cloud_outliers_statistically_open3d</span></code></p></td>
+<td><p>Point-cloud layer; select rejected vertices</p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Point Cloud Normals (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_point_cloud_normals_open3d</span></code></p></td>
+<td><p>Point-cloud layer; write vertex normals</p></td>
+</tr>
+<tr class="row-even"><td><p>Reconstruct Surface by Ball Pivoting (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_ball_pivoting_open3d</span></code></p></td>
+<td><p>Oriented point cloud; new mesh layer tagged <code class="docutils literal notranslate"><span class="pre">ball</span> <span class="pre">pivoting</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Reconstruct Surface by Alpha Shape (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_alpha_shape_open3d</span></code></p></td>
+<td><p>Point cloud; new mesh layer tagged <code class="docutils literal notranslate"><span class="pre">alpha</span> <span class="pre">shape</span></code></p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The filter should accept explicitly ordered, synchronized color/depth frames,
-camera intrinsics, color-to-depth registration assumptions, depth scale/truncation,
-and either an initial pose per frame or a documented odometry mode. It should
-estimate/refine poses, integrate into a scalable TSDF volume, and extract a
-triangle mesh. It must report frames rejected or disconnected, pose-graph
-quality, voxel size, and memory-relevant volume parameters. Keep the trajectory
-and per-frame poses available as a sidecar/result attribute or a follow-on
-document object only if the existing data model can represent them safely; do
-not hide essential alignment state in plugin globals.</p>
-<p>This is a multi-image input, whereas current filters primarily consume document
-layers. Phase 1 depends on a deliberate input design: either a sequence object
-that the document can save/reopen, or a file-dialog workflow that records all
-paths and settings in filter history. A one-shot dialog with ephemeral frame
-paths is not an acceptable reproducible workflow. Check depth/color calibration,
-frame ordering, units and pose conventions before integration; reject incomplete
-inputs rather than silently guessing.</p>
-<p>Open3D’s documented RGB-D odometry and reconstruction-system examples are useful
-starting points, but its tensor SLAM implementation is described as a prototype
-with limitations. Do not present experimental dense SLAM as a reliable
-general-purpose tracker. Initial support should target offline reconstruction
-from recorded sequences with explicit diagnostics and a path to supplied poses.</p>
+<p>The outlier filters select rejected input vertices using the indices returned by
+Open3D; they do not destroy the input cloud. Radius filtering needs a minimum
+neighbor count and search radius. Statistical filtering needs neighbor count and
+standard-deviation threshold. Voxel sampling should expose voxel size in mesh
+units, preserve supported averaged colors/normals and document which vertex
+attributes cannot be propagated. Normal estimation should expose Open3D’s
+neighborhood search and numerical mode; it estimates <em>unoriented</em> normals, so
+orientation remains a separate step. These filters may look similar to existing
+ones, but each uses Open3D’s implementation and should carry its own provenance.</p>
+<p><strong>Two incumbents would have to be renamed, which is the maintainer’s call.</strong>
+<a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a> §6 — <em>a backend family names itself completely</em> —
+means an unsuffixed filter cannot stay unsuffixed once a second implementation
+of the same operation arrives:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Proposed</p></th>
+<th class="head"><p>Incumbent, unsuffixed today</p></th>
+<th class="head"><p>Becomes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Compute Point Cloud Normals (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Compute</span> <span class="pre">Point</span> <span class="pre">Cloud</span> <span class="pre">Normals</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">…</span> <span class="pre">(vcglib)</span></code> or whichever backend it is</p></td>
+</tr>
+<tr class="row-odd"><td><p>Reconstruct Surface by Alpha Shape (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Reconstruct</span> <span class="pre">Surface</span> <span class="pre">by</span> <span class="pre">Alpha</span> <span class="pre">Shape</span></code> (CGAL)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">…</span> <span class="pre">(CGAL)</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>This is the same situation <code class="docutils literal notranslate"><span class="pre">Pack</span> <span class="pre">UV</span> <span class="pre">Charts</span></code> hit during the geogram port, where
+it became decision 5: renaming a shipped filter changes its <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>, which
+is a breaking API change and not a side effect a plugin may take on its own.
+Ball Pivoting needs nothing — <code class="docutils literal notranslate"><span class="pre">(Gruber)</span></code> and <code class="docutils literal notranslate"><span class="pre">(vcglib)</span></code> are already suffixed.</p>
+<p>Open3D Ball Pivoting accepts multiple ball radii and requires consistently
+oriented input normals. Expose a nonempty ordered radii list, preserve input
+colors where supported, and report coverage, disconnected components and
+unreferenced points. Describe its multi-radius search separately from the
+vcglib and Gruber implementations. Open3D alpha shape takes a radius-like
+<code class="docutils literal notranslate"><span class="pre">alpha</span></code> in mesh units and uses Qhull tetrahedralization. Record whether the
+result is empty, disconnected or non-manifold; do not imply watertightness.
+Unlike the current CGAL alpha-shape filter, this path may pull in Open3D’s
+tensor/VTK normal-orientation code, so Phase 0 must confirm its actual build
+dependencies before scheduling it.</p>
 </section>
 <section id="phase-2-registration-implementations">
 <h3>Phase 2 — registration implementations<a class="headerlink" href="#phase-2-registration-implementations" title="Link to this heading">¶</a></h3>
@@ -461,8 +640,13 @@ correspondence controls where feasible, and state the objective and required
 normals in each description. Keep the result matrix contract consistent across
 all ICP filters.</p>
 </section>
-<section id="phase-3-point-cloud-preparation-and-surface-reconstruction">
-<h3>Phase 3 — point-cloud preparation and surface reconstruction<a class="headerlink" href="#phase-3-point-cloud-preparation-and-surface-reconstruction" title="Link to this heading">¶</a></h3>
+<section id="phase-3-rgb-d-sequence-reconstruction">
+<h3>Phase 3 — RGB-D sequence reconstruction<a class="headerlink" href="#phase-3-rgb-d-sequence-reconstruction" title="Link to this heading">¶</a></h3>
+<p>The largest new workflow, and therefore <strong>last</strong> rather than first. It was
+scheduled first in the original draft as the “primary” feature; that ordering
+asked the heaviest dependency in the project to prove itself through its most
+complicated consumer. Phases 1 and 2 answer the build and adapter questions on
+filters that can be thrown away cheaply if Phase 0 goes badly.</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -472,52 +656,50 @@ all ICP filters.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Sample Point Cloud by Voxel Grid (Open3D)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">sample_point_cloud_by_voxel_grid_open3d</span></code></p></td>
-<td><p>Point-cloud layer; new point-cloud layer tagged <code class="docutils literal notranslate"><span class="pre">voxel</span> <span class="pre">sampled</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>Select Point Cloud Outliers by Radius (Open3D)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">select_point_cloud_outliers_by_radius_open3d</span></code></p></td>
-<td><p>Point-cloud layer; select rejected vertices</p></td>
-</tr>
-<tr class="row-even"><td><p>Select Point Cloud Outliers Statistically (Open3D)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">select_point_cloud_outliers_statistically_open3d</span></code></p></td>
-<td><p>Point-cloud layer; select rejected vertices</p></td>
-</tr>
-<tr class="row-odd"><td><p>Compute Point Cloud Normals (Open3D)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">compute_point_cloud_normals_open3d</span></code></p></td>
-<td><p>Point-cloud layer; write vertex normals</p></td>
-</tr>
-<tr class="row-even"><td><p>Reconstruct Surface by Ball Pivoting (Open3D)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_ball_pivoting_open3d</span></code></p></td>
-<td><p>Oriented point cloud; new mesh layer tagged <code class="docutils literal notranslate"><span class="pre">ball</span> <span class="pre">pivoting</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>Reconstruct Surface by Alpha Shape (Open3D)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_alpha_shape_open3d</span></code></p></td>
-<td><p>Point cloud; new mesh layer tagged <code class="docutils literal notranslate"><span class="pre">alpha</span> <span class="pre">shape</span></code></p></td>
+<tr class="row-even"><td><p>Reconstruct Surface from RGB-D Sequence (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_from_rgbd_sequence_open3d</span></code></p></td>
+<td><p>Ordered RGB-D frame set plus calibration; new mesh layer tagged <code class="docutils literal notranslate"><span class="pre">rgbd</span> <span class="pre">reconstruction</span></code></p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The outlier filters select rejected input vertices using the indices returned by
-Open3D; they do not destroy the input cloud. Radius filtering needs a minimum
-neighbor count and search radius. Statistical filtering needs neighbor count and
-standard-deviation threshold. Voxel sampling should expose voxel size in mesh
-units, preserve supported averaged colors/normals and document which vertex
-attributes cannot be propagated. Normal estimation should expose Open3D’s
-neighborhood search and numerical mode; it estimates <em>unoriented</em> normals, so
-orientation remains a separate step. These filters may look similar to existing
-ones, but each uses Open3D’s implementation and should carry its own provenance.</p>
-<p>Open3D Ball Pivoting accepts multiple ball radii and requires consistently
-oriented input normals. Expose a nonempty ordered radii list, preserve input
-colors where supported, and report coverage, disconnected components and
-unreferenced points. Describe its multi-radius search separately from the
-vcglib and Gruber implementations. Open3D alpha shape takes a radius-like
-<code class="docutils literal notranslate"><span class="pre">alpha</span></code> in mesh units and uses Qhull tetrahedralization. Record whether the
-result is empty, disconnected or non-manifold; do not imply watertightness.
-Unlike the current CGAL alpha-shape filter, this path may pull in Open3D’s
-tensor/VTK normal-orientation code, so Phase 0 must confirm its actual build
-dependencies before scheduling it.</p>
+<p>The filter should accept explicitly ordered, synchronized color/depth frames,
+camera intrinsics, color-to-depth registration assumptions, depth scale/truncation,
+and either an initial pose per frame or a documented odometry mode. It should
+estimate/refine poses, integrate into a scalable TSDF volume, and extract a
+triangle mesh. It must report frames rejected or disconnected, pose-graph
+quality, voxel size, and memory-relevant volume parameters. Keep the trajectory
+and per-frame poses available as a sidecar/result attribute or a follow-on
+document object only if the existing data model can represent them safely; do
+not hide essential alignment state in plugin globals.</p>
+<p>This is a multi-image input, whereas current filters primarily consume document
+layers — but <strong>the representation already exists and the original draft missed
+it.</strong> Checked in this checkout on 2026-10-14:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Document::RasterEntry</span></code> (<code class="docutils literal notranslate"><span class="pre">src/core/document.h:93</span></code>) carries a <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code> —
+pose <em>and</em> intrinsics — alongside <code class="docutils literal notranslate"><span class="pre">std::vector&lt;RasterPlane&gt;</span></code> and a current
+plane index.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">RasterPlaneSemantic</span></code> (<code class="docutils literal notranslate"><span class="pre">src/core/rasterplane.h</span></code>) already declares
+<strong><code class="docutils literal notranslate"><span class="pre">DepthFloat</span></code></strong>, beside <code class="docutils literal notranslate"><span class="pre">RGBA</span></code>, the mask semantics and four spare float and
+RGBA planes.</p></li>
+<li><p>Planes are parsed from and written back to <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> projects
+(<code class="docutils literal notranslate"><span class="pre">src/core/document_project.cpp:73-99</span></code>), so they persist across save and
+reopen.</p></li>
+</ul>
+<p>So an RGB-D frame <strong>is</strong> a raster layer with an <code class="docutils literal notranslate"><span class="pre">RGBA</span></code> plane and a <code class="docutils literal notranslate"><span class="pre">DepthFloat</span></code>
+plane; an ordered sequence is an ordered set of raster layers; and the whole
+thing already round-trips through a project file. The warning below stands, but
+it is satisfied by what the document model can already express rather than by a
+new sequence object:</p>
+<p>A one-shot dialog with ephemeral frame paths is not an acceptable reproducible
+workflow. Check depth/color calibration,
+frame ordering, units and pose conventions before integration; reject incomplete
+inputs rather than silently guessing.</p>
+<p>Open3D’s documented RGB-D odometry and reconstruction-system examples are useful
+starting points, but its tensor SLAM implementation is described as a prototype
+with limitations. Do not present experimental dense SLAM as a reliable
+general-purpose tracker. Initial support should target offline reconstruction
+from recorded sequences with explicit diagnostics and a path to supplied poses.</p>
 </section>
 <section id="shared-core-or-later-candidates">
 <h3>Shared-core or later candidates<a class="headerlink" href="#shared-core-or-later-candidates" title="Link to this heading">¶</a></h3>
@@ -538,10 +720,55 @@ headless MeshLab filter plugin.</p></li>
 </ul>
 </section>
 </section>
+<section id="test-datasets">
+<h2>Test datasets<a class="headerlink" href="#test-datasets" title="Link to this heading">¶</a></h2>
+<p>The validation below needs recorded RGB-D sequences with calibration and
+reference geometry. Those are hundreds of megabytes; this repository commits
+<em>small</em> fixtures — the whole photogrammetry fixture in
+<code class="docutils literal notranslate"><span class="pre">tests/sample_mesh/gargoyle_small/</span></code> is 928 KB. Large data cannot go in git, and
+“the developer happens to have a copy” is not a test.</p>
+<p>The shape that works, and that nothing here does yet:</p>
+<p><strong>A manifest, not a script.</strong> <code class="docutils literal notranslate"><span class="pre">tests/datasets/datasets.json</span></code> lists each dataset
+by name, download URL (with mirrors), SHA-256, uncompressed size and <strong>licence</strong>.
+The manifest is the reviewable artefact; a fetch script is just its interpreter.
+Licence matters per dataset and is not uniform — some public RGB-D corpora are
+CC-BY, some are public-domain-ish, and some require a signed agreement that
+makes them unusable for unattended CI. That has to be recorded per entry before
+anything is wired up, not discovered later.</p>
+<p><strong>Fetch once, verify always.</strong> <code class="docutils literal notranslate"><span class="pre">tests/datasets/fetch.py</span></code> (or a CMake target)
+downloads only what is missing into a gitignored <code class="docutils literal notranslate"><span class="pre">tests/datasets/&lt;name&gt;/</span></code> and
+verifies the SHA-256 on every run, not just on download. An upstream file that
+changes silently must fail loudly rather than quietly altering test results.
+<code class="docutils literal notranslate"><span class="pre">plugins/filter_quadwild/CMakeLists.txt</span></code> already establishes the in-tree
+pattern for this — <code class="docutils literal notranslate"><span class="pre">FetchContent</span></code> with several mirror URLs and a <code class="docutils literal notranslate"><span class="pre">URL_HASH</span></code> —
+and the same discipline should apply here.</p>
+<p><strong>Absent data skips, never fails.</strong> A contributor who has not fetched anything
+must still get a green <code class="docutils literal notranslate"><span class="pre">ctest</span></code>. Dataset-backed tests <code class="docutils literal notranslate"><span class="pre">QSKIP</span></code> with a message
+naming the fetch command. This keeps the three-tier structure intact: the
+descriptor and smoke tiers stay fixture-free and always run, and only the
+behavioural tier in <code class="docutils literal notranslate"><span class="pre">test_filters.cpp</span></code> opts into large data.</p>
+<p><strong>A committed micro-fixture alongside the large one.</strong> A handful of frames,
+downscaled, committed — enough for the smoke tier to drive the RGB-D filter at
+all and for the descriptor tier to see it. The same rule as the gargoyle applies
+and must be written down with it: <strong>if the images are rescaled, the intrinsics
+must follow</strong> — <code class="docutils literal notranslate"><span class="pre">ViewportPx</span></code> and <code class="docutils literal notranslate"><span class="pre">CenterPx</span></code> scale with the pixels, <code class="docutils literal notranslate"><span class="pre">PixelSizeMm</span></code>
+inversely, <code class="docutils literal notranslate"><span class="pre">FocalMm</span></code> untouched — or every projection silently misprojects while
+reporting success.</p>
+<p><strong>CI caches it by manifest hash.</strong> A separate <code class="docutils literal notranslate"><span class="pre">actions/cache</span></code> entry keyed on
+<code class="docutils literal notranslate"><span class="pre">hashFiles('tests/datasets/datasets.json')</span></code>, independent of the vcpkg cache so
+the two cannot evict each other through one key. Note this spends from the same
+10 GB repository budget as the vcpkg cache, which is the argument for keeping
+the CI dataset set deliberately small — the exhaustive corpus in the validation
+section is for local runs and release testing, not for every push.</p>
+<p>This design is not specific to Open3D. Any future filter needing real scan data
+would use it, which is an argument for building it as <code class="docutils literal notranslate"><span class="pre">tests/datasets/</span></code> rather
+than as something owned by <code class="docutils literal notranslate"><span class="pre">filter_open3d</span></code>.</p>
+</section>
 <section id="validation-required-before-implementation-is-considered-complete">
 <h2>Validation required before implementation is considered complete<a class="headerlink" href="#validation-required-before-implementation-is-considered-complete" title="Link to this heading">¶</a></h2>
-<p>Use recorded RGB-D sequences with known calibration and reference geometry,
-including clean indoor captures, low-texture/repetitive areas, loop closures,
+<p>Use the fetched corpus described in <em>Test datasets</em> above: recorded RGB-D
+sequences with known calibration and reference geometry, including clean indoor
+captures, low-texture/repetitive areas, loop closures,
 motion blur, depth holes, thin structures and disconnected fragments. Compare
 pose error, drift, completeness, surface accuracy, runtime and peak memory with
 the existing multi-layer volumetric reconstruction workflow where inputs can
@@ -613,15 +840,22 @@ without an Open3D installation when the plugin is disabled.</p>
 <li><a class="reference internal" href="#">Open3D Scan Processing and Reconstruction</a><ul>
 <li><a class="reference internal" href="#status-and-evidence">Status and evidence</a></li>
 <li><a class="reference internal" href="#why-open3d-given-current-meshlab-filters">Why Open3D, given current MeshLab filters</a></li>
-<li><a class="reference internal" href="#proposed-integration-shape">Proposed integration shape</a></li>
+<li><a class="reference internal" href="#proposed-integration-shape">Proposed integration shape</a><ul>
+<li><a class="reference internal" href="#the-dependency-cost-is-vtk">The dependency cost is VTK</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#candidate-filters-and-staging">Candidate filters and staging</a><ul>
-<li><a class="reference internal" href="#phase-0-feasibility-gate">Phase 0 — feasibility gate</a></li>
-<li><a class="reference internal" href="#phase-1-rgb-d-sequence-reconstruction-primary">Phase 1 — RGB-D sequence reconstruction (primary)</a></li>
+<li><a class="reference internal" href="#phase-0-feasibility-gate">Phase 0 — feasibility gate</a><ul>
+<li><a class="reference internal" href="#the-ci-cache-budget-is-a-real-constraint">The CI cache budget is a real constraint</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#phase-1-point-cloud-preparation-and-surface-reconstruction">Phase 1 — point-cloud preparation and surface reconstruction</a></li>
 <li><a class="reference internal" href="#phase-2-registration-implementations">Phase 2 — registration implementations</a></li>
-<li><a class="reference internal" href="#phase-3-point-cloud-preparation-and-surface-reconstruction">Phase 3 — point-cloud preparation and surface reconstruction</a></li>
+<li><a class="reference internal" href="#phase-3-rgb-d-sequence-reconstruction">Phase 3 — RGB-D sequence reconstruction</a></li>
 <li><a class="reference internal" href="#shared-core-or-later-candidates">Shared-core or later candidates</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#test-datasets">Test datasets</a></li>
 <li><a class="reference internal" href="#validation-required-before-implementation-is-considered-complete">Validation required before implementation is considered complete</a></li>
 <li><a class="reference internal" href="#official-references">Official references</a></li>
 </ul>
