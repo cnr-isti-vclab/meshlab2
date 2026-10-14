@@ -57,7 +57,7 @@ Lightweight snapshot type (`src/render/viewstate.h`) for one `RenderWidget`: `Vi
 
 ### `ViewTrackball`
 
-Scene navigation: arcball/hyperbola rotation, pan, dolly, `Shift+Wheel` vertigo (FOV + compensating dolly), reset/reframe, animated recenter. The companion `ViewAxisGizmo` draws the corner orientation widget, uses the `view.axisGizmoSize` preference, and lets axis clicks snap the current 3D view.
+Scene navigation: arcball/hyperbola rotation, `Shift`-drag roll about the view axis, pan, dolly, `Shift+Wheel` vertigo (FOV + compensating dolly), reset/reframe, animated recenter. The companion `ViewAxisGizmo` draws the corner orientation widget, uses the `view.axisGizmoSize` preference, and lets axis clicks snap the current 3D view.
 
 ### `InteractiveTool`
 
