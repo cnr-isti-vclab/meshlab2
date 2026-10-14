@@ -666,7 +666,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         || depthPickPendingAtFrameStart
         || m_lightDragActive;
 
-    renderSceneFillPrepasses(cb, tilePlans);
+    renderRadianceScalingPrepass(cb, tilePlans);
 
     if (!rasterMode)
         prepareToolDepthCuedLines(u, vp, referenceViewport);
@@ -728,7 +728,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     for (const RenderFramePlan &plan : tilePlans)
         renderSceneBufferItems(cb, plan, plan.boundingBoxItems);
     for (const RenderFramePlan &plan : tilePlans)
-        renderSceneBufferItems(cb, plan, plan.pointItems);
+        renderScenePointItems(cb, plan);
     // Under the layers where they are in front of it, over them where they are behind: tested
     // against the depth of everything drawn so far, writing none of its own. One tile, as the
     // trackball gizmo: the camera is shared.

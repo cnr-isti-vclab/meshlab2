@@ -1,4 +1,5 @@
 #version 440
+#extension GL_GOOGLE_include_directive : enable
 
 layout(std140, binding = 0) uniform buf {
     mat4 mvp;
@@ -21,6 +22,9 @@ layout(location = 0) in vec4 vMeshColor;
 layout(location = 1) in vec4 vNormalAndFlag;
 layout(location = 2) in vec3 vViewPos;
 layout(binding = 2) uniform sampler2D qualityLutTex;
+// Where the fill shaders keep their normal map; points have none, so with radiance scaling on it
+// holds the gradient buffer (points_radscale_buf.frag).
+layout(binding = 3) uniform sampler2D normalTex;
 layout(location = 0) out vec4 fragColor;
 
 // Unit vector from a point towards the eye. Rays leave a single eye in a perspective view,
@@ -31,6 +35,8 @@ vec3 towardsEye(vec3 viewPos)
     float len = length(viewPos);
     return (ub.lightDir.w > 0.5 || len < 1e-6) ? vec3(0.0, 0.0, 1.0) : -viewPos / len;
 }
+
+#include "radiance_scaling.glsl"
 
 void main()
 {
@@ -44,7 +50,11 @@ void main()
         color = texture(qualityLutTex, vec2(clamp(vMeshColor.r, 0.0, 1.0), 0.5)).rgb;
     else
         color = mix(ub.pointColor.rgb, vMeshColor.rgb, clamp(vMeshColor.a, 0.0, 1.0));
-    if (ub.lightingParams.y > 0.5 && vNormalAndFlag.a > 0.5) {
+    // The lighting scale, 1 where nothing darkens the point; radiance scaling then bends it
+    // by the curvature the point's neighbourhood has in the gradient buffer. Both need a normal.
+    bool hasNormal = vNormalAndFlag.a > 0.5;
+    float shade = 1.0;
+    if (ub.lightingParams.y > 0.5 && hasNormal) {
         vec3 N = vNormalAndFlag.xyz;
         float nLen = length(N);
         if (nLen > 1e-6)
@@ -55,7 +65,10 @@ void main()
         float diff = clamp(abs(dot(N, lightDir)), 0.0, 1.0);
         // Keep a strong ambient term so sparse/rough normals do not appear "culled".
         float ambient = 0.75;
-        color *= ambient + (1.0 - ambient) * diff;
+        shade = ambient + (1.0 - ambient) * diff;
     }
+    if (ub.materialParams.w > 1.5 && hasNormal)
+        shade *= rsWarp(shade, rsCurvature());
+    color *= shade;
     fragColor = vec4(color, ub.pointColor.a);
 }

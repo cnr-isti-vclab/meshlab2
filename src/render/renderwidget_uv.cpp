@@ -1344,6 +1344,8 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                 if (pointVariant.vbuf && range.vertexCount > 0) {
                     PerMeshRenderSettings pointSettings = meshSettings;
                     pointSettings.pointLighting = false;
+                    // No gradient buffer is drawn for the texture view.
+                    pointSettings.fillPlain.radianceScaling = false;
                     updateStyleUbuf(pointSettings);
                     cb->setGraphicsPipeline(m_pointsPipeline.get());
                     setShaderResourcesWithOffset(cb, m_srb.get(), 0);

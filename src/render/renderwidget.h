@@ -559,7 +559,7 @@ struct SceneRasterProjectedDrawItem {
     // Takes every tile's plan at once: the radiance-scaling prepass clears its gradient
     // buffer when it opens a pass, and QRhi has no way to open one without clearing, so
     // running it per tile would wipe the tiles already drawn.
-    void renderSceneFillPrepasses(
+    void renderRadianceScalingPrepass(
         QRhiCommandBuffer *cb,
         const std::vector<RenderFramePlan> &plans);
     void renderSceneFillPass(
@@ -571,10 +571,21 @@ struct SceneRasterProjectedDrawItem {
     void renderSceneRasterProjected(
         QRhiCommandBuffer *cb,
         const RenderFramePlan &plan);
+    void drawSceneBufferItem(
+        QRhiCommandBuffer *cb,
+        const RenderFramePlan &plan,
+        const SceneBufferDrawItem &item,
+        QRhiGraphicsPipeline *pipeline,
+        const PerMeshRenderSettings &settings,
+        QRhiShaderResourceBindings *srb);
     void renderSceneBufferItems(
         QRhiCommandBuffer *cb,
         const RenderFramePlan &plan,
         const std::vector<SceneBufferDrawItem> &items);
+    // The points of a layer, which radiance scaling reads like its surface.
+    void renderScenePointItems(
+        QRhiCommandBuffer *cb,
+        const RenderFramePlan &plan);
     void renderSceneDecoratorItems(
         QRhiCommandBuffer *cb,
         const RenderFramePlan &plan);
@@ -851,6 +862,7 @@ struct SceneRasterProjectedDrawItem {
     std::unique_ptr<QRhiRenderPassDescriptor> m_rsGradRp;
     std::unique_ptr<QRhiShaderResourceBindings> m_rsGradSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_rsGradPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_rsGradPointsPipeline;   // the same, for point clouds
     QSize m_rsGradSize;
 
     std::unique_ptr<QRhiTexture> m_depthPickTexture;    std::unique_ptr<QRhiRenderBuffer> m_depthPickDepth;

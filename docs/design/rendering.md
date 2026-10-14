@@ -116,18 +116,29 @@ colour source is out of it, so a texture, per-vertex colours or a scalar map kee
 specular term is added unscaled. With the lighting off `shade` is one, which is the curvature shading the paper
 notes. `rsInvert` is the sign of the gain, which the curvature signal is odd in. PBR does not have the option.
 
-**Where the curvature comes from.** A **pre-pass** (`PlainFillRenderer::renderPrepass`, `fill_radscale_buf.frag`)
-draws every filled layer into `m_rsGradTexture` (`RGBA32F`): `(gx, gy, logZ, 1)` from the interpolated view-space
-normal and the log of the view depth, using the normals each layer is shaded with: the interpolated vertex normal
+**Where the curvature comes from.** A **pre-pass** (`RenderWidget::renderRadianceScalingPrepass`,
+`fill_radscale_buf.frag` for surfaces and `points_radscale_buf.frag` for points)
+draws every filled layer and every layer's points into `m_rsGradTexture` (`RGBA32F`): `(gx, gy, logZ, 1)` from the
+interpolated view-space normal and the log of the view depth, using the normals each layer is shaded with: the interpolated vertex normal
 for a smooth layer, the face's own for a flat one (the pass is told which through the occlusion-strength slot of the
 uniform block). For a flat layer the curvature is therefore zero inside a face and high across the edges, where the
 convex ones come out as bright lines, as in the original MeshLab; from the smooth normals the curvature would spread
 over every face and whiten it towards the silhouette. It draws all layers, not only those with the
-option on, so that an occluder's silhouette is a depth step. The fill shader (`fill_smooth.frag`,
-`fill_flat.frag`, the same code in both) reads it back by absolute framebuffer position -- bound in the slot the
+option on, so that an occluder's silhouette is a depth step. The fill shaders (`fill_smooth.frag`,
+`fill_flat.frag`) and the points shader (`overlay_points.frag`) read it back, all through one shared block,
+`shaders/radiance_scaling.glsl` (pulled in with `#include`, through `GL_GOOGLE_include_directive`; `qt_add_shaders`
+tracks it as a dependency of each), by absolute framebuffer position -- bound in the slot the
 normal map would use, which plain does not -- takes the Hessian of the gradient over a 3x3 neighbourhood,
 `tanh`s it with the gain, and fades it to nothing at depth discontinuities. The pre-pass runs only when some
 layer asks, and a layer's draw drops the option for the frame if the buffer could not be made.
+
+**Points.** The option is the same switch for a layer's points: there is no separate setting, and the Points settings panel carries the same three controls as the Fill one (`RenderOverlayPanel::buildRadianceScalingRows`, kept in step by `syncRadianceScalingRows`). The points take it whatever the layer's fill material is (the frame plan gives their draw items the plain material), so with a PBR fill the points panel is where it is controlled. A point with a normal
+writes it (made two-sided, as the lighting of the points is) into the buffer as a round dot, and a point without one
+writes a flat patch facing the viewer, which occludes but has no curvature; `overlay_points.frag` scales its lighting
+scalar (the ambient `0.75` plus the diffuse part, or one when the points' lighting is off) by the curvature at the
+point, and leaves a point without a normal alone. The points draw with the fill-texture bindings so that the buffer sits in
+the normal-map slot, as for the fill; a point cloud with no fill still gets the pre-pass. The texture-coordinate
+view does not draw the buffer and so draws its points without the option.
 
 **The curvature is measured in pixels, on purpose.** It makes the enhancement crisper the smaller the object is on
 screen, which is a feature of the technique; there is no world-space normalization. The strength therefore also
@@ -140,8 +151,8 @@ everything down when the size is unset, rebuilds them; a binding left behind wou
 buffer.
 
 Tested by the render probe `tests/render_probes/radiance_scaling` (the option changes the lighting, scales
-nothing at zero gain, keeps the colour proportions of vertex colours, works with flat shading, survives the buffer
-being replaced under 81 layers, and the refusal) and by `RenderSettingsJsonTests`.
+nothing at zero gain, keeps the colour proportions of vertex colours, works with flat shading and with point
+clouds, survives the buffer being replaced under 81 layers, and the refusal) and by `RenderSettingsJsonTests`.
 
 ## Reference grid
 
@@ -295,7 +306,7 @@ in UV mode are deliberately not clipped.
 > Metal, Vulkan and D3D are unaffected.
 
 **Cut rim.** `fill_smooth.vert` and `fill_flat.vert` also pass the clip distance to the
-fragment stage, where `fill_smooth.frag`, `fill_flat.frag` and `fill_radscale.frag` blend
+fragment stage, where `fill_smooth.frag` and `fill_flat.frag` blend
 `clipRim.rgb` into the sliver just above zero, `clipRim.a` pixels wide:
 `smoothstep(width * fwidth(d), 0.0, d)`. `fwidth` is what keeps the band a constant number
 of pixels whatever angle the surface meets the plane at. Width 0 disables it.

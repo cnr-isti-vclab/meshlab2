@@ -6,6 +6,39 @@
 
 using namespace RenderWidgetInternal;
 
+void RenderWidget::drawSceneBufferItem(
+    QRhiCommandBuffer *cb,
+    const RenderFramePlan &plan,
+    const SceneBufferDrawItem &item,
+    QRhiGraphicsPipeline *pipeline,
+    const PerMeshRenderSettings &settings,
+    QRhiShaderResourceBindings *srb)
+{
+    if (!pipeline || !item.vertexBuffer || item.vertexCount <= 0)
+        return;
+    cb->setGraphicsPipeline(pipeline);
+    const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
+    // The gain of radiance scaling travels in the slot of the normal scale, as for the fill.
+    MainUbufMaterialOverrides overrides;
+    if (usesRadianceScaling(settings))
+        overrides.normalScale = radianceScalingGain(settings);
+    uploadMainUbufForMesh(
+        cb,
+        item.meshIndex,
+        plan.proj,
+        plan.view,
+        settings,
+        plan.pixelSize,
+        true,
+        plan.lightDir,
+        overrides,
+        ubufOffset);
+    setShaderResourcesWithOffset(cb, srb, ubufOffset);
+    const QRhiCommandBuffer::VertexInput binding(item.vertexBuffer, 0);
+    cb->setVertexInput(0, 1, &binding);
+    cb->draw(quint32(item.vertexCount), 1, quint32(item.firstVertex));
+}
+
 void RenderWidget::renderSceneBufferItems(
     QRhiCommandBuffer *cb,
     const RenderFramePlan &plan,
@@ -15,26 +48,33 @@ void RenderWidget::renderSceneBufferItems(
         return;
 
     cb->setViewport(plan.rhiViewport());
-    for (const SceneBufferDrawItem &item : items) {
-        if (!item.pipeline || !item.vertexBuffer || item.vertexCount <= 0)
-            continue;
-        cb->setGraphicsPipeline(item.pipeline);
-        const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
-        uploadMainUbufForMesh(
-            cb,
-            item.meshIndex,
-            plan.proj,
-            plan.view,
-            item.meshSettings,
-            plan.pixelSize,
-            true,
-            plan.lightDir,
-            MainUbufMaterialOverrides{},
-            ubufOffset);
-        setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
-        const QRhiCommandBuffer::VertexInput binding(item.vertexBuffer, 0);
-        cb->setVertexInput(0, 1, &binding);
-        cb->draw(quint32(item.vertexCount), 1, quint32(item.firstVertex));
+    for (const SceneBufferDrawItem &item : items)
+        drawSceneBufferItem(cb, plan, item, item.pipeline, item.meshSettings, m_srb.get());
+}
+
+void RenderWidget::renderScenePointItems(
+    QRhiCommandBuffer *cb,
+    const RenderFramePlan &plan)
+{
+    if (plan.pointItems.empty())
+        return;
+
+    cb->setViewport(plan.rhiViewport());
+    for (const SceneBufferDrawItem &item : plan.pointItems) {
+        PerMeshRenderSettings settings = item.meshSettings;
+        QRhiShaderResourceBindings *srb = m_srb.get();
+        // With radiance scaling on the shader reads the gradient buffer where the fill shaders
+        // keep their normal map. If the buffer could not be made the option is off for this draw.
+        if (usesRadianceScaling(settings)) {
+            if (m_rsGradTexture) {
+                srb = shaderResourcesForFillTextures(
+                    nullptr, m_rsGradTexture.get(), nullptr, nullptr,
+                    m_renderSettings.fillTextureNearestSampling);
+            } else {
+                settings.fillPlain.radianceScaling = false;
+            }
+        }
+        drawSceneBufferItem(cb, plan, item, item.pipeline, settings, srb);
     }
 }
 

@@ -62,6 +62,7 @@ private:
     void syncViewerSettingsModeUi();
     void syncRenderPassUiState();
     void syncFillPbrUiState();
+    void syncRadianceScalingRows();
     void syncQualityHistogramUiState();
     void syncEdgeColorUiState();
     void rebuildFillPbrSourceCombos();
@@ -178,9 +179,16 @@ private:
     QDoubleSpinBox *m_fillNormalScaleSpin = nullptr;
     QDoubleSpinBox *m_fillOcclusionStrengthSpin = nullptr;
     QDoubleSpinBox *m_fillRoughnessFactorSpin = nullptr;
-    QCheckBox *m_fillRsCheck = nullptr;
-    QDoubleSpinBox *m_fillRsEnhancementSpin = nullptr;
-    QCheckBox *m_fillRsInvertCheck = nullptr;
+    // The controls of radiance scaling, one set on the fill page and one on the points page, both
+    // editing the same fillPlain settings.
+    struct RadianceScalingRows {
+        QCheckBox *enable = nullptr;
+        QDoubleSpinBox *enhancement = nullptr;
+        QCheckBox *invert = nullptr;
+    };
+    RadianceScalingRows m_fillRs;
+    RadianceScalingRows m_pointRs;
+    RadianceScalingRows buildRadianceScalingRows(QFormLayout *form, QWidget *page);
     QComboBox *m_fillMaterialCombo = nullptr;
     QComboBox *m_fillPbrAlbedoCombo = nullptr;
     QComboBox *m_fillPbrNormalCombo = nullptr;

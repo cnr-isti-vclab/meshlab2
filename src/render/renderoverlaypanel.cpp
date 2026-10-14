@@ -760,6 +760,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     pointsForm->addRow(
         tr("Lighting"),
         makeCenteredFieldContainer(m_pointLightingCheck, pointsPage));
+    m_pointRs = buildRadianceScalingRows(pointsForm, pointsPage);
     applyUniformFormRowHeights(pointsForm);
     pointsLayout->addLayout(pointsForm);
     m_settingsStack->addWidget(pointsPage);
@@ -910,25 +911,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillPlainForm->addRow(
         tr("Lighting"),
         makeCenteredFieldContainer(m_fillLightingCheck, fillPage));
-    // Radiance scaling (Vergne et al., 2010): the lighting is scaled by the surface's curvature in
-    // screen space, so convexities brighten and concavities darken, whatever the colour source.
-    m_fillRsCheck = new QCheckBox(fillPage);
-    m_fillRsCheck->setChecked(m_meshSettings.fillPlain.radianceScaling);
-    m_fillRsCheck->setToolTip(
-        tr("Enhance the shape: the lighting is scaled by the surface's curvature as seen on "
-           "screen, so convexities brighten and concavities darken. The curvature is measured in "
-           "pixels, so a smaller object comes out crisper."));
-    m_fillPlainForm->addRow(
-        tr("Radiance scaling"), makeCenteredFieldContainer(m_fillRsCheck, fillPage));
-    m_fillRsEnhancementSpin = new QDoubleSpinBox(fillPage);
-    m_fillRsEnhancementSpin->setRange(0.0, 1.0);
-    m_fillRsEnhancementSpin->setSingleStep(0.05);
-    m_fillRsEnhancementSpin->setDecimals(2);
-    m_fillRsEnhancementSpin->setValue(m_meshSettings.fillPlain.rsEnhancement);
-    m_fillPlainForm->addRow(tr("Enhancement"), m_fillRsEnhancementSpin);
-    m_fillRsInvertCheck = new QCheckBox(fillPage);
-    m_fillRsInvertCheck->setChecked(m_meshSettings.fillPlain.rsInvert);
-    m_fillPlainForm->addRow(tr("Invert"), makeCenteredFieldContainer(m_fillRsInvertCheck, fillPage));
+    m_fillRs = buildRadianceScalingRows(m_fillPlainForm, fillPage);
     applyUniformFormRowHeights(m_fillPlainForm);
     fillPlainLayout->addLayout(m_fillPlainForm);
     m_fillMaterialStack->addWidget(fillPlainPage);
@@ -1692,23 +1675,27 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         m_meshSettings.fillPbr.normalMapSpace = value;
         emit meshSettingsChanged(m_meshSettings);
     });
-    connect(m_fillRsCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_meshSettings.fillPlain.radianceScaling == checked) return;
-        m_meshSettings.fillPlain.radianceScaling = checked;
-        syncFillPbrUiState();
-        emit meshSettingsChanged(m_meshSettings);
-    });
-    connect(m_fillRsEnhancementSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
-        const float fv = static_cast<float>(v);
-        if (m_meshSettings.fillPlain.rsEnhancement == fv) return;
-        m_meshSettings.fillPlain.rsEnhancement = fv;
-        emit meshSettingsChanged(m_meshSettings);
-    });
-    connect(m_fillRsInvertCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_meshSettings.fillPlain.rsInvert == checked) return;
-        m_meshSettings.fillPlain.rsInvert = checked;
-        emit meshSettingsChanged(m_meshSettings);
-    });
+    for (const RadianceScalingRows &rs : { m_fillRs, m_pointRs }) {
+        connect(rs.enable, &QCheckBox::toggled, this, [this](bool checked) {
+            if (m_meshSettings.fillPlain.radianceScaling == checked) return;
+            m_meshSettings.fillPlain.radianceScaling = checked;
+            syncRadianceScalingRows();
+            emit meshSettingsChanged(m_meshSettings);
+        });
+        connect(rs.enhancement, &QDoubleSpinBox::valueChanged, this, [this](double v) {
+            const float fv = static_cast<float>(v);
+            if (m_meshSettings.fillPlain.rsEnhancement == fv) return;
+            m_meshSettings.fillPlain.rsEnhancement = fv;
+            syncRadianceScalingRows();
+            emit meshSettingsChanged(m_meshSettings);
+        });
+        connect(rs.invert, &QCheckBox::toggled, this, [this](bool checked) {
+            if (m_meshSettings.fillPlain.rsInvert == checked) return;
+            m_meshSettings.fillPlain.rsInvert = checked;
+            syncRadianceScalingRows();
+            emit meshSettingsChanged(m_meshSettings);
+        });
+    }
     connect(m_fillOcclusionStrengthSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
         const float fv = static_cast<float>(v);
         if (m_meshSettings.fillPbr.occlusionStrength == fv) return;
@@ -2214,18 +2201,7 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
             }
         }
     }
-    if (m_fillRsCheck) {
-        QSignalBlocker blocker(m_fillRsCheck);
-        m_fillRsCheck->setChecked(m_meshSettings.fillPlain.radianceScaling);
-    }
-    if (m_fillRsEnhancementSpin) {
-        QSignalBlocker blocker(m_fillRsEnhancementSpin);
-        m_fillRsEnhancementSpin->setValue(m_meshSettings.fillPlain.rsEnhancement);
-    }
-    if (m_fillRsInvertCheck) {
-        QSignalBlocker blocker(m_fillRsInvertCheck);
-        m_fillRsInvertCheck->setChecked(m_meshSettings.fillPlain.rsInvert);
-    }
+    syncRadianceScalingRows();
     if (m_fillOcclusionStrengthSpin) {
         QSignalBlocker blocker(m_fillOcclusionStrengthSpin);
         m_fillOcclusionStrengthSpin->setValue(m_meshSettings.fillPbr.occlusionStrength);
@@ -2553,11 +2529,56 @@ void RenderOverlayPanel::syncFillPbrSourceCombo(
     combo->setCurrentIndex(selected);
 }
 
+// Radiance scaling (Vergne et al., 2010): the lighting is scaled by the surface's curvature in
+// screen space, so convexities brighten and concavities darken, whatever the colour source. It is
+// the same setting for a layer's surface and its points, so both pages carry the same rows.
+RenderOverlayPanel::RadianceScalingRows RenderOverlayPanel::buildRadianceScalingRows(
+    QFormLayout *form, QWidget *page)
+{
+    RadianceScalingRows rows;
+    rows.enable = new QCheckBox(page);
+    rows.enable->setChecked(m_meshSettings.fillPlain.radianceScaling);
+    rows.enable->setToolTip(
+        tr("Enhance the shape: the lighting is scaled by the curvature as seen on screen, so "
+           "convexities brighten and concavities darken. The curvature is measured in pixels, "
+           "so a smaller object comes out crisper. One setting for the layer's surface and its "
+           "points (those that have normals), shared by the Fill and Points settings."));
+    form->addRow(tr("Radiance scaling"), makeCenteredFieldContainer(rows.enable, page));
+    rows.enhancement = new QDoubleSpinBox(page);
+    rows.enhancement->setRange(0.0, 1.0);
+    rows.enhancement->setSingleStep(0.05);
+    rows.enhancement->setDecimals(2);
+    rows.enhancement->setValue(m_meshSettings.fillPlain.rsEnhancement);
+    form->addRow(tr("Enhancement"), rows.enhancement);
+    rows.invert = new QCheckBox(page);
+    rows.invert->setChecked(m_meshSettings.fillPlain.rsInvert);
+    form->addRow(tr("Invert"), makeCenteredFieldContainer(rows.invert, page));
+    return rows;
+}
+
+// Both sets of rows show the one setting. The gain and its direction mean something only with the
+// option on; shown always, like the other controls, but greyed.
+void RenderOverlayPanel::syncRadianceScalingRows()
+{
+    const auto &plain = m_meshSettings.fillPlain;
+    for (const RadianceScalingRows &rs : { m_fillRs, m_pointRs }) {
+        if (!rs.enable)
+            continue;
+        const QSignalBlocker b1(rs.enable);
+        const QSignalBlocker b2(rs.enhancement);
+        const QSignalBlocker b3(rs.invert);
+        rs.enable->setChecked(plain.radianceScaling);
+        rs.enhancement->setValue(plain.rsEnhancement);
+        rs.invert->setChecked(plain.rsInvert);
+        rs.enhancement->setEnabled(plain.radianceScaling);
+        rs.invert->setEnabled(plain.radianceScaling);
+    }
+}
+
 void RenderOverlayPanel::syncFillPbrUiState()
 {
     const bool usePbr = (m_meshSettings.fillMaterial == FillMaterial::Pbr);
     const bool usePlain = !usePbr;
-    const bool useRs = usePlain && m_meshSettings.fillPlain.radianceScaling;
     const bool textureColorSource =
         (m_meshSettings.fillPlain.colorSource == FillColorSource::Texture);
     if (m_fillPlainForm)
@@ -2567,13 +2588,6 @@ void RenderOverlayPanel::syncFillPbrUiState()
         m_fillMaterialStack->setCurrentIndex(usePbr ? 1 : 0);
     }
     updateSettingsPanelGeometry();
-
-    // The gain and its direction mean something only with the option on; shown always, like the
-    // other plain controls, but greyed.
-    if (m_fillRsEnhancementSpin)
-        m_fillRsEnhancementSpin->setEnabled(useRs);
-    if (m_fillRsInvertCheck)
-        m_fillRsInvertCheck->setEnabled(useRs);
 
     const bool constantAlbedo = (m_meshSettings.fillPbr.albedoSource == FillPbrTextureSource::Constant);
     if (m_fillPbrAlbedoCombo)

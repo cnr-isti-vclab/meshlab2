@@ -280,6 +280,20 @@ inline bool isOrthographicProjection(const QMatrix4x4 &proj)
     return std::abs(proj(3, 3)) > 0.5f;
 }
 
+// Radiance scaling belongs to the plain material; PBR does not use it. It is the same switch for
+// a layer's filled surface and its points.
+inline bool usesRadianceScaling(const PerMeshRenderSettings &settings)
+{
+    return settings.fillMaterial == FillMaterial::Plain && settings.fillPlain.radianceScaling;
+}
+
+// The gain the shaders take: negative when inverted, the curvature signal being odd in it.
+inline float radianceScalingGain(const PerMeshRenderSettings &settings)
+{
+    return settings.fillPlain.rsInvert ? -settings.fillPlain.rsEnhancement
+                                       : settings.fillPlain.rsEnhancement;
+}
+
 inline void writeMainStyleToUbuf(
     float *ubufData,
     const PerMeshRenderSettings &settings,
@@ -327,8 +341,7 @@ inline void writeMainStyleToUbuf(
     ubufData[kUbufEdgeColorOffset + 3] = settings.edgeColor.alphaF();
 
     const bool enablePbr = settings.fillMaterial == FillMaterial::Pbr;
-    // Radiance scaling belongs to the plain material; PBR does not use it.
-    const bool enableRs = !enablePbr && settings.fillPlain.radianceScaling;
+    const bool enableRs = usesRadianceScaling(settings);
     auto encodePbrSource = [enablePbr](FillPbrTextureSource source) -> float {
         if (!enablePbr)
             return 0.0f;
@@ -354,9 +367,8 @@ inline void writeMainStyleToUbuf(
     // materialParams: x=PBR normal scale, or the radiance-scaling gain (negative when inverted: the
     // curvature signal is odd in it, so the sign is the whole of "invert"), y=aoStrength,
     // z=roughness, w=material: 0 plain, 1 PBR, 2 plain with radiance scaling.
-    ubufData[kUbufMaterialParamsOffset + 0] = enableRs
-        ? (settings.fillPlain.rsInvert ? -settings.fillPlain.rsEnhancement : settings.fillPlain.rsEnhancement)
-        : settings.fillPbr.normalScale;
+    ubufData[kUbufMaterialParamsOffset + 0] =
+        enableRs ? radianceScalingGain(settings) : settings.fillPbr.normalScale;
     ubufData[kUbufMaterialParamsOffset + 1] = settings.fillPbr.occlusionStrength;
     ubufData[kUbufMaterialParamsOffset + 2] = std::max(settings.fillPbr.roughnessFactor, 0.0f);
     ubufData[kUbufMaterialParamsOffset + 3] = enablePbr ? 1.0f : (enableRs ? 2.0f : 0.0f);

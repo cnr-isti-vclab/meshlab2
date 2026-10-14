@@ -434,6 +434,20 @@ void RenderWidget::ensureDepthPickResources(const QSize &pixelSize)
     m_depthPickSize = pixelSize;
 }
 
+// Points vertex layout: position(3f) + meshColor(3f) + useMeshColorFlag(1f)
+// + normal(3f) + useNormalFlag(1f)
+static QRhiVertexInputLayout pointsVertexInputLayout()
+{
+    QRhiVertexInputLayout layout;
+    layout.setBindings({ { kPointsVertexStrideFloats * sizeof(float) } });
+    layout.setAttributes({
+        { 0, 0, QRhiVertexInputAttribute::Float3, 0 },                 // position
+        { 0, 1, QRhiVertexInputAttribute::Float4, 3 * sizeof(float) }, // mesh color + use flag
+        { 0, 2, QRhiVertexInputAttribute::Float4, 7 * sizeof(float) }  // normal + use flag
+    });
+    return layout;
+}
+
 void RenderWidget::ensureRsGradResources(const QSize &pixelSize)
 {
     if (!m_rhi || !m_ubuf || pixelSize.isEmpty())
@@ -443,14 +457,18 @@ void RenderWidget::ensureRsGradResources(const QSize &pixelSize)
     if (m_rsGradRt && m_rsGradSize == pixelSize)
         return;
 
-    // Tear down everything that depends on the render target size.
-    m_rsGradPipeline.reset();
-    m_rsGradSrb.reset();
-    m_rsGradRp.reset();
-    m_rsGradRt.reset();
-    m_rsGradDepth.reset();
-    m_rsGradTexture.reset();
-    m_rsGradSize = QSize();
+    // Tear down everything that depends on the render target size, now and when a step fails.
+    const auto reset = [this] {
+        m_rsGradPointsPipeline.reset();
+        m_rsGradPipeline.reset();
+        m_rsGradSrb.reset();
+        m_rsGradRp.reset();
+        m_rsGradRt.reset();
+        m_rsGradDepth.reset();
+        m_rsGradTexture.reset();
+        m_rsGradSize = QSize();
+    };
+    reset();
 
     // RGBA32F gradient texture: stores (gx, gy, logZ, 1.0) per fragment.
     m_rsGradTexture.reset(
@@ -460,14 +478,13 @@ void RenderWidget::ensureRsGradResources(const QSize &pixelSize)
             1,
             QRhiTexture::RenderTarget));
     if (!m_rsGradTexture || !m_rsGradTexture->create()) {
-        m_rsGradTexture.reset();
+        reset();
         return;
     }
 
     m_rsGradDepth.reset(m_rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, pixelSize, 1));
     if (!m_rsGradDepth || !m_rsGradDepth->create()) {
-        m_rsGradDepth.reset();
-        m_rsGradTexture.reset();
+        reset();
         return;
     }
 
@@ -475,18 +492,14 @@ void RenderWidget::ensureRsGradResources(const QSize &pixelSize)
     rtDesc.setDepthStencilBuffer(m_rsGradDepth.get());
     m_rsGradRt.reset(m_rhi->newTextureRenderTarget(rtDesc));
     if (!m_rsGradRt) {
-        m_rsGradDepth.reset();
-        m_rsGradTexture.reset();
+        reset();
         return;
     }
 
     m_rsGradRp.reset(m_rsGradRt->newCompatibleRenderPassDescriptor());
     m_rsGradRt->setRenderPassDescriptor(m_rsGradRp.get());
     if (!m_rsGradRt->create()) {
-        m_rsGradRp.reset();
-        m_rsGradRt.reset();
-        m_rsGradDepth.reset();
-        m_rsGradTexture.reset();
+        reset();
         return;
     }
 
@@ -502,11 +515,7 @@ void RenderWidget::ensureRsGradResources(const QSize &pixelSize)
             kUbufSize)
     });
     if (!m_rsGradSrb->create()) {
-        m_rsGradSrb.reset();
-        m_rsGradRp.reset();
-        m_rsGradRt.reset();
-        m_rsGradDepth.reset();
-        m_rsGradTexture.reset();
+        reset();
         return;
     }
 
@@ -518,12 +527,7 @@ void RenderWidget::ensureRsGradResources(const QSize &pixelSize)
     QShader fs = loadShader(QStringLiteral(":/shaders/fill_radscale_buf.frag.qsb"));
     if (!vs.isValid() || !fs.isValid()) {
         qWarning("Failed to load RS gradient buffer shaders");
-        m_rsGradPipeline.reset();
-        m_rsGradSrb.reset();
-        m_rsGradRp.reset();
-        m_rsGradRt.reset();
-        m_rsGradDepth.reset();
-        m_rsGradTexture.reset();
+        reset();
         return;
     }
     m_rsGradPipeline->setShaderStages({
@@ -547,12 +551,34 @@ void RenderWidget::ensureRsGradResources(const QSize &pixelSize)
     m_rsGradPipeline->setRenderPassDescriptor(m_rsGradRp.get());
     if (!m_rsGradPipeline->create()) {
         qWarning("Failed to create RS gradient pipeline");
-        m_rsGradPipeline.reset();
-        m_rsGradSrb.reset();
-        m_rsGradRp.reset();
-        m_rsGradRt.reset();
-        m_rsGradDepth.reset();
-        m_rsGradTexture.reset();
+        reset();
+        return;
+    }
+
+    // The same buffer for point clouds: overlay_points.vert + points_radscale_buf.frag, over the
+    // vertex layout of the points pipeline.
+    m_rsGradPointsPipeline.reset(m_rhi->newGraphicsPipeline());
+    QShader pointsVs = loadShader(QStringLiteral(":/shaders/overlay_points.vert.qsb"));
+    QShader pointsFs = loadShader(QStringLiteral(":/shaders/points_radscale_buf.frag.qsb"));
+    if (!pointsVs.isValid() || !pointsFs.isValid()) {
+        qWarning("Failed to load RS gradient buffer points shaders");
+        reset();
+        return;
+    }
+    m_rsGradPointsPipeline->setShaderStages({
+        { QRhiShaderStage::Vertex, pointsVs },
+        { QRhiShaderStage::Fragment, pointsFs }
+    });
+    m_rsGradPointsPipeline->setTopology(QRhiGraphicsPipeline::Points);
+    m_rsGradPointsPipeline->setDepthTest(true);
+    m_rsGradPointsPipeline->setDepthWrite(true);
+    m_rsGradPointsPipeline->setCullMode(QRhiGraphicsPipeline::None);
+    m_rsGradPointsPipeline->setVertexInputLayout(pointsVertexInputLayout());
+    m_rsGradPointsPipeline->setShaderResourceBindings(m_rsGradSrb.get());
+    m_rsGradPointsPipeline->setRenderPassDescriptor(m_rsGradRp.get());
+    if (!m_rsGradPointsPipeline->create()) {
+        qWarning("Failed to create RS gradient points pipeline");
+        reset();
         return;
     }
 
@@ -660,6 +686,7 @@ void RenderWidget::ensureRenderResources()
         m_lightGizmoSrb.reset();
         m_lightGizmoPipeline.reset();
         m_lightGizmoVertexCount = 0;
+        m_rsGradPointsPipeline.reset();
         m_rsGradPipeline.reset();
         m_rsGradSrb.reset();
         m_rsGradRp.reset();
@@ -753,6 +780,7 @@ void RenderWidget::ensureRenderResources()
         // The radiance-scaling gradient pass binds this buffer too. Its resources are rebuilt on
         // demand (ensureRsGradResources, which drops the lot when the size is unset); left alone, the
         // SRB would keep the pointer to the buffer replaced below.
+        m_rsGradPointsPipeline.reset();
         m_rsGradPipeline.reset();
         m_rsGradSrb.reset();
         m_rsGradSize = QSize();
@@ -1571,16 +1599,7 @@ void RenderWidget::ensureRenderResources()
         m_pointsPipeline->setDepthWrite(true);
         m_pointsPipeline->setCullMode(QRhiGraphicsPipeline::None);
 
-        QRhiVertexInputLayout ptsLayout;
-        // Points vertex layout: position(3f) + meshColor(3f) + useMeshColorFlag(1f)
-        // + normal(3f) + useNormalFlag(1f)
-        ptsLayout.setBindings({ { kPointsVertexStrideFloats * sizeof(float) } });
-        ptsLayout.setAttributes({
-            { 0, 0, QRhiVertexInputAttribute::Float3, 0 },                 // position
-            { 0, 1, QRhiVertexInputAttribute::Float4, 3 * sizeof(float) }, // mesh color + use flag
-            { 0, 2, QRhiVertexInputAttribute::Float4, 7 * sizeof(float) }  // normal + use flag
-        });
-        m_pointsPipeline->setVertexInputLayout(ptsLayout);
+        m_pointsPipeline->setVertexInputLayout(pointsVertexInputLayout());
         m_pointsPipeline->setShaderResourceBindings(m_srb.get());
         m_pointsPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
 

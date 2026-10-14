@@ -1,5 +1,5 @@
 # Radiance scaling is an option of the plain fill material: the lighting is scaled by the surface's
-# curvature in screen space. What it does is decided in the fill shaders and in a gradient pre-pass,
+# curvature in screen space. What it does is decided in the fill and points shaders and in a gradient pre-pass,
 # on the GPU, so this is a probe, not a ctest.
 #
 # Run it with a real GPU and a real window server (QT_QPA_PLATFORM=offscreen gives no QRhi):
@@ -112,6 +112,41 @@ print("  flat icosahedron: %d pixels of mesh, %d changed by radiance scaling (%.
 check("flat shading: the edges are marked", marked > 0.01 * solid)
 check("flat shading: the faces themselves are left alone (curvature is zero inside a face)",
       marked < 0.2 * solid)
+
+# Point clouds: the same switch scales the lighting of a layer's points, read from a gradient buffer the
+# points' own normals are drawn into. Here the layer has no fill at all, so the buffer exists for the
+# points alone.
+def render_points(ms, plain, lighting=True, size=6, trackball=None, material=0):
+    modes = [{"mesh_id": str(ms.mesh_id(i)),
+              "settings": {"show_fill": False, "show_wire": False, "show_points": True,
+                           "point_size": size, "point_lighting": lighting, "fill_material": material,
+                           "fill_plain": plain}}
+             for i in range(ms.mesh_number())]
+    tb = trackball or {"center": [0, 0, 0], "radius": 0.5, "distance": 1.8, "fov_y_degrees": 40.0}
+    state = {"trackball": tb, "render_settings": BARE, "mesh_render_modes": modes}
+    return bytes(ms.render_snapshot(json.dumps(state), W, H))
+
+
+ms.clear()
+ms.load_new_mesh(find_fixture("gargoyle_small/gargoyle.ply"))
+ms.apply_filter("normalize_reference_frame")
+pts_off = render_points(ms, {})
+pts_on = render_points(ms, RS)
+print("  point cloud: %d pixels lit, %d changed by radiance scaling\n" % (len(lit(pts_off)), changed(pts_off, pts_on)))
+check("the points are on screen", len(lit(pts_off)) > 2000)
+check("radiance scaling changes the lighting of the points", changed(pts_off, pts_on) > 500)
+check("invert changes it the other way", changed(pts_on, render_points(
+    ms, {"radiance_scaling": True, "rs_enhancement": 0.5, "rs_invert": True})) > 500)
+check("a zero gain leaves the points alone", changed(pts_off, render_points(
+    ms, {"radiance_scaling": True, "rs_enhancement": 0.0}), 3) < 100)
+# It does not depend on the lighting of the points: the scaling needs a normal, not a light.
+check("with the lighting of the points off the curvature is still scaled",
+      changed(render_points(ms, {}, lighting=False), render_points(ms, RS, lighting=False)) > 500)
+
+# The points take the option whatever the layer's surface is: with a PBR fill it is the points panel's
+# switch that matters.
+check("the points are scaled under a PBR fill too",
+      changed(render_points(ms, {}, material=1), render_points(ms, RS, material=1)) > 500)
 
 # The refusal of the old spelling.
 refused = False

@@ -609,11 +609,15 @@ void RenderWidget::planSimpleBufferPasses(
             const MeshGpuResourceCache::PointsPassView pointsView =
                 m_doc->pointsPassGpuView(m_rhi, mi, pointVariant);
             if (pointsView.valid) {
+                // The points have no material of their own: radiance scaling is the plain
+                // material's option, and the points take it whatever the layer's surface is.
+                PerMeshRenderSettings pointSettings = meshSettings;
+                pointSettings.fillMaterial = FillMaterial::Plain;
                 appendBufferDrawItem(
                     plan.pointItems,
                     mi,
                     m_pointsPipeline.get(),
-                    meshSettings,
+                    pointSettings,
                     pointsView.vertexBuffer,
                     pointsView.vertexCount);
             }

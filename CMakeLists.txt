@@ -439,6 +439,7 @@ qt_add_shaders(MeshLab2 "shaders"
         shaders/fill_flat.vert
         shaders/fill_flat.frag
         shaders/fill_radscale_buf.frag
+        shaders/points_radscale_buf.frag
         shaders/fill_wire.vert
         shaders/fill_wire_overlay.frag
         shaders/overlay_bbox.vert

@@ -67,27 +67,6 @@ public:
         return m_widget.m_rsGradTexture ? m_widget.m_rsGradTexture.get() : nullptr;
     }
 
-    bool ensureRadianceScalingGradientResources(const QSize &pixelSize) const
-    {
-        m_widget.ensureRsGradResources(pixelSize);
-        return m_widget.m_rsGradRt && m_widget.m_rsGradPipeline && m_widget.m_rsGradSrb;
-    }
-
-    QRhiTextureRenderTarget *radianceScalingGradientRenderTarget() const
-    {
-        return m_widget.m_rsGradRt.get();
-    }
-
-    QRhiGraphicsPipeline *radianceScalingGradientPipeline() const
-    {
-        return m_widget.m_rsGradPipeline.get();
-    }
-
-    QRhiShaderResourceBindings *radianceScalingGradientShaderResources() const
-    {
-        return m_widget.m_rsGradSrb.get();
-    }
-
     quint32 allocateMainUbufOffset() const
     {
         return m_widget.allocateDynamicUbufOffset(m_widget.m_mainUbufAllocator, "main");
@@ -110,19 +89,6 @@ class RenderWidget::FillMaterialRenderer
 public:
     virtual ~FillMaterialRenderer() = default;
 
-    // Takes every tile's plan, not one frame context: a prepass renders into a buffer
-    // shared by the whole frame, and QRhi clears a render target whenever a pass opens on
-    // it, so one pass per tile would wipe the tiles already drawn.
-    virtual void renderPrepass(
-        QRhiCommandBuffer *cb,
-        const FillRenderServices &services,
-        const std::vector<RenderFramePlan> &plans) const
-    {
-        Q_UNUSED(cb);
-        Q_UNUSED(services);
-        Q_UNUSED(plans);
-    }
-
     virtual void drawBatch(
         const SceneFillDrawContext &ctx,
         const MeshGpuResourceCache::FillBatchView &batch) const = 0;
@@ -131,78 +97,6 @@ public:
 class RenderWidget::PlainFillRenderer final : public FillMaterialRenderer
 {
 public:
-    // Radiance scaling is an option of the plain material, and its curvature comes from a
-    // buffer of the view-space normals (and log depth) of what is on screen: this pass writes it.
-    // The normals it stores are the ones each layer is shaded with, flat or smooth. It draws every layer that fills, not only those with the option on, because the others
-    // occlude them and a gradient buffer that did not know that would read a depth step where a
-    // layer in front ends as no step at all. Run once a frame, for the plain renderer, and only
-    // when some layer asks.
-    void renderPrepass(
-        QRhiCommandBuffer *cb,
-        const FillRenderServices &services,
-        const std::vector<RenderFramePlan> &plans) const override
-    {
-        const auto usesRadianceScaling = [](const SceneFillDrawItem &item) {
-            return item.meshSettings.fillMaterial == FillMaterial::Plain
-                && item.meshSettings.fillPlain.radianceScaling;
-        };
-        QSize targetPixelSize;
-        for (const RenderFramePlan &plan : plans) {
-            const auto &items = plan.sceneFill.fillItems;
-            if (std::any_of(items.begin(), items.end(), usesRadianceScaling))
-                targetPixelSize = plan.targetPixelSize;
-        }
-        if (targetPixelSize.isEmpty())
-            return;
-
-        // The gradient buffer spans the whole render target rather than one tile: the fill
-        // shader reads it back by absolute framebuffer position, so each tile writes into
-        // its own corner of one shared buffer.
-        if (!services.ensureRadianceScalingGradientResources(targetPixelSize))
-            return;
-
-        cb->beginPass(
-            services.radianceScalingGradientRenderTarget(),
-            QColor(0, 0, 0, 0),
-            { 1.0f, 0 },
-            nullptr);
-        cb->setGraphicsPipeline(services.radianceScalingGradientPipeline());
-        for (const RenderFramePlan &plan : plans) {
-            cb->setViewport(plan.rhiViewport());
-            for (const SceneFillDrawItem &item : plan.sceneFill.fillItems) {
-                for (int bi = 0; bi < item.fillView.batchCount; ++bi) {
-                    const auto &batch = item.fillView.batches[bi];
-                    if (!hasDrawableBatchGeometry(batch))
-                        continue;
-                    const quint32 ubufOffset = services.allocateMainUbufOffset();
-                    // Whether the layer is shaded flat is told to the pass through the slot of the
-                    // occlusion strength, which this pass has no other use for.
-                    const FillShading shading = item.meshSettings.fillMaterial == FillMaterial::Pbr
-                        ? item.meshSettings.fillPbr.shading
-                        : item.meshSettings.fillPlain.shading;
-                    services.uploadMainUbufForMesh(
-                        cb,
-                        item.meshIndex,
-                        plan.sceneFill.proj,
-                        plan.sceneFill.view,
-                        item.meshSettings,
-                        plan.sceneFill.pixelSize,
-                        true,
-                        plan.sceneFill.lightDir,
-                        MainUbufMaterialOverrides {
-                            1.0f, shading == FillShading::Flat ? 1.0f : 0.0f, 1.0f },
-                        ubufOffset);
-                    services.setShaderResourcesWithOffset(
-                        cb,
-                        services.radianceScalingGradientShaderResources(),
-                        ubufOffset);
-                    drawBatchGeometry(cb, batch);
-                }
-            }
-        }
-        cb->endPass();
-    }
-
     void drawBatch(
         const SceneFillDrawContext &ctx,
         const MeshGpuResourceCache::FillBatchView &batch) const override
@@ -214,15 +108,14 @@ public:
         // With radiance scaling on the shader reads the gradient buffer (bound where the normal
         // map goes, which plain does not use), and the gain travels in the slot of the normal
         // scale. If the buffer could not be made the option is simply off for this draw.
-        QRhiTexture *gradientTexture = item.meshSettings.fillPlain.radianceScaling
+        QRhiTexture *gradientTexture = usesRadianceScaling(item.meshSettings)
             ? frame.services.radianceScalingGradientTexture() : nullptr;
         PerMeshRenderSettings settings = item.meshSettings;
         if (!gradientTexture)
             settings.fillPlain.radianceScaling = false;
-        const float gain = settings.fillPlain.rsInvert ? -settings.fillPlain.rsEnhancement
-                                                       : settings.fillPlain.rsEnhancement;
         MainUbufMaterialOverrides overrides {
-            gradientTexture ? gain : settings.fillPbr.normalScale * batch.normalScale,
+            gradientTexture ? radianceScalingGain(settings)
+                            : settings.fillPbr.normalScale * batch.normalScale,
             1.0f,
             1.0f };
         // Per-mesh color override: when color source is PerMesh, use mesh.C()
@@ -374,25 +267,72 @@ RenderWidget::SceneFillFramePlan RenderWidget::buildSceneFillFramePlan(
     return plan;
 }
 
-void RenderWidget::renderSceneFillPrepasses(
+// Radiance scaling is an option of the plain material, for a layer's surface and for its points,
+// and its curvature comes from a buffer of the view-space normals (and log depth) of what is on
+// screen: this pass writes it. The normals it stores are the ones each layer is shaded with, flat
+// or smooth, and the points' own. It draws every layer that fills or shows points, not only those
+// with the option on, because the others occlude them and a gradient buffer that did not know that
+// would read a depth step where a layer in front ends as no step at all. Run once a frame, and only
+// when some layer asks.
+void RenderWidget::renderRadianceScalingPrepass(
     QRhiCommandBuffer *cb,
     const std::vector<RenderFramePlan> &plans)
 {
-    const FillRenderServices services(*this);
-
-    std::vector<const FillMaterialRenderer *> prepassRenderers;
+    QSize targetPixelSize;
     for (const RenderFramePlan &plan : plans) {
-        for (const SceneFillDrawItem &item : plan.sceneFill.fillItems) {
-            if (!item.materialRenderer)
-                continue;
-            if (std::find(prepassRenderers.begin(), prepassRenderers.end(), item.materialRenderer)
-                != prepassRenderers.end()) {
-                continue;
-            }
-            prepassRenderers.push_back(item.materialRenderer);
-            item.materialRenderer->renderPrepass(cb, services, plans);
+        const auto asks = [](const auto &item) { return usesRadianceScaling(item.meshSettings); };
+        if (std::any_of(plan.sceneFill.fillItems.begin(), plan.sceneFill.fillItems.end(), asks)
+            || std::any_of(plan.pointItems.begin(), plan.pointItems.end(), asks)) {
+            targetPixelSize = plan.targetPixelSize;
         }
     }
+    if (targetPixelSize.isEmpty())
+        return;
+
+    // The gradient buffer spans the whole render target rather than one tile: the shaders read it
+    // back by absolute framebuffer position, so each tile writes into its own corner of one
+    // shared buffer.
+    ensureRsGradResources(targetPixelSize);
+    if (!m_rsGradRt || !m_rsGradPipeline || !m_rsGradPointsPipeline || !m_rsGradSrb)
+        return;
+
+    cb->beginPass(m_rsGradRt.get(), QColor(0, 0, 0, 0), { 1.0f, 0 }, nullptr);
+    for (const RenderFramePlan &plan : plans) {
+        cb->setViewport(plan.rhiViewport());
+        cb->setGraphicsPipeline(m_rsGradPipeline.get());
+        for (const SceneFillDrawItem &item : plan.sceneFill.fillItems) {
+            for (int bi = 0; bi < item.fillView.batchCount; ++bi) {
+                const auto &batch = item.fillView.batches[bi];
+                if (!hasDrawableBatchGeometry(batch))
+                    continue;
+                const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
+                // Whether the layer is shaded flat is told to the pass through the slot of the
+                // occlusion strength, which this pass has no other use for.
+                const FillShading shading = item.meshSettings.fillMaterial == FillMaterial::Pbr
+                    ? item.meshSettings.fillPbr.shading
+                    : item.meshSettings.fillPlain.shading;
+                uploadMainUbufForMesh(
+                    cb,
+                    item.meshIndex,
+                    plan.sceneFill.proj,
+                    plan.sceneFill.view,
+                    item.meshSettings,
+                    plan.sceneFill.pixelSize,
+                    true,
+                    plan.sceneFill.lightDir,
+                    MainUbufMaterialOverrides {
+                        1.0f, shading == FillShading::Flat ? 1.0f : 0.0f, 1.0f },
+                    ubufOffset);
+                setShaderResourcesWithOffset(cb, m_rsGradSrb.get(), ubufOffset);
+                drawBatchGeometry(cb, batch);
+            }
+        }
+        for (const SceneBufferDrawItem &item : plan.pointItems) {
+            drawSceneBufferItem(
+                cb, plan, item, m_rsGradPointsPipeline.get(), item.meshSettings, m_rsGradSrb.get());
+        }
+    }
+    cb->endPass();
 }
 
 void RenderWidget::renderSceneFillPass(
