@@ -350,18 +350,28 @@ the brighter values on convexities and darkens them on concavities, and the othe
 colour source is out of it, so a texture, per-vertex colours or a scalar map keep their hues, and the
 specular term is added unscaled. With the lighting off <code class="docutils literal notranslate"><span class="pre">shade</span></code> is one, which is the curvature shading the paper
 notes. <code class="docutils literal notranslate"><span class="pre">rsInvert</span></code> is the sign of the gain, which the curvature signal is odd in. PBR does not have the option.</p>
-<p><strong>Where the curvature comes from.</strong> A <strong>pre-pass</strong> (<code class="docutils literal notranslate"><span class="pre">PlainFillRenderer::renderPrepass</span></code>, <code class="docutils literal notranslate"><span class="pre">fill_radscale_buf.frag</span></code>)
-draws every filled layer into <code class="docutils literal notranslate"><span class="pre">m_rsGradTexture</span></code> (<code class="docutils literal notranslate"><span class="pre">RGBA32F</span></code>): <code class="docutils literal notranslate"><span class="pre">(gx,</span> <span class="pre">gy,</span> <span class="pre">logZ,</span> <span class="pre">1)</span></code> from the interpolated view-space
-normal and the log of the view depth, using the normals each layer is shaded with: the interpolated vertex normal
+<p><strong>Where the curvature comes from.</strong> A <strong>pre-pass</strong> (<code class="docutils literal notranslate"><span class="pre">RenderWidget::renderRadianceScalingPrepass</span></code>,
+<code class="docutils literal notranslate"><span class="pre">fill_radscale_buf.frag</span></code> for surfaces and <code class="docutils literal notranslate"><span class="pre">points_radscale_buf.frag</span></code> for points)
+draws every filled layer and every layer’s points into <code class="docutils literal notranslate"><span class="pre">m_rsGradTexture</span></code> (<code class="docutils literal notranslate"><span class="pre">RGBA32F</span></code>): <code class="docutils literal notranslate"><span class="pre">(gx,</span> <span class="pre">gy,</span> <span class="pre">logZ,</span> <span class="pre">1)</span></code> from the
+interpolated view-space normal and the log of the view depth, using the normals each layer is shaded with: the interpolated vertex normal
 for a smooth layer, the face’s own for a flat one (the pass is told which through the occlusion-strength slot of the
 uniform block). For a flat layer the curvature is therefore zero inside a face and high across the edges, where the
 convex ones come out as bright lines, as in the original MeshLab; from the smooth normals the curvature would spread
 over every face and whiten it towards the silhouette. It draws all layers, not only those with the
-option on, so that an occluder’s silhouette is a depth step. The fill shader (<code class="docutils literal notranslate"><span class="pre">fill_smooth.frag</span></code>,
-<code class="docutils literal notranslate"><span class="pre">fill_flat.frag</span></code>, the same code in both) reads it back by absolute framebuffer position – bound in the slot the
+option on, so that an occluder’s silhouette is a depth step. The fill shaders (<code class="docutils literal notranslate"><span class="pre">fill_smooth.frag</span></code>,
+<code class="docutils literal notranslate"><span class="pre">fill_flat.frag</span></code>) and the points shader (<code class="docutils literal notranslate"><span class="pre">overlay_points.frag</span></code>) read it back, all through one shared block,
+<code class="docutils literal notranslate"><span class="pre">shaders/radiance_scaling.glsl</span></code> (pulled in with <code class="docutils literal notranslate"><span class="pre">#include</span></code>, through <code class="docutils literal notranslate"><span class="pre">GL_GOOGLE_include_directive</span></code>; <code class="docutils literal notranslate"><span class="pre">qt_add_shaders</span></code>
+tracks it as a dependency of each), by absolute framebuffer position – bound in the slot the
 normal map would use, which plain does not – takes the Hessian of the gradient over a 3x3 neighbourhood,
 <code class="docutils literal notranslate"><span class="pre">tanh</span></code>s it with the gain, and fades it to nothing at depth discontinuities. The pre-pass runs only when some
 layer asks, and a layer’s draw drops the option for the frame if the buffer could not be made.</p>
+<p><strong>Points.</strong> The option is the same switch for a layer’s points: there is no separate setting, and the Points settings panel carries the same three controls as the Fill one (<code class="docutils literal notranslate"><span class="pre">RenderOverlayPanel::buildRadianceScalingRows</span></code>, kept in step by <code class="docutils literal notranslate"><span class="pre">syncRadianceScalingRows</span></code>). The points take it whatever the layer’s fill material is (the frame plan gives their draw items the plain material), so with a PBR fill the points panel is where it is controlled. A point with a normal
+writes it (made two-sided, as the lighting of the points is) into the buffer as a round dot, and a point without one
+writes a flat patch facing the viewer, which occludes but has no curvature; <code class="docutils literal notranslate"><span class="pre">overlay_points.frag</span></code> scales its lighting
+scalar (the ambient <code class="docutils literal notranslate"><span class="pre">0.75</span></code> plus the diffuse part, or one when the points’ lighting is off) by the curvature at the
+point, and leaves a point without a normal alone. The points draw with the fill-texture bindings so that the buffer sits in
+the normal-map slot, as for the fill; a point cloud with no fill still gets the pre-pass. The texture-coordinate
+view does not draw the buffer and so draws its points without the option.</p>
 <p><strong>The curvature is measured in pixels, on purpose.</strong> It makes the enhancement crisper the smaller the object is on
 screen, which is a feature of the technique; there is no world-space normalization. The strength therefore also
 depends on the zoom and on the size of the render target, a snapshot of another size included.</p>
@@ -371,8 +381,8 @@ layer count), so the replacement drops the pass’s pipeline and bindings, and <
 everything down when the size is unset, rebuilds them; a binding left behind would hold a pointer to the old
 buffer.</p>
 <p>Tested by the render probe <code class="docutils literal notranslate"><span class="pre">tests/render_probes/radiance_scaling</span></code> (the option changes the lighting, scales
-nothing at zero gain, keeps the colour proportions of vertex colours, works with flat shading, survives the buffer
-being replaced under 81 layers, and the refusal) and by <code class="docutils literal notranslate"><span class="pre">RenderSettingsJsonTests</span></code>.</p>
+nothing at zero gain, keeps the colour proportions of vertex colours, works with flat shading and with point
+clouds, survives the buffer being replaced under 81 layers, and the refusal) and by <code class="docutils literal notranslate"><span class="pre">RenderSettingsJsonTests</span></code>.</p>
 </section>
 <section id="reference-grid">
 <h2>Reference grid<a class="headerlink" href="#reference-grid" title="Link to this heading">¶</a></h2>
@@ -503,7 +513,7 @@ so the breakage would only appear when the GL backend compiled the shader at run
 Metal, Vulkan and D3D are unaffected.</p>
 </div></blockquote>
 <p><strong>Cut rim.</strong> <code class="docutils literal notranslate"><span class="pre">fill_smooth.vert</span></code> and <code class="docutils literal notranslate"><span class="pre">fill_flat.vert</span></code> also pass the clip distance to the
-fragment stage, where <code class="docutils literal notranslate"><span class="pre">fill_smooth.frag</span></code>, <code class="docutils literal notranslate"><span class="pre">fill_flat.frag</span></code> and <code class="docutils literal notranslate"><span class="pre">fill_radscale.frag</span></code> blend
+fragment stage, where <code class="docutils literal notranslate"><span class="pre">fill_smooth.frag</span></code> and <code class="docutils literal notranslate"><span class="pre">fill_flat.frag</span></code> blend
 <code class="docutils literal notranslate"><span class="pre">clipRim.rgb</span></code> into the sliver just above zero, <code class="docutils literal notranslate"><span class="pre">clipRim.a</span></code> pixels wide:
 <code class="docutils literal notranslate"><span class="pre">smoothstep(width</span> <span class="pre">*</span> <span class="pre">fwidth(d),</span> <span class="pre">0.0,</span> <span class="pre">d)</span></code>. <code class="docutils literal notranslate"><span class="pre">fwidth</span></code> is what keeps the band a constant number
 of pixels whatever angle the surface meets the plane at. Width 0 disables it.</p>
