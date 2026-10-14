@@ -21,6 +21,13 @@ must be pinned before implementation. This is a design and provenance study,
 not a benchmark or build-compatibility result. No Open3D code has been compiled
 or exercised in MeshLab.
 
+A second pass on **2026-10-14** read `CMakeLists.txt`, `vcpkg.json` and
+`3rdparty/find_dependencies.cmake` at tag **v0.20.0** (released 2026-09-16) and
+measured this checkout's current dependency footprint. It found one fact that
+dominates the cost of the whole plan and was absent from the first draft — see
+*The dependency cost is VTK* — and one that removes most of the risk from the
+RGB-D phase. Both are recorded below.
+
 ## Why Open3D, given current MeshLab filters
 
 MeshLab already has a substantial scan-reconstruction toolbox. Its existing
@@ -74,6 +81,34 @@ reviewable set of C++ filters through the normal MeshLab registry and descriptor
 schema. Use Open3D's CPU path first. CUDA/SYCL variants are not implied by the
 presence of Open3D and should not be made a build or runtime requirement.
 
+### The dependency cost is VTK
+
+Measured at v0.20.0:
+
+| | |
+|---|---|
+| Bundled third-party components in the source tree | **48** |
+| Upstream's own `vcpkg.json` dependencies | **21** |
+| Of those, already in this project's `vcpkg.json` | about 4 (`embree`, `tbb`, Eigen and zlib transitively) |
+| This project's current dependency count | 15 |
+
+Upstream 0.20 has a **vcpkg mode**: `if(OPEN3D_USE_VCPKG)` flips roughly twenty
+`USE_SYSTEM_*` options ON, and the repository ships a top-level `vcpkg.json`.
+That largely answers this document's own requirement that configure-time
+dependency fetching be disallowed — the mechanism exists upstream and does not
+have to be invented.
+
+**But VTK is unconditional.** `3rdparty/find_dependencies.cmake` has exactly two
+branches for it — `if(USE_SYSTEM_VTK)` finds it, `if(NOT USE_SYSTEM_VTK)`
+imports it — and no third. There is no no-VTK build. Yet the only consumer in
+the tree is `cpp/open3d/t/geometry/VtkUtils.cpp`, part of the **tensor API this
+document explicitly defers**. Adopting Open3D therefore means adding one of the
+largest C++ libraries in existence to this project's dependency set, to support
+code the plan has already decided not to call.
+
+Nothing else in the plan comes close to this in cost, and no filter choice
+changes it. It is the question Phase 0 exists to answer.
+
 Open3D's core project is MIT-licensed, but that does not settle the notices,
 availability, binary size or redistribution conditions of its dependency graph
 and optional components. Before choosing a source submodule or package route,
@@ -106,43 +141,110 @@ must be checked against repository conventions when implementation begins.
 
 ### Phase 0 — feasibility gate
 
-Before adding descriptors or UI, pin a release and prove a minimal headless C++
-build against the project's supported platforms and toolchain. Measure configure
-time, compile time, binary growth, runtime library closure and representative
-scan memory use. Verify that the Open3D build can disable its visualization,
-Python and unused I/O/dependency components. Check license notices and packaging
-on each supported platform. Use these measurements to choose staging and
-packaging; existing filters with the same operation are not a rejection gate.
+Before adding descriptors or UI, pin **v0.20.0** and answer one blocking
+question:
 
-### Phase 1 — RGB-D sequence reconstruction (primary)
+> **Can Open3D be built on arm64 macOS against a dependency set we are willing
+> to ship — and does it link statically?**
+
+Everything else in this document is contingent on it. If VTK proves unavoidable
+*and* shared-only, the honest answer may be to take the three cheap point-cloud
+filters and stop, rather than to stage the full plan.
+
+| # | Question | Why it blocks |
+|---|---|---|
+| 1 | Does `OPEN3D_USE_VCPKG` mode configure against our baseline, and what does it force us to add? | Upstream's manifest lists 21 packages; we have ~4 of them |
+| 2 | Is VTK genuinely unavoidable? | Only `t/geometry/VtkUtils.cpp` uses it, and the tensor API is deferred — but `find_dependencies.cmake` offers no no-VTK branch. A patch may be cheaper than the dependency |
+| 3 | Static or shared? | `BUILD_SHARED_LIBS` defaults ON. geogram's single dylib already cost an rpath fix, a bundling block, a signing loop and 64 stale rpath entries; Open3D plus VTK is that problem multiplied |
+| 4 | What does it cost the CI cache budget? | See below — this is a measurement, not a guess |
+| 5 | Can visualization, Python, examples, CUDA/SYCL, RealSense and Kinect all be disabled? | `BUILD_GUI`, `BUILD_PYTHON_MODULE`, `BUILD_EXAMPLES`, `WITH_IPP` and the sensor toggles all exist; confirm the resulting closure |
+| 6 | Licence notices for everything actually linked | 48 bundled components upstream; vcpkg mode shrinks but does not eliminate the audit |
+
+Existing filters with the same operation are not a rejection gate. Dependency
+weight is.
+
+#### The CI cache budget is a real constraint
+
+The first local build is close to a one-time cost: vcpkg keys its binary cache
+on an ABI hash, so a package is rebuilt only when the baseline, the triplet, the
+feature set or **the compiler** changes. An Xcode upgrade invalidates everything.
+
+CI is already set up for this —
+[`macos-dmg.yml`](../../../.github/workflows/macos-dmg.yml) caches
+`~/Library/Caches/vcpkg/archives`, `$VCPKG_ROOT/downloads` and
+`vcpkg_installed`, keyed on `hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake')`
+with prefix `restore-keys`. Adding `open3d` changes that hash, but the
+restore-keys still recover the archive directory, so only the new packages
+compile. That part is fine.
+
+The limit is size. Measured in this checkout on 2026-10-14:
+
+| | |
+|---|---|
+| `vcpkg_installed` | 1.4 GB |
+| local binary cache | 2.2 GB |
+| `vcpkg/buildtrees` | 5.9 GB |
+
+GitHub Actions allows **10 GB of cache per repository**, evicted least-recently-used,
+and the cache key deliberately includes `github.run_id` so each rebuild writes a
+fresh entry. Open3D plus VTK could plausibly double the cached set. If the total
+crosses the limit, entries begin evicting *each other* and the steady state
+becomes a cold rebuild on every run — which the workflow's own comments record
+having happened to the Windows job for three weeks, from a different cause. No
+job in this repository sets `timeout-minutes`, so the ceiling is the GitHub
+default of six hours; a cold build including VTK should be measured against it.
+
+### Phase 1 — point-cloud preparation and surface reconstruction
+
+The cheapest filters, scheduled first **on purpose**: they are the smallest set
+that exercises the whole adapter — point cloud in, attributes across, mesh out —
+so the build, packaging and bundling story is proven before anything expensive
+depends on it. The geogram port used the same reasoning and it held.
 
 | Display name | Proposed identifier | Input / output |
 |---|---|---|
-| Reconstruct Surface from RGB-D Sequence (Open3D) | `reconstruct_surface_from_rgbd_sequence_open3d` | Ordered RGB-D frame set plus calibration; new mesh layer tagged `rgbd reconstruction` |
+| Sample Point Cloud by Voxel Grid (Open3D) | `sample_point_cloud_by_voxel_grid_open3d` | Point-cloud layer; new point-cloud layer tagged `voxel sampled` |
+| Select Point Cloud Outliers by Radius (Open3D) | `select_point_cloud_outliers_by_radius_open3d` | Point-cloud layer; select rejected vertices |
+| Select Point Cloud Outliers Statistically (Open3D) | `select_point_cloud_outliers_statistically_open3d` | Point-cloud layer; select rejected vertices |
+| Compute Point Cloud Normals (Open3D) | `compute_point_cloud_normals_open3d` | Point-cloud layer; write vertex normals |
+| Reconstruct Surface by Ball Pivoting (Open3D) | `reconstruct_surface_by_ball_pivoting_open3d` | Oriented point cloud; new mesh layer tagged `ball pivoting` |
+| Reconstruct Surface by Alpha Shape (Open3D) | `reconstruct_surface_by_alpha_shape_open3d` | Point cloud; new mesh layer tagged `alpha shape` |
 
-The filter should accept explicitly ordered, synchronized color/depth frames,
-camera intrinsics, color-to-depth registration assumptions, depth scale/truncation,
-and either an initial pose per frame or a documented odometry mode. It should
-estimate/refine poses, integrate into a scalable TSDF volume, and extract a
-triangle mesh. It must report frames rejected or disconnected, pose-graph
-quality, voxel size, and memory-relevant volume parameters. Keep the trajectory
-and per-frame poses available as a sidecar/result attribute or a follow-on
-document object only if the existing data model can represent them safely; do
-not hide essential alignment state in plugin globals.
+The outlier filters select rejected input vertices using the indices returned by
+Open3D; they do not destroy the input cloud. Radius filtering needs a minimum
+neighbor count and search radius. Statistical filtering needs neighbor count and
+standard-deviation threshold. Voxel sampling should expose voxel size in mesh
+units, preserve supported averaged colors/normals and document which vertex
+attributes cannot be propagated. Normal estimation should expose Open3D's
+neighborhood search and numerical mode; it estimates *unoriented* normals, so
+orientation remains a separate step. These filters may look similar to existing
+ones, but each uses Open3D's implementation and should carry its own provenance.
 
-This is a multi-image input, whereas current filters primarily consume document
-layers. Phase 1 depends on a deliberate input design: either a sequence object
-that the document can save/reopen, or a file-dialog workflow that records all
-paths and settings in filter history. A one-shot dialog with ephemeral frame
-paths is not an acceptable reproducible workflow. Check depth/color calibration,
-frame ordering, units and pose conventions before integration; reject incomplete
-inputs rather than silently guessing.
+**Two incumbents would have to be renamed, which is the maintainer's call.**
+[Vocabulary](../vocabulary.md) §6 — *a backend family names itself completely* —
+means an unsuffixed filter cannot stay unsuffixed once a second implementation
+of the same operation arrives:
 
-Open3D's documented RGB-D odometry and reconstruction-system examples are useful
-starting points, but its tensor SLAM implementation is described as a prototype
-with limitations. Do not present experimental dense SLAM as a reliable
-general-purpose tracker. Initial support should target offline reconstruction
-from recorded sequences with explicit diagnostics and a path to supplied poses.
+| Proposed | Incumbent, unsuffixed today | Becomes |
+|---|---|---|
+| Compute Point Cloud Normals (Open3D) | `Compute Point Cloud Normals` | `… (vcglib)` or whichever backend it is |
+| Reconstruct Surface by Alpha Shape (Open3D) | `Reconstruct Surface by Alpha Shape` (CGAL) | `… (CGAL)` |
+
+This is the same situation `Pack UV Charts` hit during the geogram port, where
+it became decision 5: renaming a shipped filter changes its `pythonName`, which
+is a breaking API change and not a side effect a plugin may take on its own.
+Ball Pivoting needs nothing — `(Gruber)` and `(vcglib)` are already suffixed.
+
+Open3D Ball Pivoting accepts multiple ball radii and requires consistently
+oriented input normals. Expose a nonempty ordered radii list, preserve input
+colors where supported, and report coverage, disconnected components and
+unreferenced points. Describe its multi-radius search separately from the
+vcglib and Gruber implementations. Open3D alpha shape takes a radius-like
+`alpha` in mesh units and uses Qhull tetrahedralization. Record whether the
+result is empty, disconnected or non-manifold; do not imply watertightness.
+Unlike the current CGAL alpha-shape filter, this path may pull in Open3D's
+tensor/VTK normal-orientation code, so Phase 0 must confirm its actual build
+dependencies before scheduling it.
 
 ### Phase 2 — registration implementations
 
@@ -176,37 +278,58 @@ correspondence controls where feasible, and state the objective and required
 normals in each description. Keep the result matrix contract consistent across
 all ICP filters.
 
-### Phase 3 — point-cloud preparation and surface reconstruction
+### Phase 3 — RGB-D sequence reconstruction
+
+The largest new workflow, and therefore **last** rather than first. It was
+scheduled first in the original draft as the "primary" feature; that ordering
+asked the heaviest dependency in the project to prove itself through its most
+complicated consumer. Phases 1 and 2 answer the build and adapter questions on
+filters that can be thrown away cheaply if Phase 0 goes badly.
 
 | Display name | Proposed identifier | Input / output |
 |---|---|---|
-| Sample Point Cloud by Voxel Grid (Open3D) | `sample_point_cloud_by_voxel_grid_open3d` | Point-cloud layer; new point-cloud layer tagged `voxel sampled` |
-| Select Point Cloud Outliers by Radius (Open3D) | `select_point_cloud_outliers_by_radius_open3d` | Point-cloud layer; select rejected vertices |
-| Select Point Cloud Outliers Statistically (Open3D) | `select_point_cloud_outliers_statistically_open3d` | Point-cloud layer; select rejected vertices |
-| Compute Point Cloud Normals (Open3D) | `compute_point_cloud_normals_open3d` | Point-cloud layer; write vertex normals |
-| Reconstruct Surface by Ball Pivoting (Open3D) | `reconstruct_surface_by_ball_pivoting_open3d` | Oriented point cloud; new mesh layer tagged `ball pivoting` |
-| Reconstruct Surface by Alpha Shape (Open3D) | `reconstruct_surface_by_alpha_shape_open3d` | Point cloud; new mesh layer tagged `alpha shape` |
+| Reconstruct Surface from RGB-D Sequence (Open3D) | `reconstruct_surface_from_rgbd_sequence_open3d` | Ordered RGB-D frame set plus calibration; new mesh layer tagged `rgbd reconstruction` |
 
-The outlier filters select rejected input vertices using the indices returned by
-Open3D; they do not destroy the input cloud. Radius filtering needs a minimum
-neighbor count and search radius. Statistical filtering needs neighbor count and
-standard-deviation threshold. Voxel sampling should expose voxel size in mesh
-units, preserve supported averaged colors/normals and document which vertex
-attributes cannot be propagated. Normal estimation should expose Open3D's
-neighborhood search and numerical mode; it estimates *unoriented* normals, so
-orientation remains a separate step. These filters may look similar to existing
-ones, but each uses Open3D's implementation and should carry its own provenance.
+The filter should accept explicitly ordered, synchronized color/depth frames,
+camera intrinsics, color-to-depth registration assumptions, depth scale/truncation,
+and either an initial pose per frame or a documented odometry mode. It should
+estimate/refine poses, integrate into a scalable TSDF volume, and extract a
+triangle mesh. It must report frames rejected or disconnected, pose-graph
+quality, voxel size, and memory-relevant volume parameters. Keep the trajectory
+and per-frame poses available as a sidecar/result attribute or a follow-on
+document object only if the existing data model can represent them safely; do
+not hide essential alignment state in plugin globals.
 
-Open3D Ball Pivoting accepts multiple ball radii and requires consistently
-oriented input normals. Expose a nonempty ordered radii list, preserve input
-colors where supported, and report coverage, disconnected components and
-unreferenced points. Describe its multi-radius search separately from the
-vcglib and Gruber implementations. Open3D alpha shape takes a radius-like
-`alpha` in mesh units and uses Qhull tetrahedralization. Record whether the
-result is empty, disconnected or non-manifold; do not imply watertightness.
-Unlike the current CGAL alpha-shape filter, this path may pull in Open3D's
-tensor/VTK normal-orientation code, so Phase 0 must confirm its actual build
-dependencies before scheduling it.
+This is a multi-image input, whereas current filters primarily consume document
+layers — but **the representation already exists and the original draft missed
+it.** Checked in this checkout on 2026-10-14:
+
+- `Document::RasterEntry` (`src/core/document.h:93`) carries a `CameraShot` —
+  pose *and* intrinsics — alongside `std::vector<RasterPlane>` and a current
+  plane index.
+- `RasterPlaneSemantic` (`src/core/rasterplane.h`) already declares
+  **`DepthFloat`**, beside `RGBA`, the mask semantics and four spare float and
+  RGBA planes.
+- Planes are parsed from and written back to `.mlp` projects
+  (`src/core/document_project.cpp:73-99`), so they persist across save and
+  reopen.
+
+So an RGB-D frame **is** a raster layer with an `RGBA` plane and a `DepthFloat`
+plane; an ordered sequence is an ordered set of raster layers; and the whole
+thing already round-trips through a project file. The warning below stands, but
+it is satisfied by what the document model can already express rather than by a
+new sequence object:
+
+A one-shot dialog with ephemeral frame paths is not an acceptable reproducible
+workflow. Check depth/color calibration,
+frame ordering, units and pose conventions before integration; reject incomplete
+inputs rather than silently guessing.
+
+Open3D's documented RGB-D odometry and reconstruction-system examples are useful
+starting points, but its tensor SLAM implementation is described as a prototype
+with limitations. Do not present experimental dense SLAM as a reliable
+general-purpose tracker. Initial support should target offline reconstruction
+from recorded sequences with explicit diagnostics and a path to supplied poses.
 
 ### Shared-core or later candidates
 
@@ -224,10 +347,62 @@ dependencies before scheduling it.
 - **Open3D visualization, legacy GUI, and Python API:** out of scope for a
   headless MeshLab filter plugin.
 
+## Test datasets
+
+The validation below needs recorded RGB-D sequences with calibration and
+reference geometry. Those are hundreds of megabytes; this repository commits
+*small* fixtures — the whole photogrammetry fixture in
+`tests/sample_mesh/gargoyle_small/` is 928 KB. Large data cannot go in git, and
+"the developer happens to have a copy" is not a test.
+
+The shape that works, and that nothing here does yet:
+
+**A manifest, not a script.** `tests/datasets/datasets.json` lists each dataset
+by name, download URL (with mirrors), SHA-256, uncompressed size and **licence**.
+The manifest is the reviewable artefact; a fetch script is just its interpreter.
+Licence matters per dataset and is not uniform — some public RGB-D corpora are
+CC-BY, some are public-domain-ish, and some require a signed agreement that
+makes them unusable for unattended CI. That has to be recorded per entry before
+anything is wired up, not discovered later.
+
+**Fetch once, verify always.** `tests/datasets/fetch.py` (or a CMake target)
+downloads only what is missing into a gitignored `tests/datasets/<name>/` and
+verifies the SHA-256 on every run, not just on download. An upstream file that
+changes silently must fail loudly rather than quietly altering test results.
+`plugins/filter_quadwild/CMakeLists.txt` already establishes the in-tree
+pattern for this — `FetchContent` with several mirror URLs and a `URL_HASH` —
+and the same discipline should apply here.
+
+**Absent data skips, never fails.** A contributor who has not fetched anything
+must still get a green `ctest`. Dataset-backed tests `QSKIP` with a message
+naming the fetch command. This keeps the three-tier structure intact: the
+descriptor and smoke tiers stay fixture-free and always run, and only the
+behavioural tier in `test_filters.cpp` opts into large data.
+
+**A committed micro-fixture alongside the large one.** A handful of frames,
+downscaled, committed — enough for the smoke tier to drive the RGB-D filter at
+all and for the descriptor tier to see it. The same rule as the gargoyle applies
+and must be written down with it: **if the images are rescaled, the intrinsics
+must follow** — `ViewportPx` and `CenterPx` scale with the pixels, `PixelSizeMm`
+inversely, `FocalMm` untouched — or every projection silently misprojects while
+reporting success.
+
+**CI caches it by manifest hash.** A separate `actions/cache` entry keyed on
+`hashFiles('tests/datasets/datasets.json')`, independent of the vcpkg cache so
+the two cannot evict each other through one key. Note this spends from the same
+10 GB repository budget as the vcpkg cache, which is the argument for keeping
+the CI dataset set deliberately small — the exhaustive corpus in the validation
+section is for local runs and release testing, not for every push.
+
+This design is not specific to Open3D. Any future filter needing real scan data
+would use it, which is an argument for building it as `tests/datasets/` rather
+than as something owned by `filter_open3d`.
+
 ## Validation required before implementation is considered complete
 
-Use recorded RGB-D sequences with known calibration and reference geometry,
-including clean indoor captures, low-texture/repetitive areas, loop closures,
+Use the fetched corpus described in *Test datasets* above: recorded RGB-D
+sequences with known calibration and reference geometry, including clean indoor
+captures, low-texture/repetitive areas, loop closures,
 motion blur, depth holes, thin structures and disconnected fragments. Compare
 pose error, drift, completeness, surface accuracy, runtime and peak memory with
 the existing multi-layer volumetric reconstruction workflow where inputs can
