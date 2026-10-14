@@ -384,6 +384,26 @@ buffer.</p>
 nothing at zero gain, keeps the colour proportions of vertex colours, works with flat shading and with point
 clouds, survives the buffer being replaced under 81 layers, and the refusal) and by <code class="docutils literal notranslate"><span class="pre">RenderSettingsJsonTests</span></code>.</p>
 </section>
+<section id="back-lighting">
+<h2>Back lighting<a class="headerlink" href="#back-lighting" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">PerMeshRenderSettings::fillBackLighting</span></code> (<code class="docutils literal notranslate"><span class="pre">Single</span></code>, <code class="docutils literal notranslate"><span class="pre">Double</span></code>, <code class="docutils literal notranslate"><span class="pre">Fancy</span></code>; JSON <code class="docutils literal notranslate"><span class="pre">fill_back_lighting</span></code>; <em>Back lighting</em>
+in the Fill settings, for both materials) is how the old MeshLab’s Single / Double / Fancy back-face modes come over.
+They were two fixed-function lights, the light and one opposite to it; here the fill shaders do the same with the
+diffuse term, through <code class="docutils literal notranslate"><span class="pre">shaders/two_sided_lighting.glsl</span></code> (<code class="docutils literal notranslate"><span class="pre">sidedDiffuse</span></code>, shared by <code class="docutils literal notranslate"><span class="pre">fill_smooth.frag</span></code> and
+<code class="docutils literal notranslate"><span class="pre">fill_flat.frag</span></code>):</p>
+<ul class="simple">
+<li><p><strong>Single</strong> – <code class="docutils literal notranslate"><span class="pre">max(N.L,</span> <span class="pre">0)</span></code>: a surface turned away from the light gets the ambient and nothing else.</p></li>
+<li><p><strong>Double</strong> – <code class="docutils literal notranslate"><span class="pre">abs(N.L)</span></code>: the opposite light is the same as the first, so a surface is lit from whichever side it faces.</p></li>
+<li><p><strong>Fancy</strong> – as Double, with the diffuse part tinted bluish (<code class="docutils literal notranslate"><span class="pre">0.8,</span> <span class="pre">0.8,</span> <span class="pre">1.0</span></code>) where the light reaches the surface and
+pinkish (<code class="docutils literal notranslate"><span class="pre">1.0,</span> <span class="pre">0.8,</span> <span class="pre">0.8</span></code>) where only the opposite one does; the old defaults for its two diffuse colours. Together with
+the lighting of the back it makes the side of a surface readable from its colour.</p></li>
+</ul>
+<p>“Back” is relative to the <strong>light</strong>, not the viewer, as it was in the old MeshLab, so the tints follow the light when it
+is moved; the ambient stays white and the specular term is left as it was. It reaches the shader in
+<code class="docutils literal notranslate"><span class="pre">lightingParams.w</span></code>, which is 0 with the fill lighting off and <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">+</span> <span class="pre">mode</span></code> otherwise. The tints are constants of the
+shader (the old MeshLab had them as application settings). Backface <em>culling</em> is a separate switch.
+Tested by the render probe <code class="docutils literal notranslate"><span class="pre">tests/render_probes/back_lighting</span></code>.</p>
+</section>
 <section id="reference-grid">
 <h2>Reference grid<a class="headerlink" href="#reference-grid" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">GlobalRenderSettings::referenceGrid</span></code> (<code class="docutils literal notranslate"><span class="pre">None</span></code>, <code class="docutils literal notranslate"><span class="pre">XY</span></code>, <code class="docutils literal notranslate"><span class="pre">XZ</span></code>; JSON <code class="docutils literal notranslate"><span class="pre">reference_grid</span></code>; <em>Reference grid</em> in the
@@ -777,6 +797,7 @@ must leave the image <strong>exactly</strong> unchanged, so equality is the asse
 <li><a class="reference internal" href="#shared-gpu-cache-meshgpuresourcecache">Shared GPU Cache (<code class="docutils literal notranslate"><span class="pre">MeshGpuResourceCache</span></code>)</a></li>
 <li><a class="reference internal" href="#per-mesh-render-modes">Per-Mesh Render Modes</a></li>
 <li><a class="reference internal" href="#radiance-scaling">Radiance scaling</a></li>
+<li><a class="reference internal" href="#back-lighting">Back lighting</a></li>
 <li><a class="reference internal" href="#reference-grid">Reference grid</a></li>
 <li><a class="reference internal" href="#resetting-the-views">Resetting the views</a></li>
 <li><a class="reference internal" href="#clip-space-convention">Clip-space convention</a></li>

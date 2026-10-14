@@ -1,0 +1,643 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Open3D Scan Processing and Reconstruction - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/proposals/open3d_scan_processing.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="open3d-scan-processing-and-reconstruction">
+<h1>Open3D Scan Processing and Reconstruction<a class="headerlink" href="#open3d-scan-processing-and-reconstruction" title="Link to this heading">¶</a></h1>
+<p>This document proposes a scoped Open3D integration for RGB-D scan processing,
+multi-view registration and reconstruction in MeshLab. <strong>Not implemented.</strong> It
+includes Open3D’s independent implementations even where another MeshLab filter
+performs the same operation. The RGB-D sequence pipeline is the largest new
+workflow; point-cloud preparation, registration and reconstruction filters also
+belong in MeshLab’s algorithm archive.</p>
+<p>See also: <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>,
+<a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a>,
+<a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a>, <a class="reference internal" href="../history/geogram_port.html"><span class="std std-doc">Geogram Port</span></a>.</p>
+<section id="status-and-evidence">
+<h2>Status and evidence<a class="headerlink" href="#status-and-evidence" title="Link to this heading">¶</a></h2>
+<p>Surveyed on <strong>2026-10-14</strong> against the current Open3D documentation, selected
+upstream C++ source files and this checkout’s filter descriptors and adapters.
+The documentation cited below describes Open3D 0.20-era APIs; the source links
+currently target upstream <code class="docutils literal notranslate"><span class="pre">main</span></code>, so the precise release and source revision
+must be pinned before implementation. This is a design and provenance study,
+not a benchmark or build-compatibility result. No Open3D code has been compiled
+or exercised in MeshLab.</p>
+</section>
+<section id="why-open3d-given-current-meshlab-filters">
+<h2>Why Open3D, given current MeshLab filters<a class="headerlink" href="#why-open3d-given-current-meshlab-filters" title="Link to this heading">¶</a></h2>
+<p>MeshLab already has a substantial scan-reconstruction toolbox. Its existing
+filters estimate and smooth point-cloud normals, orient normals with CGAL,
+align two layers with ICP, globally align overlapping layers, reconstruct by
+Ball Pivoting (two implementations), Screened Poisson, CGAL Poisson, APSS/RIMLS,
+and integrate visible layers through volumetric merging. Under the
+<a class="reference internal" href="../filter_organization.html#4-meshlab-is-an-algorithm-archive--competing-implementations-are-a-feature"><span class="std std-ref">algorithm-archive rule</span></a>,
+overlap in <em>operation</em> does not disqualify a filter. A separate entry is
+appropriate when Open3D supplies a distinct implementation; name it with an
+<code class="docutils literal notranslate"><span class="pre">(Open3D)</span></code> suffix and explain how it differs. Omit an entry that only wraps the
+same underlying implementation already exposed in MeshLab.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Capability</p></th>
+<th class="head"><p>Current MeshLab</p></th>
+<th class="head"><p>Potential Open3D contribution</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Point-cloud preparation</p></td>
+<td><p>Sampling, simplification, normal estimation/smoothing/orientation and outlier selection exist</p></td>
+<td><p>Open3D’s voxel downsampling, radius/statistical outlier removal and local normal estimation are independent implementations worth separate entries</p></td>
+</tr>
+<tr class="row-odd"><td><p>Pairwise alignment</p></td>
+<td><p>ICP and global multi-layer alignment exist</p></td>
+<td><p>Open3D point-to-point, point-to-plane and colored ICP, plus feature-based global registration, are alternative implementations and should be identifiable by name</p></td>
+</tr>
+<tr class="row-even"><td><p>Surface reconstruction from points</p></td>
+<td><p>Two BPA implementations, CGAL alpha shape, Screened Poisson and CGAL Poisson exist</p></td>
+<td><p>Open3D’s own Ball Pivoting and Qhull-based alpha-shape implementations are archive candidates; its Poisson route uses Kazhdan’s <code class="docutils literal notranslate"><span class="pre">PoissonRecon</span></code>, which the Screened Poisson plugin already embeds</p></td>
+</tr>
+<tr class="row-odd"><td><p>Multiple RGB-D frames</p></td>
+<td><p>Volumetric merging integrates visible layers, but does not expose the documented RGB-D odometry → pose graph → TSDF sequence workflow</p></td>
+<td><p>A scan-sequence pipeline that estimates poses, refines loop/fragment alignment and integrates calibrated depth frames into a mesh is the clearest distinct feature</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Open3D’s RGB-D reconstruction examples assume synchronized color/depth images
+with known registration and camera intrinsics. They use frame odometry and
+multiway registration to build/refine poses, then integrate depth into a
+<code class="docutils literal notranslate"><span class="pre">ScalableTSDFVolume</span></code> and extract a triangle mesh. This differs from the existing
+filter’s use of already-loaded visible layers: it needs image/depth inputs,
+calibration, frame poses and a trajectory/pose-graph representation.</p>
+<p>This implementation distinction is visible in source. Open3D’s
+<a class="reference external" href="https://github.com/isl-org/Open3D/blob/main/cpp/open3d/geometry/SurfaceReconstructionBallPivoting.cpp"><code class="docutils literal notranslate"><span class="pre">CreateFromPointCloudBallPivoting</span></code></a> invokes its own <code class="docutils literal notranslate"><span class="pre">BallPivoting</span></code>
+class with a list of radii. Its <a class="reference external" href="https://github.com/isl-org/Open3D/blob/main/cpp/open3d/geometry/SurfaceReconstructionAlphaShape.cpp"><code class="docutils literal notranslate"><span class="pre">CreateFromPointCloudAlphaShape</span></code></a>
+starts from Qhull Delaunay tetrahedra and extracts the qualifying boundary;
+the existing alpha-shape filter uses CGAL. By contrast, Open3D’s
+<a class="reference external" href="https://github.com/isl-org/Open3D/blob/main/cpp/open3d/geometry/SurfaceReconstructionPoisson.cpp"><code class="docutils literal notranslate"><span class="pre">CreateFromPointCloudPoisson</span></code></a> includes
+<code class="docutils literal notranslate"><span class="pre">PoissonRecon/Src/*</span></code>; MeshLab’s <code class="docutils literal notranslate"><span class="pre">filter_screened_poisson</span></code> also uses
+<code class="docutils literal notranslate"><span class="pre">PoissonRecon::Reconstructor</span></code>. That is a shared core implementation, despite
+different adapters and possibly different vendored revisions. Confirm exact
+provenance after pinning Open3D, but do not propose a second Poisson menu entry
+merely for the Open3D adapter.</p>
+</section>
+<section id="proposed-integration-shape">
+<h2>Proposed integration shape<a class="headerlink" href="#proposed-integration-shape" title="Link to this heading">¶</a></h2>
+<p>Use one optional <code class="docutils literal notranslate"><span class="pre">filter_open3d</span></code> plugin, following the dependency-per-plugin
+pattern. Keep Open3D types behind private adapters and translate at the plugin
+boundary between MeshLab’s vertex-only <code class="docutils literal notranslate"><span class="pre">TriMesh</span></code> point clouds / raster layers
+and Open3D point clouds, RGB-D images, camera intrinsics and triangle meshes.
+Preserve source layers; write alignment as layer transforms where possible and
+produce reconstruction results as new tagged layers.</p>
+<p>The plugin should not take a dependency on Python bindings. Expose a bounded,
+reviewable set of C++ filters through the normal MeshLab registry and descriptor
+schema. Use Open3D’s CPU path first. CUDA/SYCL variants are not implied by the
+presence of Open3D and should not be made a build or runtime requirement.</p>
+<p>Open3D’s core project is MIT-licensed, but that does not settle the notices,
+availability, binary size or redistribution conditions of its dependency graph
+and optional components. Before choosing a source submodule or package route,
+compare a pinned upstream build against MeshLab’s vcpkg baseline, identify which
+third-party components are enabled, and audit licenses for shipped binaries.
+Do not allow configure-time dependency fetching. Record the exact upstream
+revision, local patches, enabled options and notices in
+<code class="docutils literal notranslate"><span class="pre">plugins/filter_open3d/UPSTREAM.md</span></code> if the integration proceeds.</p>
+<p>Suggested structure:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>plugins/filter_open3d/
+  CMakeLists.txt
+  filters.json
+  UPSTREAM.md
+  open3dfilterplugin.h/.cpp
+  open3dmeshadapter.h/.cpp       # point clouds and triangle meshes
+  open3dregistration.h/.cpp      # ICP and feature initialization
+  open3dpointcloud.h/.cpp        # sampling, outliers and normals
+  open3drgbd.h/.cpp              # RGB-D inputs, calibration, frame poses
+  open3dreconstruction.h/.cpp    # TSDF integration and extraction
+</pre></div>
+</div>
+<p>Plugin id: <code class="docutils literal notranslate"><span class="pre">meshlab2.filter.open3d</span></code>; display name: <code class="docutils literal notranslate"><span class="pre">Open3D</span> <span class="pre">Scan</span> <span class="pre">Processing</span></code>.
+Build gate: <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PLUGIN_FILTER_OPEN3D</span></code>. These identifiers are proposals and
+must be checked against repository conventions when implementation begins.</p>
+</section>
+<section id="candidate-filters-and-staging">
+<h2>Candidate filters and staging<a class="headerlink" href="#candidate-filters-and-staging" title="Link to this heading">¶</a></h2>
+<section id="phase-0-feasibility-gate">
+<h3>Phase 0 — feasibility gate<a class="headerlink" href="#phase-0-feasibility-gate" title="Link to this heading">¶</a></h3>
+<p>Before adding descriptors or UI, pin a release and prove a minimal headless C++
+build against the project’s supported platforms and toolchain. Measure configure
+time, compile time, binary growth, runtime library closure and representative
+scan memory use. Verify that the Open3D build can disable its visualization,
+Python and unused I/O/dependency components. Check license notices and packaging
+on each supported platform. Use these measurements to choose staging and
+packaging; existing filters with the same operation are not a rejection gate.</p>
+</section>
+<section id="phase-1-rgb-d-sequence-reconstruction-primary">
+<h3>Phase 1 — RGB-D sequence reconstruction (primary)<a class="headerlink" href="#phase-1-rgb-d-sequence-reconstruction-primary" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Display name</p></th>
+<th class="head"><p>Proposed identifier</p></th>
+<th class="head"><p>Input / output</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Reconstruct Surface from RGB-D Sequence (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_from_rgbd_sequence_open3d</span></code></p></td>
+<td><p>Ordered RGB-D frame set plus calibration; new mesh layer tagged <code class="docutils literal notranslate"><span class="pre">rgbd</span> <span class="pre">reconstruction</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The filter should accept explicitly ordered, synchronized color/depth frames,
+camera intrinsics, color-to-depth registration assumptions, depth scale/truncation,
+and either an initial pose per frame or a documented odometry mode. It should
+estimate/refine poses, integrate into a scalable TSDF volume, and extract a
+triangle mesh. It must report frames rejected or disconnected, pose-graph
+quality, voxel size, and memory-relevant volume parameters. Keep the trajectory
+and per-frame poses available as a sidecar/result attribute or a follow-on
+document object only if the existing data model can represent them safely; do
+not hide essential alignment state in plugin globals.</p>
+<p>This is a multi-image input, whereas current filters primarily consume document
+layers. Phase 1 depends on a deliberate input design: either a sequence object
+that the document can save/reopen, or a file-dialog workflow that records all
+paths and settings in filter history. A one-shot dialog with ephemeral frame
+paths is not an acceptable reproducible workflow. Check depth/color calibration,
+frame ordering, units and pose conventions before integration; reject incomplete
+inputs rather than silently guessing.</p>
+<p>Open3D’s documented RGB-D odometry and reconstruction-system examples are useful
+starting points, but its tensor SLAM implementation is described as a prototype
+with limitations. Do not present experimental dense SLAM as a reliable
+general-purpose tracker. Initial support should target offline reconstruction
+from recorded sequences with explicit diagnostics and a path to supplied poses.</p>
+</section>
+<section id="phase-2-registration-implementations">
+<h3>Phase 2 — registration implementations<a class="headerlink" href="#phase-2-registration-implementations" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Display name</p></th>
+<th class="head"><p>Proposed identifier</p></th>
+<th class="head"><p>Input / output</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Align by Colored ICP (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_by_colored_icp_open3d</span></code></p></td>
+<td><p>Reference and moving point-cloud/mesh layers; update moving layer transform</p></td>
+</tr>
+<tr class="row-odd"><td><p>Align by Point-to-Point ICP (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_by_point_to_point_icp_open3d</span></code></p></td>
+<td><p>Reference and moving layers; update moving layer transform</p></td>
+</tr>
+<tr class="row-even"><td><p>Align by Point-to-Plane ICP (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_by_point_to_plane_icp_open3d</span></code></p></td>
+<td><p>Reference and moving layers with target normals; update moving layer transform</p></td>
+</tr>
+<tr class="row-odd"><td><p>Initialize Alignment by Feature Matching (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">initialize_alignment_by_feature_matching_open3d</span></code></p></td>
+<td><p>Two point-cloud layers; set moving layer transform</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Colored ICP adds color constraints that can help with tangential motion when
+geometry alone is ambiguous. Require colors and usable normals;
+expose voxel scale, correspondence distance, iteration/convergence criteria and
+an explicit initial transform. Return fitness and inlier RMSE so the user can
+judge the result. Compare against MeshLab’s current ICP and global aligner on
+colored scans to document its behavior, not to decide whether an independent
+implementation has a right to exist.</p>
+<p>Feature-based global registration (for example FPFH descriptors with RANSAC or
+another supported robust estimator) supplies a coarse pairwise pose that can
+initialize local ICP. Keep it as a separately callable alignment initializer;
+the existing global layer alignment solves a different multi-layer task. The
+adapter must honor
+visible layer transforms and must define whether the result is applied to the
+layer matrix or baked into coordinates; prefer the current layer-transform
+contract.</p>
+<p>Point-to-point and point-to-plane ICP merit named Open3D entries alongside the
+vcglib and TrueForm variants. Expose the same core convergence and maximum
+correspondence controls where feasible, and state the objective and required
+normals in each description. Keep the result matrix contract consistent across
+all ICP filters.</p>
+</section>
+<section id="phase-3-point-cloud-preparation-and-surface-reconstruction">
+<h3>Phase 3 — point-cloud preparation and surface reconstruction<a class="headerlink" href="#phase-3-point-cloud-preparation-and-surface-reconstruction" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Display name</p></th>
+<th class="head"><p>Proposed identifier</p></th>
+<th class="head"><p>Input / output</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Sample Point Cloud by Voxel Grid (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_point_cloud_by_voxel_grid_open3d</span></code></p></td>
+<td><p>Point-cloud layer; new point-cloud layer tagged <code class="docutils literal notranslate"><span class="pre">voxel</span> <span class="pre">sampled</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Point Cloud Outliers by Radius (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_point_cloud_outliers_by_radius_open3d</span></code></p></td>
+<td><p>Point-cloud layer; select rejected vertices</p></td>
+</tr>
+<tr class="row-even"><td><p>Select Point Cloud Outliers Statistically (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_point_cloud_outliers_statistically_open3d</span></code></p></td>
+<td><p>Point-cloud layer; select rejected vertices</p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Point Cloud Normals (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_point_cloud_normals_open3d</span></code></p></td>
+<td><p>Point-cloud layer; write vertex normals</p></td>
+</tr>
+<tr class="row-even"><td><p>Reconstruct Surface by Ball Pivoting (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_ball_pivoting_open3d</span></code></p></td>
+<td><p>Oriented point cloud; new mesh layer tagged <code class="docutils literal notranslate"><span class="pre">ball</span> <span class="pre">pivoting</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Reconstruct Surface by Alpha Shape (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_alpha_shape_open3d</span></code></p></td>
+<td><p>Point cloud; new mesh layer tagged <code class="docutils literal notranslate"><span class="pre">alpha</span> <span class="pre">shape</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The outlier filters select rejected input vertices using the indices returned by
+Open3D; they do not destroy the input cloud. Radius filtering needs a minimum
+neighbor count and search radius. Statistical filtering needs neighbor count and
+standard-deviation threshold. Voxel sampling should expose voxel size in mesh
+units, preserve supported averaged colors/normals and document which vertex
+attributes cannot be propagated. Normal estimation should expose Open3D’s
+neighborhood search and numerical mode; it estimates <em>unoriented</em> normals, so
+orientation remains a separate step. These filters may look similar to existing
+ones, but each uses Open3D’s implementation and should carry its own provenance.</p>
+<p>Open3D Ball Pivoting accepts multiple ball radii and requires consistently
+oriented input normals. Expose a nonempty ordered radii list, preserve input
+colors where supported, and report coverage, disconnected components and
+unreferenced points. Describe its multi-radius search separately from the
+vcglib and Gruber implementations. Open3D alpha shape takes a radius-like
+<code class="docutils literal notranslate"><span class="pre">alpha</span></code> in mesh units and uses Qhull tetrahedralization. Record whether the
+result is empty, disconnected or non-manifold; do not imply watertightness.
+Unlike the current CGAL alpha-shape filter, this path may pull in Open3D’s
+tensor/VTK normal-orientation code, so Phase 0 must confirm its actual build
+dependencies before scheduling it.</p>
+</section>
+<section id="shared-core-or-later-candidates">
+<h3>Shared-core or later candidates<a class="headerlink" href="#shared-core-or-later-candidates" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Open3D Poisson:</strong> the currently inspected route calls the same Kazhdan
+<code class="docutils literal notranslate"><span class="pre">PoissonRecon</span></code> core already exposed by MeshLab’s Screened Poisson plugin.
+Compare vendored versions and adapter options after pinning; add a separate
+filter only if a genuinely different implementation is found. A desired
+Open3D-specific option could instead inform the existing adapter.</p></li>
+<li><p><strong>Multiway pose-graph alignment:</strong> a separate Open3D filter is welcome if the
+document can retain and edit the resulting pose graph. The RGB-D pipeline can
+use it internally first; do not discard the implementation simply because
+MeshLab already has a global alignment filter.</p></li>
+<li><p><strong>Real-time SLAM, tensor API and GPU backends:</strong> defer due to prototype status,
+runtime/device complexity and portability costs.</p></li>
+<li><p><strong>Open3D visualization, legacy GUI, and Python API:</strong> out of scope for a
+headless MeshLab filter plugin.</p></li>
+</ul>
+</section>
+</section>
+<section id="validation-required-before-implementation-is-considered-complete">
+<h2>Validation required before implementation is considered complete<a class="headerlink" href="#validation-required-before-implementation-is-considered-complete" title="Link to this heading">¶</a></h2>
+<p>Use recorded RGB-D sequences with known calibration and reference geometry,
+including clean indoor captures, low-texture/repetitive areas, loop closures,
+motion blur, depth holes, thin structures and disconnected fragments. Compare
+pose error, drift, completeness, surface accuracy, runtime and peak memory with
+the existing multi-layer volumetric reconstruction workflow where inputs can
+be made comparable. Verify deterministic behavior where the algorithm permits,
+correct units and transform conventions, graceful handling of missing frames,
+and no mutation of source geometry. Compare ICP and Ball Pivoting variants on
+the same clouds to document their distinct behavior, including color-informative
+and color-uninformative scans, sparse/noisy samples, varying densities and
+multiple components. Such comparisons inform users and defaults; they are not
+an admission test based on whether another filter performs the same operation.</p>
+<p>Do not ship until the RGB-D input representation is reproducible, source layers
+remain intact, the dependency and license audit is complete, and packaging works
+without an Open3D installation when the plugin is disabled.</p>
+</section>
+<section id="official-references">
+<h2>Official references<a class="headerlink" href="#official-references" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.open3d.org/">Open3D project</a> and <a class="reference external" href="https://github.com/isl-org/Open3D">source repository</a></p></li>
+<li><p><a class="reference external" href="https://www.open3d.org/docs/latest/tutorial/geometry/surface_reconstruction.html">Surface reconstruction</a></p></li>
+<li><p><a class="reference external" href="https://www.open3d.org/docs/latest/tutorial/geometry/pointcloud_outlier_removal.html">Point-cloud outlier removal</a></p></li>
+<li><p><a class="reference external" href="https://www.open3d.org/docs/latest/tutorial/pipelines/icp_registration.html">ICP registration</a></p></li>
+<li><p><a class="reference external" href="https://www.open3d.org/docs/latest/tutorial/pipelines/colored_pointcloud_registration.html">Colored point-cloud registration</a></p></li>
+<li><p><a class="reference external" href="https://www.open3d.org/docs/latest/tutorial/pipelines/global_registration.html">Global registration</a></p></li>
+<li><p><a class="reference external" href="https://www.open3d.org/docs/latest/tutorial/pipelines/rgbd_integration.html">RGB-D integration</a></p></li>
+<li><p><a class="reference external" href="https://www.open3d.org/docs/latest/tutorial/reconstruction_system/index.html">Reconstruction system</a></p></li>
+<li><p><a class="reference external" href="https://www.open3d.org/docs/latest/tutorial/t_reconstruction_system/dense_slam.html">Dense RGB-D SLAM</a></p></li>
+<li><p><a class="reference external" href="https://github.com/isl-org/Open3D/blob/main/LICENSE">Open3D license</a></p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Open3D Scan Processing and Reconstruction</a><ul>
+<li><a class="reference internal" href="#status-and-evidence">Status and evidence</a></li>
+<li><a class="reference internal" href="#why-open3d-given-current-meshlab-filters">Why Open3D, given current MeshLab filters</a></li>
+<li><a class="reference internal" href="#proposed-integration-shape">Proposed integration shape</a></li>
+<li><a class="reference internal" href="#candidate-filters-and-staging">Candidate filters and staging</a><ul>
+<li><a class="reference internal" href="#phase-0-feasibility-gate">Phase 0 — feasibility gate</a></li>
+<li><a class="reference internal" href="#phase-1-rgb-d-sequence-reconstruction-primary">Phase 1 — RGB-D sequence reconstruction (primary)</a></li>
+<li><a class="reference internal" href="#phase-2-registration-implementations">Phase 2 — registration implementations</a></li>
+<li><a class="reference internal" href="#phase-3-point-cloud-preparation-and-surface-reconstruction">Phase 3 — point-cloud preparation and surface reconstruction</a></li>
+<li><a class="reference internal" href="#shared-core-or-later-candidates">Shared-core or later candidates</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#validation-required-before-implementation-is-considered-complete">Validation required before implementation is considered complete</a></li>
+<li><a class="reference internal" href="#official-references">Official references</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>
