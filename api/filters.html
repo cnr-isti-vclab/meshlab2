@@ -1361,26 +1361,6 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="compute-face-ambient-occlusion">
-<span id="filter-compute-face-ambient-occlusion"></span><h2>Compute Face Ambient Occlusion<a class="headerlink" href="#compute-face-ambient-occlusion" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
-<p><strong>Plugin:</strong> meshlab2.filter.embree</p>
-<p>Computes cosine-weighted ambient visibility on a surface mesh.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="meshlab.ms.compute_face_ambient_occlusion">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_face_ambient_occlusion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_face_ambient_occlusion" title="Link to this definition">¶</a></dt>
-<dd><p>Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored in face quality and interpolated to vertex quality; a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute <code class="docutils literal notranslate"><span class="pre">BentNormal</span></code>. By default directions cover the sphere uniformly. <strong>Directional Bias</strong> replaces a fraction of them with directions inside the cone defined by <strong>Lighting Direction</strong> and <strong>Cone Half-Angle</strong>: <code class="docutils literal notranslate"><span class="pre">0</span></code> is fully uniform ambient illumination and <code class="docutils literal notranslate"><span class="pre">1</span></code> uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; MeshLab switches to face-quality visualization after completion.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of lighting directions tested at each face barycenter.</p></li>
-<li><p><strong>directional_bias</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.</p></li>
-<li><p><strong>cone_direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Axis of the directionally biased lighting cone.</p></li>
-<li><p><strong>cone_half_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Half-angle in degrees of the directionally biased lighting cone.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
 <section id="compute-face-quality-trueform">
 <span id="filter-compute-face-quality-trueform"></span><h2>Compute Face Quality (TrueForm)<a class="headerlink" href="#compute-face-quality-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
@@ -1632,6 +1612,26 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
+<section id="compute-mesh-ambient-occlusion">
+<span id="filter-compute-mesh-ambient-occlusion"></span><h2>Compute Mesh Ambient Occlusion<a class="headerlink" href="#compute-mesh-ambient-occlusion" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.embree</p>
+<p>Computes cosine-weighted ambient visibility of a surface mesh, per face and per vertex.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.compute_mesh_ambient_occlusion">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_mesh_ambient_occlusion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_mesh_ambient_occlusion" title="Link to this definition">¶</a></dt>
+<dd><p>Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored per face, and each vertex then takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written (replacing any they held); a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute <code class="docutils literal notranslate"><span class="pre">BentNormal</span></code>. By default directions cover the sphere uniformly. <strong>Directional Bias</strong> replaces a fraction of them with directions inside the cone defined by <strong>Lighting Direction</strong> and <strong>Cone Half-Angle</strong>: <code class="docutils literal notranslate"><span class="pre">0</span></code> is fully uniform ambient illumination and <code class="docutils literal notranslate"><span class="pre">1</span></code> uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; the view switches to showing the per-face scalar after completion. For a layer without faces use <em>Compute Point Cloud Ambient Occlusion</em>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of lighting directions tested at each face barycenter.</p></li>
+<li><p><strong>directional_bias</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.</p></li>
+<li><p><strong>cone_direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Axis of the directionally biased lighting cone.</p></li>
+<li><p><strong>cone_half_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Half-angle in degrees of the directionally biased lighting cone.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="compute-obscurance">
 <span id="filter-compute-obscurance"></span><h2>Compute Obscurance<a class="headerlink" href="#compute-obscurance" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
@@ -1640,7 +1640,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_obscurance">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_obscurance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_obscurance" title="Link to this definition">¶</a></dt>
-<dd><p>Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>	<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;	<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved into face quality. The filter does not bake colors; after it runs MeshLab switches the view to face-quality color visualization. <br /><b>For further details see the reference paper: Iones Krupkin Sbert Zhukov Fast, Realistic Lighting for Video Games IEEECG&amp;A 2003 </b> <br />This filter uses Embree3 library by INTEL.</p>
+<dd><p>Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>	<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;	<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved per face, and each vertex takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written. The filter does not bake colors; after it runs the view switches to showing the per-face scalar. <br /><b>For further details see the reference paper: Iones Krupkin Sbert Zhukov Fast, Realistic Lighting for Video Games IEEECG&amp;A 2003 </b> <br />This filter uses Embree3 library by INTEL.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of rays shot from each face barycenter.</p></li>
@@ -8669,10 +8669,6 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#meshlab.ms.compute_exact_geodesic_distance_from_selection_libigl"><code class="docutils literal notranslate"><span class="pre">ms.compute_exact_geodesic_distance_from_selection_libigl()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#compute-face-ambient-occlusion">Compute Face Ambient Occlusion</a><ul>
-<li><a class="reference internal" href="#meshlab.ms.compute_face_ambient_occlusion"><code class="docutils literal notranslate"><span class="pre">ms.compute_face_ambient_occlusion()</span></code></a></li>
-</ul>
-</li>
 <li><a class="reference internal" href="#compute-face-quality-trueform">Compute Face Quality (TrueForm)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.compute_face_quality_trueform"><code class="docutils literal notranslate"><span class="pre">ms.compute_face_quality_trueform()</span></code></a></li>
 </ul>
@@ -8715,6 +8711,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#compute-heat-geodesic-distance-from-selection-vcglib">Compute Heat Geodesic Distance from Selection (vcglib)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.compute_heat_geodesic_distance_from_selection_vcglib"><code class="docutils literal notranslate"><span class="pre">ms.compute_heat_geodesic_distance_from_selection_vcglib()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compute-mesh-ambient-occlusion">Compute Mesh Ambient Occlusion</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.compute_mesh_ambient_occlusion"><code class="docutils literal notranslate"><span class="pre">ms.compute_mesh_ambient_occlusion()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#compute-obscurance">Compute Obscurance</a><ul>

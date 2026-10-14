@@ -99,6 +99,50 @@ Default fill color source preference: texture → per-vertex → per-face → pe
 
 Default explicit-edge color source preference: per-edge → per-vertex → constant. Availability is clamped to `IOM_EDGECOLOR` and `IOM_VERTCOLOR`; unavailable choices are disabled in the overlay panel. Edge-only PLY layers carrying edge colors therefore open with `PerEdge` selected automatically.
 
+## Radiance scaling
+
+Radiance scaling (Vergne, Pacanowski, Barla, Granier, *Radiance Scaling for Versatile Surface Enhancement*,
+I3D 2010) is an **option of the plain fill material** (`fillPlain.radianceScaling`, with `rsEnhancement` and
+`rsInvert`), not a material of its own. It used to be a third material, with a shader that replaced the
+lighting by a diffuse-only one and had its own copy of the colour logic; a render state that still says
+`fill_material: 2` or has a `fill_rs` block is refused (`parsePerMeshSettings`), with a message saying where it
+went.
+
+**What it does.** The lighting scalar before the albedo -- `shade = ambient + diffuse`, in [0, 1] -- is replaced by
+`shade * sigma(kappa, shade)`, and the colour is `albedo * shade + specular`. `sigma` is the paper's scaling function
+(eq. 2) with the scaling-invariant point alpha = 0.1 and magnitude 1: it leaves `shade = alpha` alone, brightens
+the brighter values on convexities and darkens them on concavities, and the other way round below alpha. The
+colour source is out of it, so a texture, per-vertex colours or a scalar map keep their hues, and the
+specular term is added unscaled. With the lighting off `shade` is one, which is the curvature shading the paper
+notes. `rsInvert` is the sign of the gain, which the curvature signal is odd in. PBR does not have the option.
+
+**Where the curvature comes from.** A **pre-pass** (`PlainFillRenderer::renderPrepass`, `fill_radscale_buf.frag`)
+draws every filled layer into `m_rsGradTexture` (`RGBA32F`): `(gx, gy, logZ, 1)` from the interpolated view-space
+normal and the log of the view depth, using the normals each layer is shaded with: the interpolated vertex normal
+for a smooth layer, the face's own for a flat one (the pass is told which through the occlusion-strength slot of the
+uniform block). For a flat layer the curvature is therefore zero inside a face and high across the edges, where the
+convex ones come out as bright lines, as in the original MeshLab; from the smooth normals the curvature would spread
+over every face and whiten it towards the silhouette. It draws all layers, not only those with the
+option on, so that an occluder's silhouette is a depth step. The fill shader (`fill_smooth.frag`,
+`fill_flat.frag`, the same code in both) reads it back by absolute framebuffer position -- bound in the slot the
+normal map would use, which plain does not -- takes the Hessian of the gradient over a 3x3 neighbourhood,
+`tanh`s it with the gain, and fades it to nothing at depth discontinuities. The pre-pass runs only when some
+layer asks, and a layer's draw drops the option for the frame if the buffer could not be made.
+
+**The curvature is measured in pixels, on purpose.** It makes the enhancement crisper the smaller the object is on
+screen, which is a feature of the technique; there is no world-space normalization. The strength therefore also
+depends on the zoom and on the size of the render target, a snapshot of another size included.
+
+**Bindings.** The pass binds the main uniform buffer through its own shader-resource bindings, with a dynamic
+offset like every other binding of that buffer. The buffer is replaced when it has to grow (its capacity follows the
+layer count), so the replacement drops the pass's pipeline and bindings, and `ensureRsGradResources`, which tears
+everything down when the size is unset, rebuilds them; a binding left behind would hold a pointer to the old
+buffer.
+
+Tested by the render probe `tests/render_probes/radiance_scaling` (the option changes the lighting, scales
+nothing at zero gain, keeps the colour proportions of vertex colours, works with flat shading, survives the buffer
+being replaced under 81 layers, and the refusal) and by `RenderSettingsJsonTests`.
+
 ## Reference grid
 
 `GlobalRenderSettings::referenceGrid` (`None`, `XY`, `XZ`; JSON `reference_grid`; *Reference grid* in the
@@ -175,7 +219,7 @@ near plane pushed in front of an object cuts the object on Metal.
 5. Execute depth pick (if scheduled).
 6. Build current-mesh highlight masks (if `highlightCurrentMesh`).
 7. Build a concrete `RenderFramePlan` from a `RenderFrameRequest`.
-8. Run Radiance Scaling gradient pre-pass (if any planned fill item uses `FillMaterial::RadianceScaling`).
+8. Run the radiance-scaling gradient pre-pass (if any planned plain fill item has `fillPlain.radianceScaling` on).
 9. Run main onscreen pass.
 
 Main pass draw order: scene background · raster background in RasterImage mode only · fill · wire · edges · bbox · points · raster camera frustums · decorators · trackball gizmo · light gizmo · depth-cued tool guides · current-mesh outline/debug composite · selection overlay · 2D informational/tool overlays.
@@ -184,9 +228,9 @@ Main pass draw order: scene background · raster background in RasterImage mode 
 
 **Scene background**: full-screen gradient triangle, `sceneBackgroundBottomColor`/`TopColor`, drawn first.
 
-**Fill**: Fill planning and execution are isolated in `renderwidget_fill.cpp`. `SceneFillFramePlan` contains fill draw items, each with a material renderer selected from `PlainFillRenderer`, `PbrFillRenderer`, or `RadianceScalingFillRenderer`. Shared behavior such as UBO upload, texture SRB resolution, selected PBR texture lookup, and Radiance Scaling gradient resource access goes through `FillRenderServices`.
+**Fill**: Fill planning and execution are isolated in `renderwidget_fill.cpp`. `SceneFillFramePlan` contains fill draw items, each with a material renderer selected from `PlainFillRenderer` or `PbrFillRenderer`. Shared behavior such as UBO upload, texture SRB resolution, selected PBR texture lookup, and radiance-scaling gradient resource access goes through `FillRenderServices`.
 
-Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. Quality normalization honors fixed range, center-on-zero, and percentile crop settings; automatic ranges default to a `0.01` crop at both tails to reduce outlier influence when filters map newly computed quality values to color. PBR binds base/normal/occlusion/roughness per batch. Tangent-space normal maps derive TBN from screen-space derivatives of view position and UV; object-space normal maps are transformed by the normal matrix and blended with the base normal using `normalScale`. Radiance Scaling pre-pass is implemented by `RadianceScalingFillRenderer::renderPrepass(...)`; it renders planned RS fill batches into `m_rsGradTexture` (`RGBA32F`), storing `(gx, gy, logZ, 1)`, and the main fill pass samples it for final RS shading.
+Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. Quality normalization honors fixed range, center-on-zero, and percentile crop settings; automatic ranges default to a `0.01` crop at both tails to reduce outlier influence when filters map newly computed quality values to color. PBR binds base/normal/occlusion/roughness per batch. Tangent-space normal maps derive TBN from screen-space derivatives of view position and UV; object-space normal maps are transformed by the normal matrix and blended with the base normal using `normalScale`. Radiance scaling is covered below.
 
 **Wireframe**: barycentric triangles + fragment edge test; depth `LessOrEqual`, no depth write; alpha blending; `wireBackfaceCulling`; optional `wireRespectFaux` controls faux polygon edge handling in the cached wire data.
 
@@ -450,7 +494,7 @@ application's own `--generate-docs <dir>` hook, which execs `<dir>/generate_api.
 with a render-state JSON, and asserts on the returned raw RGBA8888.
 
 `tests/render_probes/` holds these -- `clip_plane` for the clipping plane and solid cut,
-`clip_space` for the backend correction of clip space, `reference_grid` for the reference grid, `orthographic` for the orthographic camera through snapshots and projection filters, `boundary_decorators` for what the boundary decorator marks and in which colors,
+`clip_space` for the backend correction of clip space, `radiance_scaling` for the radiance-scaling option, `reference_grid` for the reference grid, `orthographic` for the orthographic camera through snapshots and projection filters, `boundary_decorators` for what the boundary decorator marks and in which colors,
 `quality_histogram_layout` for captures staying full-frame while the histogram is open. Each is a
 directory with a `generate_api.py`, because that is the filename the hook runs:
 

@@ -1425,31 +1425,6 @@ This filter has no parameters.
 
 ---
 
-(filter-compute-face-ambient-occlusion)=
-
-## Compute Face Ambient Occlusion
-
-**Categories:** `Attribute/Scalar`
-
-**Plugin:** meshlab2.filter.embree
-
-Computes cosine-weighted ambient visibility on a surface mesh.
-
-```{py:function} ms.compute_face_ambient_occlusion(**params)
-:module: _meshlab
-
-Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored in face quality and interpolated to vertex quality; a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute `BentNormal`. By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Half-Angle**: `0` is fully uniform ambient illumination and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; MeshLab switches to face-quality visualization after completion.
-
-**Parameters:**
-
-- **rays** (*int*, default: `64`) — Number of lighting directions tested at each face barycenter.
-- **directional_bias** (*double*, default: `0.0`) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.
-- **cone_direction** (*point3f*, default: `[0.0, 1.0, 0.0]`) — Axis of the directionally biased lighting cone.
-- **cone_half_angle** (*double*, default: `30.0`) — Half-angle in degrees of the directionally biased lighting cone.
-```
-
----
-
 (filter-compute-face-quality-trueform)=
 
 ## Compute Face Quality (TrueForm)
@@ -1751,6 +1726,31 @@ Store in the vertex quality field the approximated geodesic distance, computed v
 
 ---
 
+(filter-compute-mesh-ambient-occlusion)=
+
+## Compute Mesh Ambient Occlusion
+
+**Categories:** `Attribute/Scalar`
+
+**Plugin:** meshlab2.filter.embree
+
+Computes cosine-weighted ambient visibility of a surface mesh, per face and per vertex.
+
+```{py:function} ms.compute_mesh_ambient_occlusion(**params)
+:module: _meshlab
+
+Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored per face, and each vertex then takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written (replacing any they held); a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute `BentNormal`. By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Half-Angle**: `0` is fully uniform ambient illumination and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; the view switches to showing the per-face scalar after completion. For a layer without faces use *Compute Point Cloud Ambient Occlusion*.
+
+**Parameters:**
+
+- **rays** (*int*, default: `64`) — Number of lighting directions tested at each face barycenter.
+- **directional_bias** (*double*, default: `0.0`) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.
+- **cone_direction** (*point3f*, default: `[0.0, 1.0, 0.0]`) — Axis of the directionally biased lighting cone.
+- **cone_half_angle** (*double*, default: `30.0`) — Half-angle in degrees of the directionally biased lighting cone.
+```
+
+---
+
 (filter-compute-obscurance)=
 
 ## Compute Obscurance
@@ -1764,7 +1764,7 @@ Computes volumetric obscurance and stores it in quality.
 ```{py:function} ms.compute_obscurance(**params)
 :module: _meshlab
 
-Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>	<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;	<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved into face quality. The filter does not bake colors; after it runs MeshLab switches the view to face-quality color visualization. <br /><b>For further details see the reference paper: Iones Krupkin Sbert Zhukov Fast, Realistic Lighting for Video Games IEEECG&A 2003 </b> <br />This filter uses Embree3 library by INTEL.
+Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>	<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;	<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved per face, and each vertex takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written. The filter does not bake colors; after it runs the view switches to showing the per-face scalar. <br /><b>For further details see the reference paper: Iones Krupkin Sbert Zhukov Fast, Realistic Lighting for Video Games IEEECG&A 2003 </b> <br />This filter uses Embree3 library by INTEL.
 
 **Parameters:**
 
