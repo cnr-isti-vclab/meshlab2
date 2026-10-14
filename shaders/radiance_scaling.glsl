@@ -30,8 +30,8 @@ float rsWarp(float s, float beta) {
 }
 
 // The curvature of the surface under this fragment, from the Hessian of the normals' gradient in
-// a 3x3 neighbourhood of the buffer, in pixels (so a smaller object is crisper), signed by the
-// gain (negative inverts it) and faded to nothing at depth discontinuities.
+// a 3x3 neighbourhood of the buffer, in pixels (so a smaller object is crisper), scaled by the
+// gain and faded to nothing at depth discontinuities.
 float rsCurvature()
 {
     // The buffer covers the whole render target and is addressed by absolute framebuffer position,

@@ -1699,9 +1699,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
             syncRadianceScalingRows();
             emit meshSettingsChanged(m_meshSettings);
         });
-        connect(rs.invert, &QCheckBox::toggled, this, [this](bool checked) {
-            if (m_meshSettings.fillPlain.rsInvert == checked) return;
-            m_meshSettings.fillPlain.rsInvert = checked;
+        connect(rs.resolutionBias, &QDoubleSpinBox::valueChanged, this, [this](double v) {
+            const float fv = static_cast<float>(v);
+            if (m_meshSettings.fillPlain.rsResolutionBias == fv) return;
+            m_meshSettings.fillPlain.rsResolutionBias = fv;
             syncRadianceScalingRows();
             emit meshSettingsChanged(m_meshSettings);
         });
@@ -2559,10 +2560,18 @@ RenderOverlayPanel::RadianceScalingRows RenderOverlayPanel::buildRadianceScaling
     rows.enhancement->setSingleStep(0.05);
     rows.enhancement->setDecimals(2);
     rows.enhancement->setValue(m_meshSettings.fillPlain.rsEnhancement);
-    form->addRow(tr("Enhancement"), rows.enhancement);
-    rows.invert = new QCheckBox(page);
-    rows.invert->setChecked(m_meshSettings.fillPlain.rsInvert);
-    form->addRow(tr("Invert"), makeCenteredFieldContainer(rows.invert, page));
+    form->addRow(tr("RS Enhancement"), rows.enhancement);
+    rows.resolutionBias = new QDoubleSpinBox(page);
+    rows.resolutionBias->setRange(0.0, 1.0);
+    rows.resolutionBias->setSingleStep(0.1);
+    rows.resolutionBias->setDecimals(2);
+    rows.resolutionBias->setValue(m_meshSettings.fillPlain.rsResolutionBias);
+    rows.resolutionBias->setToolTip(
+        tr("The curvature is measured in screen pixels, so the same surface is enhanced less in a "
+           "bigger view or a higher-resolution capture. 0 leaves that as it is; 1 compensates for "
+           "it fully, so the strength is the same whatever the resolution (as in a view 1000 "
+           "pixels high)."));
+    form->addRow(tr("RS Resolution Bias"), rows.resolutionBias);
     return rows;
 }
 
@@ -2576,12 +2585,12 @@ void RenderOverlayPanel::syncRadianceScalingRows()
             continue;
         const QSignalBlocker b1(rs.enable);
         const QSignalBlocker b2(rs.enhancement);
-        const QSignalBlocker b3(rs.invert);
+        const QSignalBlocker b3(rs.resolutionBias);
         rs.enable->setChecked(plain.radianceScaling);
         rs.enhancement->setValue(plain.rsEnhancement);
-        rs.invert->setChecked(plain.rsInvert);
+        rs.resolutionBias->setValue(plain.rsResolutionBias);
+        rs.resolutionBias->setEnabled(plain.radianceScaling);
         rs.enhancement->setEnabled(plain.radianceScaling);
-        rs.invert->setEnabled(plain.radianceScaling);
     }
 }
 

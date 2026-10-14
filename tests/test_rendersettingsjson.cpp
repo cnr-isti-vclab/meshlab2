@@ -245,11 +245,11 @@ void RenderSettingsJsonTests::radianceScalingIsAnOptionOfThePlainMaterial()
     PerMeshRenderSettings settings;
     settings.fillPlain.radianceScaling = true;
     settings.fillPlain.rsEnhancement = 0.8f;
-    settings.fillPlain.rsInvert = true;
+    settings.fillPlain.rsResolutionBias = 0.6f;
     const QJsonObject json = perMeshSettingsToJson(settings, nullptr);
     const QJsonObject plain = json.value(QStringLiteral("fill_plain")).toObject();
     QVERIFY(plain.value(QStringLiteral("radiance_scaling")).toBool());
-    QVERIFY(plain.value(QStringLiteral("rs_invert")).toBool());
+    QVERIFY(plain.contains(QStringLiteral("rs_resolution_bias")));
     PerMeshRenderSettings back;
     QVERIFY(parsePerMeshSettings(json, back, nullptr));
     QCOMPARE(back, settings);

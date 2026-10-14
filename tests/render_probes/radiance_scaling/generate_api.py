@@ -27,14 +27,15 @@ BARE = {"show_trackball_gizmo": False, "show_axis_gizmo": False, "show_view_came
 W = H = 360
 
 
-def render(ms, plain, material=0, trackball=None):
+def render(ms, plain, material=0, trackball=None, size=None):
     """One render of every layer of `ms` with the given fill_plain settings (a dict)."""
     modes = [{"mesh_id": str(ms.mesh_id(i)),
               "settings": {"show_wire": False, "fill_material": material, "fill_plain": plain}}
              for i in range(ms.mesh_number())]
     tb = trackball or {"center": [0, 0, 0], "radius": 0.5, "distance": 1.8, "fov_y_degrees": 40.0}
     state = {"trackball": tb, "render_settings": BARE, "mesh_render_modes": modes}
-    return bytes(ms.render_snapshot(json.dumps(state), W, H))
+    w, h = size or (W, H)
+    return bytes(ms.render_snapshot(json.dumps(state), w, h))
 
 
 def lit(buf):
@@ -65,9 +66,6 @@ check("the mesh is on screen", len(lit(off)) > 5000)
 check("radiance scaling changes the lighting", changed(off, on) > 2000)
 check("and only where there is mesh", changed(off, on) <= len(lit(off)) + len(lit(on)))
 
-# Invert is a sign: it changes the picture, and not into the same one as no scaling.
-inv = render(ms, {"radiance_scaling": True, "rs_enhancement": 0.5, "rs_invert": True})
-check("invert gives a different picture from both", changed(on, inv) > 2000 and changed(off, inv) > 2000)
 check("a zero gain is no scaling at all",
       changed(off, render(ms, {"radiance_scaling": True, "rs_enhancement": 0.0}), 3) < 300)
 
@@ -135,8 +133,6 @@ pts_on = render_points(ms, RS)
 print("  point cloud: %d pixels lit, %d changed by radiance scaling\n" % (len(lit(pts_off)), changed(pts_off, pts_on)))
 check("the points are on screen", len(lit(pts_off)) > 2000)
 check("radiance scaling changes the lighting of the points", changed(pts_off, pts_on) > 500)
-check("invert changes it the other way", changed(pts_on, render_points(
-    ms, {"radiance_scaling": True, "rs_enhancement": 0.5, "rs_invert": True})) > 500)
 check("a zero gain leaves the points alone", changed(pts_off, render_points(
     ms, {"radiance_scaling": True, "rs_enhancement": 0.0}), 3) < 100)
 # It does not depend on the lighting of the points: the scaling needs a normal, not a light.
@@ -147,6 +143,28 @@ check("with the lighting of the points off the curvature is still scaled",
 # switch that matters.
 check("the points are scaled under a PBR fill too",
       changed(render_points(ms, {}, material=1), render_points(ms, RS, material=1)) > 500)
+
+# The curvature is measured in pixels, so the same view is enhanced less when rendered bigger. The resolution
+# bias undoes that: 0 leaves it, 1 makes the strength the same whatever the size (relative to 1000 px high).
+def strength(ms, size, bias):
+    """The mean change of the lit pixels when radiance scaling is on, at a snapshot size."""
+    off = render(ms, {}, size=size)
+    on = render(ms, {"radiance_scaling": True, "rs_enhancement": 0.5, "rs_resolution_bias": bias}, size=size)
+    px = lit(off)
+    return sum(abs(on[i] - off[i]) + abs(on[i + 1] - off[i + 1]) + abs(on[i + 2] - off[i + 2])
+               for i in px) / float(max(1, len(px)))
+
+
+ms.clear()
+ms.load_new_mesh(find_fixture("gargoyle_small/gargoyle.ply"))
+ms.apply_filter("normalize_reference_frame")
+small, big = (240, 240), (720, 720)
+s0 = (strength(ms, small, 0.0), strength(ms, big, 0.0))
+s1 = (strength(ms, small, 1.0), strength(ms, big, 1.0))
+print("  mean change at 240 / 720 px: bias 0: %.2f / %.2f   bias 1: %.2f / %.2f\n" % (s0 + s1))
+check("without bias a bigger view is enhanced less", s0[1] < 0.8 * s0[0])
+check("with bias 1 the two sizes are closer to each other",
+      abs(s1[0] - s1[1]) < 0.6 * abs(s0[0] - s0[1]))
 
 # The refusal of the old spelling.
 refused = False

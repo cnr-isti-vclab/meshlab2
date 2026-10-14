@@ -185,7 +185,7 @@ private:
     struct RadianceScalingRows {
         QCheckBox *enable = nullptr;
         QDoubleSpinBox *enhancement = nullptr;
-        QCheckBox *invert = nullptr;
+        QDoubleSpinBox *resolutionBias = nullptr;
     };
     RadianceScalingRows m_fillRs;
     RadianceScalingRows m_pointRs;

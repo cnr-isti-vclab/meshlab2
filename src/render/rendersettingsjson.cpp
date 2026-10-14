@@ -295,7 +295,7 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("texture_index", textureIndex) \
     F("radiance_scaling", radianceScaling) \
     F("rs_enhancement", rsEnhancement) \
-    F("rs_invert", rsInvert)
+    F("rs_resolution_bias", rsResolutionBias)
 
 // PbrFillParams
 #define MESHLAB2_FILL_PBR_FIELDS(F) \

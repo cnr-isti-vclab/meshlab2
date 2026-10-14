@@ -114,7 +114,7 @@ public:
         if (!gradientTexture)
             settings.fillPlain.radianceScaling = false;
         MainUbufMaterialOverrides overrides {
-            gradientTexture ? radianceScalingGain(settings)
+            gradientTexture ? radianceScalingGain(settings, frame.pixelSize)
                             : settings.fillPbr.normalScale * batch.normalScale,
             1.0f,
             1.0f };

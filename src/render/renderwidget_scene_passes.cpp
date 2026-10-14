@@ -21,7 +21,7 @@ void RenderWidget::drawSceneBufferItem(
     // The gain of radiance scaling travels in the slot of the normal scale, as for the fill.
     MainUbufMaterialOverrides overrides;
     if (usesRadianceScaling(settings))
-        overrides.normalScale = radianceScalingGain(settings);
+        overrides.normalScale = radianceScalingGain(settings, plan.pixelSize);
     uploadMainUbufForMesh(
         cb,
         item.meshIndex,

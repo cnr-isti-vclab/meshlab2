@@ -96,11 +96,14 @@ struct PlainFillParams {
     int             textureIndex = -1;
     // Radiance scaling (Vergne et al., I3D 2010): the lighting is scaled by a function of the
     // surface's curvature in screen space, so convexities brighten and concavities darken. It
-    // enhances shape whatever the colour source. `rsEnhancement` is the gain of the curvature and
-    // `rsInvert` swaps which way it works.
+    // enhances shape whatever the colour source. `rsEnhancement` is the gain of the curvature.
+    // The curvature is measured in pixels, so the same
+    // surface is enhanced less on a bigger render target; `rsResolutionBias` is how much of that is
+    // undone: 0 leaves it (the effect is crisper the smaller the object is on screen), 1 makes the
+    // strength the same whatever the resolution, relative to a view 1000 pixels high.
     bool            radianceScaling = false;
     float           rsEnhancement = 0.5f;
-    bool            rsInvert = false;
+    float           rsResolutionBias = 0.0f;
 
     // Defined in rendersettingsjson.cpp, generated from the same field list as the
     // JSON conversions so the two cannot drift apart.
