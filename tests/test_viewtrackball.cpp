@@ -3,6 +3,7 @@
 #include "viewtrackball.h"
 
 #include <QJsonObject>
+#include <QMouseEvent>
 #include <QWheelEvent>
 
 #include <cmath>
@@ -33,6 +34,8 @@ private slots:
     void theOrdinaryWheelStillZoomsInOrthographic();
     void theProjectionSurvivesStateRoundTripAndJson();
     void aBadProjectionNamesTheKey();
+    void shiftDragRollsTheViewAboutItsOwnAxis();
+    void rollingNearTheCentreDoesNothing();
 };
 
 namespace {
@@ -377,6 +380,59 @@ void ViewTrackballTests::aBadProjectionNamesTheKey()
     QVERIFY2(error.contains(QStringLiteral("projection")), qPrintable(error));
     QVERIFY(!ViewTrackball::stateFromJson(
         QJsonObject{ { QStringLiteral("projection"), 3 } }, parsed, &error));
+}
+
+namespace {
+
+QMouseEvent mouseEvent(QEvent::Type type, const QPointF &pos, Qt::MouseButtons buttons, Qt::KeyboardModifiers mods)
+{
+    return QMouseEvent(
+        type, pos, pos, Qt::LeftButton, type == QEvent::MouseButtonRelease ? Qt::NoButton : buttons, mods);
+}
+
+} // namespace
+
+void ViewTrackballTests::shiftDragRollsTheViewAboutItsOwnAxis()
+{
+    ViewTrackball tb = makeTrackball(Projection::Perspective);
+    const QVector3D look = tb.cameraViewDirection();
+    const QVector3D oldRight = tb.cameraRight();
+    const QVector3D oldUp = tb.cameraUp();
+    const QVector3D centre = tb.state().center;
+    const QSize size(400, 400);
+
+    // From the right of the centre, round to above it: a quarter turn counter-clockwise on screen.
+    const QPointF c(200.0, 200.0);
+    const QMouseEvent press = mouseEvent(QEvent::MouseButtonPress, c + QPointF(100, 0), Qt::LeftButton, Qt::ShiftModifier);
+    tb.mousePress(&press, size);
+    // In steps, as a real drag would be, through 45 degrees.
+    for (int i = 1; i <= 2; ++i) {
+        const double a = qDegreesToRadians(45.0 * i);
+        const QMouseEvent move = mouseEvent(
+            QEvent::MouseMove, c + QPointF(100.0 * std::cos(a), -100.0 * std::sin(a)), Qt::LeftButton, Qt::ShiftModifier);
+        QVERIFY(tb.mouseMove(&move, size));
+    }
+    const QMouseEvent release = mouseEvent(QEvent::MouseButtonRelease, c + QPointF(0, -100), Qt::LeftButton, Qt::ShiftModifier);
+    tb.mouseRelease(&release);
+
+    // The camera looks the same way from the same place; what was at the right of the screen is now above.
+    QVERIFY((tb.cameraViewDirection() - look).length() < 1e-4f);
+    QVERIFY((tb.state().center - centre).length() < 1e-6f);
+    QVERIFY((tb.cameraUp() - oldRight).length() < 1e-4f);
+    QVERIFY((tb.cameraRight() + oldUp).length() < 1e-4f);
+}
+
+void ViewTrackballTests::rollingNearTheCentreDoesNothing()
+{
+    ViewTrackball tb = makeTrackball(Projection::Perspective);
+    const QVector3D up = tb.cameraUp();
+    const QSize size(400, 400);
+    const QPointF c(200.0, 200.0);
+    const QMouseEvent press = mouseEvent(QEvent::MouseButtonPress, c + QPointF(20, 0), Qt::LeftButton, Qt::ShiftModifier);
+    tb.mousePress(&press, size);
+    const QMouseEvent move = mouseEvent(QEvent::MouseMove, c + QPointF(0, -20), Qt::LeftButton, Qt::ShiftModifier);
+    QVERIFY(!tb.mouseMove(&move, size));
+    QVERIFY((tb.cameraUp() - up).length() < 1e-6f);
 }
 
 QTEST_APPLESS_MAIN(ViewTrackballTests)

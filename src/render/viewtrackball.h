@@ -158,6 +158,9 @@ private:
     enum class NavigationMode {
         None,
         Rotate,
+        // Shift+left: turn the view about its own axis, by the angle the cursor sweeps about the
+        // centre of the viewport.
+        Roll,
         Pan
     };
 

@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cmath>
 #include <limits>
 
 namespace {
@@ -306,6 +307,10 @@ void ViewTrackball::mousePress(const QMouseEvent *e, const QSize &viewportSize)
         m_navigationMode = NavigationMode::Pan;
         m_dragStartHitValid = false;
         m_dragLastAxisValid = false;
+    } else if (e->button() == Qt::LeftButton && (e->modifiers() & Qt::ShiftModifier)) {
+        m_navigationMode = NavigationMode::Roll;
+        m_dragStartHitValid = false;
+        m_dragLastAxisValid = false;
     } else if (e->button() == Qt::LeftButton) {
         m_navigationMode = NavigationMode::Rotate;
         m_dragStartRotation = m_rotation;
@@ -332,7 +337,29 @@ bool ViewTrackball::mouseMove(const QMouseEvent *e, const QSize &viewportSize)
 {
     const QPointF currentPos = e->position();
     const QPointF delta = currentPos - m_lastMousePos;
+    const QPointF previousPos = m_lastMousePos;
     m_lastMousePos = currentPos;
+
+    if (m_navigationMode == NavigationMode::Roll && (e->buttons() & Qt::LeftButton)) {
+        // The scene follows the cursor as it goes round the centre of the viewport, counter-clockwise
+        // on screen for a positive angle (the screen's y runs down). A rotation about the view's own
+        // axis (+z in view space, towards the viewer) composes on the left of the camera rotation.
+        // Close to the centre the angle is all noise, so nothing turns there.
+        const QPointF centre(0.5 * viewportSize.width(), 0.5 * viewportSize.height());
+        const QPointF from = previousPos - centre;
+        const QPointF to = currentPos - centre;
+        constexpr double kMinRadiusPx = 32.0;
+        if (std::hypot(from.x(), from.y()) < kMinRadiusPx
+            || std::hypot(to.x(), to.y()) < kMinRadiusPx)
+            return false;
+        const double angle = std::atan2(-to.y(), to.x()) - std::atan2(-from.y(), from.x());
+        // atan2 wraps at +-pi, which the cursor crossing the negative x axis would show as a jump.
+        const double wrapped = std::remainder(angle, 2.0 * M_PI);
+        m_rotation = (QQuaternion::fromAxisAndAngle(
+                          QVector3D(0.0f, 0.0f, 1.0f), float(qRadiansToDegrees(wrapped)))
+                      * m_rotation).normalized();
+        return true;
+    }
 
     if (m_navigationMode == NavigationMode::Rotate && (e->buttons() & Qt::LeftButton)) {
         QVector3D hitNew;
