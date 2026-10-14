@@ -847,6 +847,15 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillMaterialCombo->addItem(tr("Plain"), static_cast<int>(FillMaterial::Plain));
     m_fillMaterialCombo->addItem(tr("PBR"), static_cast<int>(FillMaterial::Pbr));
     fillForm->addRow(tr("Material"), m_fillMaterialCombo);
+    m_fillBackLightingCombo = new QComboBox(fillPage);
+    m_fillBackLightingCombo->addItem(tr("Single"), static_cast<int>(FillBackLighting::Single));
+    m_fillBackLightingCombo->addItem(tr("Double"), static_cast<int>(FillBackLighting::Double));
+    m_fillBackLightingCombo->addItem(tr("Fancy"), static_cast<int>(FillBackLighting::Fancy));
+    m_fillBackLightingCombo->setToolTip(
+        tr("How the back of a surface is lit. Single: only by the light, so what faces away from "
+           "it is dark. Double: by the light and one opposite to it. Fancy: the same in two tones, "
+           "bluish and pinkish, so the side a surface shows can be read from its colour."));
+    fillForm->addRow(tr("Back lighting"), m_fillBackLightingCombo);
     m_fillColorButton = makeColorButton(fillPage);
     m_fillColorSourceCombo = new QComboBox(fillPage);
     m_fillColorSourceCombo->addItem(tr("Constant"), static_cast<int>(FillColorSource::Constant));
@@ -1644,6 +1653,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         emit meshSettingsChanged(m_meshSettings);
     });
     bindMeshCheckBox(m_fillBackfaceCullingCheck, &PerMeshRenderSettings::fillBackfaceCulling);
+    bindMeshEnumCombo(m_fillBackLightingCombo, &PerMeshRenderSettings::fillBackLighting);
     bindMeshCheckBox(m_fillLightingCheck, &PerMeshRenderSettings::fillLighting);
     connect(m_fillPlainTextureCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int idx) {
         if (!m_fillPlainTextureCombo) return;

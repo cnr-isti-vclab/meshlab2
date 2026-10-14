@@ -154,6 +154,26 @@ Tested by the render probe `tests/render_probes/radiance_scaling` (the option ch
 nothing at zero gain, keeps the colour proportions of vertex colours, works with flat shading and with point
 clouds, survives the buffer being replaced under 81 layers, and the refusal) and by `RenderSettingsJsonTests`.
 
+## Back lighting
+
+`PerMeshRenderSettings::fillBackLighting` (`Single`, `Double`, `Fancy`; JSON `fill_back_lighting`; *Back lighting*
+in the Fill settings, for both materials) is how the old MeshLab's Single / Double / Fancy back-face modes come over.
+They were two fixed-function lights, the light and one opposite to it; here the fill shaders do the same with the
+diffuse term, through `shaders/two_sided_lighting.glsl` (`sidedDiffuse`, shared by `fill_smooth.frag` and
+`fill_flat.frag`):
+
+- **Single** -- `max(N.L, 0)`: a surface turned away from the light gets the ambient and nothing else.
+- **Double** -- `abs(N.L)`: the opposite light is the same as the first, so a surface is lit from whichever side it faces.
+- **Fancy** -- as Double, with the diffuse part tinted bluish (`0.8, 0.8, 1.0`) where the light reaches the surface and
+  pinkish (`1.0, 0.8, 0.8`) where only the opposite one does; the old defaults for its two diffuse colours. Together with
+  the lighting of the back it makes the side of a surface readable from its colour.
+
+"Back" is relative to the **light**, not the viewer, as it was in the old MeshLab, so the tints follow the light when it
+is moved; the ambient stays white and the specular term is left as it was. It reaches the shader in
+`lightingParams.w`, which is 0 with the fill lighting off and `1 + mode` otherwise. The tints are constants of the
+shader (the old MeshLab had them as application settings). Backface *culling* is a separate switch.
+Tested by the render probe `tests/render_probes/back_lighting`.
+
 ## Reference grid
 
 `GlobalRenderSettings::referenceGrid` (`None`, `XY`, `XZ`; JSON `reference_grid`; *Reference grid* in the

@@ -101,6 +101,7 @@ vec3 towardsEye(vec3 viewPos)
 }
 
 #include "radiance_scaling.glsl"
+#include "two_sided_lighting.glsl"
 
 void main()
 {
@@ -142,7 +143,8 @@ void main()
         vec3 L = normalize(ub.lightDir.xyz);
         vec3 V = towardsEye(v_viewPos);
         vec3 H = normalize(L + V);
-        float diff = max(dot(N, L), 0.0);
+        vec3 sideTint;
+        float diff = sidedDiffuse(dot(N, L), sideTint);
 
         float roughness = (roughnessMode == 0) ? 1.0 : max(0.02, ub.materialParams.z);
         if (hasUv && roughnessMode == 2) {
@@ -167,9 +169,10 @@ void main()
         // The lighting before the albedo: what radiance scaling scales, so that the colour source
         // stays out of it. The specular term is added unscaled.
         float shade = ambient + (1.0 - kAmbient) * diff;
-        if (rsEnabled)
-            shade *= rsWarp(shade, rsCurvature());
-        color = baseColor * shade + vec3(spec * specStrength);
+        float scaling = rsEnabled ? rsWarp(shade, rsCurvature()) : 1.0;
+        // The colour of the light is the diffuse part's; the ambient stays white.
+        vec3 lit = vec3(ambient) + ((1.0 - kAmbient) * diff) * sideTint;
+        color = baseColor * (lit * scaling) + vec3(spec * specStrength);
     } else if (rsEnabled) {
         // No lighting to scale: a constant value of one leaves the curvature alone, which is
         // curvature shading.

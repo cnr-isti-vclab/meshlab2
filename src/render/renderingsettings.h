@@ -28,6 +28,15 @@ enum class FillShading {
     Flat
 };
 
+// How the back of a surface is lit. Single: only by the light, so what faces away from it is
+// dark. Double: by the light and one opposite to it. Fancy: the same, in two tones (bluish and
+// pinkish), so the side a surface shows can be read from its colour.
+enum class FillBackLighting {
+    Single = 0,
+    Double,
+    Fancy
+};
+
 enum class FillColorSource {
     Constant = 0,
     PerVertex,
@@ -226,6 +235,7 @@ struct PerMeshRenderSettings {
     bool wireRespectFaux = true;
     bool fillLighting = true;
     bool fillBackfaceCulling = false;
+    FillBackLighting fillBackLighting = FillBackLighting::Single;
     FillMaterial fillMaterial = FillMaterial::Plain;
     PbrFillParams fillPbr;
     PlainFillParams fillPlain;

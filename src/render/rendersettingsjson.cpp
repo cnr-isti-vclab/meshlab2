@@ -264,6 +264,7 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("wire_respect_faux", wireRespectFaux) \
     F("fill_lighting", fillLighting) \
     F("fill_backface_culling", fillBackfaceCulling) \
+    F("fill_back_lighting", fillBackLighting) \
     F("fill_material", fillMaterial) \
     F("point_color_source", pointColorSource) \
     F("edge_color_source", edgeColorSource) \

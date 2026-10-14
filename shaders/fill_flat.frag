@@ -98,7 +98,21 @@ vec3 towardsEye(vec3 viewPos)
     return (ub.lightDir.w > 0.5 || len < 1e-6) ? vec3(0.0, 0.0, 1.0) : -viewPos / len;
 }
 
+// The face's normal. The derivatives of the view position give one that always faces the viewer,
+// whichever way the triangle is wound, so it is turned to the side the triangle shows
+// (gl_FrontFacing): the front of a surface then has its normal towards the viewer and the back away
+// from it, as with smooth shading. Without that the back would be lit like a front, and the lighting
+// of the back (Single / Double / Fancy) would have nothing to tell them apart.
+vec3 faceNormal()
+{
+    vec3 n = normalize(cross(dFdy(vViewPos), dFdx(vViewPos)));
+    if (dot(n, towardsEye(vViewPos)) < 0.0)
+        n = -n;
+    return gl_FrontFacing ? n : -n;
+}
+
 #include "radiance_scaling.glsl"
+#include "two_sided_lighting.glsl"
 
 void main()
 {
@@ -130,7 +144,7 @@ void main()
 
     vec3 color = baseColor;
     if (ub.lightingParams.w > 0.5) {
-        vec3 N = normalize(cross(dFdy(vViewPos), dFdx(vViewPos)));
+        vec3 N = faceNormal();
         if (hasUv && normalMode == 2)
             N = applyTangentSpaceNormalMap(N, uv);
         else if (hasUv && normalMode == 3)
@@ -139,7 +153,8 @@ void main()
         vec3 L = normalize(ub.lightDir.xyz);
         vec3 V = towardsEye(vViewPos);
         vec3 H = normalize(L + V);
-        float diff = max(dot(N, L), 0.0);
+        vec3 sideTint;
+        float diff = sidedDiffuse(dot(N, L), sideTint);
 
         float roughness = (roughnessMode == 0) ? 1.0 : max(0.02, ub.materialParams.z);
         if (hasUv && roughnessMode == 2) {
@@ -164,9 +179,10 @@ void main()
         // The lighting before the albedo: what radiance scaling scales, so that the colour source
         // stays out of it. The specular term is added unscaled.
         float shade = ambient + (1.0 - kAmbient) * diff;
-        if (rsEnabled)
-            shade *= rsWarp(shade, rsCurvature());
-        color = baseColor * shade + vec3(spec * specStrength);
+        float scaling = rsEnabled ? rsWarp(shade, rsCurvature()) : 1.0;
+        // The colour of the light is the diffuse part's; the ambient stays white.
+        vec3 lit = vec3(ambient) + ((1.0 - kAmbient) * diff) * sideTint;
+        color = baseColor * (lit * scaling) + vec3(spec * specStrength);
     } else if (rsEnabled) {
         // No lighting to scale: a constant value of one leaves the curvature alone, which is
         // curvature shading.

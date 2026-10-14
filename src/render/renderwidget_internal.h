@@ -8,6 +8,7 @@
 #include <QRect>
 #include <QSize>
 #include <QtGlobal>
+#include <algorithm>
 #include <QVector2D>
 #include <QVector3D>
 #include <QVector4D>
@@ -168,6 +169,7 @@ struct MainStyleUbufKey {
     bool pointLighting = false;
     bool wireLighting = false;
     bool fillLighting = false;
+    FillBackLighting fillBackLighting = FillBackLighting::Single;
     FillMaterial fillMaterial = FillMaterial::Plain;
     PbrFillParams fillPbr;
     PlainFillParams fillPlain;
@@ -185,6 +187,7 @@ struct MainStyleUbufKey {
             && pointLighting == other.pointLighting
             && wireLighting == other.wireLighting
             && fillLighting == other.fillLighting
+            && fillBackLighting == other.fillBackLighting
             && fillMaterial == other.fillMaterial
             && fillPbr == other.fillPbr
             && fillPlain == other.fillPlain
@@ -214,6 +217,7 @@ inline MainStyleUbufKey mainStyleUbufKeyFromSettings(
     key.pointLighting = includeLighting ? settings.pointLighting : false;
     key.wireLighting = includeLighting ? settings.wireLighting : false;
     key.fillLighting = includeLighting ? settings.fillLighting : false;
+    key.fillBackLighting = settings.fillBackLighting;
     key.fillMaterial = settings.fillMaterial;
     key.fillPbr = settings.fillPbr;
     key.fillPlain = settings.fillPlain;
@@ -333,7 +337,10 @@ inline void writeMainStyleToUbuf(
         static_cast<float>(static_cast<int>(settings.edgeColorSource));
     ubufData[kUbufLightingParamsOffset + 1] = (enableLighting && settings.pointLighting) ? 1.0f : 0.0f;
     ubufData[kUbufLightingParamsOffset + 2] = (enableLighting && settings.wireLighting) ? 1.0f : 0.0f;
-    ubufData[kUbufLightingParamsOffset + 3] = (enableLighting && settings.fillLighting) ? 1.0f : 0.0f;
+    // 0 off, otherwise 1 + how the back of a surface is lit (FillBackLighting), see two_sided_lighting.glsl.
+    ubufData[kUbufLightingParamsOffset + 3] = (enableLighting && settings.fillLighting)
+        ? 1.0f + float(std::clamp(int(settings.fillBackLighting), 0, int(FillBackLighting::Fancy)))
+        : 0.0f;
 
     ubufData[kUbufEdgeColorOffset + 0] = settings.edgeColor.redF();
     ubufData[kUbufEdgeColorOffset + 1] = settings.edgeColor.greenF();
