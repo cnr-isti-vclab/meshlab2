@@ -181,7 +181,7 @@ One instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds:
 - pass toggles: `showFill`, `showWire`, `showEdges`, `showPoints`, `showBoundingBox`, `showSelection`, `showSelectionFaces`, `showSelectionVertices`
 - decorator toggles: `decoratorVertexNormals`, `decoratorFaceNormals`, `decoratorBoundaryEdges`, `decoratorTextureSeams`, `decoratorNonManifoldEdges`, `decoratorNonManifoldVertices`, `decoratorCurvatureDir`
 - lighting/culling flags: `fillLighting`, `fillBackfaceCulling`, `wireLighting`, `wireBackfaceCulling`, `wireRespectFaux`, `pointLighting`
-- fill material: `fillMaterial` (`Plain` / `Pbr`) + sub-structs `fillPlain` (`PlainFillParams`, including the radiance-scaling option: `radianceScaling`, `rsEnhancement`, `rsInvert`) and `fillPbr` (`PbrFillParams`, including PBR texture sources, normal-map space, normal scale, AO strength, roughness factor)
+- fill material: `fillMaterial` (`Plain` / `Pbr`) + sub-structs `fillPlain` (`PlainFillParams`, including the radiance-scaling option: `radianceScaling`, `rsEnhancement`, `rsResolutionBias`) and `fillPbr` (`PbrFillParams`, including PBR texture sources, normal-map space, normal scale, AO strength, roughness factor)
 - colors and sizes: `fillColor`, `wireColor`/`wireSize`, `edgeColor`/`edgeSize`, `pointColor`/`pointSize`, `bboxWireColor`, decorator colors, `decoratorBoundaryWidth`
 - `pointColorSource`: `Constant` / `PerVertex` / `PerVertexQuality`
 - `edgeColorSource`: `Constant` / `PerVertex` / `PerEdge`; this applies to explicit mesh edges, not triangle wireframe or topology decorators

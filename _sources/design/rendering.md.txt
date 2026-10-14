@@ -102,8 +102,8 @@ Default explicit-edge color source preference: per-edge → per-vertex → const
 ## Radiance scaling
 
 Radiance scaling (Vergne, Pacanowski, Barla, Granier, *Radiance Scaling for Versatile Surface Enhancement*,
-I3D 2010) is an **option of the plain fill material** (`fillPlain.radianceScaling`, with `rsEnhancement` and
-`rsInvert`), not a material of its own. It used to be a third material, with a shader that replaced the
+I3D 2010) is an **option of the plain fill material** (`fillPlain.radianceScaling`, with `rsEnhancement`
+and `rsResolutionBias`), not a material of its own. It used to be a third material, with a shader that replaced the
 lighting by a diffuse-only one and had its own copy of the colour logic; a render state that still says
 `fill_material: 2` or has a `fill_rs` block is refused (`parsePerMeshSettings`), with a message saying where it
 went.
@@ -114,7 +114,8 @@ went.
 the brighter values on convexities and darkens them on concavities, and the other way round below alpha. The
 colour source is out of it, so a texture, per-vertex colours or a scalar map keep their hues, and the
 specular term is added unscaled. With the lighting off `shade` is one, which is the curvature shading the paper
-notes. `rsInvert` is the sign of the gain, which the curvature signal is odd in. PBR does not have the option.
+notes. PBR does not have the option. (There was an invert switch, the sign of the gain, which the curvature signal is odd in;
+it was dropped as of little use.)
 
 **Where the curvature comes from.** A **pre-pass** (`RenderWidget::renderRadianceScalingPrepass`,
 `fill_radscale_buf.frag` for surfaces and `points_radscale_buf.frag` for points)
@@ -143,6 +144,15 @@ view does not draw the buffer and so draws its points without the option.
 **The curvature is measured in pixels, on purpose.** It makes the enhancement crisper the smaller the object is on
 screen, which is a feature of the technique; there is no world-space normalization. The strength therefore also
 depends on the zoom and on the size of the render target, a snapshot of another size included.
+
+`rsResolutionBias` (JSON `rs_resolution_bias`, *Resolution bias* next to the other radiance-scaling controls) lets the
+user trade some of that away. The Hessian of a gradient buffer measured per pixel shrinks in proportion to the view's
+height, so a snapshot twice as big reads half as curved. The bias multiplies the gain by
+`(viewHeight / 1000) ^ bias` (`radianceScalingGain`, on the CPU, against the height of the tile being drawn): 0, the
+default, leaves the pixel-space behaviour as it is, 1 makes the strength about the same at any resolution, and
+between is a blend. The reference of 1000 pixels is where the bias changes nothing. The probe measures that the
+strength at 240 and 720 pixels is much closer with the bias at 1 than at 0 (not equal: the signal goes through `tanh`
+and the display clamps).
 
 **Bindings.** The pass binds the main uniform buffer through its own shader-resource bindings, with a dynamic
 offset like every other binding of that buffer. The buffer is replaced when it has to grow (its capacity follows the
