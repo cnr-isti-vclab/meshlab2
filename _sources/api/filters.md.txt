@@ -1062,7 +1062,7 @@ Fits a plane to the neighbourhood of each point and takes its normal, through th
 
 - **searchMode** (*enum*, default: `knn`) — How the neighbourhood of each point is chosen.
 - **neighbourCount** (*int*, default: `30`) — How many nearest neighbours to fit the plane over. Ignored in Radius mode.
-- **searchRadius** (*double*, default: `0.0`) — Neighbourhood radius for the Radius and Hybrid modes. Distances are in the layer's own units, not a fraction of its size: a value that suits a scan in millimetres will not suit the same scan in metres. Zero means derive it from the layer's bounding box diagonal.
+- **searchRadius** (*absperc*, default: `@bboxDiag002`) — Neighbourhood radius for the Radius and Hybrid modes, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal.
 - **orientConsistently** (*bool*, default: `False`) — Propagate a consistent sign across the cloud with a minimum spanning tree over the tangent planes. Costs more time, and is what Ball Pivoting needs.
 - **fastNormalComputation** (*bool*, default: `True`) — Use Open3D's faster eigenvector approximation rather than a full eigen decomposition. Turn it off if the normals look unstable in near-planar regions.
 ```
@@ -3793,7 +3793,7 @@ Normals and colors are averaged along with the positions when the input carries 
 
 **Parameters:**
 
-- **voxelSize** (*double*, default: `0.0`) — Edge length of the grid cells. Larger values keep fewer points. Distances are in the layer's own units, not a fraction of its size: a value that suits a scan in millimetres will not suit the same scan in metres. Zero means derive it from the layer's bounding box diagonal.
+- **voxelSize** (*absperc*, default: `@bboxDiag0005`) — Edge length of the cubic grid cells, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal. The layer is divided into cells of this size and each occupied cell becomes one point, at the average of the points inside it; their normals and colors are averaged too, and the normals renormalized. Larger cells keep fewer points.
 ```
 
 ---
@@ -4603,7 +4603,7 @@ The **current layer** is the one that moves, and the reference layer stays put. 
 **Parameters:**
 
 - **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer the current layer is moved onto. It stays put.
-- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Points further apart than this are never paired. It is in the layers' own units; zero derives it from the reference layer's bounding box diagonal.
+- **maxCorrespondenceDistance** (*absperc*, default: `@bboxDiag002`) — Points further apart than this are never paired, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal. Larger values tolerate a rougher starting alignment; too large lets distant surfaces pair with each other.
 - **maxIterations** (*int*, default: `30`) — Upper bound on ICP iterations; it stops earlier once fitness and RMSE settle.
 ```
 
@@ -4647,9 +4647,9 @@ The **current layer** is the one that moves, and the reference layer stays put. 
 **Parameters:**
 
 - **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer the current layer is moved onto. It stays put.
-- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Points further apart than this are never paired. It is in the layers' own units; zero derives it from the reference layer's bounding box diagonal.
-- **registrationVoxelSize** (*double*, default: `0.0`) — Both layers are reduced to roughly one point per voxel before matching. This is not an optimization but how the algorithm is meant to be used: cost grows with the point count on every RANSAC iteration, and the pose is unaffected by density. Zero derives it from the reference layer's bounding box diagonal.
-- **featureRadius** (*double*, default: `0.0`) — Neighbourhood radius each descriptor is computed over. Larger values describe more context and match more robustly, at more cost. Zero derives it from the reference layer's bounding box diagonal.
+- **maxCorrespondenceDistance** (*absperc*, default: `@bboxDiag002`) — A point within this distance of its match counts as matched: it decides which candidate poses are accepted and the fitness reported. In the layer's units, and also as a percentage of the current layer's bounding-box diagonal.
+- **registrationVoxelSize** (*absperc*, default: `@bboxDiag01`) — Edge length of the cubic grid cells, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal. Both layers are reduced to one point per occupied cell, at the average of its points, before descriptors are computed and matched; the pose found is applied to the full layers. Fine cells are slow and coarse ones lose the pose: on one pair of range maps 0.25% of the diagonal took 76 s, 1% took 0.15 s and 8% failed. The default keeps about 4,500 points of 80,000.
+- **featureRadius** (*absperc*, default: `@bboxDiag005`) — Radius of the neighbourhood each descriptor is computed over, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal. Larger values describe more context and match more robustly, at more cost. It is not tied to the matching voxel size: the defaults (5% and 1% of the diagonal) are the ones tested together, and scaling both with a larger voxel made matching worse at 2% and 4%.
 - **featureNeighbours** (*int*, default: `100`) — Upper bound on neighbours per descriptor, within the feature radius.
 - **fgrIterations** (*int*, default: `64`) — Annealing rounds. Each one lowers the scale parameter by the division factor.
 - **divisionFactor** (*double*, default: `1.4`) — How fast the scale parameter anneals. Larger values converge sooner and are less tolerant of wrong correspondences.
@@ -4702,9 +4702,9 @@ The **current layer** is the one that moves, and the reference layer stays put. 
 
 - **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer the current layer is moved onto. It stays put.
 - **useAllVisibleAsReference** (*bool*, default: `False`) — Take every other visible layer together as the reference instead of the one named above, which is then ignored. Their points are combined and downsampled internally. Use it when the current layer overlaps the scans already placed but not the one before it in the sequence.
-- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Points further apart than this are never paired. It is in the layers' own units; zero derives it from the reference layer's bounding box diagonal.
-- **registrationVoxelSize** (*double*, default: `0.0`) — Both layers are reduced to roughly one point per voxel before matching. This is not an optimization but how the algorithm is meant to be used: cost grows with the point count on every RANSAC iteration, and the pose is unaffected by density. Zero derives it from the reference layer's bounding box diagonal.
-- **featureRadius** (*double*, default: `0.0`) — Neighbourhood radius each descriptor is computed over. Larger values describe more context and match more robustly, at more cost. Zero derives it from the reference layer's bounding box diagonal.
+- **maxCorrespondenceDistance** (*absperc*, default: `@bboxDiag002`) — A point within this distance of its match counts as matched: it decides which candidate poses are accepted and the fitness reported. In the layer's units, and also as a percentage of the current layer's bounding-box diagonal.
+- **registrationVoxelSize** (*absperc*, default: `@bboxDiag01`) — Edge length of the cubic grid cells, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal. Both layers are reduced to one point per occupied cell, at the average of its points, before descriptors are computed and matched; the pose found is applied to the full layers. Fine cells are slow and coarse ones lose the pose: on one pair of range maps 0.25% of the diagonal took 76 s, 1% took 0.15 s and 8% failed. The default keeps about 4,500 points of 80,000.
+- **featureRadius** (*absperc*, default: `@bboxDiag005`) — Radius of the neighbourhood each descriptor is computed over, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal. Larger values describe more context and match more robustly, at more cost. It is not tied to the matching voxel size: the defaults (5% and 1% of the diagonal) are the ones tested together, and scaling both with a larger voxel made matching worse at 2% and 4%.
 - **featureNeighbours** (*int*, default: `100`) — Upper bound on neighbours per descriptor, within the feature radius.
 - **mutualFilter** (*bool*, default: `True`) — Keep only correspondences that are each other's best match in both directions. Fewer and better matches, which usually helps RANSAC rather than hindering it.
 - **ransacIterations** (*int*, default: `100000`) — Upper bound on RANSAC samples; it stops earlier once the confidence is reached.
@@ -4830,7 +4830,7 @@ The **current layer** is the one that moves, and the reference layer stays put. 
 **Parameters:**
 
 - **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer the current layer is moved onto. It stays put.
-- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Points further apart than this are never paired. It is in the layers' own units; zero derives it from the reference layer's bounding box diagonal.
+- **maxCorrespondenceDistance** (*absperc*, default: `@bboxDiag002`) — Points further apart than this are never paired, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal. Larger values tolerate a rougher starting alignment; too large lets distant surfaces pair with each other.
 - **maxIterations** (*int*, default: `30`) — Upper bound on ICP iterations; it stops earlier once fitness and RMSE settle.
 ```
 
@@ -4866,7 +4866,7 @@ The **current layer** is the one that moves, and the reference layer stays put. 
 **Parameters:**
 
 - **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer the current layer is moved onto. It stays put.
-- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Points further apart than this are never paired. It is in the layers' own units; zero derives it from the reference layer's bounding box diagonal.
+- **maxCorrespondenceDistance** (*absperc*, default: `@bboxDiag002`) — Points further apart than this are never paired, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal. Larger values tolerate a rougher starting alignment; too large lets distant surfaces pair with each other.
 - **maxIterations** (*int*, default: `30`) — Upper bound on ICP iterations; it stops earlier once fitness and RMSE settle.
 - **estimateScale** (*bool*, default: `False`) — Also solve for a uniform scale factor. Leave off unless the two layers genuinely differ in scale: a free scale can absorb a bad alignment and report a good fitness.
 ```
@@ -4917,8 +4917,8 @@ Cost grows with the number of pairs, which is quadratic in the layer count. With
 - **onlyVisibleLayers** (*bool*, default: `True`) — Align only the layers currently visible. Turn off to include hidden ones.
 - **pairInitialization** (*enum*, default: `currentPose`) — Where each pairwise registration starts from.
 - **candidatePairs** (*enum*, default: `overlapping`) — Which pairs of layers to attempt a registration between.
-- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Pairing distance for the pairwise registrations and for the line process. In the layers' own units; zero derives it from the first layer's bounding box diagonal.
-- **registrationVoxelSize** (*double*, default: `0.0`) — Layers are downsampled to roughly one point per voxel before pairing. Every pair costs time proportional to the point count. Zero derives it from the first layer's bounding box diagonal.
+- **maxCorrespondenceDistance** (*absperc*, default: `@bboxDiag003`) — Pairing distance for the pairwise registrations and for the line process, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal.
+- **registrationVoxelSize** (*absperc*, default: `@bboxDiag01`) — Edge length of the cubic grid cells, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal. Each layer is reduced to one point per occupied cell, at the average of its points, before pairing; the pairwise ICP and the pose graph run on those points. Every pair costs time proportional to the point count.
 - **minimumFitness** (*double*, default: `0.3`) — A pairwise registration below this fitness is discarded rather than added as an edge. Raising it admits fewer and better edges; too high and the graph stops being connected.
 - **maxIterations** (*int*, default: `30`) — Iteration cap for each pairwise registration.
 - **preferenceLoopClosure** (*double*, default: `2.0`) — How strongly the optimizer favours loop-closure edges over leaving poses where they are. Open3D recommends 2.0 for registering fragments and 0.1 for RGB-D odometry.
@@ -5010,7 +5010,7 @@ Layers listed *before* the reference are not part of the chain and are not touch
 - **referenceMesh** (*mesh*, default: `@currentMeshIndex`) — The first layer of the chain. It stays where it is, and each later layer in the layer list is aligned onto the one before it. Layers listed before it are not touched.
 - **onlyVisibleLayers** (*bool*, default: `True`) — Skip hidden layers. Turn off to include them in the chain.
 - **minimumFitness** (*double*, default: `0.5`) — A pair whose ICP fitness (the fraction of source points with a correspondence) falls below this stops the chain. Registered range maps reached 0.8 or more; a pair that did not register read 0.24. Lower it for scans with little overlap.
-- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Pairing distance for every pairwise registration. In the layers' own units; zero derives it from each reference layer's bounding box diagonal.
+- **maxCorrespondenceDistance** (*absperc*, default: `@bboxDiag002`) — Pairing distance for every pairwise registration and for the final optimization, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal. The same value is used for every pair.
 - **maxIterations** (*int*, default: `60`) — Iteration cap for the ICP refinement of each pair, and for the pairwise registrations of the final optimization.
 - **globalRefinement** (*bool*, default: `True`) — After the chain stops or finishes, optimize all the layers it placed together. Needs at least three aligned layers to have anything to distribute.
 - **randomSeed** (*int*, default: `0`) — Seed for the feature matching of every pair. Zero draws one fresh seed for the whole run and reports it, so the run can be replayed by pinning that value.
@@ -9807,7 +9807,7 @@ The points are **selected, not deleted** — inspect the selection and remove it
 **Parameters:**
 
 - **minimumNeighbours** (*int*, default: `16`) — A point with fewer neighbours than this inside the search radius is selected.
-- **searchRadius** (*double*, default: `0.0`) — Radius of the sphere searched around each point. Distances are in the layer's own units, not a fraction of its size: a value that suits a scan in millimetres will not suit the same scan in metres. Zero means derive it from the layer's bounding box diagonal.
+- **searchRadius** (*absperc*, default: `@bboxDiag002`) — Radius of the sphere searched around each point, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal.
 ```
 
 ---

@@ -301,10 +301,12 @@ became Rainbow.</p>
 </section>
 <section id="the-dialog">
 <h2>The dialog<a class="headerlink" href="#the-dialog" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">PreferencesDialog</span></code> turns on three <code class="docutils literal notranslate"><span class="pre">ParameterFormBuilder</span></code> options that the filter panel
-leaves off.</p>
-<p>With <strong>inline help</strong>, each row’s help is shown as text under it, in place of the tooltip
-it gets in the filter panel. <em>Show help</em> hides and shows it (<code class="docutils literal notranslate"><span class="pre">setInlineHelpVisible</span></code>). The
+<p><code class="docutils literal notranslate"><span class="pre">PreferencesDialog</span></code> turns on three <code class="docutils literal notranslate"><span class="pre">ParameterFormBuilder</span></code> options; the filter panel uses
+only the first of them.</p>
+<p>With <strong>inline help</strong>, each row’s help is shown as text under it, in place of its tooltip.
+<em>Show help</em> hides and shows it (<code class="docutils literal notranslate"><span class="pre">setInlineHelpVisible</span></code>); hidden, the help is the tooltip.
+The filter panel uses the same option, driven by its “?” button – see
+<a class="reference internal" href="architecture.html#meshfilterpanel"><span class="std std-ref">architecture.md</span></a>. The
 choice is kept in QSettings as <code class="docutils literal notranslate"><span class="pre">preferencesDialog/showHelp</span></code>, outside the <code class="docutils literal notranslate"><span class="pre">preferences</span></code>
 group: it is how the dialog looks, not a preference, so <em>Restore All Defaults</em> leaves it
 alone.</p>

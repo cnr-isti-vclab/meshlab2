@@ -1069,6 +1069,106 @@ white one, so <em>Align by Colored ICP</em> and its “needs color” refusal st
 tell a colored layer from an uncolored one. And because the loader computes smooth
 normals for any layer with faces, only point clouds can lack normals; earlier
 advice to run <em>Compute Vertex Normals</em> on range maps first was unnecessary.</p>
+<p><strong>Implemented 2026-10-16: lengths are <code class="docutils literal notranslate"><span class="pre">absperc</span></code>, and downsampled normals are unit
+length.</strong> Every length parameter in the Open3D filters had been a plain number where
+<code class="docutils literal notranslate"><span class="pre">0</span></code> meant “derive it from the diagonal”. That hid the real value from the user and from
+any script reading it back, and differed from the 61 parameters elsewhere that use
+<code class="docutils literal notranslate"><span class="pre">absperc</span></code>. All fifteen are now <code class="docutils literal notranslate"><span class="pre">absperc</span></code>: the default is a token, the editor shows the
+absolute value and its percentage of the diagonal, and a positive minimum
+(<code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag00001</span></code>) makes zero impossible to enter. The maximum is <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code>, which is
+also what fixes what 100% means.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter(s)</p></th>
+<th class="head"><p>Parameter</p></th>
+<th class="head"><p>Was (0 meant)</p></th>
+<th class="head"><p>Now</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Sample by Voxel Grid</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">voxelSize</span></code></p></td>
+<td><p>0.5% of diag</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag0005</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Outliers by Radius; Compute Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">searchRadius</span></code></p></td>
+<td><p>2%</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>P2P, P2Plane, Colored ICP</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">maxCorrespondenceDistance</span></code></p></td>
+<td><p>2%</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Feature Matching, Fast Global Reg.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">maxCorrespondenceDistance</span></code>, <code class="docutils literal notranslate"><span class="pre">registrationVoxelSize</span></code>, <code class="docutils literal notranslate"><span class="pre">featureRadius</span></code></p></td>
+<td><p>2%, 1%, 5%</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>, <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>, <strong><code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag005</span></code></strong> (new)</p></td>
+</tr>
+<tr class="row-even"><td><p>Align Meshes Globally</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">maxCorrespondenceDistance</span></code>, <code class="docutils literal notranslate"><span class="pre">registrationVoxelSize</span></code></p></td>
+<td><p>3%, 1%</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag003</span></code>, <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Align Meshes Sequentially</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">maxCorrespondenceDistance</span></code></p></td>
+<td><p>2% (pairs), 3% (its global stage)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code> for both</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Three behaviours differ, and are the price of the change:</p>
+<ul class="simple">
+<li><p><strong>The basis is the current layer’s diagonal</strong>, which is what the tokens resolve
+against. It was the reference layer’s for the pairwise filters, the first layer’s for
+global alignment, and the combined extent when a set was the reference. For scans of
+similar size the difference is small; in <code class="docutils literal notranslate"><span class="pre">partial.mlp</span></code>, with <code class="docutils literal notranslate"><span class="pre">faccia000</span></code> current, the
+default voxel for global alignment moved from 2.40 to 2.61.</p></li>
+<li><p><strong>The sequential aligner’s global stage now uses 2%, not 3%</strong>, because it has one
+parameter for both.</p></li>
+<li><p><strong>Scripts that passed <code class="docutils literal notranslate"><span class="pre">0</span></code> to mean “derive” now get an error</strong> naming the minimum. They
+were the only way to reach the old behaviour, so none is expected in the wild.</p></li>
+</ul>
+<p>The fallback is not gone: the sequential aligner still runs the pairwise steps with a
+partial parameter set, naming the pairing distance and leaving the matching voxel and
+feature radius to be derived, so that each pair is scaled to its own reference. That is
+the one caller <code class="docutils literal notranslate"><span class="pre">resolveLength</span></code> in <code class="docutils literal notranslate"><span class="pre">open3dregistration.cpp</span></code> still serves. The point cloud
+filters had none and lost theirs.</p>
+<p><strong>The token names are not percentages.</strong> <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code> is 1%, <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag001</span></code> is 0.1%, and
+<code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag005</span></code> — added for the feature radius, as none existed for 5% — is 5%. The digits
+are those of the fraction. A previous version of this note, and the first draft of this
+change, read <code class="docutils literal notranslate"><span class="pre">001</span></code> as 1%.</p>
+<p><em>Downsampling Cell Size</em> — it was <em>Matching Voxel Size</em>, which named the stage the number
+serves and not what it controls, and “voxel” implies a volume; see the ruling in
+<a class="reference internal" href="../vocabulary.html"><span class="std std-doc">vocabulary</span></a> — has a written meaning at last: the edge of an axis-aligned cubic
+cell, in the layer’s units, anchored half a cell below the cloud’s minimum corner; each
+occupied cell becomes one point at the average of its points, with normals and colors
+averaged too. Open3D leaves the averaged normals un-normalized — its own comment says so —
+so a cell whose normals disagree gets one shorter than 1, which FPFH and the point-to-plane
+term both assume is 1. It is now renormalized at all three downsampling sites. On a sphere
+at a coarse cell the shortest normal was <strong>0.93</strong> before; the registration result moved
+both ways, within what three seeds can tell apart (mean coarse error, same pair: 2.1 → 1.3 at
+a 1% voxel, 1.8 → 1.2 at 2%, 2.9 → 4.2 at 4%), so the change rests on correctness and
+not on a measured gain.</p>
+<p>On one pair of range maps (<code class="docutils literal notranslate"><span class="pre">faccia045</span></code> onto <code class="docutils literal notranslate"><span class="pre">faccia000</span></code>, coarse pose, three seeds) the
+cost and the outcome by voxel, in % of the diagonal: 0.25% took 76 s; 0.5% took 1 s;
+1% (the default) took 0.15 s and kept about 4,500 points of 80,000; 2% was as accurate;
+4% was slower and worse; 8% kept about 110 points and lost the pose. Scaling the feature
+radius and correspondence distance with the voxel (5× and 2×, as Open3D’s own tutorial
+does) helped at 8% and made 2% and 4% clearly <strong>worse</strong>, so they are deliberately <em>not</em>
+tied to it.</p>
+<p><strong>A test that misreported global alignment, again.</strong> <code class="docutils literal notranslate"><span class="pre">open3dGlobalAlignmentOnRealRangeMaps</span></code>
+counted a layer as “relocated” when its matrix’s translation column moved 5% of the
+diagonal. That is the metric that already misled the sequential tests: the scans sit far
+from the origin, so a small rotation moves the column by more than the object is wide.
+The same physical result counted between one and eight relocated layers depending on
+voxel size. By the layers’ own bounding-box corners, global alignment moves ten of the
+eleven non-reference layers 0.6–1.5% of the diagonal in every configuration tried,
+renormalization on or off, and moves only the deliberately misplaced <code class="docutils literal notranslate"><span class="pre">lato000</span></code> far.
+The test now measures that way.</p>
 </section>
 <section id="phase-3-rgb-d-sequence-reconstruction">
 <h3>Phase 3 — RGB-D sequence reconstruction<a class="headerlink" href="#phase-3-rgb-d-sequence-reconstruction" title="Link to this heading">¶</a></h3>

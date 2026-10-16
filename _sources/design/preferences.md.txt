@@ -67,11 +67,13 @@ became Rainbow.
 
 ## The dialog
 
-`PreferencesDialog` turns on three `ParameterFormBuilder` options that the filter panel
-leaves off.
+`PreferencesDialog` turns on three `ParameterFormBuilder` options; the filter panel uses
+only the first of them.
 
-With **inline help**, each row's help is shown as text under it, in place of the tooltip
-it gets in the filter panel. *Show help* hides and shows it (`setInlineHelpVisible`). The
+With **inline help**, each row's help is shown as text under it, in place of its tooltip.
+*Show help* hides and shows it (`setInlineHelpVisible`); hidden, the help is the tooltip.
+The filter panel uses the same option, driven by its "?" button -- see
+[architecture.md](architecture.md#meshfilterpanel). The
 choice is kept in QSettings as `preferencesDialog/showHelp`, outside the `preferences`
 group: it is how the dialog looks, not a preference, so *Restore All Defaults* leaves it
 alone.

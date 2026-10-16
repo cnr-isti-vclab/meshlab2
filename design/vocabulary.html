@@ -1171,23 +1171,27 @@ display name leads with a word that is not here.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Result</span></code>: <code class="docutils literal notranslate"><span class="pre">Assign</span> <span class="pre">matrix</span></code> / <code class="docutils literal notranslate"><span class="pre">Bake</span> <span class="pre">positions</span></code> — two choices that each say what happens, set by the framework for every filter that leaves a matrix on a layer</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Freeze</span> <span class="pre">Matrix</span></code> as a toggle (one verb, and nothing said about the other choice), <code class="docutils literal notranslate"><span class="pre">Freeze</span></code>, <code class="docutils literal notranslate"><span class="pre">Apply</span> <span class="pre">matrix</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Normal vector</p></td>
+<tr class="row-even"><td><p>Edge of a grid cell that reduces points to one per cell (UI label, 2026-10-16)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Cell</span> <span class="pre">Size</span></code>, as <em>Simplify by Vertex Clustering</em> and <em>Sample Vertices by Clustering</em> already say; qualified by what the grid is for when a dialog holds several lengths: <code class="docutils literal notranslate"><span class="pre">Downsampling</span> <span class="pre">Cell</span> <span class="pre">Size</span></code> (the matching step of the Open3D aligners)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Matching</span> <span class="pre">Voxel</span> <span class="pre">Size</span></code>, <code class="docutils literal notranslate"><span class="pre">Registration</span> <span class="pre">Voxel</span> <span class="pre">Size</span></code> — they name the stage the number serves, not what it controls, and <code class="docutils literal notranslate"><span class="pre">voxel</span></code> implies a volume. <code class="docutils literal notranslate"><span class="pre">Voxel</span> <span class="pre">Size</span></code> stays where the filter’s own name says voxel grid (<em>Sample Point Cloud by Voxel Grid</em>) or builds a volume</p></td>
+</tr>
+<tr class="row-odd"><td><p>Normal vector</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normal</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normals</span> <span class="pre">direction</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Layer matrix</p></td>
+<tr class="row-even"><td><p>Layer matrix</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">matrix</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">transformation</span> <span class="pre">matrix</span></code> (verbose), <code class="docutils literal notranslate"><span class="pre">xform</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>1D abstraction of a shape</p></td>
+<tr class="row-odd"><td><p>1D abstraction of a shape</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">skeleton</span></code> alone, <code class="docutils literal notranslate"><span class="pre">morphological</span> <span class="pre">skeleton</span></code>, <code class="docutils literal notranslate"><span class="pre">medial</span> <span class="pre">axis</span></code>, <code class="docutils literal notranslate"><span class="pre">centerline</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Graph of the level-set components of a scalar field</p></td>
+<tr class="row-even"><td><p>Graph of the level-set components of a scalar field</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Reeb</span> <span class="pre">graph</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">contour</span> <span class="pre">tree</span></code> (the special case of a simply connected domain, which has no cycles)</p></td>
 </tr>
-<tr class="row-even"><td><p>Loops around a handle / around a tunnel of a closed surface</p></td>
+<tr class="row-odd"><td><p>Loops around a handle / around a tunnel of a closed surface</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">handle</span> <span class="pre">loop</span></code>, <code class="docutils literal notranslate"><span class="pre">tunnel</span> <span class="pre">loop</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meridian</span></code>, <code class="docutils literal notranslate"><span class="pre">longitude</span></code> (torus-only), <code class="docutils literal notranslate"><span class="pre">generator</span></code> (any basis loop, not classified)</p></td>
 </tr>
