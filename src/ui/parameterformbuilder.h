@@ -55,6 +55,8 @@ public:
         QWidget *field = nullptr;
         QToolButton *resetButton = nullptr;
         QLabel *helpLabel = nullptr;
+        // The help as a tooltip, shown while the inline help is not.
+        QString helpTooltip;
         bool advanced = false;
     };
 
@@ -63,13 +65,15 @@ public:
 
     void setContext(Context context);
 
-    // Presentation options for build(), both off by default, as the filter panel wants
-    // them. Inline help puts each parameter's help under its row as text, in place of the
-    // tooltip it otherwise gets; reset buttons give each row a button, shown once its
-    // value differs from the default, that puts that one value back.
+    // Presentation options for build(), both off by default. Inline help puts each
+    // parameter's help under its row as text, while it is shown (setInlineHelpVisible);
+    // while it is hidden, and for a form that does not use it, the help is the row's
+    // tooltip. Reset buttons give each row a button, shown once its value differs from the
+    // default, that puts that one value back.
     void setShowsInlineHelp(bool shows) { m_showsInlineHelp = shows; }
     void setShowsResetButtons(bool shows) { m_showsResetButtons = shows; }
-    // Hides or shows that inline help, before or after build(), without a rebuild.
+    // Hides or shows that inline help, before or after build(), without a rebuild. The
+    // tooltips take the help over while it is hidden.
     void setInlineHelpVisible(bool visible);
     // Group headings are bold at the rows' size, so in the filter panel they rank below the
     // filter's bold title. A form whose groups are its top level, as in the preferences
@@ -127,6 +131,8 @@ private:
     void applyValue(const Binding &binding, const QVariant &value);
     QVariant readValue(const Binding &binding) const;
     void refreshResetButtons();
+    // The help is a tooltip on each row, unless the row shows it as text.
+    void refreshHelpTooltips();
     bool matchesFilter(const Binding &binding) const;
     // Applies the advanced, help and search settings to every row and heading at once.
     // Returns how many rows are shown.

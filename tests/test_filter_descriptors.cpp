@@ -150,6 +150,7 @@ private slots:
     void singleMeshFiltersUseTheCurrentLayer();
     void layerCreatingFiltersDeclareAnOutputTag();
     void alignmentFiltersStateTheirStartingAlignment();
+    void open3dLengthsAreScaleRelativeNotZeroMeansDerive();
 
 private:
     // Parsed once: the ratified verbs of docs/design/vocabulary.md section 3.
@@ -821,6 +822,51 @@ void FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer()
              qPrintable(QStringLiteral("filters taking their only mesh as a parameter instead of "
                                        "working on the current layer: %1")
                             .arg(offenders.join(QStringLiteral(", ")))));
+}
+
+// A length in the layer's own units has no fixed default that suits every scan: 2.6 is
+// a good voxel for a 260-unit range map and a ruinous one for a 26-unit one. The Open3D
+// filters first handled that with a plain number where 0 meant "derive it from the
+// diagonal", which hid the value from the user and from any script reading it back.
+// They declare these as `absperc` instead, as 61 other parameters do: the default is a
+// token such as @bboxDiag01, the editor shows both the absolute value and its percentage
+// of the diagonal, and the value is always a real, positive length.
+//
+// The positive minimum matters: it is what stops a 0 from reaching VoxelDownSample, which
+// raises, and what makes "0 means derive" impossible to type by habit.
+void FilterDescriptorTests::open3dLengthsAreScaleRelativeNotZeroMeansDerive()
+{
+    static const QSet<QString> kLengths = {
+        QStringLiteral("voxelSize"), QStringLiteral("searchRadius"),
+        QStringLiteral("maxCorrespondenceDistance"), QStringLiteral("registrationVoxelSize"),
+        QStringLiteral("featureRadius")
+    };
+
+    QStringList offenders;
+    int checked = 0;
+    for (const auto &info : m_infos) {
+        const MeshFilterDescriptor &d = info.descriptor;
+        if (!d.id.endsWith(QStringLiteral("_open3d")))
+            continue;
+        for (const MeshFilterParameterDescriptor &p : d.parameters) {
+            if (!kLengths.contains(p.id))
+                continue;
+            ++checked;
+            const bool ok = p.type == MeshFilterParameterType::AbsPerc
+                && p.minValue.isValid() && p.minValue.toDouble() > 0.0
+                && p.defaultValue.toDouble() > 0.0;
+            if (!ok)
+                offenders << QStringLiteral("%1.%2").arg(d.id, p.id);
+        }
+    }
+
+    // Fifteen when the rule was made: three downsampling or search lengths, seven pairing
+    // distances, three matching voxels, two feature radii.
+    QVERIFY2(checked >= 15, qPrintable(QStringLiteral("only %1 Open3D length parameters found").arg(checked)));
+    QVERIFY2(offenders.isEmpty(),
+             qPrintable(QStringLiteral("Open3D length parameters that are not absperc with a "
+                                       "positive minimum and default: %1")
+                            .arg(offenders.join(QStringLiteral("; ")))));
 }
 
 // What a registration needs to be given is the first thing a user must know and the

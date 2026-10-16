@@ -82,7 +82,7 @@ Layer dock with two synchronized presentations over the same `Document`: a detai
 
 ### `MeshFilterPanel`
 
-Filter browser/runner: search box, parameter form from `MeshFilterDescriptor`, optional markdown description, advanced-parameter toggle, reset-to-defaults button, per-filter parameter-value cache, current-view providers for camera/render-state JSON parameters, and, when Python support is compiled in, compact/full Python call formatting shared with action-history export.
+Filter browser/runner: search box, parameter form from `MeshFilterDescriptor`, optional markdown description, advanced-parameter toggle, reset-to-defaults button, per-filter parameter-value cache, a "?" *details* button that opens the filter's long description and puts each parameter's help under its row (hidden, the help is the row's tooltip: rich text so that it wraps, markdown spans rendered, with the range and default added; the button's state is remembered per filter in QSettings under `filterPanel/details/<filter key>`, kept only while on, default off), current-view providers for camera/render-state JSON parameters, and, when Python support is compiled in, compact/full Python call formatting shared with action-history export.
 
 ### `MainWindow`
 

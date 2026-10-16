@@ -24,6 +24,7 @@
 #include <QPalette>
 #include <QPushButton>
 #include <QPlainTextEdit>
+#include <QSettings>
 #include <QSignalBlocker>
 #include <QScrollArea>
 #include <QStackedWidget>
@@ -162,7 +163,8 @@ void MeshFilterPanel::buildUi()
     m_longDescriptionToggle->setChecked(false);
     m_longDescriptionToggle->setToolButtonStyle(Qt::ToolButtonTextOnly);
     m_longDescriptionToggle->setText(QStringLiteral("?"));
-    m_longDescriptionToggle->setToolTip(tr("Show details"));
+    m_longDescriptionToggle->setToolTip(
+        tr("Show details: the filter's description and each parameter's help. Remembered for each filter."));
     m_longDescriptionToggle->hide();
     auto makeReferenceButton = [this](const QString &text, const QString &tooltip) {
         auto *button = new QToolButton(m_parametersPage);
@@ -264,6 +266,10 @@ void MeshFilterPanel::buildUi()
     m_parametersLayout->addRow(m_noParametersLabel);
 
     m_paramForm = new ParameterFormBuilder(m_parametersLayout, m_parametersWidget, this);
+    // The parameters' help is shown under the rows when the filter's details are (the "?" button),
+    // and is their tooltip when they are not.
+    m_paramForm->setShowsInlineHelp(true);
+    m_paramForm->setInlineHelpVisible(false);
     connect(
         m_paramForm,
         &ParameterFormBuilder::valueChanged,
@@ -293,8 +299,15 @@ void MeshFilterPanel::buildUi()
     connect(m_resetParametersButton, &QToolButton::clicked, this, &MeshFilterPanel::onResetParametersClicked);
     connect(m_showAdvancedCheck, &QCheckBox::toggled, this, &MeshFilterPanel::onShowAdvancedToggled);
     connect(m_longDescriptionToggle, &QToolButton::toggled, this, [this](bool checked) {
-        if (m_longDescriptionView)
-            m_longDescriptionView->setVisible(checked);
+        showDetails(checked);
+        // Remembered for this filter only, and only while on, so that the setting holds
+        // nothing for a filter whose details were never opened.
+        QSettings settings;
+        const QString key = detailsSettingsKey(m_currentFilterKey);
+        if (checked)
+            settings.setValue(key, true);
+        else
+            settings.remove(key);
     });
     connect(m_bibButton, &QToolButton::clicked,
             this, &MeshFilterPanel::showCurrentReferencesBibTeX);
@@ -612,7 +625,11 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
     }
     updateReferenceButtons(info.descriptor);
     const bool hasLongDescription = !longDescription.isEmpty();
-    m_longDescriptionToggle->setVisible(hasLongDescription);
+    const bool hasParameterHelp = std::any_of(
+        info.descriptor.parameters.begin(),
+        info.descriptor.parameters.end(),
+        [](const MeshFilterParameterDescriptor &p) { return !p.helpMarkdown.trimmed().isEmpty(); });
+    m_longDescriptionToggle->setVisible(hasLongDescription || hasParameterHelp);
 #ifdef MESHLAB2_PYTHON_CONSOLE
     if (m_copyToConsoleButton)
         m_copyToConsoleButton->setVisible(true);
@@ -622,10 +639,14 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
     } else {
         m_longDescriptionView->clear();
     }
-    if (m_longDescriptionToggle->isChecked())
-        m_longDescriptionToggle->setChecked(false);
-    else
-        m_longDescriptionView->setVisible(false);
+    // The details are open if they were left open for this filter. Set before the parameter
+    // form is built, which takes the state it finds.
+    const bool detailsOpen = QSettings().value(detailsSettingsKey(info.key), false).toBool();
+    {
+        const QSignalBlocker blocker(m_longDescriptionToggle);
+        m_longDescriptionToggle->setChecked(detailsOpen);
+    }
+    showDetails(detailsOpen);
     if (info.applicable) {
         m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
         m_applyButton->setToolTip(QString());
@@ -647,6 +668,20 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
     refreshSelectionScopeControl(!reopening);
     refreshCurrentFilterApplicability();
     m_stack->setCurrentWidget(m_parametersPage);
+}
+
+QString MeshFilterPanel::detailsSettingsKey(const QString &filterKey)
+{
+    // A filter's key has slashes in it for some plugins, which QSettings would read as groups.
+    QString safe = filterKey;
+    safe.replace(QLatin1Char('/'), QLatin1Char('_'));
+    return QStringLiteral("filterPanel/details/") + safe;
+}
+
+void MeshFilterPanel::showDetails(bool shown)
+{
+    m_longDescriptionView->setVisible(shown && !m_longDescriptionView->document()->isEmpty());
+    m_paramForm->setInlineHelpVisible(shown);
 }
 
 void MeshFilterPanel::updateReferenceButtons(const MeshFilterDescriptor &descriptor)

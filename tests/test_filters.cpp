@@ -471,6 +471,7 @@ private slots:
     void open3dGlobalAlignmentOnRealRangeMaps();
     void open3dSequentialInitialRegistrationFromRawScans();
     void open3dAlignMeshesSequentiallyRegistersRawRangeMaps();
+    void open3dVoxelDownsamplingKeepsNormalsUnitLength();
     void open3dFeatureMatchingCanUseAllVisibleLayersAsReference();
     void open3dAlignMeshesSequentiallyStopsAtTheFirstFailedPair();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
@@ -4601,6 +4602,24 @@ void FilterTests::open3dIcpReachesTheKnownFineAlignment()
                                         .arg(result.infoMessages.join(QStringLiteral(" | ")))));
 }
 
+// How far apart two poses put the same mesh, as the RMS distance between where
+// each of its bounding-box corners lands. Comparing translation columns instead
+// is a trap on scanner data: these range maps sit some 570 units from the origin
+// with a diagonal of 261, so a few degrees of rotation about the surface moves
+// the translation column by more than the object is wide, and a pair that is in
+// fact registered to within a third of a percent reads as 200% off.
+static float posePointError(const VCGMesh &mesh, const QMatrix4x4 &a, const QMatrix4x4 &b)
+{
+    const vcg::Box3f &box = mesh.bbox;
+    double sum = 0.0;
+    for (int c = 0; c < 8; ++c) {
+        const vcg::Point3f p = box.P(c);
+        const QVector3D local(p.X(), p.Y(), p.Z());
+        sum += double((a.map(local) - b.map(local)).lengthSquared());
+    }
+    return float(std::sqrt(sum / 8.0));
+}
+
 // Twelve real range maps from a scanned statue, eight faces and four sides.
 //
 // The project is called *partial* for a reason, and the first version of this
@@ -4645,19 +4664,24 @@ void FilterTests::open3dGlobalAlignmentOnRealRangeMaps()
     QVERIFY2(worstElementDifference(doc.mesh(0).transform, before[0]) < 1e-5f,
              "the reference layer moved");
 
-    // The already-aligned layers are refined, not relocated. Measured
-    // 2026-10-15: nine of the eleven non-reference layers move under 10 units
-    // on a 240 diagonal, lato135 moves 43, and only the misplaced lato000
-    // travels far. Allowing two outliers leaves room for lato135 without
-    // letting a general divergence through.
+    // The already-aligned layers are refined, not relocated: the one deliberately
+    // misplaced scan, lato000, is the only one that should travel. Measured
+    // 2026-10-16 as how far each layer's own bounding-box corners move -- ten of the
+    // eleven non-reference layers move 0.6% to 1.5% of the diagonal, and lato000 moves
+    // anywhere from 2% to 300% depending on the voxel size, which is the one result here
+    // that is chaotic, as a layer put in the wrong place has no right answer to
+    // converge on. The first version of this assertion compared translation columns
+    // instead, and counted between one and eight "relocated" layers for the same
+    // physical result: the scans sit far from the origin, so a few hundredths of a
+    // degree moves the column by more than the object is wide.
     int relocated = 0;
     for (int i = 1; i < doc.meshCount(); ++i) {
-        const QVector3D delta = doc.mesh(i).transform.column(3).toVector3D()
-                                - before[i].column(3).toVector3D();
-        if (delta.length() >= diagonal * 0.05f)
+        if (posePointError(doc.mesh(i).mesh, doc.mesh(i).transform, before[size_t(i)])
+                >= diagonal * 0.05f) {
             ++relocated;
+        }
     }
-    QVERIFY2(relocated <= 2,
+    QVERIFY2(relocated <= 1,
              qPrintable(QStringLiteral("%1 of %2 layers were relocated rather than refined")
                             .arg(relocated).arg(doc.meshCount() - 1)));
 
@@ -4677,24 +4701,6 @@ void FilterTests::open3dGlobalAlignmentOnRealRangeMaps()
                          [](const QString &m) { return m.startsWith(QStringLiteral("Graph:")); }),
              qPrintable(QStringLiteral("no graph summary reported; got: %1")
                             .arg(result.infoMessages.join(QStringLiteral(" | ")))));
-}
-
-// How far apart two poses put the same mesh, as the RMS distance between where
-// each of its bounding-box corners lands. Comparing translation columns instead
-// is a trap on scanner data: these range maps sit some 570 units from the origin
-// with a diagonal of 261, so a few degrees of rotation about the surface moves
-// the translation column by more than the object is wide, and a pair that is in
-// fact registered to within a third of a percent reads as 200% off.
-static float posePointError(const VCGMesh &mesh, const QMatrix4x4 &a, const QMatrix4x4 &b)
-{
-    const vcg::Box3f &box = mesh.bbox;
-    double sum = 0.0;
-    for (int c = 0; c < 8; ++c) {
-        const vcg::Point3f p = box.P(c);
-        const QVector3D local(p.X(), p.Y(), p.Z());
-        sum += double((a.map(local) - b.map(local)).lengthSquared());
-    }
-    return float(std::sqrt(sum / 8.0));
 }
 
 // The poses partial.mlp gives the named scans, re-expressed relative to the first
@@ -5242,6 +5248,38 @@ void FilterTests::open3dFeatureMatchingCanUseAllVisibleLayersAsReference()
         QVERIFY2(icpResult.errorMessage.contains(QStringLiteral("bare_points.ply")),
                  qPrintable(icpResult.errorMessage));
     }
+}
+
+// Voxel downsampling averages the normals of the points in a cell, and a mean of unit
+// vectors that disagree is shorter than one. Open3D leaves that to the caller ("call
+// NormalizeNormals() afterwards if necessary"), and FPFH and the point-to-plane term
+// both assume unit length. The sphere with a coarse cell is the case that shows it: a
+// cell spans a patch of surface whose normals fan out, so the raw averages come back
+// well under 1 -- measured 2026-10-16 on this fixture before the fix.
+void FilterTests::open3dVoxelDownsamplingKeepsNormalsUnitLength()
+{
+    Document doc;
+    const QString voxelKey = filterKeyForId(
+        doc, QStringLiteral("sample_point_cloud_by_voxel_grid_open3d"));
+    if (voxelKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+    const int sphere = doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_40kv.ply"));
+    QVERIFY(sphere >= 0);
+    doc.setCurrentMeshIndex(sphere);
+
+    MeshFilterParameterValues values;
+    values.insert(QStringLiteral("voxelSize"), double(doc.mesh(sphere).mesh.bbox.Diag()) * 0.25);
+    const MeshFilterRunResult result = doc.runFilter(voxelKey, values);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+
+    const VCGMesh &out = doc.mesh(result.newMeshIndices.front()).mesh;
+    QVERIFY2(out.VN() > 8 && out.VN() < 400, qPrintable(QString::number(out.VN())));
+    float shortest = 1.0f;
+    for (const auto &v : out.vert)
+        shortest = std::min(shortest, v.cN().Norm());
+    QVERIFY2(shortest > 0.999f,
+             qPrintable(QStringLiteral("shortest normal after downsampling is %1").arg(shortest)));
 }
 
 // The CSG evaluator and the pairwise booleans must agree where they overlap, and the

@@ -81,6 +81,10 @@ class Document;
 //   @bboxDiag0005          - bboxDiag * 0.005
 //   @bboxDiag002           - bboxDiag * 0.02
 //   @bboxDiag003           - bboxDiag * 0.03
+//   @bboxDiag005           - bboxDiag * 0.05
+//
+// The digits are the decimal digits of the fraction, not a percentage: @bboxDiag01 is 1%,
+// @bboxDiag001 is 0.1%. Read the line, not the name.
 //   @bboxDiag01            - bboxDiag * 0.01  (alias)
 //   @bboxDiagTenth         - bboxDiag * 0.1
 //   @bboxDiagHalf          - bboxDiag * 0.5

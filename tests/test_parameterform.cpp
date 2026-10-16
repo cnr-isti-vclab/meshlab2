@@ -78,6 +78,7 @@ private slots:
     void resetRestoresDefaults();
     void resetButtonsRestoreOneValue();
     void inlineHelpShowsEachHelpText();
+    void tooltipsAreWrappedRichText();
     void filterShowsMatchingRowsUnderTheirHeadings();
     void skipsDocumentTypesWithoutADocument();
     void enabledWhenGatesOnABool();
@@ -289,8 +290,8 @@ void ParameterFormTests::resetButtonsRestoreOneValue()
 }
 
 // Inline help puts each help text under its row, in place of the tooltip, and can be
-// hidden and shown again; without the option there is none and the help stays in the
-// tooltips, as the filter panel wants it.
+// hidden and shown again, the tooltips taking the help over while it is hidden; without the
+// option there is none and the help stays in the tooltips.
 void ParameterFormTests::inlineHelpShowsEachHelpText()
 {
     std::vector<MeshFilterParameterDescriptor> params = sampleParameters();
@@ -317,6 +318,9 @@ void ParameterFormTests::inlineHelpShowsEachHelpText()
     QVERIFY(ratio->helpLabel->isHidden());   // advanced parameters start hidden
     builder.setInlineHelpVisible(false);
     QVERIFY(count->helpLabel->isHidden());
+    QVERIFY(count->editor->toolTip().contains(QStringLiteral("How many of them.")));
+    QVERIFY(count->formLabel->toolTip().contains(QStringLiteral("How many of them.")));
+    QVERIFY(count->editor->toolTip().contains(QStringLiteral("default 7")));
     builder.setAdvancedVisible(true);
     QVERIFY(!ratio->formLabel->isHidden());
     QVERIFY(ratio->helpLabel->isHidden());
@@ -324,13 +328,41 @@ void ParameterFormTests::inlineHelpShowsEachHelpText()
     builder.setInlineHelpVisible(true);
     QVERIFY(!count->helpLabel->isHidden());
     QVERIFY(ratio->helpLabel->isHidden());
+    QVERIFY(count->editor->toolTip().isEmpty());
 
     QWidget plainHost;
     auto *plainLayout = new QFormLayout(&plainHost);
     ParameterFormBuilder plain(plainLayout, &plainHost);
     plain.build(params);
     QVERIFY(!plain.bindingById(QStringLiteral("count"))->helpLabel);
-    QCOMPARE(plain.bindingById(QStringLiteral("count"))->editor->toolTip(), QStringLiteral("How many of them."));
+    QVERIFY(plain.bindingById(QStringLiteral("count"))->editor->toolTip().contains(
+        QStringLiteral("How many of them.")));
+}
+
+// A tooltip is wrapped only if it is rich text, so the help becomes HTML: the markdown spans
+// the help texts use turn into their tags rather than showing as asterisks, and a long help is
+// given a width.
+void ParameterFormTests::tooltipsAreWrappedRichText()
+{
+    std::vector<MeshFilterParameterDescriptor> params = sampleParameters();
+    params[1].helpMarkdown = QStringLiteral(
+        "Uses **bold**, `code` and a [link](https://example.org), and then goes on for long enough "
+        "to need wrapping, with a first paragraph.\n\nAnd a second one with <angle> brackets & more.");
+    QWidget host;
+    auto *layout = new QFormLayout(&host);
+    ParameterFormBuilder builder(layout, &host);
+    builder.build(params);
+    const QString tip = builder.bindingById(QStringLiteral("count"))->editor->toolTip();
+    QVERIFY(Qt::mightBeRichText(tip));
+    QVERIFY(tip.contains(QStringLiteral("<b>bold</b>")));
+    QVERIFY(tip.contains(QStringLiteral("<code>code</code>")));
+    QVERIFY(!tip.contains(QLatin1Char('`')));
+    QVERIFY(!tip.contains(QStringLiteral("**")));
+    QVERIFY(tip.contains(QStringLiteral("a link,")));
+    QVERIFY(!tip.contains(QStringLiteral("example.org")));
+    QVERIFY(tip.contains(QStringLiteral("&lt;angle&gt;")));
+    QVERIFY(tip.contains(QStringLiteral("&amp;")));
+    QVERIFY(tip.contains(QStringLiteral("<table width=")));
 }
 
 // The search keeps the rows whose label, help, group or option labels contain every word

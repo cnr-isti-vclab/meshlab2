@@ -56,7 +56,7 @@ plugins/filter_foo/
         {
           "id": "amount", "label": "Amount", "type": "double", "group": "main",
           "default": 1.0, "min": 0.0, "max": 10.0, "decimals": 3,
-          "help": "A sentence or two. Shown in the tooltip and the generated docs."
+          "help": "A sentence or two. Shown in the tooltip, under the row when the filter's details are open, and in the generated docs."
         }
       ]
     }

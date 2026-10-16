@@ -76,6 +76,9 @@ private:
     void rebuildResultsList();
     void openFilterAtIndex(int filterIndex);
     void clearParameterEditors();
+    // The filter's description and its parameters' help, together; the "?" button.
+    void showDetails(bool shown);
+    static QString detailsSettingsKey(const QString &filterKey);
     void buildParameterEditors(const Document::FilterInfo &filterInfo);
     void refreshCurrentFilterApplicability();
     void cacheCurrentFilterParameters();

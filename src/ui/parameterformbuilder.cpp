@@ -17,6 +17,7 @@
 #include <QPalette>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QSignalBlocker>
 #include <QSizePolicy>
 #include <QSpinBox>
@@ -944,6 +945,58 @@ QString defaultValueText(const MeshFilterParameterDescriptor &param)
     return param.defaultValue.toString();
 }
 
+// The help as a tooltip. Rich text, because Qt wraps a tooltip only when it is: a plain one is a
+// single line however long the help, and some are several sentences. The few spans of markdown
+// the help texts use become their HTML, so that they do not show as asterisks and backticks,
+// and what the editor does not say itself -- the range and the default -- follows.
+QString helpTooltip(const MeshFilterParameterDescriptor &param)
+{
+    const QString help = param.helpMarkdown.trimmed();
+    if (help.isEmpty())
+        return QString();
+
+    QString html = help.toHtmlEscaped();
+    static const QRegularExpression code(QStringLiteral("`([^`]+)`"));
+    static const QRegularExpression bold(QStringLiteral("\\*\\*(.+?)\\*\\*"));
+    static const QRegularExpression italic(
+        QStringLiteral("(?<![\\w*])\\*(?!\\s)(.+?)(?<!\\s)\\*(?![\\w*])"));
+    static const QRegularExpression link(QStringLiteral("\\[([^\\]]+)\\]\\([^)]*\\)"));
+    html.replace(code, QStringLiteral("<code>\\1</code>"));
+    html.replace(bold, QStringLiteral("<b>\\1</b>"));
+    html.replace(italic, QStringLiteral("<i>\\1</i>"));
+    html.replace(link, QStringLiteral("\\1"));
+    html.replace(QStringLiteral("\n\n"), QStringLiteral("<br><br>"));
+    html.replace(QLatin1Char('\n'), QLatin1Char(' '));
+
+    QStringList facts;
+    switch (param.type) {
+    case MeshFilterParameterType::Int:
+    case MeshFilterParameterType::Double:
+        if (param.minValue.isValid() && param.maxValue.isValid()) {
+            facts << QObject::tr("Range %1 to %2")
+                         .arg(QString::number(param.minValue.toDouble(), 'g', 6),
+                              QString::number(param.maxValue.toDouble(), 'g', 6));
+        }
+        facts << QObject::tr("default %1").arg(defaultValueText(param));
+        break;
+    case MeshFilterParameterType::Bool:
+    case MeshFilterParameterType::Enum:
+        facts << QObject::tr("default %1").arg(defaultValueText(param));
+        break;
+    default:
+        break;
+    }
+    if (!facts.isEmpty()) {
+        html += QStringLiteral("<br><i>%1</i>")
+                    .arg(facts.join(QStringLiteral(" \u00B7 ")).toHtmlEscaped());
+    }
+    // Wrapped at a fixed width, which a table is the way to ask a tooltip for; a short one
+    // is left to be as wide as it is.
+    if (help.size() > 60)
+        return QStringLiteral("<table width=\"380\"><tr><td>%1</td></tr></table>").arg(html);
+    return QStringLiteral("<p>%1</p>").arg(html);
+}
+
 } // namespace
 
 void ParameterFormBuilder::build(
@@ -999,11 +1052,7 @@ void ParameterFormBuilder::build(
         auto *labelWidget = new QLabel(param.label, m_parentWidget);
         binding.formLabel = labelWidget;
         const QString help = param.helpMarkdown.trimmed();
-        // The help is a tooltip only where it is not shown under the row.
-        if (!help.isEmpty() && !m_showsInlineHelp) {
-            labelWidget->setToolTip(param.helpMarkdown);
-            editor->setToolTip(param.helpMarkdown);
-        }
+        binding.helpTooltip = helpTooltip(param);
 
         QWidget *field = editor;
         if (m_showsResetButtons) {
@@ -1065,6 +1114,7 @@ void ParameterFormBuilder::build(
     }
     refreshDependentEditors();
     refreshEnabledState();
+    refreshHelpTooltips();
     refreshVisibility();
 }
 
@@ -1442,7 +1492,22 @@ void ParameterFormBuilder::setAdvancedVisible(bool visible)
 void ParameterFormBuilder::setInlineHelpVisible(bool visible)
 {
     m_inlineHelpVisible = visible;
+    refreshHelpTooltips();
     refreshVisibility();
+}
+
+void ParameterFormBuilder::refreshHelpTooltips()
+{
+    const bool asText = m_showsInlineHelp && m_inlineHelpVisible;
+    for (const Binding &binding : m_bindings) {
+        if (binding.helpTooltip.isEmpty())
+            continue;
+        const QString tip = asText ? QString() : binding.helpTooltip;
+        if (binding.formLabel)
+            binding.formLabel->setToolTip(tip);
+        if (binding.editor)
+            binding.editor->setToolTip(tip);
+    }
 }
 
 int ParameterFormBuilder::setFilter(const QString &text)
