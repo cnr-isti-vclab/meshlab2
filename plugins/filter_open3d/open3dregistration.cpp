@@ -76,8 +76,13 @@ MeshFilterRunResult fail(const QString &message)
     return { false, false, message };
 }
 
-// See the note in open3dpointcloud.cpp: a length in the layer's own units has
-// no sensible fixed default, so zero means derive it.
+// A length in the layer's own units has no sensible fixed default, so these filters
+// declare theirs as absperc with a default scaled to the layer, and every call that
+// comes through the framework carries a positive value. This fallback is for the one
+// caller that does not: the sequential aligner runs the pairwise steps with a partial
+// parameter set -- it names the pairing distance and leaves the matching voxel and the
+// feature radius out -- and wants each pair scaled to its own reference. Zero or absent
+// means derive it, from the diagonal, with the fraction the manifest uses as its default.
 double resolveLength(double diagonal, double given, double fractionOfDiagonal)
 {
     if (given > 0.0)
@@ -202,8 +207,12 @@ MeshFilterRunResult runGlobalAlignment(
         }
         if (voxelSize > 0.0) {
             if (const auto down = clouds[i].VoxelDownSample(voxelSize)) {
-                if (down->points_.size() >= 10)
+                if (down->points_.size() >= 10) {
+                    // Averaged normals are shorter than one where a cell's normals disagree,
+                    // and the point-to-plane term scales with their length.
+                    down->NormalizeNormals();
                     clouds[i] = *down;
+                }
             }
         }
         if (clouds[i].normals_.size() != clouds[i].points_.size()) {
@@ -676,6 +685,10 @@ MeshFilterRunResult runPairwise(
                 const auto targetDown = target.VoxelDownSample(registrationVoxelSize);
                 if (sourceDown && targetDown
                     && sourceDown->points_.size() >= 3 && targetDown->points_.size() >= 3) {
+                    // FPFH assumes unit normals; a cell's averaged one is shorter than that
+                    // wherever the normals it averaged disagree.
+                    sourceDown->NormalizeNormals();
+                    targetDown->NormalizeNormals();
                     source = *sourceDown;
                     target = *targetDown;
                 }

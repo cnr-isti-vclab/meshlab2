@@ -586,6 +586,78 @@ tell a colored layer from an uncolored one. And because the loader computes smoo
 normals for any layer with faces, only point clouds can lack normals; earlier
 advice to run *Compute Vertex Normals* on range maps first was unnecessary.
 
+**Implemented 2026-10-16: lengths are `absperc`, and downsampled normals are unit
+length.** Every length parameter in the Open3D filters had been a plain number where
+`0` meant "derive it from the diagonal". That hid the real value from the user and from
+any script reading it back, and differed from the 61 parameters elsewhere that use
+`absperc`. All fifteen are now `absperc`: the default is a token, the editor shows the
+absolute value and its percentage of the diagonal, and a positive minimum
+(`@bboxDiag00001`) makes zero impossible to enter. The maximum is `@bboxDiag`, which is
+also what fixes what 100% means.
+
+| Filter(s) | Parameter | Was (0 meant) | Now |
+|---|---|---|---|
+| Sample by Voxel Grid | `voxelSize` | 0.5% of diag | `@bboxDiag0005` |
+| Select Outliers by Radius; Compute Normals | `searchRadius` | 2% | `@bboxDiag002` |
+| P2P, P2Plane, Colored ICP | `maxCorrespondenceDistance` | 2% | `@bboxDiag002` |
+| Feature Matching, Fast Global Reg. | `maxCorrespondenceDistance`, `registrationVoxelSize`, `featureRadius` | 2%, 1%, 5% | `@bboxDiag002`, `@bboxDiag01`, **`@bboxDiag005`** (new) |
+| Align Meshes Globally | `maxCorrespondenceDistance`, `registrationVoxelSize` | 3%, 1% | `@bboxDiag003`, `@bboxDiag01` |
+| Align Meshes Sequentially | `maxCorrespondenceDistance` | 2% (pairs), 3% (its global stage) | `@bboxDiag002` for both |
+
+Three behaviours differ, and are the price of the change:
+
+- **The basis is the current layer's diagonal**, which is what the tokens resolve
+  against. It was the reference layer's for the pairwise filters, the first layer's for
+  global alignment, and the combined extent when a set was the reference. For scans of
+  similar size the difference is small; in `partial.mlp`, with `faccia000` current, the
+  default voxel for global alignment moved from 2.40 to 2.61.
+- **The sequential aligner's global stage now uses 2%, not 3%**, because it has one
+  parameter for both.
+- **Scripts that passed `0` to mean "derive" now get an error** naming the minimum. They
+  were the only way to reach the old behaviour, so none is expected in the wild.
+
+The fallback is not gone: the sequential aligner still runs the pairwise steps with a
+partial parameter set, naming the pairing distance and leaving the matching voxel and
+feature radius to be derived, so that each pair is scaled to its own reference. That is
+the one caller `resolveLength` in `open3dregistration.cpp` still serves. The point cloud
+filters had none and lost theirs.
+
+**The token names are not percentages.** `@bboxDiag01` is 1%, `@bboxDiag001` is 0.1%, and
+`@bboxDiag005` — added for the feature radius, as none existed for 5% — is 5%. The digits
+are those of the fraction. A previous version of this note, and the first draft of this
+change, read `001` as 1%.
+
+*Downsampling Cell Size* — it was *Matching Voxel Size*, which named the stage the number
+serves and not what it controls, and "voxel" implies a volume; see the ruling in
+[vocabulary](../vocabulary.md) — has a written meaning at last: the edge of an axis-aligned cubic
+cell, in the layer's units, anchored half a cell below the cloud's minimum corner; each
+occupied cell becomes one point at the average of its points, with normals and colors
+averaged too. Open3D leaves the averaged normals un-normalized — its own comment says so —
+so a cell whose normals disagree gets one shorter than 1, which FPFH and the point-to-plane
+term both assume is 1. It is now renormalized at all three downsampling sites. On a sphere
+at a coarse cell the shortest normal was **0.93** before; the registration result moved
+both ways, within what three seeds can tell apart (mean coarse error, same pair: 2.1 → 1.3 at
+a 1% voxel, 1.8 → 1.2 at 2%, 2.9 → 4.2 at 4%), so the change rests on correctness and
+not on a measured gain.
+
+On one pair of range maps (`faccia045` onto `faccia000`, coarse pose, three seeds) the
+cost and the outcome by voxel, in % of the diagonal: 0.25% took 76 s; 0.5% took 1 s;
+1% (the default) took 0.15 s and kept about 4,500 points of 80,000; 2% was as accurate;
+4% was slower and worse; 8% kept about 110 points and lost the pose. Scaling the feature
+radius and correspondence distance with the voxel (5× and 2×, as Open3D's own tutorial
+does) helped at 8% and made 2% and 4% clearly **worse**, so they are deliberately *not*
+tied to it.
+
+**A test that misreported global alignment, again.** `open3dGlobalAlignmentOnRealRangeMaps`
+counted a layer as "relocated" when its matrix's translation column moved 5% of the
+diagonal. That is the metric that already misled the sequential tests: the scans sit far
+from the origin, so a small rotation moves the column by more than the object is wide.
+The same physical result counted between one and eight relocated layers depending on
+voxel size. By the layers' own bounding-box corners, global alignment moves ten of the
+eleven non-reference layers 0.6–1.5% of the diagonal in every configuration tried,
+renormalization on or off, and moves only the deliberately misplaced `lato000` far.
+The test now measures that way.
+
 ### Phase 3 — RGB-D sequence reconstruction
 
 The largest new workflow, and therefore **last** rather than first. It was

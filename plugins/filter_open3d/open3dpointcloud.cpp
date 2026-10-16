@@ -30,19 +30,6 @@ MeshFilterRunResult fail(const QString &message)
     return { false, false, message };
 }
 
-// Every length these filters take is in the layer's own units, which means no
-// fixed default can be right: 0.01 is sensible for a unit cube and absurd for a
-// scan in millimetres. Zero therefore means "derive it from this layer", scaled
-// off the bounding box diagonal, so the filter does something reasonable on
-// first open instead of refusing until the user guesses a number.
-double resolveLength(const VCGMesh &mesh, double given, double fractionOfDiagonal)
-{
-    if (given > 0.0)
-        return given;
-    const double diagonal = double(mesh.bbox.Diag());
-    return diagonal > 0.0 ? diagonal * fractionOfDiagonal : 0.0;
-}
-
 // Open3D's search parameters are three separate types with no common setter, so
 // the enum is resolved to one of them here rather than at every call site.
 std::shared_ptr<open3d::geometry::KDTreeSearchParam> searchParam(
@@ -136,16 +123,16 @@ MeshFilterRunResult runOpen3DPointCloudFilter(
 
     try {
         if (isVoxel) {
-            const double voxelSize = resolveLength(
-                entry.mesh, params.getDouble(QStringLiteral("voxelSize"), 0.0), 0.005);
-            if (!(voxelSize > 0.0)) {
-                return fail(QObject::tr(
-                    "The layer has no extent, so no voxel size can be derived. Give one "
-                    "explicitly; it is in the layer's own units."));
-            }
+            // The lengths here are absperc parameters whose manifest minimum is positive,
+            // so the manager has already refused zero and a default scaled to the layer
+            // has been filled in; nothing below needs to derive or guard one.
+            const double voxelSize = params.getDouble(QStringLiteral("voxelSize"), 0.0);
 
             doc.beginFilterProgress(QObject::tr("Voxel sampling"));
             const auto sampled = cloud.VoxelDownSample(voxelSize);
+            // A cell's normal is the mean of its points' normals, which is shorter than
+            // one wherever they disagree; Open3D leaves restoring unit length to the caller.
+            sampled->NormalizeNormals();
 
             VCGMesh output;
             if (!Adapter::cloudToMesh(*sampled, output, error)) {
@@ -187,14 +174,7 @@ MeshFilterRunResult runOpen3DPointCloudFilter(
             if (isRadius) {
                 const int minimumNeighbours =
                     std::max(1, params.getInt(QStringLiteral("minimumNeighbours"), 16));
-                const double searchRadius = resolveLength(
-                    entry.mesh, params.getDouble(QStringLiteral("searchRadius"), 0.0), 0.02);
-                if (!(searchRadius > 0.0)) {
-                    doc.finishFilterProgress(false, QString());
-                    return fail(QObject::tr(
-                        "The layer has no extent, so no search radius can be derived. Give "
-                        "one explicitly; it is in the layer's own units."));
-                }
+                const double searchRadius = params.getDouble(QStringLiteral("searchRadius"), 0.0);
                 std::tie(std::ignore, kept) =
                     cloud.RemoveRadiusOutliers(size_t(minimumNeighbours), searchRadius);
                 label = QObject::tr("radius, %1 neighbour(s) within %2")
@@ -218,13 +198,7 @@ MeshFilterRunResult runOpen3DPointCloudFilter(
             params.getEnum(QStringLiteral("searchMode"), QStringLiteral("knn"));
         const int neighbourCount =
             std::max(1, params.getInt(QStringLiteral("neighbourCount"), 30));
-        const double searchRadius = resolveLength(
-            entry.mesh, params.getDouble(QStringLiteral("searchRadius"), 0.0), 0.02);
-        if (mode != QLatin1StringView("knn") && !(searchRadius > 0.0)) {
-            return fail(QObject::tr(
-                "The layer has no extent, so no search radius can be derived for the %1 "
-                "search mode. Give one explicitly.").arg(mode));
-        }
+        const double searchRadius = params.getDouble(QStringLiteral("searchRadius"), 0.0);
 
         doc.beginFilterProgress(QObject::tr("Estimating normals"));
         cloud.EstimateNormals(*searchParam(mode, neighbourCount, searchRadius),
