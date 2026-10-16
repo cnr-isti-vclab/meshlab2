@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 374 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 386 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -1033,9 +1033,45 @@ Competing implementation: *Compute Vertex Normals* and *Compute Face Normals* do
 
 ---
 
-(filter-compute-point-cloud-normals)=
+(filter-compute-point-cloud-normals-open3d)=
 
-## Compute Point Cloud Normals
+## Compute Point Cloud Normals (Open3D)
+
+**Categories:** `Attribute/Normal`
+
+**Plugin:** meshlab2.filter.open3d
+
+Estimate per-vertex normals from a point cloud's local neighbourhoods, using Open3D.
+
+```{py:function} ms.compute_point_cloud_normals_open3d(**params)
+:module: _meshlab
+
+Fits a plane to the neighbourhood of each point and takes its normal, through the covariance of the neighbours. Three neighbourhood definitions are offered: a fixed count, a fixed radius, or a hybrid that takes the nearer of the two.
+
+**The result is unoriented.** Plane fitting determines a normal's line, not its sign, so adjacent normals may point to opposite sides of the surface — which is fatal for Ball Pivoting and for any lighting. Enable consistent orientation to resolve this with a minimum spanning tree over the tangent planes, or use one of the Orient filters afterwards. Distances are in the layer's own units, not a fraction of its size: a value that suits a scan in millimetres will not suit the same scan in metres.
+
+**Upstream:** [Open3D](https://github.com/isl-org/Open3D)
+
+**License:** MIT
+
+**References:**
+
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Open3D: A Modern Library for 3D Data Processing**. *arXiv:1801.09847* (2018). [Web](https://www.open3d.org)
+
+**Parameters:**
+
+- **searchMode** (*enum*, default: `knn`) — How the neighbourhood of each point is chosen.
+- **neighbourCount** (*int*, default: `30`) — How many nearest neighbours to fit the plane over. Ignored in Radius mode.
+- **searchRadius** (*double*, default: `0.0`) — Neighbourhood radius for the Radius and Hybrid modes. Distances are in the layer's own units, not a fraction of its size: a value that suits a scan in millimetres will not suit the same scan in metres. Zero means derive it from the layer's bounding box diagonal.
+- **orientConsistently** (*bool*, default: `False`) — Propagate a consistent sign across the cloud with a minimum spanning tree over the tangent planes. Costs more time, and is what Ball Pivoting needs.
+- **fastNormalComputation** (*bool*, default: `True`) — Use Open3D's faster eigenvector approximation rather than a full eigen decomposition. Turn it off if the normals look unstable in near-planar regions.
+```
+
+---
+
+(filter-compute-point-cloud-normals-vcglib)=
+
+## Compute Point Cloud Normals (vcglib)
 
 **Categories:** `Attribute/Normal`
 
@@ -1043,7 +1079,7 @@ Competing implementation: *Compute Vertex Normals* and *Compute Face Normals* do
 
 Estimate normals for point clouds.
 
-```{py:function} ms.compute_point_cloud_normals(**params)
+```{py:function} ms.compute_point_cloud_normals_vcglib(**params)
 :module: _meshlab
 
 Compute the normals of the vertices of a mesh without exploiting the triangle connectivity, useful for dataset with no faces
@@ -3251,6 +3287,41 @@ Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G., **The ball-pivot
 
 ---
 
+(filter-reconstruct-surface-by-ball-pivoting-open3d)=
+
+## Reconstruct Surface by Ball Pivoting (Open3D)
+
+**Categories:** `Creation/Reconstruction`
+
+**Plugin:** meshlab2.filter.open3d
+
+Reconstruct a surface by rolling balls of several radii over an oriented point cloud, using Open3D.
+
+```{py:function} ms.reconstruct_surface_by_ball_pivoting_open3d(**params)
+:module: _meshlab
+
+Rolls a ball across the oriented points; wherever it rests on three without containing any other, those three become a triangle. The result interpolates the input points rather than approximating them, so it keeps the original samples exactly — the opposite trade from Poisson reconstruction, which smooths and is watertight.
+
+**Several radii, applied in increasing order.** Each pass bridges what the previous ball was too large to enter, so a list covers a cloud of uneven density where one radius cannot. Leaving the list empty derives four radii from the layer's bounding box diagonal, which is a starting point rather than a good answer for any particular scan.
+
+The input must carry **oriented** normals; the filter refuses without them. Expect holes where the cloud is sparser than the largest ball: this method does not close them, and does not claim to be watertight.
+
+**Upstream:** [Open3D](https://github.com/isl-org/Open3D)
+
+**License:** MIT
+
+**References:**
+
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Open3D: A Modern Library for 3D Data Processing**. *arXiv:1801.09847* (2018). [Web](https://www.open3d.org)
+- Fausto Bernardini, Joshua Mittleman, Holly Rushmeier, Cláudio Silva, Gabriel Taubin. **The Ball-Pivoting Algorithm for Surface Reconstruction**. *IEEE Transactions on Visualization and Computer Graphics* (1999). [DOI](https://doi.org/10.1109/2945.817351)
+
+**Parameters:**
+
+- **radii** (*string*, default: ``) — Ball radii, in increasing order, separated by spaces or commas — for example "0.5 1 2". Leave empty to derive four radii from the bounding box diagonal. Distances are in the layer's own units, not a fraction of its size: a value that suits a scan in millimetres will not suit the same scan in metres.
+```
+
+---
+
 (filter-reconstruct-surface-by-ball-pivoting-vcglib)=
 
 ## Reconstruct Surface by Ball Pivoting (vcglib)
@@ -3691,6 +3762,38 @@ The bounding box is recursively partitioned in a octree style, center of bbox ar
 
 - **CellSize** (*absperc*, default: `@bboxDiag01`) — Subdivision threshold. Smaller values generate denser samples.
 - **Offset** (*absperc*, default: `0.0`) — Offset distance applied to the projected samples.
+```
+
+---
+
+(filter-sample-point-cloud-by-voxel-grid-open3d)=
+
+## Sample Point Cloud by Voxel Grid (Open3D)
+
+**Categories:** `Creation/Sampling`
+
+**Plugin:** meshlab2.filter.open3d
+
+Reduce a point cloud to one averaged point per occupied voxel, using Open3D.
+
+```{py:function} ms.sample_point_cloud_by_voxel_grid_open3d(**params)
+:module: _meshlab
+
+Overlays a regular voxel grid on the cloud and replaces the points in each occupied voxel with their average, producing a new layer. Unlike random or Poisson-disk subsampling this is deterministic and gives a uniform spatial density rather than a uniform count.
+
+Normals and colors are averaged along with the positions when the input carries them; no other per-vertex attribute survives, because the output points are new. Distances are in the layer's own units, not a fraction of its size: a value that suits a scan in millimetres will not suit the same scan in metres.
+
+**Upstream:** [Open3D](https://github.com/isl-org/Open3D)
+
+**License:** MIT
+
+**References:**
+
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Open3D: A Modern Library for 3D Data Processing**. *arXiv:1801.09847* (2018). [Web](https://www.open3d.org)
+
+**Parameters:**
+
+- **voxelSize** (*double*, default: `0.0`) — Edge length of the grid cells. Larger values keep fewer points. Distances are in the layer's own units, not a fraction of its size: a value that suits a scan in millimetres will not suit the same scan in metres. Zero means derive it from the layer's bounding box diagonal.
 ```
 
 ---
@@ -4468,6 +4571,149 @@ Implemented with TrueForm's `fit_obb_alignment`.
 
 ---
 
+(filter-align-by-colored-icp-open3d)=
+
+## Align by Colored ICP (Open3D)
+
+**Categories:** `Geometry/Alignment`
+
+**Plugin:** meshlab2.filter.open3d
+
+Register two colored layers using both geometry and color, with Open3D.
+
+```{py:function} ms.align_by_colored_icp_open3d(**params)
+:module: _meshlab
+
+**Starting alignment:** the layers must already be roughly aligned. ICP refines a pose; it cannot find one. Each source point is paired with its nearest reference point within the maximum correspondence distance, so the overlap has to start within that distance of where it belongs. If the layers start far apart or turned, run *Align by Feature Matching* first.
+
+Adds a photometric term to the point-to-plane objective, so color gradients constrain the motion that geometry alone leaves ambiguous. This is the case it exists for: a flat painted wall, or a cylinder free to slide and spin, where a purely geometric ICP has nothing to hold on to.
+
+Both layers need per-vertex color, and both need normals.
+
+The **current layer** is the one that moves, and the reference layer stays put. The result is written to the current layer's **matrix**, composed onto whatever it already carried; the vertex coordinates are not touched. Fitness (the fraction of source points that found a correspondence) and inlier RMSE are reported so the result can be judged rather than assumed.
+
+**Upstream:** [Open3D](https://github.com/isl-org/Open3D)
+
+**License:** MIT
+
+**References:**
+
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Open3D: A Modern Library for 3D Data Processing**. *arXiv:1801.09847* (2018). [Web](https://www.open3d.org)
+
+**Parameters:**
+
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer the current layer is moved onto. It stays put.
+- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Points further apart than this are never paired. It is in the layers' own units; zero derives it from the reference layer's bounding box diagonal.
+- **maxIterations** (*int*, default: `30`) — Upper bound on ICP iterations; it stops earlier once fitness and RMSE settle.
+```
+
+---
+
+(filter-align-by-fast-global-registration-open3d)=
+
+## Align by Fast Global Registration (Open3D)
+
+**Categories:** `Geometry/Alignment`
+
+**Plugin:** meshlab2.filter.open3d
+
+Find a pose between two layers from FPFH descriptors without RANSAC, using Open3D.
+
+```{py:function} ms.align_by_fast_global_registration_open3d(**params)
+:module: _meshlab
+
+**Starting alignment:** any position, but a limited rotation. The method removes each layer's centre and then refines the rotation starting from the identity, so it does not care where the layers sit but does depend on how they are turned. It registered a turntable pair roughly 45 degrees apart, and failed on a later pair of the same scans once the reference had been moved into place and the next scan had not; the limit between the two is not characterised. For layers in arbitrary orientation use *Align by Feature Matching*.
+
+Matches the same FPFH descriptors as *Align by Feature Matching*, then — instead of sampling candidate poses with RANSAC — optimizes a robust objective over all correspondences at once, annealing the scale parameter downward so that wrong matches lose influence as the solution settles (graduated non-convexity).
+
+The practical difference is cost: there is no iteration budget to guess at, and no sampling to get unlucky with. It is usually the faster of the two for the same pair. RANSAC remains the more conservative choice where overlap is low, which is why both are offered rather than one replacing the other.
+
+**This is an initializer.** Like the RANSAC route it needs no starting pose, and like it the result is coarse — refine with one of the ICP filters, which run at full resolution.
+
+Both layers need normals, since the descriptor is built from them, and both are downsampled before matching for the same reason as the RANSAC route.
+
+The **current layer** is the one that moves, and the reference layer stays put. The result is written to the current layer's **matrix**, composed onto whatever it already carried; the vertex coordinates are not touched. Fitness and inlier RMSE are reported.
+
+**Upstream:** [Open3D](https://github.com/isl-org/Open3D)
+
+**License:** MIT
+
+**References:**
+
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Open3D: A Modern Library for 3D Data Processing**. *arXiv:1801.09847* (2018). [Web](https://www.open3d.org)
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Fast Global Registration**. *European Conference on Computer Vision* (2016). [DOI](https://doi.org/10.1007/978-3-319-46475-6_47)
+- Radu Bogdan Rusu, Nico Blodow, Michael Beetz. **Fast Point Feature Histograms (FPFH) for 3D Registration**. *IEEE International Conference on Robotics and Automation* (2009). [DOI](https://doi.org/10.1109/ROBOT.2009.5152473)
+
+**Parameters:**
+
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer the current layer is moved onto. It stays put.
+- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Points further apart than this are never paired. It is in the layers' own units; zero derives it from the reference layer's bounding box diagonal.
+- **registrationVoxelSize** (*double*, default: `0.0`) — Both layers are reduced to roughly one point per voxel before matching. This is not an optimization but how the algorithm is meant to be used: cost grows with the point count on every RANSAC iteration, and the pose is unaffected by density. Zero derives it from the reference layer's bounding box diagonal.
+- **featureRadius** (*double*, default: `0.0`) — Neighbourhood radius each descriptor is computed over. Larger values describe more context and match more robustly, at more cost. Zero derives it from the reference layer's bounding box diagonal.
+- **featureNeighbours** (*int*, default: `100`) — Upper bound on neighbours per descriptor, within the feature radius.
+- **fgrIterations** (*int*, default: `64`) — Annealing rounds. Each one lowers the scale parameter by the division factor.
+- **divisionFactor** (*double*, default: `1.4`) — How fast the scale parameter anneals. Larger values converge sooner and are less tolerant of wrong correspondences.
+- **decreaseMu** (*bool*, default: `True`) — Lower the scale parameter each round, which is what graduated non-convexity means. Turning it off keeps a fixed robustness scale throughout.
+- **tupleScale** (*double*, default: `0.95`) — Similarity tolerance when testing triples of correspondences for geometric compatibility.
+- **maximumTupleCount** (*int*, default: `1000`) — Upper bound on the compatible triples kept from the initial correspondences.
+- **tupleTest** (*bool*, default: `True`) — Discard correspondence triples whose relative distances disagree between the two layers. Cheap, and it removes most wrong matches before the optimization starts.
+- **randomSeed** (*int*, default: `0`) — Seed for the random sampling this method does. Zero draws a fresh seed each run and reports it, so a result can be reproduced afterwards by pinning that value. Two runs with the same seed give the same pose; two runs with different seeds may not.
+```
+
+---
+
+(filter-align-by-feature-matching-open3d)=
+
+## Align by Feature Matching (Open3D)
+
+**Categories:** `Geometry/Alignment`
+
+**Plugin:** meshlab2.filter.open3d
+
+Find a coarse pose between two layers from FPFH descriptors and RANSAC, using Open3D.
+
+```{py:function} ms.align_by_feature_matching_open3d(**params)
+:module: _meshlab
+
+**Starting alignment:** none. The layers may start in any position and orientation, because the pose is found from surface shape alone and not from where the layers currently are. What it does need is real surface overlap, and normals on both layers. The result is a coarse pose (on one pair of range maps it landed within about 2% of the bounding-box diagonal); refine it with ICP.
+
+Describes every point by a Fast Point Feature Histogram of its neighbours' relative orientations, matches those descriptors between the two layers, and fits a pose to the matches with RANSAC.
+
+**This is an initializer, not a final alignment** — the name follows the verb lexicon, where *Align* means deriving a registration transform, but the result is coarse. It needs no starting pose at all, which is exactly what ICP cannot do — but it returns a coarse result. Run one of the ICP filters afterwards to refine it.
+
+Both layers need normals, since the descriptor is built from them.
+
+**Both layers are downsampled before matching**, controlled by the matching voxel size. Global registration is defined on a sparse cloud: every RANSAC iteration transforms the whole source cloud and searches the target for each point, so a raw scan costs minutes where a few thousand points cost seconds — for the same pose, since a rigid transform does not depend on sampling density. Refine with an ICP filter afterwards, which does run at full resolution.
+
+**A set of layers can be the reference.** With *Use All Visible Layers as Reference* the target is every other visible layer combined, in world space, so the current layer can be placed against whichever of them it overlaps. This is what a scan sequence needs when a new scan overlaps the surface already built up but not the scan just before it -- for instance the first scan of a second loop around the object. The combined points go through the same downsampling as a single layer, so surface covered by several scans is not counted several times. Every layer in the set needs normals. Hide the layers that should not take part.
+
+The **current layer** is the one that moves, and the reference layer stays put. The result is written to the current layer's **matrix**, composed onto whatever it already carried; the vertex coordinates are not touched. Fitness (the fraction of source points that found a correspondence) and inlier RMSE are reported so the result can be judged rather than assumed.
+
+**Upstream:** [Open3D](https://github.com/isl-org/Open3D)
+
+**License:** MIT
+
+**References:**
+
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Open3D: A Modern Library for 3D Data Processing**. *arXiv:1801.09847* (2018). [Web](https://www.open3d.org)
+- Radu Bogdan Rusu, Nico Blodow, Michael Beetz. **Fast Point Feature Histograms (FPFH) for 3D Registration**. *IEEE International Conference on Robotics and Automation* (2009). [DOI](https://doi.org/10.1109/ROBOT.2009.5152473)
+
+**Parameters:**
+
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer the current layer is moved onto. It stays put.
+- **useAllVisibleAsReference** (*bool*, default: `False`) — Take every other visible layer together as the reference instead of the one named above, which is then ignored. Their points are combined and downsampled internally. Use it when the current layer overlaps the scans already placed but not the one before it in the sequence.
+- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Points further apart than this are never paired. It is in the layers' own units; zero derives it from the reference layer's bounding box diagonal.
+- **registrationVoxelSize** (*double*, default: `0.0`) — Both layers are reduced to roughly one point per voxel before matching. This is not an optimization but how the algorithm is meant to be used: cost grows with the point count on every RANSAC iteration, and the pose is unaffected by density. Zero derives it from the reference layer's bounding box diagonal.
+- **featureRadius** (*double*, default: `0.0`) — Neighbourhood radius each descriptor is computed over. Larger values describe more context and match more robustly, at more cost. Zero derives it from the reference layer's bounding box diagonal.
+- **featureNeighbours** (*int*, default: `100`) — Upper bound on neighbours per descriptor, within the feature radius.
+- **mutualFilter** (*bool*, default: `True`) — Keep only correspondences that are each other's best match in both directions. Fewer and better matches, which usually helps RANSAC rather than hindering it.
+- **ransacIterations** (*int*, default: `100000`) — Upper bound on RANSAC samples; it stops earlier once the confidence is reached.
+- **ransacConfidence** (*double*, default: `0.999`) — Probability of having found the best model, at which sampling stops.
+- **randomSeed** (*int*, default: `0`) — Seed for the random sampling this method does. Zero draws a fresh seed each run and reports it, so a result can be reproduced afterwards by pinning that value. Two runs with the same seed give the same pose; two runs with different seeds may not.
+```
+
+---
+
 (filter-align-by-icp-trueform)=
 
 ## Align by ICP (TrueForm)
@@ -4552,9 +4798,139 @@ Perform Iterative Closest Point alignment between a fixed reference layer and a 
 
 ---
 
-(filter-align-meshes-globally)=
+(filter-align-by-point-to-plane-icp-open3d)=
 
-## Align Meshes Globally
+## Align by Point-to-Plane ICP (Open3D)
+
+**Categories:** `Geometry/Alignment`
+
+**Plugin:** meshlab2.filter.open3d
+
+Register two layers by minimizing point-to-tangent-plane distances, using Open3D.
+
+```{py:function} ms.align_by_point_to_plane_icp_open3d(**params)
+:module: _meshlab
+
+**Starting alignment:** the layers must already be roughly aligned. ICP refines a pose; it cannot find one. Each source point is paired with its nearest reference point within the maximum correspondence distance, so the overlap has to start within that distance of where it belongs. If the layers start far apart or turned, run *Align by Feature Matching* first.
+
+Minimizes the distance from each source point to the *tangent plane* at its corresponding reference point, rather than to the point itself. Sliding along a smooth surface is then free of penalty only in the directions the surface actually permits, so it converges in far fewer iterations than point-to-point on scan data.
+
+The reference layer must carry normals; the filter refuses without them.
+
+The **current layer** is the one that moves, and the reference layer stays put. The result is written to the current layer's **matrix**, composed onto whatever it already carried; the vertex coordinates are not touched. Fitness (the fraction of source points that found a correspondence) and inlier RMSE are reported so the result can be judged rather than assumed.
+
+**Upstream:** [Open3D](https://github.com/isl-org/Open3D)
+
+**License:** MIT
+
+**References:**
+
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Open3D: A Modern Library for 3D Data Processing**. *arXiv:1801.09847* (2018). [Web](https://www.open3d.org)
+
+**Parameters:**
+
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer the current layer is moved onto. It stays put.
+- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Points further apart than this are never paired. It is in the layers' own units; zero derives it from the reference layer's bounding box diagonal.
+- **maxIterations** (*int*, default: `30`) — Upper bound on ICP iterations; it stops earlier once fitness and RMSE settle.
+```
+
+---
+
+(filter-align-by-point-to-point-icp-open3d)=
+
+## Align by Point-to-Point ICP (Open3D)
+
+**Categories:** `Geometry/Alignment`
+
+**Plugin:** meshlab2.filter.open3d
+
+Register two layers by minimizing distances between corresponding points, using Open3D.
+
+```{py:function} ms.align_by_point_to_point_icp_open3d(**params)
+:module: _meshlab
+
+**Starting alignment:** the layers must already be roughly aligned. ICP refines a pose; it cannot find one. Each source point is paired with its nearest reference point within the maximum correspondence distance, so the overlap has to start within that distance of where it belongs. If the layers start far apart or turned, run *Align by Feature Matching* first.
+
+Iteratively pairs each source point with the nearest reference point and minimizes the sum of squared distances between the pairs. The classic Besl-McKay objective: it needs no normals and makes no assumption about the surface, which also makes it the slowest to converge on smooth geometry, where sliding along the surface costs it nothing.
+
+The **current layer** is the one that moves, and the reference layer stays put. The result is written to the current layer's **matrix**, composed onto whatever it already carried; the vertex coordinates are not touched. Fitness (the fraction of source points that found a correspondence) and inlier RMSE are reported so the result can be judged rather than assumed.
+
+**Upstream:** [Open3D](https://github.com/isl-org/Open3D)
+
+**License:** MIT
+
+**References:**
+
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Open3D: A Modern Library for 3D Data Processing**. *arXiv:1801.09847* (2018). [Web](https://www.open3d.org)
+
+**Parameters:**
+
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer the current layer is moved onto. It stays put.
+- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Points further apart than this are never paired. It is in the layers' own units; zero derives it from the reference layer's bounding box diagonal.
+- **maxIterations** (*int*, default: `30`) — Upper bound on ICP iterations; it stops earlier once fitness and RMSE settle.
+- **estimateScale** (*bool*, default: `False`) — Also solve for a uniform scale factor. Leave off unless the two layers genuinely differ in scale: a free scale can absorb a bad alignment and report a good fitness.
+```
+
+---
+
+(filter-align-meshes-globally-open3d)=
+
+## Align Meshes Globally (Open3D)
+
+**Categories:** `Geometry/Alignment`
+
+**Plugin:** meshlab2.filter.open3d
+
+Align many overlapping layers at once by optimizing a pose graph, using Open3D.
+
+```{py:function} ms.align_meshes_globally_open3d(**params)
+:module: _meshlab
+
+**Starting alignment:** depends on *Pair Initialization*. With *Current Pose* (the default) the layers must already be roughly placed, close enough that ICP converges on each overlapping pair; *Align Meshes Sequentially* is the way to get them there. With *Feature Matching* none is needed, at a higher cost. Layer order does not matter.
+
+Registers every overlapping pair of layers, assembles the results into a **pose graph** — one node per layer, one edge per accepted pair — and optimizes all the poses together with Levenberg-Marquardt.
+
+This is what a chain of pairwise ICP cannot do. Aligning A to B, then B to C, then C to D accumulates drift and has nowhere to put the disagreement when D also overlaps A. The global optimization distributes that error across the whole graph instead.
+
+Every edge is treated as a **loop closure** rather than trusted odometry, because layers in a document carry no scan order. Open3D's line process then down-weights and prunes edges that disagree with the consensus, so one bad pairwise registration degrades the result rather than wrecking it. Pairs that register below the minimum fitness are rejected before they ever reach the graph.
+
+Only the layer **matrices** change; no coordinates are touched, and the reference layer is held fixed so the whole group does not drift in world space.
+
+**Pair initialization is the choice that matters most.** By default each pairwise registration refines the relative pose the layers already have, which is right once they are roughly placed and useless before that — ICP cannot find a pose it is not already near. Setting it to *Feature Matching* computes each pair's pose from FPFH descriptors first, so **no prior placement is needed at all**. This mirrors Open3D's own `register_fragments` pipeline, which treats consecutive frames as known odometry and finds every other pair by global registration.
+
+Feature matching also forces every pair to be attempted: a bounding-box overlap test asks where the layers are, and that is precisely what is unknown. Descriptors are computed once per layer and reused across pairs.
+
+Cost grows with the number of pairs, which is quadratic in the layer count. With poses already trusted, the default considers only pairs whose bounding boxes overlap, which is usually most of the saving.
+
+**Upstream:** [Open3D](https://github.com/isl-org/Open3D)
+
+**License:** MIT
+
+**References:**
+
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Open3D: A Modern Library for 3D Data Processing**. *arXiv:1801.09847* (2018). [Web](https://www.open3d.org)
+- Sungjoon Choi, Qian-Yi Zhou, Vladlen Koltun. **Robust Reconstruction of Indoor Scenes**. *IEEE Conference on Computer Vision and Pattern Recognition* (2015). [DOI](https://doi.org/10.1109/CVPR.2015.7298863)
+
+**Parameters:**
+
+- **referenceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer held fixed. Everything else moves around it, so the group keeps its place in world space.
+- **onlyVisibleLayers** (*bool*, default: `True`) — Align only the layers currently visible. Turn off to include hidden ones.
+- **pairInitialization** (*enum*, default: `currentPose`) — Where each pairwise registration starts from.
+- **candidatePairs** (*enum*, default: `overlapping`) — Which pairs of layers to attempt a registration between.
+- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Pairing distance for the pairwise registrations and for the line process. In the layers' own units; zero derives it from the first layer's bounding box diagonal.
+- **registrationVoxelSize** (*double*, default: `0.0`) — Layers are downsampled to roughly one point per voxel before pairing. Every pair costs time proportional to the point count. Zero derives it from the first layer's bounding box diagonal.
+- **minimumFitness** (*double*, default: `0.3`) — A pairwise registration below this fitness is discarded rather than added as an edge. Raising it admits fewer and better edges; too high and the graph stops being connected.
+- **maxIterations** (*int*, default: `30`) — Iteration cap for each pairwise registration.
+- **preferenceLoopClosure** (*double*, default: `2.0`) — How strongly the optimizer favours loop-closure edges over leaving poses where they are. Open3D recommends 2.0 for registering fragments and 0.1 for RGB-D odometry.
+- **edgePruneThreshold** (*double*, default: `0.25`) — Edges whose line-process weight falls below this are pruned as outliers.
+- **randomSeed** (*int*, default: `0`) — Seed for the random sampling this method does. Zero draws a fresh seed each run and reports it, so a result can be reproduced afterwards by pinning that value. Two runs with the same seed give the same pose; two runs with different seeds may not.
+```
+
+---
+
+(filter-align-meshes-globally-vcglib)=
+
+## Align Meshes Globally (vcglib)
 
 **Categories:** `Geometry/Alignment`
 
@@ -4562,7 +4938,7 @@ Perform Iterative Closest Point alignment between a fixed reference layer and a 
 
 Globally align overlapping mesh layers using pairwise ICP arcs.
 
-```{py:function} ms.align_meshes_globally(**params)
+```{py:function} ms.align_meshes_globally_vcglib(**params)
 :module: _meshlab
 
 Build an overlap graph among the selected document layers, run ICP on sufficiently overlapping layer pairs, then solve a global alignment. The chosen base mesh remains fixed and the other layer transforms are updated without baking coordinates.
@@ -4590,6 +4966,54 @@ Build an overlap graph among the selected document layers, run ICP on sufficient
 - **MaxAngleDeg** (*double*, default: `45.0`) — Maximum accepted normal angle in degrees.
 - **MinPointNum** (*int*, default: `30`) — Minimum number of matched point pairs required for a valid pairwise ICP arc.
 - **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sub-sampling of each aligned pair exactly reproducible.
+```
+
+---
+
+(filter-align-meshes-sequentially-open3d)=
+
+## Align Meshes Sequentially (Open3D)
+
+**Categories:** `Geometry/Alignment`
+
+**Plugin:** meshlab2.filter.open3d
+
+Align a sequence of overlapping scans one after another from raw positions, then optimize the aligned group together, using Open3D.
+
+```{py:function} ms.align_meshes_sequentially_open3d(**params)
+:module: _meshlab
+
+**Starting alignment:** none. Only the reference stays where it is; every later layer may start in any position and orientation. What the filter does need is that the layers are listed in scanning order, so that **each one overlaps the one before it**, and that every layer has normals. Meshes loaded from a file get smooth normals automatically when the file has none; a point cloud needs *Compute Point Cloud Normals* first.
+
+Starting from the reference layer, it takes each following layer in the layer list and moves it onto the one before it: a coarse pose from *Align by Feature Matching*, then *Align by Point-to-Plane ICP* to refine it. Each pair it attempts is written to the log, with the fitness it reached. This is the sequence Open3D's `register_fragments` tutorial describes, and what registering a set of range maps one by one by hand amounts to.
+
+**It stops at the first pair that fails** — a pair whose registration finds no correspondences, or reaches a fitness below the minimum. That layer is put back where it was found, and so are the layers after it. Every layer placed before the failure is then optimized together with *Align Meshes Globally*, so the drift a chain accumulates is shared across the group instead of being left in the last layer. Turn *Global Refinement* off to keep the chain as it stands.
+
+A stop is reported, not hidden: the log names the layer and the reason, and the result says how many layers were aligned. To continue past a failure, fix that pair by hand (a different seed, a larger correspondence distance, or a manual placement) and run the filter again with the last good layer as the reference.
+
+The feature matcher samples randomly. Every pair of a run uses the same *Random Seed*, which is reported, so a run can be replayed.
+
+Layers listed *before* the reference are not part of the chain and are not touched. Only layer matrices change; no coordinates are modified.
+
+**Upstream:** [Open3D](https://github.com/isl-org/Open3D)
+
+**License:** MIT
+
+**References:**
+
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Open3D: A Modern Library for 3D Data Processing**. *arXiv:1801.09847* (2018). [Web](https://www.open3d.org)
+- Radu Bogdan Rusu, Nico Blodow, Michael Beetz. **Fast Point Feature Histograms (FPFH) for 3D Registration**. *IEEE International Conference on Robotics and Automation* (2009). [DOI](https://doi.org/10.1109/ROBOT.2009.5152473)
+- Sungjoon Choi, Qian-Yi Zhou, Vladlen Koltun. **Robust Reconstruction of Indoor Scenes**. *IEEE Conference on Computer Vision and Pattern Recognition* (2015). [DOI](https://doi.org/10.1109/CVPR.2015.7298863)
+
+**Parameters:**
+
+- **referenceMesh** (*mesh*, default: `@currentMeshIndex`) — The first layer of the chain. It stays where it is, and each later layer in the layer list is aligned onto the one before it. Layers listed before it are not touched.
+- **onlyVisibleLayers** (*bool*, default: `True`) — Skip hidden layers. Turn off to include them in the chain.
+- **minimumFitness** (*double*, default: `0.5`) — A pair whose ICP fitness (the fraction of source points with a correspondence) falls below this stops the chain. Registered range maps reached 0.8 or more; a pair that did not register read 0.24. Lower it for scans with little overlap.
+- **maxCorrespondenceDistance** (*double*, default: `0.0`) — Pairing distance for every pairwise registration. In the layers' own units; zero derives it from each reference layer's bounding box diagonal.
+- **maxIterations** (*int*, default: `60`) — Iteration cap for the ICP refinement of each pair, and for the pairwise registrations of the final optimization.
+- **globalRefinement** (*bool*, default: `True`) — After the chain stops or finishes, optimize all the layers it placed together. Needs at least three aligned layers to have anything to distribute.
+- **randomSeed** (*int*, default: `0`) — Seed for the feature matching of every pair. Zero draws one fresh seed for the whole run and reports it, so the run can be replayed by pinning that value.
 ```
 
 ---
@@ -9351,6 +9775,72 @@ Select the vertex classified as outlier using Local Outlier Propabilty measure d
 
 - **PropThreshold** (*double*, default: `0.8`) — Threshold to select a vertex. Vertex is selected if LoOP value is above threshold.
 - **KNearest** (*int*, default: `32`) — Number of neighbors used to compute LoOP.
+```
+
+---
+
+(filter-select-point-cloud-outliers-by-radius-open3d)=
+
+## Select Point Cloud Outliers by Radius (Open3D)
+
+**Categories:** `Selection/by Attribute`
+
+**Plugin:** meshlab2.filter.open3d
+
+Select points with too few neighbours inside a given radius, using Open3D.
+
+```{py:function} ms.select_point_cloud_outliers_by_radius_open3d(**params)
+:module: _meshlab
+
+Selects every point that has fewer than the required number of neighbours within the search radius. It is a blunt, predictable criterion: it removes isolated specks and sparse haze, and it will also remove genuine geometry wherever the cloud is legitimately sparse.
+
+The points are **selected, not deleted** — inspect the selection and remove it with a Remove filter if it is right. Distances are in the layer's own units, not a fraction of its size: a value that suits a scan in millimetres will not suit the same scan in metres.
+
+**Upstream:** [Open3D](https://github.com/isl-org/Open3D)
+
+**License:** MIT
+
+**References:**
+
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Open3D: A Modern Library for 3D Data Processing**. *arXiv:1801.09847* (2018). [Web](https://www.open3d.org)
+
+**Parameters:**
+
+- **minimumNeighbours** (*int*, default: `16`) — A point with fewer neighbours than this inside the search radius is selected.
+- **searchRadius** (*double*, default: `0.0`) — Radius of the sphere searched around each point. Distances are in the layer's own units, not a fraction of its size: a value that suits a scan in millimetres will not suit the same scan in metres. Zero means derive it from the layer's bounding box diagonal.
+```
+
+---
+
+(filter-select-point-cloud-outliers-statistically-open3d)=
+
+## Select Point Cloud Outliers Statistically (Open3D)
+
+**Categories:** `Selection/by Attribute`
+
+**Plugin:** meshlab2.filter.open3d
+
+Select points whose mean neighbour distance is an outlier, using Open3D.
+
+```{py:function} ms.select_point_cloud_outliers_statistically_open3d(**params)
+:module: _meshlab
+
+Computes the mean distance from each point to its *k* nearest neighbours, then selects every point whose mean lies further than the given number of standard deviations above the global average. Unlike the radius criterion this adapts to the cloud's own density, so it suits a scan whose sampling varies across the surface.
+
+The points are **selected, not deleted**.
+
+**Upstream:** [Open3D](https://github.com/isl-org/Open3D)
+
+**License:** MIT
+
+**References:**
+
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Open3D: A Modern Library for 3D Data Processing**. *arXiv:1801.09847* (2018). [Web](https://www.open3d.org)
+
+**Parameters:**
+
+- **neighbourCount** (*int*, default: `20`) — How many nearest neighbours the mean distance is computed over.
+- **standardDeviationRatio** (*double*, default: `2.0`) — How far above the global average a point's mean neighbour distance must lie before it is selected. Lower values select more points.
 ```
 
 ---

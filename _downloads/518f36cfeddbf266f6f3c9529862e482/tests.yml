@@ -1,0 +1,195 @@
+name: Tests
+
+# Manual only. The suite builds the whole project and takes long enough that
+# running it on every push would compete with the packaging jobs for the
+# repository's shared cache budget without telling anyone much. Start it from
+# the Actions tab, or with: gh workflow run tests.yml
+on:
+  workflow_dispatch:
+    inputs:
+      ctest_filter:
+        description: 'Only run tests matching this regex (ctest -R). Empty runs all.'
+        required: false
+        default: ''
+      fetch_datasets:
+        description: 'Fetch the CI-eligible large test datasets first'
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+
+# Each manual run gets its own group, so two people starting a run cannot
+# cancel each other.
+concurrency:
+  group: tests-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  ctest:
+    name: ctest (macOS arm64)
+    # Same pin and the same reasoning as macos-dmg.yml: the SDK has to match
+    # CMAKE_OSX_DEPLOYMENT_TARGET, or an API introduced after macOS 15 is a
+    # warning here and a crash on a user's machine.
+    runs-on: macos-15
+    timeout-minutes: 150
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      BUILD_DIR: build-release
+      QT_VERSION: 6.11.2
+      QT_ARCH: clang_64
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      VCPKG_TARGET_TRIPLET: arm64-osx
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/ci/vcpkg-triplets
+      # No window server on a runner. This is the right setting for the ctest
+      # suite and the wrong one for the render probes, which need a real GPU and
+      # are deliberately not run here -- see docs/design/rendering.md.
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Install macOS build dependencies
+        run: |
+          brew install \
+            ninja \
+            libomp \
+            autoconf \
+            autoconf-archive \
+            automake \
+            libtool
+
+      - name: Expose build tools
+        run: |
+          echo "$(brew --prefix ninja)/bin" >> "$GITHUB_PATH"
+          echo "OpenMP_ROOT=$(brew --prefix libomp)" >> "$GITHUB_ENV"
+          echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> "$GITHUB_ENV"
+          echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> "$GITHUB_ENV"
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          arch: ${{ env.QT_ARCH }}
+          modules: qtshadertools qtimageformats
+          cache: true
+          cache-key-prefix: meshlab-qt-macos-imgfmt
+
+      - name: Expose Qt tools
+        run: |
+          echo "$QT_ROOT_DIR/bin" >> "$GITHUB_PATH"
+          echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR;$(brew --prefix libomp)" >> "$GITHUB_ENV"
+          echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> "$GITHUB_ENV"
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
+          VCPKG_BASELINE="$(python3 - <<'PY'
+          import json
+          with open("vcpkg.json", "r", encoding="utf-8") as f:
+              print(json.load(f)["builtin-baseline"])
+          PY
+          )"
+          git -C "$VCPKG_ROOT" checkout --detach "$VCPKG_BASELINE"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+
+      # Restore only, and from the packaging job's cache. This job never saves a
+      # vcpkg entry: dependencies here are identical to the ones macos-dmg.yml
+      # already builds on every push to main, and a second ~4 GB copy under its
+      # own key would spend twice from the 10 GB per-repository budget and let
+      # the two jobs evict each other. The cost is that a run with no warm
+      # packaging cache compiles the dependencies itself and throws them away.
+      - name: Restore vcpkg artifacts from the packaging job
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/Library/Caches/vcpkg/archives
+            ${{ env.VCPKG_ROOT }}/downloads
+            ${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed
+          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}
+          restore-keys: |
+            macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-
+            macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install vcpkg dependencies
+        run: |
+          "$VCPKG_ROOT/vcpkg" install \
+            --triplet "$VCPKG_TARGET_TRIPLET" \
+            --overlay-triplets="$VCPKG_OVERLAY_TRIPLETS" \
+            --x-manifest-root="$GITHUB_WORKSPACE" \
+            --x-install-root="$GITHUB_WORKSPACE/$BUILD_DIR/vcpkg_installed" \
+            --clean-after-build
+
+      # Separate from the vcpkg cache on purpose: one key per thing that changes
+      # independently, so adding a dataset does not invalidate the dependencies
+      # and a dependency bump does not re-download the data.
+      - name: Cache test datasets
+        if: ${{ inputs.fetch_datasets }}
+        uses: actions/cache@v6
+        with:
+          # Only the downloaded archives, not the extracted trees: fetch.py
+          # re-extracts from a verified archive without touching the network, and
+          # caching just this one directory keeps the entry small and cannot
+          # restore a stale datasets.json or fetch.py over the checked-out ones.
+          path: tests/datasets/.archives
+          key: test-datasets-${{ hashFiles('tests/datasets/datasets.json') }}
+
+      - name: Fetch test datasets
+        if: ${{ inputs.fetch_datasets }}
+        # --ci-only honours the manifest's ciEligible flag, so a dataset whose
+        # licence has not been cleared for unattended download is skipped here
+        # rather than the judgement being made in this file.
+        run: python3 tests/datasets/fetch.py --ci-only
+
+      - name: Configure
+        run: |
+          cmake --preset vcpkg-manifest \
+            -B "$BUILD_DIR" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
+            -DOpenMP_ROOT="$OpenMP_ROOT" \
+            -DOpenMP_CXX_INCLUDE_DIR="$OpenMP_ROOT/include" \
+            -DOpenMP_CXX_LIB_NAMES=omp \
+            -DOpenMP_omp_LIBRARY="$OpenMP_ROOT/lib/libomp.dylib" \
+            -DVCPKG_TARGET_TRIPLET="$VCPKG_TARGET_TRIPLET" \
+            -DVCPKG_OVERLAY_TRIPLETS="$VCPKG_OVERLAY_TRIPLETS" \
+            -DVCPKG_INSTALLED_DIR="$GITHUB_WORKSPACE/$BUILD_DIR/vcpkg_installed" \
+            -DVCPKG_MANIFEST_INSTALL=OFF \
+            -DCMAKE_MAKE_PROGRAM="$(brew --prefix ninja)/bin/ninja"
+
+      - name: Build
+        run: cmake --build "$BUILD_DIR" -j"$(sysctl -n hw.ncpu)"
+
+      - name: Run ctest
+        # The filter arrives through the environment rather than being pasted
+        # into the command line: an expression expanded into `run:` is
+        # substituted before the shell sees it, so an input containing shell
+        # metacharacters would execute. Starting this workflow needs write
+        # access, but that is a reason not to rely on it rather than a reason to
+        # skip the quoting.
+        env:
+          CTEST_FILTER: ${{ inputs.ctest_filter }}
+        run: |
+          cd "$BUILD_DIR"
+          # --no-tests=error so a configuration that registers nothing fails
+          # loudly instead of reporting a green run with zero tests.
+          if [ -n "$CTEST_FILTER" ]; then
+            ctest --output-on-failure --no-tests=error -R "$CTEST_FILTER"
+          else
+            ctest --output-on-failure --no-tests=error
+          fi
+
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ctest-logs
+          path: ${{ env.BUILD_DIR }}/Testing/
+          retention-days: 7
+          if-no-files-found: ignore

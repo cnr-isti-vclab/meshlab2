@@ -119,6 +119,9 @@ const ThirdPartyEntry kFocusedPackages[] = {
       QT_TR_NOOP("Automatic UV atlas generation and packing.") },
     { "BPA", "https://github.com/bernhardmgruber/bpa",
       QT_TR_NOOP("Gruber's ball-pivoting surface reconstruction.") },
+    { "Open3D", "https://www.open3d.org",
+      QT_TR_NOOP("Point-cloud preparation, ball-pivoting reconstruction and the ICP "
+                 "family of registrations.") },
     { "Isoparametrization", "https://github.com/cnr-isti-vclab/meshlab",
       QT_TR_NOOP("Abstract-domain parametrization and remeshing, from the original "
                  "MeshLab.") },

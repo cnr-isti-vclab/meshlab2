@@ -577,6 +577,17 @@ current layer), the projection reference of <em>Remesh Isotropically</em>, the s
 <em>Sample Surface by Poisson Disk</em>, the fixed base of <em>Align Meshes Globally</em>, and the optional
 fit layer of <em>Create Grid</em>. That is all 17 filters with a single mesh parameter; the other
 30 with mesh parameters take two meshes.</p>
+<p><strong>Open3D pairwise aligners, 2026-10-15.</strong> The five pairwise registrations —
+<em>Align by Point-to-Point ICP</em>, <em>Point-to-Plane ICP</em>, <em>Colored ICP</em>, <em>Feature Matching</em> and
+<em>Fast Global Registration</em>, all <code class="docutils literal notranslate"><span class="pre">(Open3D)</span></code> — dropped <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> and now take only
+<code class="docutils literal notranslate"><span class="pre">referenceMesh</span></code>: the current layer is the one that moves and the parameter names the layer
+it moves onto. Measured from their manifests before the change: each declared
+<code class="docutils literal notranslate"><span class="pre">inputDomain:</span> <span class="pre">SingleMesh</span></code> and <code class="docutils literal notranslate"><span class="pre">outputDomain:</span> <span class="pre">ModifyCurrentMesh</span></code>, and each <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code>
+defaulted to <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>, so the parameter named the layer the filter already
+declared it modified. The counts above predate this and were not re-measured. The five
+TrueForm aligners (<em>Align by Bounding Box</em>, <em>by ICP</em> and the others in <code class="docutils literal notranslate"><span class="pre">filter_trueform</span></code>)
+still take both parameters; they are the same pattern and were left alone because the
+request named Open3D only.</p>
 </section>
 <section id="randomseed">
 <h3><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code><a class="headerlink" href="#randomseed" title="Link to this heading">¶</a></h3>
@@ -829,7 +840,7 @@ for (see open ruling 5).</p>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_xatlas</span></code></p></td>
 <td><p>1</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">upstream/</span></code> + <code class="docutils literal notranslate"><span class="pre">UPSTREAM_PROVENANCE.md</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">upstream/</span></code> + <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code></p></td>
 <td><p>KEEP</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">filter_xatlas</span></code></p></td>
 </tr>

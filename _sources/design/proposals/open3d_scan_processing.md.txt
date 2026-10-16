@@ -137,19 +137,167 @@ Plugin id: `meshlab2.filter.open3d`; display name: `Open3D Scan Processing`.
 Build gate: `MESHLAB2_PLUGIN_FILTER_OPEN3D`. These identifiers are proposals and
 must be checked against repository conventions when implementation begins.
 
+## ⚠ There is no Open3D package, and the build costs VTK — the mapping table
+
+Measured 2026-10-14 against tag **v0.20.0**, unpacked locally and traced with a
+script rather than read off directory names.
+
+**`ports/open3d` does not exist in vcpkg** — not in our pinned baseline
+(`37bb045f`) and not upstream either; `contents/ports/open3d` returns 404. The
+route this document assumed, "pin a release and add it to `vcpkg.json`", was
+never available. That leaves building Open3D from source, or vendoring part of
+it.
+
+### Why not build it
+
+All 21 of Open3D's own vcpkg dependencies exist in our baseline, but only three
+are already built:
+
+| | |
+|---|---|
+| Already in our manifest | `embree`, `tbb`, `tinygltf` (3 of 21) |
+| Already built in `vcpkg_installed` | `eigen3`, `openssl`, `zlib` (3) |
+| Would have to be built | **15**, headlined by **VTK** |
+
+The vcpkg `vtk` port is `9.3.0-pv5.12.1` with **26 dependencies**, and its
+default features pull HDF5, NetCDF, PROJ, SQLite, libharu, libtheora and seacas,
+plus `vtk-compile-tools` — so VTK is built essentially twice. And it cannot be
+patched out cheaply: VTK is not confined to `VtkUtils.cpp`, with 28 references
+in `t/geometry/TriangleMesh.cpp` and 3 in `t/geometry/PointCloud.cpp`. Removing
+it means excising parts of the tensor API, which is owning a fork of their build.
+
+### What we actually need: the mapping table
+
+Entry points are the six public headers behind the Phase 1 and 2 filters. The
+set was then **built**, and building corrected it twice — the figures below are
+the ones that compile, link and run, not the ones first traced.
+
+| Current (upstream v0.20.0) | Target | Measured evidence | Verdict |
+|---|---|---|---|
+| `cpp/open3d/geometry/` | `plugins/filter_open3d/upstream/open3d/geometry/` | 54 files, 18,304 lines (of 56 in the directory) | **vendor** |
+| `cpp/open3d/pipelines/registration/` | `…/upstream/open3d/pipelines/registration/` | 27 files, 5,583 lines (of 27) | **vendor** |
+| `cpp/open3d/utility/` | `…/upstream/open3d/utility/` | 26 files, 3,832 lines (of 37) | **vendor** |
+| `cpp/open3d/camera/` | `…/upstream/open3d/camera/` | 6 files, 401 lines; reached from `geometry/ImageFactory.cpp` | **vendor** |
+| `cpp/open3d/Macro.h` | `…/upstream/open3d/Macro.h` | 1 file, 110 lines | **vendor** |
+| `3rdparty/tomasakeninemoeller/` | `…/upstream/3rdparty/tomasakeninemoeller/` | 2 headers, 522 lines; Möller tri-tri test for `geometry/IntersectionTest.cpp` | **vendor** |
+| `cpp/open3d/core/` | — | 173 files; reached **only** through the 3 cut edges below | **exclude** |
+| `cpp/open3d/t/` | — | 142 files; the VTK consumer | **exclude** |
+| `cpp/open3d/visualization/` | — | 17 files; reached only via `t/geometry/TriangleMesh.h` → `rendering/Model.h` | **exclude** |
+| **Total vendored** | | **116 files, 28,752 lines** (1.3 MB source, 1.6 MB archive) | |
+
+Four files in the excluded-by-choice category, all of which would compile but
+each of which costs something we do not want:
+
+| Excluded file | Cost |
+|---|---|
+| `geometry/SurfaceReconstructionAlphaShape.cpp` | includes `core/Tensor.h`; the **only** file of the 38 candidates that reopens the `core/` cascade |
+| `geometry/SurfaceReconstructionPoisson.cpp` | needs the vendored PoissonRecon, and this document already rules out a second Poisson entry |
+| `utility/Download.cpp` | adds libcurl |
+| `utility/Extract.cpp`, `utility/ExtractZIP.cpp` | add zlib/minizip plumbing |
+
+#### ⚠ The first count was wrong, and building is what found it
+
+The table originally said **51 files, 12,859 lines**. That figure was derived by
+following `#include` edges, and it was never buildable. Two flaws, both found by
+the compiler and the linker rather than by reading:
+
+1. **A C++ library closes over symbol *definitions*, not only includes.**
+   `PointCloud.h` declares `EstimateNormals`; the body is in
+   `geometry/EstimateNormals.cpp`, a file no `#include` anywhere names. Likewise
+   `CreateFromPointCloudBallPivoting` → `SurfaceReconstructionBallPivoting.cpp`,
+   `Image::CreateFloatImage` → `ImageFactory.cpp`, and
+   `TetraMesh::CreateFromPointCloud` → `TetraMeshFactory.cpp`. Pairing each
+   header with its same-named `.cpp` misses every one.
+2. **Relative includes were not matched.** `geometry/IntersectionTest.h` includes
+   `"Line3D.h"`, not `"open3d/geometry/Line3D.h"` — which in turn pulled in
+   Möller's triangle-triangle headers from Open3D's own `3rdparty/`.
+
+The shape of the decision did not change: the three cut edges hold, and `core/`,
+`t/` and `visualization/` stay out. The price roughly doubled.
+
+#### The three cuts, verified at link time
+
+| Cut edge | Reached from | What is lost |
+|---|---|---|
+| `core/EigenConverter.h` | `geometry/BoundingVolume.cpp:13` | feeding points to the two below |
+| `t/geometry/kernel/MinimumOBB.h` | `BoundingVolume.cpp:17`, used at line 290 | `ComputeMinimumOBBJylanki` |
+| `t/geometry/kernel/MinimumOBE.h` | `BoundingVolume.cpp:18`, used at line 115 | `ComputeMinimumOBEKhachiyan` |
+
+Together they implement exactly `GetMinimalOrientedBoundingBox()`, which MeshLab
+does not need. `nm -u` on the built archive reports **zero** undefined symbols
+into `open3d::core::`, `open3d::t::` or `open3d::visualization::`, so the cuts
+hold in the linker and not merely in the include graph.
+
+A fourth apparent edge, `Macro.h` → `core/CUDAUtils.h`, is **not** a cut: it sits
+behind `#if defined(__CUDA_ARCH__)` and never fires in a CPU build.
+
+### The subset needs five external libraries, two of which we had
+
+| Library | Used by | Added to `vcpkg.json` |
+|---|---|---|
+| Eigen | throughout | already present |
+| TBB | `geometry/PointCloud.cpp`, `registration/Registration.cpp` | already present |
+| nanoflann | `geometry/KDTreeFlann.cpp:15` | **added** |
+| fmt | `utility/Logging.{h,cpp}`, `Helper.cpp`, `ProgressBar.cpp` | **added** |
+| Qhull | `geometry/Qhull.cpp`, `ComputeConvexHull` in several files | **added** |
+| jsoncpp | `utility/IJsonConvertible.h`, via `camera/PinholeCameraIntrinsic.h` | **added** |
+
+Four new packages, against fifteen including VTK for the build route.
+
+### Phase 0 result — it builds, links and computes
+
+`MeshLab2Open3DUpstream` compiles as a static library on arm64 macOS against the
+project's own Eigen and TBB. A standalone harness against the archive, on a
+sampled unit sphere:
+
+```
+points                        : 7080
+VoxelDownSample(0.05)         : 4696
+EstimateNormals               : 4696 normals
+RemoveStatisticalOutliers     : kept 4528
+BallPivoting                  : 4696 verts, 9059 tris
+ICP                           : fitness 1.0000  rmse 0.00000  dx -0.0500
+```
+
+ICP recovers exactly the −0.05 undoing an applied +0.05. Ball pivoting yields
+9,059 triangles against the closed-surface Euler ideal of ~9,388 — slightly
+fewer, consistent with the small holes the algorithm genuinely leaves.
+
+### What this changes elsewhere in this document
+
+- **Alpha shape leaves Phase 1.** `SurfaceReconstructionAlphaShape.cpp` includes
+  `core/Tensor.h` and `core/EigenConverter.h`, so it reopens the 173-file `core/`
+  cascade the cuts close. We already ship a CGAL alpha shape and an alpha
+  wrapping; revisit only if Open3D's specific behaviour is wanted.
+- **Phase 3 is not costed on this route.** TSDF integration lives in
+  `pipelines/integration/`, which has not been traced. It must not be promised
+  until it is.
+- **"Proposed integration shape" above is superseded** in its dependency
+  assumptions: Open3D becomes a vendored `upstream/` tree like
+  `filter_instant_meshes` and `filter_xatlas`, with `UPSTREAM.md` recording the
+  exact revision, the cut edges and their justification — not an external package.
+
+Open3D is MIT, so vendoring into this GPL project is unproblematic.
+
 ## Candidate filters and staging
 
 ### Phase 0 — feasibility gate
 
-Before adding descriptors or UI, pin **v0.20.0** and answer one blocking
-question:
+**Answered 2026-10-14, and the answer was not one of the expected ones.** The
+blocking question was:
 
 > **Can Open3D be built on arm64 macOS against a dependency set we are willing
 > to ship — and does it link statically?**
 
-Everything else in this document is contingent on it. If VTK proves unavoidable
-*and* shared-only, the honest answer may be to take the three cheap point-cloud
-filters and stop, rather than to stage the full plan.
+It is moot: there is no Open3D package to build against, and building from
+source costs VTK. The route is to **vendor 51 files** instead — see the mapping
+table above, which supersedes the questions below. They are kept because they
+record what was checked.
+
+The remaining Phase 0 work on the vendored route is much smaller: compile the 51
+files against our Eigen and TBB, add `nanoflann`, `fmt` and `qhull` to
+`vcpkg.json`, and confirm the three cut edges really do keep `core/` and `t/`
+out of the build rather than only out of the include graph.
 
 | # | Question | Why it blocks |
 |---|---|---|
@@ -253,7 +401,7 @@ dependencies before scheduling it.
 | Align by Colored ICP (Open3D) | `align_by_colored_icp_open3d` | Reference and moving point-cloud/mesh layers; update moving layer transform |
 | Align by Point-to-Point ICP (Open3D) | `align_by_point_to_point_icp_open3d` | Reference and moving layers; update moving layer transform |
 | Align by Point-to-Plane ICP (Open3D) | `align_by_point_to_plane_icp_open3d` | Reference and moving layers with target normals; update moving layer transform |
-| Initialize Alignment by Feature Matching (Open3D) | `initialize_alignment_by_feature_matching_open3d` | Two point-cloud layers; set moving layer transform |
+| Align by Feature Matching (Open3D) | `align_by_feature_matching_open3d` | Two point-cloud layers; set moving layer transform |
 
 Colored ICP adds color constraints that can help with tangential motion when
 geometry alone is ambiguous. Require colors and usable normals;
@@ -262,6 +410,77 @@ an explicit initial transform. Return fitness and inlier RMSE so the user can
 judge the result. Compare against MeshLab's current ICP and global aligner on
 colored scans to document its behavior, not to decide whether an independent
 implementation has a right to exist.
+
+**Implemented 2026-10-14.** All four ship, with `Geometry/Alignment` as their
+category, a single `referenceMesh` parameter (the current layer is the one that
+moves — first declared as `sourceMesh`/`referenceMesh` after the TrueForm
+aligner, and changed 2026-10-15; see
+[filter organization](../filter_organization.md)), and `outputModifies: ["TM"]` — the result lands on the layer matrix,
+composed onto what was already there, and the coordinates are never touched.
+Each refuses with the filter that supplies the missing input named: point-to-plane
+and colored ICP need reference normals, colored ICP needs color on both layers,
+and feature matching needs normals on both.
+
+*Initialize Alignment by Feature Matching* was renamed **Align by Feature
+Matching (Open3D)**: `Initialize` is not in the verb lexicon, and
+[vocabulary](../vocabulary.md) §3 defines `Align` as *deriving a registration
+transform between layers*, which is exactly what it does. That it returns a
+coarse pose belongs in the description, not in a new verb.
+
+**Two feature-based initializers ship, not one.** Both compute the same FPFH
+descriptors and differ only in what they do with them: *Align by Feature
+Matching* samples candidate poses with RANSAC, *Align by Fast Global
+Registration* optimizes a robust objective over all correspondences directly,
+annealing the scale parameter (Zhou et al. 2016). The second is usually faster
+and has no iteration budget to guess at; the first is the more conservative
+choice on low-overlap pairs. Shipping both is the archive rule working as
+intended — the shared FPFH stage makes them directly comparable.
+
+**Both needed `randomSeed`, and the test found it.** RANSAC samples poses and
+FGR samples tuples; both draw from `open3d::utility::random`, which the plugin
+was not seeding, so the same input gave a different pose on every run. The
+sequential-chain test below caught it by disagreeing with itself. The three
+randomized filters — feature matching, fast global registration and the multiway
+aligner — now declare `randomSeed` per the project convention, resolve it with
+`FilterParams::getRandomSeed()` and pass it to `open3d::utility::random::Seed()`.
+Zero still means a fresh seed; the value used is reported in the result.
+
+**Sequential initial registration works, and the initializer has to be RANSAC.**
+The eight `faccia*.ply` range maps, loaded raw and aligned pair by pair along
+the sequence — each scan onto the one already placed, which is what Open3D's
+`register_fragments` documentation describes and what a user does by hand — land
+within **0.09%, 0.29%, 0.54%, 0.86%, 0.95%, 0.82% and 0.82%** of the diagonal, at
+fitness 0.81 to 0.92. Drift is bounded rather than cumulative, because each ICP
+pulls the new scan onto real surface.
+
+*Align by Feature Matching* is the one to chain; *Fast Global Registration* is
+not, and the difference is structural. FGR subtracts each cloud's mean and then
+optimizes the rotation from the identity with Gauss-Newton
+(`NormalizePointCloud` and the loop after it in `FastGlobalRegistration.cpp`),
+so it is translation-invariant but **not orientation-invariant**. A chain is
+precisely the case that defeats it: the reference has already been rotated into
+the global frame while the incoming scan is still raw, so the relative rotation
+grows along the sequence — roughly 45 degrees at the first link, and by
+construction (the scans are named for their turntable angle; not measured
+directly) far more by the fourth, where FGR collapses to fitness 0.24 and the
+chain is lost. The same
+faccia135/faccia180 pair registers at fitness 0.81 in isolation, where both
+scans are still raw. RANSAC samples a correspondence triple and solves for the
+pose outright, so it has no such dependency.
+
+This is the practical content of "the first is the more conservative choice on
+low-overlap pairs" above, and it is worth stating as orientation rather than
+overlap: the pair that failed had ample overlap. The FGR filter's help says so.
+
+Two measurement traps are recorded with it, because both produced confident
+wrong conclusions here first. **Comparing translation columns is not a pose
+error**: these scans sit some 570 units from the origin with a diagonal of 261,
+so a few degrees of rotation moves the translation column further than the
+object is wide, and a pair registered to within 0.34% read as 208% off. The
+tests use the RMS displacement of the mesh's own bounding-box corners instead.
+And **a chain hides which link failed**: every scan after a bad one registers at
+good fitness onto a misplaced predecessor, so per-link fitness has to be read
+alongside per-link error, never the endpoint alone.
 
 Feature-based global registration (for example FPFH descriptors with RANSAC or
 another supported robust estimator) supplies a coarse pairwise pose that can
@@ -277,6 +496,95 @@ vcglib and TrueForm variants. Expose the same core convergence and maximum
 correspondence controls where feasible, and state the objective and required
 normals in each description. Keep the result matrix contract consistent across
 all ICP filters.
+
+**Implemented 2026-10-15: *Align Meshes Sequentially (Open3D)***
+(`align_meshes_sequentially_open3d`), the one-step form of the chain just
+described, added after the by-hand version proved to work. It is orchestration
+only: each pair is a call to the *Align by Feature Matching* code followed by the
+*Point-to-Plane ICP* code, and the final stage is the *Align Meshes Globally*
+code, so there is no second implementation of any of them.
+
+Behaviour, as the maintainer specified it:
+
+- the user names a reference layer; the chain is that layer followed by every
+  later layer in the layer list (visible and non-empty ones by default), each
+  aligned onto the one before it. Layers listed before the reference are not part
+  of it;
+- every pair attempted is written to the log as it starts, and a pair that
+  registered is reported by name with its inlier RMSE and fitness as it ends;
+- the progress bar belongs to the filter and covers the whole run, advancing by one
+  pair's share as each layer is aligned (to 90%, then the global optimization, then
+  100%). The pair steps and the global stage run inside it without opening or
+  closing a bar of their own — when they did, each inner finish unblocked the
+  interface in the middle of the run and rewound the percentage;
+- **at the first pair that fails** — no correspondences, or ICP fitness below the
+  minimum (default 0.5; registered range maps read 0.8 and above, an unregistered
+  pair read 0.24) — it stops. The failed layer is put back where it was found,
+  along with every layer after it, and the layers placed before it are optimized
+  together as a pose graph with their current poses as the starting point. A stop
+  is a successful run that says so; only a first pair that fails is an error, so
+  that a run which moved nothing never reports success;
+- *Global Refinement* can be switched off, and is skipped below three aligned
+  layers, where there is a single pair and nothing to distribute.
+
+Measured on the eight raw `faccia*.ply`: the whole chain registers, the worst
+scan 0.91% of the diagonal off with the chain alone and 0.84% with the global
+refinement, so the refinement is a small gain here and the assertion is only that
+it does not hurt. With an unrelated sphere listed among them the chain stops at
+the sphere, leaves it and the scan behind it untouched, and keeps the three that
+registered.
+
+**Starting alignment is stated first in every alignment filter's help.** What a
+registration must be handed is the thing a user most needs and least thinks to
+check — ICP on far-apart layers returns a confident wrong pose — so each Open3D
+aligner opens with a `**Starting alignment:**` paragraph, "none" included, and
+`alignmentFiltersStateTheirStartingAlignment` in the descriptor tier enforces it.
+It is scoped to the Open3D filters because their requirements were measured; the
+vcglib and TrueForm aligners predate the rule and have not been characterised.
+
+**Implemented 2026-10-15: *Use All Visible Layers as Reference*** on *Align by
+Feature Matching* (`useAllVisibleAsReference`; `referenceMesh` is ignored while it
+is on). The reference becomes every other visible layer, concatenated in world
+space; everything downstream — the voxel downsampling the feature path already
+does, FPFH, RANSAC, fitness — is unchanged, because none of it cares how many
+layers made the target. Derived lengths come from the extent of the combined
+points. It is offered on feature matching only: the ICP objectives refine from a
+pose already near, where one named reference is the meaningful thing.
+
+It exists because a scan can overlap the surface already built up without
+overlapping any one scan — in the range maps, the first scan of the second loop
+does not overlap the last of the first. Measured on the eight `faccia` scans
+placed at their `partial.mlp` poses as the reference and the raw `lato` scans
+registered against them, as coarse pose error in % of the diagonal:
+
+| scan | one `faccia` as reference | the whole ring as reference |
+|---|---|---|
+| `lato135` | 0.8 and 2.1 (`faccia135`, `faccia180`); the other six 62–78 | 0.5–1.4 over three seeds |
+| `lato180` | 2.5 (`faccia225`); the other seven 62–71 | 1.7–3.3 over three seeds |
+| `lato225` | 1.5 and 2.0 (`faccia270`, `faccia315`); the other six 74–81 | 1.7–3.3 over three seeds |
+
+A scan overlaps only its one or two neighbours in the ring, so a single reference
+is right or wrong by luck of which was chosen, and **the wrong ones report fitness
+0.55–0.79 while being most of the object away** — the fitness number cannot be
+what tells them apart. The set always registers. `lato180` takes about 15 s a run
+where the others take about one second: its match is weaker, so RANSAC runs to its
+100000-iteration cap. That cost is the existing one, not the set's.
+
+**Found while testing this: the "needs normals" refusals in this plugin had never
+fired.** `VCGMesh` always allocates its normals and colors, so
+`HasPerVertexNormal` is true for every layer and `hadNormals` was too. A point
+cloud with no normals — all zeros — went through feature matching and
+point-to-plane ICP as if it had them, and reported a fitness. This contradicted the
+"each refuses with the filter that supplies the missing input named" statement made
+under Phase 2 above, which was true of the code and false of its behaviour. The
+adapter now takes "has normals" to mean that some live vertex carries a non-zero
+one, and the refusals fire; the refusal for a reference *set* names the layer
+without them, since concatenation would otherwise drop them silently. Colors have
+the same flaw and are **not** fixed: an unset color is indistinguishable from a
+white one, so *Align by Colored ICP* and its "needs color" refusal still cannot
+tell a colored layer from an uncolored one. And because the loader computes smooth
+normals for any layer with faces, only point clouds can lack normals; earlier
+advice to run *Compute Vertex Normals* on range maps first was unnecessary.
 
 ### Phase 3 — RGB-D sequence reconstruction
 
@@ -338,10 +646,23 @@ from recorded sequences with explicit diagnostics and a path to supplied poses.
   Compare vendored versions and adapter options after pinning; add a separate
   filter only if a genuinely different implementation is found. A desired
   Open3D-specific option could instead inform the existing adapter.
-- **Multiway pose-graph alignment:** a separate Open3D filter is welcome if the
-  document can retain and edit the resulting pose graph. The RGB-D pipeline can
-  use it internally first; do not discard the implementation simply because
-  MeshLab already has a global alignment filter.
+- **Multiway pose-graph alignment: implemented 2026-10-15** as *Align Meshes
+  Globally (Open3D)*, and the incumbent took a suffix under decision 5
+  (`align_meshes_globally` → `align_meshes_globally_vcglib`). The pose graph is
+  built, optimised and discarded; persisting it for inspection or re-optimisation
+  remains open, and `LayerData` is the mechanism if it is wanted.
+
+  Two things were settled by building it. **Open3D's frame convention** is
+  `node.pose_` = local→world and `edge.transformation_` = `T_target⁻¹ · T_source`,
+  read out of the residual `X_inv * Tt_inv * Ts ≈ I` in `GlobalOptimization.cpp`;
+  that is exactly what `RegistrationICP` returns for clouds in their own local
+  frames, so this filter alone does **not** move clouds into world space, and a
+  node pose *is* the layer matrix. **Edge certainty cannot be all-uncertain**:
+  Open3D expects a connected subset of certain edges, which its own pipeline gets
+  from scan order. Document layers have none, and marking every edge uncertain
+  produces `Certain-edge subset of PoseGraph is not connected` and a poor result.
+  A maximum spanning tree over the accepted pairs, strongest fitness first, is the
+  backbone; everything else stays a loop closure and keeps the line process.
 - **Real-time SLAM, tensor API and GPU backends:** defer due to prototype status,
   runtime/device complexity and portability costs.
 - **Open3D visualization, legacy GUI, and Python API:** out of scope for a
@@ -349,54 +670,38 @@ from recorded sequences with explicit diagnostics and a path to supplied poses.
 
 ## Test datasets
 
-The validation below needs recorded RGB-D sequences with calibration and
-reference geometry. Those are hundreds of megabytes; this repository commits
-*small* fixtures — the whole photogrammetry fixture in
-`tests/sample_mesh/gargoyle_small/` is 928 KB. Large data cannot go in git, and
-"the developer happens to have a copy" is not a test.
+**Built, 2026-10-14** — see [Test Data](../test_data.md) for the mechanism.
+`tests/datasets/datasets.json` is the manifest, `tests/datasets/fetch.py` fetches
+and verifies, and `MESHLAB2_REQUIRE_DATASET` in `tests/testdatasets.h` gives a
+test an absolute path or skips it with an actionable message, and
+`.github/workflows/tests.yml` runs the suite on request.
 
-The shape that works, and that nothing here does yet:
+It was built before any Open3D work on purpose: it is not Open3D-specific, and
+the first thing it did was repair two long-standing failures that had nothing to
+do with this proposal — `loadMeshLabProjectLoadsMeshesAndTransforms` and
+`loadMeshLabProjectLoadsRastersAndCamera` hard-coded paths under `tests/` for
+data that only ever existed under `tests/local/`.
 
-**A manifest, not a script.** `tests/datasets/datasets.json` lists each dataset
-by name, download URL (with mirrors), SHA-256, uncompressed size and **licence**.
-The manifest is the reviewable artefact; a fetch script is just its interpreter.
-Licence matters per dataset and is not uniform — some public RGB-D corpora are
-CC-BY, some are public-domain-ish, and some require a signed agreement that
-makes them unusable for unattended CI. That has to be recorded per entry before
-anything is wired up, not discovered later.
+The manifest is seeded with `redwood_rgbd_sample`: five synchronised colour and
+depth frames from the Redwood indoor dataset with PrimeSense intrinsics, an
+odometry log and a trajectory, 3.77 MB. That is the smallest input that
+exercises a full RGB-D sequence, so Phase 3 has its fixture already.
 
-**Fetch once, verify always.** `tests/datasets/fetch.py` (or a CMake target)
-downloads only what is missing into a gitignored `tests/datasets/<name>/` and
-verifies the SHA-256 on every run, not just on download. An upstream file that
-changes silently must fail loudly rather than quietly altering test results.
-`plugins/filter_quadwild/CMakeLists.txt` already establishes the in-tree
-pattern for this — `FetchContent` with several mirror URLs and a `URL_HASH` —
-and the same discipline should apply here.
+Its licence was initially recorded as `UNRESOLVED` — GitHub reports
+`isl-org/open3d_downloads` as NOASSERTION and the hosting repository says
+nothing about redistribution. It is now **public domain**, confirmed against
+[redwood-data.org](http://redwood-data.org/indoor_lidar_rgbd/license.html):
+*"The entire dataset, including both RGB-D scans and reconstructed models, is in
+the public domain. Any part of the dataset can be used for any purpose with
+proper attribution."* The entry is `ciEligible: true` and carries the citation
+the page asks for (Park, Zhou and Koltun, ICCV 2017).
 
-**Absent data skips, never fails.** A contributor who has not fetched anything
-must still get a green `ctest`. Dataset-backed tests `QSKIP` with a message
-naming the fetch command. This keeps the three-tier structure intact: the
-descriptor and smoke tiers stay fixture-free and always run, and only the
-behavioural tier in `test_filters.cpp` opts into large data.
-
-**A committed micro-fixture alongside the large one.** A handful of frames,
-downscaled, committed — enough for the smoke tier to drive the RGB-D filter at
-all and for the descriptor tier to see it. The same rule as the gargoyle applies
-and must be written down with it: **if the images are rescaled, the intrinsics
-must follow** — `ViewportPx` and `CenterPx` scale with the pixels, `PixelSizeMm`
-inversely, `FocalMm` untouched — or every projection silently misprojects while
-reporting success.
-
-**CI caches it by manifest hash.** A separate `actions/cache` entry keyed on
-`hashFiles('tests/datasets/datasets.json')`, independent of the vcpkg cache so
-the two cannot evict each other through one key. Note this spends from the same
-10 GB repository budget as the vcpkg cache, which is the argument for keeping
-the CI dataset set deliberately small — the exhaustive corpus in the validation
-section is for local runs and release testing, not for every push.
-
-This design is not specific to Open3D. Any future filter needing real scan data
-would use it, which is an argument for building it as `tests/datasets/` rather
-than as something owned by `filter_open3d`.
+Worth noting how that went, because it is the argument for the manifest: the
+licence was not discoverable from the download URL, the hosting repository or
+the Open3D source — all three were silent or said NOASSERTION — and was settled
+by someone who knew which project the data came from. A `license` field that can
+hold `UNRESOLVED` is what kept the question visible until then, instead of it
+being assumed either way.
 
 ## Validation required before implementation is considered complete
 

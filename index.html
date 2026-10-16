@@ -305,7 +305,8 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-face-normals">Compute Face Normals</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-face-normals-by-expression">Compute Face Normals by Expression</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-normals-trueform">Compute Normals (TrueForm)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-point-cloud-normals">Compute Point Cloud Normals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-point-cloud-normals-open3d">Compute Point Cloud Normals (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-point-cloud-normals-vcglib">Compute Point Cloud Normals (vcglib)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-polygon-face-normals">Compute Polygon Face Normals</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-vertex-normals">Compute Vertex Normals</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-vertex-normals-by-expression">Compute Vertex Normals by Expression</a></li>
@@ -386,6 +387,7 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-alpha-shape">Reconstruct Surface by Alpha Shape</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-alpha-wrapping">Reconstruct Surface by Alpha Wrapping</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-ball-pivoting-gruber">Reconstruct Surface by Ball Pivoting (Gruber)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-ball-pivoting-open3d">Reconstruct Surface by Ball Pivoting (Open3D)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-ball-pivoting-vcglib">Reconstruct Surface by Ball Pivoting (vcglib)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-kinetic-partition">Reconstruct Surface by Kinetic Partition</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-marching-cubes-apss">Reconstruct Surface by Marching Cubes (APSS)</a></li>
@@ -399,6 +401,7 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#trim-surface-by-scalar-isovalue">Trim Surface by Scalar Isovalue</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-mesh-elements">Sample Mesh Elements</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-offset-surface-recursively">Sample Offset Surface Recursively</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-point-cloud-by-voxel-grid-open3d">Sample Point Cloud by Voxel Grid (Open3D)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-surface-by-monte-carlo">Sample Surface by Monte Carlo</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-surface-by-poisson-disk">Sample Surface by Poisson Disk</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-surface-by-stratified-triangles">Sample Surface by Stratified Triangles</a></li>
@@ -430,9 +433,16 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#split-into-connected-components-trueform">Split into Connected Components (TrueForm)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#render-from-render-state-json">Render from Render-State JSON</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-by-bounding-box-trueform">Align by Bounding Box (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-by-colored-icp-open3d">Align by Colored ICP (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-by-fast-global-registration-open3d">Align by Fast Global Registration (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-by-feature-matching-open3d">Align by Feature Matching (Open3D)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-by-icp-trueform">Align by ICP (TrueForm)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-by-icp-vcglib">Align by ICP (vcglib)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-meshes-globally">Align Meshes Globally</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-by-point-to-plane-icp-open3d">Align by Point-to-Plane ICP (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-by-point-to-point-icp-open3d">Align by Point-to-Point ICP (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-meshes-globally-open3d">Align Meshes Globally (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-meshes-globally-vcglib">Align Meshes Globally (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-meshes-sequentially-open3d">Align Meshes Sequentially (Open3D)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-to-corresponding-points-trueform">Align to Corresponding Points (TrueForm)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-vertex-coordinates-by-expression">Compute Vertex Coordinates by Expression</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#displace-vertices-by-fractal-brownian-motion">Displace Vertices by Fractal Brownian Motion</a></li>
@@ -601,6 +611,8 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-faces-by-scalar">Select Faces by Scalar</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-faces-by-view-angle">Select Faces by View Angle</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-outliers">Select Outliers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-point-cloud-outliers-by-radius-open3d">Select Point Cloud Outliers by Radius (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-point-cloud-outliers-statistically-open3d">Select Point Cloud Outliers Statistically (Open3D)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-vertices-by-expression">Select Vertices by Expression</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-vertices-by-scalar">Select Vertices by Scalar</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-vertices-inside-mesh-trueform">Select Vertices Inside Mesh (TrueForm)</a></li>

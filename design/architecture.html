@@ -403,7 +403,7 @@ silently. Add or remove an entry whenever any of these changes:</p>
 <td><p>VCGLib, TrueForm, MeshFix, QSlim, QuadWild-BiMDF today</p></td>
 </tr>
 <tr class="row-even"><td><p>A tree vendored under <code class="docutils literal notranslate"><span class="pre">plugins/*/upstream/</span></code> or similar</p></td>
-<td><p>PoissonRecon, Texture Defragmentation, xatlas, BPA, Instant Meshes, Isoparametrization today</p></td>
+<td><p>PoissonRecon, Texture Defragmentation, xatlas, BPA, Instant Meshes, Isoparametrization, Open3D today</p></td>
 </tr>
 </tbody>
 </table>
@@ -417,10 +417,147 @@ in both directions: anything the build pulls in must be either listed in the dia
 recorded in that test’s <code class="docutils literal notranslate"><span class="pre">notGeometry()</span></code> table with a reason, and anything the dialog lists
 must still come from somewhere. So the reminder above is a courtesy — the build is what
 actually stops the lists going stale.</p>
-<p>Each vendored package also records its own upstream and license next to its code — see
-<span class="xref myst"><code class="docutils literal notranslate"><span class="pre">external/README.md</span></code></span> and the <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code> in the plugin that
-uses it. Those are for a developer updating the package; the About lists are for a user
-asking what MeshLab is built on, and the two are maintained separately.</p>
+<p>Each vendored package also records its own upstream and license next to its code, in
+<code class="docutils literal notranslate"><span class="pre">plugins/&lt;plugin&gt;/UPSTREAM.md</span></code> — see <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">external/README.md</span></code></span> for
+the submodules. Those are for a developer updating the package; the About lists are for a
+user asking what MeshLab is built on, and the two are maintained separately.</p>
+<section id="choosing-how-to-bring-third-party-code-in">
+<h3>Choosing how to bring third-party code in<a class="headerlink" href="#choosing-how-to-bring-third-party-code-in" title="Link to this heading">¶</a></h3>
+<p>There are four ways third-party code reaches the build, and which one a package gets is
+decided by one question first: <strong>do we change the source?</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Do we change it?</p></th>
+<th class="head"><p>Mechanism</p></th>
+<th class="head"><p>Because</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Yes</strong> — patch it, adapt it to the document model, or take a subset of it</p></td>
+<td><p><strong>Vendored</strong>, under <code class="docutils literal notranslate"><span class="pre">plugins/&lt;plugin&gt;/upstream/</span></code> (PoissonRecon keeps its own spelling, <code class="docutils literal notranslate"><span class="pre">Src/</span></code>, so the tree matches upstream)</p></td>
+<td><p>Neither vcpkg nor a submodule can carry a patch without a build-time patch step, which is machinery we would own for every package. A copy in the tree can be patched, diffed against the reference clone and refreshed by hand.</p></td>
+</tr>
+<tr class="row-odd"><td><p>No, and a <strong>vcpkg port</strong> exists that suits us</p></td>
+<td><p><strong>vcpkg</strong> (<code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code>)</p></td>
+<td><p>Someone else maintains the build. “Suits us” has to be checked: it must work with the external Qt, and not drag in heavy dependencies we do not use.</p></td>
+</tr>
+<tr class="row-even"><td><p>No, and no suitable port</p></td>
+<td><p><strong>Pinned submodule</strong> under <code class="docutils literal notranslate"><span class="pre">external/</span></code></p></td>
+<td><p>Upstream stays byte-for-byte what its authors published, at a recorded commit.</p></td>
+</tr>
+<tr class="row-odd"><td><p>No, and only two or three files of it are wanted</p></td>
+<td><p><strong>Vendored verbatim</strong></p></td>
+<td><p>Copying <code class="docutils literal notranslate"><span class="pre">xatlas.cpp</span></code>/<code class="docutils literal notranslate"><span class="pre">xatlas.h</span></code> is cheaper than a submodule of a whole repository that we compile a corner of.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Upstream activity does not decide the mechanism, but it decides what vendoring costs.</strong>
+A dormant upstream cannot drift, so a vendored copy is the end of the story. An active
+upstream will move away from the copy, so a vendored tree of one must be pinned to a
+commit or tag, keep its patches few and recorded, and be revisited when a vcpkg port
+appears. Measured 2026-10-16:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Vendored</p></th>
+<th class="head"><p>Upstream’s last push</p></th>
+<th class="head"><p>Local changes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>BPA</p></td>
+<td><p>2022-09</p></td>
+<td><p>none; 3 source files and the license</p></td>
+</tr>
+<tr class="row-odd"><td><p>xatlas</p></td>
+<td><p>2024-06</p></td>
+<td><p>none; 2 source files and the license, verbatim from one commit</p></td>
+</tr>
+<tr class="row-even"><td><p>Instant Meshes</p></td>
+<td><p>2022-01</p></td>
+<td><p>6 files: removed TBB API, deterministic sorts, dropped serialization</p></td>
+</tr>
+<tr class="row-odd"><td><p>Texture Defragmentation</p></td>
+<td><p>2021-10</p></td>
+<td><p>adapted: OpenGL and file IO removed, plus MeshLab additions marked <code class="docutils literal notranslate"><span class="pre">QMeshLab:</span></code> (25 marked lines in 9 files)</p></td>
+</tr>
+<tr class="row-even"><td><p>Isoparametrization</p></td>
+<td><p>MeshLab’s own history</p></td>
+<td><p>patched: levmar replaced by newuoa (63 marked lines in 15 files)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>PoissonRecon</strong></p></td>
+<td><p><strong>2026-04, active</strong></p></td>
+<td><p>2 files: a thread-count setter, an MSVC parser workaround</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Open3D</strong></p></td>
+<td><p><strong>2026-09, active</strong></p></td>
+<td><p>1 file, plus being a 116-file subset of the library</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The four dormant or quiet upstreams (BPA, xatlas, Instant Meshes, Texture Defragmentation) cost nothing to vendor. The two active ones are vendored
+<em>because</em> we patch them, and are the ones to watch: PoissonRecon is held at version 18.75
+(commit <code class="docutils literal notranslate"><span class="pre">cd6dc7d</span></code>), and Open3D at its v0.20.0 tag. Open3D is also the case to revisit
+first, since <a class="reference external" href="https://github.com/microsoft/vcpkg/pull/53211">microsoft/vcpkg#53211</a> would
+become its port; see <code class="docutils literal notranslate"><span class="pre">plugins/filter_open3d/UPSTREAM.md</span></code> for why it is not an option yet.</p>
+<p>Every <strong>submodule</strong> is unmodified (MeshFix, QSlim, QuadWild-BiMDF, TrueForm,
+JKQtPlotter), and <code class="docutils literal notranslate"><span class="pre">external/README.md</span></code> gives each one’s reason; JKQtPlotter’s is the
+clearest case of a vcpkg port that does not suit (it needs vcpkg’s Qt). <strong>vcglib is the
+exception</strong>: it is the project’s own library, edited in lockstep with MeshLab, and is
+governed by its own rules in <code class="docutils literal notranslate"><span class="pre">CLAUDE.md</span></code>. One package is fetched at configure time, not stored: QuadWild’s GMM dependency, pinned by
+SHA-224 with mirrors, because the unmodified QuadWild submodule would otherwise download it
+over plain HTTP.</p>
+<section id="what-a-vendored-tree-must-record">
+<h4>What a vendored tree must record<a class="headerlink" href="#what-a-vendored-tree-must-record" title="Link to this heading">¶</a></h4>
+<p><code class="docutils literal notranslate"><span class="pre">plugins/&lt;plugin&gt;/UPSTREAM.md</span></code>, beside the plugin and outside the vendored tree (so the tree
+stays comparable with upstream), giving: the upstream URL; the <strong>commit or tag</strong> vendored;
+the licence; which files were taken; <strong>every local modification, with the reason</strong>; and how
+to refresh. A <code class="docutils literal notranslate"><span class="pre">check_upstream_status.sh</span></code> that diffs against a reference clone under the
+git-ignored <code class="docutils literal notranslate"><span class="pre">.reference/</span></code> is worth having once a tree has patches, as PoissonRecon, Instant
+Meshes and Open3D do. A new vendored tree also needs its About entry and passes
+<code class="docutils literal notranslate"><span class="pre">tests/test_third_party.cpp</span></code>, which now checks that the <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code> exists.</p>
+<p>The document had four names until 2026-10-16. The mapping that made them one, measured
+before the move (no collision at any target, no script or CMake reference to any old name,
+three documentation mentions updated):</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Was</p></th>
+<th class="head"><p>Now</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_screened_poisson/POISSONRECON_PROVENANCE.md</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_screened_poisson/UPSTREAM.md</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_xatlas/UPSTREAM_PROVENANCE.md</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_xatlas/UPSTREAM.md</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_texture_defragmentation/upstream/README_QMESHLAB.md</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_texture_defragmentation/UPSTREAM.md</span></code> — out of the vendored tree</p></td>
+</tr>
+<tr class="row-odd"><td><p>the eight already named <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code> (BPA, Instant Meshes, Isoparametrization, MeshFix, Open3D, QSlim, QuadWild, io_trueform)</p></td>
+<td><p>unchanged</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="known-gaps-2026-10-16">
+<h4>Known gaps (2026-10-16)<a class="headerlink" href="#known-gaps-2026-10-16" title="Link to this heading">¶</a></h4>
+<ul class="simple">
+<li><p><strong>Texture Defragmentation’s vendored commit is inferred, not recorded</strong> —
+<code class="docutils literal notranslate"><span class="pre">5c5543a</span></code>, from the one file in upstream’s history that changed after the initial import.
+Its note also records, for the first time, 12 files that differ from the classic MeshLab
+copy it was imported from, one of them functional (<code class="docutils literal notranslate"><span class="pre">Pack</span></code> takes a <code class="docutils literal notranslate"><span class="pre">randomSeed</span></code>).</p></li>
+<li><p>Isoparametrization’s “upstream” is the classic MeshLab repository, not a separate
+project, so it is vendored in the sense of “extracted and patched” rather than “copied”.</p></li>
+</ul>
+</section>
+</section>
 </section>
 <section id="state-ownership">
 <h2>State Ownership<a class="headerlink" href="#state-ownership" title="Link to this heading">¶</a></h2>
@@ -548,7 +685,14 @@ MainWindow (menus, docks, split-view orchestration)
 <li><a class="reference internal" href="#render-planning-types">Render Planning Types</a></li>
 <li><a class="reference internal" href="#render-settings-types">Render Settings Types</a></li>
 <li><a class="reference internal" href="#plugin-system">Plugin System</a></li>
-<li><a class="reference internal" href="#third-party-geometry-code">Third-party geometry code</a></li>
+<li><a class="reference internal" href="#third-party-geometry-code">Third-party geometry code</a><ul>
+<li><a class="reference internal" href="#choosing-how-to-bring-third-party-code-in">Choosing how to bring third-party code in</a><ul>
+<li><a class="reference internal" href="#what-a-vendored-tree-must-record">What a vendored tree must record</a></li>
+<li><a class="reference internal" href="#known-gaps-2026-10-16">Known gaps (2026-10-16)</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li><a class="reference internal" href="#state-ownership">State Ownership</a></li>
 <li><a class="reference internal" href="#data-flow">Data Flow</a></li>
 <li><a class="reference internal" href="#typical-runtime-sequence">Typical Runtime Sequence</a></li>

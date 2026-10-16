@@ -405,19 +405,286 @@ Build gate: <code class="docutils literal notranslate"><span class="pre">MESHLAB
 must be checked against repository conventions when implementation begins.</p>
 </section>
 </section>
+<section id="there-is-no-open3d-package-and-the-build-costs-vtk-the-mapping-table">
+<h2>⚠ There is no Open3D package, and the build costs VTK — the mapping table<a class="headerlink" href="#there-is-no-open3d-package-and-the-build-costs-vtk-the-mapping-table" title="Link to this heading">¶</a></h2>
+<p>Measured 2026-10-14 against tag <strong>v0.20.0</strong>, unpacked locally and traced with a
+script rather than read off directory names.</p>
+<p><strong><code class="docutils literal notranslate"><span class="pre">ports/open3d</span></code> does not exist in vcpkg</strong> — not in our pinned baseline
+(<code class="docutils literal notranslate"><span class="pre">37bb045f</span></code>) and not upstream either; <code class="docutils literal notranslate"><span class="pre">contents/ports/open3d</span></code> returns 404. The
+route this document assumed, “pin a release and add it to <code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code>”, was
+never available. That leaves building Open3D from source, or vendoring part of
+it.</p>
+<section id="why-not-build-it">
+<h3>Why not build it<a class="headerlink" href="#why-not-build-it" title="Link to this heading">¶</a></h3>
+<p>All 21 of Open3D’s own vcpkg dependencies exist in our baseline, but only three
+are already built:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Already in our manifest</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">embree</span></code>, <code class="docutils literal notranslate"><span class="pre">tbb</span></code>, <code class="docutils literal notranslate"><span class="pre">tinygltf</span></code> (3 of 21)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Already built in <code class="docutils literal notranslate"><span class="pre">vcpkg_installed</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">eigen3</span></code>, <code class="docutils literal notranslate"><span class="pre">openssl</span></code>, <code class="docutils literal notranslate"><span class="pre">zlib</span></code> (3)</p></td>
+</tr>
+<tr class="row-even"><td><p>Would have to be built</p></td>
+<td><p><strong>15</strong>, headlined by <strong>VTK</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The vcpkg <code class="docutils literal notranslate"><span class="pre">vtk</span></code> port is <code class="docutils literal notranslate"><span class="pre">9.3.0-pv5.12.1</span></code> with <strong>26 dependencies</strong>, and its
+default features pull HDF5, NetCDF, PROJ, SQLite, libharu, libtheora and seacas,
+plus <code class="docutils literal notranslate"><span class="pre">vtk-compile-tools</span></code> — so VTK is built essentially twice. And it cannot be
+patched out cheaply: VTK is not confined to <code class="docutils literal notranslate"><span class="pre">VtkUtils.cpp</span></code>, with 28 references
+in <code class="docutils literal notranslate"><span class="pre">t/geometry/TriangleMesh.cpp</span></code> and 3 in <code class="docutils literal notranslate"><span class="pre">t/geometry/PointCloud.cpp</span></code>. Removing
+it means excising parts of the tensor API, which is owning a fork of their build.</p>
+</section>
+<section id="what-we-actually-need-the-mapping-table">
+<h3>What we actually need: the mapping table<a class="headerlink" href="#what-we-actually-need-the-mapping-table" title="Link to this heading">¶</a></h3>
+<p>Entry points are the six public headers behind the Phase 1 and 2 filters. The
+set was then <strong>built</strong>, and building corrected it twice — the figures below are
+the ones that compile, link and run, not the ones first traced.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current (upstream v0.20.0)</p></th>
+<th class="head"><p>Target</p></th>
+<th class="head"><p>Measured evidence</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpp/open3d/geometry/</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">plugins/filter_open3d/upstream/open3d/geometry/</span></code></p></td>
+<td><p>54 files, 18,304 lines (of 56 in the directory)</p></td>
+<td><p><strong>vendor</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpp/open3d/pipelines/registration/</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">…/upstream/open3d/pipelines/registration/</span></code></p></td>
+<td><p>27 files, 5,583 lines (of 27)</p></td>
+<td><p><strong>vendor</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpp/open3d/utility/</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">…/upstream/open3d/utility/</span></code></p></td>
+<td><p>26 files, 3,832 lines (of 37)</p></td>
+<td><p><strong>vendor</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpp/open3d/camera/</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">…/upstream/open3d/camera/</span></code></p></td>
+<td><p>6 files, 401 lines; reached from <code class="docutils literal notranslate"><span class="pre">geometry/ImageFactory.cpp</span></code></p></td>
+<td><p><strong>vendor</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpp/open3d/Macro.h</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">…/upstream/open3d/Macro.h</span></code></p></td>
+<td><p>1 file, 110 lines</p></td>
+<td><p><strong>vendor</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3rdparty/tomasakeninemoeller/</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">…/upstream/3rdparty/tomasakeninemoeller/</span></code></p></td>
+<td><p>2 headers, 522 lines; Möller tri-tri test for <code class="docutils literal notranslate"><span class="pre">geometry/IntersectionTest.cpp</span></code></p></td>
+<td><p><strong>vendor</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpp/open3d/core/</span></code></p></td>
+<td><p>—</p></td>
+<td><p>173 files; reached <strong>only</strong> through the 3 cut edges below</p></td>
+<td><p><strong>exclude</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpp/open3d/t/</span></code></p></td>
+<td><p>—</p></td>
+<td><p>142 files; the VTK consumer</p></td>
+<td><p><strong>exclude</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpp/open3d/visualization/</span></code></p></td>
+<td><p>—</p></td>
+<td><p>17 files; reached only via <code class="docutils literal notranslate"><span class="pre">t/geometry/TriangleMesh.h</span></code> → <code class="docutils literal notranslate"><span class="pre">rendering/Model.h</span></code></p></td>
+<td><p><strong>exclude</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Total vendored</strong></p></td>
+<td><p></p></td>
+<td><p><strong>116 files, 28,752 lines</strong> (1.3 MB source, 1.6 MB archive)</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Four files in the excluded-by-choice category, all of which would compile but
+each of which costs something we do not want:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Excluded file</p></th>
+<th class="head"><p>Cost</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">geometry/SurfaceReconstructionAlphaShape.cpp</span></code></p></td>
+<td><p>includes <code class="docutils literal notranslate"><span class="pre">core/Tensor.h</span></code>; the <strong>only</strong> file of the 38 candidates that reopens the <code class="docutils literal notranslate"><span class="pre">core/</span></code> cascade</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">geometry/SurfaceReconstructionPoisson.cpp</span></code></p></td>
+<td><p>needs the vendored PoissonRecon, and this document already rules out a second Poisson entry</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">utility/Download.cpp</span></code></p></td>
+<td><p>adds libcurl</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">utility/Extract.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">utility/ExtractZIP.cpp</span></code></p></td>
+<td><p>add zlib/minizip plumbing</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="the-first-count-was-wrong-and-building-is-what-found-it">
+<h4>⚠ The first count was wrong, and building is what found it<a class="headerlink" href="#the-first-count-was-wrong-and-building-is-what-found-it" title="Link to this heading">¶</a></h4>
+<p>The table originally said <strong>51 files, 12,859 lines</strong>. That figure was derived by
+following <code class="docutils literal notranslate"><span class="pre">#include</span></code> edges, and it was never buildable. Two flaws, both found by
+the compiler and the linker rather than by reading:</p>
+<ol class="arabic simple">
+<li><p><strong>A C++ library closes over symbol <em>definitions</em>, not only includes.</strong>
+<code class="docutils literal notranslate"><span class="pre">PointCloud.h</span></code> declares <code class="docutils literal notranslate"><span class="pre">EstimateNormals</span></code>; the body is in
+<code class="docutils literal notranslate"><span class="pre">geometry/EstimateNormals.cpp</span></code>, a file no <code class="docutils literal notranslate"><span class="pre">#include</span></code> anywhere names. Likewise
+<code class="docutils literal notranslate"><span class="pre">CreateFromPointCloudBallPivoting</span></code> → <code class="docutils literal notranslate"><span class="pre">SurfaceReconstructionBallPivoting.cpp</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Image::CreateFloatImage</span></code> → <code class="docutils literal notranslate"><span class="pre">ImageFactory.cpp</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">TetraMesh::CreateFromPointCloud</span></code> → <code class="docutils literal notranslate"><span class="pre">TetraMeshFactory.cpp</span></code>. Pairing each
+header with its same-named <code class="docutils literal notranslate"><span class="pre">.cpp</span></code> misses every one.</p></li>
+<li><p><strong>Relative includes were not matched.</strong> <code class="docutils literal notranslate"><span class="pre">geometry/IntersectionTest.h</span></code> includes
+<code class="docutils literal notranslate"><span class="pre">&quot;Line3D.h&quot;</span></code>, not <code class="docutils literal notranslate"><span class="pre">&quot;open3d/geometry/Line3D.h&quot;</span></code> — which in turn pulled in
+Möller’s triangle-triangle headers from Open3D’s own <code class="docutils literal notranslate"><span class="pre">3rdparty/</span></code>.</p></li>
+</ol>
+<p>The shape of the decision did not change: the three cut edges hold, and <code class="docutils literal notranslate"><span class="pre">core/</span></code>,
+<code class="docutils literal notranslate"><span class="pre">t/</span></code> and <code class="docutils literal notranslate"><span class="pre">visualization/</span></code> stay out. The price roughly doubled.</p>
+</section>
+<section id="the-three-cuts-verified-at-link-time">
+<h4>The three cuts, verified at link time<a class="headerlink" href="#the-three-cuts-verified-at-link-time" title="Link to this heading">¶</a></h4>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Cut edge</p></th>
+<th class="head"><p>Reached from</p></th>
+<th class="head"><p>What is lost</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">core/EigenConverter.h</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">geometry/BoundingVolume.cpp:13</span></code></p></td>
+<td><p>feeding points to the two below</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">t/geometry/kernel/MinimumOBB.h</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BoundingVolume.cpp:17</span></code>, used at line 290</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ComputeMinimumOBBJylanki</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">t/geometry/kernel/MinimumOBE.h</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BoundingVolume.cpp:18</span></code>, used at line 115</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ComputeMinimumOBEKhachiyan</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Together they implement exactly <code class="docutils literal notranslate"><span class="pre">GetMinimalOrientedBoundingBox()</span></code>, which MeshLab
+does not need. <code class="docutils literal notranslate"><span class="pre">nm</span> <span class="pre">-u</span></code> on the built archive reports <strong>zero</strong> undefined symbols
+into <code class="docutils literal notranslate"><span class="pre">open3d::core::</span></code>, <code class="docutils literal notranslate"><span class="pre">open3d::t::</span></code> or <code class="docutils literal notranslate"><span class="pre">open3d::visualization::</span></code>, so the cuts
+hold in the linker and not merely in the include graph.</p>
+<p>A fourth apparent edge, <code class="docutils literal notranslate"><span class="pre">Macro.h</span></code> → <code class="docutils literal notranslate"><span class="pre">core/CUDAUtils.h</span></code>, is <strong>not</strong> a cut: it sits
+behind <code class="docutils literal notranslate"><span class="pre">#if</span> <span class="pre">defined(__CUDA_ARCH__)</span></code> and never fires in a CPU build.</p>
+</section>
+</section>
+<section id="the-subset-needs-five-external-libraries-two-of-which-we-had">
+<h3>The subset needs five external libraries, two of which we had<a class="headerlink" href="#the-subset-needs-five-external-libraries-two-of-which-we-had" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Library</p></th>
+<th class="head"><p>Used by</p></th>
+<th class="head"><p>Added to <code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Eigen</p></td>
+<td><p>throughout</p></td>
+<td><p>already present</p></td>
+</tr>
+<tr class="row-odd"><td><p>TBB</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">geometry/PointCloud.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">registration/Registration.cpp</span></code></p></td>
+<td><p>already present</p></td>
+</tr>
+<tr class="row-even"><td><p>nanoflann</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">geometry/KDTreeFlann.cpp:15</span></code></p></td>
+<td><p><strong>added</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>fmt</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">utility/Logging.{h,cpp}</span></code>, <code class="docutils literal notranslate"><span class="pre">Helper.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">ProgressBar.cpp</span></code></p></td>
+<td><p><strong>added</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>Qhull</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">geometry/Qhull.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">ComputeConvexHull</span></code> in several files</p></td>
+<td><p><strong>added</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>jsoncpp</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">utility/IJsonConvertible.h</span></code>, via <code class="docutils literal notranslate"><span class="pre">camera/PinholeCameraIntrinsic.h</span></code></p></td>
+<td><p><strong>added</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Four new packages, against fifteen including VTK for the build route.</p>
+</section>
+<section id="phase-0-result-it-builds-links-and-computes">
+<h3>Phase 0 result — it builds, links and computes<a class="headerlink" href="#phase-0-result-it-builds-links-and-computes" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">MeshLab2Open3DUpstream</span></code> compiles as a static library on arm64 macOS against the
+project’s own Eigen and TBB. A standalone harness against the archive, on a
+sampled unit sphere:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">points</span>                        <span class="p">:</span> <span class="mi">7080</span>
+<span class="n">VoxelDownSample</span><span class="p">(</span><span class="mf">0.05</span><span class="p">)</span>         <span class="p">:</span> <span class="mi">4696</span>
+<span class="n">EstimateNormals</span>               <span class="p">:</span> <span class="mi">4696</span> <span class="n">normals</span>
+<span class="n">RemoveStatisticalOutliers</span>     <span class="p">:</span> <span class="n">kept</span> <span class="mi">4528</span>
+<span class="n">BallPivoting</span>                  <span class="p">:</span> <span class="mi">4696</span> <span class="n">verts</span><span class="p">,</span> <span class="mi">9059</span> <span class="n">tris</span>
+<span class="n">ICP</span>                           <span class="p">:</span> <span class="n">fitness</span> <span class="mf">1.0000</span>  <span class="n">rmse</span> <span class="mf">0.00000</span>  <span class="n">dx</span> <span class="o">-</span><span class="mf">0.0500</span>
+</pre></div>
+</div>
+<p>ICP recovers exactly the −0.05 undoing an applied +0.05. Ball pivoting yields
+9,059 triangles against the closed-surface Euler ideal of ~9,388 — slightly
+fewer, consistent with the small holes the algorithm genuinely leaves.</p>
+</section>
+<section id="what-this-changes-elsewhere-in-this-document">
+<h3>What this changes elsewhere in this document<a class="headerlink" href="#what-this-changes-elsewhere-in-this-document" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Alpha shape leaves Phase 1.</strong> <code class="docutils literal notranslate"><span class="pre">SurfaceReconstructionAlphaShape.cpp</span></code> includes
+<code class="docutils literal notranslate"><span class="pre">core/Tensor.h</span></code> and <code class="docutils literal notranslate"><span class="pre">core/EigenConverter.h</span></code>, so it reopens the 173-file <code class="docutils literal notranslate"><span class="pre">core/</span></code>
+cascade the cuts close. We already ship a CGAL alpha shape and an alpha
+wrapping; revisit only if Open3D’s specific behaviour is wanted.</p></li>
+<li><p><strong>Phase 3 is not costed on this route.</strong> TSDF integration lives in
+<code class="docutils literal notranslate"><span class="pre">pipelines/integration/</span></code>, which has not been traced. It must not be promised
+until it is.</p></li>
+<li><p><strong>“Proposed integration shape” above is superseded</strong> in its dependency
+assumptions: Open3D becomes a vendored <code class="docutils literal notranslate"><span class="pre">upstream/</span></code> tree like
+<code class="docutils literal notranslate"><span class="pre">filter_instant_meshes</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_xatlas</span></code>, with <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code> recording the
+exact revision, the cut edges and their justification — not an external package.</p></li>
+</ul>
+<p>Open3D is MIT, so vendoring into this GPL project is unproblematic.</p>
+</section>
+</section>
 <section id="candidate-filters-and-staging">
 <h2>Candidate filters and staging<a class="headerlink" href="#candidate-filters-and-staging" title="Link to this heading">¶</a></h2>
 <section id="phase-0-feasibility-gate">
 <h3>Phase 0 — feasibility gate<a class="headerlink" href="#phase-0-feasibility-gate" title="Link to this heading">¶</a></h3>
-<p>Before adding descriptors or UI, pin <strong>v0.20.0</strong> and answer one blocking
-question:</p>
+<p><strong>Answered 2026-10-14, and the answer was not one of the expected ones.</strong> The
+blocking question was:</p>
 <blockquote>
 <div><p><strong>Can Open3D be built on arm64 macOS against a dependency set we are willing
 to ship — and does it link statically?</strong></p>
 </div></blockquote>
-<p>Everything else in this document is contingent on it. If VTK proves unavoidable
-<em>and</em> shared-only, the honest answer may be to take the three cheap point-cloud
-filters and stop, rather than to stage the full plan.</p>
+<p>It is moot: there is no Open3D package to build against, and building from
+source costs VTK. The route is to <strong>vendor 51 files</strong> instead — see the mapping
+table above, which supersedes the questions below. They are kept because they
+record what was checked.</p>
+<p>The remaining Phase 0 work on the vendored route is much smaller: compile the 51
+files against our Eigen and TBB, add <code class="docutils literal notranslate"><span class="pre">nanoflann</span></code>, <code class="docutils literal notranslate"><span class="pre">fmt</span></code> and <code class="docutils literal notranslate"><span class="pre">qhull</span></code> to
+<code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code>, and confirm the three cut edges really do keep <code class="docutils literal notranslate"><span class="pre">core/</span></code> and <code class="docutils literal notranslate"><span class="pre">t/</span></code>
+out of the build rather than only out of the include graph.</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -612,8 +879,8 @@ dependencies before scheduling it.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">align_by_point_to_plane_icp_open3d</span></code></p></td>
 <td><p>Reference and moving layers with target normals; update moving layer transform</p></td>
 </tr>
-<tr class="row-odd"><td><p>Initialize Alignment by Feature Matching (Open3D)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">initialize_alignment_by_feature_matching_open3d</span></code></p></td>
+<tr class="row-odd"><td><p>Align by Feature Matching (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_by_feature_matching_open3d</span></code></p></td>
 <td><p>Two point-cloud layers; set moving layer transform</p></td>
 </tr>
 </tbody>
@@ -626,6 +893,69 @@ an explicit initial transform. Return fitness and inlier RMSE so the user can
 judge the result. Compare against MeshLab’s current ICP and global aligner on
 colored scans to document its behavior, not to decide whether an independent
 implementation has a right to exist.</p>
+<p><strong>Implemented 2026-10-14.</strong> All four ship, with <code class="docutils literal notranslate"><span class="pre">Geometry/Alignment</span></code> as their
+category, a single <code class="docutils literal notranslate"><span class="pre">referenceMesh</span></code> parameter (the current layer is the one that
+moves — first declared as <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code>/<code class="docutils literal notranslate"><span class="pre">referenceMesh</span></code> after the TrueForm
+aligner, and changed 2026-10-15; see
+<a class="reference internal" href="../filter_organization.html"><span class="std std-doc">filter organization</span></a>), and <code class="docutils literal notranslate"><span class="pre">outputModifies:</span> <span class="pre">[&quot;TM&quot;]</span></code> — the result lands on the layer matrix,
+composed onto what was already there, and the coordinates are never touched.
+Each refuses with the filter that supplies the missing input named: point-to-plane
+and colored ICP need reference normals, colored ICP needs color on both layers,
+and feature matching needs normals on both.</p>
+<p><em>Initialize Alignment by Feature Matching</em> was renamed <strong>Align by Feature
+Matching (Open3D)</strong>: <code class="docutils literal notranslate"><span class="pre">Initialize</span></code> is not in the verb lexicon, and
+<a class="reference internal" href="../vocabulary.html"><span class="std std-doc">vocabulary</span></a> §3 defines <code class="docutils literal notranslate"><span class="pre">Align</span></code> as <em>deriving a registration
+transform between layers</em>, which is exactly what it does. That it returns a
+coarse pose belongs in the description, not in a new verb.</p>
+<p><strong>Two feature-based initializers ship, not one.</strong> Both compute the same FPFH
+descriptors and differ only in what they do with them: <em>Align by Feature
+Matching</em> samples candidate poses with RANSAC, <em>Align by Fast Global
+Registration</em> optimizes a robust objective over all correspondences directly,
+annealing the scale parameter (Zhou et al. 2016). The second is usually faster
+and has no iteration budget to guess at; the first is the more conservative
+choice on low-overlap pairs. Shipping both is the archive rule working as
+intended — the shared FPFH stage makes them directly comparable.</p>
+<p><strong>Both needed <code class="docutils literal notranslate"><span class="pre">randomSeed</span></code>, and the test found it.</strong> RANSAC samples poses and
+FGR samples tuples; both draw from <code class="docutils literal notranslate"><span class="pre">open3d::utility::random</span></code>, which the plugin
+was not seeding, so the same input gave a different pose on every run. The
+sequential-chain test below caught it by disagreeing with itself. The three
+randomized filters — feature matching, fast global registration and the multiway
+aligner — now declare <code class="docutils literal notranslate"><span class="pre">randomSeed</span></code> per the project convention, resolve it with
+<code class="docutils literal notranslate"><span class="pre">FilterParams::getRandomSeed()</span></code> and pass it to <code class="docutils literal notranslate"><span class="pre">open3d::utility::random::Seed()</span></code>.
+Zero still means a fresh seed; the value used is reported in the result.</p>
+<p><strong>Sequential initial registration works, and the initializer has to be RANSAC.</strong>
+The eight <code class="docutils literal notranslate"><span class="pre">faccia*.ply</span></code> range maps, loaded raw and aligned pair by pair along
+the sequence — each scan onto the one already placed, which is what Open3D’s
+<code class="docutils literal notranslate"><span class="pre">register_fragments</span></code> documentation describes and what a user does by hand — land
+within <strong>0.09%, 0.29%, 0.54%, 0.86%, 0.95%, 0.82% and 0.82%</strong> of the diagonal, at
+fitness 0.81 to 0.92. Drift is bounded rather than cumulative, because each ICP
+pulls the new scan onto real surface.</p>
+<p><em>Align by Feature Matching</em> is the one to chain; <em>Fast Global Registration</em> is
+not, and the difference is structural. FGR subtracts each cloud’s mean and then
+optimizes the rotation from the identity with Gauss-Newton
+(<code class="docutils literal notranslate"><span class="pre">NormalizePointCloud</span></code> and the loop after it in <code class="docutils literal notranslate"><span class="pre">FastGlobalRegistration.cpp</span></code>),
+so it is translation-invariant but <strong>not orientation-invariant</strong>. A chain is
+precisely the case that defeats it: the reference has already been rotated into
+the global frame while the incoming scan is still raw, so the relative rotation
+grows along the sequence — roughly 45 degrees at the first link, and by
+construction (the scans are named for their turntable angle; not measured
+directly) far more by the fourth, where FGR collapses to fitness 0.24 and the
+chain is lost. The same
+faccia135/faccia180 pair registers at fitness 0.81 in isolation, where both
+scans are still raw. RANSAC samples a correspondence triple and solves for the
+pose outright, so it has no such dependency.</p>
+<p>This is the practical content of “the first is the more conservative choice on
+low-overlap pairs” above, and it is worth stating as orientation rather than
+overlap: the pair that failed had ample overlap. The FGR filter’s help says so.</p>
+<p>Two measurement traps are recorded with it, because both produced confident
+wrong conclusions here first. <strong>Comparing translation columns is not a pose
+error</strong>: these scans sit some 570 units from the origin with a diagonal of 261,
+so a few degrees of rotation moves the translation column further than the
+object is wide, and a pair registered to within 0.34% read as 208% off. The
+tests use the RMS displacement of the mesh’s own bounding-box corners instead.
+And <strong>a chain hides which link failed</strong>: every scan after a bad one registers at
+good fitness onto a misplaced predecessor, so per-link fitness has to be read
+alongside per-link error, never the endpoint alone.</p>
 <p>Feature-based global registration (for example FPFH descriptors with RANSAC or
 another supported robust estimator) supplies a coarse pairwise pose that can
 initialize local ICP. Keep it as a separately callable alignment initializer;
@@ -639,6 +969,106 @@ vcglib and TrueForm variants. Expose the same core convergence and maximum
 correspondence controls where feasible, and state the objective and required
 normals in each description. Keep the result matrix contract consistent across
 all ICP filters.</p>
+<p><strong>Implemented 2026-10-15: <em>Align Meshes Sequentially (Open3D)</em></strong>
+(<code class="docutils literal notranslate"><span class="pre">align_meshes_sequentially_open3d</span></code>), the one-step form of the chain just
+described, added after the by-hand version proved to work. It is orchestration
+only: each pair is a call to the <em>Align by Feature Matching</em> code followed by the
+<em>Point-to-Plane ICP</em> code, and the final stage is the <em>Align Meshes Globally</em>
+code, so there is no second implementation of any of them.</p>
+<p>Behaviour, as the maintainer specified it:</p>
+<ul class="simple">
+<li><p>the user names a reference layer; the chain is that layer followed by every
+later layer in the layer list (visible and non-empty ones by default), each
+aligned onto the one before it. Layers listed before the reference are not part
+of it;</p></li>
+<li><p>every pair attempted is written to the log as it starts, and a pair that
+registered is reported by name with its inlier RMSE and fitness as it ends;</p></li>
+<li><p>the progress bar belongs to the filter and covers the whole run, advancing by one
+pair’s share as each layer is aligned (to 90%, then the global optimization, then
+100%). The pair steps and the global stage run inside it without opening or
+closing a bar of their own — when they did, each inner finish unblocked the
+interface in the middle of the run and rewound the percentage;</p></li>
+<li><p><strong>at the first pair that fails</strong> — no correspondences, or ICP fitness below the
+minimum (default 0.5; registered range maps read 0.8 and above, an unregistered
+pair read 0.24) — it stops. The failed layer is put back where it was found,
+along with every layer after it, and the layers placed before it are optimized
+together as a pose graph with their current poses as the starting point. A stop
+is a successful run that says so; only a first pair that fails is an error, so
+that a run which moved nothing never reports success;</p></li>
+<li><p><em>Global Refinement</em> can be switched off, and is skipped below three aligned
+layers, where there is a single pair and nothing to distribute.</p></li>
+</ul>
+<p>Measured on the eight raw <code class="docutils literal notranslate"><span class="pre">faccia*.ply</span></code>: the whole chain registers, the worst
+scan 0.91% of the diagonal off with the chain alone and 0.84% with the global
+refinement, so the refinement is a small gain here and the assertion is only that
+it does not hurt. With an unrelated sphere listed among them the chain stops at
+the sphere, leaves it and the scan behind it untouched, and keeps the three that
+registered.</p>
+<p><strong>Starting alignment is stated first in every alignment filter’s help.</strong> What a
+registration must be handed is the thing a user most needs and least thinks to
+check — ICP on far-apart layers returns a confident wrong pose — so each Open3D
+aligner opens with a <code class="docutils literal notranslate"><span class="pre">**Starting</span> <span class="pre">alignment:**</span></code> paragraph, “none” included, and
+<code class="docutils literal notranslate"><span class="pre">alignmentFiltersStateTheirStartingAlignment</span></code> in the descriptor tier enforces it.
+It is scoped to the Open3D filters because their requirements were measured; the
+vcglib and TrueForm aligners predate the rule and have not been characterised.</p>
+<p><strong>Implemented 2026-10-15: <em>Use All Visible Layers as Reference</em></strong> on <em>Align by
+Feature Matching</em> (<code class="docutils literal notranslate"><span class="pre">useAllVisibleAsReference</span></code>; <code class="docutils literal notranslate"><span class="pre">referenceMesh</span></code> is ignored while it
+is on). The reference becomes every other visible layer, concatenated in world
+space; everything downstream — the voxel downsampling the feature path already
+does, FPFH, RANSAC, fitness — is unchanged, because none of it cares how many
+layers made the target. Derived lengths come from the extent of the combined
+points. It is offered on feature matching only: the ICP objectives refine from a
+pose already near, where one named reference is the meaningful thing.</p>
+<p>It exists because a scan can overlap the surface already built up without
+overlapping any one scan — in the range maps, the first scan of the second loop
+does not overlap the last of the first. Measured on the eight <code class="docutils literal notranslate"><span class="pre">faccia</span></code> scans
+placed at their <code class="docutils literal notranslate"><span class="pre">partial.mlp</span></code> poses as the reference and the raw <code class="docutils literal notranslate"><span class="pre">lato</span></code> scans
+registered against them, as coarse pose error in % of the diagonal:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>scan</p></th>
+<th class="head"><p>one <code class="docutils literal notranslate"><span class="pre">faccia</span></code> as reference</p></th>
+<th class="head"><p>the whole ring as reference</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">lato135</span></code></p></td>
+<td><p>0.8 and 2.1 (<code class="docutils literal notranslate"><span class="pre">faccia135</span></code>, <code class="docutils literal notranslate"><span class="pre">faccia180</span></code>); the other six 62–78</p></td>
+<td><p>0.5–1.4 over three seeds</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">lato180</span></code></p></td>
+<td><p>2.5 (<code class="docutils literal notranslate"><span class="pre">faccia225</span></code>); the other seven 62–71</p></td>
+<td><p>1.7–3.3 over three seeds</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">lato225</span></code></p></td>
+<td><p>1.5 and 2.0 (<code class="docutils literal notranslate"><span class="pre">faccia270</span></code>, <code class="docutils literal notranslate"><span class="pre">faccia315</span></code>); the other six 74–81</p></td>
+<td><p>1.7–3.3 over three seeds</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>A scan overlaps only its one or two neighbours in the ring, so a single reference
+is right or wrong by luck of which was chosen, and <strong>the wrong ones report fitness
+0.55–0.79 while being most of the object away</strong> — the fitness number cannot be
+what tells them apart. The set always registers. <code class="docutils literal notranslate"><span class="pre">lato180</span></code> takes about 15 s a run
+where the others take about one second: its match is weaker, so RANSAC runs to its
+100000-iteration cap. That cost is the existing one, not the set’s.</p>
+<p><strong>Found while testing this: the “needs normals” refusals in this plugin had never
+fired.</strong> <code class="docutils literal notranslate"><span class="pre">VCGMesh</span></code> always allocates its normals and colors, so
+<code class="docutils literal notranslate"><span class="pre">HasPerVertexNormal</span></code> is true for every layer and <code class="docutils literal notranslate"><span class="pre">hadNormals</span></code> was too. A point
+cloud with no normals — all zeros — went through feature matching and
+point-to-plane ICP as if it had them, and reported a fitness. This contradicted the
+“each refuses with the filter that supplies the missing input named” statement made
+under Phase 2 above, which was true of the code and false of its behaviour. The
+adapter now takes “has normals” to mean that some live vertex carries a non-zero
+one, and the refusals fire; the refusal for a reference <em>set</em> names the layer
+without them, since concatenation would otherwise drop them silently. Colors have
+the same flaw and are <strong>not</strong> fixed: an unset color is indistinguishable from a
+white one, so <em>Align by Colored ICP</em> and its “needs color” refusal still cannot
+tell a colored layer from an uncolored one. And because the loader computes smooth
+normals for any layer with faces, only point clouds can lack normals; earlier
+advice to run <em>Compute Vertex Normals</em> on range maps first was unnecessary.</p>
 </section>
 <section id="phase-3-rgb-d-sequence-reconstruction">
 <h3>Phase 3 — RGB-D sequence reconstruction<a class="headerlink" href="#phase-3-rgb-d-sequence-reconstruction" title="Link to this heading">¶</a></h3>
@@ -703,16 +1133,29 @@ from recorded sequences with explicit diagnostics and a path to supplied poses.<
 </section>
 <section id="shared-core-or-later-candidates">
 <h3>Shared-core or later candidates<a class="headerlink" href="#shared-core-or-later-candidates" title="Link to this heading">¶</a></h3>
-<ul class="simple">
+<ul>
 <li><p><strong>Open3D Poisson:</strong> the currently inspected route calls the same Kazhdan
 <code class="docutils literal notranslate"><span class="pre">PoissonRecon</span></code> core already exposed by MeshLab’s Screened Poisson plugin.
 Compare vendored versions and adapter options after pinning; add a separate
 filter only if a genuinely different implementation is found. A desired
 Open3D-specific option could instead inform the existing adapter.</p></li>
-<li><p><strong>Multiway pose-graph alignment:</strong> a separate Open3D filter is welcome if the
-document can retain and edit the resulting pose graph. The RGB-D pipeline can
-use it internally first; do not discard the implementation simply because
-MeshLab already has a global alignment filter.</p></li>
+<li><p><strong>Multiway pose-graph alignment: implemented 2026-10-15</strong> as <em>Align Meshes
+Globally (Open3D)</em>, and the incumbent took a suffix under decision 5
+(<code class="docutils literal notranslate"><span class="pre">align_meshes_globally</span></code> → <code class="docutils literal notranslate"><span class="pre">align_meshes_globally_vcglib</span></code>). The pose graph is
+built, optimised and discarded; persisting it for inspection or re-optimisation
+remains open, and <code class="docutils literal notranslate"><span class="pre">LayerData</span></code> is the mechanism if it is wanted.</p>
+<p>Two things were settled by building it. <strong>Open3D’s frame convention</strong> is
+<code class="docutils literal notranslate"><span class="pre">node.pose_</span></code> = local→world and <code class="docutils literal notranslate"><span class="pre">edge.transformation_</span></code> = <code class="docutils literal notranslate"><span class="pre">T_target⁻¹</span> <span class="pre">·</span> <span class="pre">T_source</span></code>,
+read out of the residual <code class="docutils literal notranslate"><span class="pre">X_inv</span> <span class="pre">*</span> <span class="pre">Tt_inv</span> <span class="pre">*</span> <span class="pre">Ts</span> <span class="pre">≈</span> <span class="pre">I</span></code> in <code class="docutils literal notranslate"><span class="pre">GlobalOptimization.cpp</span></code>;
+that is exactly what <code class="docutils literal notranslate"><span class="pre">RegistrationICP</span></code> returns for clouds in their own local
+frames, so this filter alone does <strong>not</strong> move clouds into world space, and a
+node pose <em>is</em> the layer matrix. <strong>Edge certainty cannot be all-uncertain</strong>:
+Open3D expects a connected subset of certain edges, which its own pipeline gets
+from scan order. Document layers have none, and marking every edge uncertain
+produces <code class="docutils literal notranslate"><span class="pre">Certain-edge</span> <span class="pre">subset</span> <span class="pre">of</span> <span class="pre">PoseGraph</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">connected</span></code> and a poor result.
+A maximum spanning tree over the accepted pairs, strongest fitness first, is the
+backbone; everything else stays a loop closure and keeps the line process.</p>
+</li>
 <li><p><strong>Real-time SLAM, tensor API and GPU backends:</strong> defer due to prototype status,
 runtime/device complexity and portability costs.</p></li>
 <li><p><strong>Open3D visualization, legacy GUI, and Python API:</strong> out of scope for a
@@ -722,47 +1165,34 @@ headless MeshLab filter plugin.</p></li>
 </section>
 <section id="test-datasets">
 <h2>Test datasets<a class="headerlink" href="#test-datasets" title="Link to this heading">¶</a></h2>
-<p>The validation below needs recorded RGB-D sequences with calibration and
-reference geometry. Those are hundreds of megabytes; this repository commits
-<em>small</em> fixtures — the whole photogrammetry fixture in
-<code class="docutils literal notranslate"><span class="pre">tests/sample_mesh/gargoyle_small/</span></code> is 928 KB. Large data cannot go in git, and
-“the developer happens to have a copy” is not a test.</p>
-<p>The shape that works, and that nothing here does yet:</p>
-<p><strong>A manifest, not a script.</strong> <code class="docutils literal notranslate"><span class="pre">tests/datasets/datasets.json</span></code> lists each dataset
-by name, download URL (with mirrors), SHA-256, uncompressed size and <strong>licence</strong>.
-The manifest is the reviewable artefact; a fetch script is just its interpreter.
-Licence matters per dataset and is not uniform — some public RGB-D corpora are
-CC-BY, some are public-domain-ish, and some require a signed agreement that
-makes them unusable for unattended CI. That has to be recorded per entry before
-anything is wired up, not discovered later.</p>
-<p><strong>Fetch once, verify always.</strong> <code class="docutils literal notranslate"><span class="pre">tests/datasets/fetch.py</span></code> (or a CMake target)
-downloads only what is missing into a gitignored <code class="docutils literal notranslate"><span class="pre">tests/datasets/&lt;name&gt;/</span></code> and
-verifies the SHA-256 on every run, not just on download. An upstream file that
-changes silently must fail loudly rather than quietly altering test results.
-<code class="docutils literal notranslate"><span class="pre">plugins/filter_quadwild/CMakeLists.txt</span></code> already establishes the in-tree
-pattern for this — <code class="docutils literal notranslate"><span class="pre">FetchContent</span></code> with several mirror URLs and a <code class="docutils literal notranslate"><span class="pre">URL_HASH</span></code> —
-and the same discipline should apply here.</p>
-<p><strong>Absent data skips, never fails.</strong> A contributor who has not fetched anything
-must still get a green <code class="docutils literal notranslate"><span class="pre">ctest</span></code>. Dataset-backed tests <code class="docutils literal notranslate"><span class="pre">QSKIP</span></code> with a message
-naming the fetch command. This keeps the three-tier structure intact: the
-descriptor and smoke tiers stay fixture-free and always run, and only the
-behavioural tier in <code class="docutils literal notranslate"><span class="pre">test_filters.cpp</span></code> opts into large data.</p>
-<p><strong>A committed micro-fixture alongside the large one.</strong> A handful of frames,
-downscaled, committed — enough for the smoke tier to drive the RGB-D filter at
-all and for the descriptor tier to see it. The same rule as the gargoyle applies
-and must be written down with it: <strong>if the images are rescaled, the intrinsics
-must follow</strong> — <code class="docutils literal notranslate"><span class="pre">ViewportPx</span></code> and <code class="docutils literal notranslate"><span class="pre">CenterPx</span></code> scale with the pixels, <code class="docutils literal notranslate"><span class="pre">PixelSizeMm</span></code>
-inversely, <code class="docutils literal notranslate"><span class="pre">FocalMm</span></code> untouched — or every projection silently misprojects while
-reporting success.</p>
-<p><strong>CI caches it by manifest hash.</strong> A separate <code class="docutils literal notranslate"><span class="pre">actions/cache</span></code> entry keyed on
-<code class="docutils literal notranslate"><span class="pre">hashFiles('tests/datasets/datasets.json')</span></code>, independent of the vcpkg cache so
-the two cannot evict each other through one key. Note this spends from the same
-10 GB repository budget as the vcpkg cache, which is the argument for keeping
-the CI dataset set deliberately small — the exhaustive corpus in the validation
-section is for local runs and release testing, not for every push.</p>
-<p>This design is not specific to Open3D. Any future filter needing real scan data
-would use it, which is an argument for building it as <code class="docutils literal notranslate"><span class="pre">tests/datasets/</span></code> rather
-than as something owned by <code class="docutils literal notranslate"><span class="pre">filter_open3d</span></code>.</p>
+<p><strong>Built, 2026-10-14</strong> — see <a class="reference internal" href="../test_data.html"><span class="std std-doc">Test Data</span></a> for the mechanism.
+<code class="docutils literal notranslate"><span class="pre">tests/datasets/datasets.json</span></code> is the manifest, <code class="docutils literal notranslate"><span class="pre">tests/datasets/fetch.py</span></code> fetches
+and verifies, and <code class="docutils literal notranslate"><span class="pre">MESHLAB2_REQUIRE_DATASET</span></code> in <code class="docutils literal notranslate"><span class="pre">tests/testdatasets.h</span></code> gives a
+test an absolute path or skips it with an actionable message, and
+<code class="docutils literal notranslate"><span class="pre">.github/workflows/tests.yml</span></code> runs the suite on request.</p>
+<p>It was built before any Open3D work on purpose: it is not Open3D-specific, and
+the first thing it did was repair two long-standing failures that had nothing to
+do with this proposal — <code class="docutils literal notranslate"><span class="pre">loadMeshLabProjectLoadsMeshesAndTransforms</span></code> and
+<code class="docutils literal notranslate"><span class="pre">loadMeshLabProjectLoadsRastersAndCamera</span></code> hard-coded paths under <code class="docutils literal notranslate"><span class="pre">tests/</span></code> for
+data that only ever existed under <code class="docutils literal notranslate"><span class="pre">tests/local/</span></code>.</p>
+<p>The manifest is seeded with <code class="docutils literal notranslate"><span class="pre">redwood_rgbd_sample</span></code>: five synchronised colour and
+depth frames from the Redwood indoor dataset with PrimeSense intrinsics, an
+odometry log and a trajectory, 3.77 MB. That is the smallest input that
+exercises a full RGB-D sequence, so Phase 3 has its fixture already.</p>
+<p>Its licence was initially recorded as <code class="docutils literal notranslate"><span class="pre">UNRESOLVED</span></code> — GitHub reports
+<code class="docutils literal notranslate"><span class="pre">isl-org/open3d_downloads</span></code> as NOASSERTION and the hosting repository says
+nothing about redistribution. It is now <strong>public domain</strong>, confirmed against
+<a class="reference external" href="http://redwood-data.org/indoor_lidar_rgbd/license.html">redwood-data.org</a>:
+<em>“The entire dataset, including both RGB-D scans and reconstructed models, is in
+the public domain. Any part of the dataset can be used for any purpose with
+proper attribution.”</em> The entry is <code class="docutils literal notranslate"><span class="pre">ciEligible:</span> <span class="pre">true</span></code> and carries the citation
+the page asks for (Park, Zhou and Koltun, ICCV 2017).</p>
+<p>Worth noting how that went, because it is the argument for the manifest: the
+licence was not discoverable from the download URL, the hosting repository or
+the Open3D source — all three were silent or said NOASSERTION — and was settled
+by someone who knew which project the data came from. A <code class="docutils literal notranslate"><span class="pre">license</span></code> field that can
+hold <code class="docutils literal notranslate"><span class="pre">UNRESOLVED</span></code> is what kept the question visible until then, instead of it
+being assumed either way.</p>
 </section>
 <section id="validation-required-before-implementation-is-considered-complete">
 <h2>Validation required before implementation is considered complete<a class="headerlink" href="#validation-required-before-implementation-is-considered-complete" title="Link to this heading">¶</a></h2>
@@ -842,6 +1272,18 @@ without an Open3D installation when the plugin is disabled.</p>
 <li><a class="reference internal" href="#why-open3d-given-current-meshlab-filters">Why Open3D, given current MeshLab filters</a></li>
 <li><a class="reference internal" href="#proposed-integration-shape">Proposed integration shape</a><ul>
 <li><a class="reference internal" href="#the-dependency-cost-is-vtk">The dependency cost is VTK</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#there-is-no-open3d-package-and-the-build-costs-vtk-the-mapping-table">⚠ There is no Open3D package, and the build costs VTK — the mapping table</a><ul>
+<li><a class="reference internal" href="#why-not-build-it">Why not build it</a></li>
+<li><a class="reference internal" href="#what-we-actually-need-the-mapping-table">What we actually need: the mapping table</a><ul>
+<li><a class="reference internal" href="#the-first-count-was-wrong-and-building-is-what-found-it">⚠ The first count was wrong, and building is what found it</a></li>
+<li><a class="reference internal" href="#the-three-cuts-verified-at-link-time">The three cuts, verified at link time</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#the-subset-needs-five-external-libraries-two-of-which-we-had">The subset needs five external libraries, two of which we had</a></li>
+<li><a class="reference internal" href="#phase-0-result-it-builds-links-and-computes">Phase 0 result — it builds, links and computes</a></li>
+<li><a class="reference internal" href="#what-this-changes-elsewhere-in-this-document">What this changes elsewhere in this document</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#candidate-filters-and-staging">Candidate filters and staging</a><ul>
