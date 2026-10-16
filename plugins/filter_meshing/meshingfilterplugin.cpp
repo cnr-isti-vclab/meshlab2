@@ -558,7 +558,7 @@ constexpr QLatin1StringView kIdClustering("simplify_by_vertex_clustering");
 constexpr QLatin1StringView kIdQuadric("simplify_by_quadric_edge_collapse_vcglib");
 constexpr QLatin1StringView kIdQuadricTex("simplify_by_quadric_edge_collapse_with_texture_vcglib");
 constexpr QLatin1StringView kIdIsoRemesh("remesh_isotropically_vcglib");
-constexpr QLatin1StringView kIdNormalExtrap("compute_point_cloud_normals");
+constexpr QLatin1StringView kIdNormalExtrap("compute_point_cloud_normals_vcglib");
 constexpr QLatin1StringView kIdNormalSmoothPc("smooth_point_cloud_normals");
 constexpr QLatin1StringView kIdCurvDir("compute_principal_curvature_directions_vcglib");
 constexpr QLatin1StringView kIdSlicePlane("create_polyline_from_planar_section");

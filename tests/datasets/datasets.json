@@ -1,0 +1,32 @@
+{
+  "$comment": [
+    "Large test data that cannot live in git. See docs/design/test_data.md.",
+    "Fetch with: python3 tests/datasets/fetch.py",
+    "",
+    "Every entry needs a sha256 that was computed from the actual file, never copied from a",
+    "web page. 'ciEligible' is false until someone has read the licence and is willing to",
+    "say the data may be downloaded by unattended CI; --ci-only skips those entries rather",
+    "than leaving the question to whoever next reads a workflow file.",
+    "",
+    "'citation' records an attribution the licence asks for. Public domain is not the same",
+    "as no obligation: a dataset may be freely usable and still ask to be cited, which",
+    "matters as soon as results computed from it are published."
+  ],
+  "datasets": [
+    {
+      "name": "redwood_rgbd_sample",
+      "description": "Five synchronised colour/depth frames from the Redwood indoor dataset, with PrimeSense intrinsics, odometry and a trajectory. Small enough for CI; the smallest input that exercises a full RGB-D sequence.",
+      "urls": [
+        "https://github.com/isl-org/open3d_downloads/releases/download/20220301-data/SampleRedwoodRGBDImages.zip"
+      ],
+      "sha256": "4f161ba04d81cbe628fc69dac20552749f1b255b0090fe51c766e5d02355937b",
+      "bytes": 3772513,
+      "archive": "zip",
+      "license": "Public Domain",
+      "licenseUrl": "http://redwood-data.org/indoor_lidar_rgbd/license.html",
+      "licenseNote": "Verified 2026-10-14, quoting the page: 'The entire dataset, including both RGB-D scans and reconstructed models, is in the public domain. Any part of the dataset can be used for any purpose with proper attribution.' Open3D's own source does not state which Redwood dataset the five-frame sample is drawn from, so the attribution below follows the maintainer's determination.",
+      "citation": "Jaesik Park, Qian-Yi Zhou and Vladlen Koltun, \"Colored Point Cloud Registration Revisited\", ICCV 2017.",
+      "ciEligible": true
+    }
+  ]
+}

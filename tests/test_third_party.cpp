@@ -58,6 +58,7 @@ const QHash<QString, QString> &aboutName()
         { QStringLiteral("filter_texture_defragmentation"),
                                                           QStringLiteral("Texture Defragmentation") },
         { QStringLiteral("filter_xatlas"),                QStringLiteral("xatlas") },
+        { QStringLiteral("filter_open3d"),                QStringLiteral("Open3D") },
     };
     return table;
 }
@@ -80,6 +81,15 @@ const QHash<QString, QString> &notGeometry()
         { QStringLiteral("muparser"),       QStringLiteral("expression evaluation for the expression filters") },
         { QStringLiteral("glm"),            QStringLiteral("vector and matrix types") },
         { QStringLiteral("tbb"),            QStringLiteral("threading, used through other libraries") },
+        // The four below arrive with the vendored Open3D subset and are reached only
+        // through it. Qhull is the arguable one: it is a geometry library, but nothing
+        // in MeshLab calls it -- Open3D's ComputeConvexHull is linked and dormant, and
+        // the alpha-shape filter that would use it is deliberately not vendored. List
+        // it in the About dialog if a filter ever exposes it.
+        { QStringLiteral("nanoflann"),      QStringLiteral("KD-tree searches inside Open3D") },
+        { QStringLiteral("fmt"),            QStringLiteral("string formatting inside Open3D") },
+        { QStringLiteral("jsoncpp"),        QStringLiteral("JSON, required by Open3D's camera intrinsics") },
+        { QStringLiteral("qhull"),          QStringLiteral("convex hull and Delaunay, reached only through Open3D") },
     };
     return table;
 }
@@ -259,6 +269,19 @@ void ThirdPartyTests::everyVendoredTreeIsAccountedFor()
              qPrintable(QStringLiteral("only %1 vendored trees found: %2")
                             .arg(vendored.size()).arg(vendored.join(QStringLiteral(", ")))));
     checkAccountedFor(vendored, m_listed, QStringLiteral("vendored trees"));
+
+    // Each records where it came from in one place under one name, beside the plugin
+    // and outside the tree, so the tree stays comparable with upstream. They had four
+    // names before this was checked, which made "does this tree say what commit it is?"
+    // a question needing a search rather than a look.
+    QStringList withoutProvenance;
+    for (const QString &plugin : vendored) {
+        if (!QFileInfo::exists(plugins.filePath(plugin + QStringLiteral("/UPSTREAM.md"))))
+            withoutProvenance << plugin;
+    }
+    QVERIFY2(withoutProvenance.isEmpty(),
+             qPrintable(QStringLiteral("vendored trees with no plugins/<plugin>/UPSTREAM.md: %1")
+                            .arg(withoutProvenance.join(QStringLiteral(", ")))));
 }
 
 // The other direction: a library dropped from the build must not linger in the dialog.

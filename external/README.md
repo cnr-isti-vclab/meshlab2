@@ -6,6 +6,11 @@
 > [Third-party geometry code](../docs/design/architecture.md#third-party-geometry-code).
 
 
+How a package comes to be here, rather than in vcpkg or vendored under a plugin, is the
+rule in [Choosing how to bring third-party code
+in](../docs/design/architecture.md#choosing-how-to-bring-third-party-code-in): everything
+in this directory is kept unmodified.
+
 ## JKQtPlotter
 
 MeshLab uses only JKQtPlotter's `JKQTCommon` and `JKQTMathText` libraries to

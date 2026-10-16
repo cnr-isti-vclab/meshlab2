@@ -15,6 +15,8 @@
 
 #include "camerashot.h"
 #include "document.h"
+#include "testdatasets.h"
+#include <QDir>
 #include "meshfilterpluginmanager.h"
 #include "selectionscope.h"
 #include "layerdata.h"
@@ -460,6 +462,17 @@ private slots:
     void geogramAnisotropicRemeshElongatesTriangles();
     void geogramSpectralPathsResolveArpack();
     void geogramBooleanTransfersAttributes();
+    void open3dPointCloudPipelineIsCoherent();
+    void open3dIcpRecoversAKnownTransform();
+    void open3dGlobalAlignmentDistributesErrorAcrossLayers();
+    void open3dGlobalInitializersRecoverACoarsePose();
+    void open3dGlobalAlignmentNeedsNoPriorPlacement();
+    void open3dIcpReachesTheKnownFineAlignment();
+    void open3dGlobalAlignmentOnRealRangeMaps();
+    void open3dSequentialInitialRegistrationFromRawScans();
+    void open3dAlignMeshesSequentiallyRegistersRawRangeMaps();
+    void open3dFeatureMatchingCanUseAllVisibleLayersAsReference();
+    void open3dAlignMeshesSequentiallyStopsAtTheFirstFailedPair();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
     void trueFormCsgSheetsCutWithoutEnclosing();
     void trueFormSolidDomainsSplitTheEnclosedVolume();
@@ -692,7 +705,7 @@ void FilterTests::filterRegistryExposesBuiltins()
         hasTwoMeshIcp =
             hasTwoMeshIcp || (info.descriptor.id == QStringLiteral("align_by_icp_vcglib"));
         hasGlobalIcp =
-            hasGlobalIcp || (info.descriptor.id == QStringLiteral("align_meshes_globally"));
+            hasGlobalIcp || (info.descriptor.id == QStringLiteral("align_meshes_globally_vcglib"));
         hasOverlapGraph =
             hasOverlapGraph || (info.descriptor.id == QStringLiteral("measure_layer_overlap"));
     }
@@ -3982,6 +3995,1255 @@ void FilterTests::geogramBooleanTransfersAttributes()
                             .arg(fromA).arg(fromB)));
 }
 
+// The four Open3D point-cloud filters are a pipeline, and testing them as one is
+// what catches the mistakes that matter: a normal field that is never written
+// back, an outlier selection inverted against the wrong index mapping, or a
+// reconstruction fed a cloud whose normals were silently dropped by the adapter.
+// A sphere is used because every property below is then known in advance.
+void FilterTests::open3dPointCloudPipelineIsCoherent()
+{
+    Document doc;
+    const QString voxelKey = filterKeyForId(
+        doc, QStringLiteral("sample_point_cloud_by_voxel_grid_open3d"));
+    if (voxelKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+    const QString normalsKey = filterKeyForId(
+        doc, QStringLiteral("compute_point_cloud_normals_open3d"));
+    const QString statKey = filterKeyForId(
+        doc, QStringLiteral("select_point_cloud_outliers_statistically_open3d"));
+    const QString bpaKey = filterKeyForId(
+        doc, QStringLiteral("reconstruct_surface_by_ball_pivoting_open3d"));
+    const QString sphereKey = filterKeyForId(doc, QStringLiteral("create_sphere"));
+    QVERIFY(!normalsKey.isEmpty() && !statKey.isEmpty() && !bpaKey.isEmpty());
+    QVERIFY(!sphereKey.isEmpty());
+
+    // Subdivision 5 rather than the default 3: at 642 points the samples sit
+    // ~0.14 apart, so a 0.05 voxel grid merges nothing and the sampling step
+    // would be a no-op that proves nothing.
+    MeshFilterParameterValues sphereParams;
+    sphereParams.insert(QStringLiteral("subdiv"), 5);
+    QVERIFY2(doc.runFilter(sphereKey, sphereParams).success, "create_sphere failed");
+    const int sphereIndex = doc.currentMeshIndex();
+    const int sphereVertices = doc.mesh(sphereIndex).mesh.VN();
+    QVERIFY(sphereVertices > 0);
+
+    // Voxel sampling: fewer points, and all of them still on the unit sphere.
+    MeshFilterParameterValues voxelParams;
+    voxelParams.insert(QStringLiteral("voxelSize"), 0.05);
+    const MeshFilterRunResult sampled = doc.runFilter(voxelKey, voxelParams);
+    QVERIFY2(sampled.success, qPrintable(sampled.errorMessage));
+    QCOMPARE(sampled.newMeshIndices.size(), 1);
+    const int cloudIndex = sampled.newMeshIndices.front();
+    const VCGMesh &cloud = doc.mesh(cloudIndex).mesh;
+    QVERIFY2(cloud.VN() > 0 && cloud.VN() < sphereVertices,
+             qPrintable(QStringLiteral("voxel sampling returned %1 of %2 points")
+                            .arg(cloud.VN()).arg(sphereVertices)));
+    for (const VCGVertex &v : cloud.vert) {
+        if (v.IsD())
+            continue;
+        // Averaging points inside a voxel pulls them very slightly inside the
+        // sphere, so this is a band rather than an equality.
+        const float radius = v.cP().Norm();
+        QVERIFY2(radius > 0.9f && radius < 1.05f,
+                 qPrintable(QStringLiteral("sampled point at radius %1").arg(radius)));
+    }
+
+    // Normals: written back to every vertex, unit length, and -- with consistent
+    // orientation on -- agreeing with the sphere's own outward direction.
+    doc.setCurrentMeshIndex(cloudIndex);
+    MeshFilterParameterValues normalParams;
+    normalParams.insert(QStringLiteral("neighbourCount"), 30);
+    normalParams.insert(QStringLiteral("orientConsistently"), true);
+    const MeshFilterRunResult normals = doc.runFilter(normalsKey, normalParams);
+    QVERIFY2(normals.success, qPrintable(normals.errorMessage));
+
+    int agreeing = 0;
+    int counted = 0;
+    for (const VCGVertex &v : doc.mesh(cloudIndex).mesh.vert) {
+        if (v.IsD())
+            continue;
+        QVERIFY2(std::abs(v.cN().Norm() - 1.0f) < 1e-3f,
+                 qPrintable(QStringLiteral("normal of length %1").arg(v.cN().Norm())));
+        // On a sphere the outward normal is the position itself.
+        vcg::Point3f outward = v.cP();
+        outward.Normalize();
+        if (v.cN() * outward > 0.0f)
+            ++agreeing;
+        ++counted;
+    }
+    QVERIFY(counted > 0);
+    // A spanning-tree orientation can settle on the inward field as a whole,
+    // which is still consistent -- so the test is that the signs agree with each
+    // other, not which side they chose.
+    const double consistent = std::max(agreeing, counted - agreeing) / double(counted);
+    QVERIFY2(consistent > 0.95,
+             qPrintable(QStringLiteral("only %1 of normals share a side").arg(consistent)));
+
+    // Statistical outliers: a clean sphere has few, and the filter must select
+    // rather than delete.
+    const int beforeSelection = doc.mesh(cloudIndex).mesh.VN();
+    const MeshFilterRunResult outliers = doc.runFilter(statKey, {});
+    QVERIFY2(outliers.success, qPrintable(outliers.errorMessage));
+    QCOMPARE(doc.mesh(cloudIndex).mesh.VN(), beforeSelection);
+    int selected = 0;
+    for (const VCGVertex &v : doc.mesh(cloudIndex).mesh.vert) {
+        if (!v.IsD() && v.IsS())
+            ++selected;
+    }
+    QVERIFY2(selected < counted / 4,
+             qPrintable(QStringLiteral("%1 of %2 points called outliers on a clean sphere")
+                            .arg(selected).arg(counted)));
+
+    // Ball pivoting over the oriented cloud: a closed-ish surface interpolating
+    // the input points, so every output vertex is still on the sphere.
+    MeshFilterParameterValues bpaParams;
+    bpaParams.insert(QStringLiteral("radii"), QStringLiteral("0.05 0.1 0.2"));
+    const MeshFilterRunResult bpa = doc.runFilter(bpaKey, bpaParams);
+    QVERIFY2(bpa.success, qPrintable(bpa.errorMessage));
+    QCOMPARE(bpa.newMeshIndices.size(), 1);
+    const VCGMesh &surface = doc.mesh(bpa.newMeshIndices.front()).mesh;
+    QVERIFY2(surface.FN() > 100,
+             qPrintable(QStringLiteral("ball pivoting produced %1 faces").arg(surface.FN())));
+    for (const VCGVertex &v : surface.vert) {
+        if (v.IsD())
+            continue;
+        const float radius = v.cP().Norm();
+        QVERIFY2(radius > 0.9f && radius < 1.05f,
+                 qPrintable(QStringLiteral("reconstructed vertex at radius %1").arg(radius)));
+    }
+}
+
+// Registration is the one family where "it ran" says nothing: ICP always returns
+// a transform. The assertion has to be that the transform is the right one, so a
+// layer is displaced by a known amount and the filter has to put it back.
+//
+// The contract under test is as much about MeshLab as about Open3D: the result
+// must land on the layer *matrix*, composed onto what was already there, with the
+// coordinates untouched. Getting that wrong gives a plausible fitness and a layer
+// in the wrong place.
+void FilterTests::open3dIcpRecoversAKnownTransform()
+{
+    Document doc;
+    const QString icpKey = filterKeyForId(
+        doc, QStringLiteral("align_by_point_to_plane_icp_open3d"));
+    if (icpKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+    const QString normalsKey = filterKeyForId(
+        doc, QStringLiteral("compute_point_cloud_normals_open3d"));
+    const QString bunnyKey = filterKeyForId(doc, QStringLiteral("create_sphere_cap"));
+    QVERIFY(!normalsKey.isEmpty() && !bunnyKey.isEmpty());
+
+    // A sphere cap rather than a sphere: a full sphere is rotationally symmetric
+    // about every axis, so ICP could "recover" any rotation and still be right.
+    //
+    // The cap is only half an answer -- it is still symmetric about its *own*
+    // axis, which is Z. Rotating about Z therefore maps it onto itself, and a
+    // first version of this test did exactly that: ICP reported fitness 1.0,
+    // left the 4-degree rotation in place, and was correct to. The displacement
+    // below tilts about X instead, which no symmetry of the cap can absorb.
+    MeshFilterParameterValues capParams;
+    capParams.insert(QStringLiteral("half_angle"), 60.0);
+    capParams.insert(QStringLiteral("subdiv"), 4);
+    QVERIFY2(doc.runFilter(bunnyKey, capParams).success, "create_sphere_cap failed");
+    const int referenceIndex = doc.currentMeshIndex();
+
+    MeshFilterParameterValues normalParams;
+    normalParams.insert(QStringLiteral("neighbourCount"), 30);
+    normalParams.insert(QStringLiteral("orientConsistently"), true);
+    QVERIFY2(doc.runFilter(normalsKey, normalParams).success, "normals failed");
+
+    // The same geometry again, displaced by a known rigid motion.
+    const int sourceIndex =
+        doc.addMesh(doc.mesh(referenceIndex).mesh, QStringLiteral("displaced"));
+    QVERIFY(sourceIndex >= 0);
+    doc.mesh(sourceIndex).ioMask = doc.mesh(referenceIndex).ioMask;
+
+    const float diagonal = doc.mesh(referenceIndex).mesh.bbox.Diag();
+    QMatrix4x4 displacement;
+    displacement.translate(diagonal * 0.03f, diagonal * 0.02f, 0.0f);
+    displacement.rotate(4.0f, 1.0f, 0.0f, 0.0f);
+    doc.setMeshTransform(sourceIndex, displacement);
+
+    MeshFilterParameterValues icpParams;
+    doc.setCurrentMeshIndex(sourceIndex); // the current layer is the one that moves
+    icpParams.insert(QStringLiteral("referenceMesh"), referenceIndex);
+    icpParams.insert(QStringLiteral("maxCorrespondenceDistance"), double(diagonal) * 0.1);
+    icpParams.insert(QStringLiteral("maxIterations"), 60);
+
+    const QMatrix4x4 referenceBefore = doc.mesh(referenceIndex).transform;
+    const int verticesBefore = doc.mesh(sourceIndex).mesh.VN();
+    const vcg::Point3f firstVertexBefore = doc.mesh(sourceIndex).mesh.vert[0].cP();
+
+    const MeshFilterRunResult result = doc.runFilter(icpKey, icpParams);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    // The current layer moves and the reference does not: the reference is only a
+    // parameter, and a registration that nudged it would drift the whole scene.
+    QVERIFY(doc.mesh(referenceIndex).transform == referenceBefore);
+    QVERIFY(doc.mesh(sourceIndex).transform != displacement);
+
+    // Coordinates untouched: this is the layer-transform contract.
+    QCOMPARE(doc.mesh(sourceIndex).mesh.VN(), verticesBefore);
+    QCOMPARE(doc.mesh(sourceIndex).mesh.vert[0].cP(), firstVertexBefore);
+
+    // The composed matrix should now be close to the identity: ICP had to undo
+    // exactly the displacement applied above.
+    const QMatrix4x4 composed = doc.mesh(sourceIndex).transform;
+    float worst = 0.0f;
+    for (int r = 0; r < 4; ++r) {
+        for (int c = 0; c < 4; ++c) {
+            const float expected = (r == c) ? 1.0f : 0.0f;
+            worst = std::max(worst, std::abs(composed(r, c) - expected));
+        }
+    }
+    QVERIFY2(worst < 0.02f,
+             qPrintable(QStringLiteral("after ICP the layer matrix is still %1 from identity")
+                            .arg(worst)));
+
+    // And the run must report a fitness the user can act on.
+    QVERIFY2(std::any_of(result.infoMessages.begin(), result.infoMessages.end(),
+                         [](const QString &m) { return m.startsWith(QStringLiteral("Fitness:")); }),
+             qPrintable(QStringLiteral("no fitness reported; got: %1")
+                            .arg(result.infoMessages.join(QStringLiteral(" | ")))));
+}
+
+// Multiway alignment, which exists to do what a chain of pairwise ICP cannot.
+// Three overlapping copies of a cap are each displaced differently; the pose
+// graph has to bring all of them back onto the one held fixed.
+//
+// The sharpest thing this checks is the frame convention. Open3D's pose graph
+// wants node poses as local->world and edges as T_target^-1 * T_source, which
+// is why the clouds go in unmoved and the node pose becomes the layer matrix
+// directly. Reverse any of that and the optimizer still converges happily, to
+// the wrong place -- so the assertion is on where the layers end up, not on
+// whether it ran.
+void FilterTests::open3dGlobalAlignmentDistributesErrorAcrossLayers()
+{
+    Document doc;
+    const QString globalKey = filterKeyForId(
+        doc, QStringLiteral("align_meshes_globally_open3d"));
+    if (globalKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+    const QString capKey = filterKeyForId(doc, QStringLiteral("create_sphere_cap"));
+    const QString normalsKey = filterKeyForId(
+        doc, QStringLiteral("compute_point_cloud_normals_open3d"));
+    QVERIFY(!capKey.isEmpty() && !normalsKey.isEmpty());
+
+    MeshFilterParameterValues capParams;
+    capParams.insert(QStringLiteral("half_angle"), 60.0);
+    capParams.insert(QStringLiteral("subdiv"), 4);
+    QVERIFY2(doc.runFilter(capKey, capParams).success, "create_sphere_cap failed");
+    const int referenceIndex = doc.currentMeshIndex();
+    MeshFilterParameterValues normalParams;
+    normalParams.insert(QStringLiteral("orientConsistently"), true);
+    QVERIFY2(doc.runFilter(normalsKey, normalParams).success, "normals failed");
+
+    const float diagonal = doc.mesh(referenceIndex).mesh.bbox.Diag();
+
+    // Two more copies, displaced by different known amounts. Tilts are about X:
+    // the cap is symmetric about its own Z axis, so a Z rotation would be a
+    // symmetry the optimizer is entitled to leave in place.
+    std::vector<int> moved;
+    for (int k = 1; k <= 2; ++k) {
+        const int index = doc.addMesh(doc.mesh(referenceIndex).mesh,
+                                      QStringLiteral("copy %1").arg(k));
+        QVERIFY(index >= 0);
+        doc.mesh(index).ioMask = doc.mesh(referenceIndex).ioMask;
+        QMatrix4x4 displacement;
+        displacement.translate(diagonal * 0.02f * k, diagonal * 0.015f * k, 0.0f);
+        displacement.rotate(3.0f * k, 1.0f, 0.0f, 0.0f);
+        doc.setMeshTransform(index, displacement);
+        moved.push_back(index);
+    }
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("referenceMesh"), referenceIndex);
+    params.insert(QStringLiteral("maxCorrespondenceDistance"), double(diagonal) * 0.15);
+    params.insert(QStringLiteral("candidatePairs"), QStringLiteral("all"));
+    params.insert(QStringLiteral("minimumFitness"), 0.1);
+
+    const QMatrix4x4 referenceBefore = doc.mesh(referenceIndex).transform;
+    const int referenceVertices = doc.mesh(referenceIndex).mesh.VN();
+
+    const MeshFilterRunResult result = doc.runFilter(globalKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    // The reference layer is pinned: the whole group must not drift. Compared
+    // with a tolerance rather than QCOMPARE, because the optimizer re-anchors by
+    // composing with the reference node's inverse and that leaves float dust
+    // around 1e-26 in an otherwise exact identity.
+    {
+        const QMatrix4x4 after = doc.mesh(referenceIndex).transform;
+        float worst = 0.0f;
+        for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 4; ++c)
+                worst = std::max(worst, std::abs(after(r, c) - referenceBefore(r, c)));
+        }
+        QVERIFY2(worst < 1e-5f,
+                 qPrintable(QStringLiteral("the reference layer moved by %1").arg(worst)));
+    }
+    // Coordinates untouched, as for every aligner here.
+    QCOMPARE(doc.mesh(referenceIndex).mesh.VN(), referenceVertices);
+
+    // Every displaced copy should have come back onto the reference, i.e. its
+    // matrix should now be close to the reference's.
+    for (int index : moved) {
+        const QMatrix4x4 m = doc.mesh(index).transform;
+        float worst = 0.0f;
+        for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 4; ++c)
+                worst = std::max(worst, std::abs(m(r, c) - referenceBefore(r, c)));
+        }
+        QVERIFY2(worst < 0.03f,
+                 qPrintable(QStringLiteral("layer %1 is still %2 from the reference pose")
+                                .arg(index).arg(worst)));
+    }
+
+    QVERIFY2(std::any_of(result.infoMessages.begin(), result.infoMessages.end(),
+                         [](const QString &m) { return m.startsWith(QStringLiteral("Pairs:")); }),
+             qPrintable(QStringLiteral("no pair count reported; got: %1")
+                            .arg(result.infoMessages.join(QStringLiteral(" | ")))));
+}
+
+// The two feature-based initializers, tested together because they exist as a
+// pair: same FPFH descriptors, RANSAC sampling versus graduated non-convexity.
+// Neither is given a starting pose -- that is the whole point of them, and what
+// separates them from the ICP filters -- so the displacement here is far larger
+// than anything ICP would recover, and the tolerance is correspondingly loose:
+// these produce a coarse pose for ICP to refine, and asserting tight accuracy
+// would be testing the wrong property.
+void FilterTests::open3dGlobalInitializersRecoverACoarsePose()
+{
+    const QStringList ids = {
+        QStringLiteral("align_by_feature_matching_open3d"),
+        QStringLiteral("align_by_fast_global_registration_open3d")
+    };
+
+    for (const QString &id : ids) {
+        Document doc;
+        const QString key = filterKeyForId(doc, id);
+        if (key.isEmpty())
+            QSKIP("Open3D filter plugin is not available in this build.");
+        // A torus, not a sphere cap. FPFH describes a point by how its
+        // neighbours' normals vary, so a surface of near-constant curvature
+        // gives near-identical descriptors everywhere and nothing to match on.
+        // A cap was tried first: Open3D reported "Too few correspondences (11)
+        // after mutual filter" and the pose barely improved. The torus has two
+        // distinct curvature radii that vary around it, which is what these
+        // descriptors are for.
+        const QString shapeKey = filterKeyForId(doc, QStringLiteral("create_torus"));
+        const QString normalsKey = filterKeyForId(
+            doc, QStringLiteral("compute_point_cloud_normals_open3d"));
+        QVERIFY(!shapeKey.isEmpty() && !normalsKey.isEmpty());
+
+        MeshFilterParameterValues capParams;
+        capParams.insert(QStringLiteral("h_subdiv"), 64);
+        capParams.insert(QStringLiteral("v_subdiv"), 32);
+        QVERIFY2(doc.runFilter(shapeKey, capParams).success, "create_torus failed");
+        const int referenceIndex = doc.currentMeshIndex();
+        MeshFilterParameterValues normalParams;
+        normalParams.insert(QStringLiteral("orientConsistently"), true);
+        QVERIFY2(doc.runFilter(normalsKey, normalParams).success, "normals failed");
+
+        const int sourceIndex =
+            doc.addMesh(doc.mesh(referenceIndex).mesh, QStringLiteral("displaced"));
+        QVERIFY(sourceIndex >= 0);
+        doc.mesh(sourceIndex).ioMask = doc.mesh(referenceIndex).ioMask;
+
+        const float diagonal = doc.mesh(referenceIndex).mesh.bbox.Diag();
+        QMatrix4x4 displacement;
+        // Tilted about X: a torus is rotationally symmetric about its own axis,
+        // so a rotation there would be a symmetry the matcher may leave in place.
+        displacement.translate(diagonal * 0.15f, diagonal * 0.1f, 0.0f);
+        displacement.rotate(15.0f, 1.0f, 0.0f, 0.0f);
+        doc.setMeshTransform(sourceIndex, displacement);
+
+        MeshFilterParameterValues params;
+        doc.setCurrentMeshIndex(sourceIndex); // the current layer is the one that moves
+        params.insert(QStringLiteral("referenceMesh"), referenceIndex);
+        params.insert(QStringLiteral("maxCorrespondenceDistance"), double(diagonal) * 0.05);
+
+        const int verticesBefore = doc.mesh(sourceIndex).mesh.VN();
+        const MeshFilterRunResult result = doc.runFilter(key, params);
+        QVERIFY2(result.success, qPrintable(QStringLiteral("%1: %2").arg(id, result.errorMessage)));
+
+        // Coordinates untouched, as for every aligner here.
+        QCOMPARE(doc.mesh(sourceIndex).mesh.VN(), verticesBefore);
+
+        // It must have moved the layer substantially closer to the reference
+        // than the displacement left it, without requiring ICP accuracy.
+        const QMatrix4x4 after = doc.mesh(sourceIndex).transform;
+        float residual = 0.0f;
+        float original = 0.0f;
+        for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 4; ++c) {
+                const float identity = (r == c) ? 1.0f : 0.0f;
+                residual = std::max(residual, std::abs(after(r, c) - identity));
+                original = std::max(original, std::abs(displacement(r, c) - identity));
+            }
+        }
+        // A third of the original error or better. Loose on purpose: the
+        // contract is "close enough for ICP to finish the job", and demanding
+        // ICP accuracy from an initializer would test the wrong property.
+        QVERIFY2(residual < original / 3.0f,
+                 qPrintable(QStringLiteral("%1: residual %2 against an original error of %3")
+                                .arg(id).arg(residual).arg(original)));
+
+        QVERIFY2(std::any_of(result.infoMessages.begin(), result.infoMessages.end(),
+                             [](const QString &m) { return m.startsWith(QStringLiteral("Fitness:")); }),
+                 qPrintable(QStringLiteral("%1: no fitness reported").arg(id)));
+    }
+}
+
+// The case the default mode cannot do: three layers scattered with no usable
+// prior placement, which is where a user starts before aligning anything by
+// hand. Refining from the current poses has nothing to refine -- ICP cannot
+// find a pose it is not already near -- so this is the feature-matching path,
+// Open3D's compute_initial_registration applied to every pair.
+void FilterTests::open3dGlobalAlignmentNeedsNoPriorPlacement()
+{
+    Document doc;
+    const QString globalKey = filterKeyForId(
+        doc, QStringLiteral("align_meshes_globally_open3d"));
+    if (globalKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+    const QString torusKey = filterKeyForId(doc, QStringLiteral("create_torus"));
+    const QString normalsKey = filterKeyForId(
+        doc, QStringLiteral("compute_point_cloud_normals_open3d"));
+    QVERIFY(!torusKey.isEmpty() && !normalsKey.isEmpty());
+
+    // A torus for the same reason as the initializer test: FPFH needs curvature
+    // that actually varies, which a sphere or a cap does not have.
+    MeshFilterParameterValues torusParams;
+    torusParams.insert(QStringLiteral("h_subdiv"), 64);
+    torusParams.insert(QStringLiteral("v_subdiv"), 32);
+    QVERIFY2(doc.runFilter(torusKey, torusParams).success, "create_torus failed");
+    const int referenceIndex = doc.currentMeshIndex();
+    MeshFilterParameterValues normalParams;
+    normalParams.insert(QStringLiteral("orientConsistently"), true);
+    QVERIFY2(doc.runFilter(normalsKey, normalParams).success, "normals failed");
+
+    const float diagonal = doc.mesh(referenceIndex).mesh.bbox.Diag();
+
+    // Scattered far enough apart that the bounding boxes do not even overlap,
+    // so the default pair filter would reject them and the default
+    // initialization would have nothing to work from.
+    std::vector<int> moved;
+    for (int k = 1; k <= 2; ++k) {
+        const int index = doc.addMesh(doc.mesh(referenceIndex).mesh,
+                                      QStringLiteral("scattered %1").arg(k));
+        QVERIFY(index >= 0);
+        doc.mesh(index).ioMask = doc.mesh(referenceIndex).ioMask;
+        QMatrix4x4 displacement;
+        displacement.translate(diagonal * 1.5f * k, diagonal * 0.8f * k, 0.0f);
+        displacement.rotate(25.0f * k, 1.0f, 0.0f, 0.0f);
+        doc.setMeshTransform(index, displacement);
+        moved.push_back(index);
+    }
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("referenceMesh"), referenceIndex);
+    params.insert(QStringLiteral("pairInitialization"), QStringLiteral("featureMatching"));
+    params.insert(QStringLiteral("maxCorrespondenceDistance"), double(diagonal) * 0.05);
+    params.insert(QStringLiteral("minimumFitness"), 0.3);
+
+    const MeshFilterRunResult result = doc.runFilter(globalKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    // Every scattered copy should have come home onto the pinned reference,
+    // from a starting pose more than a diagonal away.
+    for (int index : moved) {
+        const QMatrix4x4 m = doc.mesh(index).transform;
+        float worst = 0.0f;
+        for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 4; ++c) {
+                const float identity = (r == c) ? 1.0f : 0.0f;
+                worst = std::max(worst, std::abs(m(r, c) - identity));
+            }
+        }
+        QVERIFY2(worst < 0.05f,
+                 qPrintable(QStringLiteral("scattered layer %1 is still %2 from the reference")
+                                .arg(index).arg(worst)));
+    }
+
+    QVERIFY2(std::any_of(result.infoMessages.begin(), result.infoMessages.end(),
+                         [](const QString &m) {
+                             return m.contains(QStringLiteral("feature matching"));
+                         }),
+             qPrintable(QStringLiteral("the log should say how pairs were initialized; got: %1")
+                            .arg(result.infoMessages.join(QStringLiteral(" | ")))));
+}
+
+namespace {
+
+// The matrix MeshLab recorded for a named layer in a .mlp project.
+bool poseFromProject(const QString &path, const QString &label, QMatrix4x4 &out)
+{
+    Document doc;
+    if (doc.loadMeshLabProject(path) != 0)
+        return false;
+    for (int i = 0; i < doc.meshCount(); ++i) {
+        if (doc.mesh(i).name == label) {
+            out = doc.mesh(i).transform;
+            return true;
+        }
+    }
+    return false;
+}
+
+float worstElementDifference(const QMatrix4x4 &a, const QMatrix4x4 &b)
+{
+    float worst = 0.0f;
+    for (int r = 0; r < 4; ++r) {
+        for (int c = 0; c < 4; ++c)
+            worst = std::max(worst, std::abs(a(r, c) - b(r, c)));
+    }
+    return worst;
+}
+
+} // namespace
+
+// Real scanner data with a real answer. MeshLab's sample/rangemaps ships the
+// same two scans twice: two_roughly_aligned.mlp, where faccia000 sits at the
+// identity, and two_finely_aligned.mlp, where it carries the correction a
+// careful alignment found. faccia045 is identical in both, so the fine project
+// is a ground truth for what ICP should produce from the rough one.
+//
+// This is what the synthetic tests above cannot check. A displaced copy of a
+// primitive has an exact answer by construction and no scanner artefacts;
+// these are partial overlapping surfaces with uneven sampling and noisy
+// boundaries, and the target pose was produced by a different implementation
+// entirely.
+void FilterTests::open3dIcpReachesTheKnownFineAlignment()
+{
+    Document probe;
+    const QString icpKey = filterKeyForId(
+        probe, QStringLiteral("align_by_point_to_plane_icp_open3d"));
+    if (icpKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+
+    MESHLAB2_REQUIRE_DATASET(roughPath, "rangemaps/two_roughly_aligned.mlp");
+    MESHLAB2_REQUIRE_DATASET(finePath, "rangemaps/two_finely_aligned.mlp");
+
+    QMatrix4x4 expected;
+    QVERIFY2(poseFromProject(finePath, QStringLiteral("faccia000.ply"), expected),
+             "could not read the reference pose from two_finely_aligned.mlp");
+
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(roughPath), 0);
+    QCOMPARE(doc.meshCount(), 2);
+
+    int sourceIndex = -1;
+    int referenceIndex = -1;
+    for (int i = 0; i < doc.meshCount(); ++i) {
+        if (doc.mesh(i).name == QStringLiteral("faccia000.ply"))
+            sourceIndex = i;
+        else if (doc.mesh(i).name == QStringLiteral("faccia045.ply"))
+            referenceIndex = i;
+    }
+    QVERIFY(sourceIndex >= 0 && referenceIndex >= 0);
+
+    const QMatrix4x4 before = doc.mesh(sourceIndex).transform;
+    const float startingError = worstElementDifference(before, expected);
+    QVERIFY2(startingError > 1.0f,
+             "the rough project should not already be at the fine pose");
+
+    const float diagonal = doc.mesh(referenceIndex).mesh.bbox.Diag();
+    MeshFilterParameterValues params;
+    doc.setCurrentMeshIndex(sourceIndex); // the current layer is the one that moves
+    params.insert(QStringLiteral("referenceMesh"), referenceIndex);
+    params.insert(QStringLiteral("maxCorrespondenceDistance"), double(diagonal) * 0.05);
+    params.insert(QStringLiteral("maxIterations"), 60);
+
+    const MeshFilterRunResult result = doc.runFilter(icpKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    // What to compare against needs care. The fine pose came from MeshLab's own
+    // aligner, a different implementation, on two partially overlapping scans.
+    // Two ICPs will not agree to machine precision there -- they weight
+    // correspondences and reject outliers differently -- so demanding that is
+    // testing inter-implementation agreement, not this filter.
+    //
+    // Measured 2026-10-15: diagonal 234.6, starting error 31.8, and the filter
+    // reaches rotation within 0.011 and translation within 9.7 (4.1% of the
+    // diagonal) of MeshLab's answer, with fitness 0.864 and inlier RMSE 2.66.
+    // An RMSE of ~1% of the diagonal is the surface genuinely agreeing; the
+    // residual 4% is the two implementations settling differently on partial
+    // overlap. The thresholds below follow those measurements.
+    const QMatrix4x4 after = doc.mesh(sourceIndex).transform;
+    float rotationError = 0.0f;
+    for (int r = 0; r < 3; ++r) {
+        for (int c = 0; c < 3; ++c)
+            rotationError = std::max(rotationError, std::abs(after(r, c) - expected(r, c)));
+    }
+    const float translationError =
+        (after.column(3).toVector3D() - expected.column(3).toVector3D()).length();
+
+    QVERIFY2(rotationError < 0.02f,
+             qPrintable(QStringLiteral("rotation differs from the known fine pose by %1")
+                            .arg(rotationError)));
+    QVERIFY2(translationError < diagonal * 0.06f,
+             qPrintable(QStringLiteral("translation is %1 from the known fine pose (%2% of the diagonal)")
+                            .arg(translationError).arg(100.0f * translationError / diagonal)));
+    // It must also have substantially improved on where it started, which is
+    // the part that would catch an ICP that silently did nothing.
+    QVERIFY2(translationError < startingError * 0.5f,
+             qPrintable(QStringLiteral("started %1 from the fine pose and ended %2 away")
+                            .arg(startingError).arg(translationError)));
+
+    // And the surfaces must actually agree, independently of anyone else's pose.
+    bool sawGoodFit = false;
+    for (const QString &m : result.infoMessages) {
+        if (m.startsWith(QStringLiteral("Fitness:")))
+            sawGoodFit = m.split(QLatin1Char(' ')).value(1).toDouble() > 0.7;
+    }
+    QVERIFY2(sawGoodFit, qPrintable(QStringLiteral("fitness too low; got: %1")
+                                        .arg(result.infoMessages.join(QStringLiteral(" | ")))));
+}
+
+// Twelve real range maps from a scanned statue, eight faces and four sides.
+//
+// The project is called *partial* for a reason, and the first version of this
+// test misread it: lato000.ply is not aligned with the rest. It sits at y=+775,
+// among the faccia ring, while its lato siblings are at y=-613 and y=-301. The
+// filter relocates it by 992 units -- 413% of the diagonal -- to y=-84, where
+// it belongs. That looked like a divergence and is the opposite: a global
+// alignment rescuing a scan that a pairwise chain had left behind.
+//
+// So the property worth asserting is not "nothing moves much". It is that the
+// already-aligned majority stay put while the misplaced one is free to travel,
+// which is exactly what distinguishes a pose graph from a rigid chain.
+void FilterTests::open3dGlobalAlignmentOnRealRangeMaps()
+{
+    Document probe;
+    const QString globalKey = filterKeyForId(
+        probe, QStringLiteral("align_meshes_globally_open3d"));
+    if (globalKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+
+    MESHLAB2_REQUIRE_DATASET(projectPath, "rangemaps/partial.mlp");
+
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(projectPath), 0);
+    QVERIFY2(doc.meshCount() >= 3,
+             qPrintable(QStringLiteral("expected several range maps, got %1").arg(doc.meshCount())));
+
+    const float diagonal = doc.mesh(0).mesh.bbox.Diag();
+    std::vector<QMatrix4x4> before;
+    for (int i = 0; i < doc.meshCount(); ++i)
+        before.push_back(doc.mesh(i).transform);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("referenceMesh"), 0);
+    params.insert(QStringLiteral("maxCorrespondenceDistance"), double(diagonal) * 0.03);
+    params.insert(QStringLiteral("minimumFitness"), 0.2);
+
+    const MeshFilterRunResult result = doc.runFilter(globalKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    // The reference layer is pinned.
+    QVERIFY2(worstElementDifference(doc.mesh(0).transform, before[0]) < 1e-5f,
+             "the reference layer moved");
+
+    // The already-aligned layers are refined, not relocated. Measured
+    // 2026-10-15: nine of the eleven non-reference layers move under 10 units
+    // on a 240 diagonal, lato135 moves 43, and only the misplaced lato000
+    // travels far. Allowing two outliers leaves room for lato135 without
+    // letting a general divergence through.
+    int relocated = 0;
+    for (int i = 1; i < doc.meshCount(); ++i) {
+        const QVector3D delta = doc.mesh(i).transform.column(3).toVector3D()
+                                - before[i].column(3).toVector3D();
+        if (delta.length() >= diagonal * 0.05f)
+            ++relocated;
+    }
+    QVERIFY2(relocated <= 2,
+             qPrintable(QStringLiteral("%1 of %2 layers were relocated rather than refined")
+                            .arg(relocated).arg(doc.meshCount() - 1)));
+
+    // The backbone must span every layer, or some scan had no trusted
+    // neighbour and whatever happened to it means nothing.
+    bool spanning = false;
+    for (const QString &m : result.infoMessages) {
+        if (m.startsWith(QStringLiteral("Graph:"))) {
+            spanning = m.contains(QStringLiteral("%1 backbone").arg(doc.meshCount() - 1));
+        }
+    }
+    QVERIFY2(spanning,
+             qPrintable(QStringLiteral("the backbone does not span the layers; got: %1")
+                            .arg(result.infoMessages.join(QStringLiteral(" | ")))));
+
+    QVERIFY2(std::any_of(result.infoMessages.begin(), result.infoMessages.end(),
+                         [](const QString &m) { return m.startsWith(QStringLiteral("Graph:")); }),
+             qPrintable(QStringLiteral("no graph summary reported; got: %1")
+                            .arg(result.infoMessages.join(QStringLiteral(" | ")))));
+}
+
+// How far apart two poses put the same mesh, as the RMS distance between where
+// each of its bounding-box corners lands. Comparing translation columns instead
+// is a trap on scanner data: these range maps sit some 570 units from the origin
+// with a diagonal of 261, so a few degrees of rotation about the surface moves
+// the translation column by more than the object is wide, and a pair that is in
+// fact registered to within a third of a percent reads as 200% off.
+static float posePointError(const VCGMesh &mesh, const QMatrix4x4 &a, const QMatrix4x4 &b)
+{
+    const vcg::Box3f &box = mesh.bbox;
+    double sum = 0.0;
+    for (int c = 0; c < 8; ++c) {
+        const vcg::Point3f p = box.P(c);
+        const QVector3D local(p.X(), p.Y(), p.Z());
+        sum += double((a.map(local) - b.map(local)).lengthSquared());
+    }
+    return float(std::sqrt(sum / 8.0));
+}
+
+// The poses partial.mlp gives the named scans, re-expressed relative to the first
+// of them, because a chain anchors its first scan at the identity while the
+// project does not. False when the project does not hold every name.
+static bool expectedRelativePoses(
+    const QString &projectPath, const QStringList &names, std::vector<QMatrix4x4> &out)
+{
+    Document reference;
+    if (reference.loadMeshLabProject(projectPath) != 0)
+        return false;
+    std::map<QString, QMatrix4x4> byName;
+    for (int i = 0; i < reference.meshCount(); ++i)
+        byName[reference.mesh(i).name] = reference.mesh(i).transform;
+    QMatrix4x4 anchor;
+    out.clear();
+    for (const QString &name : names) {
+        const auto it = byName.find(name);
+        if (it == byName.end())
+            return false;
+        if (out.empty())
+            anchor = it->second;
+        out.push_back(anchor.inverted() * it->second);
+    }
+    return true;
+}
+
+// The initial-registration case, which the two .mlp projects above cannot test
+// because both already carry an alignment.
+//
+// The eight faccia scans are loaded raw, straight from the scanner: every one
+// sits in the scanner frame, centred near (-400, 0, 390), and consecutive views
+// differ by roughly 45 degrees of turntable rotation. ICP cannot bridge that --
+// it refines a pose, it does not search for one -- so the coarse step has to
+// come from feature matching.
+//
+// They are aligned the way Open3D's register_fragments documentation describes,
+// and the way a user would by hand: pair by pair along the sequence, each scan
+// onto the one already placed before it. partial.mlp supplies the answer, as
+// relative poses, since the chain anchors faccia000 at the identity while the
+// project does not.
+//
+// **The initializer here must be RANSAC feature matching, not Fast Global
+// Registration**, and the difference is structural rather than a matter of
+// tuning. FGR subtracts each cloud's mean and then optimizes the rotation from
+// the identity with Gauss-Newton (`NormalizePointCloud` and the loop after it
+// in FastGlobalRegistration.cpp), so it is translation-invariant but not
+// orientation-invariant: it converges when the two clouds start roughly
+// oriented and fails when they do not. That is exactly what a chain does to it.
+// The reference has already been rotated into the global frame while the new
+// scan is still raw, so the relative rotation grows along the sequence -- about
+// 45 degrees at the first link and about 180 at the fourth, where FGR drops to
+// fitness 0.24 and the chain is lost. The same pair registers at 0.81 in
+// isolation, where both scans are still raw. RANSAC builds each candidate pose
+// from a sampled correspondence triple instead of refining one, so it has no
+// such dependency and carries the whole sequence.
+void FilterTests::open3dSequentialInitialRegistrationFromRawScans()
+{
+    Document probe;
+    const QString coarseKey = filterKeyForId(
+        probe, QStringLiteral("align_by_feature_matching_open3d"));
+    if (coarseKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+    const QString icpKey = filterKeyForId(
+        probe, QStringLiteral("align_by_point_to_plane_icp_open3d"));
+    const QString normalsKey = filterKeyForId(probe, QStringLiteral("compute_vertex_normals"));
+    QVERIFY(!icpKey.isEmpty() && !normalsKey.isEmpty());
+
+    MESHLAB2_REQUIRE_DATASET(firstScan, "rangemaps/faccia000.ply");
+    MESHLAB2_REQUIRE_DATASET(projectPath, "rangemaps/partial.mlp");
+    const QString folder = QFileInfo(firstScan).absolutePath();
+
+    const QStringList names = { QStringLiteral("faccia000.ply"), QStringLiteral("faccia045.ply"),
+                                QStringLiteral("faccia090.ply"), QStringLiteral("faccia135.ply"),
+                                QStringLiteral("faccia180.ply"), QStringLiteral("faccia225.ply"),
+                                QStringLiteral("faccia270.ply"), QStringLiteral("faccia315.ply") };
+
+    std::vector<QMatrix4x4> expected;
+    QVERIFY(expectedRelativePoses(projectPath, names, expected));
+
+    Document doc;
+    for (const QString &name : names) {
+        const int index = doc.loadMesh(QDir(folder).filePath(name));
+        QVERIFY2(index >= 0, qPrintable(QStringLiteral("could not load %1").arg(name)));
+        // Normals from the triangles: these are range maps, so the connectivity
+        // is present and is a better source than estimating from the points.
+        doc.setCurrentMeshIndex(index);
+        QVERIFY2(doc.runFilter(normalsKey, {}).success,
+                 qPrintable(QStringLiteral("normals failed for %1").arg(name)));
+    }
+    QCOMPARE(doc.meshCount(), int(names.size()));
+
+    const float diagonal = doc.mesh(0).mesh.bbox.Diag();
+    std::vector<double> linkFitness(size_t(doc.meshCount()), 0.0);
+
+    for (int i = 1; i < doc.meshCount(); ++i) {
+        MeshFilterParameterValues coarse;
+        doc.setCurrentMeshIndex(i); // the current layer is the one that moves
+        coarse.insert(QStringLiteral("referenceMesh"), i - 1);
+        // Pinned: both feature-based routes sample randomly, and an unseeded
+        // run of this chain gave a different answer every time -- which is how
+        // the missing randomSeed on these filters was found.
+        coarse.insert(QStringLiteral("randomSeed"), 1);
+        const MeshFilterRunResult found = doc.runFilter(coarseKey, coarse);
+        QVERIFY2(found.success,
+                 qPrintable(QStringLiteral("%1: %2").arg(names[i], found.errorMessage)));
+
+        MeshFilterParameterValues refine;
+        doc.setCurrentMeshIndex(i); // the current layer is the one that moves
+        refine.insert(QStringLiteral("referenceMesh"), i - 1);
+        refine.insert(QStringLiteral("maxCorrespondenceDistance"), double(diagonal) * 0.02);
+        refine.insert(QStringLiteral("maxIterations"), 60);
+        const MeshFilterRunResult refined = doc.runFilter(icpKey, refine);
+        QVERIFY2(refined.success,
+                 qPrintable(QStringLiteral("%1 refine: %2").arg(names[i], refined.errorMessage)));
+
+        for (const QString &m : refined.infoMessages) {
+            if (m.startsWith(QStringLiteral("Fitness:")))
+                linkFitness[size_t(i)] = m.split(QLatin1Char(' ')).value(1).toDouble();
+        }
+    }
+
+    // Every link, not just the early ones: the chain is cumulative, so the last
+    // scan's error is the whole sequence's. Measured 2026-10-15, in order:
+    // 0.09%, 0.29%, 0.54%, 0.86%, 0.95%, 0.82%, 0.82% of the diagonal, at
+    // fitness 0.81 to 0.92. Drift is real but bounded -- it does not grow
+    // monotonically, because each ICP pulls the new scan onto real surface.
+    const QMatrix4x4 chainAnchor = doc.mesh(0).transform;
+    for (int i = 1; i < doc.meshCount(); ++i) {
+        const QMatrix4x4 got = chainAnchor.inverted() * doc.mesh(i).transform;
+        const float delta = posePointError(doc.mesh(i).mesh, got, expected[size_t(i)]);
+        qDebug("%-16s fitness %.3f  error %6.2f (%.2f%% of diagonal)", qPrintable(names[i]),
+               linkFitness[size_t(i)], delta, 100.0 * delta / diagonal);
+        QVERIFY2(linkFitness[size_t(i)] > 0.5,
+                 qPrintable(QStringLiteral("%1 registered at fitness %2; the chain broke here")
+                                .arg(names[i]).arg(linkFitness[size_t(i)])));
+        QVERIFY2(delta < diagonal * 0.02f,
+                 qPrintable(QStringLiteral("%1 landed %2 from the known pose (%3% of the diagonal)")
+                                .arg(names[i]).arg(delta).arg(100.0f * delta / diagonal)));
+    }
+}
+
+// The filter that does the chain above in one step. Same raw scans, same answer
+// key, but nothing here chooses the algorithms or the order of the work: the
+// filter takes the layers as they are listed and aligns each onto the one before.
+void FilterTests::open3dAlignMeshesSequentiallyRegistersRawRangeMaps()
+{
+    Document probe;
+    const QString sequentialKey = filterKeyForId(
+        probe, QStringLiteral("align_meshes_sequentially_open3d"));
+    if (sequentialKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+    const QString normalsKey = filterKeyForId(probe, QStringLiteral("compute_vertex_normals"));
+    QVERIFY(!normalsKey.isEmpty());
+
+    MESHLAB2_REQUIRE_DATASET(firstScan, "rangemaps/faccia000.ply");
+    MESHLAB2_REQUIRE_DATASET(projectPath, "rangemaps/partial.mlp");
+    const QString folder = QFileInfo(firstScan).absolutePath();
+    const QStringList names = { QStringLiteral("faccia000.ply"), QStringLiteral("faccia045.ply"),
+                                QStringLiteral("faccia090.ply"), QStringLiteral("faccia135.ply"),
+                                QStringLiteral("faccia180.ply"), QStringLiteral("faccia225.ply"),
+                                QStringLiteral("faccia270.ply"), QStringLiteral("faccia315.ply") };
+    std::vector<QMatrix4x4> expected;
+    QVERIFY(expectedRelativePoses(projectPath, names, expected));
+
+    // What the progress bar was told, across whichever run happened last.
+    QList<int> percents;
+    QStringList progressLabels;
+    int progressStarted = 0, progressFinished = 0;
+
+    // Worst pose error over the chain, and the filter's own report.
+    const auto run = [&](bool globalRefinement, QStringList &messages, size_t &logLines,
+                         size_t &alignedLines) -> float {
+        Document doc;
+        percents.clear();
+        progressLabels.clear();
+        progressStarted = progressFinished = 0;
+        QObject::connect(&doc, &Document::filterProgressStarted, &doc,
+                         [&](const QString &) { ++progressStarted; });
+        QObject::connect(&doc, &Document::filterProgressFinished, &doc,
+                         [&](bool, const QString &) { ++progressFinished; });
+        QObject::connect(&doc, &Document::filterProgressUpdated, &doc,
+                         [&](int percent, const QString &label) {
+                             percents << percent;
+                             progressLabels << label;
+                         });
+        for (const QString &name : names) {
+            const int index = doc.loadMesh(QDir(folder).filePath(name));
+            if (index < 0)
+                return -1.0f;
+            doc.setCurrentMeshIndex(index);
+            if (!doc.runFilter(normalsKey, {}).success)
+                return -1.0f;
+        }
+        doc.setCurrentMeshIndex(0);
+        const size_t logBefore = doc.logMessages().size();
+
+        MeshFilterParameterValues values;
+        values.insert(QStringLiteral("referenceMesh"), 0);
+        values.insert(QStringLiteral("globalRefinement"), globalRefinement);
+        values.insert(QStringLiteral("randomSeed"), 1);
+        const MeshFilterRunResult result = doc.runFilter(sequentialKey, values);
+        messages = result.infoMessages;
+        if (!result.success) {
+            messages << result.errorMessage;
+            return -1.0f;
+        }
+        logLines = 0;
+        alignedLines = 0;
+        for (size_t i = logBefore; i < doc.logMessages().size(); ++i) {
+            const QString &line = doc.logMessages()[i].message;
+            if (line.startsWith(QStringLiteral("Pair ")))
+                ++logLines;
+            if (line.startsWith(QStringLiteral("Aligned '")) && line.contains(QStringLiteral("inlier RMSE")))
+                ++alignedLines;
+        }
+        float worst = 0.0f;
+        const QMatrix4x4 anchor = doc.mesh(0).transform;
+        for (int i = 1; i < doc.meshCount(); ++i) {
+            const QMatrix4x4 got = anchor.inverted() * doc.mesh(i).transform;
+            worst = std::max(worst, posePointError(doc.mesh(i).mesh, got, expected[size_t(i)]));
+        }
+        return worst / doc.mesh(0).mesh.bbox.Diag();
+    };
+
+    QStringList chainMessages, globalMessages;
+    size_t chainLog = 0, globalLog = 0, chainAligned = 0, globalAligned = 0;
+    const float chainOnly = run(false, chainMessages, chainLog, chainAligned);
+    const float refined = run(true, globalMessages, globalLog, globalAligned);
+    QVERIFY2(chainOnly >= 0.0f, qPrintable(chainMessages.join(QStringLiteral("; "))));
+    QVERIFY2(refined >= 0.0f, qPrintable(globalMessages.join(QStringLiteral("; "))));
+
+    // Measured 2026-10-15: the worst scan is 0.91% of the diagonal off with the
+    // chain alone and 0.84% once the layers are optimized together. The second
+    // is a small gain, and the assertion is only that the refinement does not
+    // make it worse.
+    QVERIFY2(chainOnly < 0.02f, qPrintable(QStringLiteral("chain alone: worst %1%").arg(100.0f * chainOnly)));
+    QVERIFY2(refined < 0.02f, qPrintable(QStringLiteral("refined: worst %1%").arg(100.0f * refined)));
+    QVERIFY2(refined <= chainOnly + 0.001f,
+             qPrintable(QStringLiteral("refinement worsened the result: %1% -> %2%")
+                            .arg(100.0f * chainOnly).arg(100.0f * refined)));
+
+    // The bar covers the whole run, not each pair: it is opened and closed once
+    // (the pair steps and the global optimization run inside it, quiet), only ever
+    // rises, and finishes at 100. Which updates reach the signal is throttled by
+    // the document, so the assertion is on the shape rather than on a count --
+    // but it must have advanced past the first pair before the end.
+    QCOMPARE(progressStarted, 1);
+    QCOMPARE(progressFinished, 1);
+    QVERIFY2(!percents.isEmpty() && percents.last() == 100,
+             qPrintable(QStringLiteral("progress ended at %1").arg(percents.isEmpty() ? -1 : percents.last())));
+    for (int i = 1; i < percents.size(); ++i) {
+        QVERIFY2(percents[i] >= percents[i - 1],
+                 qPrintable(QStringLiteral("the bar went back from %1 to %2 at '%3'")
+                                .arg(percents[i - 1]).arg(percents[i]).arg(progressLabels[i])));
+    }
+    QVERIFY2(std::count_if(percents.begin(), percents.end(),
+                           [](int p) { return p > 0 && p < 100; }) >= 3,
+             qPrintable(QStringLiteral("progress only visited %1").arg(
+                 QStringList([&] { QStringList l; for (int p : percents) l << QString::number(p); return l; }()).join(','))));
+
+    // One log line for every pair attempted, written as the chain went.
+    QCOMPARE(chainLog, size_t(7));
+    QCOMPARE(chainAligned, size_t(7));
+    QVERIFY(globalMessages.join(QLatin1Char('\n')).contains(QStringLiteral("Aligned 8 of 8")));
+}
+
+// The stop. A layer that cannot register -- here a sphere, listed among the
+// scans -- must end the chain at that layer, leave it and everything after it
+// exactly where they were, and still hand the layers before it to the global
+// optimization. Silently aligning past it, or discarding the good work, are
+// the two ways this filter could be wrong.
+void FilterTests::open3dAlignMeshesSequentiallyStopsAtTheFirstFailedPair()
+{
+    Document probe;
+    const QString sequentialKey = filterKeyForId(
+        probe, QStringLiteral("align_meshes_sequentially_open3d"));
+    if (sequentialKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+    const QString normalsKey = filterKeyForId(probe, QStringLiteral("compute_vertex_normals"));
+    QVERIFY(!normalsKey.isEmpty());
+
+    MESHLAB2_REQUIRE_DATASET(firstScan, "rangemaps/faccia000.ply");
+    MESHLAB2_REQUIRE_DATASET(projectPath, "rangemaps/partial.mlp");
+    const QString folder = QFileInfo(firstScan).absolutePath();
+    const QStringList scans = { QStringLiteral("faccia000.ply"), QStringLiteral("faccia045.ply"),
+                                QStringLiteral("faccia090.ply") };
+    std::vector<QMatrix4x4> expected;
+    QVERIFY(expectedRelativePoses(projectPath, scans, expected));
+
+    Document doc;
+    for (const QString &name : scans)
+        QVERIFY(doc.loadMesh(QDir(folder).filePath(name)) >= 0);
+    // The intruder, then one more real scan that is only reachable through it.
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_40kv.ply")) >= 0);
+    QVERIFY(doc.loadMesh(QDir(folder).filePath(QStringLiteral("faccia135.ply"))) >= 0);
+    for (int i = 0; i < doc.meshCount(); ++i) {
+        doc.setCurrentMeshIndex(i);
+        QVERIFY(doc.runFilter(normalsKey, {}).success);
+    }
+    doc.setCurrentMeshIndex(0);
+
+    const QMatrix4x4 sphereBefore = doc.mesh(3).transform;
+    const QMatrix4x4 lastBefore = doc.mesh(4).transform;
+    const size_t logBefore = doc.logMessages().size();
+
+    MeshFilterParameterValues values;
+    values.insert(QStringLiteral("referenceMesh"), 0);
+    values.insert(QStringLiteral("randomSeed"), 1);
+    const MeshFilterRunResult result = doc.runFilter(sequentialKey, values);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    qDebug("%s", qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
+
+    // Every pair attempted is in the log, in order, and the third is the one that
+    // failed -- there is no fourth, because the chain stopped. Each pair that
+    // registered is reported by name with the error it reached; the one that did
+    // not is reported by name as a warning.
+    QStringList pairLines, alignedLines, failedLines;
+    for (size_t i = logBefore; i < doc.logMessages().size(); ++i) {
+        const Document::LogEntry &entry = doc.logMessages()[i];
+        if (entry.message.startsWith(QStringLiteral("Pair ")))
+            pairLines << entry.message;
+        if (entry.message.startsWith(QStringLiteral("Aligned '")))
+            alignedLines << entry.message;
+        if (entry.message.startsWith(QStringLiteral("Failed to align"))) {
+            failedLines << entry.message;
+            QCOMPARE(entry.level, Document::LogLevel::Warning);
+        }
+    }
+    QCOMPARE(pairLines.size(), 3);
+    QVERIFY(pairLines[0].contains(QStringLiteral("faccia045.ply")));
+    QVERIFY(pairLines[2].contains(QStringLiteral("sphere_40kv.ply")));
+
+    QCOMPARE(alignedLines.size(), 2);
+    QVERIFY(alignedLines[0].contains(QStringLiteral("'faccia045.ply' onto 'faccia000.ply'")));
+    QVERIFY(alignedLines[1].contains(QStringLiteral("'faccia090.ply' onto 'faccia045.ply'")));
+    for (const QString &line : alignedLines) {
+        QVERIFY2(line.contains(QStringLiteral("inlier RMSE")), qPrintable(line));
+        QVERIFY2(line.contains(QStringLiteral("% of the diagonal")), qPrintable(line));
+    }
+    QCOMPARE(failedLines.size(), 1);
+    QVERIFY2(failedLines[0].contains(QStringLiteral("'sphere_40kv.ply' onto 'faccia090.ply'")),
+             qPrintable(failedLines[0]));
+
+    const QString report = result.infoMessages.join(QLatin1Char('\n'));
+    QVERIFY2(report.contains(QStringLiteral("Aligned 3 of 5")), qPrintable(report));
+    QVERIFY2(report.contains(QStringLiteral("Stopped at 'sphere_40kv.ply'")), qPrintable(report));
+
+    // The failed layer and the one behind it are exactly where they were found.
+    const auto sameMatrix = [](const QMatrix4x4 &a, const QMatrix4x4 &b) {
+        for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 4; ++c) {
+                if (std::abs(a(r, c) - b(r, c)) > 1e-5f)
+                    return false;
+            }
+        }
+        return true;
+    };
+    QVERIFY(sameMatrix(doc.mesh(3).transform, sphereBefore));
+    QVERIFY(sameMatrix(doc.mesh(4).transform, lastBefore));
+
+    // The three that did register were kept, and are right.
+    const float diagonal = doc.mesh(0).mesh.bbox.Diag();
+    const QMatrix4x4 anchor = doc.mesh(0).transform;
+    for (int i = 1; i < 3; ++i) {
+        const QMatrix4x4 got = anchor.inverted() * doc.mesh(i).transform;
+        const float error = posePointError(doc.mesh(i).mesh, got, expected[size_t(i)]);
+        QVERIFY2(error < diagonal * 0.02f,
+                 qPrintable(QStringLiteral("%1 is %2% of the diagonal off")
+                                .arg(doc.mesh(i).name).arg(100.0f * error / diagonal)));
+    }
+}
+
+// "Use All Visible Layers as Reference": feature matching against every other
+// visible layer at once, for a scan that overlaps the surface already placed but
+// not any one scan in particular.
+//
+// The data is the second loop of the range maps. The eight faccia scans are the
+// first loop, placed at the poses partial.mlp gives them; the lato scans are the
+// second, and each is registered raw against that ring. A lato scan overlaps only
+// the one or two faccia scans next to it -- measured, as the single reference
+// whose coarse pose lands within 3% of the diagonal:
+//
+//     lato135   faccia135 (0.8%), faccia180 (2.1%)       the other six: 62-78% off
+//     lato180   faccia225 (2.5%)                          the other seven: 62-71% off
+//     lato225   faccia270 (1.5%), faccia315 (2.0%)       the other six: 74-81% off
+//
+// and the wrong references report fitness 0.55 to 0.79 while being most of the
+// object away, so the number cannot be what tells them apart. With the whole ring
+// as the reference every one registers, on every seed tried: 0.5-1.4% for lato135,
+// 1.7-3.3% for lato180, 1.7-3.3% for lato225.
+//
+// lato180 is left out of the assertions only for time: its match is weaker, so
+// RANSAC runs to its 100000-iteration cap and takes about 15 s a run where the
+// others take about a second.
+void FilterTests::open3dFeatureMatchingCanUseAllVisibleLayersAsReference()
+{
+    Document probe;
+    const QString matchKey = filterKeyForId(probe, QStringLiteral("align_by_feature_matching_open3d"));
+    if (matchKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+
+    MESHLAB2_REQUIRE_DATASET(firstScan, "rangemaps/faccia000.ply");
+    MESHLAB2_REQUIRE_DATASET(projectPath, "rangemaps/partial.mlp");
+    const QString folder = QFileInfo(firstScan).absolutePath();
+
+    std::map<QString, QMatrix4x4> known;
+    {
+        Document reference;
+        QCOMPARE(reference.loadMeshLabProject(projectPath), 0);
+        for (int i = 0; i < reference.meshCount(); ++i)
+            known[reference.mesh(i).name] = reference.mesh(i).transform;
+    }
+    const QStringList ring = { QStringLiteral("faccia000.ply"), QStringLiteral("faccia045.ply"),
+                               QStringLiteral("faccia090.ply"), QStringLiteral("faccia135.ply"),
+                               QStringLiteral("faccia180.ply"), QStringLiteral("faccia225.ply"),
+                               QStringLiteral("faccia270.ply"), QStringLiteral("faccia315.ply") };
+
+    // Layer 0 is the raw lato scan, current; layers 1..8 are the ring, in place.
+    // The loader gives a mesh with faces smooth normals when its file has none, so
+    // these layers need no normals filter.
+    const auto build = [&](Document &doc, const QString &lato) {
+        doc.loadMesh(QDir(folder).filePath(lato));
+        for (const QString &name : ring)
+            doc.loadMesh(QDir(folder).filePath(name));
+        for (int i = 1; i < doc.meshCount(); ++i)
+            doc.setMeshTransform(i, known.at(doc.mesh(i).name));
+        doc.setCurrentMeshIndex(0);
+    };
+    const auto errorOf = [&](Document &doc, const QString &lato) {
+        return posePointError(doc.mesh(0).mesh, doc.mesh(0).transform, known.at(lato))
+            / doc.mesh(1).mesh.bbox.Diag();
+    };
+
+    for (const QString &lato : { QStringLiteral("lato135.ply"), QStringLiteral("lato225.ply") }) {
+        Document doc;
+        build(doc, lato);
+        std::vector<QMatrix4x4> ringBefore;
+        for (int i = 1; i < doc.meshCount(); ++i)
+            ringBefore.push_back(doc.mesh(i).transform);
+
+        MeshFilterParameterValues values;
+        values.insert(QStringLiteral("useAllVisibleAsReference"), true);
+        values.insert(QStringLiteral("randomSeed"), 1);
+        const MeshFilterRunResult result = doc.runFilter(matchKey, values);
+        QVERIFY2(result.success, qPrintable(lato + ": " + result.errorMessage));
+
+        const float error = errorOf(doc, lato);
+        QVERIFY2(error < 0.05f,
+                 qPrintable(QStringLiteral("%1 landed %2% of the diagonal off").arg(lato).arg(100.0f * error)));
+
+        // The current layer moved; the set it was matched against did not.
+        for (int i = 1; i < doc.meshCount(); ++i)
+            QVERIFY(doc.mesh(i).transform == ringBefore[size_t(i - 1)]);
+        const QString report = result.infoMessages.join(QLatin1Char('\n'));
+        QVERIFY2(report.contains(QStringLiteral("8 visible layers")), qPrintable(report));
+        QVERIFY2(report.contains(QStringLiteral("Reference layers:")), qPrintable(report));
+    }
+
+    // The point of the option: the same scan against ONE ring scan that it does not
+    // overlap is wrong by most of the object, and says so only through a fitness
+    // that looks respectable (0.68 here).
+    {
+        Document doc;
+        build(doc, QStringLiteral("lato135.ply"));
+        MeshFilterParameterValues values;
+        values.insert(QStringLiteral("referenceMesh"), 1); // faccia000
+        values.insert(QStringLiteral("randomSeed"), 1);
+        values.insert(QStringLiteral("ransacIterations"), 5000); // wrong either way; keep it quick
+        QVERIFY(doc.runFilter(matchKey, values).success);
+        QVERIFY2(errorOf(doc, QStringLiteral("lato135.ply")) > 0.2f,
+                 "a non-overlapping single reference was expected to register wrongly");
+    }
+
+    // Hidden layers do not take part.
+    {
+        Document doc;
+        build(doc, QStringLiteral("lato135.ply"));
+        doc.setMeshVisible(1, false); // faccia000
+        MeshFilterParameterValues values;
+        values.insert(QStringLiteral("useAllVisibleAsReference"), true);
+        values.insert(QStringLiteral("randomSeed"), 1);
+        const MeshFilterRunResult result = doc.runFilter(matchKey, values);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        const QString report = result.infoMessages.join(QLatin1Char('\n'));
+        QVERIFY2(report.contains(QStringLiteral("7 visible layers")), qPrintable(report));
+        QVERIFY2(!report.contains(QStringLiteral("faccia000.ply")), qPrintable(report));
+    }
+
+    // Nothing else visible: refused, saying why.
+    {
+        Document doc;
+        build(doc, QStringLiteral("lato135.ply"));
+        for (int i = 1; i < doc.meshCount(); ++i)
+            doc.setMeshVisible(i, false);
+        MeshFilterParameterValues values;
+        values.insert(QStringLiteral("useAllVisibleAsReference"), true);
+        const MeshFilterRunResult result = doc.runFilter(matchKey, values);
+        QVERIFY(!result.success);
+        QVERIFY2(result.errorMessage.contains(QStringLiteral("no layer other than")),
+                 qPrintable(result.errorMessage));
+    }
+
+    // One layer of the set has no normals: refused, and that layer is named, not
+    // just "a layer", because the concatenation would otherwise drop them silently.
+    // Only a point cloud can lack them -- a file with faces gets them on load.
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString cloudPath = dir.filePath(QStringLiteral("bare_points.ply"));
+        {
+            QFile file(cloudPath);
+            QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+            QTextStream out(&file);
+            out << "ply\nformat ascii 1.0\nelement vertex 200\nproperty float x\n"
+                   "property float y\nproperty float z\nend_header\n";
+            for (int i = 0; i < 200; ++i)
+                out << (i % 10) << ' ' << (i / 10) << ' ' << (i % 7) << '\n';
+        }
+        Document doc;
+        build(doc, QStringLiteral("lato135.ply"));
+        QVERIFY(doc.loadMesh(cloudPath) >= 0);
+        QVERIFY(doc.mesh(doc.meshCount() - 1).mesh.FN() == 0);
+        // Loading made the cloud current, which would make it the layer that moves
+        // rather than one of the references -- select the scan again.
+        doc.setCurrentMeshIndex(0);
+        MeshFilterParameterValues values;
+        values.insert(QStringLiteral("useAllVisibleAsReference"), true);
+        const MeshFilterRunResult result = doc.runFilter(matchKey, values);
+        QVERIFY(!result.success);
+        QVERIFY2(result.errorMessage.contains(QStringLiteral("bare_points.ply")),
+                 qPrintable(result.errorMessage));
+        QVERIFY2(result.errorMessage.contains(QStringLiteral("Compute Point Cloud Normals")),
+                 qPrintable(result.errorMessage));
+
+        // The same layer as the single reference of an ICP that needs its normals.
+        // Until the adapter learned that "has normals" means non-zero ones, this ran
+        // to completion on a field of zero vectors and reported a fitness.
+        const QString icpKey = filterKeyForId(doc, QStringLiteral("align_by_point_to_plane_icp_open3d"));
+        QVERIFY(!icpKey.isEmpty());
+        MeshFilterParameterValues icp;
+        icp.insert(QStringLiteral("referenceMesh"), doc.meshCount() - 1);
+        const MeshFilterRunResult icpResult = doc.runFilter(icpKey, icp);
+        QVERIFY(!icpResult.success);
+        QVERIFY2(icpResult.errorMessage.contains(QStringLiteral("bare_points.ply")),
+                 qPrintable(icpResult.errorMessage));
+    }
+}
+
 // The CSG evaluator and the pairwise booleans must agree where they overlap, and the
 // expression must also handle a three-operand case that no single boolean can express.
 void FilterTests::trueFormCsgExpressionMatchesPairwiseBooleans()
@@ -7239,7 +8501,7 @@ void FilterTests::randomizedFiltersDeclareARandomSeed()
         QStringLiteral("create_points_on_spherical_cap"),
         QStringLiteral("displace_vertices_randomly"),
         QStringLiteral("align_by_icp_vcglib"),
-        QStringLiteral("align_meshes_globally"),
+        QStringLiteral("align_meshes_globally_vcglib"),
         QStringLiteral("defragment_texture_atlas"),
         QStringLiteral("merge_texture_islands"),
         // filter_expression: randomness is opt-in through the formula's rnd() /
@@ -7899,7 +9161,7 @@ void FilterTests::structuredReferencesRenderCitations()
             QStringLiteral("compute_curvature_apss"),
             QStringLiteral("compute_curvature_rimls"),
             QStringLiteral("align_by_icp_vcglib"),
-            QStringLiteral("align_meshes_globally"),
+            QStringLiteral("align_meshes_globally_vcglib"),
             QStringLiteral("displace_vertices_by_fractal_brownian_motion"),
             QStringLiteral("smooth_vertices_by_taubin_trueform"),
         };

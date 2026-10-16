@@ -16,6 +16,12 @@ vcpkg/
 # local test models
 tests/local
 
+# Large test data fetched by tests/datasets/fetch.py. The manifest and the script
+# are tracked; everything they produce is not.
+tests/datasets/*
+!tests/datasets/datasets.json
+!tests/datasets/fetch.py
+
 # macOS
 .DS_Store
 

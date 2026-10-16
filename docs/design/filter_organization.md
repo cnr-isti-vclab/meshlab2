@@ -286,6 +286,18 @@ current layer), the projection reference of *Remesh Isotropically*, the samples 
 fit layer of *Create Grid*. That is all 17 filters with a single mesh parameter; the other
 30 with mesh parameters take two meshes.
 
+**Open3D pairwise aligners, 2026-10-15.** The five pairwise registrations —
+*Align by Point-to-Point ICP*, *Point-to-Plane ICP*, *Colored ICP*, *Feature Matching* and
+*Fast Global Registration*, all `(Open3D)` — dropped `sourceMesh` and now take only
+`referenceMesh`: the current layer is the one that moves and the parameter names the layer
+it moves onto. Measured from their manifests before the change: each declared
+`inputDomain: SingleMesh` and `outputDomain: ModifyCurrentMesh`, and each `sourceMesh`
+defaulted to `@currentMeshIndex`, so the parameter named the layer the filter already
+declared it modified. The counts above predate this and were not re-measured. The five
+TrueForm aligners (*Align by Bounding Box*, *by ICP* and the others in `filter_trueform`)
+still take both parameters; they are the same pattern and were left alone because the
+request named Open3D only.
+
 ### `randomSeed`
 
 Every filter whose algorithm draws from a random generator declares exactly one
@@ -466,7 +478,7 @@ for (see open ruling 5).
 |---|---|---|---|---|
 | `filter_qslim` | 1 | submodule `external/qslim` + `UPSTREAM.md` | KEEP | `filter_qslim` |
 | `filter_meshfix` | 1 | submodule `external/meshfix` + `UPSTREAM.md` | KEEP | `filter_meshfix` |
-| `filter_xatlas` | 1 | `upstream/` + `UPSTREAM_PROVENANCE.md` | KEEP | `filter_xatlas` |
+| `filter_xatlas` | 1 | `upstream/` + `UPSTREAM.md` | KEEP | `filter_xatlas` |
 | `filter_texture_defragmentation` | 2 | `upstream/` | KEEP | `filter_texture_defragmentation` |
 | `filter_screened_poisson` | 3 | vendored source tree + OpenMP | KEEP | `filter_screened_poisson` |
 

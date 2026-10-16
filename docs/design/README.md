@@ -26,6 +26,7 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [Adding a Filter](adding_a_filter.md) | The practical how-to: descriptor schema, plugin class, wiring. |
 | [Vocabulary](vocabulary.md) | The controlled vocabulary: categories, verb lexicon, naming grammar, layer naming. |
 | [Filter Organization](filter_organization.md) | Settled naming and organization principles, plus parameter conventions. |
+| [Test Data](test_data.md) | Where test inputs live by size, the fetched-dataset manifest, and the skip-when-absent rule. |
 | [TrueForm Plugin](trueform_plugin.md) | How the TrueForm-backed plugins relate to the rest of the tree. |
 
 > **[Vocabulary](vocabulary.md) is read by the test suite at runtime.**

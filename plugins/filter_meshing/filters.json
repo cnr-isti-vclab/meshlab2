@@ -1800,10 +1800,10 @@
       ]
     },
     {
-      "id": "compute_point_cloud_normals",
+      "id": "compute_point_cloud_normals_vcglib",
       "categories": ["Attribute/Normal"],
-      "name": "Compute Point Cloud Normals",
-      "pythonName": "compute_point_cloud_normals",
+      "name": "Compute Point Cloud Normals (vcglib)",
+      "pythonName": "compute_point_cloud_normals_vcglib",
       "shortDescription": "Estimate normals for point clouds.",
       "longDescriptionMarkdown": "Compute the normals of the vertices of a mesh without exploiting the triangle connectivity, useful for dataset with no faces",
       "tags": [

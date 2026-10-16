@@ -1,0 +1,192 @@
+// ----------------------------------------------------------------------------
+// -                        Open3D: www.open3d.org                            -
+// ----------------------------------------------------------------------------
+// Copyright (c) 2018-2026 www.open3d.org
+// SPDX-License-Identifier: MIT
+// ----------------------------------------------------------------------------
+
+#pragma once
+
+#include <Eigen/Core>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "open3d/pipelines/registration/TransformationEstimation.h"
+
+namespace open3d {
+
+namespace geometry {
+class PointCloud;
+}
+
+namespace pipelines {
+namespace registration {
+
+/// \class CorrespondenceChecker
+///
+/// \brief Base class that checks if two (small) point clouds can be aligned.
+///
+/// This class is used in feature based matching algorithms (such as RANSAC and
+/// FastGlobalRegistration) to prune out outlier correspondences.
+/// The virtual function Check() must be implemented in subclasses.
+class CorrespondenceChecker {
+public:
+    /// \brief Default Constructor.
+    ///
+    /// \param require_pointcloud_alignment Specifies whether point cloud
+    /// alignment is required.
+    CorrespondenceChecker(bool require_pointcloud_alignment)
+        : require_pointcloud_alignment_(require_pointcloud_alignment) {}
+    virtual ~CorrespondenceChecker() {}
+
+public:
+    /// \brief Function to check if two points can be aligned.
+    ///
+    /// \param source Source point cloud.
+    /// \param target Target point cloud.
+    /// \param corres Correspondence set between source and target point cloud.
+    /// \param transformation The estimated transformation.
+    virtual bool Check(const geometry::PointCloud &source,
+                       const geometry::PointCloud &target,
+                       const CorrespondenceSet &corres,
+                       const Eigen::Matrix4d &transformation) const = 0;
+
+public:
+    /// Some checkers do not require point clouds to be aligned, e.g., the edge
+    /// length checker. Some checkers do, e.g., the distance checker.
+    bool require_pointcloud_alignment_;
+};
+
+/// \class CorrespondenceCheckerBasedOnEdgeLength
+///
+/// \brief Check if two point clouds build the polygons with similar edge
+/// lengths.
+///
+/// That is, checks if the lengths of any two arbitrary edges (line formed by
+/// two vertices) individually drawn withinin source point cloud and within the
+/// target point cloud with correspondences are similar. The only parameter
+/// similarity_threshold is a number between 0 (loose) and 1 (strict).
+class CorrespondenceCheckerBasedOnEdgeLength : public CorrespondenceChecker {
+public:
+    /// \brief Default Constructor.
+    ///
+    /// \param similarity_threshold specifies the threshold within which 2
+    /// arbitrary edges are similar.
+    CorrespondenceCheckerBasedOnEdgeLength(double similarity_threshold = 0.9)
+        : CorrespondenceChecker(false),
+          similarity_threshold_(similarity_threshold) {}
+    ~CorrespondenceCheckerBasedOnEdgeLength() override {}
+
+public:
+    bool Check(const geometry::PointCloud &source,
+               const geometry::PointCloud &target,
+               const CorrespondenceSet &corres,
+               const Eigen::Matrix4d &transformation) const override;
+
+public:
+    /// For the check to be true,
+    /// ||edgesource||>similarity_threshold×||edgetarget|| and
+    /// ||edgetarget||>similarity_threshold×||edgesource|| must hold true for
+    /// all edges.
+    double similarity_threshold_;
+};
+
+/// \class CorrespondenceCheckerBasedOnDistance
+///
+/// \brief Check if two aligned point clouds are close.
+class CorrespondenceCheckerBasedOnDistance : public CorrespondenceChecker {
+public:
+    /// \brief Default Constructor.
+    ///
+    /// \param distance_threshold Distance threshold for the check.
+    CorrespondenceCheckerBasedOnDistance(double distance_threshold)
+        : CorrespondenceChecker(true),
+          distance_threshold_(distance_threshold) {}
+    ~CorrespondenceCheckerBasedOnDistance() override {}
+
+public:
+    bool Check(const geometry::PointCloud &source,
+               const geometry::PointCloud &target,
+               const CorrespondenceSet &corres,
+               const Eigen::Matrix4d &transformation) const override;
+
+public:
+    /// Distance threshold for the check.
+    double distance_threshold_;
+};
+
+/// \class CorrespondenceCheckerBasedOnNormal
+///
+/// \brief Class to check if two aligned point clouds have similar normals.
+///
+/// It considers vertex normal affinity of any correspondences. It computes dot
+/// product of two normal vectors. It takes radian value for the threshold.
+class CorrespondenceCheckerBasedOnNormal : public CorrespondenceChecker {
+public:
+    /// \brief Parameterized Constructor.
+    ///
+    /// \param normal_angle_threshold Radian value for angle threshold.
+    CorrespondenceCheckerBasedOnNormal(double normal_angle_threshold)
+        : CorrespondenceChecker(true),
+          normal_angle_threshold_(normal_angle_threshold) {}
+    ~CorrespondenceCheckerBasedOnNormal() override {}
+
+public:
+    bool Check(const geometry::PointCloud &source,
+               const geometry::PointCloud &target,
+               const CorrespondenceSet &corres,
+               const Eigen::Matrix4d &transformation) const override;
+
+public:
+    /// Radian value for angle threshold.
+    double normal_angle_threshold_;
+};
+
+/// \class CorrespondenceCheckerBasedOnSourceRotation
+///
+/// \brief Class to limit the rotation of the source object.
+///
+/// It checks if the transformation is rotated too much from its initial,
+/// unrotated state (identity matrix).
+/// Rotations are checked by comparing the components of the angle-axis
+/// representation (SO(3) log vector) of the estimated transformation
+/// to the given thresholds. It is assumed that the user is aware of the
+/// x, y, z axes of the source object when setting these tolerances.
+class CorrespondenceCheckerBasedOnSourceRotation
+    : public CorrespondenceChecker {
+public:
+    /// \brief Parameterized Constructor.
+    ///
+    /// \param rotation_threshold specifies the threshold in radians within the
+    /// transformation. Rotations are checked by cartesian angles. If a rotation
+    /// threshold is set to < 0, it is not checked (free to rotate).
+    CorrespondenceCheckerBasedOnSourceRotation(
+            const Eigen::Vector3d &rotation_threshold = Eigen::Vector3d(-1,
+                                                                        -1,
+                                                                        -1))
+        : CorrespondenceChecker(false),
+          rotation_threshold_(rotation_threshold) {}
+    ~CorrespondenceCheckerBasedOnSourceRotation() override {}
+
+public:
+    /// \brief Function to check if two points can be aligned.
+    ///
+    /// \param source Source point cloud.
+    /// \param target Target point cloud.
+    /// \param corres Correspondence set between source and target point cloud.
+    /// \param transformation The estimated transformation.
+    bool Check(const geometry::PointCloud &source,
+               const geometry::PointCloud &target,
+               const CorrespondenceSet &corres,
+               const Eigen::Matrix4d &transformation) const override;
+
+public:
+    /// \brief 3-element vector [rx, ry, rz] representing the rotation angle
+    /// thresholds in radians. A value < 0 means unconstrained.
+    Eigen::Vector3d rotation_threshold_;
+};
+
+}  // namespace registration
+}  // namespace pipelines
+}  // namespace open3d

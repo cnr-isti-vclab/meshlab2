@@ -11,6 +11,7 @@
 #include <cmath>
 
 #include "document.h"
+#include "testdatasets.h"
 #include "filedialogdirectory.h"
 #include "textureassociationutils.h"
 #include "layerdata.h"
@@ -1700,9 +1701,9 @@ void DocumentTests::saveMeshLabProjectKeepsLayersWithoutAFile()
 
 void DocumentTests::loadMeshLabProjectLoadsMeshesAndTransforms()
 {
-    Document doc;
-    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/rangemaps/partial.mlp");
+    MESHLAB2_REQUIRE_DATASET(path, "rangemaps/partial.mlp");
 
+    Document doc;
     QCOMPARE(doc.loadMeshLabProject(path), 0);
     QCOMPARE(doc.meshCount(), 12);
     QCOMPARE(doc.rasterCount(), 0);
@@ -1720,9 +1721,9 @@ void DocumentTests::loadMeshLabProjectLoadsMeshesAndTransforms()
 
 void DocumentTests::loadMeshLabProjectLoadsRastersAndCamera()
 {
-    Document doc;
-    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/COLOR_gargoyle/gargoyle_final.mlp");
+    MESHLAB2_REQUIRE_DATASET(path, "COLOR_gargoyle/gargoyle_final.mlp");
 
+    Document doc;
     QCOMPARE(doc.loadMeshLabProject(path), 0);
     QCOMPARE(doc.meshCount(), 1);
     QCOMPARE(doc.rasterCount(), 11);
@@ -1738,6 +1739,13 @@ void DocumentTests::loadMeshLabProjectLoadsRastersAndCamera()
     QVERIFY(raster.currentPlane());
     QCOMPARE(raster.currentPlane()->size, QSize(3000, 2008));
     QCOMPARE(QFileInfo(raster.currentPlane()->sourcePath).fileName(), QStringLiteral("DSC_0033.JPG"));
+
+    // Loading a project reads each plane's *size* with QImageReader and leaves the pixels
+    // alone -- eleven 3000x2008 JPEGs are not decoded just to open a document. So the
+    // image arrives only when something asks for it, and asserting hasImage() straight
+    // after the load could never pass. Ask first, which is what this check was for: that
+    // the path the project recorded still resolves to something decodable.
+    Document::ensureRasterPlaneImage(*doc.raster(0).currentPlane());
     QVERIFY(raster.currentPlane()->hasImage());
 }
 

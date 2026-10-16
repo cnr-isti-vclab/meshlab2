@@ -149,6 +149,7 @@ private slots:
     void transformResultIsDeclaredNotHandWritten();
     void singleMeshFiltersUseTheCurrentLayer();
     void layerCreatingFiltersDeclareAnOutputTag();
+    void alignmentFiltersStateTheirStartingAlignment();
 
 private:
     // Parsed once: the ratified verbs of docs/design/vocabulary.md section 3.
@@ -820,6 +821,42 @@ void FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer()
              qPrintable(QStringLiteral("filters taking their only mesh as a parameter instead of "
                                        "working on the current layer: %1")
                             .arg(offenders.join(QStringLiteral(", ")))));
+}
+
+// What a registration needs to be given is the first thing a user must know and the
+// last thing they would think to look for, and the wrong guess is expensive: ICP on
+// layers that start far apart returns a confident, wrong pose, and a feature matcher
+// asked for nothing more is slower than it needed to be. So every alignment filter
+// opens its help by stating how aligned the layers must already be -- "none" included.
+//
+// Scoped to the Open3D filters, whose expectations were measured when they were
+// written. The vcglib and TrueForm aligners predate the rule and have not been
+// characterised yet; widening this to all of Geometry/Alignment is the point at which
+// they would have to be.
+void FilterDescriptorTests::alignmentFiltersStateTheirStartingAlignment()
+{
+    static const QString kLead = QStringLiteral("**Starting alignment:**");
+
+    QStringList offenders;
+    int checked = 0;
+    for (const auto &info : m_infos) {
+        const MeshFilterDescriptor &d = info.descriptor;
+        if (!d.id.endsWith(QStringLiteral("_open3d"))
+            || d.categories.isEmpty()
+            || d.categories.front() != QStringLiteral("Geometry/Alignment")) {
+            continue;
+        }
+        ++checked;
+        if (!d.longDescriptionMarkdown.startsWith(kLead))
+            offenders << d.id;
+    }
+
+    // Six pairwise and global filters existed when the rule was made, and the
+    // sequential aligner made seven.
+    QVERIFY2(checked >= 7, qPrintable(QStringLiteral("only %1 Open3D alignment filters found").arg(checked)));
+    QVERIFY2(offenders.isEmpty(),
+             qPrintable(QStringLiteral("alignment filters whose help does not open with '%1': %2")
+                            .arg(kLead, offenders.join(QStringLiteral("; ")))));
 }
 
 // A filter that creates layers is named by the framework from its outputTag, so one

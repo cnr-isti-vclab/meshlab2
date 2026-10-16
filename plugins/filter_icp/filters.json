@@ -195,10 +195,10 @@
       "outputModifies": ["TM", "VG", "VN", "FN"]
     },
     {
-      "id": "align_meshes_globally",
+      "id": "align_meshes_globally_vcglib",
       "categories": ["Geometry/Alignment"],
-      "name": "Align Meshes Globally",
-      "pythonName": "align_meshes_globally",
+      "name": "Align Meshes Globally (vcglib)",
+      "pythonName": "align_meshes_globally_vcglib",
       "shortDescription": "Globally align overlapping mesh layers using pairwise ICP arcs.",
       "longDescriptionMarkdown": "Build an overlap graph among the selected document layers, run ICP on sufficiently overlapping layer pairs, then solve a global alignment. The chosen base mesh remains fixed and the other layer transforms are updated without baking coordinates.",
       "referenceIds": ["pulli1999"],

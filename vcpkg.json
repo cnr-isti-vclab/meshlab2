@@ -19,6 +19,10 @@
     "tbb",
     "cgal",
     "geogram",
+    "nanoflann",
+    "fmt",
+    "qhull",
+    "jsoncpp",
     {
       "name": "libigl",
       "default-features": false,

@@ -554,6 +554,17 @@ target_compile_definitions(MeshLab2Tests PRIVATE
 
 add_test(NAME MeshLab2Tests COMMAND MeshLab2Tests)
 
+# Large test data lives outside git; see tests/datasets/datasets.json. Nothing
+# fetches it automatically -- tests that need it skip when it is absent, so a
+# fresh clone still runs a green ctest.
+add_custom_target(fetch_test_datasets
+    COMMAND ${CMAKE_COMMAND} -E echo "Fetching test datasets listed in tests/datasets/datasets.json"
+    COMMAND python3 "${MESHLAB2_SOURCE_DIR}/tests/datasets/fetch.py"
+    WORKING_DIRECTORY "${MESHLAB2_SOURCE_DIR}"
+    USES_TERMINAL
+    COMMENT "Fetching large test datasets"
+)
+
 qt_add_executable(MeshLab2ColorMapTests
     tests/test_colormap.cpp
 )
