@@ -7,6 +7,7 @@
 #include <muParser.h>
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
+#include <typeindex>
 #include <vcg/complex/algorithms/create/marching_cubes.h>
 #include <vcg/complex/algorithms/create/mc_closed_isosurface.h>
 #include <vcg/complex/algorithms/create/mc_trivial_walker.h>
@@ -29,6 +30,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <unordered_set>
 #include <vector>
 
@@ -399,6 +401,32 @@ void defineCommonBBoxVars(mu::Parser &parser, ParserRuntime &runtime)
     parser.DefineVar("bbdiag", &runtime.bbdiag);
 }
 
+// The names of the attributes stored as a T.
+//
+// vcglib's GetAllPer*Attribute<T> cannot be used for this: it matches on element size
+// alone, so a float attribute is also listed under <int> and an int under <float>. Bound
+// twice under one name, the second binding wins and an expression reads a float's bit
+// pattern as an integer -- 1.0 came back as 1065353216. The type each attribute was
+// created with is recorded next to it, which is what deepCopyMesh already goes by.
+//
+// An attribute whose type was never recorded (typeid(void): it reached the mesh through a
+// path that keeps only the size, such as a VMI load) is taken to be a float, as every
+// attribute was before integers were readable.
+template <class T, class AttributeSet>
+std::vector<std::string> attributeNamesOfType(const AttributeSet &attributes)
+{
+    constexpr bool kTakeUnrecordedAsThis = std::is_same_v<T, float>;
+    std::vector<std::string> names;
+    for (const vcg::PointerToAttribute &attribute : attributes) {
+        if (attribute._name.empty())
+            continue;
+        const bool recorded = attribute._type != std::type_index(typeid(void));
+        if (recorded ? attribute._type == std::type_index(typeid(T)) : kTakeUnrecordedAsThis)
+            names.push_back(attribute._name);
+    }
+    return names;
+}
+
 void bindVertexCustomAttributes(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &mesh)
 {
     runtime.vScalarHandles.clear();
@@ -409,7 +437,7 @@ void bindVertexCustomAttributes(mu::Parser &parser, ParserRuntime &runtime, VCGM
     runtime.vPointValues.clear();
 
     std::vector<std::string> names;
-    vcg::tri::Allocator<VCGMesh>::GetAllPerVertexAttribute<float>(mesh, names);
+    names = attributeNamesOfType<float>(mesh.vert_attr);
     runtime.vScalarHandles.reserve(names.size());
     runtime.vScalarValues.reserve(names.size());
     for (const std::string &name : names) {
@@ -426,7 +454,7 @@ void bindVertexCustomAttributes(mu::Parser &parser, ParserRuntime &runtime, VCGM
     // Integer attributes (identifiers, labels) are readable but not writable: every define
     // filter writes float, so an expression can test an int but never produce one.
     names.clear();
-    vcg::tri::Allocator<VCGMesh>::GetAllPerVertexAttribute<int>(mesh, names);
+    names = attributeNamesOfType<int>(mesh.vert_attr);
     runtime.vIntHandles.reserve(names.size());
     runtime.vIntValues.reserve(names.size());
     for (const std::string &name : names) {
@@ -479,7 +507,7 @@ void bindFaceCustomAttributes(mu::Parser &parser, ParserRuntime &runtime, VCGMes
     runtime.fPointValues.clear();
 
     std::vector<std::string> names;
-    vcg::tri::Allocator<VCGMesh>::GetAllPerFaceAttribute<float>(mesh, names);
+    names = attributeNamesOfType<float>(mesh.face_attr);
     runtime.fScalarHandles.reserve(names.size());
     runtime.fScalarValues.reserve(names.size());
     for (const std::string &name : names) {
@@ -496,7 +524,7 @@ void bindFaceCustomAttributes(mu::Parser &parser, ParserRuntime &runtime, VCGMes
     // Integer attributes (identifiers, labels) are readable but not writable: every define
     // filter writes float, so an expression can test an int but never produce one.
     names.clear();
-    vcg::tri::Allocator<VCGMesh>::GetAllPerFaceAttribute<int>(mesh, names);
+    names = attributeNamesOfType<int>(mesh.face_attr);
     runtime.fIntHandles.reserve(names.size());
     runtime.fIntValues.reserve(names.size());
     for (const std::string &name : names) {

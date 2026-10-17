@@ -1117,7 +1117,7 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     const CleanupApplicationResult preCleanup =
         applyCleanupActions(targetDescriptor->preRunCleanup, typedParams, doc, originalCurrentMeshIndex, true);
 
-    // Framework-level incremental selection: save the current face/vertex selection
+    // Framework-level incremental selection: save the current vertex/face/edge selection
     // bits before running the filter, then OR them back afterwards.
     const bool saveSelection =
         targetDescriptor->incrementalSelection
@@ -1126,6 +1126,7 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
 
     std::vector<bool> savedFaceSel;
     std::vector<bool> savedVertSel;
+    std::vector<bool> savedEdgeSel;
     if (saveSelection) {
         const int meshIdx = doc.currentMeshIndex();
         if (meshIdx >= 0 && meshIdx < doc.meshCount()) {
@@ -1136,6 +1137,11 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
             savedVertSel.reserve(m.vert.size());
             for (const VCGVertex &v : m.vert)
                 savedVertSel.push_back(!v.IsD() && v.IsS());
+            // Polyline edge elements; the per-face edge bits of a triangle mesh live in
+            // the face flags and are covered with them.
+            savedEdgeSel.reserve(m.edge.size());
+            for (const VCGEdge &e : m.edge)
+                savedEdgeSel.push_back(!e.IsD() && e.IsS());
         }
     }
 
@@ -1242,6 +1248,10 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
                 for (size_t i = 0; i < savedVertSel.size() && i < m.vert.size(); ++i) {
                     if (savedVertSel[i] && !m.vert[i].IsD())
                         m.vert[i].SetS();
+                }
+                for (size_t i = 0; i < savedEdgeSel.size() && i < m.edge.size(); ++i) {
+                    if (savedEdgeSel[i] && !m.edge[i].IsD())
+                        m.edge[i].SetS();
                 }
             }
         }

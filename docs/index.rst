@@ -20,6 +20,7 @@ the ``mlgui`` helper for view snapshots and render-state access.
    api/meshset
    api/mlgui
    api/filters
+   expressions
    api/types
 
 .. toctree::

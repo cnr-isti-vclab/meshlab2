@@ -546,6 +546,9 @@ private slots:
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
     void createdCylinderHonoursRadiusHeightAndAxis();
     void edgeExpressionsSelectColorAndScaleAPolyline();
+    void expressionsReadCustomAttributesAsTheirOwnType();
+    void documentedExpressionExamplesRun();
+    void incrementalSelectionPreservesEdges();
     void colorAndScalarFiltersUndoThroughDeltas();
     void rotateToFittedPlaneUsesSelectionWithoutChangingIt();
     void triOptimizeLeavesTheSelectionAsItFoundIt();
@@ -10227,6 +10230,515 @@ void FilterTests::colorAndScalarFiltersUndoThroughDeltas()
     QCOMPARE(doc.mesh(index).mesh.face[0].cQ(), -1.0f);
     QVERIFY(doc.redo());
     QVERIFY(doc.mesh(index).mesh.face[0].cQ() != -1.0f);
+}
+
+// A custom attribute is type-erased in vcglib, and vcglib decides whether a named attribute
+// "is" a T by comparing sizes alone -- so a float and an int attribute are interchangeable
+// to it, and every float attribute was also listed, found and bound as an int. The int
+// binding ran second and replaced the float one, so an expression read a float attribute's
+// bit pattern as an integer (1.0 came back as 1065353216). The values are checked on every
+// element and not just at the extremes: wrong values this large clamp to 255 in a colour
+// channel, which is exactly how a check on the top vertex alone passed while it was broken.
+// Every worked example and every stated behaviour in docs/expressions.md, run against the
+// real filters. The page exists because the expression language was documented nowhere;
+// examples that quietly stop working would put it back there, so they are held to the
+// same standard as code. Update this together with the page.
+//
+// Each result is checked on every element, with a tolerance, and not just at the extremes:
+// a wrong value in a colour channel clamps to 0 or 255, so a check on the end of the range
+// can pass while everything between is garbage.
+// "Preserve Existing Selection" is a framework option: it saves the selection before the
+// filter runs and ORs it back afterwards. It was written when a selection meant vertices
+// and faces, so a filter that selects edges was offered the option and silently ignored
+// it -- the second selection replaced the first.
+void FilterTests::incrementalSelectionPreservesEdges()
+{
+    Document doc;
+    VCGMesh polyline;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(polyline, 5);
+    for (int i = 0; i < 5; ++i)
+        polyline.vert[std::size_t(i)].P() = vcg::Point3f(float(i), 0.0f, 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddEdges(polyline, 4);
+    for (int i = 0; i < 4; ++i) {
+        polyline.edge[std::size_t(i)].V(0) = &polyline.vert[std::size_t(i)];
+        polyline.edge[std::size_t(i)].V(1) = &polyline.vert[std::size_t(i + 1)];
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(polyline);
+    const int index = doc.addMesh(polyline, QStringLiteral("Chain"),
+                                  vcg::tri::io::Mask::IOM_EDGEINDEX);
+    QVERIFY(index >= 0);
+    doc.setCurrentMeshIndex(index);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("select_edges_by_expression"));
+    if (key.isEmpty())
+        QSKIP("Expression filter plugin is not available in this build.");
+
+    const auto select = [&](const QString &condition, bool preserve) {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("condSelect"), condition);
+        p.insert(QStringLiteral("incremental_selection"), preserve);
+        return doc.runFilter(key, p).success;
+    };
+    const auto selected = [&] {
+        QVector<int> on;
+        const VCGMesh &m = doc.mesh(index).mesh;
+        for (int i = 0; i < m.EN(); ++i)
+            if (m.edge[std::size_t(i)].IsS())
+                on << i;
+        return on;
+    };
+
+    QVERIFY(select(QStringLiteral("ei == 0"), false));
+    QCOMPARE(selected(), QVector<int>({ 0 }));
+
+    // Off: the new selection replaces the old one.
+    QVERIFY(select(QStringLiteral("ei == 2"), false));
+    QCOMPARE(selected(), QVector<int>({ 2 }));
+
+    // On: the old selection is kept and the new one added to it.
+    QVERIFY(select(QStringLiteral("ei == 0"), false));
+    QVERIFY(select(QStringLiteral("ei == 3"), true));
+    QCOMPARE(selected(), QVector<int>({ 0, 3 }));
+}
+
+void FilterTests::documentedExpressionExamplesRun()
+{
+    struct Rig
+    {
+        Document doc;
+        int index = -1;
+        VCGMesh &mesh() { return doc.mesh(index).mesh; }
+        MeshFilterRunResult run(const char *id, const QVariantMap &values)
+        {
+            MeshFilterParameterValues p;
+            for (auto it = values.begin(); it != values.end(); ++it)
+                p.insert(it.key(), it.value());
+            return doc.runFilter(filterKeyForId(doc, QString::fromLatin1(id)), p);
+        }
+        bool sphere()
+        {
+            if (!run("create_sphere", {}).success)
+                return false;
+            index = doc.currentMeshIndex();
+            return index >= 0;
+        }
+        bool chain()   // a polyline of four edges, lengths 1,2,3,4 along +X
+        {
+            VCGMesh m;
+            vcg::tri::Allocator<VCGMesh>::AddVertices(m, 5);
+            float x = 0.0f;
+            for (int i = 0; i < 5; ++i) {
+                m.vert[std::size_t(i)].P() = vcg::Point3f(x, 0.0f, 0.0f);
+                x += float(i + 1);
+            }
+            vcg::tri::Allocator<VCGMesh>::AddEdges(m, 4);
+            for (int i = 0; i < 4; ++i) {
+                m.edge[std::size_t(i)].V(0) = &m.vert[std::size_t(i)];
+                m.edge[std::size_t(i)].V(1) = &m.vert[std::size_t(i + 1)];
+            }
+            vcg::tri::UpdateBounding<VCGMesh>::Box(m);
+            index = doc.addMesh(m, QStringLiteral("Chain"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+            doc.setCurrentMeshIndex(index);
+            return index >= 0;
+        }
+    };
+    const auto near = [](int got, double want) { return std::abs(double(got) - want) <= 1.0; };
+    const QString none;
+
+    if (filterKeyForId(Document(), QStringLiteral("compute_vertex_color_by_expression")).isEmpty())
+        QSKIP("Expression filter plugin is not available in this build.");
+
+    // --- colour the vertices by height ---------------------------------------------
+    {
+        Rig r; QVERIFY(r.sphere());
+        const auto res = r.run("compute_vertex_color_by_expression", {
+            {"x", "255*(z-zmin)/zdim"}, {"y", "0"}, {"z", "255-255*(z-zmin)/zdim"}, {"a", "255"}});
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+        const VCGMesh &m = r.mesh();
+        for (std::size_t i = 0; i < m.vert.size(); ++i) {
+            const double t = (m.vert[i].cP().Z() - m.bbox.min.Z()) / m.bbox.DimZ();
+            const auto c = m.vert[i].cC();
+            QVERIFY2(near(c[0], 255.0 * t) && c[1] == 0 && near(c[2], 255.0 - 255.0 * t),
+                     qPrintable(QStringLiteral("height colour at vertex %1").arg(i)));
+        }
+    }
+
+    // --- select the vertices above the middle, and the faces that look up ------------
+    {
+        Rig r; QVERIFY(r.sphere());
+        QVERIFY(r.run("select_vertices_by_expression", {{"condSelect", "z > zmid"}}).success);
+        const VCGMesh &m = r.mesh();
+        const float mid = m.bbox.Center().Z();
+        int selected = 0;
+        for (const auto &v : m.vert) {
+            if (std::abs(v.cP().Z() - mid) < 1e-5f)
+                continue;   // on the equator the comparison is a coin toss in float
+            QVERIFY(v.IsS() == (v.cP().Z() > mid));
+            selected += v.IsS();
+        }
+        QVERIFY(selected > 0);
+    }
+    {
+        Rig r; QVERIFY(r.sphere());
+        QVERIFY(r.run("select_faces_by_expression", {{"condSelect", "fnz > 0.7"}}).success);
+        const VCGMesh &m = r.mesh();
+        int selected = 0;
+        for (const auto &f : m.face) {
+            if (std::abs(f.cN().Z() - 0.7f) < 1e-5f)
+                continue;
+            QVERIFY(f.IsS() == (f.cN().Z() > 0.7f));
+            selected += f.IsS();
+        }
+        QVERIFY(selected > 0 && selected < m.FN());
+    }
+
+    // --- face colour from the normal ------------------------------------------------
+    {
+        Rig r; QVERIFY(r.sphere());
+        const auto res = r.run("compute_face_color_by_expression", {
+            {"r", "127.5*(fnx+1)"}, {"g", "127.5*(fny+1)"}, {"b", "127.5*(fnz+1)"}, {"a", "255"}});
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+        const VCGMesh &m = r.mesh();
+        for (std::size_t i = 0; i < m.face.size(); ++i) {
+            const auto c = m.face[i].cC();
+            const auto n = m.face[i].cN();
+            QVERIFY2(near(c[0], 127.5 * (n.X() + 1)) && near(c[1], 127.5 * (n.Y() + 1))
+                         && near(c[2], 127.5 * (n.Z() + 1)),
+                     qPrintable(QStringLiteral("normal colour at face %1").arg(i)));
+        }
+    }
+
+    // --- branch on the selection yourself, with the option off ----------------------
+    {
+        Rig r; QVERIFY(r.sphere());
+        for (std::size_t i = 0; i < r.mesh().face.size() / 2; ++i)
+            r.mesh().face[i].SetS();
+        r.doc.markMeshSelectionChanged(r.index);
+        const auto res = r.run("compute_face_color_by_expression", {
+            {"r", "0"}, {"g", "fsel*255"}, {"b", "0"}, {"a", "255"}, {"selectedOnly", false}});
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+        for (const auto &f : r.mesh().face)
+            QVERIFY(f.cC()[1] == (f.IsS() ? 255 : 0));
+    }
+
+    // --- a custom attribute carried into a later expression -------------------------
+    {
+        Rig r; QVERIFY(r.sphere());
+        QVERIFY(r.run("define_custom_vertex_scalar_attribute", {{"name", "height"}, {"expr", "z-zmin"}}).success);
+        const auto res = r.run("compute_vertex_color_by_expression", {
+            {"x", "255*height/zdim"}, {"y", "0"}, {"z", "0"}, {"a", "255"}});
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+        const VCGMesh &m = r.mesh();
+        for (std::size_t i = 0; i < m.vert.size(); ++i)
+            QVERIFY2(near(m.vert[i].cC()[0], 255.0 * (m.vert[i].cP().Z() - m.bbox.min.Z()) / m.bbox.DimZ()),
+                     qPrintable(QStringLiteral("attribute colour at vertex %1").arg(i)));
+    }
+
+    // --- displace the vertices, and refine one hemisphere ---------------------------
+    {
+        Rig r; QVERIFY(r.sphere());
+        std::vector<vcg::Point3f> before;
+        for (const auto &v : r.mesh().vert) before.push_back(v.cP());
+        const auto res = r.run("compute_vertex_coordinates_by_expression", {
+            {"x", "x"}, {"y", "y"}, {"z", "z+0.1*sin(10*x)"}, {"a", "1"}});
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+        const VCGMesh &m = r.mesh();
+        for (std::size_t i = 0; i < m.vert.size(); ++i)
+            QVERIFY2(std::abs(m.vert[i].cP().Z() - (before[i].Z() + 0.1f * std::sin(10.0f * before[i].X()))) < 1e-4f,
+                     qPrintable(QStringLiteral("displacement at vertex %1").arg(i)));
+    }
+    {
+        Rig r; QVERIFY(r.sphere());
+        const int before = r.mesh().FN();
+        const auto res = r.run("refine_by_user_expression", {
+            {"condSelect", "z0 > 0 && z1 > 0"}, {"x", "(x0+x1)/2"}, {"y", "(y0+y1)/2"}, {"z", "(z0+z1)/2"}});
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+        QVERIFY(r.mesh().FN() > before);
+    }
+
+    // --- a polyline coloured by direction -------------------------------------------
+    {
+        Rig r; QVERIFY(r.chain());
+        const auto res = r.run("compute_edge_color_by_expression", {
+            {"r", "255*abs(edx)"}, {"g", "255*abs(edy)"}, {"b", "255*abs(edz)"}, {"a", "255"}});
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+        for (const auto &e : r.mesh().edge)
+            QVERIFY(e.cC()[0] == 255 && e.cC()[1] == 0 && e.cC()[2] == 0);
+    }
+
+    // --- rnd() is reproducible only with a seed, and lies in [0, 1) ------------------
+    {
+        const auto draw = [](int seed) {
+            Rig r;
+            std::vector<float> v;
+            if (!r.sphere())
+                return v;
+            r.run("compute_vertex_scalar_by_expression", {
+                {"q", "rnd()"}, {"normalize", false}, {"map", false}, {"randomSeed", seed}});
+            for (const auto &x : r.mesh().vert) v.push_back(x.cQ());
+            return v;
+        };
+        const auto a = draw(7);
+        QVERIFY(!a.empty());
+        QVERIFY(a == draw(7));
+        QVERIFY(draw(0) != draw(0));
+        for (float f : a)
+            QVERIFY(f >= 0.0f && f < 1.0f);
+    }
+
+    // --- what a bad expression does -------------------------------------------------
+    {
+        Rig r; QVERIFY(r.sphere());
+        for (auto &v : r.mesh().vert) v.C() = vcg::Color4b(9, 9, 9, 255);
+        for (const char *bad : { "floor(x)", "if(x,1,0)", "pi", "nosuchname" }) {
+            const auto res = r.run("compute_vertex_color_by_expression", {
+                {"x", bad}, {"y", "0"}, {"z", "0"}, {"a", "255"}});
+            QVERIFY2(!res.success, bad);
+            QVERIFY2(res.errorMessage.contains(QStringLiteral("Unexpected token")), qPrintable(res.errorMessage));
+        }
+        for (const auto &v : r.mesh().vert)
+            QVERIFY2(v.cC()[0] == 9, "a refused expression changed the mesh");
+    }
+
+
+    // --- the function and operator table: what works, and what is refused ------------
+    // muParser is not pinned in vcpkg.json, so an upgrade could add or drop a function
+    // without anyone touching this repository; this is where that would show.
+    {
+        Rig r; QVERIFY(r.sphere());
+        const auto scalarOf = [&](const char *expression, bool *ok) {
+            const auto res = r.run("compute_vertex_scalar_by_expression", {
+                {"q", expression}, {"normalize", false}, {"map", false}});
+            *ok = res.success;
+            return double(r.mesh().vert[0].cQ());
+        };
+        const double pi = 3.14159265358979323846;
+        const struct { const char *expression; double expected; } works[] = {
+            {"sin(1)", std::sin(1.0)}, {"cos(0)", 1}, {"tan(0)", 0},
+            {"asin(1)", pi / 2}, {"acos(1)", 0}, {"atan(1)", pi / 4}, {"atan2(1,1)", pi / 4},
+            {"sinh(0)", 0}, {"cosh(0)", 1}, {"tanh(0)", 0},
+            {"asinh(0)", 0}, {"acosh(1)", 0}, {"atanh(0)", 0},
+            {"exp(0)", 1}, {"sqrt(9)", 3}, {"log(_e)", 1}, {"ln(_e)", 1}, {"log2(8)", 3}, {"log10(1000)", 3},
+            {"abs(-2)", 2}, {"sign(-3)", -1}, {"rint(2.4)", 2}, {"rint(2.6)", 3},
+            {"min(3,1,2)", 1}, {"max(3,1,2)", 3}, {"sum(1,2,3)", 6}, {"avg(1,2,3)", 2},
+            {"_pi", pi}, {"_e", std::exp(1.0)},
+            {"2^3", 8}, {"-2^2", -4}, {"2*3^2", 18},
+            {"1<2", 1}, {"2<1", 0}, {"1==1", 1}, {"1!=1", 0}, {"2>=2", 1}, {"1<=0", 0},
+            {"(1<2)&&(2<1)", 0}, {"(1<2)||(2<1)", 1}, {"1?5:7", 5}, {"0?5:7", 7},
+            {"1e-3", 0.001}, {".5", 0.5}, {"randInt(1)", 0},
+        };
+        for (const auto &w : works) {
+            bool ok = false;
+            const double got = scalarOf(w.expression, &ok);
+            QVERIFY2(ok, w.expression);
+            QVERIFY2(std::abs(got - w.expected) < 1e-5, qPrintable(QStringLiteral("%1 gave %2, documented as %3")
+                         .arg(QString::fromLatin1(w.expression)).arg(got).arg(w.expected)));
+        }
+        // Names are case-sensitive, and these are the ones the page says do not exist.
+        for (const char *missing : { "floor(1.5)", "ceil(1.5)", "round(1.5)", "pow(2,3)", "fmod(5,3)",
+                                     "clamp(1,0,2)", "if(1,2,3)", "!0", "7%3", "pi", "e", "Z" }) {
+            bool ok = true;
+            scalarOf(missing, &ok);
+            QVERIFY2(!ok, missing);
+        }
+        // Scalars are stored as computed, with no check for not-a-number.
+        bool ok = false;
+        scalarOf("sqrt(-1)", &ok);
+        QVERIFY(ok && std::isnan(r.mesh().vert[0].cQ()));
+    }
+
+    // --- normals are stored as the formulas give them -------------------------------
+    {
+        Rig r; QVERIFY(r.sphere());
+        QVERIFY(r.run("compute_vertex_normals_by_expression", {{"x", "2"}, {"y", "0"}, {"z", "0"}}).success);
+        QVERIFY(r.mesh().vert[0].cN() == vcg::Point3f(2, 0, 0));
+        QVERIFY(r.run("compute_face_normals_by_expression", {{"x", "0"}, {"y", "3"}, {"z", "0"}}).success);
+        QVERIFY(r.mesh().face[0].cN() == vcg::Point3f(0, 3, 0));
+    }
+
+    // --- the Alpha field of the coordinates filter is ignored -----------------------
+    {
+        Rig r; QVERIFY(r.sphere());
+        const auto res = r.run("compute_vertex_coordinates_by_expression", {
+            {"x", "x*2"}, {"y", "y"}, {"z", "z"}, {"a", "this is not an expression ("}});
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+        QVERIFY(std::abs(r.mesh().bbox.DimX() - 4.0f) < 1e-3f);
+    }
+
+    // --- the isosurface is where the formula is zero --------------------------------
+    {
+        Rig r; QVERIFY(r.sphere());
+        const int layers = r.doc.meshCount();
+        const auto res = r.run("create_isosurface_from_expression", {
+            {"expr", "x*x+y*y+z*z-0.5"}, {"voxelSize", 0.1},
+            {"minX", -1.0}, {"minY", -1.0}, {"minZ", -1.0}, {"maxX", 1.0}, {"maxY", 1.0}, {"maxZ", 1.0}});
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+        QVERIFY(r.doc.meshCount() == layers + 1);
+        for (const auto &v : r.doc.mesh(r.doc.meshCount() - 1).mesh.vert)
+            QVERIFY(std::abs(v.cP().Norm() - std::sqrt(0.5f)) < 0.05f);
+    }
+
+    // --- refine: the predicate is symmetric, and each context has its own variables --
+    {
+        const auto refined = [&](const char *predicate) {
+            Rig r;
+            if (!r.sphere())
+                return -1;
+            r.run("compute_vertex_scalar_by_expression", {{"q", "x"}, {"normalize", false}, {"map", false}});
+            const auto res = r.run("refine_by_user_expression", {
+                {"condSelect", predicate}, {"x", "(x0+x1)/2"}, {"y", "(y0+y1)/2"}, {"z", "(z0+z1)/2"}});
+            return res.success ? r.mesh().FN() : -2;
+        };
+        const int ordered = refined("q0 > q1");
+        QVERIFY(ordered > 1280);
+        QCOMPARE(ordered, refined("q0 != q1"));   // either order counts, so ">" matches every unequal pair
+        QVERIFY(refined("zmid > 0") < 0);          // no bounding box in this context
+    }
+
+    // --- a point attribute is read back as three variables, name_x, name_y, name_z ---
+    {
+        Rig r; QVERIFY(r.sphere());
+        QVERIFY(r.run("define_custom_vertex_point_attribute", {
+            {"name", "dir"}, {"x_expr", "x"}, {"y_expr", "2*y"}, {"z_expr", "3*z"}}).success);
+        QVERIFY(r.run("compute_vertex_scalar_by_expression", {
+            {"q", "dir_x+dir_y+dir_z"}, {"normalize", false}, {"map", false}}).success);
+        for (const auto &v : r.mesh().vert)
+            QVERIFY(std::abs(v.cQ() - (v.cP().X() + 2 * v.cP().Y() + 3 * v.cP().Z())) < 1e-4f);
+    }
+
+    // --- custom attributes: names, the vertex/face boundary, and shadowing ----------
+    {
+        Rig r; QVERIFY(r.sphere());
+        QVERIFY(!r.run("define_custom_vertex_scalar_attribute", {{"name", "q"}, {"expr", "x"}}).success);
+        QVERIFY(!r.run("define_custom_vertex_scalar_attribute", {{"name", "1abc"}, {"expr", "x"}}).success);
+        QVERIFY(r.run("define_custom_vertex_scalar_attribute", {{"name", "hh"}, {"expr", "z"}}).success);
+        QVERIFY(!r.run("compute_face_color_by_expression", {{"r", "hh"}, {"g", "0"}, {"b", "0"}, {"a", "255"}}).success);
+        QVERIFY(r.run("compute_vertex_color_by_expression", {{"x", "hh"}, {"y", "0"}, {"z", "0"}, {"a", "255"}}).success);
+        // An attribute that arrives with a name that is already a variable is not an error:
+        // it is skipped, and the name keeps meaning the built-in.
+        auto shadow = vcg::tri::Allocator<VCGMesh>::AddPerVertexAttribute<float>(r.mesh(), "q");
+        auto spaced = vcg::tri::Allocator<VCGMesh>::AddPerVertexAttribute<float>(r.mesh(), "my attr");
+        for (std::size_t i = 0; i < r.mesh().vert.size(); ++i) {
+            shadow[i] = 5.0f;
+            spaced[i] = 6.0f;
+            r.mesh().vert[i].Q() = 1.0f;
+        }
+        QVERIFY(r.run("compute_vertex_scalar_by_expression", {{"q", "q"}, {"normalize", false}, {"map", false}}).success);
+        QCOMPARE(r.mesh().vert[0].cQ(), 1.0f);
+    }
+
+    // --- colour channels round, clamp, and turn NaN into 0 ---------------------------
+    {
+        Rig r; QVERIFY(r.sphere());
+        QVERIFY(r.run("compute_vertex_color_by_expression", {
+            {"x", "300"}, {"y", "-5"}, {"z", "127.5"}, {"a", "255"}}).success);
+        QVERIFY(r.mesh().vert[0].cC()[0] == 255 && r.mesh().vert[0].cC()[1] == 0
+                && r.mesh().vert[0].cC()[2] == 128);
+        QVERIFY(r.run("compute_vertex_color_by_expression", {
+            {"x", "sqrt(-1)"}, {"y", "0"}, {"z", "0"}, {"a", "255"}}).success);
+        QVERIFY(r.mesh().vert[0].cC()[0] == 0);
+    }
+}
+
+void FilterTests::expressionsReadCustomAttributesAsTheirOwnType()
+{
+    using Alloc = vcg::tri::Allocator<VCGMesh>;
+
+    Document doc;
+    const QString sphereKey = filterKeyForId(doc, QStringLiteral("create_sphere"));
+    const QString defVertKey = filterKeyForId(doc, QStringLiteral("define_custom_vertex_scalar_attribute"));
+    const QString defFaceKey = filterKeyForId(doc, QStringLiteral("define_custom_face_scalar_attribute"));
+    const QString vertScalarKey = filterKeyForId(doc, QStringLiteral("compute_vertex_scalar_by_expression"));
+    const QString faceScalarKey = filterKeyForId(doc, QStringLiteral("compute_face_scalar_by_expression"));
+    QVERIFY(!sphereKey.isEmpty() && !defVertKey.isEmpty() && !defFaceKey.isEmpty());
+    if (vertScalarKey.isEmpty())
+        QSKIP("Expression filter plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    const int index = doc.currentMeshIndex();
+
+    // The float attributes come from the filters that make them; the int ones can only be
+    // made directly, since no filter writes an integer.
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("name"), QStringLiteral("ratio"));
+        p.insert(QStringLiteral("expr"), QStringLiteral("(z-zmin)/zdim"));
+        QVERIFY2(doc.runFilter(defVertKey, p).success, "define vertex float attribute");
+    }
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("name"), QStringLiteral("half"));
+        p.insert(QStringLiteral("expr"), QStringLiteral("fi*0.5"));
+        QVERIFY2(doc.runFilter(defFaceKey, p).success, "define face float attribute");
+    }
+    {
+        VCGMesh &m = doc.mesh(index).mesh;
+        auto vtag = Alloc::AddPerVertexAttribute<int>(m, "tag");
+        for (size_t i = 0; i < m.vert.size(); ++i)
+            vtag[i] = int(i % 5);
+        auto ftag = Alloc::AddPerFaceAttribute<int>(m, "ftag");
+        for (size_t i = 0; i < m.face.size(); ++i)
+            ftag[i] = int((i * 7) % 11);
+    }
+
+    const auto runScalar = [&](const QString &key, const QString &expr) {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("q"), expr);
+        p.insert(QStringLiteral("normalize"), false);
+        p.insert(QStringLiteral("map"), false);
+        const MeshFilterRunResult r = doc.runFilter(key, p);
+        return r.success ? QString() : r.errorMessage;
+    };
+
+    // --- vertices ----------------------------------------------------------------
+    QCOMPARE(runScalar(vertScalarKey, QStringLiteral("ratio")), QString());
+    {
+        const VCGMesh &m = doc.mesh(index).mesh;
+        for (size_t i = 0; i < m.vert.size(); ++i) {
+            const float expected = (m.vert[i].cP().Z() - m.bbox.min.Z()) / m.bbox.DimZ();
+            QVERIFY2(std::abs(m.vert[i].cQ() - expected) < 1e-4f,
+                     qPrintable(QStringLiteral("float attribute 'ratio' at vertex %1: got %2, expected %3")
+                                    .arg(i).arg(m.vert[i].cQ()).arg(expected)));
+        }
+    }
+    QCOMPARE(runScalar(vertScalarKey, QStringLiteral("tag")), QString());
+    {
+        const VCGMesh &m = doc.mesh(index).mesh;
+        for (size_t i = 0; i < m.vert.size(); ++i)
+            QVERIFY2(m.vert[i].cQ() == float(i % 5),
+                     qPrintable(QStringLiteral("int attribute 'tag' at vertex %1: got %2, expected %3")
+                                    .arg(i).arg(m.vert[i].cQ()).arg(i % 5)));
+    }
+    // Both kinds side by side in one expression: neither may disturb the other.
+    QCOMPARE(runScalar(vertScalarKey, QStringLiteral("tag*1000+ratio")), QString());
+    {
+        const VCGMesh &m = doc.mesh(index).mesh;
+        for (size_t i = 0; i < m.vert.size(); ++i) {
+            const float expected = float(i % 5) * 1000.0f
+                + (m.vert[i].cP().Z() - m.bbox.min.Z()) / m.bbox.DimZ();
+            QVERIFY2(std::abs(m.vert[i].cQ() - expected) < 1e-2f,
+                     qPrintable(QStringLiteral("combined at vertex %1: got %2, expected %3")
+                                    .arg(i).arg(m.vert[i].cQ()).arg(expected)));
+        }
+    }
+
+    // --- faces -------------------------------------------------------------------
+    QCOMPARE(runScalar(faceScalarKey, QStringLiteral("half")), QString());
+    {
+        const VCGMesh &m = doc.mesh(index).mesh;
+        for (size_t i = 0; i < m.face.size(); ++i)
+            QVERIFY2(m.face[i].cQ() == float(i) * 0.5f,
+                     qPrintable(QStringLiteral("float attribute 'half' at face %1: got %2, expected %3")
+                                    .arg(i).arg(m.face[i].cQ()).arg(float(i) * 0.5f)));
+    }
+    QCOMPARE(runScalar(faceScalarKey, QStringLiteral("ftag")), QString());
+    {
+        const VCGMesh &m = doc.mesh(index).mesh;
+        for (size_t i = 0; i < m.face.size(); ++i)
+            QVERIFY2(m.face[i].cQ() == float((i * 7) % 11),
+                     qPrintable(QStringLiteral("int attribute 'ftag' at face %1: got %2, expected %3")
+                                    .arg(i).arg(m.face[i].cQ()).arg((i * 7) % 11)));
+    }
 }
 
 void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()

@@ -322,9 +322,13 @@ up front, or with a `success = false` result that says why.
 - **Undo**: `runFilter` for a non-`Information` filter is automatically wrapped in
   one undo step, and the Python call is recorded. **Never touch the undo stack.**
   A `SingleMesh` filter whose `outputModifies` is non-empty and contains only
-  selection codes (`VS`/`FS`) automatically uses the cheap bit-packed
-  selection-delta undo instead of a full snapshot — which matters on large
-  meshes, where snapshotting is seconds of deep copy.
+  selection codes (`VS`/`FS`/`ES`), only color codes (`VC`/`FC`/`EC`) or only
+  scalar codes (`VQ`/`FQ`/`EQ`) — or a mix of those three classes — automatically
+  uses the cheap attribute-delta undo, which stores just those attributes
+  instead of a full snapshot. That matters on large meshes, where snapshotting is
+  seconds of deep copy. **This makes `outputModifies` load-bearing:** the delta
+  does not capture geometry, so a filter that declares `VC` but also moves a
+  vertex will not have the movement undone. Declare everything you change.
 - **Input preparation**: declare `inputPrepare` codes instead of computing
   adjacency, normals or flags by hand — the framework enables the OCF
   components, runs the vcglib update in dependency order, and disables them
