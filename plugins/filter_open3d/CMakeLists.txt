@@ -52,6 +52,12 @@ target_link_libraries(MeshLab2Open3DUpstream
 # what a static library linked into the application wants.
 target_compile_definitions(MeshLab2Open3DUpstream PUBLIC OPEN3D_STATIC)
 
+# MSVC hides the non-standard M_PI constant used by the upstream sources
+# unless this is defined before any of the C/C++ math headers are included.
+if (MSVC)
+    target_compile_definitions(MeshLab2Open3DUpstream PRIVATE _USE_MATH_DEFINES)
+endif()
+
 # utility/CompilerInfo.cpp reports the toolchain that built the library and
 # expects these from Open3D's own CMake, which we are not running.
 target_compile_definitions(MeshLab2Open3DUpstream PRIVATE
