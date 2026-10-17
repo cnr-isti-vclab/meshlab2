@@ -7796,12 +7796,17 @@ Leave 0 for automatic calculation.</p></li>
 <span id="filter-dilate-selection"></span><h2>Dilate Selection<a class="headerlink" href="#dilate-selection" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Selection/Set</span> <span class="pre">Operations</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.select</p>
-<p>Dilate (expand) current selected faces.</p>
+<p>Grow the selection by one ring of faces or vertices.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.dilate_selection">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">dilate_selection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.dilate_selection" title="Link to this definition">¶</a></dt>
-<dd><p>Dilate (expand) the current set of selected faces.</p>
-<p>This filter has no parameters.</p>
+<dd><p>Grow the selection by one ring: everything that shares a face or a vertex with it joins in.</p>
+<p>On a face selection, the faces touching a selected face are added. On a vertex selection, the vertices sharing a face with a selected one are added. Choose which with <strong>Elements</strong>; the default keeps the classic behavior of growing the faces and letting the vertex selection follow.</p>
+<p>Selection tool shortcut: <code class="docutils literal notranslate"><span class="pre">+</span></code>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>element</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">both</span></code>) — Which selection to grow. <em>Faces (vertices follow)</em> is the classic behavior: it works on the face selection and sets the vertex selection to match. <em>Faces only</em> and <em>Vertices only</em> change just that kind and leave the other exactly as it is. Use <em>Vertices only</em> for a selection made as vertices, which the classic mode would clear.</p></li>
+</ul>
 </dd></dl>
 
 <hr class="docutils" />
@@ -7810,12 +7815,17 @@ Leave 0 for automatic calculation.</p></li>
 <span id="filter-erode-selection"></span><h2>Erode Selection<a class="headerlink" href="#erode-selection" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Selection/Set</span> <span class="pre">Operations</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.select</p>
-<p>Erode (reduce) current selected faces.</p>
+<p>Shrink the selection by one ring of faces or vertices.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.erode_selection">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">erode_selection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.erode_selection" title="Link to this definition">¶</a></dt>
-<dd><p>Erode (reduce) the current set of selected faces.</p>
-<p>This filter has no parameters.</p>
+<dd><p>Shrink the selection by one ring: only what is completely surrounded by the selection stays.</p>
+<p>On a face selection, a face stays if none of its corners also belongs to an unselected face. On a vertex selection, a vertex stays if every face around it has all three corners selected. Choose which with <strong>Elements</strong>; the default keeps the classic behavior of shrinking the faces and letting the vertex selection follow.</p>
+<p>Selection tool shortcut: <code class="docutils literal notranslate"><span class="pre">-</span></code>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>element</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">both</span></code>) — Which selection to shrink. <em>Faces (vertices follow)</em> is the classic behavior: it works on the face selection and sets the vertex selection to match. <em>Faces only</em> and <em>Vertices only</em> change just that kind and leave the other exactly as it is. Use <em>Vertices only</em> for a selection made as vertices, which the classic mode would clear.</p></li>
+</ul>
 </dd></dl>
 
 <hr class="docutils" />
