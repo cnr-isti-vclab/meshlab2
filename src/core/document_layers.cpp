@@ -3,6 +3,8 @@
 
 #include <vcg/complex/algorithms/clean.h>
 
+#include <algorithm>
+
 using namespace DocumentInternal;
 
 int Document::indexOfMeshId(std::uint64_t id) const
@@ -362,8 +364,13 @@ void Document::clearAllLayers()
     m_currentMeshIndex = -1;
     m_currentRasterIndex = -1;
     m_currentLayerKind = CurrentLayerKind::None;
+    // The sets name layers that are no longer there, and are as much the project as they.
+    const bool hadSets = !m_visibilitySets.empty();
+    m_visibilitySets.clear();
     emit meshRemoved(-1);
     emit rasterRemoved(-1);
+    if (hadSets)
+        emit visibilitySetsChanged();
 }
 
 QMatrix4x4 Document::meshTransform(int index) const
@@ -462,6 +469,117 @@ void Document::setMeshVisible(int index, bool visible)
         return;
     entry.visible = visible;
     emit meshVisibilityChanged(index, visible);
+}
+
+std::vector<std::uint64_t> Document::visibleMeshIds() const
+{
+    std::vector<std::uint64_t> ids;
+    for (const auto &entry : m_meshes) {
+        if (entry->visible)
+            ids.push_back(entry->meshId);
+    }
+    return ids;
+}
+
+// The four edits of the sets are undo steps, with the usual guard: one made inside a step that is
+// open already (a project load, a script) belongs to that step.
+int Document::addVisibilitySet(const QString &name, std::vector<std::uint64_t> meshIds)
+{
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("Add Visibility Set"));
+    m_visibilitySets.push_back({ name, std::move(meshIds) });
+    emit visibilitySetsChanged();
+    if (ownUndoStep)
+        endUndoStep(true);
+    return int(m_visibilitySets.size()) - 1;
+}
+
+int Document::setNamedVisibilitySet(const QString &name, std::vector<std::uint64_t> meshIds)
+{
+    for (int i = 0; i < int(m_visibilitySets.size()); ++i) {
+        if (m_visibilitySets[i].name != name)
+            continue;
+        if (m_visibilitySets[i].meshIds == meshIds)
+            return i;
+        const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+        if (ownUndoStep)
+            beginUndoStep(tr("Redefine Visibility Set"));
+        m_visibilitySets[i].meshIds = std::move(meshIds);
+        emit visibilitySetsChanged();
+        if (ownUndoStep)
+            endUndoStep(true);
+        return i;
+    }
+    return addVisibilitySet(name, std::move(meshIds));
+}
+
+void Document::updateVisibilitySet(int index)
+{
+    if (index < 0 || index >= int(m_visibilitySets.size()))
+        return;
+    const std::vector<std::uint64_t> ids = visibleMeshIds();
+    if (m_visibilitySets[index].meshIds == ids)
+        return;
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("Redefine Visibility Set"));
+    m_visibilitySets[index].meshIds = ids;
+    emit visibilitySetsChanged();
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
+void Document::renameVisibilitySet(int index, const QString &name)
+{
+    const QString trimmed = name.trimmed();
+    if (index < 0 || index >= int(m_visibilitySets.size()) || trimmed.isEmpty()
+        || m_visibilitySets[index].name == trimmed)
+        return;
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("Rename Visibility Set"));
+    m_visibilitySets[index].name = trimmed;
+    emit visibilitySetsChanged();
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
+void Document::removeVisibilitySet(int index)
+{
+    if (index < 0 || index >= int(m_visibilitySets.size()))
+        return;
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("Delete Visibility Set"));
+    m_visibilitySets.erase(m_visibilitySets.begin() + index);
+    emit visibilitySetsChanged();
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
+void Document::showVisibilitySet(int index, bool addToVisible)
+{
+    if (index < 0 || index >= int(m_visibilitySets.size()))
+        return;
+    const std::vector<std::uint64_t> &ids = m_visibilitySets[index].meshIds;
+    for (int i = 0; i < meshCount(); ++i) {
+        const bool inSet = std::find(ids.begin(), ids.end(), mesh(i).meshId) != ids.end();
+        setMeshVisible(i, inSet || (addToVisible && mesh(i).visible));
+    }
+}
+
+bool Document::visibilitySetIsShown(int index) const
+{
+    if (index < 0 || index >= int(m_visibilitySets.size()))
+        return false;
+    const std::vector<std::uint64_t> &ids = m_visibilitySets[index].meshIds;
+    for (const auto &entry : m_meshes) {
+        const bool inSet = std::find(ids.begin(), ids.end(), entry->meshId) != ids.end();
+        if (entry->visible != inSet)
+            return false;
+    }
+    return true;
 }
 
 void Document::setRasterVisible(int index, bool visible)

@@ -1156,6 +1156,23 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
                 QObject::tr("%1 stopped on an unknown error.").arg(targetDescriptor->name) };
         }
         scopeGuard.restore();
+        // Indices are the filter's, as they stand at its return, so before anything below can
+        // move a layer. Part of the step, so an undo takes the sets back with the run.
+        if (result.success) {
+            for (const MeshFilterVisibilitySet &set : std::as_const(result.visibilitySets)) {
+                std::vector<std::uint64_t> ids;
+                for (const int index : set.meshIndices) {
+                    if (index >= 0 && index < doc.meshCount())
+                        ids.push_back(doc.mesh(index).meshId);
+                }
+                if (set.name.trimmed().isEmpty() || ids.empty())
+                    continue;
+                doc.setNamedVisibilitySet(set.name.trimmed(), std::move(ids));
+                // The run changed the document even if it touched no layer, and an unmodified run
+                // would have its step dropped.
+                result.documentModified = true;
+            }
+        }
         if (!result.success) {
             // Only roll back a step we opened ourselves: inside an outer transaction
             // this would discard the caller's entire step, not just this one run.

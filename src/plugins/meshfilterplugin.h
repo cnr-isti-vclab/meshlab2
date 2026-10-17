@@ -376,6 +376,14 @@ struct MeshFilterVisualizationHint
     MeshFilterVisualizationAttribute attribute = MeshFilterVisualizationAttribute::VertexQuality;
 };
 
+// A group of layers a run puts together, for the layer panel's visibility sets: a name and the
+// layers by index, as they stand when the filter returns.
+struct MeshFilterVisibilitySet
+{
+    QString name;
+    QVector<int> meshIndices;
+};
+
 struct MeshFilterRunResult
 {
     bool success = false;
@@ -395,6 +403,12 @@ struct MeshFilterRunResult
     // list names the first few and leaves the rest to the declared tag.
     QStringList outputTags;
     QVector<MeshFilterVisualizationHint> visualizationHints;
+    // Visibility sets for the run to leave behind -- the layers an alignment placed, say, so that
+    // one click shows them. The framework stores each in the filter's undo step, from the indices
+    // as they stand when the filter returns, replacing a set of the same name (a second run
+    // refreshes the set rather than adding another). It only records the set: what is visible is
+    // left as it is. Names are shown and saved as they are, untranslated, like layer names.
+    QVector<MeshFilterVisibilitySet> visibilitySets;
     QVariantMap outputValues;
 };
 

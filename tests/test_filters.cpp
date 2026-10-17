@@ -5062,6 +5062,26 @@ void FilterTests::open3dAlignMeshesSequentiallyStopsAtTheFirstFailedPair()
     QVERIFY(sameMatrix(doc.mesh(3).transform, sphereBefore));
     QVERIFY(sameMatrix(doc.mesh(4).transform, lastBefore));
 
+    // The layers that registered -- the reference and the two placed -- are a visibility set called
+    // "aligned", and the intruder and the scan behind it are not in it. The filter only records
+    // the set: everything is still visible. One undo takes the run and its set away together.
+    QCOMPARE(doc.visibilitySets().size(), size_t(1));
+    QCOMPARE(doc.visibilitySets()[0].name, QStringLiteral("aligned"));
+    QCOMPARE(doc.visibilitySets()[0].meshIds,
+             (std::vector<std::uint64_t>{ doc.mesh(0).meshId, doc.mesh(1).meshId, doc.mesh(2).meshId }));
+    for (int i = 0; i < doc.meshCount(); ++i)
+        QVERIFY(doc.mesh(i).visible);
+    doc.showVisibilitySet(0);
+    QVERIFY(doc.mesh(0).visible && doc.mesh(2).visible && !doc.mesh(3).visible && !doc.mesh(4).visible);
+    {
+        const QMatrix4x4 placed = doc.mesh(1).transform;
+        QVERIFY(doc.undo());
+        QVERIFY(doc.visibilitySets().empty());
+        QVERIFY(doc.redo());
+        QCOMPARE(doc.visibilitySets().size(), size_t(1));
+        QVERIFY(sameMatrix(doc.mesh(1).transform, placed));
+    }
+
     // The three that did register were kept, and are right.
     const float diagonal = doc.mesh(0).mesh.bbox.Diag();
     const QMatrix4x4 anchor = doc.mesh(0).transform;

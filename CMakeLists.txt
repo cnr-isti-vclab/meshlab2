@@ -711,6 +711,27 @@ target_link_libraries(MeshLab2ParameterFormTests PRIVATE
 
 add_test(NAME MeshLab2ParameterFormTests COMMAND MeshLab2ParameterFormTests)
 
+# The layer panel only needs Document and Qt Widgets, so it is compiled into its test, which
+# can then look at what it lays out (the visibility-set chips).
+qt_add_executable(MeshLab2LayerWidgetTests
+    tests/test_layerwidget.cpp
+    src/ui/layerwidget.h src/ui/layerwidget.cpp
+)
+
+target_include_directories(MeshLab2LayerWidgetTests PRIVATE
+    ${MESHLAB2_SOURCE_DIR}
+    ${MESHLAB2_SOURCE_DIR}/src/ui
+)
+
+target_link_libraries(MeshLab2LayerWidgetTests PRIVATE
+    MeshLab2Plugins
+    MeshLab2Core
+    Qt6::Test
+    Qt6::Widgets
+)
+
+add_test(NAME MeshLab2LayerWidgetTests COMMAND MeshLab2LayerWidgetTests)
+
 qt_add_executable(MeshLab2PreferencesTests
     tests/test_preferences.cpp
 )

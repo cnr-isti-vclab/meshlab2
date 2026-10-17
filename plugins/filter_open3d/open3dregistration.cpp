@@ -965,6 +965,14 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
 
     out.infoMessages << QObject::tr("Aligned %1 of %2 layers onto '%3'.")
                             .arg(placed).arg(chain.size()).arg(doc.mesh(chain[0]).name);
+    // The layers that registered, with the reference they were registered onto, as a visibility
+    // set: one click in the layer panel shows what the run aligned and hides what it left behind.
+    // A second run replaces it. Untranslated, like a layer name.
+    MeshFilterVisibilitySet alignedSet;
+    alignedSet.name = QStringLiteral("aligned");
+    for (size_t k = 0; k < placed; ++k)
+        alignedSet.meshIndices.push_back(chain[k]);
+    out.visibilitySets.push_back(alignedSet);
     if (!stoppedAt.isEmpty()) {
         out.infoMessages << QObject::tr(
             "Stopped at '%1': %2. It and the layers after it were not moved.")

@@ -90,6 +90,15 @@ struct RasterSnapshot {
     int currentPlaneIndex = -1;
 };
 
+// A name and the persistent ids of the layers that show together (Document::visibilitySets).
+struct VisibilitySet {
+    QString name;
+    std::vector<std::uint64_t> meshIds;
+
+    bool operator==(const VisibilitySet &o) const { return name == o.name && meshIds == o.meshIds; }
+    bool operator!=(const VisibilitySet &o) const { return !(*this == o); }
+};
+
 struct UndoState {
     std::vector<MeshSnapshot> meshes;
     std::vector<RasterSnapshot> rasters;
@@ -98,6 +107,7 @@ struct UndoState {
     CurrentLayerKind currentLayerKind = CurrentLayerKind::None;
     std::uint64_t nextMeshId = 1;
     std::uint64_t nextRasterId = 1;
+    std::vector<VisibilitySet> visibilitySets;
     ViewState viewState;
 };
 

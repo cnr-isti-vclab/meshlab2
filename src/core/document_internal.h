@@ -69,10 +69,18 @@ struct MeshLabProjectRasterEntry {
     std::vector<MeshLabProjectPlaneEntry> planes;
 };
 
+// A visibility set as the project file has it: the layers are the positions of the MLMesh
+// entries in the file, which is all that outlives the session -- the ids do not.
+struct MeshLabProjectVisibilitySetEntry {
+    QString name;
+    std::vector<int> meshOrdinals;
+};
+
 bool parseMeshLabProjectFile(
     const QString &filename,
     std::vector<MeshLabProjectMeshEntry> &meshes,
     std::vector<MeshLabProjectRasterEntry> &rasters,
+    std::vector<MeshLabProjectVisibilitySetEntry> &visibilitySets,
     QString &errorMessage);
 QString resolveTexturePath(const QString &meshFilePath, const QString &declaredTextureName);
 MeshIOMaterialTextureRef normalizeMaterialTextureRef(

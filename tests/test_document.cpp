@@ -84,6 +84,10 @@ private slots:
     void legacyTargaLoadsThroughTheStbFallback();
     void loadMeshLabProjectLoadsMeshesAndTransforms();
     void saveMeshLabProjectKeepsLayersWithoutAFile();
+    void visibilitySetsShowTheirLayersAndSayWhenTheyAreShown();
+    void visibilitySetsSurviveAProjectRoundTripWhateverIsLeftOut();
+    void definingRenamingRedefiningAndDeletingASetAreUndoSteps();
+    void aNamedSetIsRefreshedNotDuplicated();
     void loadMeshLabProjectLoadsRastersAndCamera();
     void rasterCameraUndoRedoRestoresShot();
     void undoRedoRestoresMeshList();
@@ -1697,6 +1701,176 @@ void DocumentTests::saveMeshLabProjectKeepsLayersWithoutAFile()
     const QString xml = QString::fromUtf8(file.readAll());
     QVERIFY2(xml.contains(QStringLiteral("generated layer")), qPrintable(xml));
     QVERIFY(QFileInfo(dir.filePath(QStringLiteral("meshes/generated_layer.ply"))).exists());
+}
+
+void DocumentTests::visibilitySetsShowTheirLayersAndSayWhenTheyAreShown()
+{
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("a"));
+    addTinyMesh(doc, QStringLiteral("b"));
+    addTinyMesh(doc, QStringLiteral("c"));
+    QSignalSpy changed(&doc, &Document::visibilitySetsChanged);
+
+    doc.setMeshVisible(2, false);
+    const int ab = doc.addVisibilitySet(QStringLiteral("ab"), doc.visibleMeshIds());
+    QCOMPARE(changed.count(), 1);
+    QVERIFY(doc.visibilitySetIsShown(ab));
+
+    doc.setMeshVisible(0, false);
+    doc.setMeshVisible(2, true);
+    QVERIFY(!doc.visibilitySetIsShown(ab));
+    doc.showVisibilitySet(ab);
+    QVERIFY(doc.mesh(0).visible && doc.mesh(1).visible && !doc.mesh(2).visible);
+    QVERIFY(doc.visibilitySetIsShown(ab));
+
+    // With addToVisible the layers already visible stay.
+    doc.setMeshVisible(0, false);
+    doc.setMeshVisible(1, false);
+    doc.setMeshVisible(2, true);
+    doc.showVisibilitySet(ab, true);
+    QVERIFY(doc.mesh(0).visible && doc.mesh(1).visible && doc.mesh(2).visible);
+
+    // A set follows its layers by id, not position, and does not miss one that was removed.
+    doc.removeMesh(0);
+    doc.setMeshVisible(1, false);
+    doc.showVisibilitySet(ab);
+    QCOMPARE(doc.meshCount(), 2);
+    QVERIFY(doc.mesh(0).visible && !doc.mesh(1).visible);
+    QVERIFY(doc.visibilitySetIsShown(ab));
+
+    doc.setMeshVisible(1, true);
+    doc.updateVisibilitySet(ab);
+    QVERIFY(doc.visibilitySetIsShown(ab));
+    doc.renameVisibilitySet(ab, QStringLiteral("all"));
+    QCOMPARE(doc.visibilitySets()[0].name, QStringLiteral("all"));
+    doc.renameVisibilitySet(ab, QStringLiteral("  "));   // a blank name is refused
+    QCOMPARE(doc.visibilitySets()[0].name, QStringLiteral("all"));
+    doc.removeVisibilitySet(ab);
+    QVERIFY(doc.visibilitySets().empty());
+
+    // File > New takes them away with the layers.
+    doc.addVisibilitySet(QStringLiteral("x"), doc.visibleMeshIds());
+    doc.clearAllLayers();
+    QVERIFY(doc.visibilitySets().empty());
+}
+
+// The sets are written as positions in the file, so a layer left out of it -- hidden, with
+// "only visible layers" -- must not shift the others, and a set that loses its layers is dropped.
+void DocumentTests::visibilitySetsSurviveAProjectRoundTripWhateverIsLeftOut()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("a"));
+    addTinyMesh(doc, QStringLiteral("b"));
+    addTinyMesh(doc, QStringLiteral("c"));
+    const auto idOf = [&doc](int i) { return doc.mesh(i).meshId; };
+    doc.addVisibilitySet(QStringLiteral("ac"), { idOf(0), idOf(2) });
+    doc.addVisibilitySet(QStringLiteral("only a"), { idOf(0) });
+    doc.addVisibilitySet(QStringLiteral("b"), { idOf(1) });
+
+    QString error;
+    const QString all = dir.filePath(QStringLiteral("all.mlp"));
+    QVERIFY2(doc.saveMeshLabProject(all, Document::MeshLabProjectSaveOptions{}, &error), qPrintable(error));
+    Document back;
+    QCOMPARE(back.loadMeshLabProject(all), 0);
+    QCOMPARE(back.meshCount(), 3);
+    QCOMPARE(back.visibilitySets().size(), size_t(3));
+    QCOMPARE(back.visibilitySets()[0].name, QStringLiteral("ac"));
+    back.showVisibilitySet(0);
+    QVERIFY(back.mesh(0).visible && !back.mesh(1).visible && back.mesh(2).visible);
+    back.showVisibilitySet(2);
+    QVERIFY(!back.mesh(0).visible && back.mesh(1).visible && !back.mesh(2).visible);
+
+    // Hide the first layer and save only the visible ones: "ac" is left with c, which is now
+    // the file's second entry, "only a" has nothing left and is not written.
+    doc.setMeshVisible(0, false);
+    Document::MeshLabProjectSaveOptions options;
+    options.onlyVisibleMeshes = true;
+    const QString part = dir.filePath(QStringLiteral("part.mlp"));
+    QVERIFY2(doc.saveMeshLabProject(part, options, &error), qPrintable(error));
+    Document partial;
+    QCOMPARE(partial.loadMeshLabProject(part), 0);
+    QCOMPARE(partial.meshCount(), 2);
+    QCOMPARE(partial.visibilitySets().size(), size_t(2));
+    QCOMPARE(partial.visibilitySets()[0].name, QStringLiteral("ac"));
+    QCOMPARE(partial.visibilitySets()[1].name, QStringLiteral("b"));
+    partial.showVisibilitySet(0);
+    QCOMPARE(partial.mesh(0).name, QStringLiteral("b"));
+    QVERIFY(!partial.mesh(0).visible && partial.mesh(1).visible);   // c
+    QCOMPARE(partial.mesh(1).name, QStringLiteral("c"));
+}
+
+void DocumentTests::definingRenamingRedefiningAndDeletingASetAreUndoSteps()
+{
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("a"));
+    addTinyMesh(doc, QStringLiteral("b"));
+    const auto sets = [&doc] { return doc.visibilitySets(); };
+    QSignalSpy changed(&doc, &Document::visibilitySetsChanged);
+
+    const int first = doc.addVisibilitySet(QStringLiteral("both"), doc.visibleMeshIds());
+    QCOMPARE(sets().size(), size_t(1));
+    doc.renameVisibilitySet(first, QStringLiteral("everything"));
+    doc.setMeshVisible(1, false);
+    doc.updateVisibilitySet(first);
+    QCOMPARE(sets()[0].meshIds.size(), size_t(1));
+    doc.addVisibilitySet(QStringLiteral("second"), doc.visibleMeshIds());
+    doc.removeVisibilitySet(0);
+    QCOMPARE(sets().size(), size_t(1));
+    QCOMPARE(sets()[0].name, QStringLiteral("second"));
+
+    // Each edit took one step back, and the chips are told.
+    changed.clear();
+    QVERIFY(doc.undo());                                  // the delete
+    QCOMPARE(sets().size(), size_t(2));
+    QCOMPARE(sets()[0].name, QStringLiteral("everything"));
+    QVERIFY(changed.count() >= 1);
+    QVERIFY(doc.undo());                                  // the second set
+    QCOMPARE(sets().size(), size_t(1));
+    QVERIFY(doc.undo());                                  // the redefinition
+    QCOMPARE(sets()[0].meshIds.size(), size_t(2));
+    QVERIFY(doc.undo());                                  // the rename
+    QCOMPARE(sets()[0].name, QStringLiteral("both"));
+    QVERIFY(doc.undo());                                  // the first set
+    QVERIFY(sets().empty());
+
+    QVERIFY(doc.redo());
+    QCOMPARE(sets().size(), size_t(1));
+    QCOMPARE(sets()[0].name, QStringLiteral("both"));
+    QVERIFY(doc.redo());
+    QCOMPARE(sets()[0].name, QStringLiteral("everything"));
+
+    // Showing a set is not a step: it takes no more history.
+    const int nodes = int(doc.undoTreeInfo().size());
+    doc.showVisibilitySet(0);
+    QCOMPARE(int(doc.undoTreeInfo().size()), nodes);
+}
+
+// How a filter leaves a set behind: the name is the key, so running it again refreshes the set.
+void DocumentTests::aNamedSetIsRefreshedNotDuplicated()
+{
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("a"));
+    addTinyMesh(doc, QStringLiteral("b"));
+    addTinyMesh(doc, QStringLiteral("c"));
+    const auto id = [&doc](int i) { return doc.mesh(i).meshId; };
+
+    QCOMPARE(doc.setNamedVisibilitySet(QStringLiteral("aligned"), { id(0), id(1) }), 0);
+    QCOMPARE(doc.setNamedVisibilitySet(QStringLiteral("other"), { id(2) }), 1);
+    QCOMPARE(doc.setNamedVisibilitySet(QStringLiteral("aligned"), { id(0), id(1), id(2) }), 0);
+    QCOMPARE(doc.visibilitySets().size(), size_t(2));
+    QCOMPARE(doc.visibilitySets()[0].meshIds.size(), size_t(3));
+
+    // The same layers again changes nothing and takes no step.
+    const int nodes = int(doc.undoTreeInfo().size());
+    QSignalSpy changed(&doc, &Document::visibilitySetsChanged);
+    QCOMPARE(doc.setNamedVisibilitySet(QStringLiteral("aligned"), { id(0), id(1), id(2) }), 0);
+    QCOMPARE(changed.count(), 0);
+    QCOMPARE(int(doc.undoTreeInfo().size()), nodes);
+
+    QVERIFY(doc.undo());   // the refresh
+    QCOMPARE(doc.visibilitySets()[0].meshIds.size(), size_t(2));
 }
 
 void DocumentTests::loadMeshLabProjectLoadsMeshesAndTransforms()

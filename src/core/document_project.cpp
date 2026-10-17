@@ -10,8 +10,10 @@ int Document::loadMeshLabProject(const QString &filename)
 
     std::vector<MeshLabProjectMeshEntry> projectMeshes;
     std::vector<MeshLabProjectRasterEntry> projectRasters;
+    std::vector<MeshLabProjectVisibilitySetEntry> projectSets;
     QString parseError;
-    if (!parseMeshLabProjectFile(normalizedFilename, projectMeshes, projectRasters, parseError)) {
+    if (!parseMeshLabProjectFile(
+            normalizedFilename, projectMeshes, projectRasters, projectSets, parseError)) {
         writeLog(parseError, LogSource::Application);
         return -1;
     }
@@ -33,7 +35,11 @@ int Document::loadMeshLabProject(const QString &filename)
     int loadedMeshes = 0;
     int loadedRasters = 0;
 
-    for (const MeshLabProjectMeshEntry &projectMesh : projectMeshes) {
+    // The id each entry of the file got, by its position in the file; 0 for one that was skipped.
+    // What the visibility sets name.
+    std::vector<std::uint64_t> idOfOrdinal(projectMeshes.size(), 0);
+    for (size_t ordinal = 0; ordinal < projectMeshes.size(); ++ordinal) {
+        const MeshLabProjectMeshEntry &projectMesh = projectMeshes[ordinal];
         const QString meshPath = projectMesh.sourcePath.trimmed();
         if (meshPath.isEmpty()) {
             writeLog(
@@ -49,6 +55,7 @@ int Document::loadMeshLabProject(const QString &filename)
             continue;
         }
 
+        const int meshesBefore = meshCount();
         const int result = loadMesh(meshPath, nullptr, projectMesh.label,
                                     projectMesh.hasTransform ? &projectMesh.transform : nullptr);
         if (result != 0) {
@@ -58,6 +65,23 @@ int Document::loadMeshLabProject(const QString &filename)
             continue;
         }
         ++loadedMeshes;
+        if (meshCount() > meshesBefore)
+            idOfOrdinal[ordinal] = mesh(meshCount() - 1).meshId;
+    }
+
+    for (const MeshLabProjectVisibilitySetEntry &projectSet : projectSets) {
+        std::vector<std::uint64_t> ids;
+        for (const int ordinal : projectSet.meshOrdinals) {
+            if (ordinal < int(idOfOrdinal.size()) && idOfOrdinal[ordinal] != 0)
+                ids.push_back(idOfOrdinal[ordinal]);
+        }
+        // A set none of whose layers is here would show nothing, which is not what it is for.
+        if (!ids.empty()) {
+            addVisibilitySet(
+                projectSet.name.isEmpty() ? tr("Set %1").arg(visibilitySets().size() + 1)
+                                          : projectSet.name,
+                std::move(ids));
+        }
     }
 
     int rasterIdx = 0;
@@ -315,13 +339,15 @@ bool Document::saveMeshLabProject(
     xml.writeStartDocument();
     xml.writeStartElement(QStringLiteral("MeshLabProject"));
 
-    // Meshes
+    // Meshes. The position of each in the file is what the visibility sets say it by.
     xml.writeStartElement(QStringLiteral("MeshGroup"));
+    std::map<std::uint64_t, int> ordinalOfMeshId;
     for (int mi = 0; mi < meshCount(); ++mi) {
         const MeshEntry &entry = mesh(mi);
         if (options.onlyVisibleMeshes && !entry.visible) continue;
         const QString &absPath = meshSavePaths[mi].absPath;
         if (absPath.isEmpty()) continue;
+        ordinalOfMeshId[entry.meshId] = int(ordinalOfMeshId.size());
 
         QString relPath = projectDir.relativeFilePath(absPath);
 
@@ -412,6 +438,29 @@ bool Document::saveMeshLabProject(
         xml.writeEndElement(); // MLRaster
     }
     xml.writeEndElement(); // RasterGroup
+
+    // Visibility sets, which old versions do not know and skip. A set keeps the layers that went
+    // into the file; one left with none is not written.
+    bool openedSets = false;
+    for (const VisibilitySet &set : visibilitySets()) {
+        QStringList ordinals;
+        for (const auto &entry : ordinalOfMeshId) {
+            if (std::find(set.meshIds.begin(), set.meshIds.end(), entry.first) != set.meshIds.end())
+                ordinals << QString::number(entry.second);
+        }
+        if (ordinals.isEmpty())
+            continue;
+        if (!openedSets) {
+            xml.writeStartElement(QStringLiteral("VisibilitySets"));
+            openedSets = true;
+        }
+        xml.writeStartElement(QStringLiteral("VisibilitySet"));
+        xml.writeAttribute(QStringLiteral("name"), set.name);
+        xml.writeAttribute(QStringLiteral("meshes"), ordinals.join(QLatin1Char(' ')));
+        xml.writeEndElement(); // VisibilitySet
+    }
+    if (openedSets)
+        xml.writeEndElement(); // VisibilitySets
 
     xml.writeEndElement(); // MeshLabProject
     xml.writeEndDocument();

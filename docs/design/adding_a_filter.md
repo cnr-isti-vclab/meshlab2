@@ -380,6 +380,12 @@ up front, or with a `success = false` result that says why.
   the filters that once did.
 - **Return useful `infoMessages`** — they appear in the log; keep `errorMessage`
   actionable and return `success = false` on bad input rather than asserting.
+- **Leave a visibility set** (optional) via `MeshFilterRunResult::visibilitySets`: a name and
+  the layers by index as they stand when the filter returns. The framework stores it in the
+  filter's undo step, replacing a set of the same name, so a second run refreshes it; it does
+  not change what is visible. For a filter that picks some of the layers and leaves the others
+  -- the layers an alignment placed -- so that one click in the layer panel shows them.
+  *Align Meshes Sequentially (Open3D)* leaves `aligned`. Names are shown as written, untranslated.
 - **Suggest a view change** (optional) via `MeshFilterRunResult::visualizationHints`
   (e.g. switch to textured/quality shading) — see the visualization-hint path in
   `MainWindow::applyFilterVisualizationHints`.

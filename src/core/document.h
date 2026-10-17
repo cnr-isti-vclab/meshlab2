@@ -299,6 +299,30 @@ public:
         const CameraShot &shot = CameraShot());
     void removeRaster(int index);
     void setMeshVisible(int index, bool visible);
+
+    // Visibility sets: a name and the layers that show together, for jumping between the
+    // arrangements of a project (before / after, one scan at a time...). They hold persistent
+    // mesh ids, so they follow a layer through moves and renames, and a layer that is gone
+    // is simply not in the set any more. They are part of the project (the .mlp) and of the
+    // undo state: defining, redefining, renaming and deleting one are undo steps. Showing one
+    // is not, any more than the layer panel's eye is.
+    using VisibilitySet = ::VisibilitySet;
+    const std::vector<VisibilitySet> &visibilitySets() const { return m_visibilitySets; }
+    // The ids of the layers that are visible now.
+    std::vector<std::uint64_t> visibleMeshIds() const;
+    int addVisibilitySet(const QString &name, std::vector<std::uint64_t> meshIds);
+    // Gives the set of that name these layers, or adds it if there is none: how a filter's
+    // result leaves a set behind, so that running it again refreshes it. Returns its index.
+    int setNamedVisibilitySet(const QString &name, std::vector<std::uint64_t> meshIds);
+    // Makes the set the layers that are visible now.
+    void updateVisibilitySet(int index);
+    void renameVisibilitySet(int index, const QString &name);
+    void removeVisibilitySet(int index);
+    // Shows the set's layers and hides the others -- or, with `addToVisible`, leaves the
+    // visible ones as they are. Goes through setMeshVisible, so it acts on the current view.
+    void showVisibilitySet(int index, bool addToVisible = false);
+    // Whether the layers visible now are exactly the set's.
+    bool visibilitySetIsShown(int index) const;
     void setMeshName(int index, const QString &name);
     // Name a layer the framework has just created. Unlike setMeshName this writes no
     // "Renamed" line and opens no undo step of its own: the placeholder it replaces
@@ -495,6 +519,8 @@ signals:
     void meshMoved(int from, int to);
     void rasterMoved(int from, int to);
     void meshVisibilityChanged(int index, bool visible);
+    // A visibility set was added, removed, renamed or redefined.
+    void visibilitySetsChanged();
     void currentMeshChanged(int index);
     void meshDataChanged(int index);
     // Selection-bit-only change. Distinct from meshDataChanged so consumers that
@@ -561,6 +587,7 @@ private:
     std::unique_ptr<MeshFilterPluginManager> m_filterPluginManager;
     std::unique_ptr<MeshGpuResourceCache> m_gpuCache;
     std::vector<std::unique_ptr<MeshEntry>> m_meshes;
+    std::vector<VisibilitySet> m_visibilitySets;
     std::vector<std::unique_ptr<RasterEntry>> m_rasters;
     std::uint64_t m_nextMeshId = 1;
     std::uint64_t m_nextRasterId = 1;
