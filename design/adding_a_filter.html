@@ -195,6 +195,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../api/meshset.html">MeshSet</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/mlgui.html">MlGui</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../expressions.html">Expressions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/types.html">Supporting Types</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples</span></p>
@@ -547,9 +548,13 @@ up front, or with a <code class="docutils literal notranslate"><span class="pre"
 <li><p><strong>Undo</strong>: <code class="docutils literal notranslate"><span class="pre">runFilter</span></code> for a non-<code class="docutils literal notranslate"><span class="pre">Information</span></code> filter is automatically wrapped in
 one undo step, and the Python call is recorded. <strong>Never touch the undo stack.</strong>
 A <code class="docutils literal notranslate"><span class="pre">SingleMesh</span></code> filter whose <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> is non-empty and contains only
-selection codes (<code class="docutils literal notranslate"><span class="pre">VS</span></code>/<code class="docutils literal notranslate"><span class="pre">FS</span></code>) automatically uses the cheap bit-packed
-selection-delta undo instead of a full snapshot — which matters on large
-meshes, where snapshotting is seconds of deep copy.</p></li>
+selection codes (<code class="docutils literal notranslate"><span class="pre">VS</span></code>/<code class="docutils literal notranslate"><span class="pre">FS</span></code>/<code class="docutils literal notranslate"><span class="pre">ES</span></code>), only color codes (<code class="docutils literal notranslate"><span class="pre">VC</span></code>/<code class="docutils literal notranslate"><span class="pre">FC</span></code>/<code class="docutils literal notranslate"><span class="pre">EC</span></code>) or only
+scalar codes (<code class="docutils literal notranslate"><span class="pre">VQ</span></code>/<code class="docutils literal notranslate"><span class="pre">FQ</span></code>/<code class="docutils literal notranslate"><span class="pre">EQ</span></code>) — or a mix of those three classes — automatically
+uses the cheap attribute-delta undo, which stores just those attributes
+instead of a full snapshot. That matters on large meshes, where snapshotting is
+seconds of deep copy. <strong>This makes <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> load-bearing:</strong> the delta
+does not capture geometry, so a filter that declares <code class="docutils literal notranslate"><span class="pre">VC</span></code> but also moves a
+vertex will not have the movement undone. Declare everything you change.</p></li>
 <li><p><strong>Input preparation</strong>: declare <code class="docutils literal notranslate"><span class="pre">inputPrepare</span></code> codes instead of computing
 adjacency, normals or flags by hand — the framework enables the OCF
 components, runs the vcglib update in dependency order, and disables them
