@@ -250,6 +250,7 @@ bool parseMeshLabProjectFile(
     const QString &filename,
     std::vector<MeshLabProjectMeshEntry> &meshes,
     std::vector<MeshLabProjectRasterEntry> &rasters,
+    std::vector<MeshLabProjectVisibilitySetEntry> &visibilitySets,
     QString &errorMessage)
 {
     QFile file(filename);
@@ -286,6 +287,20 @@ bool parseMeshLabProjectFile(
                     currentMesh->transform = meshLabProjectMatrixToQt(values);
                     currentMesh->hasTransform = true;
                 }
+            } else if (name == QStringLiteral("VisibilitySet")) {
+                MeshLabProjectVisibilitySetEntry set;
+                const auto attrs = xml.attributes();
+                set.name = attrs.value(QStringLiteral("name")).toString().trimmed();
+                const QStringList ordinals =
+                    attrs.value(QStringLiteral("meshes")).toString().split(
+                        QLatin1Char(' '), Qt::SkipEmptyParts);
+                for (const QString &ordinal : ordinals) {
+                    bool ok = false;
+                    const int value = ordinal.toInt(&ok);
+                    if (ok && value >= 0)
+                        set.meshOrdinals.push_back(value);
+                }
+                visibilitySets.push_back(std::move(set));
             } else if (name == QStringLiteral("MLRaster")) {
                 MeshLabProjectRasterEntry raster;
                 raster.label = xml.attributes().value(QStringLiteral("label")).toString().trimmed();

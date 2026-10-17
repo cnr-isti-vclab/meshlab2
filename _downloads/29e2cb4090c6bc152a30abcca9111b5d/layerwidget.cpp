@@ -14,6 +14,11 @@
 #include <QDateTime>
 #include <QHash>
 #include <QHBoxLayout>
+#include <QInputDialog>
+#include <QScrollArea>
+#include <QScrollBar>
+#include <QStyle>
+#include <QShortcut>
 #include <QImageReader>
 #include <QImageWriter>
 #include <QHeaderView>
@@ -1156,6 +1161,48 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     m_stack = new QStackedWidget(this);
     mainLayout->addWidget(m_stack, 1);
 
+    // The visibility sets: a "+" that keeps what is visible now, and a chip for each set kept,
+    // which scrolls sideways when there are more than fit.
+    auto *setsBar = new QWidget(this);
+    auto *setsLayout = new QHBoxLayout(setsBar);
+    setsLayout->setContentsMargins(4, 2, 4, 2);
+    setsLayout->setSpacing(4);
+    auto *addSet = new QToolButton(setsBar);
+    addSet->setText(QStringLiteral("+"));
+    addSet->setAutoRaise(true);
+    addSet->setToolTip(tr("Keep the layers that are visible now as a visibility set"));
+    connect(addSet, &QToolButton::clicked, this, &LayerWidget::saveVisibilitySet);
+    setsLayout->addWidget(addSet);
+    auto *chipsScroll = new QScrollArea(setsBar);
+    chipsScroll->setFrameShape(QFrame::NoFrame);
+    chipsScroll->setWidgetResizable(true);
+    chipsScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    chipsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    auto *chipsHost = new QWidget(chipsScroll);
+    m_chipsLayout = new QHBoxLayout(chipsHost);
+    m_chipsLayout->setContentsMargins(0, 0, 0, 0);
+    m_chipsLayout->setSpacing(4);
+    m_chipsLayout->addStretch(1);
+    chipsScroll->setWidget(chipsHost);
+    // As tall as a chip is, which is not known from the host while it holds none: a chip's own size
+    // hint, and the scroll bar's too when the style draws one that takes room of its own.
+    QToolButton chipProbe;
+    chipProbe.setText(QStringLiteral("1 Ag"));
+    chipProbe.setAutoRaise(true);
+    int chipsHeight = chipProbe.sizeHint().height();
+    if (!style()->styleHint(QStyle::SH_ScrollBar_Transient, nullptr, chipsScroll->horizontalScrollBar()))
+        chipsHeight += chipsScroll->horizontalScrollBar()->sizeHint().height();
+    chipsScroll->setFixedHeight(chipsHeight);
+    setsLayout->addWidget(chipsScroll, 1);
+    mainLayout->addWidget(setsBar);
+    // Alt+1 .. Alt+9 show the first nine sets, whichever widget has the focus.
+    for (int i = 0; i < 9; ++i) {
+        auto *shortcut = new QShortcut(QKeySequence(Qt::ALT | (Qt::Key_1 + i)), this);
+        shortcut->setContext(Qt::ApplicationShortcut);
+        connect(shortcut, &QShortcut::activated, this, [this, i] { m_doc->showVisibilitySet(i); });
+    }
+    connect(m_doc, &Document::visibilitySetsChanged, this, [this] { scheduleRebuild(); });
+
     // --- Tree view (page 0) ---
     auto *treeSplitter = new QSplitter(Qt::Vertical, this);
 
@@ -1473,7 +1520,91 @@ void LayerWidget::rebuild()
     else
         rebuildTree();
     updateSummary();
+    refreshVisibilitySetChips();
     emit expansionChanged(anyLayerExpanded());
+}
+
+void LayerWidget::refreshVisibilitySetChips()
+{
+    const auto &sets = m_doc->visibilitySets();
+    QStringList names;
+    for (const Document::VisibilitySet &set : sets)
+        names << set.name;
+
+    if (names != m_chipNames) {
+        qDeleteAll(m_chips);
+        m_chips.clear();
+        m_chipNames = names;
+        for (int i = 0; i < sets.size(); ++i) {
+            auto *chip = new QToolButton(m_chipsLayout->parentWidget());
+            // The first nine carry the number of their Alt+number shortcut.
+            const QString label = sets[i].name.size() > 18
+                ? sets[i].name.left(17) + QStringLiteral("\u2026") : sets[i].name;
+            chip->setText(i < 9 ? QStringLiteral("%1 %2").arg(i + 1).arg(label) : label);
+            chip->setCheckable(true);
+            chip->setAutoRaise(true);
+            chip->setContextMenuPolicy(Qt::CustomContextMenu);
+            connect(chip, &QToolButton::clicked, this, [this, i] {
+                m_doc->showVisibilitySet(i, QApplication::keyboardModifiers() & Qt::ShiftModifier);
+            });
+            connect(chip, &QToolButton::customContextMenuRequested, this, [this, i, chip](const QPoint &pos) {
+                showVisibilitySetMenu(i, chip->mapToGlobal(pos));
+            });
+            m_chipsLayout->insertWidget(i, chip);
+            m_chips.append(chip);
+        }
+    }
+    for (int i = 0; i < m_chips.size(); ++i) {
+        QToolButton *chip = m_chips[i];
+        QString layers;
+        for (std::uint64_t id : sets[i].meshIds) {
+            const int index = m_doc->indexOfMeshId(id);
+            if (index >= 0)
+                layers += (layers.isEmpty() ? QString() : QStringLiteral(", ")) + m_doc->mesh(index).name;
+        }
+        chip->setToolTip(tr("%1\nShows: %2\nClick to show only these layers, Shift+click to add them to "
+                            "the visible ones, right-click for more%3")
+                             .arg(sets[i].name, layers.isEmpty() ? tr("(no layer left)") : layers,
+                                  i < 9 ? tr(". Alt+%1.").arg(i + 1) : QString()));
+        const QSignalBlocker blocker(chip);
+        chip->setChecked(m_doc->visibilitySetIsShown(i));
+    }
+}
+
+void LayerWidget::saveVisibilitySet()
+{
+    bool ok = false;
+    const QString name = QInputDialog::getText(
+        this,
+        tr("New Visibility Set"),
+        tr("Name for the layers visible now:"),
+        QLineEdit::Normal,
+        tr("Set %1").arg(m_doc->visibilitySets().size() + 1),
+        &ok).trimmed();
+    if (ok && !name.isEmpty())
+        m_doc->addVisibilitySet(name, m_doc->visibleMeshIds());
+}
+
+void LayerWidget::showVisibilitySetMenu(int index, const QPoint &globalPos)
+{
+    QMenu menu(this);
+    QAction *rename = menu.addAction(tr("Rename..."));
+    QAction *update = menu.addAction(tr("Set to the Visible Layers"));
+    menu.addSeparator();
+    QAction *remove = menu.addAction(tr("Delete"));
+    QAction *chosen = menu.exec(globalPos);
+    if (chosen == rename) {
+        bool ok = false;
+        const QString name = QInputDialog::getText(
+            this, tr("Rename Visibility Set"), tr("Name:"), QLineEdit::Normal,
+            m_doc->visibilitySets()[index].name, &ok);
+        if (ok)
+            m_doc->renameVisibilitySet(index, name);
+    } else if (chosen == update) {
+        m_doc->updateVisibilitySet(index);
+    } else if (chosen == remove) {
+        m_doc->removeVisibilitySet(index);
+    }
 }
 
 void LayerWidget::updateSummary()

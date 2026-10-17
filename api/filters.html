@@ -4191,6 +4191,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <p>A stop is reported, not hidden: the log names the layer and the reason, and the result says how many layers were aligned. To continue past a failure, fix that pair by hand (a different seed, a larger correspondence distance, or a manual placement) and run the filter again with the last good layer as the reference.</p>
 <p>The feature matcher samples randomly. Every pair of a run uses the same <em>Random Seed</em>, which is reported, so a run can be replayed.</p>
 <p>Layers listed <em>before</em> the reference are not part of the chain and are not touched. Only layer matrices change; no coordinates are modified.</p>
+<p>The layers that were aligned, the reference among them, are left as a <strong>visibility set</strong> named <em>aligned</em> under the layer list: one click shows exactly what the run placed and hides the layers it left behind. Each run adds a set of its own, named <em>aligned 2</em>, <em>aligned 3</em> and so on, so earlier runs are kept.</p>
 <p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/isl-org/Open3D">Open3D</a></p>
 <p><strong>License:</strong> MIT</p>
 <p><strong>References:</strong></p>

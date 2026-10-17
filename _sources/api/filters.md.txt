@@ -4995,6 +4995,8 @@ The feature matcher samples randomly. Every pair of a run uses the same *Random 
 
 Layers listed *before* the reference are not part of the chain and are not touched. Only layer matrices change; no coordinates are modified.
 
+The layers that were aligned, the reference among them, are left as a **visibility set** named *aligned* under the layer list: one click shows exactly what the run placed and hides the layers it left behind. Each run adds a set of its own, named *aligned 2*, *aligned 3* and so on, so earlier runs are kept.
+
 **Upstream:** [Open3D](https://github.com/isl-org/Open3D)
 
 **License:** MIT

@@ -643,6 +643,13 @@ appears away from the object. <code class="docutils literal notranslate"><span c
 the filters that once did.</p></li>
 <li><p><strong>Return useful <code class="docutils literal notranslate"><span class="pre">infoMessages</span></code></strong> — they appear in the log; keep <code class="docutils literal notranslate"><span class="pre">errorMessage</span></code>
 actionable and return <code class="docutils literal notranslate"><span class="pre">success</span> <span class="pre">=</span> <span class="pre">false</span></code> on bad input rather than asserting.</p></li>
+<li><p><strong>Leave a visibility set</strong> (optional) via <code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult::visibilitySets</span></code>: a name and
+the layers by index as they stand when the filter returns. The framework stores it in the
+filter’s undo step, under a name made unique with “ 2”, “ 3” … as a layer’s is, so every run
+leaves a set of its own and those of earlier runs stay; it does
+not change what is visible. For a filter that picks some of the layers and leaves the others
+– the layers an alignment placed – so that one click in the layer panel shows them.
+<em>Align Meshes Sequentially (Open3D)</em> leaves <code class="docutils literal notranslate"><span class="pre">aligned</span></code>. Names are shown as written, untranslated.</p></li>
 <li><p><strong>Suggest a view change</strong> (optional) via <code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult::visualizationHints</span></code>
 (e.g. switch to textured/quality shading) — see the visualization-hint path in
 <code class="docutils literal notranslate"><span class="pre">MainWindow::applyFilterVisualizationHints</span></code>.</p></li>
