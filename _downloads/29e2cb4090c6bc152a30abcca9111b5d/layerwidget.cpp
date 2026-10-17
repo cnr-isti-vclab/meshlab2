@@ -1553,10 +1553,9 @@ void LayerWidget::refreshVisibilitySetChips()
         m_chipNames = names;
         for (int i = 0; i < sets.size(); ++i) {
             auto *chip = new QToolButton(m_chipsLayout->parentWidget());
-            // The first nine carry the number of their Alt+number shortcut.
-            const QString label = sets[i].name.size() > 18
-                ? sets[i].name.left(17) + QStringLiteral("\u2026") : sets[i].name;
-            chip->setText(i < 9 ? QStringLiteral("%1 %2").arg(i + 1).arg(label) : label);
+            // The name only: the Alt+number shortcut of the first nine is in the tooltip.
+            chip->setText(sets[i].name.size() > 18
+                ? sets[i].name.left(17) + QStringLiteral("\u2026") : sets[i].name);
             chip->setCheckable(true);
             chip->setAutoRaise(true);
             chip->setContextMenuPolicy(Qt::CustomContextMenu);

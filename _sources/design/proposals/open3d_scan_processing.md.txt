@@ -517,22 +517,27 @@ Behaviour, as the maintainer specified it:
   100%). The pair steps and the global stage run inside it without opening or
   closing a bar of their own — when they did, each inner finish unblocked the
   interface in the middle of the run and rewound the percentage;
-- **at the first pair that fails** — no correspondences, or ICP fitness below the
-  minimum (default 0.5; registered range maps read 0.8 and above, an unregistered
-  pair read 0.24) — it stops. The failed layer is put back where it was found,
-  along with every layer after it, and the layers placed before it are optimized
-  together as a pose graph with their current poses as the starting point. A stop
-  is a successful run that says so; only a first pair that fails is an error, so
-  that a run which moved nothing never reports success;
+- **a pair that fails restarts the chain** (changed 2026-10-17; it used to stop there). A failure
+  is no correspondences, or ICP fitness below the minimum (default 0.5; registered range maps
+  read 0.8 and above, an unregistered pair read 0.24). The failed layer is put back where it was
+  found and becomes the reference of the layers after it, which are aligned onto it in turn. Each
+  group of two or more layers is optimized together as a pose graph with its current poses as the
+  starting point, and left as a visibility set (*aligned*, *aligned 2*, ...); a layer that
+  registered with neither neighbour is in no set. Groups are not placed relative to one another,
+  because nothing overlapped across the break: *Align Sets by Feature Matching* is the filter that
+  joins them. The run is an error, moving nothing, only if no pair registered at all, so that a
+  run which moved nothing never reports success;
 - *Global Refinement* can be switched off, and is skipped below three aligned
   layers, where there is a single pair and nothing to distribute.
 
 Measured on the eight raw `faccia*.ply`: the whole chain registers, the worst
 scan 0.91% of the diagonal off with the chain alone and 0.84% with the global
 refinement, so the refinement is a small gain here and the assertion is only that
-it does not hurt. With an unrelated sphere listed among them the chain stops at
-the sphere, leaves it and the scan behind it untouched, and keeps the three that
-registered.
+it does not hurt. With a side scan listed among the face scans, the chain registers it onto the
+face scan before it and then fails on the next face scan, restarts from that scan and aligns the
+one after it: two groups, two sets. (An unrelated sphere listed among the scans is no test of
+the restart: its scale is a thousandth of the scans', and the distances the filter derives from
+the sphere as a reference are too small for the scans after it, which then takes minutes.)
 
 **Starting alignment is stated first in every alignment filter's help.** What a
 registration must be handed is the thing a user most needs and least thinks to
