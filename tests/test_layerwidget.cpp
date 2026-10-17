@@ -3,7 +3,9 @@
 #include "document.h"
 #include "layerwidget.h"
 
+#include <QImage>
 #include <QScrollArea>
+#include <QTreeWidget>
 #include <QToolButton>
 #include <vcg/complex/allocate.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -15,6 +17,7 @@ class LayerWidgetTests : public QObject
 
 private slots:
     void visibilitySetChipsAreFullyVisibleAndNormallySized();
+    void hoveringASetChipShadesItsLayersRows();
 };
 
 namespace {
@@ -72,6 +75,65 @@ void LayerWidgetTests::visibilitySetChipsAreFullyVisibleAndNormallySized()
                  qPrintable(chip->text()));
     }
 
+}
+
+// Hovering a chip previews its set: the rows of its layers are shaded, the others are not, and the
+// shade goes when the pointer leaves.
+void LayerWidgetTests::hoveringASetChipShadesItsLayersRows()
+{
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("a"));
+    addTinyMesh(doc, QStringLiteral("b"));
+    doc.addVisibilitySet(QStringLiteral("only a"), { doc.mesh(0).meshId });
+
+    LayerWidget widget(&doc);
+    widget.resize(320, 420);
+    widget.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&widget));
+    QTest::qWait(50);
+
+    QTreeWidget *tree = nullptr;
+    for (QTreeWidget *candidate : widget.findChildren<QTreeWidget *>()) {
+        if (candidate->topLevelItemCount() == 2)
+            tree = candidate;
+    }
+    QVERIFY(tree);
+    QToolButton *chip = nullptr;
+    for (QToolButton *button : widget.findChildren<QToolButton *>()) {
+        if (button->isCheckable())
+            chip = button;
+    }
+    QVERIFY(chip);
+
+    // The right-hand end of each layer's row, clear of its text.
+    const auto sample = [&](int row) {
+        const QRect rect = tree->visualItemRect(tree->topLevelItem(row));
+        return tree->viewport()->grab().toImage().pixelColor(rect.right() - 6, rect.center().y());
+    };
+    const QColor rowABefore = sample(0);
+    const QColor rowBBefore = sample(1);
+
+    QEvent enter(QEvent::Enter);
+    QCoreApplication::sendEvent(chip, &enter);
+    QTest::qWait(20);
+    QVERIFY(sample(0) != rowABefore);
+    QCOMPARE(sample(1), rowBBefore);
+    // The detail rows under a layer are shaded with it, and the other layer's are not.
+    const auto detailSample = [&](int top) {
+        QTreeWidgetItem *child = tree->topLevelItem(top)->child(0);
+        const QRect rect = tree->visualItemRect(child);
+        return tree->viewport()->grab().toImage().pixelColor(rect.right() - 6, rect.center().y());
+    };
+    QVERIFY(tree->topLevelItem(0)->childCount() > 0);
+    QVERIFY(detailSample(0) != detailSample(1));
+    const QString dir = qEnvironmentVariable("MESHLAB2_GRAB_DIR");
+    if (!dir.isEmpty())
+        widget.grab().save(dir + QStringLiteral("/layerwidget_hover.png"));
+
+    QEvent leave(QEvent::Leave);
+    QCoreApplication::sendEvent(chip, &leave);
+    QTest::qWait(20);
+    QCOMPARE(sample(0), rowABefore);
 }
 
 QTEST_MAIN(LayerWidgetTests)

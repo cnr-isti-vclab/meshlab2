@@ -316,6 +316,10 @@ public:
     QString uniqueVisibilitySetName(const QString &desired) const;
     // Makes the set the layers that are visible now.
     void updateVisibilitySet(int index);
+    // Puts these layers into the set, or takes them out of it: the fine edits of a set. A call
+    // that changes nothing takes no undo step.
+    void addToVisibilitySet(int index, const std::vector<std::uint64_t> &meshIds);
+    void removeFromVisibilitySet(int index, const std::vector<std::uint64_t> &meshIds);
     void renameVisibilitySet(int index, const QString &name);
     void removeVisibilitySet(int index);
     // Shows the set's layers and hides the others -- or, with `addToVisible`, leaves the

@@ -88,6 +88,7 @@ private slots:
     void visibilitySetsSurviveAProjectRoundTripWhateverIsLeftOut();
     void definingRenamingRedefiningAndDeletingASetAreUndoSteps();
     void aFiltersSetGetsAUniqueName();
+    void layersCanBeAddedToAndRemovedFromASet();
     void loadMeshLabProjectLoadsRastersAndCamera();
     void rasterCameraUndoRedoRestoresShot();
     void undoRedoRestoresMeshList();
@@ -1867,6 +1868,35 @@ void DocumentTests::aFiltersSetGetsAUniqueName()
     // A gap left by a deleted set is taken again, not skipped.
     doc.removeVisibilitySet(1);
     QCOMPARE(doc.uniqueVisibilitySetName(QStringLiteral("aligned")), QStringLiteral("aligned 2"));
+}
+
+void DocumentTests::layersCanBeAddedToAndRemovedFromASet()
+{
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("a"));
+    addTinyMesh(doc, QStringLiteral("b"));
+    addTinyMesh(doc, QStringLiteral("c"));
+    const auto id = [&doc](int i) { return doc.mesh(i).meshId; };
+    const int set = doc.addVisibilitySet(QStringLiteral("s"), { id(0) });
+
+    doc.addToVisibilitySet(set, { id(1), id(2), id(0) });   // one is in it already
+    QCOMPARE(doc.visibilitySets()[0].meshIds, (std::vector<std::uint64_t>{ id(0), id(1), id(2) }));
+    doc.removeFromVisibilitySet(set, { id(0), id(2) });
+    QCOMPARE(doc.visibilitySets()[0].meshIds, (std::vector<std::uint64_t>{ id(1) }));
+
+    // A call that changes nothing is not an undo step and does not say the set changed.
+    const int nodes = int(doc.undoTreeInfo().size());
+    QSignalSpy changed(&doc, &Document::visibilitySetsChanged);
+    doc.addToVisibilitySet(set, { id(1) });
+    doc.removeFromVisibilitySet(set, { id(0) });
+    doc.addToVisibilitySet(set + 5, { id(0) });
+    QCOMPARE(changed.count(), 0);
+    QCOMPARE(int(doc.undoTreeInfo().size()), nodes);
+
+    QVERIFY(doc.undo());   // the removal
+    QCOMPARE(doc.visibilitySets()[0].meshIds.size(), size_t(3));
+    QVERIFY(doc.undo());   // the addition
+    QCOMPARE(doc.visibilitySets()[0].meshIds, (std::vector<std::uint64_t>{ id(0) }));
 }
 
 void DocumentTests::loadMeshLabProjectLoadsMeshesAndTransforms()

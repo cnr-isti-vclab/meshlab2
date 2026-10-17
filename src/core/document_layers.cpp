@@ -528,6 +528,46 @@ void Document::updateVisibilitySet(int index)
         endUndoStep(true);
 }
 
+void Document::addToVisibilitySet(int index, const std::vector<std::uint64_t> &meshIds)
+{
+    if (index < 0 || index >= int(m_visibilitySets.size()))
+        return;
+    std::vector<std::uint64_t> ids = m_visibilitySets[index].meshIds;
+    for (const std::uint64_t id : meshIds) {
+        if (std::find(ids.begin(), ids.end(), id) == ids.end())
+            ids.push_back(id);
+    }
+    if (ids.size() == m_visibilitySets[index].meshIds.size())
+        return;
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("Add to Visibility Set"));
+    m_visibilitySets[index].meshIds = std::move(ids);
+    emit visibilitySetsChanged();
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
+void Document::removeFromVisibilitySet(int index, const std::vector<std::uint64_t> &meshIds)
+{
+    if (index < 0 || index >= int(m_visibilitySets.size()))
+        return;
+    std::vector<std::uint64_t> ids = m_visibilitySets[index].meshIds;
+    ids.erase(std::remove_if(ids.begin(), ids.end(), [&meshIds](std::uint64_t id) {
+                  return std::find(meshIds.begin(), meshIds.end(), id) != meshIds.end();
+              }),
+              ids.end());
+    if (ids.size() == m_visibilitySets[index].meshIds.size())
+        return;
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("Remove from Visibility Set"));
+    m_visibilitySets[index].meshIds = std::move(ids);
+    emit visibilitySetsChanged();
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
 void Document::renameVisibilitySet(int index, const QString &name)
 {
     const QString trimmed = name.trimmed();

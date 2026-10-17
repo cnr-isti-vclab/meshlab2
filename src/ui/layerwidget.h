@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QPair>
+#include <cstdint>
+#include <vector>
 #include <QVariantMap>
 #include <QWidget>
 #include <QTreeWidget>
@@ -11,6 +13,7 @@ class QStackedWidget;
 class QSplitter;
 class QHBoxLayout;
 class QToolButton;
+class QMenu;
 
 class LayerWidget : public QWidget
 {
@@ -47,6 +50,8 @@ signals:
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
+    // Hovering a set's chip previews it: its layers' rows are shaded.
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void rebuild();
@@ -91,6 +96,13 @@ private:
     // highlight says which set, if any, is what is on screen.
     void refreshVisibilitySetChips();
     void saveVisibilitySet();
+    // The name asked of the user for a new set; empty if they cancel.
+    QString askVisibilitySetName();
+    // "Add to / Remove from Visibility Set" for a layer's right-click menu.
+    void addVisibilitySetActions(QMenu &menu, int meshIndex);
+    // Shades the rows of the layers of set `index` (-1 for none), without touching the items.
+    void previewVisibilitySet(int index);
+    bool isPreviewed(const QModelIndex &index) const;
     void showVisibilitySetMenu(int index, const QPoint &globalPos);
     void savePlaneImage(int rasterIndex, int planeIndex);
 
@@ -121,4 +133,5 @@ private:
     QHBoxLayout *m_chipsLayout = nullptr;
     QList<QToolButton *> m_chips;
     QStringList m_chipNames;
+    std::vector<std::uint64_t> m_previewMeshIds;
 };
