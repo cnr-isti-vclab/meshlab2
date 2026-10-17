@@ -74,6 +74,7 @@ falls through to `string` silently, so `absPerc` is a bug rather than a synonym:
 ```
 bool  int  double  absperc  enum  color  point3f  string  mesh
 fileopen  filesave  textureref  textureoutputref  camerastate  renderstate
+visibilityset
 ```
 
 (`file_open` and `file_save` are accepted as alternates.)
@@ -90,6 +91,16 @@ an empty group is "Main".
 `enum` parameters must carry `enumOptions`, an array of `{"id", "label"}` — each
 option may also carry its own `help`. Numeric parameters take `min`, `max` and
 `decimals` (default 3).
+
+`visibilityset` parameters name one of the document's visibility sets. The value is the
+set's **name**, a string, so that a call written down -- a script, a history entry -- means
+the same set after others are added or deleted. The editor is a combo of the sets; with no
+`default`, the first such parameter of a filter starts on the first set, the second on the
+second, which is what a filter taking two wants. The framework refuses the call before the
+filter runs if the name is not a set, or the set has no layer left (and says, when there are
+no sets at all, how to make one). In the filter, `doc.indexOfVisibilitySet(name)` finds it
+and `doc.visibilitySetMeshIndices(index)` gives its layers in document order.
+*Align Sets by Feature Matching (Open3D)* takes two.
 
 `point3f` parameters take an optional `point3fRole`, which decides what the
 editor's preset combo offers beside the three spin boxes:

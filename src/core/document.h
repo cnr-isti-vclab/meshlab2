@@ -308,6 +308,10 @@ public:
     // is not, any more than the layer panel's eye is.
     using VisibilitySet = ::VisibilitySet;
     const std::vector<VisibilitySet> &visibilitySets() const { return m_visibilitySets; }
+    // The first set with this name, or -1.
+    int indexOfVisibilitySet(const QString &name) const;
+    // The layers of set `index` that still exist, as indices in document order.
+    std::vector<int> visibilitySetMeshIndices(int index) const;
     // The ids of the layers that are visible now.
     std::vector<std::uint64_t> visibleMeshIds() const;
     int addVisibilitySet(const QString &name, std::vector<std::uint64_t> meshIds);

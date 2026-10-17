@@ -1153,6 +1153,26 @@ QWidget *ParameterFormBuilder::createEditor(const MeshFilterParameterDescriptor 
             w->setCurrentIndex(pos);
         return w;
     }
+    case MeshFilterParameterType::VisibilitySet: {
+        if (!doc)
+            return nullptr;
+        auto *w = new QComboBox(m_parentWidget);
+        for (const Document::VisibilitySet &set : doc->visibilitySets())
+            w->addItem(set.name, set.name);
+        // Without a default each such parameter starts on the next set: the first on the first,
+        // the second on the second, which is what a filter that takes two of them wants.
+        int ordinal = 0;
+        for (const Binding &earlier : m_bindings) {
+            if (earlier.descriptor.type == MeshFilterParameterType::VisibilitySet)
+                ++ordinal;
+        }
+        const int pos = param.defaultValue.isValid() && !param.defaultValue.toString().isEmpty()
+            ? w->findData(param.defaultValue.toString())
+            : std::min(ordinal, w->count() - 1);
+        if (pos >= 0)
+            w->setCurrentIndex(pos);
+        return w;
+    }
     case MeshFilterParameterType::Double: {
         auto *w = new QDoubleSpinBox(m_parentWidget);
         const double minV = param.minValue.isValid() ? param.minValue.toDouble() : -1e12;
@@ -1328,6 +1348,8 @@ QVariant ParameterFormBuilder::readValue(const Binding &binding) const
         return qobject_cast<QSpinBox *>(editor)->value();
     case MeshFilterParameterType::Mesh:
         return qobject_cast<QComboBox *>(editor)->currentData().toInt();
+    case MeshFilterParameterType::VisibilitySet:
+        return qobject_cast<QComboBox *>(editor)->currentData().toString();
     case MeshFilterParameterType::Double:
         return qobject_cast<QDoubleSpinBox *>(editor)->value();
     case MeshFilterParameterType::AbsPerc:
@@ -1371,6 +1393,13 @@ void ParameterFormBuilder::applyValue(const Binding &binding, const QVariant &va
     case MeshFilterParameterType::Mesh:
         if (auto *w = qobject_cast<QComboBox *>(editor)) {
             const int pos = w->findData(value.toInt());
+            if (pos >= 0)
+                w->setCurrentIndex(pos);
+        }
+        break;
+    case MeshFilterParameterType::VisibilitySet:
+        if (auto *w = qobject_cast<QComboBox *>(editor)) {
+            const int pos = w->findData(value.toString());
             if (pos >= 0)
                 w->setCurrentIndex(pos);
         }

@@ -471,6 +471,28 @@ void Document::setMeshVisible(int index, bool visible)
     emit meshVisibilityChanged(index, visible);
 }
 
+int Document::indexOfVisibilitySet(const QString &name) const
+{
+    for (int i = 0; i < int(m_visibilitySets.size()); ++i) {
+        if (m_visibilitySets[i].name == name)
+            return i;
+    }
+    return -1;
+}
+
+std::vector<int> Document::visibilitySetMeshIndices(int index) const
+{
+    std::vector<int> indices;
+    if (index < 0 || index >= int(m_visibilitySets.size()))
+        return indices;
+    const std::vector<std::uint64_t> &ids = m_visibilitySets[index].meshIds;
+    for (int i = 0; i < meshCount(); ++i) {
+        if (std::find(ids.begin(), ids.end(), mesh(i).meshId) != ids.end())
+            indices.push_back(i);
+    }
+    return indices;
+}
+
 std::vector<std::uint64_t> Document::visibleMeshIds() const
 {
     std::vector<std::uint64_t> ids;

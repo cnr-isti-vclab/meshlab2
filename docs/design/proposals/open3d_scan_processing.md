@@ -542,6 +542,15 @@ aligner opens with a `**Starting alignment:**` paragraph, "none" included, and
 It is scoped to the Open3D filters because their requirements were measured; the
 vcglib and TrueForm aligners predate the rule and have not been characterised.
 
+**Implemented 2026-10-17: *Align Sets by Feature Matching*** (`align_sets_by_feature_matching_open3d`),
+the same registration with a visibility set on each side: the points of each set's layers are
+concatenated in world space (each through its own matrix), downsampled, matched and fitted, and the
+one correction is composed onto every layer of the moving set, so the set stays rigid. It is
+`runPairwise` with a list of source layers and a reference override, not a second implementation. Its
+`movingSet` and `referenceSet` are the first parameters of the new `visibilityset` type (the set's
+name; see `adding_a_filter.md`). For two groups of scans that are each aligned within themselves and
+have to be joined, which pairwise registration cannot do when no one scan overlaps enough.
+
 **Implemented 2026-10-15: *Use All Visible Layers as Reference*** on *Align by
 Feature Matching* (`useAllVisibleAsReference`; `referenceMesh` is ignored while it
 is on). The reference becomes every other visible layer, concatenated in world

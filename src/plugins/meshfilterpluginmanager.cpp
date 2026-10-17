@@ -742,6 +742,7 @@ QVariant defaultValueForParameter(const MeshFilterParameterDescriptor &parameter
     case MeshFilterParameterType::FileSave:
     case MeshFilterParameterType::CameraState:
     case MeshFilterParameterType::RenderState:
+    case MeshFilterParameterType::VisibilitySet:
         return QString();
     case MeshFilterParameterType::Enum:
         if (!parameter.enumOptions.empty())
@@ -799,6 +800,42 @@ QString appendSuffixIfMissing(const QString &path, const QString &suffix)
     if (!QFileInfo(path).suffix().isEmpty())
         return path;
     return QStringLiteral("%1.%2").arg(path, suffix);
+}
+
+// A visibility-set parameter names a set that has to be there and to hold a layer that is.
+bool validateVisibilitySetParameters(
+    const MeshFilterDescriptor &descriptor,
+    const MeshFilterParameterValues &parameterValues,
+    const Document &doc,
+    QString &errorMessage)
+{
+    for (const MeshFilterParameterDescriptor &parameter : descriptor.parameters) {
+        if (parameter.type != MeshFilterParameterType::VisibilitySet)
+            continue;
+        const QString name = parameterValues.value(parameter.id).toString();
+        const int index = doc.indexOfVisibilitySet(name);
+        if (index < 0) {
+            if (doc.visibilitySets().empty()) {
+                errorMessage = QObject::tr(
+                                   "Filter '%1' needs visibility sets, and there are none: show "
+                                   "some layers and press + under the layer list to keep them as "
+                                   "a set.").arg(descriptor.name);
+            } else if (name.isEmpty()) {
+                errorMessage = QObject::tr("Filter '%1' needs a visibility set for '%2'.")
+                                   .arg(descriptor.name, parameter.label);
+            } else {
+                errorMessage = QObject::tr("Filter '%1': there is no visibility set called '%2' "
+                                           "for '%3'.").arg(descriptor.name, name, parameter.label);
+            }
+            return false;
+        }
+        if (doc.visibilitySetMeshIndices(index).empty()) {
+            errorMessage = QObject::tr("Filter '%1': the visibility set '%2' has no layer left.")
+                               .arg(descriptor.name, name);
+            return false;
+        }
+    }
+    return true;
 }
 
 bool validateNamedMeshParameters(
@@ -1393,6 +1430,8 @@ bool MeshFilterPluginManager::normalizeAndValidateParameters(
 
     if (!validateNamedMeshParameters(descriptor, normalizedParameters, doc, errorMessage))
         return false;
+    if (!validateVisibilitySetParameters(descriptor, normalizedParameters, doc, errorMessage))
+        return false;
 
     // `selectedOnly` is decided against the mesh the scope actually names in this call, not
     // the descriptor's default layer: omitted, it is on exactly when there is something to
@@ -1539,6 +1578,12 @@ bool MeshFilterPluginManager::convertParameterValue(
             }
         }
         outputValue = value;
+        return true;
+    }
+    case MeshFilterParameterType::VisibilitySet: {
+        // Whether the set exists is the document's to say, and is checked with the other
+        // parameters that name something in it (validateVisibilitySetParameters).
+        outputValue = inputValue.toString().trimmed();
         return true;
     }
     case MeshFilterParameterType::CameraState: {

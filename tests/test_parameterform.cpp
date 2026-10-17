@@ -86,6 +86,7 @@ private slots:
     void enabledWhenIgnoresBadReferences();
     void point3fRoleChoosesThePresetList();
     void optionalMeshReferenceOffersNone();
+    void visibilitySetParametersOfferTheSetsByName();
 };
 
 void ParameterFormTests::buildsEditorsFromDefaults()
@@ -591,6 +592,47 @@ void ParameterFormTests::optionalMeshReferenceOffersNone()
     QCOMPARE(builder2.value(QStringLiteral("pinned")).toInt(), 0);
     // A mandatory reference with a nonsense default still falls back to the current layer.
     QCOMPARE(builder2.value(QStringLiteral("srcMesh")).toInt(), 1);
+}
+
+// A visibility-set parameter is a combo of the document's sets whose value is the set's name; with
+// no default, each such parameter starts on the next set, so a filter taking two starts on the
+// first and the second; and a document with no sets gives an empty combo, not a crash.
+void ParameterFormTests::visibilitySetParametersOfferTheSetsByName()
+{
+    Document doc;
+    doc.addMesh(VCGMesh(), QStringLiteral("a"));
+    doc.addVisibilitySet(QStringLiteral("front"), { doc.mesh(0).meshId });
+    doc.addVisibilitySet(QStringLiteral("side"), { doc.mesh(0).meshId });
+    doc.addVisibilitySet(QStringLiteral("back"), { doc.mesh(0).meshId });
+
+    QWidget host;
+    auto *layout = new QFormLayout(&host);
+    ParameterFormBuilder builder(layout, &host);
+    builder.setContext({ &doc, {}, {}, {} });
+    builder.build({ makeParam(QStringLiteral("moving"), MeshFilterParameterType::VisibilitySet, QVariant()),
+                    makeParam(QStringLiteral("reference"), MeshFilterParameterType::VisibilitySet, QVariant()),
+                    makeParam(QStringLiteral("pinned"), MeshFilterParameterType::VisibilitySet, QStringLiteral("back")) });
+
+    const auto *moving = qobject_cast<QComboBox *>(builder.bindingById(QStringLiteral("moving"))->editor);
+    QVERIFY(moving);
+    QCOMPARE(moving->count(), 3);
+    QCOMPARE(builder.value(QStringLiteral("moving")).toString(), QStringLiteral("front"));
+    QCOMPARE(builder.value(QStringLiteral("reference")).toString(), QStringLiteral("side"));
+    QCOMPARE(builder.value(QStringLiteral("pinned")).toString(), QStringLiteral("back"));
+
+    builder.setValues({ { QStringLiteral("moving"), QStringLiteral("back") } });
+    QCOMPARE(builder.value(QStringLiteral("moving")).toString(), QStringLiteral("back"));
+    // A name that is not there leaves the choice as it was.
+    builder.setValues({ { QStringLiteral("moving"), QStringLiteral("gone") } });
+    QCOMPARE(builder.value(QStringLiteral("moving")).toString(), QStringLiteral("back"));
+
+    Document empty;
+    QWidget host2;
+    auto *layout2 = new QFormLayout(&host2);
+    ParameterFormBuilder builder2(layout2, &host2);
+    builder2.setContext({ &empty, {}, {}, {} });
+    builder2.build({ makeParam(QStringLiteral("moving"), MeshFilterParameterType::VisibilitySet, QVariant()) });
+    QCOMPARE(builder2.value(QStringLiteral("moving")).toString(), QString());
 }
 
 QTEST_MAIN(ParameterFormTests)

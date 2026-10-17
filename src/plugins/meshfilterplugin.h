@@ -43,7 +43,12 @@ enum class MeshFilterParameterType
     Color,
     Point3f,    // 3D point or direction — editor shows X/Y/Z spinboxes with fill-from-context buttons
     CameraState,
-    RenderState
+    RenderState,
+    // The name of one of the document's visibility sets, as a string: a set is found by name so
+    // that a call written down -- a script, a history entry -- means the same set after sets
+    // are added or removed. A filter reads it with Document::indexOfVisibilitySet and
+    // visibilitySetMeshIndices.
+    VisibilitySet
 };
 Q_DECLARE_METATYPE(MeshFilterParameterType)
 

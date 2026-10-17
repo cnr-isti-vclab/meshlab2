@@ -112,6 +112,8 @@ QString filterParameterTypeLabel(MeshFilterParameterType type)
         return QObject::tr("Camera State JSON");
     case MeshFilterParameterType::RenderState:
         return QObject::tr("Render State JSON");
+    case MeshFilterParameterType::VisibilitySet:
+        return QObject::tr("Visibility Set");
     }
     return QObject::tr("Unknown");
 }
@@ -140,6 +142,7 @@ QString filterParameterValueText(const QVariant &value, MeshFilterParameterType 
     case MeshFilterParameterType::Color:
     case MeshFilterParameterType::CameraState:
     case MeshFilterParameterType::RenderState:
+    case MeshFilterParameterType::VisibilitySet:
         if (type == MeshFilterParameterType::TextureOutputRef && value.userType() == QMetaType::QVariantMap) {
             const QVariantMap map = value.toMap();
             const QString mode = map.value(QStringLiteral("mode")).toString().trimmed().toLower();

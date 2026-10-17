@@ -31,6 +31,7 @@ constexpr QLatin1StringView kPointToPoint("align_by_point_to_point_icp_open3d");
 constexpr QLatin1StringView kPointToPlane("align_by_point_to_plane_icp_open3d");
 constexpr QLatin1StringView kColored("align_by_colored_icp_open3d");
 constexpr QLatin1StringView kFeature("align_by_feature_matching_open3d");
+constexpr QLatin1StringView kFeatureSets("align_sets_by_feature_matching_open3d");
 constexpr QLatin1StringView kGlobal("align_meshes_globally_open3d");
 constexpr QLatin1StringView kSequential("align_meshes_sequentially_open3d");
 constexpr QLatin1StringView kFastGlobal("align_by_fast_global_registration_open3d");
@@ -474,29 +475,40 @@ struct PairQuality
     double inlierRmse = 0.0;  // RMS distance of those correspondences, layer units
 };
 
-// One pairwise registration: the layer `sourceIndex` is moved onto the layer the
-// `referenceMesh` parameter names. Called with the current layer by the filters
-// themselves, and with each chain layer in turn by the sequential aligner, which
-// is also why it takes the layer as an argument rather than reading a parameter.
+// One pairwise registration: the layers of `sourceLayers` -- one, or the whole of a set --
+// are moved, all by the same correction, onto the layer the `referenceMesh` parameter names,
+// or onto `referenceOverride` when given (a set). Called with the current layer by the
+// filters themselves, and with each chain layer in turn by the sequential aligner, which is
+// also why it takes the layers as an argument rather than reading a parameter.
 MeshFilterRunResult runPairwise(
     const QString &filterId,
     const FilterParams &params,
     Document &doc,
-    int sourceIndex,
+    const std::vector<int> &sourceLayers,
     bool ownsProgress = true,
-    PairQuality *qualityOut = nullptr)
+    PairQuality *qualityOut = nullptr,
+    const std::vector<int> *referenceOverride = nullptr)
 {
     const Progress progress(doc, ownsProgress);
     const bool isPointToPoint = filterId == QString::fromLatin1(kPointToPoint);
     const bool isPointToPlane = filterId == QString::fromLatin1(kPointToPlane);
     const bool isColored = filterId == QString::fromLatin1(kColored);
-    const bool isFeature = filterId == QString::fromLatin1(kFeature);
+    // Aligning two sets is the feature-matching registration with a set on each side.
+    const bool isFeature = filterId == QString::fromLatin1(kFeature)
+        || filterId == QString::fromLatin1(kFeatureSets);
     const bool isFastGlobal = filterId == QString::fromLatin1(kFastGlobal);
     if (!isPointToPoint && !isPointToPlane && !isColored && !isFeature && !isFastGlobal)
         return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 
-    if (sourceIndex < 0 || sourceIndex >= doc.meshCount())
+    if (sourceLayers.empty())
         return fail(QObject::tr("Registration requires a valid current layer."));
+    for (const int layer : sourceLayers) {
+        if (layer < 0 || layer >= doc.meshCount())
+            return fail(QObject::tr("Registration requires a valid current layer."));
+    }
+    const auto isSource = [&sourceLayers](int layer) {
+        return std::find(sourceLayers.begin(), sourceLayers.end(), layer) != sourceLayers.end();
+    };
 
     // The reference is one layer, named by the parameter -- or, for feature
     // matching only, every other visible layer taken together. Features describe
@@ -508,9 +520,20 @@ MeshFilterRunResult runPairwise(
     const bool useAllVisible =
         isFeature && params.getBool(QStringLiteral("useAllVisibleAsReference"), false);
     std::vector<int> referenceLayers;
-    if (useAllVisible) {
+    if (referenceOverride) {
+        referenceLayers = *referenceOverride;
+        for (const int layer : referenceLayers) {
+            if (layer < 0 || layer >= doc.meshCount())
+                return fail(QObject::tr("Registration requires two valid layers."));
+            if (isSource(layer))
+                return fail(QObject::tr("A layer cannot be in both sets: '%1' is.")
+                                .arg(doc.mesh(layer).name));
+        }
+        if (referenceLayers.empty())
+            return fail(QObject::tr("The reference set has no layer with vertices."));
+    } else if (useAllVisible) {
         for (int i = 0; i < doc.meshCount(); ++i) {
-            if (i != sourceIndex && doc.mesh(i).visible && doc.mesh(i).mesh.VN() > 0)
+            if (!isSource(i) && doc.mesh(i).visible && doc.mesh(i).mesh.VN() > 0)
                 referenceLayers.push_back(i);
         }
         if (referenceLayers.empty()) {
@@ -523,12 +546,10 @@ MeshFilterRunResult runPairwise(
             params.getMesh(QStringLiteral("referenceMesh"), doc.currentMeshIndex());
         if (referenceIndex < 0 || referenceIndex >= doc.meshCount())
             return fail(QObject::tr("Registration requires two valid layers."));
-        if (sourceIndex == referenceIndex)
+        if (isSource(referenceIndex))
             return fail(QObject::tr("Registration requires two different layers."));
         referenceLayers.push_back(referenceIndex);
     }
-
-    Document::MeshEntry &sourceEntry = doc.mesh(sourceIndex);
 
     // Every cloud is taken in world space, through its layer matrix, so the
     // result is the correction to apply on top of what the source already has
@@ -541,8 +562,28 @@ MeshFilterRunResult runPairwise(
     open3d::geometry::PointCloud target;
     Adapter::CloudMapping sourceMapping;
     Adapter::CloudMapping targetMapping;
-    if (!Adapter::meshToCloud(sourceEntry.mesh, source, sourceMapping, error, &sourceEntry.transform))
-        return fail(QObject::tr("Source layer: %1").arg(error));
+    // The source is built as the reference is: the layers' points together, each through its
+    // own matrix, so that one correction moves them all as the rigid group they are.
+    QString sourceWithoutNormals;
+    for (const int layer : sourceLayers) {
+        const Document::MeshEntry &entry = doc.mesh(layer);
+        open3d::geometry::PointCloud part;
+        if (!Adapter::meshToCloud(entry.mesh, part, sourceMapping, error, &entry.transform))
+            return fail(QObject::tr("Source layer '%1': %2").arg(entry.name, error));
+        if (!sourceMapping.hadNormals && sourceWithoutNormals.isEmpty())
+            sourceWithoutNormals = entry.name;
+        source += part;
+    }
+    // What a group of layers is called in messages: their names when they are few, else a count.
+    const auto groupLabel = [&doc](const std::vector<int> &layers) {
+        if (layers.size() > 3)
+            return QObject::tr("%1 layers").arg(layers.size());
+        QStringList names;
+        for (const int layer : layers)
+            names << doc.mesh(layer).name;
+        return names.join(QStringLiteral(", "));
+    };
+    const QString sourceLabel = groupLabel(sourceLayers);
     QString layerWithoutNormals;
     for (const int layer : referenceLayers) {
         const Document::MeshEntry &entry = doc.mesh(layer);
@@ -565,7 +606,9 @@ MeshFilterRunResult runPairwise(
         referenceLabel = doc.mesh(referenceLayers.front()).name;
         referenceDiagonal = double(doc.mesh(referenceLayers.front()).mesh.bbox.Diag());
     } else {
-        referenceLabel = QObject::tr("%1 visible layers").arg(referenceLayers.size());
+        referenceLabel = referenceOverride
+            ? groupLabel(referenceLayers)
+            : QObject::tr("%1 visible layers").arg(referenceLayers.size());
         Eigen::Vector3d low = target.points_.front();
         Eigen::Vector3d high = low;
         for (const Eigen::Vector3d &point : target.points_) {
@@ -588,19 +631,19 @@ MeshFilterRunResult runPairwise(
             || target.colors_.size() != target.points_.size()) {
             return fail(QObject::tr(
                 "Colored ICP needs per-vertex color on both layers. '%1' or '%2' has none.")
-                    .arg(sourceEntry.name, referenceLabel));
+                    .arg(sourceLabel, referenceLabel));
         }
         if (source.normals_.size() != source.points_.size()) {
             return fail(QObject::tr(
                 "Colored ICP needs normals on the source layer '%1' as well.")
-                    .arg(sourceEntry.name));
+                    .arg(sourceWithoutNormals));
         }
     }
     if ((isFeature || isFastGlobal)
         && (source.normals_.size() != source.points_.size()
             || target.normals_.size() != target.points_.size())) {
         const QString missing = source.normals_.size() != source.points_.size()
-            ? sourceEntry.name : layerWithoutNormals;
+            ? sourceWithoutNormals : layerWithoutNormals;
         return fail(QObject::tr(
             "Feature matching describes each point by its neighbours' orientations, so "
             "every layer involved needs normals; '%1' has none. Run Compute Point Cloud "
@@ -760,7 +803,7 @@ MeshFilterRunResult runPairwise(
                     "No correspondence was found between '%1' and '%2'. The maximum "
                     "correspondence distance (%3) is in the layers' own units; if the two "
                     "start far apart, align them roughly first or raise it.")
-                    .arg(sourceEntry.name, referenceLabel)
+                    .arg(sourceLabel, referenceLabel)
                     .arg(maxCorrespondenceDistance);
         progress.finish(false, error);
         return fail(error);
@@ -771,7 +814,8 @@ MeshFilterRunResult runPairwise(
     // touched: the layer-transform contract is what every other aligner here
     // follows.
     const QMatrix4x4 correction = toQMatrix(result.transformation_);
-    doc.setMeshTransform(sourceIndex, correction * sourceEntry.transform);
+    for (const int layer : sourceLayers)
+        doc.setMeshTransform(layer, correction * doc.mesh(layer).transform);
 
     progress.finish(true, QObject::tr("Registered the layers."));
 
@@ -779,7 +823,7 @@ MeshFilterRunResult runPairwise(
     out.success = true;
     out.documentModified = true;
     out.infoMessages
-        << QObject::tr("Moved '%1' onto '%2'.").arg(sourceEntry.name, referenceLabel)
+        << QObject::tr("Moved '%1' onto '%2'.").arg(sourceLabel, referenceLabel)
         << QObject::tr("Fitness: %1 (fraction of source points with a correspondence)")
                .arg(result.fitness_, 0, 'f', 4)
         << QObject::tr("Inlier RMSE: %1").arg(result.inlier_rmse_, 0, 'f', 6)
@@ -789,6 +833,12 @@ MeshFilterRunResult runPairwise(
         for (const int layer : referenceLayers)
             names << doc.mesh(layer).name;
         out.infoMessages << QObject::tr("Reference layers: %1").arg(names.join(QStringLiteral(", ")));
+    }
+    if (sourceLayers.size() > 1) {
+        QStringList names;
+        for (const int layer : sourceLayers)
+            names << doc.mesh(layer).name;
+        out.infoMessages << QObject::tr("Moved layers: %1").arg(names.join(QStringLiteral(", ")));
     }
     if (isFeature || isFastGlobal)
         out.infoMessages << seed.message();
@@ -805,6 +855,42 @@ MeshFilterRunResult runPairwise(
             "correspondence distance. Treat the result as unreliable.");
     }
     return out;
+}
+
+// Align Sets by Feature Matching: the feature-matching registration with a set of layers on each
+// side. Each set is taken as one rigid group -- its layers' points together, each through its
+// own matrix -- the moving group is registered onto the reference group, and every layer of the
+// moving set gets the same correction. For two sets of scans that are each already aligned among
+// themselves and need placing relative to each other, which pairwise registration of single
+// layers cannot do when no one scan of one set overlaps enough of the other.
+MeshFilterRunResult runAlignSets(const FilterParams &params, Document &doc)
+{
+    const int movingSet = doc.indexOfVisibilitySet(params.getString(QStringLiteral("movingSet")));
+    const int referenceSet =
+        doc.indexOfVisibilitySet(params.getString(QStringLiteral("referenceSet")));
+    if (movingSet < 0 || referenceSet < 0)
+        return fail(QObject::tr("Align Sets needs two existing visibility sets."));
+    if (movingSet == referenceSet)
+        return fail(QObject::tr("Align Sets needs two different sets: '%1' was given twice.")
+                        .arg(doc.visibilitySets()[size_t(movingSet)].name));
+
+    // A layer with no vertices has nothing to register and is left out of the group.
+    const auto layersWithPoints = [&doc](int set) {
+        std::vector<int> layers;
+        for (const int layer : doc.visibilitySetMeshIndices(set)) {
+            if (doc.mesh(layer).mesh.VN() > 0)
+                layers.push_back(layer);
+        }
+        return layers;
+    };
+    const std::vector<int> moving = layersWithPoints(movingSet);
+    const std::vector<int> reference = layersWithPoints(referenceSet);
+    if (moving.empty() || reference.empty()) {
+        return fail(QObject::tr("The set '%1' has no layer with vertices.")
+                        .arg(doc.visibilitySets()[size_t(moving.empty() ? movingSet : referenceSet)].name));
+    }
+    return runPairwise(
+        QString::fromLatin1(kFeatureSets), params, doc, moving, true, nullptr, &reference);
 }
 
 // Align Meshes Sequentially: the chain Open3D's register_fragments tutorial
@@ -885,10 +971,10 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
         PairQuality refined;
         QString reason;
         MeshFilterRunResult step =
-            runPairwise(kFeature, FilterParams(values), doc, chain[k], false, &coarse);
+            runPairwise(kFeature, FilterParams(values), doc, { chain[k] }, false, &coarse);
         if (step.success) {
             values.insert(QStringLiteral("maxIterations"), maxIterations);
-            step = runPairwise(kPointToPlane, FilterParams(values), doc, chain[k], false, &refined);
+            step = runPairwise(kPointToPlane, FilterParams(values), doc, { chain[k] }, false, &refined);
         }
         if (!step.success)
             reason = step.errorMessage;
@@ -995,8 +1081,10 @@ MeshFilterRunResult runOpen3DRegistrationFilter(
         return runGlobalAlignment(params, doc);
     if (filterId == QString::fromLatin1(kSequential))
         return runSequentialAlignment(params, doc);
+    if (filterId == QString::fromLatin1(kFeatureSets))
+        return runAlignSets(params, doc);
     // The layer that moves is the current one; the reference is the parameter.
-    return runPairwise(filterId, params, doc, doc.currentMeshIndex());
+    return runPairwise(filterId, params, doc, { doc.currentMeshIndex() });
 }
 
 bool isOpen3DRegistrationFilter(const QString &filterId)
@@ -1005,6 +1093,7 @@ bool isOpen3DRegistrationFilter(const QString &filterId)
         || filterId == QString::fromLatin1(kPointToPlane)
         || filterId == QString::fromLatin1(kColored)
         || filterId == QString::fromLatin1(kFeature)
+        || filterId == QString::fromLatin1(kFeatureSets)
         || filterId == QString::fromLatin1(kGlobal)
         || filterId == QString::fromLatin1(kSequential)
         || filterId == QString::fromLatin1(kFastGlobal);

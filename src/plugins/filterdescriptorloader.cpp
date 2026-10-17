@@ -57,6 +57,7 @@ MeshFilterParameterType parseParamType(const QString &s)
     if (s == QStringLiteral("point3f")) return MeshFilterParameterType::Point3f;
     if (s == QStringLiteral("camerastate")) return MeshFilterParameterType::CameraState;
     if (s == QStringLiteral("renderstate")) return MeshFilterParameterType::RenderState;
+    if (s == QStringLiteral("visibilityset")) return MeshFilterParameterType::VisibilitySet;
     return MeshFilterParameterType::String;
 }
 
