@@ -16,6 +16,10 @@ class QWidget;
 // B toggles visible-only, C and T toggle growth to whole connected components or whole
 // UV islands, Esc cancels the drag.
 //
+// A, N, I, + / - and X edit the selection already made, each by running one ordinary
+// selection filter on whichever of faces or vertices the tool is picking: select all,
+// select none, invert, dilate, erode, delete (see selectionshortcuts.h).
+//
 // P switches the shape to a polygonal lasso: click the corners, then close it with a
 // double click, Enter, or a click on the first corner; Backspace takes back the last
 // corner, Esc drops the polygon. It commits one select_by_screen_polygon call, and the
@@ -42,6 +46,7 @@ public:
 
 private:
     void endDrag();
+    bool runEditingShortcut(QKeyEvent *e);
     // Runs the selection filter for a region the caller has put in `regionParams`
     // (rect_* or polygon), with everything else -- the camera, the elements, the mode
     // from `modifiers`, visible-only and the growth -- filled in here.

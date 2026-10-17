@@ -457,8 +457,8 @@
       ],
       "name": "Erode Selection",
       "pythonName": "erode_selection",
-      "shortDescription": "Erode (reduce) current selected faces.",
-      "longDescriptionMarkdown": "Erode (reduce) the current set of selected faces.",
+      "shortDescription": "Shrink the selection by one ring of faces or vertices.",
+      "longDescriptionMarkdown": "Shrink the selection by one ring: only what is completely surrounded by the selection stays.\n\nOn a face selection, a face stays if none of its corners also belongs to an unselected face. On a vertex selection, a vertex stays if every face around it has all three corners selected. Choose which with **Elements**; the default keeps the classic behavior of shrinking the faces and letting the vertex selection follow.\n\nSelection tool shortcut: `-`.",
       "tags": [
         "selection",
         "morphology",
@@ -469,7 +469,21 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": [],
+      "parameters": [
+        {
+          "id": "element",
+          "label": "Elements",
+          "help": "Which selection to shrink. *Faces (vertices follow)* is the classic behavior: it works on the face selection and sets the vertex selection to match. *Faces only* and *Vertices only* change just that kind and leave the other exactly as it is. Use *Vertices only* for a selection made as vertices, which the classic mode would clear.",
+          "group": "main",
+          "type": "enum",
+          "default": "both",
+          "enumOptions": [
+            { "id": "both", "label": "Faces (vertices follow)" },
+            { "id": "face", "label": "Faces only" },
+            { "id": "vertex", "label": "Vertices only" }
+          ]
+        }
+      ],
       "outputModifies": [
         "VS",
         "FS"
@@ -482,8 +496,8 @@
       ],
       "name": "Dilate Selection",
       "pythonName": "dilate_selection",
-      "shortDescription": "Dilate (expand) current selected faces.",
-      "longDescriptionMarkdown": "Dilate (expand) the current set of selected faces.",
+      "shortDescription": "Grow the selection by one ring of faces or vertices.",
+      "longDescriptionMarkdown": "Grow the selection by one ring: everything that shares a face or a vertex with it joins in.\n\nOn a face selection, the faces touching a selected face are added. On a vertex selection, the vertices sharing a face with a selected one are added. Choose which with **Elements**; the default keeps the classic behavior of growing the faces and letting the vertex selection follow.\n\nSelection tool shortcut: `+`.",
       "tags": [
         "selection",
         "morphology",
@@ -494,7 +508,21 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": [],
+      "parameters": [
+        {
+          "id": "element",
+          "label": "Elements",
+          "help": "Which selection to grow. *Faces (vertices follow)* is the classic behavior: it works on the face selection and sets the vertex selection to match. *Faces only* and *Vertices only* change just that kind and leave the other exactly as it is. Use *Vertices only* for a selection made as vertices, which the classic mode would clear.",
+          "group": "main",
+          "type": "enum",
+          "default": "both",
+          "enumOptions": [
+            { "id": "both", "label": "Faces (vertices follow)" },
+            { "id": "face", "label": "Faces only" },
+            { "id": "vertex", "label": "Vertices only" }
+          ]
+        }
+      ],
       "outputModifies": [
         "VS",
         "FS"

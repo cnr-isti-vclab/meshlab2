@@ -117,6 +117,95 @@ void updateGeometryAfterDeletion(VCGMesh &mesh)
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
 }
 
+// Grow or shrink one kind of selection by a ring, working from the incidence of faces and
+// vertices and writing only the kind it was asked about. The classic path goes from faces to
+// vertices and back through vcglib's helpers, which clear the vertex selection on the way:
+// on a selection made as vertices that left nothing selected, and on one made as faces it
+// left a vertex selection nobody had asked for.
+//
+// Every decision is made from the selection as it stood, and applied afterwards, so one call
+// moves the border by exactly one ring however the faces happen to be numbered.
+void dilateFaceSelection(VCGMesh &mesh)
+{
+    std::vector<char> inSelectedFace(mesh.vert.size(), 0);
+    for (const VCGFace &f : mesh.face) {
+        if (f.IsD() || !f.IsS())
+            continue;
+        for (int k = 0; k < 3; ++k)
+            inSelectedFace[vcg::tri::Index(mesh, f.cV(k))] = 1;
+    }
+    for (VCGFace &f : mesh.face) {
+        if (f.IsD() || f.IsS())
+            continue;
+        for (int k = 0; k < 3; ++k) {
+            if (inSelectedFace[vcg::tri::Index(mesh, f.cV(k))]) {
+                f.SetS();
+                break;
+            }
+        }
+    }
+}
+
+void erodeFaceSelection(VCGMesh &mesh)
+{
+    std::vector<char> inUnselectedFace(mesh.vert.size(), 0);
+    for (const VCGFace &f : mesh.face) {
+        if (f.IsD() || f.IsS())
+            continue;
+        for (int k = 0; k < 3; ++k)
+            inUnselectedFace[vcg::tri::Index(mesh, f.cV(k))] = 1;
+    }
+    for (VCGFace &f : mesh.face) {
+        if (f.IsD() || !f.IsS())
+            continue;
+        for (int k = 0; k < 3; ++k) {
+            if (inUnselectedFace[vcg::tri::Index(mesh, f.cV(k))]) {
+                f.ClearS();
+                break;
+            }
+        }
+    }
+}
+
+void dilateVertexSelection(VCGMesh &mesh)
+{
+    std::vector<char> grown(mesh.vert.size(), 0);
+    for (const VCGFace &f : mesh.face) {
+        if (f.IsD())
+            continue;
+        bool touches = false;
+        for (int k = 0; k < 3; ++k)
+            touches = touches || f.cV(k)->IsS();
+        if (!touches)
+            continue;
+        for (int k = 0; k < 3; ++k)
+            grown[vcg::tri::Index(mesh, f.cV(k))] = 1;
+    }
+    for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
+        if (grown[i] && !mesh.vert[i].IsD())
+            mesh.vert[i].SetS();
+    }
+}
+
+void erodeVertexSelection(VCGMesh &mesh)
+{
+    // A selected vertex goes when any face around it has a corner that is not selected.
+    std::vector<char> nextToUnselected(mesh.vert.size(), 0);
+    for (const VCGFace &f : mesh.face) {
+        if (f.IsD())
+            continue;
+        const bool whole = f.cV(0)->IsS() && f.cV(1)->IsS() && f.cV(2)->IsS();
+        if (whole)
+            continue;
+        for (int k = 0; k < 3; ++k)
+            nextToUnselected[vcg::tri::Index(mesh, f.cV(k))] = 1;
+    }
+    for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
+        if (nextToUnselected[i] && !mesh.vert[i].IsD())
+            mesh.vert[i].ClearS();
+    }
+}
+
 }
 
 QString SelectFilterPlugin::pluginId() const
@@ -914,22 +1003,26 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         return result;
     }
 
-    if (filterId == QString::fromLatin1(kFilterSelectErode)) {
-        Sel::VertexFromFaceStrict(mesh);
-        Sel::FaceFromVertexStrict(mesh);
+    if (filterId == QString::fromLatin1(kFilterSelectErode)
+        || filterId == QString::fromLatin1(kFilterSelectDilate)) {
+        const bool erode = (filterId == QString::fromLatin1(kFilterSelectErode));
+        const QString element = params.getEnum(QStringLiteral("element"), QStringLiteral("both"));
+        if (element == QStringLiteral("face")) {
+            erode ? erodeFaceSelection(mesh) : dilateFaceSelection(mesh);
+        } else if (element == QStringLiteral("vertex")) {
+            erode ? erodeVertexSelection(mesh) : dilateVertexSelection(mesh);
+        } else if (erode) {
+            Sel::VertexFromFaceStrict(mesh);
+            Sel::FaceFromVertexStrict(mesh);
+        } else {
+            Sel::VertexFromFaceLoose(mesh);
+            Sel::FaceFromVertexLoose(mesh);
+        }
         return selectionResult(
             meshIndex,
             entry,
-            QObject::tr("Erode selection on '%1'").arg(entry.name));
-    }
-
-    if (filterId == QString::fromLatin1(kFilterSelectDilate)) {
-        Sel::VertexFromFaceLoose(mesh);
-        Sel::FaceFromVertexLoose(mesh);
-        return selectionResult(
-            meshIndex,
-            entry,
-            QObject::tr("Dilate selection on '%1'").arg(entry.name));
+            (erode ? QObject::tr("Erode selection on '%1'") : QObject::tr("Dilate selection on '%1'"))
+                .arg(entry.name));
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectBorder)) {

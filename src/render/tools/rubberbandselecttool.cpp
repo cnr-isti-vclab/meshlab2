@@ -2,6 +2,9 @@
 
 #include "document.h"
 #include "renderwidget.h"
+#include "selectionshortcuts.h"
+
+#include <vcg/complex/algorithms/update/selection.h>
 
 #include <QGuiApplication>
 #include <QPainter>
@@ -87,7 +90,7 @@ QString RubberBandSelectTool::statusHint() const
 {
     if (m_shape == Shape::Polygon)
         return QObject::tr("Polygon lasso: click the corners, double-click or Enter to close — Backspace last corner, Esc drop it, Shift add, Ctrl subtract, F/V faces/vertices, B visible-only, C connected components, T UV islands, P rectangle; Tab: camera, Esc: exit");
-    return QObject::tr("Rubber-band: drag to select — Shift add, Ctrl subtract, F/V faces/vertices, B visible-only, C connected components, T UV islands, P polygon lasso; Tab: camera, Esc: exit");
+    return QObject::tr("Rubber-band: drag to select — Shift add, Ctrl subtract, F/V faces/vertices, B visible-only, C connected components, T UV islands, P polygon lasso — A all, N none, I invert, + / − grow / shrink, X delete; Tab: camera, Esc: exit");
 }
 
 QString RubberBandSelectTool::badgeDetail() const
@@ -494,5 +497,48 @@ bool RubberBandSelectTool::keyPress(QKeyEvent *e)
                 Document::LogSource::Application);
         return true;
     }
-    return false;
+    return runEditingShortcut(e);
+}
+
+// A, N, I, + / -, X: one press runs one selection filter on the kind of element the tool is
+// picking (see selectionshortcuts.h). Left alone while a drag or a polygon is being drawn,
+// since the selection must not change underneath an outline that is still being made, and
+// when Ctrl, Alt or Cmd is down, so Cmd+A and the like still reach the menus.
+bool RubberBandSelectTool::runEditingShortcut(QKeyEvent *e)
+{
+    if (gestureInFlight()
+        || (e->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier)))
+        return false;
+    const std::optional<SelectionShortcut> shortcut = selectionShortcutFor(e->key(), m_selectFaces);
+    if (!shortcut)
+        return false;
+    // Holding a key down must not repeat it: inverting twice undoes itself, and growing by
+    // one ring per auto-repeat tick would flood the undo history on a large mesh.
+    if (e->isAutoRepeat())
+        return true;
+
+    Document *doc = m_view ? m_view->document() : nullptr;
+    const int meshIndex = doc ? doc->currentMeshIndex() : -1;
+    if (!doc || meshIndex < 0 || meshIndex >= doc->meshCount())
+        return true;
+
+    // Clearing, growing or shrinking nothing would still leave an empty step in the undo
+    // history, so those are skipped when there is nothing of this kind selected.
+    const bool changesExisting = e->key() == Qt::Key_N || e->key() == Qt::Key_Plus
+        || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Minus;
+    if (changesExisting) {
+        const VCGMesh &mesh = doc->mesh(meshIndex).mesh;
+        const size_t selected = m_selectFaces
+            ? vcg::tri::UpdateSelection<VCGMesh>::FaceCount(mesh)
+            : vcg::tri::UpdateSelection<VCGMesh>::VertexCount(mesh);
+        if (selected == 0)
+            return true;
+    }
+
+    const MeshFilterRunResult result = doc->runFilter(
+        QStringLiteral("meshlab2.filter.select::") + shortcut->filterId, shortcut->params);
+    if (!result.success)
+        doc->writeLog(QObject::tr("Selection shortcut failed: %1").arg(result.errorMessage),
+                      Document::LogSource::Application, Document::LogLevel::Error);
+    return true;
 }

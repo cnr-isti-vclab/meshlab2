@@ -15,6 +15,7 @@
 
 #include "camerashot.h"
 #include "document.h"
+#include "tools/selectionshortcuts.h"
 #include "testdatasets.h"
 #include <QDir>
 #include "meshfilterpluginmanager.h"
@@ -549,6 +550,8 @@ private slots:
     void expressionsReadCustomAttributesAsTheirOwnType();
     void documentedExpressionExamplesRun();
     void incrementalSelectionPreservesEdges();
+    void dilateAndErodeCanWorkOnOneKindOfSelection();
+    void selectionToolShortcutsActOnTheKindOfElementBeingPicked();
     void colorAndScalarFiltersUndoThroughDeltas();
     void rotateToFittedPlaneUsesSelectionWithoutChangingIt();
     void triOptimizeLeavesTheSelectionAsItFoundIt();
@@ -10251,6 +10254,291 @@ void FilterTests::colorAndScalarFiltersUndoThroughDeltas()
 // filter runs and ORs it back afterwards. It was written when a selection meant vertices
 // and faces, so a filter that selects edges was offered the option and silently ignored
 // it -- the second selection replaced the first.
+// Dilate and Erode used to start from the faces, derive the vertex selection from them and
+// write both back. On a selection made as vertices that wiped it (nothing was selected
+// afterwards), and on one made as faces it left a vertex selection nobody asked for. The
+// `element` parameter lets a caller say which kind it is growing; each kind is then
+// computed here by brute force from the mesh's own faces, independently of the helpers the
+// filter itself uses.
+// The selection tool's editing keys (A, N, I, +, -, X), run exactly as the tool sends them: the
+// filter and parameters come from selectionShortcutFor() and go through Document::runFilter by
+// the same key. Each must act on the kind of element the tool is picking and leave the other
+// kind as it found it -- the filters' own defaults do neither, which is why the tool passes the
+// kind explicitly. Every case starts with a vertex selection and a face selection that differ,
+// so "left alone" is something the test can see.
+void FilterTests::selectionToolShortcutsActOnTheKindOfElementBeingPicked()
+{
+    struct Rig
+    {
+        Document doc;
+        int index = -1;
+        VCGMesh &mesh() { return doc.mesh(index).mesh; }
+        bool build()
+        {
+            if (!doc.runFilter(filterKeyForId(doc, QStringLiteral("create_sphere")), {}).success)
+                return false;
+            index = doc.currentMeshIndex();
+            VCGMesh &m = mesh();
+            for (auto &v : m.vert)
+                if (v.cP().Z() > 0.2f) v.SetS();                  // a cap of vertices
+            for (auto &f : m.face)
+                if (f.cV(0)->cP().X() > 0.2f) f.SetS();           // a different patch of faces
+            doc.markMeshSelectionChanged(index);
+            return index >= 0;
+        }
+        std::set<int> verts()
+        {
+            std::set<int> on;
+            for (int i = 0; i < mesh().VN(); ++i)
+                if (!mesh().vert[std::size_t(i)].IsD() && mesh().vert[std::size_t(i)].IsS()) on.insert(i);
+            return on;
+        }
+        std::set<int> faces()
+        {
+            std::set<int> on;
+            for (int i = 0; i < mesh().FN(); ++i)
+                if (!mesh().face[std::size_t(i)].IsD() && mesh().face[std::size_t(i)].IsS()) on.insert(i);
+            return on;
+        }
+        MeshFilterRunResult press(int key, bool faceMode)
+        {
+            const auto shortcut = selectionShortcutFor(key, faceMode);
+            if (!shortcut)
+                return {};
+            return doc.runFilter(QStringLiteral("meshlab2.filter.select::") + shortcut->filterId, shortcut->params);
+        }
+    };
+    const auto isSubset = [](const std::set<int> &a, const std::set<int> &b) {
+        return std::includes(b.begin(), b.end(), a.begin(), a.end());
+    };
+
+    // The keys the tool already owns must stay out of this mapping.
+    for (int taken : { Qt::Key_F, Qt::Key_V, Qt::Key_B, Qt::Key_C, Qt::Key_T, Qt::Key_P,
+                       Qt::Key_Escape, Qt::Key_Tab, Qt::Key_Return, Qt::Key_Backspace })
+        QVERIFY(!selectionShortcutFor(taken, true) && !selectionShortcutFor(taken, false));
+    QVERIFY(selectionShortcutFor(Qt::Key_Equal, true)->filterId == selectionShortcutFor(Qt::Key_Plus, true)->filterId);
+
+    for (const bool faceMode : { true, false }) {
+        const char *kind = faceMode ? "face mode" : "vertex mode";
+        // The kind being picked, and the one that must not move, by accessor.
+        const auto mine = [&](Rig &r) { return faceMode ? r.faces() : r.verts(); };
+        const auto other = [&](Rig &r) { return faceMode ? r.verts() : r.faces(); };
+        const auto total = [&](Rig &r) { return faceMode ? r.mesh().FN() : r.mesh().VN(); };
+
+        { // A: everything of this kind
+            Rig r; QVERIFY(r.build());
+            const auto untouched = other(r);
+            QVERIFY2(r.press(Qt::Key_A, faceMode).success, kind);
+            QCOMPARE(int(mine(r).size()), total(r));
+            QVERIFY2(other(r) == untouched, kind);
+        }
+        { // N: nothing of this kind
+            Rig r; QVERIFY(r.build());
+            const auto untouched = other(r);
+            QVERIFY2(r.press(Qt::Key_N, faceMode).success, kind);
+            QVERIFY2(mine(r).empty(), kind);
+            QVERIFY2(other(r) == untouched, kind);
+        }
+        { // I: the complement, also from an empty selection (the filter's own default would do nothing)
+            Rig r; QVERIFY(r.build());
+            const auto before = mine(r); const auto untouched = other(r);
+            QVERIFY2(r.press(Qt::Key_I, faceMode).success, kind);
+            std::set<int> expected;
+            for (int i = 0; i < total(r); ++i) if (!before.count(i)) expected.insert(i);
+            QVERIFY2(mine(r) == expected, kind);
+            QVERIFY2(other(r) == untouched, kind);
+
+            Rig e; QVERIFY(e.build());
+            QVERIFY(e.press(Qt::Key_N, faceMode).success);
+            QVERIFY(e.press(Qt::Key_I, faceMode).success);
+            QVERIFY2(int(mine(e).size()) == total(e), "invert on an empty selection must select everything");
+        }
+        { // +: grows, never shrinks
+            Rig r; QVERIFY(r.build());
+            const auto before = mine(r); const auto untouched = other(r);
+            QVERIFY2(r.press(Qt::Key_Plus, faceMode).success, kind);
+            QVERIFY2(isSubset(before, mine(r)) && mine(r).size() > before.size(), kind);
+            QVERIFY2(other(r) == untouched, kind);
+        }
+        { // -: shrinks, never grows
+            Rig r; QVERIFY(r.build());
+            const auto before = mine(r); const auto untouched = other(r);
+            QVERIFY2(r.press(Qt::Key_Minus, faceMode).success, kind);
+            QVERIFY2(isSubset(mine(r), before) && mine(r).size() < before.size(), kind);
+            QVERIFY2(other(r) == untouched, kind);
+        }
+        { // X: delete
+            Rig r; QVERIFY(r.build());
+            const int vertsBefore = r.mesh().VN(), facesBefore = r.mesh().FN();
+            const int selected = int(mine(r).size());
+            QVERIFY(selected > 0);
+            QVERIFY2(r.press(Qt::Key_X, faceMode).success, kind);
+            // The kind being picked is what goes. Faces: exactly the selected ones, and the
+            // vertices no face uses any more with them.
+            if (faceMode) {
+                QCOMPARE(r.mesh().FN(), facesBefore - selected);
+                QVERIFY(r.mesh().VN() < vertsBefore);
+            } else {
+                QCOMPARE(r.mesh().VN(), vertsBefore - selected);
+                QVERIFY(r.mesh().FN() < facesBefore);
+            }
+            // Nothing live may refer to something deleted, and no live vertex may be orphaned
+            // by a face deletion that should have taken it along.
+            std::vector<int> uses(r.mesh().vert.size(), 0);
+            for (const auto &f : r.mesh().face) {
+                if (f.IsD()) continue;
+                for (int k = 0; k < 3; ++k) {
+                    QVERIFY2(!f.cV(k)->IsD(), "a live face refers to a deleted vertex");
+                    ++uses[vcg::tri::Index(r.mesh(), f.cV(k))];
+                }
+            }
+            if (faceMode)
+                for (std::size_t i = 0; i < r.mesh().vert.size(); ++i)
+                    QVERIFY2(r.mesh().vert[i].IsD() || uses[i] > 0, "an unreferenced vertex was left behind");
+        }
+    }
+
+    // X with nothing selected must change nothing, rather than error or empty the mesh.
+    for (const bool faceMode : { true, false }) {
+        Rig r; QVERIFY(r.build());
+        QVERIFY(r.press(Qt::Key_N, true).success);
+        QVERIFY(r.press(Qt::Key_N, false).success);
+        const int v = r.mesh().VN(), f = r.mesh().FN();
+        QVERIFY(r.press(Qt::Key_X, faceMode).success);
+        QCOMPARE(r.mesh().VN(), v);
+        QCOMPARE(r.mesh().FN(), f);
+    }
+}
+
+void FilterTests::dilateAndErodeCanWorkOnOneKindOfSelection()
+{
+    const auto build = [](Document &doc) -> int {
+        const QString key = filterKeyForId(doc, QStringLiteral("create_sphere"));
+        if (key.isEmpty() || !doc.runFilter(key, {}).success)
+            return -1;
+        return doc.currentMeshIndex();
+    };
+    const auto run = [](Document &doc, const char *id, const char *element) {
+        MeshFilterParameterValues p;
+        if (element)
+            p.insert(QStringLiteral("element"), QString::fromLatin1(element));
+        return doc.runFilter(filterKeyForId(doc, QString::fromLatin1(id)), p);
+    };
+    const auto vertsOf = [](const VCGMesh &m) {
+        std::set<int> on;
+        for (int i = 0; i < m.VN(); ++i)
+            if (m.vert[std::size_t(i)].IsS()) on.insert(i);
+        return on;
+    };
+    const auto facesOf = [](const VCGMesh &m) {
+        std::set<int> on;
+        for (int i = 0; i < m.FN(); ++i)
+            if (m.face[std::size_t(i)].IsS()) on.insert(i);
+        return on;
+    };
+    const auto corners = [](const VCGMesh &m, int f) {
+        std::array<int, 3> c{};
+        for (int k = 0; k < 3; ++k)
+            c[std::size_t(k)] = int(vcg::tri::Index(m, m.face[std::size_t(f)].cV(k)));
+        return c;
+    };
+
+    // --- a selection made as vertices: grow it, shrink it, leave the faces alone --------
+    for (const char *id : { "dilate_selection", "erode_selection" }) {
+        Document doc;
+        const int index = build(doc);
+        QVERIFY(index >= 0);
+        VCGMesh &m = doc.mesh(index).mesh;
+        for (auto &v : m.vert)
+            if (v.cP().Z() > 0.3f) v.SetS();
+        doc.markMeshSelectionChanged(index);
+        const std::set<int> before = vertsOf(m);
+        QVERIFY(!before.empty() && int(before.size()) < m.VN());
+
+        std::set<int> expected;
+        if (std::string(id) == "dilate_selection") {
+            // every vertex that shares a face with a selected one
+            for (int f = 0; f < m.FN(); ++f) {
+                const auto c = corners(m, f);
+                if (before.count(c[0]) || before.count(c[1]) || before.count(c[2]))
+                    expected.insert({ c[0], c[1], c[2] });
+            }
+        } else {
+            // a selected vertex survives only if every face around it has all three corners selected
+            std::set<int> touchesUnselectedFace;
+            for (int f = 0; f < m.FN(); ++f) {
+                const auto c = corners(m, f);
+                if (!(before.count(c[0]) && before.count(c[1]) && before.count(c[2])))
+                    touchesUnselectedFace.insert({ c[0], c[1], c[2] });
+            }
+            for (int v : before)
+                if (!touchesUnselectedFace.count(v)) expected.insert(v);
+        }
+        QVERIFY(expected != before);   // the operation must actually change something here
+
+        const auto res = run(doc, id, "vertex");
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+        QVERIFY2(vertsOf(doc.mesh(index).mesh) == expected,
+                 qPrintable(QStringLiteral("%1 on vertices: wrong vertex set").arg(QString::fromLatin1(id))));
+        QVERIFY2(facesOf(doc.mesh(index).mesh).empty(),
+                 qPrintable(QStringLiteral("%1 on vertices touched the face selection").arg(QString::fromLatin1(id))));
+    }
+
+    // --- a selection made as faces: the same, leaving the vertices alone ----------------
+    for (const char *id : { "dilate_selection", "erode_selection" }) {
+        Document doc;
+        const int index = build(doc);
+        QVERIFY(index >= 0);
+        VCGMesh &m = doc.mesh(index).mesh;
+        for (auto &f : m.face)
+            if (f.cV(0)->cP().Z() > 0.3f) f.SetS();
+        doc.markMeshSelectionChanged(index);
+        const std::set<int> before = facesOf(m);
+        QVERIFY(!before.empty() && int(before.size()) < m.FN());
+
+        // which vertices belong to a selected face, and which to an unselected one
+        std::set<int> inSelected, inUnselected;
+        for (int f = 0; f < m.FN(); ++f) {
+            const auto c = corners(m, f);
+            auto &into = before.count(f) ? inSelected : inUnselected;
+            into.insert({ c[0], c[1], c[2] });
+        }
+        std::set<int> expected;
+        for (int f = 0; f < m.FN(); ++f) {
+            const auto c = corners(m, f);
+            if (std::string(id) == "dilate_selection") {
+                if (inSelected.count(c[0]) || inSelected.count(c[1]) || inSelected.count(c[2]))
+                    expected.insert(f);
+            } else {
+                // survives if none of its corners also belongs to an unselected face
+                if (before.count(f) && !inUnselected.count(c[0]) && !inUnselected.count(c[1]) && !inUnselected.count(c[2]))
+                    expected.insert(f);
+            }
+        }
+        QVERIFY(expected != before);
+
+        const auto res = run(doc, id, "face");
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+        QVERIFY2(facesOf(doc.mesh(index).mesh) == expected,
+                 qPrintable(QStringLiteral("%1 on faces: wrong face set").arg(QString::fromLatin1(id))));
+        QVERIFY2(vertsOf(doc.mesh(index).mesh).empty(),
+                 qPrintable(QStringLiteral("%1 on faces left a vertex selection behind").arg(QString::fromLatin1(id))));
+    }
+
+    // --- the default is the behaviour it always had: faces drive, vertices follow -------
+    {
+        Document doc;
+        const int index = build(doc);
+        VCGMesh &m = doc.mesh(index).mesh;
+        for (auto &f : m.face)
+            if (f.cV(0)->cP().Z() > 0.3f) f.SetS();
+        doc.markMeshSelectionChanged(index);
+        QVERIFY(run(doc, "dilate_selection", nullptr).success);
+        QVERIFY(!facesOf(doc.mesh(index).mesh).empty());
+        QVERIFY2(!vertsOf(doc.mesh(index).mesh).empty(), "the default no longer mirrors faces into vertices");
+    }
+}
+
 void FilterTests::incrementalSelectionPreservesEdges()
 {
     Document doc;
