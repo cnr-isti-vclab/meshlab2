@@ -59,13 +59,13 @@ void LayerWidgetTests::visibilitySetChipsAreFullyVisibleAndNormallySized()
 
     QList<QToolButton *> chips;
     for (QToolButton *button : widget.findChildren<QToolButton *>()) {
-        if (button->isCheckable() && button->text().contains(QRegularExpression(QStringLiteral("^[12] "))))
+        if (button->isCheckable())
             chips << button;
     }
     QCOMPARE(chips.size(), 2);
 
     QToolButton reference;
-    reference.setText(QStringLiteral("1 front"));
+    reference.setText(QStringLiteral("front"));
     reference.setAutoRaise(true);
     for (QToolButton *chip : chips) {
         QVERIFY2(chip->height() >= reference.sizeHint().height() - 2, qPrintable(chip->text()));

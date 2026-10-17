@@ -473,7 +473,7 @@ private slots:
     void open3dAlignMeshesSequentiallyRegistersRawRangeMaps();
     void open3dVoxelDownsamplingKeepsNormalsUnitLength();
     void open3dFeatureMatchingCanUseAllVisibleLayersAsReference();
-    void open3dAlignMeshesSequentiallyStopsAtTheFirstFailedPair();
+    void open3dAlignMeshesSequentiallyRestartsAfterAFailedPair();
     void open3dAlignSetsByFeatureMatchingMovesTheWholeMovingSet();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
     void trueFormCsgSheetsCutWithoutEnclosing();
@@ -4966,15 +4966,17 @@ void FilterTests::open3dAlignMeshesSequentiallyRegistersRawRangeMaps()
     // One log line for every pair attempted, written as the chain went.
     QCOMPARE(chainLog, size_t(7));
     QCOMPARE(chainAligned, size_t(7));
-    QVERIFY(globalMessages.join(QLatin1Char('\n')).contains(QStringLiteral("Aligned 8 of 8")));
+    QVERIFY(globalMessages.join(QLatin1Char('\n')).contains(QStringLiteral("Aligned 7 of 7 layers in 1 group(s)")));
 }
 
-// The stop. A layer that cannot register -- here a sphere, listed among the
-// scans -- must end the chain at that layer, leave it and everything after it
-// exactly where they were, and still hand the layers before it to the global
-// optimization. Silently aligning past it, or discarding the good work, are
-// the two ways this filter could be wrong.
-void FilterTests::open3dAlignMeshesSequentiallyStopsAtTheFirstFailedPair()
+// The restart. A side scan listed in the middle of the face scans registers onto the one before it
+// (it overlaps, a little), but the next face scan does not register onto the side scan: that pair
+// fails, and the chain restarts from the layer that failed, which stays where it was found, and
+// aligns the scans after it onto it. Two groups come out, each optimized together and left as a
+// set of its own; neither is placed relative to the other, since nothing overlapped across the
+// break. Silently aligning past a failure, or giving up and discarding the
+// scans after it, are the two ways this filter could be wrong.
+void FilterTests::open3dAlignMeshesSequentiallyRestartsAfterAFailedPair()
 {
     Document probe;
     const QString sequentialKey = filterKeyForId(
@@ -4988,24 +4990,21 @@ void FilterTests::open3dAlignMeshesSequentiallyStopsAtTheFirstFailedPair()
     MESHLAB2_REQUIRE_DATASET(projectPath, "rangemaps/partial.mlp");
     const QString folder = QFileInfo(firstScan).absolutePath();
     const QStringList scans = { QStringLiteral("faccia000.ply"), QStringLiteral("faccia045.ply"),
-                                QStringLiteral("faccia090.ply") };
+                                QStringLiteral("lato000.ply"), QStringLiteral("faccia270.ply"),
+                                QStringLiteral("faccia315.ply") };
     std::vector<QMatrix4x4> expected;
     QVERIFY(expectedRelativePoses(projectPath, scans, expected));
 
     Document doc;
     for (const QString &name : scans)
         QVERIFY(doc.loadMesh(QDir(folder).filePath(name)) >= 0);
-    // The intruder, then one more real scan that is only reachable through it.
-    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_40kv.ply")) >= 0);
-    QVERIFY(doc.loadMesh(QDir(folder).filePath(QStringLiteral("faccia135.ply"))) >= 0);
     for (int i = 0; i < doc.meshCount(); ++i) {
         doc.setCurrentMeshIndex(i);
         QVERIFY(doc.runFilter(normalsKey, {}).success);
     }
     doc.setCurrentMeshIndex(0);
 
-    const QMatrix4x4 sphereBefore = doc.mesh(3).transform;
-    const QMatrix4x4 lastBefore = doc.mesh(4).transform;
+    const QMatrix4x4 failedBefore = doc.mesh(3).transform;
     const size_t logBefore = doc.logMessages().size();
 
     MeshFilterParameterValues values;
@@ -5015,42 +5014,32 @@ void FilterTests::open3dAlignMeshesSequentiallyStopsAtTheFirstFailedPair()
     QVERIFY2(result.success, qPrintable(result.errorMessage));
     qDebug("%s", qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
 
-    // Every pair attempted is in the log, in order, and the third is the one that
-    // failed -- there is no fourth, because the chain stopped. Each pair that
-    // registered is reported by name with the error it reached; the one that did
-    // not is reported by name as a warning.
-    QStringList pairLines, alignedLines, failedLines;
+    // Every pair is attempted in order, the failed one is named as a warning, and the pair after
+    // it has the failed layer as its reference.
+    QStringList pairLines, failedLines;
     for (size_t i = logBefore; i < doc.logMessages().size(); ++i) {
         const Document::LogEntry &entry = doc.logMessages()[i];
         if (entry.message.startsWith(QStringLiteral("Pair ")))
             pairLines << entry.message;
-        if (entry.message.startsWith(QStringLiteral("Aligned '")))
-            alignedLines << entry.message;
         if (entry.message.startsWith(QStringLiteral("Failed to align"))) {
             failedLines << entry.message;
             QCOMPARE(entry.level, Document::LogLevel::Warning);
         }
     }
-    QCOMPARE(pairLines.size(), 3);
-    QVERIFY(pairLines[0].contains(QStringLiteral("faccia045.ply")));
-    QVERIFY(pairLines[2].contains(QStringLiteral("sphere_40kv.ply")));
-
-    QCOMPARE(alignedLines.size(), 2);
-    QVERIFY(alignedLines[0].contains(QStringLiteral("'faccia045.ply' onto 'faccia000.ply'")));
-    QVERIFY(alignedLines[1].contains(QStringLiteral("'faccia090.ply' onto 'faccia045.ply'")));
-    for (const QString &line : alignedLines) {
-        QVERIFY2(line.contains(QStringLiteral("inlier RMSE")), qPrintable(line));
-        QVERIFY2(line.contains(QStringLiteral("% of the diagonal")), qPrintable(line));
-    }
+    QCOMPARE(pairLines.size(), 4);
+    QVERIFY(pairLines[1].contains(QStringLiteral("'lato000.ply' onto 'faccia045.ply'")));
+    QVERIFY(pairLines[2].contains(QStringLiteral("'faccia270.ply' onto 'lato000.ply'")));
+    QVERIFY(pairLines[3].contains(QStringLiteral("'faccia315.ply' onto 'faccia270.ply'")));
     QCOMPARE(failedLines.size(), 1);
-    QVERIFY2(failedLines[0].contains(QStringLiteral("'sphere_40kv.ply' onto 'faccia090.ply'")),
+    QVERIFY2(failedLines[0].contains(QStringLiteral("'faccia270.ply' onto 'lato000.ply'")),
              qPrintable(failedLines[0]));
 
     const QString report = result.infoMessages.join(QLatin1Char('\n'));
-    QVERIFY2(report.contains(QStringLiteral("Aligned 3 of 5")), qPrintable(report));
-    QVERIFY2(report.contains(QStringLiteral("Stopped at 'sphere_40kv.ply'")), qPrintable(report));
+    QVERIFY2(report.contains(QStringLiteral("Aligned 3 of 4 layers in 2 group(s)")), qPrintable(report));
+    QVERIFY2(report.contains(QStringLiteral("'faccia270.ply' did not register onto 'lato000.ply'")),
+             qPrintable(report));
 
-    // The failed layer and the one behind it are exactly where they were found.
+    // The failed layer stayed exactly where it was found.
     const auto sameMatrix = [](const QMatrix4x4 &a, const QMatrix4x4 &b) {
         for (int r = 0; r < 4; ++r) {
             for (int c = 0; c < 4; ++c) {
@@ -5060,47 +5049,55 @@ void FilterTests::open3dAlignMeshesSequentiallyStopsAtTheFirstFailedPair()
         }
         return true;
     };
-    QVERIFY(sameMatrix(doc.mesh(3).transform, sphereBefore));
-    QVERIFY(sameMatrix(doc.mesh(4).transform, lastBefore));
+    QVERIFY(sameMatrix(doc.mesh(3).transform, failedBefore));
 
-    // The layers that registered -- the reference and the two placed -- are a visibility set called
-    // "aligned", and the intruder and the scan behind it are not in it. The filter only records
-    // the set: everything is still visible. One undo takes the run and its set away together.
-    QCOMPARE(doc.visibilitySets().size(), size_t(1));
-    QCOMPARE(doc.visibilitySets()[0].name, QStringLiteral("aligned"));
-    QCOMPARE(doc.visibilitySets()[0].meshIds,
-             (std::vector<std::uint64_t>{ doc.mesh(0).meshId, doc.mesh(1).meshId, doc.mesh(2).meshId }));
-    for (int i = 0; i < doc.meshCount(); ++i)
-        QVERIFY(doc.mesh(i).visible);
-    doc.showVisibilitySet(0);
-    QVERIFY(doc.mesh(0).visible && doc.mesh(2).visible && !doc.mesh(3).visible && !doc.mesh(4).visible);
-    {
-        const QMatrix4x4 placed = doc.mesh(1).transform;
-        QVERIFY(doc.undo());
-        QVERIFY(doc.visibilitySets().empty());
-        QVERIFY(doc.redo());
-        QCOMPARE(doc.visibilitySets().size(), size_t(1));
-        QVERIFY(sameMatrix(doc.mesh(1).transform, placed));
-    }
-
-    // The three that did register were kept, and are right.
-    const float diagonal = doc.mesh(0).mesh.bbox.Diag();
-    const QMatrix4x4 anchor = doc.mesh(0).transform;
-    for (int i = 1; i < 3; ++i) {
-        const QMatrix4x4 got = anchor.inverted() * doc.mesh(i).transform;
-        const float error = posePointError(doc.mesh(i).mesh, got, expected[size_t(i)]);
-        QVERIFY2(error < diagonal * 0.02f,
-                 qPrintable(QStringLiteral("%1 is %2% of the diagonal off")
-                                .arg(doc.mesh(i).name).arg(100.0f * error / diagonal)));
-    }
-
-    // A second run adds a set of its own instead of replacing the first.
-    doc.setCurrentMeshIndex(0);
-    const MeshFilterRunResult again = doc.runFilter(sequentialKey, values);
-    QVERIFY2(again.success, qPrintable(again.errorMessage));
+    // One set for each group, made in order: the three before the break, then the two from the
+    // restart, the reference of each among them. Everything is still visible; the filter only records them.
     QCOMPARE(doc.visibilitySets().size(), size_t(2));
     QCOMPARE(doc.visibilitySets()[0].name, QStringLiteral("aligned"));
     QCOMPARE(doc.visibilitySets()[1].name, QStringLiteral("aligned 2"));
+    QCOMPARE(doc.visibilitySets()[0].meshIds,
+             (std::vector<std::uint64_t>{ doc.mesh(0).meshId, doc.mesh(1).meshId, doc.mesh(2).meshId }));
+    QCOMPARE(doc.visibilitySets()[1].meshIds,
+             (std::vector<std::uint64_t>{ doc.mesh(3).meshId, doc.mesh(4).meshId }));
+    for (int i = 0; i < doc.meshCount(); ++i)
+        QVERIFY(doc.mesh(i).visible);
+    doc.showVisibilitySet(1);
+    QVERIFY(!doc.mesh(0).visible && !doc.mesh(2).visible && doc.mesh(3).visible && doc.mesh(4).visible);
+    {
+        const QMatrix4x4 placed = doc.mesh(3).transform;
+        QVERIFY(doc.undo());
+        QVERIFY(doc.visibilitySets().empty());
+        QVERIFY(doc.redo());
+        QCOMPARE(doc.visibilitySets().size(), size_t(2));
+        QVERIFY(sameMatrix(doc.mesh(3).transform, placed));
+    }
+
+    // Each group is right within itself -- the face scans of it, against the project's poses taken
+    // relative to its own first layer, which is where the filter anchors it. The side scan is
+    // only there to be placed.
+    const float diagonal = doc.mesh(0).mesh.bbox.Diag();
+    const auto checkGroup = [&](int first, int last) {
+        const QMatrix4x4 anchor = doc.mesh(first).transform;
+        for (int i = first + 1; i <= last; ++i) {
+            const QMatrix4x4 got = anchor.inverted() * doc.mesh(i).transform;
+            const QMatrix4x4 want = expected[size_t(first)].inverted() * expected[size_t(i)];
+            const float error = posePointError(doc.mesh(i).mesh, got, want);
+            QVERIFY2(error < diagonal * 0.02f,
+                     qPrintable(QStringLiteral("%1 is %2% of the diagonal off")
+                                    .arg(doc.mesh(i).name).arg(100.0f * error / diagonal)));
+        }
+    };
+    checkGroup(0, 1);
+    checkGroup(3, 4);
+
+    // A second run adds sets of its own instead of replacing these.
+    doc.setCurrentMeshIndex(0);
+    const MeshFilterRunResult again = doc.runFilter(sequentialKey, values);
+    QVERIFY2(again.success, qPrintable(again.errorMessage));
+    QCOMPARE(doc.visibilitySets().size(), size_t(4));
+    QCOMPARE(doc.visibilitySets()[2].name, QStringLiteral("aligned 3"));
+    QCOMPARE(doc.visibilitySets()[3].name, QStringLiteral("aligned 4"));
 }
 
 // Two groups of scans, each already aligned within itself, joined by one filter: the sets are
@@ -5186,6 +5183,14 @@ void FilterTests::open3dAlignSetsByFeatureMatchingMovesTheWholeMovingSet()
                                 .arg(doc.mesh(i).name).arg(100.0f * error / diagonal)));
     }
     QVERIFY(result.infoMessages.join(QLatin1Char('\n')).contains(QStringLiteral("Moved layers:")));
+
+    // The two sets together, now placed relative to each other, were left as a set of their own,
+    // the reference's layers first.
+    QCOMPARE(doc.visibilitySets().size(), size_t(3));
+    QCOMPARE(doc.visibilitySets()[2].name, QStringLiteral("aligned"));
+    QCOMPARE(doc.visibilitySets()[2].meshIds,
+             (std::vector<std::uint64_t>{ doc.mesh(0).meshId, doc.mesh(1).meshId,
+                                          doc.mesh(2).meshId, doc.mesh(3).meshId }));
 
     // A set cannot be given twice, nor one that does not exist, and the message says which.
     values.insert(QStringLiteral("referenceSet"), QStringLiteral("side"));

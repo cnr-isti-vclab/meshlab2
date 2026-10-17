@@ -889,8 +889,21 @@ MeshFilterRunResult runAlignSets(const FilterParams &params, Document &doc)
         return fail(QObject::tr("The set '%1' has no layer with vertices.")
                         .arg(doc.visibilitySets()[size_t(moving.empty() ? movingSet : referenceSet)].name));
     }
-    return runPairwise(
+    MeshFilterRunResult out = runPairwise(
         QString::fromLatin1(kFeatureSets), params, doc, moving, true, nullptr, &reference);
+    if (!out.success)
+        return out;
+    // Both sets together, now placed relative to each other, as a set of their own: one click
+    // shows the joined group. Named "aligned", like the sequential aligner's, and made unique
+    // by the framework. Untranslated, like a layer name.
+    MeshFilterVisibilitySet joined;
+    joined.name = QStringLiteral("aligned");
+    for (const int layer : reference)
+        joined.meshIndices.push_back(layer);
+    for (const int layer : moving)
+        joined.meshIndices.push_back(layer);
+    out.visibilitySets.push_back(joined);
+    return out;
 }
 
 // Align Meshes Sequentially: the chain Open3D's register_fragments tutorial
@@ -949,9 +962,47 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
     const int pairShare = (refine && pairCount >= 2) ? 90 : 100;
     progress.begin(QObject::tr("Aligning meshes sequentially"));
 
-    size_t placed = 1; // chain[0] is the reference and is never moved
-    QString stoppedAt;
-    QString stopReason;
+    // The chain is walked layer by layer, each onto the one before it. A pair that does not
+    // register ends the group being built and starts the next one at the layer that failed: that
+    // layer stays where it was found and is the reference of the layers after it, which are
+    // aligned onto it and so on. Each group of two or more layers is optimized together and left
+    // behind as a visibility set; a layer that registers with neither neighbour is in none.
+    struct Failure {
+        QString layer;
+        QString reference;
+        QString reason;
+    };
+    std::vector<Failure> failures;
+    std::vector<std::vector<int>> groups;   // those with a layer placed, in the order made
+    std::vector<int> group{ chain[0] };
+    size_t aligned = 0;                     // layers placed, over every group
+
+    const auto closeGroup = [&]() {
+        if (group.size() < 2)
+            return;
+        aligned += group.size() - 1;
+        // Optimizing the group together is the point of not stopping the whole run: the layers
+        // that did register share the drift the chain accumulated instead of leaving it in the
+        // last one. With two layers there is a single pair and nothing to distribute.
+        if (refine && group.size() >= 3) {
+            MeshFilterParameterValues values;
+            values.insert(QStringLiteral("referenceMesh"), group.front());
+            values.insert(QStringLiteral("pairInitialization"), QStringLiteral("currentPose"));
+            values.insert(QStringLiteral("maxCorrespondenceDistance"), correspondenceDistance);
+            values.insert(QStringLiteral("minimumFitness"), minimumFitness);
+            values.insert(QStringLiteral("maxIterations"), maxIterations);
+            doc.writeLog(QObject::tr("Optimizing the %1 aligned layers together").arg(group.size()));
+            const MeshFilterRunResult global =
+                runGlobalAlignment(FilterParams(values), doc, &group, false);
+            if (!global.success) {
+                doc.writeLog(QObject::tr("  global optimization failed: %1; the sequential "
+                                         "alignment is kept.").arg(global.errorMessage),
+                             Document::LogSource::Application, Document::LogLevel::Warning);
+            }
+        }
+        groups.push_back(group);
+    };
+
     for (size_t k = 1; k < chain.size(); ++k) {
         const QString sourceName = doc.mesh(chain[k]).name;
         const QString referenceName = doc.mesh(chain[k - 1]).name;
@@ -991,9 +1042,11 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
             doc.writeLog(QObject::tr("Failed to align '%1' onto '%2': %3")
                              .arg(sourceName, referenceName, reason),
                          Document::LogSource::Application, Document::LogLevel::Warning);
-            stoppedAt = sourceName;
-            stopReason = reason;
-            break;
+            failures.push_back({ sourceName, referenceName, reason });
+            closeGroup();
+            group = { chain[k] };
+            doc.writeLog(QObject::tr("Starting a new group from '%1'").arg(sourceName));
+            continue;
         }
         // The error is the ICP inlier RMSE -- how far, on average, the source's
         // matched points lie from the reference surface -- in the layers' units and
@@ -1006,15 +1059,18 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
                          .arg(refined.inlierRmse, 0, 'g', 4)
                          .arg(diagonal > 0.0 ? 100.0 * refined.inlierRmse / diagonal : 0.0, 0, 'f', 2)
                          .arg(refined.fitness, 0, 'f', 3).arg(coarse.fitness, 0, 'f', 3));
-        ++placed;
+        group.push_back(chain[k]);
         progress.report(pairShare * int(k) / pairCount,
-                        QObject::tr("Aligned %1 of %2 layers").arg(placed).arg(chain.size()));
+                        QObject::tr("Aligned %1 of %2 layers").arg(aligned + group.size() - 1)
+                            .arg(chain.size()));
     }
+    closeGroup();
 
-    if (placed == 1) {
+    if (groups.empty()) {
         const QString message = QObject::tr(
-            "'%1' did not register onto the reference '%2' (%3). Nothing was moved.")
-                .arg(stoppedAt, doc.mesh(chain[0]).name, stopReason);
+            "'%1' did not register onto '%2' (%3), and no later layer registered onto its "
+            "predecessor either. Nothing was moved.")
+                .arg(failures.front().layer, failures.front().reference, failures.front().reason);
         progress.finish(false, message);
         return fail(message);
     }
@@ -1023,50 +1079,27 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
     out.success = true;
     out.documentModified = true;
     out.infoMessages << seed.message();
-
-    // Optimizing the aligned group together is the point of stopping early: the
-    // layers that did register are not held hostage by the one that did not.
-    // With two layers there is a single pair and nothing to distribute.
-    if (refine && placed >= 3) {
-        const std::vector<int> aligned(chain.begin(), chain.begin() + long(placed));
-        MeshFilterParameterValues values;
-        values.insert(QStringLiteral("referenceMesh"), chain[0]);
-        values.insert(QStringLiteral("pairInitialization"), QStringLiteral("currentPose"));
-        values.insert(QStringLiteral("maxCorrespondenceDistance"), correspondenceDistance);
-        values.insert(QStringLiteral("minimumFitness"), minimumFitness);
-        values.insert(QStringLiteral("maxIterations"), maxIterations);
-        doc.writeLog(QObject::tr("Optimizing the %1 aligned layers together").arg(placed));
-        progress.report(pairShare + 5, QObject::tr("Optimizing the %1 aligned layers together "
-                                                   "(no progress available)").arg(placed));
-        const MeshFilterRunResult global =
-            runGlobalAlignment(FilterParams(values), doc, &aligned, false);
-        if (global.success) {
-            out.infoMessages << QObject::tr("Optimized the %1 aligned layers together.").arg(placed);
-        } else {
-            doc.writeLog(QObject::tr("  global optimization failed: %1; the sequential "
-                                     "alignment is kept.").arg(global.errorMessage),
-                         Document::LogSource::Application, Document::LogLevel::Warning);
-        }
+    // One set for each group, named "aligned", "aligned 2" ... by the framework, which shows the
+    // layers that were placed together and hides the ones left out. Untranslated, like a layer name.
+    for (const std::vector<int> &placedGroup : groups) {
+        MeshFilterVisibilitySet alignedSet;
+        alignedSet.name = QStringLiteral("aligned");
+        for (const int layer : placedGroup)
+            alignedSet.meshIndices.push_back(layer);
+        out.visibilitySets.push_back(alignedSet);
+        out.infoMessages << QObject::tr("Aligned %n layer(s) onto '%1'.", "",
+                                        int(placedGroup.size()) - 1)
+                                .arg(doc.mesh(placedGroup.front()).name);
     }
-
-    out.infoMessages << QObject::tr("Aligned %1 of %2 layers onto '%3'.")
-                            .arg(placed).arg(chain.size()).arg(doc.mesh(chain[0]).name);
-    // The layers that registered, with the reference they were registered onto, as a visibility
-    // set: one click in the layer panel shows what the run aligned and hides what it left behind.
-    // Each run adds its own ("aligned", "aligned 2", ...). Untranslated, like a layer name.
-    MeshFilterVisibilitySet alignedSet;
-    alignedSet.name = QStringLiteral("aligned");
-    for (size_t k = 0; k < placed; ++k)
-        alignedSet.meshIndices.push_back(chain[k]);
-    out.visibilitySets.push_back(alignedSet);
-    if (!stoppedAt.isEmpty()) {
+    out.infoMessages << QObject::tr("Aligned %1 of %2 layers in %3 group(s).")
+                            .arg(aligned).arg(chain.size() - 1).arg(groups.size());
+    for (const Failure &failure : failures) {
         out.infoMessages << QObject::tr(
-            "Stopped at '%1': %2. It and the layers after it were not moved.")
-                .arg(stoppedAt, stopReason);
+            "'%1' did not register onto '%2' (%3): it was not moved, and the layers after it were "
+            "aligned from it instead.").arg(failure.layer, failure.reference, failure.reason);
     }
     progress.report(100, QObject::tr("Done"));
-    progress.finish(true, out.infoMessages.isEmpty() ? QObject::tr("Aligned the layers.")
-                                                     : out.infoMessages.back());
+    progress.finish(true, out.infoMessages.back());
     return out;
 }
 
