@@ -382,7 +382,8 @@ up front, or with a `success = false` result that says why.
   actionable and return `success = false` on bad input rather than asserting.
 - **Leave a visibility set** (optional) via `MeshFilterRunResult::visibilitySets`: a name and
   the layers by index as they stand when the filter returns. The framework stores it in the
-  filter's undo step, replacing a set of the same name, so a second run refreshes it; it does
+  filter's undo step, under a name made unique with " 2", " 3" ... as a layer's is, so every run
+  leaves a set of its own and those of earlier runs stay; it does
   not change what is visible. For a filter that picks some of the layers and leaves the others
   -- the layers an alignment placed -- so that one click in the layer panel shows them.
   *Align Meshes Sequentially (Open3D)* leaves `aligned`. Names are shown as written, untranslated.

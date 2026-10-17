@@ -1167,7 +1167,7 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
                 }
                 if (set.name.trimmed().isEmpty() || ids.empty())
                     continue;
-                doc.setNamedVisibilitySet(set.name.trimmed(), std::move(ids));
+                doc.addVisibilitySet(doc.uniqueVisibilitySetName(set.name), std::move(ids));
                 // The run changed the document even if it touched no layer, and an unmodified run
                 // would have its step dropped.
                 result.documentModified = true;

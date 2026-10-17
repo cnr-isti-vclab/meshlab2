@@ -405,9 +405,10 @@ struct MeshFilterRunResult
     QVector<MeshFilterVisualizationHint> visualizationHints;
     // Visibility sets for the run to leave behind -- the layers an alignment placed, say, so that
     // one click shows them. The framework stores each in the filter's undo step, from the indices
-    // as they stand when the filter returns, replacing a set of the same name (a second run
-    // refreshes the set rather than adding another). It only records the set: what is visible is
-    // left as it is. Names are shown and saved as they are, untranslated, like layer names.
+    // as they stand when the filter returns. Each run adds one: if the name is taken it gets
+    // " 2", " 3" ..., like a layer's, so the sets of earlier runs stay as they were. It only
+    // records the set: what is visible is left as it is. Names are shown and saved as they are,
+    // untranslated, like layer names.
     QVector<MeshFilterVisibilitySet> visibilitySets;
     QVariantMap outputValues;
 };

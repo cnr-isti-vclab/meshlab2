@@ -967,7 +967,7 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
                             .arg(placed).arg(chain.size()).arg(doc.mesh(chain[0]).name);
     // The layers that registered, with the reference they were registered onto, as a visibility
     // set: one click in the layer panel shows what the run aligned and hides what it left behind.
-    // A second run replaces it. Untranslated, like a layer name.
+    // Each run adds its own ("aligned", "aligned 2", ...). Untranslated, like a layer name.
     MeshFilterVisibilitySet alignedSet;
     alignedSet.name = QStringLiteral("aligned");
     for (size_t k = 0; k < placed; ++k)

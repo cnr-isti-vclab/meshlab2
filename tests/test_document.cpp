@@ -87,7 +87,7 @@ private slots:
     void visibilitySetsShowTheirLayersAndSayWhenTheyAreShown();
     void visibilitySetsSurviveAProjectRoundTripWhateverIsLeftOut();
     void definingRenamingRedefiningAndDeletingASetAreUndoSteps();
-    void aNamedSetIsRefreshedNotDuplicated();
+    void aFiltersSetGetsAUniqueName();
     void loadMeshLabProjectLoadsRastersAndCamera();
     void rasterCameraUndoRedoRestoresShot();
     void undoRedoRestoresMeshList();
@@ -1847,30 +1847,26 @@ void DocumentTests::definingRenamingRedefiningAndDeletingASetAreUndoSteps()
     QCOMPARE(int(doc.undoTreeInfo().size()), nodes);
 }
 
-// How a filter leaves a set behind: the name is the key, so running it again refreshes the set.
-void DocumentTests::aNamedSetIsRefreshedNotDuplicated()
+// How a filter's sets are named: a taken name gets " 2", " 3" ..., as a layer's does, so each run
+// leaves a set of its own and the earlier ones stay.
+void DocumentTests::aFiltersSetGetsAUniqueName()
 {
     Document doc;
     addTinyMesh(doc, QStringLiteral("a"));
-    addTinyMesh(doc, QStringLiteral("b"));
-    addTinyMesh(doc, QStringLiteral("c"));
-    const auto id = [&doc](int i) { return doc.mesh(i).meshId; };
+    const std::vector<std::uint64_t> ids{ doc.mesh(0).meshId };
 
-    QCOMPARE(doc.setNamedVisibilitySet(QStringLiteral("aligned"), { id(0), id(1) }), 0);
-    QCOMPARE(doc.setNamedVisibilitySet(QStringLiteral("other"), { id(2) }), 1);
-    QCOMPARE(doc.setNamedVisibilitySet(QStringLiteral("aligned"), { id(0), id(1), id(2) }), 0);
-    QCOMPARE(doc.visibilitySets().size(), size_t(2));
-    QCOMPARE(doc.visibilitySets()[0].meshIds.size(), size_t(3));
+    QCOMPARE(doc.uniqueVisibilitySetName(QStringLiteral(" aligned ")), QStringLiteral("aligned"));
+    doc.addVisibilitySet(doc.uniqueVisibilitySetName(QStringLiteral("aligned")), ids);
+    doc.addVisibilitySet(doc.uniqueVisibilitySetName(QStringLiteral("aligned")), ids);
+    doc.addVisibilitySet(doc.uniqueVisibilitySetName(QStringLiteral("aligned")), ids);
+    QCOMPARE(doc.visibilitySets().size(), size_t(3));
+    QCOMPARE(doc.visibilitySets()[0].name, QStringLiteral("aligned"));
+    QCOMPARE(doc.visibilitySets()[1].name, QStringLiteral("aligned 2"));
+    QCOMPARE(doc.visibilitySets()[2].name, QStringLiteral("aligned 3"));
 
-    // The same layers again changes nothing and takes no step.
-    const int nodes = int(doc.undoTreeInfo().size());
-    QSignalSpy changed(&doc, &Document::visibilitySetsChanged);
-    QCOMPARE(doc.setNamedVisibilitySet(QStringLiteral("aligned"), { id(0), id(1), id(2) }), 0);
-    QCOMPARE(changed.count(), 0);
-    QCOMPARE(int(doc.undoTreeInfo().size()), nodes);
-
-    QVERIFY(doc.undo());   // the refresh
-    QCOMPARE(doc.visibilitySets()[0].meshIds.size(), size_t(2));
+    // A gap left by a deleted set is taken again, not skipped.
+    doc.removeVisibilitySet(1);
+    QCOMPARE(doc.uniqueVisibilitySetName(QStringLiteral("aligned")), QStringLiteral("aligned 2"));
 }
 
 void DocumentTests::loadMeshLabProjectLoadsMeshesAndTransforms()

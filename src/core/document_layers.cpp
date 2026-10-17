@@ -495,23 +495,21 @@ int Document::addVisibilitySet(const QString &name, std::vector<std::uint64_t> m
     return int(m_visibilitySets.size()) - 1;
 }
 
-int Document::setNamedVisibilitySet(const QString &name, std::vector<std::uint64_t> meshIds)
+QString Document::uniqueVisibilitySetName(const QString &desired) const
 {
-    for (int i = 0; i < int(m_visibilitySets.size()); ++i) {
-        if (m_visibilitySets[i].name != name)
-            continue;
-        if (m_visibilitySets[i].meshIds == meshIds)
-            return i;
-        const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
-        if (ownUndoStep)
-            beginUndoStep(tr("Redefine Visibility Set"));
-        m_visibilitySets[i].meshIds = std::move(meshIds);
-        emit visibilitySetsChanged();
-        if (ownUndoStep)
-            endUndoStep(true);
-        return i;
+    const QString base = desired.trimmed();
+    const auto taken = [this](const QString &candidate) {
+        return std::any_of(m_visibilitySets.begin(), m_visibilitySets.end(),
+                           [&candidate](const VisibilitySet &set) { return set.name == candidate; });
+    };
+    if (base.isEmpty() || !taken(base))
+        return base;
+    for (int suffix = 2; suffix < 100000; ++suffix) {
+        const QString candidate = QStringLiteral("%1 %2").arg(base).arg(suffix);
+        if (!taken(candidate))
+            return candidate;
     }
-    return addVisibilitySet(name, std::move(meshIds));
+    return base;
 }
 
 void Document::updateVisibilitySet(int index)

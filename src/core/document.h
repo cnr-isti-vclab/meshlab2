@@ -311,9 +311,9 @@ public:
     // The ids of the layers that are visible now.
     std::vector<std::uint64_t> visibleMeshIds() const;
     int addVisibilitySet(const QString &name, std::vector<std::uint64_t> meshIds);
-    // Gives the set of that name these layers, or adds it if there is none: how a filter's
-    // result leaves a set behind, so that running it again refreshes it. Returns its index.
-    int setNamedVisibilitySet(const QString &name, std::vector<std::uint64_t> meshIds);
+    // The name with " 2", " 3" ... appended if another set has it, as uniqueMeshName does for
+    // layers: how a filter's set is named, so that each run leaves one of its own.
+    QString uniqueVisibilitySetName(const QString &desired) const;
     // Makes the set the layers that are visible now.
     void updateVisibilitySet(int index);
     void renameVisibilitySet(int index, const QString &name);

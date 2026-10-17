@@ -5092,6 +5092,14 @@ void FilterTests::open3dAlignMeshesSequentiallyStopsAtTheFirstFailedPair()
                  qPrintable(QStringLiteral("%1 is %2% of the diagonal off")
                                 .arg(doc.mesh(i).name).arg(100.0f * error / diagonal)));
     }
+
+    // A second run adds a set of its own instead of replacing the first.
+    doc.setCurrentMeshIndex(0);
+    const MeshFilterRunResult again = doc.runFilter(sequentialKey, values);
+    QVERIFY2(again.success, qPrintable(again.errorMessage));
+    QCOMPARE(doc.visibilitySets().size(), size_t(2));
+    QCOMPARE(doc.visibilitySets()[0].name, QStringLiteral("aligned"));
+    QCOMPARE(doc.visibilitySets()[1].name, QStringLiteral("aligned 2"));
 }
 
 // "Use All Visible Layers as Reference": feature matching against every other
