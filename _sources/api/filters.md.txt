@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 386 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 387 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -5016,6 +5016,52 @@ The layers that were aligned, the reference among them, are left as a **visibili
 - **maxIterations** (*int*, default: `60`) — Iteration cap for the ICP refinement of each pair, and for the pairwise registrations of the final optimization.
 - **globalRefinement** (*bool*, default: `True`) — After the chain stops or finishes, optimize all the layers it placed together. Needs at least three aligned layers to have anything to distribute.
 - **randomSeed** (*int*, default: `0`) — Seed for the feature matching of every pair. Zero draws one fresh seed for the whole run and reports it, so the run can be replayed by pinning that value.
+```
+
+---
+
+(filter-align-sets-by-feature-matching-open3d)=
+
+## Align Sets by Feature Matching (Open3D)
+
+**Categories:** `Geometry/Alignment`
+
+**Plugin:** meshlab2.filter.open3d
+
+Find a coarse pose between two visibility sets of layers from FPFH descriptors and RANSAC, and move the whole moving set by it, using Open3D.
+
+```{py:function} ms.align_sets_by_feature_matching_open3d(**params)
+:module: _meshlab
+
+**Starting alignment:** none. The two sets may start in any position and orientation, because the pose is found from surface shape alone and not from where the layers currently are. What it needs is real surface overlap between the two sets, and normals on every layer. The result is a coarse pose; refine it with ICP.
+
+This is *Align by Feature Matching* with a **visibility set** on each side instead of a layer. Each set is taken as one rigid group: the points of its layers are put together in world space, each through its own matrix, and downsampled by the matching voxel size (so surface covered by several layers is not counted several times). FPFH descriptors are computed on the two groups, matched, and a pose is fitted with RANSAC.
+
+**Every layer of the moving set gets the same correction**, composed onto the matrix it already has, so the set keeps its internal alignment and moves as a whole; the reference set stays put and no vertex coordinates are touched. This is what two groups of scans, each already aligned within itself, need to be joined, when no single scan of one group overlaps enough of the other to be registered on its own.
+
+Make the sets in the layer panel: show the layers that belong together and press **+** under the list. A layer cannot be in both sets, and a layer with no vertices is left out. Fitness (the fraction of source points that found a correspondence) and inlier RMSE are reported so the result can be judged rather than assumed.
+
+**Upstream:** [Open3D](https://github.com/isl-org/Open3D)
+
+**License:** MIT
+
+**References:**
+
+- Qian-Yi Zhou, Jaesik Park, Vladlen Koltun. **Open3D: A Modern Library for 3D Data Processing**. *arXiv:1801.09847* (2018). [Web](https://www.open3d.org)
+- Radu Bogdan Rusu, Nico Blodow, Michael Beetz. **Fast Point Feature Histograms (FPFH) for 3D Registration**. *IEEE International Conference on Robotics and Automation* (2009). [DOI](https://doi.org/10.1109/ROBOT.2009.5152473)
+
+**Parameters:**
+
+- **movingSet** (*visibilityset*) — The visibility set that is moved. Its layers move together, all by the same correction, so they stay as they are relative to each other. Make the set with the + under the layer list, or let a filter leave one (Align Meshes Sequentially leaves *aligned*).
+- **referenceSet** (*visibilityset*) — The visibility set the moving set is placed against. It stays put. A layer cannot be in both sets.
+- **maxCorrespondenceDistance** (*absperc*, default: `@bboxDiag002`) — A point within this distance of its match counts as matched: it decides which candidate poses are accepted and the fitness reported. In the layers' units, and also as a percentage of the current layer's bounding-box diagonal.
+- **registrationVoxelSize** (*absperc*, default: `@bboxDiag01`) — Edge length of the cubic grid cells, in the layers' units, and also as a percentage of the current layer's bounding-box diagonal. The points of each set are reduced to one point per occupied cell, at the average of its points, before descriptors are computed and matched; the pose found is applied to the full layers of the moving set. Fine cells are slow and coarse ones lose the pose: on one pair of range maps 0.25% of the diagonal took 76 s, 1% took 0.15 s and 8% failed. The default keeps about 4,500 points of 80,000.
+- **featureRadius** (*absperc*, default: `@bboxDiag005`) — Radius of the neighbourhood each descriptor is computed over, in the layers' units, and also as a percentage of the current layer's bounding-box diagonal. Larger values describe more context and match more robustly, at more cost. It is not tied to the matching voxel size: the defaults (5% and 1% of the diagonal) are the ones tested together, and scaling both with a larger voxel made matching worse at 2% and 4%.
+- **featureNeighbours** (*int*, default: `100`) — Upper bound on neighbours per descriptor, within the feature radius.
+- **mutualFilter** (*bool*, default: `True`) — Keep only correspondences that are each other's best match in both directions. Fewer and better matches, which usually helps RANSAC rather than hindering it.
+- **ransacIterations** (*int*, default: `100000`) — Upper bound on RANSAC samples; it stops earlier once the confidence is reached.
+- **ransacConfidence** (*double*, default: `0.999`) — Probability of having found the best model, at which sampling stops.
+- **randomSeed** (*int*, default: `0`) — Seed for the random sampling this method does. Zero draws a fresh seed each run and reports it, so a result can be reproduced afterwards by pinning that value. Two runs with the same seed give the same pose; two runs with different seeds may not.
 ```
 
 ---

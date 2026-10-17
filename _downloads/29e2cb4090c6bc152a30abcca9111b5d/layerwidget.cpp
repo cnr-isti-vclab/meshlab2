@@ -99,6 +99,11 @@ public:
     EyeCheckDelegate(ModifierCallback cb, QObject *parent = nullptr)
         : QStyledItemDelegate(parent), m_modifierCb(std::move(cb)) {}
 
+    // Whether a cell is shaded as part of the visibility set being previewed. Painted here rather
+    // than set as a background on the items, which would send itemChanged through the panel and
+    // re-sort a sorted table.
+    std::function<bool(const QModelIndex &)> previewed;
+
     // Intercept mouse-press/release events that land on the eye icon area.
     bool editorEvent(QEvent *event, QAbstractItemModel *model,
                      const QStyleOptionViewItem &option,
@@ -148,6 +153,11 @@ public:
     void paint(QPainter *painter, const QStyleOptionViewItem &option,
                const QModelIndex &index) const override
     {
+        if (previewed && previewed(index)) {
+            QColor shade = option.palette.color(QPalette::Highlight);
+            shade.setAlpha(60);
+            painter->fillRect(option.rect, shade);
+        }
         if (!index.data(Qt::CheckStateRole).isValid()) {
             QStyledItemDelegate::paint(painter, option, index);
             return;
@@ -1216,8 +1226,10 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     m_meshTree->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     m_meshTree->header()->setSectionResizeMode(2, QHeaderView::Stretch);
     m_meshTree->setColumnWidth(0, kFirstColumnMinWidth);
-    m_meshTree->setItemDelegate(new EyeCheckDelegate(
-        makeEyeModifierCallback(doc, kLayerKindMesh), m_meshTree));
+    auto *meshTreeDelegate = new EyeCheckDelegate(
+        makeEyeModifierCallback(doc, kLayerKindMesh), m_meshTree);
+    meshTreeDelegate->previewed = [this](const QModelIndex &index) { return isPreviewed(index); };
+    m_meshTree->setItemDelegate(meshTreeDelegate);
     treeSplitter->addWidget(m_meshTree);
 
     connect(m_meshTree, &QTreeWidget::itemChanged, this, &LayerWidget::onTreeItemChanged);
@@ -1287,7 +1299,10 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
 
     auto *meshTableEyeDelegate = new EyeCheckDelegate(
         makeEyeModifierCallback(doc, kLayerKindMesh), m_meshTable);
-    m_meshTable->setItemDelegateForColumn(0, meshTableEyeDelegate);
+    meshTableEyeDelegate->previewed = [this](const QModelIndex &index) { return isPreviewed(index); };
+    // The whole table, not just the eye column: the preview shades every cell of a row. The other
+    // columns hold no check state and paint as they always did.
+    m_meshTable->setItemDelegate(meshTableEyeDelegate);
 
     connect(m_meshTable, &QTableWidget::itemChanged, this, &LayerWidget::onMeshTableCellChanged);
     connect(m_meshTable, &QTableWidget::currentItemChanged, this, &LayerWidget::onMeshTableCurrentItemChanged);
@@ -1534,6 +1549,7 @@ void LayerWidget::refreshVisibilitySetChips()
     if (names != m_chipNames) {
         qDeleteAll(m_chips);
         m_chips.clear();
+        previewVisibilitySet(-1);   // the chip under the pointer is gone, and no leave will come
         m_chipNames = names;
         for (int i = 0; i < sets.size(); ++i) {
             auto *chip = new QToolButton(m_chipsLayout->parentWidget());
@@ -1544,6 +1560,7 @@ void LayerWidget::refreshVisibilitySetChips()
             chip->setCheckable(true);
             chip->setAutoRaise(true);
             chip->setContextMenuPolicy(Qt::CustomContextMenu);
+            chip->installEventFilter(this);
             connect(chip, &QToolButton::clicked, this, [this, i] {
                 m_doc->showVisibilitySet(i, QApplication::keyboardModifiers() & Qt::ShiftModifier);
             });
@@ -1571,25 +1588,99 @@ void LayerWidget::refreshVisibilitySetChips()
     }
 }
 
-void LayerWidget::saveVisibilitySet()
+QString LayerWidget::askVisibilitySetName()
 {
     bool ok = false;
     const QString name = QInputDialog::getText(
         this,
         tr("New Visibility Set"),
-        tr("Name for the layers visible now:"),
+        tr("Name:"),
         QLineEdit::Normal,
         tr("Set %1").arg(m_doc->visibilitySets().size() + 1),
         &ok).trimmed();
-    if (ok && !name.isEmpty())
+    return ok ? name : QString();
+}
+
+void LayerWidget::saveVisibilitySet()
+{
+    const QString name = askVisibilitySetName();
+    if (!name.isEmpty())
         m_doc->addVisibilitySet(name, m_doc->visibleMeshIds());
+}
+
+bool LayerWidget::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::Enter || event->type() == QEvent::Leave) {
+        const int index = m_chips.indexOf(qobject_cast<QToolButton *>(watched));
+        if (index >= 0)
+            previewVisibilitySet(event->type() == QEvent::Enter ? index : -1);
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+void LayerWidget::previewVisibilitySet(int index)
+{
+    const auto &sets = m_doc->visibilitySets();
+    const std::vector<std::uint64_t> ids = (index >= 0 && index < int(sets.size()))
+        ? sets[index].meshIds : std::vector<std::uint64_t>();
+    if (ids == m_previewMeshIds)
+        return;
+    m_previewMeshIds = ids;
+    m_meshTree->viewport()->update();
+    m_meshTable->viewport()->update();
+}
+
+bool LayerWidget::isPreviewed(const QModelIndex &index) const
+{
+    if (m_previewMeshIds.empty())
+        return false;
+    // The layer's index sits on the first cell of its row; the detail rows under it in the tree
+    // (vertices, faces, ...) are the layer's too, and are shaded with it.
+    QModelIndex row = index;
+    while (row.parent().isValid())
+        row = row.parent();
+    const QVariant stored = row.siblingAtColumn(0).data(kRoleMeshIndex);
+    bool ok = false;
+    const int meshIndex = stored.toInt(&ok);
+    if (!stored.isValid() || !ok || meshIndex < 0 || meshIndex >= m_doc->meshCount())
+        return false;
+    const std::uint64_t id = m_doc->mesh(meshIndex).meshId;
+    return std::find(m_previewMeshIds.begin(), m_previewMeshIds.end(), id) != m_previewMeshIds.end();
+}
+
+void LayerWidget::addVisibilitySetActions(QMenu &menu, int meshIndex)
+{
+    const auto &sets = m_doc->visibilitySets();
+    const std::uint64_t id = m_doc->mesh(meshIndex).meshId;
+    QMenu *add = menu.addMenu(tr("Add to Visibility Set"));
+    QMenu *remove = menu.addMenu(tr("Remove from Visibility Set"));
+    for (int i = 0; i < int(sets.size()); ++i) {
+        const bool member =
+            std::find(sets[i].meshIds.begin(), sets[i].meshIds.end(), id) != sets[i].meshIds.end();
+        // '&' would be read as a mnemonic.
+        QAction *action = (member ? remove : add)->addAction(QString(sets[i].name).replace(
+            QLatin1Char('&'), QStringLiteral("&&")));
+        connect(action, &QAction::triggered, this, [this, i, id, member] {
+            if (member)
+                m_doc->removeFromVisibilitySet(i, { id });
+            else
+                m_doc->addToVisibilitySet(i, { id });
+        });
+    }
+    add->addSeparator();
+    connect(add->addAction(tr("New Set...")), &QAction::triggered, this, [this, id] {
+        const QString name = askVisibilitySetName();
+        if (!name.isEmpty())
+            m_doc->addVisibilitySet(name, { id });
+    });
+    remove->setEnabled(!remove->isEmpty());
 }
 
 void LayerWidget::showVisibilitySetMenu(int index, const QPoint &globalPos)
 {
     QMenu menu(this);
     QAction *rename = menu.addAction(tr("Rename..."));
-    QAction *update = menu.addAction(tr("Set to the Visible Layers"));
+    QAction *update = menu.addAction(tr("Replace with the Visible Layers"));
     menu.addSeparator();
     QAction *remove = menu.addAction(tr("Delete"));
     QAction *chosen = menu.exec(globalPos);
@@ -2465,6 +2556,15 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
         connect(action, &QAction::triggered, this, [this, key = info.key]() {
             emit filterActionRequested(key);
         });
+        anyAdded = true;
+    }
+
+    // The layer under the pointer, which the filters above do not look at: they act on the
+    // current one.
+    if (ref.kind == LayerItemKind::Mesh && ref.index >= 0 && ref.index < m_doc->meshCount()) {
+        if (anyAdded)
+            menu.addSeparator();
+        addVisibilitySetActions(menu, ref.index);
         anyAdded = true;
     }
 

@@ -311,6 +311,7 @@ one filter, so the two compose.</p>
 falls through to <code class="docutils literal notranslate"><span class="pre">string</span></code> silently, so <code class="docutils literal notranslate"><span class="pre">absPerc</span></code> is a bug rather than a synonym:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">bool</span>  <span class="nb">int</span>  <span class="n">double</span>  <span class="n">absperc</span>  <span class="n">enum</span>  <span class="n">color</span>  <span class="n">point3f</span>  <span class="n">string</span>  <span class="n">mesh</span>
 <span class="n">fileopen</span>  <span class="n">filesave</span>  <span class="n">textureref</span>  <span class="n">textureoutputref</span>  <span class="n">camerastate</span>  <span class="n">renderstate</span>
+<span class="n">visibilityset</span>
 </pre></div>
 </div>
 <p>(<code class="docutils literal notranslate"><span class="pre">file_open</span></code> and <code class="docutils literal notranslate"><span class="pre">file_save</span></code> are accepted as alternates.)</p>
@@ -325,6 +326,15 @@ an empty group is “Main”.</p>
 <p><code class="docutils literal notranslate"><span class="pre">enum</span></code> parameters must carry <code class="docutils literal notranslate"><span class="pre">enumOptions</span></code>, an array of <code class="docutils literal notranslate"><span class="pre">{&quot;id&quot;,</span> <span class="pre">&quot;label&quot;}</span></code> — each
 option may also carry its own <code class="docutils literal notranslate"><span class="pre">help</span></code>. Numeric parameters take <code class="docutils literal notranslate"><span class="pre">min</span></code>, <code class="docutils literal notranslate"><span class="pre">max</span></code> and
 <code class="docutils literal notranslate"><span class="pre">decimals</span></code> (default 3).</p>
+<p><code class="docutils literal notranslate"><span class="pre">visibilityset</span></code> parameters name one of the document’s visibility sets. The value is the
+set’s <strong>name</strong>, a string, so that a call written down – a script, a history entry – means
+the same set after others are added or deleted. The editor is a combo of the sets; with no
+<code class="docutils literal notranslate"><span class="pre">default</span></code>, the first such parameter of a filter starts on the first set, the second on the
+second, which is what a filter taking two wants. The framework refuses the call before the
+filter runs if the name is not a set, or the set has no layer left (and says, when there are
+no sets at all, how to make one). In the filter, <code class="docutils literal notranslate"><span class="pre">doc.indexOfVisibilitySet(name)</span></code> finds it
+and <code class="docutils literal notranslate"><span class="pre">doc.visibilitySetMeshIndices(index)</span></code> gives its layers in document order.
+<em>Align Sets by Feature Matching (Open3D)</em> takes two.</p>
 <p><code class="docutils literal notranslate"><span class="pre">point3f</span></code> parameters take an optional <code class="docutils literal notranslate"><span class="pre">point3fRole</span></code>, which decides what the
 editor’s preset combo offers beside the three spin boxes:</p>
 <div class="table-wrapper colwidths-auto docutils container">
