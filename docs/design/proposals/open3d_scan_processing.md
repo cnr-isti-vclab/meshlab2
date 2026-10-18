@@ -566,6 +566,22 @@ budget, FGR's annealing and tuple parameters). Fast Global Registration optimize
 the identity, so it needs the two sides roughly oriented alike (position does not matter: each
 cloud is centred first); RANSAC has no such limit.
 
+**Implemented 2026-10-18: *Reference* on *Align Meshes Sequentially*** (`referenceMode`): what each
+layer is registered onto. *Previous Layer* (`previous`, the default) is the chain as it was.
+*All Previously Aligned Layers* (`allAligned`) registers every layer onto the whole group placed so
+far, as one combined reference, for both the coarse step and ICP (the same combined-reference path
+as *Use All Visible Layers as Reference*; a group of one layer is just the previous layer).
+*Previous Layer, then All Aligned on Failure* (`allAlignedOnFailure`) tries the previous layer, with
+its attempts, and only if that fails tries the whole group, with a fresh set of attempts, before the
+chain restarts from the layer. The pair-error check is always a share of the previous layer's
+diagonal, so its threshold means the same in every mode. Measured on `faccia000`, `045`, `090`
+and `315` (the last 135 degrees of turntable from the third and 45 from the first): onto the
+previous layer alone, `315` fails (inlier RMSE 1.04% of the diagonal); with the previous layer first
+and the group on failure it joins the group at 0.43% and 0.15% of the diagonal off the project's
+pose. The cost is the thing to know: a failed RANSAC pair spends its whole sampling budget, so the
+fallback and the second and third modes multiply the cost of every failure by the attempts and by the
+number of references tried; Fast Global Registration fails quickly.
+
 **Implemented 2026-10-18: a pair error check and retries on *Align Meshes Sequentially*.** A pair is
 judged after ICP has refined it, on two counts: the fitness must reach the minimum, and the inlier
 RMSE must stay under *Maximum Pair Error* (`maximumPairError`, a percentage of the reference's

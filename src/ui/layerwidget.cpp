@@ -38,6 +38,7 @@
 #include <QStyledItemDelegate>
 #include <QStackedWidget>
 #include <QSplitter>
+#include <QStyleOptionViewItem>
 #include <QToolButton>
 #include <QToolTip>
 #include <functional>
@@ -56,7 +57,6 @@ constexpr int kRoleMeshId = Qt::UserRole + 2;
 constexpr int kRoleRasterIndex = Qt::UserRole + 3;
 constexpr int kRoleRasterId = Qt::UserRole + 4;
 constexpr int kRolePlaneIndex = Qt::UserRole + 5;
-constexpr int kRoleSetIndex = Qt::UserRole + 6;
 constexpr int kLayerKindMesh = 1;
 constexpr int kLayerKindRaster = 2;
 
@@ -87,14 +87,6 @@ struct LayerTextureInfo {
 };
 
 std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &entry);
-
-// The eye that heads the layer list.
-const QPixmap &layerEyePixmap(bool open)
-{
-    static const QPixmap openEye(QStringLiteral(":/img/layer_eye_open.png"));
-    static const QPixmap closedEye(QStringLiteral(":/img/layer_eye_close.png"));
-    return open ? openEye : closedEye;
-}
 
 // The row's visibility check mark, with the modifier-key clicks on it -- Ctrl hides the others,
 // Alt shows the others, Shift inverts all -- intercepted in editorEvent and routed to the provided
@@ -1142,99 +1134,44 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
 
-    // Above the layers: the eye, which shows them all or hides them all, over the check marks of
-    // the rows. It is the one place the eye is drawn.
-    auto *eyeBar = new QWidget(this);
-    auto *eyeLayout = new QHBoxLayout(eyeBar);
-    eyeLayout->setContentsMargins(6, 1, 4, 1);
-    m_eyeAll = new QToolButton(eyeBar);
-    m_eyeAll->setObjectName(QStringLiteral("layerEyeAll"));
-    m_eyeAll->setAutoRaise(true);
-    m_eyeAll->setIconSize(QSize(18, 18));
-    connect(m_eyeAll, &QToolButton::clicked, this, &LayerWidget::toggleAllVisible);
-    eyeLayout->addWidget(m_eyeAll);
-    eyeLayout->addStretch(1);
-    mainLayout->addWidget(eyeBar);
-
     // Stacked widget holding tree (page 0) and table splitter (page 1)
     m_stack = new QStackedWidget(this);
     mainLayout->addWidget(m_stack, 1);
 
-    // The Sets section: a header that folds it, with the "+" that keeps what is visible now, and
-    // under it a row for each set. A drag reorders them, a click shows one, a double click
-    // renames it, a right click has the rest.
-    auto *setsHeader = new QWidget(this);
-    auto *setsHeaderLayout = new QHBoxLayout(setsHeader);
-    setsHeaderLayout->setContentsMargins(2, 0, 4, 0);
-    m_setsToggle = new QToolButton(setsHeader);
-    m_setsToggle->setText(tr("Sets"));
-    m_setsToggle->setAutoRaise(true);
-    m_setsToggle->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-    m_setsToggle->setToolTip(tr("Visibility sets: named groups of layers, each shown with one click"));
-    const bool setsExpanded = QSettings().value(QStringLiteral("layers/setsExpanded"), true).toBool();
-    m_setsToggle->setArrowType(setsExpanded ? Qt::DownArrow : Qt::RightArrow);
-    setsHeaderLayout->addWidget(m_setsToggle);
-    setsHeaderLayout->addStretch(1);
-    auto *addSet = new QToolButton(setsHeader);
-    addSet->setObjectName(QStringLiteral("visibilitySetAdd"));
+    // The visibility sets: a "+" that keeps what is visible now, and a chip for each set kept,
+    // which scrolls sideways when there are more than fit.
+    auto *setsBar = new QWidget(this);
+    auto *setsLayout = new QHBoxLayout(setsBar);
+    setsLayout->setContentsMargins(4, 2, 4, 2);
+    setsLayout->setSpacing(4);
+    auto *addSet = new QToolButton(setsBar);
     addSet->setText(QStringLiteral("+"));
     addSet->setAutoRaise(true);
     addSet->setToolTip(tr("Keep the layers that are visible now as a visibility set"));
     connect(addSet, &QToolButton::clicked, this, &LayerWidget::saveVisibilitySet);
-    setsHeaderLayout->addWidget(addSet);
-    mainLayout->addWidget(setsHeader);
-
-    m_setsBody = new QWidget(this);
-    auto *setsBodyLayout = new QVBoxLayout(m_setsBody);
-    setsBodyLayout->setContentsMargins(0, 0, 0, 2);
-    setsBodyLayout->setSpacing(0);
-    m_setsHint = new QLabel(tr("No sets yet. Show some layers and press + to keep them."), m_setsBody);
-    m_setsHint->setWordWrap(true);
-    m_setsHint->setContentsMargins(8, 0, 8, 0);
-    m_setsHint->setStyleSheet(QStringLiteral("color: palette(mid);"));
-    setsBodyLayout->addWidget(m_setsHint);
-    auto *setList = new LayerTreeWidget(kRoleSetIndex, m_setsBody);
-    setList->moveRequested = [this](int from, int to) { m_doc->moveVisibilitySet(from, to); };
-    m_setList = setList;
-    m_setList->setObjectName(QStringLiteral("visibilitySetList"));
-    m_setList->setColumnCount(3);
-    m_setList->setHeaderHidden(true);
-    m_setList->setRootIsDecorated(false);
-    m_setList->setIndentation(0);
-    m_setList->setUniformRowHeights(true);
-    m_setList->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_setList->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_setList->setContextMenuPolicy(Qt::CustomContextMenu);
-    m_setList->setMouseTracking(true);
-    m_setList->header()->setStretchLastSection(false);
-    m_setList->header()->setSectionResizeMode(0, QHeaderView::Stretch);
-    m_setList->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    m_setList->header()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-    // The pointer over a row previews its set, and leaving the list ends it.
-    m_setList->viewport()->installEventFilter(this);
-    connect(m_setList, &QTreeWidget::itemClicked, this, [this](QTreeWidgetItem *item, int) {
-        m_doc->showVisibilitySet(
-            item->data(0, kRoleSetIndex).toInt(),
-            QApplication::keyboardModifiers() & Qt::ShiftModifier);
-    });
-    connect(m_setList, &QTreeWidget::itemDoubleClicked, this, [this](QTreeWidgetItem *item, int) {
-        renameVisibilitySetDialog(item->data(0, kRoleSetIndex).toInt());
-    });
-    connect(m_setList, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
-        if (const QTreeWidgetItem *item = m_setList->itemAt(pos))
-            showVisibilitySetMenu(item->data(0, kRoleSetIndex).toInt(),
-                                  m_setList->viewport()->mapToGlobal(pos));
-    });
-    setsBodyLayout->addWidget(m_setList);
-    mainLayout->addWidget(m_setsBody);
-    m_setsBody->setVisible(setsExpanded);
-    // Not a checkable button, which would draw as pressed while open: the body's visibility is the state.
-    connect(m_setsToggle, &QToolButton::clicked, this, [this] {
-        const bool open = !m_setsBody->isVisibleTo(this);
-        m_setsToggle->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
-        m_setsBody->setVisible(open);
-        QSettings().setValue(QStringLiteral("layers/setsExpanded"), open);
-    });
+    setsLayout->addWidget(addSet);
+    auto *chipsScroll = new QScrollArea(setsBar);
+    chipsScroll->setFrameShape(QFrame::NoFrame);
+    chipsScroll->setWidgetResizable(true);
+    chipsScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    chipsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    auto *chipsHost = new QWidget(chipsScroll);
+    m_chipsLayout = new QHBoxLayout(chipsHost);
+    m_chipsLayout->setContentsMargins(0, 0, 0, 0);
+    m_chipsLayout->setSpacing(4);
+    m_chipsLayout->addStretch(1);
+    chipsScroll->setWidget(chipsHost);
+    // As tall as a chip is, which is not known from the host while it holds none: a chip's own size
+    // hint, and the scroll bar's too when the style draws one that takes room of its own.
+    QToolButton chipProbe;
+    chipProbe.setText(QStringLiteral("1 Ag"));
+    chipProbe.setAutoRaise(true);
+    int chipsHeight = chipProbe.sizeHint().height();
+    if (!style()->styleHint(QStyle::SH_ScrollBar_Transient, nullptr, chipsScroll->horizontalScrollBar()))
+        chipsHeight += chipsScroll->horizontalScrollBar()->sizeHint().height();
+    chipsScroll->setFixedHeight(chipsHeight);
+    setsLayout->addWidget(chipsScroll, 1);
+    mainLayout->addWidget(setsBar);
     // Alt+1 .. Alt+9 show the first nine sets, whichever widget has the focus.
     for (int i = 0; i < 9; ++i) {
         auto *shortcut = new QShortcut(QKeySequence(Qt::ALT | (Qt::Key_1 + i)), this);
@@ -1565,95 +1502,98 @@ void LayerWidget::rebuild()
     else
         rebuildTree();
     updateSummary();
-    refreshVisibilitySets();
-    updateEyeAll();
+    refreshVisibilitySetChips();
+    const auto [shown, total] = layerVisibility();
+    emit layerVisibilityChanged(shown, total);
     emit expansionChanged(anyLayerExpanded());
 }
 
-void LayerWidget::refreshVisibilitySets()
+void LayerWidget::refreshVisibilitySetChips()
 {
     const auto &sets = m_doc->visibilitySets();
-    // The rows are made again each time: there are few, and a set's name, its layer count and
-    // whether it is the one on screen all change with the document.
-    const QSignalBlocker blocker(m_setList);
-    m_setList->clear();
-    previewVisibilitySet(-1);   // the row under the pointer is gone, and no move will tell
-    QColor marked = palette().color(QPalette::Highlight);
-    marked.setAlpha(70);
-    for (int i = 0; i < int(sets.size()); ++i) {
-        QStringList layers;
-        for (std::uint64_t id : sets[size_t(i)].meshIds) {
+    QStringList names;
+    for (const Document::VisibilitySet &set : sets)
+        names << set.name;
+
+    if (names != m_chipNames) {
+        qDeleteAll(m_chips);
+        m_chips.clear();
+        previewVisibilitySet(-1);   // the chip under the pointer is gone, and no leave will come
+        m_chipNames = names;
+        for (int i = 0; i < sets.size(); ++i) {
+            auto *chip = new QToolButton(m_chipsLayout->parentWidget());
+            // The name only: the Alt+number shortcut of the first nine is in the tooltip.
+            chip->setText(sets[i].name.size() > 18
+                ? sets[i].name.left(17) + QStringLiteral("\u2026") : sets[i].name);
+            chip->setCheckable(true);
+            chip->setAutoRaise(true);
+            chip->setContextMenuPolicy(Qt::CustomContextMenu);
+            chip->installEventFilter(this);
+            connect(chip, &QToolButton::clicked, this, [this, i] {
+                m_doc->showVisibilitySet(i, QApplication::keyboardModifiers() & Qt::ShiftModifier);
+            });
+            connect(chip, &QToolButton::customContextMenuRequested, this, [this, i, chip](const QPoint &pos) {
+                showVisibilitySetMenu(i, chip->mapToGlobal(pos));
+            });
+            m_chipsLayout->insertWidget(i, chip);
+            m_chips.append(chip);
+        }
+    }
+    for (int i = 0; i < m_chips.size(); ++i) {
+        QToolButton *chip = m_chips[i];
+        QString layers;
+        for (std::uint64_t id : sets[i].meshIds) {
             const int index = m_doc->indexOfMeshId(id);
             if (index >= 0)
-                layers << m_doc->mesh(index).name;
+                layers += (layers.isEmpty() ? QString() : QStringLiteral(", ")) + m_doc->mesh(index).name;
         }
-        auto *item = new QTreeWidgetItem(m_setList);
-        item->setText(0, sets[size_t(i)].name);
-        item->setText(1, QString::number(layers.size()));
-        // The first nine are the ones the keys reach.
-        item->setText(2, i < 9 ? tr("Alt+%1").arg(i + 1) : QString());
-        item->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
-        item->setForeground(2, palette().color(QPalette::PlaceholderText));
-        item->setData(0, kRoleSetIndex, i);
-        item->setToolTip(0, tr("%1\nShows: %2\nClick to show only these layers, Shift+click to add "
-                               "them to the visible ones, double-click to rename, drag to reorder, "
-                               "right-click for more")
-                                .arg(sets[size_t(i)].name,
-                                     layers.isEmpty() ? tr("(no layer left)") : layers.join(QStringLiteral(", "))));
-        if (m_doc->visibilitySetIsShown(i)) {
-            QFont bold = item->font(0);
-            bold.setBold(true);
-            for (int column = 0; column < 3; ++column) {
-                item->setFont(column, bold);
-                item->setBackground(column, marked);
-            }
-        }
-    }
-    // Up to six rows are shown at once, then the list scrolls; with none, a line says how to start.
-    const int rows = int(sets.size());
-    m_setsHint->setVisible(rows == 0);
-    m_setList->setVisible(rows > 0);
-    if (rows > 0) {
-        const int rowHeight = std::max(16, m_setList->sizeHintForRow(0));
-        m_setList->setFixedHeight(std::min(rows, 6) * rowHeight + 2 * m_setList->frameWidth());
+        chip->setToolTip(tr("%1\nShows: %2\nClick to show only these layers, Shift+click to add them to "
+                            "the visible ones, right-click for more%3")
+                             .arg(sets[i].name, layers.isEmpty() ? tr("(no layer left)") : layers,
+                                  i < 9 ? tr(". Alt+%1.").arg(i + 1) : QString()));
+        const QSignalBlocker blocker(chip);
+        chip->setChecked(m_doc->visibilitySetIsShown(i));
     }
 }
 
-void LayerWidget::toggleAllVisible()
+int LayerWidget::disclosureArrowCenter() const
 {
-    bool allVisible = m_doc->meshCount() + m_doc->rasterCount() > 0;
-    for (int i = 0; i < m_doc->meshCount(); ++i)
-        allVisible = allVisible && m_doc->mesh(i).visible;
-    for (int i = 0; i < m_doc->rasterCount(); ++i)
-        allVisible = allVisible && m_doc->raster(i).visible;
-    for (int i = 0; i < m_doc->meshCount(); ++i)
-        m_doc->setMeshVisible(i, !allVisible);
-    for (int i = 0; i < m_doc->rasterCount(); ++i)
-        m_doc->setRasterVisible(i, !allVisible);
+    // The arrows sit in the indentation that comes before a top-level row.
+    return m_meshTree->frameWidth() + m_meshTree->indentation() / 2;
 }
 
-void LayerWidget::updateEyeAll()
+int LayerWidget::visibilityCheckCenter() const
+{
+    // The check mark is where the style puts it in the first column of a top-level row, which
+    // begins after that indentation.
+    QStyleOptionViewItem option;
+    option.initFrom(m_meshTree);
+    option.widget = m_meshTree;
+    option.features = QStyleOptionViewItem::HasCheckIndicator;
+    option.checkState = Qt::Checked;
+    option.rect = QRect(0, 0, m_meshTree->columnWidth(0), m_meshTree->fontMetrics().height() + 4);
+    const QRect check = style()->subElementRect(QStyle::SE_ItemViewItemCheckIndicator, &option, m_meshTree);
+    return m_meshTree->frameWidth() + m_meshTree->indentation() + check.center().x();
+}
+
+std::pair<int, int> LayerWidget::layerVisibility() const
 {
     int shown = 0;
-    const int total = m_doc->meshCount() + m_doc->rasterCount();
     for (int i = 0; i < m_doc->meshCount(); ++i)
         shown += m_doc->mesh(i).visible ? 1 : 0;
     for (int i = 0; i < m_doc->rasterCount(); ++i)
         shown += m_doc->raster(i).visible ? 1 : 0;
-    // Open when every layer is shown, closed when none is, and open but faded in between.
-    QPixmap pixmap = layerEyePixmap(shown > 0);
-    if (shown > 0 && shown < total) {
-        QPixmap faded(pixmap.size());
-        faded.fill(Qt::transparent);
-        QPainter painter(&faded);
-        painter.setOpacity(0.45);
-        painter.drawPixmap(0, 0, pixmap);
-        painter.end();
-        pixmap = faded;
-    }
-    m_eyeAll->setIcon(QIcon(pixmap));
-    m_eyeAll->setEnabled(total > 0);
-    m_eyeAll->setToolTip(shown == total && total > 0 ? tr("Hide all layers") : tr("Show all layers"));
+    return { shown, m_doc->meshCount() + m_doc->rasterCount() };
+}
+
+void LayerWidget::toggleAllVisible()
+{
+    const auto [shown, total] = layerVisibility();
+    const bool show = shown < total;
+    for (int i = 0; i < m_doc->meshCount(); ++i)
+        m_doc->setMeshVisible(i, show);
+    for (int i = 0; i < m_doc->rasterCount(); ++i)
+        m_doc->setRasterVisible(i, show);
 }
 
 QString LayerWidget::askVisibilitySetName()
@@ -1678,14 +1618,10 @@ void LayerWidget::saveVisibilitySet()
 
 bool LayerWidget::eventFilter(QObject *watched, QEvent *event)
 {
-    if (m_setList && watched == m_setList->viewport()) {
-        if (event->type() == QEvent::MouseMove) {
-            const QTreeWidgetItem *item =
-                m_setList->itemAt(static_cast<QMouseEvent *>(event)->position().toPoint());
-            previewVisibilitySet(item ? item->data(0, kRoleSetIndex).toInt() : -1);
-        } else if (event->type() == QEvent::Leave) {
-            previewVisibilitySet(-1);
-        }
+    if (event->type() == QEvent::Enter || event->type() == QEvent::Leave) {
+        const int index = m_chips.indexOf(qobject_cast<QToolButton *>(watched));
+        if (index >= 0)
+            previewVisibilitySet(event->type() == QEvent::Enter ? index : -1);
     }
     return QWidget::eventFilter(watched, event);
 }
@@ -1748,18 +1684,6 @@ void LayerWidget::addVisibilitySetActions(QMenu &menu, int meshIndex)
     remove->setEnabled(!remove->isEmpty());
 }
 
-void LayerWidget::renameVisibilitySetDialog(int index)
-{
-    if (index < 0 || index >= int(m_doc->visibilitySets().size()))
-        return;
-    bool ok = false;
-    const QString name = QInputDialog::getText(
-        this, tr("Rename Visibility Set"), tr("Name:"), QLineEdit::Normal,
-        m_doc->visibilitySets()[size_t(index)].name, &ok);
-    if (ok)
-        m_doc->renameVisibilitySet(index, name);
-}
-
 void LayerWidget::showVisibilitySetMenu(int index, const QPoint &globalPos)
 {
     QMenu menu(this);
@@ -1769,7 +1693,12 @@ void LayerWidget::showVisibilitySetMenu(int index, const QPoint &globalPos)
     QAction *remove = menu.addAction(tr("Delete"));
     QAction *chosen = menu.exec(globalPos);
     if (chosen == rename) {
-        renameVisibilitySetDialog(index);
+        bool ok = false;
+        const QString name = QInputDialog::getText(
+            this, tr("Rename Visibility Set"), tr("Name:"), QLineEdit::Normal,
+            m_doc->visibilitySets()[index].name, &ok);
+        if (ok)
+            m_doc->renameVisibilitySet(index, name);
     } else if (chosen == update) {
         m_doc->updateVisibilitySet(index);
     } else if (chosen == remove) {

@@ -478,6 +478,7 @@ private slots:
     void open3dFastGlobalRegistrationCanUseAllVisibleLayersAsReference();
     void open3dAlignMeshesSequentiallyRestartsAfterAFailedPair();
     void open3dAlignMeshesSequentiallyCanUseFastGlobalRegistration();
+    void open3dAlignMeshesSequentiallyReferenceModes();
     void open3dAlignMeshesSequentiallyChecksThePairErrorAndTriesAgain();
     void open3dAlignSetsByFeatureMatchingMovesTheWholeMovingSet();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
@@ -5051,6 +5052,100 @@ void FilterTests::open3dAlignMeshesSequentiallyCanUseFastGlobalRegistration()
     byDefault.insert(QStringLiteral("coarseMethod"), QStringLiteral("nonsense"));
     QString why;
     QVERIFY(!doc.validateFilterInvocation(sequentialKey, byDefault, why));
+}
+
+// What each layer is registered onto. The fourth scan is 135 degrees of turntable from the third,
+// which it does not register onto, but 45 degrees from the first, which is in the group: with the
+// whole group as the reference, in the third mode only after the previous layer has failed, it joins.
+// The coarse method is Fast Global Registration, which is quick to fail; a failed RANSAC pair spends
+// its whole sampling budget.
+void FilterTests::open3dAlignMeshesSequentiallyReferenceModes()
+{
+    Document probe;
+    const QString sequentialKey = filterKeyForId(probe, QStringLiteral("align_meshes_sequentially_open3d"));
+    if (sequentialKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+    const QString normalsKey = filterKeyForId(probe, QStringLiteral("compute_vertex_normals"));
+    QVERIFY(!normalsKey.isEmpty());
+    MESHLAB2_REQUIRE_DATASET(firstScan, "rangemaps/faccia000.ply");
+    MESHLAB2_REQUIRE_DATASET(projectPath, "rangemaps/partial.mlp");
+    const QString folder = QFileInfo(firstScan).absolutePath();
+    const QStringList scans = { QStringLiteral("faccia000.ply"), QStringLiteral("faccia045.ply"),
+                                QStringLiteral("faccia090.ply"), QStringLiteral("faccia315.ply") };
+    std::vector<QMatrix4x4> expected;
+    QVERIFY(expectedRelativePoses(projectPath, scans, expected));
+
+    struct Run {
+        MeshFilterRunResult result;
+        QStringList log;
+        float lastError = 0.0f;   // of the fourth scan, as a share of the diagonal
+        size_t sets = 0;
+        size_t lastSetSize = 0;
+    };
+    const auto run = [&](const QString &mode, int attempts) {
+        Document doc;
+        for (const QString &name : scans) {
+            const int index = doc.loadMesh(QDir(folder).filePath(name));
+            doc.setCurrentMeshIndex(index);
+            doc.runFilter(normalsKey, {});
+        }
+        doc.setCurrentMeshIndex(0);
+        const size_t logBefore = doc.logMessages().size();
+        MeshFilterParameterValues values;
+        values.insert(QStringLiteral("referenceMesh"), 0);
+        values.insert(QStringLiteral("randomSeed"), 1);
+        values.insert(QStringLiteral("referenceMode"), mode);
+        values.insert(QStringLiteral("coarseMethod"), QStringLiteral("fastGlobalRegistration"));
+        values.insert(QStringLiteral("attempts"), attempts);
+        Run out;
+        out.result = doc.runFilter(sequentialKey, values);
+        for (size_t i = logBefore; i < doc.logMessages().size(); ++i)
+            out.log << doc.logMessages()[i].message;
+        const float diagonal = doc.mesh(0).mesh.bbox.Diag();
+        out.lastError = posePointError(doc.mesh(3).mesh,
+                                       doc.mesh(0).transform.inverted() * doc.mesh(3).transform,
+                                       expected[3]) / diagonal;
+        out.sets = doc.visibilitySets().size();
+        out.lastSetSize = doc.visibilitySets().empty() ? 0 : doc.visibilitySets().back().meshIds.size();
+        return out;
+    };
+    const auto has = [](const QStringList &log, const QString &text) {
+        return std::any_of(log.begin(), log.end(),
+                           [&text](const QString &line) { return line.contains(text); });
+    };
+
+    // Previous layer only: the layer before the last is the only reference, and it does not do.
+    const Run previous = run(QStringLiteral("previous"), 3);
+    QVERIFY2(previous.result.success, qPrintable(previous.result.errorMessage));
+    QVERIFY(has(previous.log, QStringLiteral("Failed to align 'faccia315.ply' onto 'faccia090.ply'")));
+    QVERIFY(!has(previous.log, QStringLiteral("aligned layer(s)")));
+    QVERIFY(previous.lastError > 0.05f);   // left where it was found
+
+    // The group as the reference at every step, named in the log from the second step on.
+    const Run all = run(QStringLiteral("allAligned"), 3);
+    QVERIFY2(all.result.success, qPrintable(all.result.errorMessage));
+    QVERIFY(has(all.log, QStringLiteral("aligning 'faccia090.ply' onto 'the 2 aligned layer(s)'")));
+    QVERIFY(has(all.log, QStringLiteral("aligning 'faccia315.ply' onto 'the 3 aligned layer(s)'")));
+
+    // Previous layer, the group on failure: the fourth scan ends up registered, in the one group,
+    // and, if the previous layer did fail it, the log says it went on to the group.
+    const Run onFailure = run(QStringLiteral("allAlignedOnFailure"), 3);
+    QVERIFY2(onFailure.result.success, qPrintable(onFailure.result.errorMessage));
+    QVERIFY2(onFailure.lastError < 0.02f,
+             qPrintable(QStringLiteral("landed %1% of the diagonal off").arg(100.0f * onFailure.lastError)));
+    QCOMPARE(onFailure.sets, size_t(1));
+    QCOMPARE(onFailure.lastSetSize, size_t(4));
+    QVERIFY(!has(onFailure.log, QStringLiteral("Failed to align")));
+    QVERIFY(has(onFailure.log, QStringLiteral("Pair 3 of 3: aligning 'faccia315.ply' onto 'faccia090.ply'")));
+    if (has(onFailure.log, QStringLiteral("trying it onto the 3 aligned layer(s) together")))
+        QVERIFY(has(onFailure.log, QStringLiteral("Aligned 'faccia315.ply' onto 'the 3 aligned layer(s)'")));
+
+    // A value that is none of the three is refused.
+    Document doc;
+    MeshFilterParameterValues bad;
+    bad.insert(QStringLiteral("referenceMode"), QStringLiteral("nonsense"));
+    QString why;
+    QVERIFY(!doc.validateFilterInvocation(sequentialKey, bad, why));
 }
 
 // The check after ICP, and the retries. The side scan of the restart test registers onto the face

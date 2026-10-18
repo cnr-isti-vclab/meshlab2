@@ -4,9 +4,7 @@
 #include "layerwidget.h"
 
 #include <QImage>
-#include <QSettings>
-#include <QTemporaryDir>
-#include <QMouseEvent>
+#include <QScrollArea>
 #include <QTreeWidget>
 #include <QToolButton>
 #include <vcg/complex/allocate.h>
@@ -17,22 +15,11 @@ class LayerWidgetTests : public QObject
 {
     Q_OBJECT
 
-    QTemporaryDir m_settings;
-
 private slots:
-    // The panel remembers whether the Sets section is folded; a test must not change the user's.
-    void initTestCase()
-    {
-        QVERIFY(m_settings.isValid());
-        QSettings::setDefaultFormat(QSettings::IniFormat);
-        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, m_settings.path());
-    }
-    void theSetsSectionListsTheSetsWithTheirLayerCounts();
-    void theSetsSectionFoldsAndRemembersIt();
-    void clickingASetShowsItAndShiftAddsIt();
-    void hoveringASetShadesItsLayersRows();
-    void theEyeAboveTheLayersShowsThemAllOrHidesThemAll();
-    void aDragOnTheSetListReordersTheSets();
+    void visibilitySetChipsAreFullyVisibleAndNormallySized();
+    void hoveringASetChipShadesItsLayersRows();
+    void theEyeShowsAllOrHidesAllAndSaysWhatIsShown();
+    void theTitleBarButtonsGoOverTheArrowsAndTheCheckMarks();
 };
 
 namespace {
@@ -49,222 +36,187 @@ int addTinyMesh(Document &doc, const QString &name)
     return doc.addMesh(m, name, vcg::tri::io::Mask::IOM_VERTCOORD);
 }
 
-// Shows a widget and waits for the queued rebuild that fills the sets and the eye.
-void showAndSettle(LayerWidget &widget)
+} // namespace
+
+// The chips under the layer list were first sized from the host widget before any chip was in
+// it, which left the row a few pixels high and every chip cut off. They have to be as tall as a
+// tool button needs, and wholly inside the row.
+void LayerWidgetTests::visibilitySetChipsAreFullyVisibleAndNormallySized()
 {
-    widget.resize(320, 460);
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("a"));
+    addTinyMesh(doc, QStringLiteral("b"));
+    doc.addVisibilitySet(QStringLiteral("front"), doc.visibleMeshIds());
+    doc.addVisibilitySet(QStringLiteral("a long name that gets cut"), { doc.mesh(0).meshId });
+
+    LayerWidget widget(&doc);
+    widget.resize(320, 420);
+    widget.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&widget));
+    QTest::qWait(50);   // the chips are made when the queued rebuild runs
+
+    const QString dir = qEnvironmentVariable("MESHLAB2_GRAB_DIR");
+    if (!dir.isEmpty())
+        widget.grab().save(dir + QStringLiteral("/layerwidget.png"));
+
+    QList<QToolButton *> chips;
+    for (QToolButton *button : widget.findChildren<QToolButton *>()) {
+        if (button->isCheckable())
+            chips << button;
+    }
+    QCOMPARE(chips.size(), 2);
+
+    QToolButton reference;
+    reference.setText(QStringLiteral("front"));
+    reference.setAutoRaise(true);
+    for (QToolButton *chip : chips) {
+        QVERIFY2(chip->height() >= reference.sizeHint().height() - 2, qPrintable(chip->text()));
+        QVERIFY2(chip->height() <= reference.sizeHint().height() + 12, qPrintable(chip->text()));
+        const QWidget *viewport = chip->parentWidget()->parentWidget();   // host -> scroll viewport
+        QVERIFY2(viewport->rect().contains(chip->geometry().adjusted(0, 0, -1, -1)),
+                 qPrintable(chip->text()));
+    }
+
+}
+
+// Hovering a chip previews its set: the rows of its layers are shaded, the others are not, and the
+// shade goes when the pointer leaves.
+void LayerWidgetTests::hoveringASetChipShadesItsLayersRows()
+{
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("a"));
+    addTinyMesh(doc, QStringLiteral("b"));
+    doc.addVisibilitySet(QStringLiteral("only a"), { doc.mesh(0).meshId });
+
+    LayerWidget widget(&doc);
+    widget.resize(320, 420);
     widget.show();
     QVERIFY(QTest::qWaitForWindowExposed(&widget));
     QTest::qWait(50);
-}
 
-QTreeWidget *setList(LayerWidget &widget)
-{
-    return widget.findChild<QTreeWidget *>(QStringLiteral("visibilitySetList"));
-}
-
-QTreeWidget *meshTree(LayerWidget &widget)
-{
+    QTreeWidget *tree = nullptr;
     for (QTreeWidget *candidate : widget.findChildren<QTreeWidget *>()) {
-        if (candidate->objectName() != QLatin1String("visibilitySetList")
-            && candidate->topLevelItemCount() > 0)
-            return candidate;
+        if (candidate->topLevelItemCount() == 2)
+            tree = candidate;
     }
-    return nullptr;
-}
-
-QPoint rowCenter(QTreeWidget *tree, int row)
-{
-    return tree->visualItemRect(tree->topLevelItem(row)).center();
-}
-
-} // namespace
-
-// Each set is a row with its full name, how many layers it holds, and the key that shows it (the
-// first nine); the set on screen is marked; the section says how to start while there are none.
-void LayerWidgetTests::theSetsSectionListsTheSetsWithTheirLayerCounts()
-{
-    Document doc;
-    addTinyMesh(doc, QStringLiteral("a"));
-    addTinyMesh(doc, QStringLiteral("b"));
-    addTinyMesh(doc, QStringLiteral("c"));
-    LayerWidget widget(&doc);
-    showAndSettle(widget);
-    QTreeWidget *list = setList(widget);
-    QVERIFY(list);
-    QVERIFY(list->isHidden());   // nothing to list yet; the hint is shown instead
-
-    doc.addVisibilitySet(QStringLiteral("everything, and with a name that is long"), doc.visibleMeshIds());
-    doc.addVisibilitySet(QStringLiteral("only a"), { doc.mesh(0).meshId });
-    QTest::qWait(50);
-    QVERIFY(!list->isHidden());
-    QCOMPARE(list->topLevelItemCount(), 2);
-    // The whole name, not cut to fit.
-    QCOMPARE(list->topLevelItem(0)->text(0), QStringLiteral("everything, and with a name that is long"));
-    QCOMPARE(list->topLevelItem(0)->text(1), QStringLiteral("3"));
-    QCOMPARE(list->topLevelItem(0)->text(2), QStringLiteral("Alt+1"));
-    QCOMPARE(list->topLevelItem(1)->text(1), QStringLiteral("1"));
-    QCOMPARE(list->topLevelItem(1)->text(2), QStringLiteral("Alt+2"));
-    // Everything is visible, so the first set is the one on screen.
-    QVERIFY(list->topLevelItem(0)->font(0).bold());
-    QVERIFY(!list->topLevelItem(1)->font(0).bold());
-
-    // The "+" keeps what is visible as a set, under the name asked for; its button is there.
-    QVERIFY(widget.findChild<QToolButton *>(QStringLiteral("visibilitySetAdd")));
-}
-
-void LayerWidgetTests::theSetsSectionFoldsAndRemembersIt()
-{
-    Document doc;
-    addTinyMesh(doc, QStringLiteral("a"));
-    doc.addVisibilitySet(QStringLiteral("a"), { doc.mesh(0).meshId });
-    {
-        LayerWidget widget(&doc);
-        showAndSettle(widget);
-        QTreeWidget *list = setList(widget);
-        QToolButton *fold = nullptr;
-        for (QToolButton *button : widget.findChildren<QToolButton *>()) {
-            if (button->text() == QStringLiteral("Sets"))
-                fold = button;
-        }
-        QVERIFY(fold);
-        QVERIFY(list->isVisible());
-        fold->click();
-        QVERIFY(!list->isVisible());
+    QVERIFY(tree);
+    QToolButton *chip = nullptr;
+    for (QToolButton *button : widget.findChildren<QToolButton *>()) {
+        if (button->isCheckable())
+            chip = button;
     }
-    // A new panel opens as the last one was left.
-    LayerWidget again(&doc);
-    showAndSettle(again);
-    QVERIFY(!setList(again)->isVisible());
-    for (QToolButton *button : again.findChildren<QToolButton *>()) {
-        if (button->text() == QStringLiteral("Sets"))
-            button->click();
-    }
-    QVERIFY(setList(again)->isVisible());
-}
-
-void LayerWidgetTests::clickingASetShowsItAndShiftAddsIt()
-{
-    Document doc;
-    addTinyMesh(doc, QStringLiteral("a"));
-    addTinyMesh(doc, QStringLiteral("b"));
-    addTinyMesh(doc, QStringLiteral("c"));
-    doc.addVisibilitySet(QStringLiteral("a"), { doc.mesh(0).meshId });
-    doc.addVisibilitySet(QStringLiteral("b"), { doc.mesh(1).meshId });
-    LayerWidget widget(&doc);
-    showAndSettle(widget);
-    QTreeWidget *list = setList(widget);
-
-    QTest::mouseClick(list->viewport(), Qt::LeftButton, {}, rowCenter(list, 0));
-    QVERIFY(doc.mesh(0).visible && !doc.mesh(1).visible && !doc.mesh(2).visible);
-    QTest::qWait(50);   // the marked row follows
-    QVERIFY(list->topLevelItem(0)->font(0).bold());
-
-    // Shift adds the set to what is visible.
-    QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::ShiftModifier, rowCenter(list, 1));
-    QVERIFY(doc.mesh(0).visible && doc.mesh(1).visible && !doc.mesh(2).visible);
-}
-
-// Hovering a row previews its set: the rows of its layers are shaded, the others are not, the
-// detail rows go with their layer, and the shade goes when the pointer leaves.
-void LayerWidgetTests::hoveringASetShadesItsLayersRows()
-{
-    Document doc;
-    addTinyMesh(doc, QStringLiteral("a"));
-    addTinyMesh(doc, QStringLiteral("b"));
-    doc.addVisibilitySet(QStringLiteral("only a"), { doc.mesh(0).meshId });
-    LayerWidget widget(&doc);
-    showAndSettle(widget);
-
-    QTreeWidget *layers = meshTree(widget);
-    QTreeWidget *list = setList(widget);
-    QVERIFY(layers && list);
+    QVERIFY(chip);
 
     // The right-hand end of each layer's row, clear of its text.
     const auto sample = [&](int row) {
-        const QRect rect = layers->visualItemRect(layers->topLevelItem(row));
-        return layers->viewport()->grab().toImage().pixelColor(rect.right() - 6, rect.center().y());
-    };
-    const auto detailSample = [&](int top) {
-        const QRect rect = layers->visualItemRect(layers->topLevelItem(top)->child(0));
-        return layers->viewport()->grab().toImage().pixelColor(rect.right() - 6, rect.center().y());
+        const QRect rect = tree->visualItemRect(tree->topLevelItem(row));
+        return tree->viewport()->grab().toImage().pixelColor(rect.right() - 6, rect.center().y());
     };
     const QColor rowABefore = sample(0);
     const QColor rowBBefore = sample(1);
 
-    const QPointF over = rowCenter(list, 0);
-    QMouseEvent move(QEvent::MouseMove, over, list->viewport()->mapToGlobal(over),
-                     Qt::NoButton, Qt::NoButton, Qt::NoModifier);
-    QCoreApplication::sendEvent(list->viewport(), &move);
+    QEvent enter(QEvent::Enter);
+    QCoreApplication::sendEvent(chip, &enter);
     QTest::qWait(20);
     QVERIFY(sample(0) != rowABefore);
     QCOMPARE(sample(1), rowBBefore);
-    QVERIFY(layers->topLevelItem(0)->childCount() > 0);
+    // The detail rows under a layer are shaded with it, and the other layer's are not.
+    const auto detailSample = [&](int top) {
+        QTreeWidgetItem *child = tree->topLevelItem(top)->child(0);
+        const QRect rect = tree->visualItemRect(child);
+        return tree->viewport()->grab().toImage().pixelColor(rect.right() - 6, rect.center().y());
+    };
+    QVERIFY(tree->topLevelItem(0)->childCount() > 0);
     QVERIFY(detailSample(0) != detailSample(1));
-
     const QString dir = qEnvironmentVariable("MESHLAB2_GRAB_DIR");
     if (!dir.isEmpty())
         widget.grab().save(dir + QStringLiteral("/layerwidget_hover.png"));
 
     QEvent leave(QEvent::Leave);
-    QCoreApplication::sendEvent(list->viewport(), &leave);
+    QCoreApplication::sendEvent(chip, &leave);
     QTest::qWait(20);
     QCOMPARE(sample(0), rowABefore);
 }
 
-// The one eye, above the check marks: it shows every layer, or hides every layer when they all
-// are shown, and says which it will do.
-void LayerWidgetTests::theEyeAboveTheLayersShowsThemAllOrHidesThemAll()
+// The eye in the title bar: its action shows every layer, or hides every layer when they all are
+// shown, and the panel says how many are shown so that the eye can be drawn open, closed or half.
+void LayerWidgetTests::theEyeShowsAllOrHidesAllAndSaysWhatIsShown()
 {
     Document doc;
+    LayerWidget widget(&doc);
+    QCOMPARE(widget.layerVisibility(), std::make_pair(0, 0));
+    widget.toggleAllVisible();   // no layers: nothing to do, and no harm
+
     addTinyMesh(doc, QStringLiteral("a"));
     addTinyMesh(doc, QStringLiteral("b"));
-    LayerWidget widget(&doc);
-    showAndSettle(widget);
-    auto *eye = widget.findChild<QToolButton *>(QStringLiteral("layerEyeAll"));
-    QVERIFY(eye && eye->isEnabled());
-    QVERIFY(eye->toolTip().contains(QStringLiteral("Hide")));
+    QSignalSpy spy(&widget, &LayerWidget::layerVisibilityChanged);
+    QCOMPARE(widget.layerVisibility(), std::make_pair(2, 2));
 
-    eye->click();
+    widget.toggleAllVisible();
     QVERIFY(!doc.mesh(0).visible && !doc.mesh(1).visible);
-    QTest::qWait(50);
-    QVERIFY(eye->toolTip().contains(QStringLiteral("Show")));
+    QCOMPARE(widget.layerVisibility(), std::make_pair(0, 2));
+    QTRY_VERIFY(!spy.isEmpty());   // the rebuild that follows reports it
+    QCOMPARE(spy.last().at(0).toInt(), 0);
+    QCOMPARE(spy.last().at(1).toInt(), 2);
 
-    // Partly shown: the next click shows the rest, rather than hiding what is shown.
+    // Partly shown: the next action shows the rest, rather than hiding what is shown.
     doc.setMeshVisible(0, true);
-    QTest::qWait(50);
-    QVERIFY(eye->toolTip().contains(QStringLiteral("Show")));
-    eye->click();
+    QCOMPARE(widget.layerVisibility(), std::make_pair(1, 2));
+    widget.toggleAllVisible();
     QVERIFY(doc.mesh(0).visible && doc.mesh(1).visible);
-
-    // With no layers there is nothing to toggle.
-    Document empty;
-    LayerWidget emptyWidget(&empty);
-    showAndSettle(emptyWidget);
-    QVERIFY(!emptyWidget.findChild<QToolButton *>(QStringLiteral("layerEyeAll"))->isEnabled());
+    widget.toggleAllVisible();
+    QVERIFY(!doc.mesh(0).visible && !doc.mesh(1).visible);
 }
 
-// Dragging a row of the set list is a move of the set in the document, which is one undo step and
-// is what the Alt+number keys follow.
-void LayerWidgetTests::aDragOnTheSetListReordersTheSets()
+// The title bar puts its collapse-all button over the disclosure arrows and its eye over the check
+// marks, at the places the panel reports; they have to be where the style really draws them.
+void LayerWidgetTests::theTitleBarButtonsGoOverTheArrowsAndTheCheckMarks()
 {
     Document doc;
     addTinyMesh(doc, QStringLiteral("a"));
-    doc.addVisibilitySet(QStringLiteral("first"), { doc.mesh(0).meshId });
-    doc.addVisibilitySet(QStringLiteral("second"), { doc.mesh(0).meshId });
-    doc.addVisibilitySet(QStringLiteral("third"), { doc.mesh(0).meshId });
     LayerWidget widget(&doc);
-    showAndSettle(widget);
+    widget.resize(320, 420);
+    widget.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&widget));
+    QTest::qWait(50);
 
-    doc.moveVisibilitySet(0, 2);   // what the drop asks for
-    QTest::qWait(50);
-    QTreeWidget *list = setList(widget);
-    QCOMPARE(list->topLevelItem(0)->text(0), QStringLiteral("second"));
-    QCOMPARE(list->topLevelItem(2)->text(0), QStringLiteral("first"));
-    QCOMPARE(list->topLevelItem(0)->text(2), QStringLiteral("Alt+1"));
-    QVERIFY(doc.undo());
-    QTest::qWait(50);
-    QCOMPARE(list->topLevelItem(0)->text(0), QStringLiteral("first"));
+    QTreeWidget *tree = nullptr;
+    for (QTreeWidget *candidate : widget.findChildren<QTreeWidget *>()) {
+        if (candidate->topLevelItemCount() == 1)
+            tree = candidate;
+    }
+    QVERIFY(tree);
+    QCOMPARE(tree->mapTo(&widget, QPoint(0, 0)).x(), 0);   // the places are counted from this edge
+
+    // The first run of columns with ink in a stretch of the row: the arrow, the check mark, and
+    // not the text that follows it.
+    const QImage image = tree->viewport()->grab().toImage();
+    const QRect rowRect = tree->visualItemRect(tree->topLevelItem(0));
+    const QColor background = image.pixelColor(image.width() - 2, rowRect.center().y());
+    const auto inkCenter = [&](int from, int to) {
+        int first = -1, last = -1;
+        for (int x = from; x < to; ++x) {
+            bool ink = false;
+            for (int y = rowRect.top() + 2; y < rowRect.bottom() - 1 && !ink; ++y)
+                ink = image.pixelColor(x, y) != background;
+            if (ink) {
+                first = first < 0 ? x : first;
+                last = x;
+            } else if (first >= 0) {
+                break;
+            }
+        }
+        return first < 0 ? -1.0 : (first + last) / 2.0;
+    };
+    const int indentation = tree->indentation();
+    const int offset = tree->frameWidth();
+    const double arrow = inkCenter(0, indentation);
+    const double check = inkCenter(indentation, indentation + tree->columnWidth(0));
+    QVERIFY(arrow >= 0 && check >= 0);
+    QVERIFY2(qAbs(arrow + offset - widget.disclosureArrowCenter()) <= 3,
+             qPrintable(QStringLiteral("arrow ink %1, reported %2").arg(arrow + offset).arg(widget.disclosureArrowCenter())));
+    QVERIFY2(qAbs(check + offset - widget.visibilityCheckCenter()) <= 3,
+             qPrintable(QStringLiteral("check ink %1, reported %2").arg(check + offset).arg(widget.visibilityCheckCenter())));
 }
 
 QTEST_MAIN(LayerWidgetTests)

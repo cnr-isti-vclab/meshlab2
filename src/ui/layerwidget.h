@@ -2,6 +2,7 @@
 
 #include <QPair>
 #include <cstdint>
+#include <utility>
 #include <vector>
 #include <QVariantMap>
 #include <QWidget>
@@ -14,7 +15,6 @@ class QSplitter;
 class QHBoxLayout;
 class QToolButton;
 class QMenu;
-class QLabel;
 
 class LayerWidget : public QWidget
 {
@@ -38,6 +38,16 @@ public:
     bool anyLayerExpanded() const;
     // Collapses every layer if any is open, and opens them all if none is.
     void toggleExpandAll();
+    // How many layers (meshes and rasters) are shown, and how many there are: what the eye in the
+    // title bar draws.
+    std::pair<int, int> layerVisibility() const;
+    // The eye's action: shows every layer, or hides every layer when they all are shown.
+    void toggleAllVisible();
+    // Where, from the panel's left edge, the tree's two narrow columns are centred -- the
+    // disclosure arrows and the visibility check marks -- so that the title bar can put its
+    // two buttons above them.
+    int disclosureArrowCenter() const;
+    int visibilityCheckCenter() const;
 
 signals:
     // Run a filter now, with these parameters, rather than opening its panel: what a layer
@@ -47,11 +57,13 @@ signals:
     void summaryChanged(const QString &text);
     // Emitted when the answer to anyLayerExpanded() may have changed.
     void expansionChanged(bool anyExpanded);
+    // Emitted when the answer to layerVisibility() may have changed.
+    void layerVisibilityChanged(int shown, int total);
     void filterActionRequested(const QString &filterKey);
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
-    // Hovering a set's row previews it: its layers' rows are shaded.
+    // Hovering a set's chip previews it: its layers' rows are shaded.
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
@@ -91,14 +103,11 @@ private:
     // point has to be mapped before it means anything.
     LayerItemRef layerRefAt(const QPoint &widgetPos) const;
     void updateCurrentItemVisuals();
-    // The Sets section under the layers: a row for each of the document's visibility sets with the
-    // number of layers it holds and the Alt+number that shows it, and a "+" in its header that makes
-    // a new one from what is visible now. The row of the set that is on screen is marked.
-    void refreshVisibilitySets();
-    // The eye above the layers: shows them all, or hides them all when they all are shown.
-    void toggleAllVisible();
-    void updateEyeAll();
-    void renameVisibilitySetDialog(int index);
+    // The row of chips under the layers, one for each of the document's visibility sets and a
+    // "+" that makes a new one from what is visible now. The chips are made again when the
+    // sets' names change and otherwise only have their highlight brought up to date -- the
+    // highlight says which set, if any, is what is on screen.
+    void refreshVisibilitySetChips();
     void saveVisibilitySet();
     // The name asked of the user for a new set; empty if they cancel.
     QString askVisibilitySetName();
@@ -134,10 +143,8 @@ private:
     QTreeWidget *m_rasterTree = nullptr;
     QTableWidget *m_meshTable = nullptr;
     QTableWidget *m_rasterTable = nullptr;
-    QToolButton *m_eyeAll = nullptr;
-    QToolButton *m_setsToggle = nullptr;
-    QWidget *m_setsBody = nullptr;
-    QLabel *m_setsHint = nullptr;
-    QTreeWidget *m_setList = nullptr;
+    QHBoxLayout *m_chipsLayout = nullptr;
+    QList<QToolButton *> m_chips;
+    QStringList m_chipNames;
     std::vector<std::uint64_t> m_previewMeshIds;
 };

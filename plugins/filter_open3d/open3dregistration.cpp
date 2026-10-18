@@ -1069,6 +1069,11 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
     const int pairCount = int(chain.size()) - 1;
     const bool refine = params.getBool(QStringLiteral("globalRefinement"), true);
     const int attempts = std::max(1, params.getInt(QStringLiteral("attempts"), 3));
+    // What each layer is registered onto: "previous" (the layer before it), "allAligned" (the
+    // whole group placed so far), or "allAlignedOnFailure" (the previous one, and only if that
+    // fails, the whole group before the chain restarts).
+    const QString referenceMode =
+        params.getEnum(QStringLiteral("referenceMode"), QStringLiteral("previous"));
     // As a share of the reference's diagonal; zero turns the check off.
     const double maximumPairError = params.getDouble(QStringLiteral("maximumPairError"), 0.8);
     // The method that gives each pair its starting pose before ICP: both find one from descriptors
@@ -1126,19 +1131,37 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
         groups.push_back(group);
     };
 
+    // What the layers of the group are called in messages.
+    const auto groupLabel = [](size_t layers) {
+        return QObject::tr("the %n aligned layer(s)", "", int(layers));
+    };
+    // The outcome of registering one layer against one reference, over its attempts.
+    struct PairOutcome {
+        bool registered = false;
+        QString reason;      // of the last attempt, with how many were made, when it failed
+        int attempts = 0;
+        PairQuality coarse;
+        PairQuality refined;
+    };
+
     for (size_t k = 1; k < chain.size(); ++k) {
         const QString sourceName = doc.mesh(chain[k]).name;
-        const QString referenceName = doc.mesh(chain[k - 1]).name;
+        const QString previousName = doc.mesh(chain[k - 1]).name;
+        // What the layer is registered onto: the layer before it, or -- when the group has more
+        // than that one layer -- every layer of the group placed so far, as one reference.
+        const bool wholeGroup = referenceMode == QLatin1StringView("allAligned") && group.size() > 1;
+        const std::vector<int> *firstReference = wholeGroup ? &group : nullptr;
+        const QString firstLabel = wholeGroup ? groupLabel(group.size()) : previousName;
         doc.writeLog(QObject::tr("Pair %1 of %2: aligning '%3' onto '%4'")
-                         .arg(k).arg(pairCount).arg(sourceName, referenceName));
+                         .arg(k).arg(pairCount).arg(sourceName, firstLabel));
         progress.report(pairShare * int(k - 1) / pairCount,
                         QObject::tr("Pair %1 of %2: %3 onto %4")
-                            .arg(k).arg(pairCount).arg(sourceName, referenceName));
+                            .arg(k).arg(pairCount).arg(sourceName, firstLabel));
 
         const QMatrix4x4 before = doc.mesh(chain[k]).transform;
         // The error is the ICP inlier RMSE -- how far, on average, the source's matched points lie
-        // from the reference surface -- in the layers' units and as a share of the reference's
-        // diagonal, which is the figure comparable from one set of scans to the next.
+        // from the reference surface -- in the layers' units and as a share of the diagonal of the
+        // layer before it, which is the figure comparable from one set of scans to the next.
         const double diagonal = double(doc.mesh(chain[k - 1]).mesh.bbox.Diag());
 
         // Both coarse methods sample at random, so a pair that fails is tried again with another
@@ -1146,63 +1169,84 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
         // two counts: the fitness must reach the minimum, and the inlier RMSE must stay under the
         // maximum error -- a pose can cover enough of the surface to pass the first and still sit
         // visibly off it.
-        PairQuality coarse;
-        PairQuality refined;
-        QString reason;
-        int attemptsMade = 0;
-        bool registered = false;
-        for (int attempt = 0; attempt < attempts && !registered; ++attempt) {
-            ++attemptsMade;
-            // Each attempt starts from where the layer was found: the registrations compose their
-            // result onto the matrix the layer has.
-            if (attempt > 0)
-                doc.setMeshTransform(chain[k], before);
-            MeshFilterParameterValues values;
-            values.insert(QStringLiteral("referenceMesh"), chain[k - 1]);
-            values.insert(QStringLiteral("maxCorrespondenceDistance"), correspondenceDistance);
-            values.insert(QStringLiteral("randomSeed"), (int(seed.value) + attempt) & 0x7fffffff);
+        const auto registerOnto = [&](const std::vector<int> *referenceLayers) {
+            PairOutcome outcome;
+            for (int attempt = 0; attempt < attempts && !outcome.registered; ++attempt) {
+                ++outcome.attempts;
+                // Each attempt starts from where the layer was found: the registrations compose
+                // their result onto the matrix the layer has.
+                if (doc.mesh(chain[k]).transform != before)
+                    doc.setMeshTransform(chain[k], before);
+                MeshFilterParameterValues values;
+                values.insert(QStringLiteral("referenceMesh"), chain[k - 1]);
+                values.insert(QStringLiteral("maxCorrespondenceDistance"), correspondenceDistance);
+                values.insert(QStringLiteral("randomSeed"), (int(seed.value) + attempt) & 0x7fffffff);
 
-            coarse = {};
-            refined = {};
-            reason.clear();
-            MeshFilterRunResult step =
-                runPairwise(coarseMethod, FilterParams(values), doc, { chain[k] }, false, &coarse);
-            if (step.success) {
-                values.insert(QStringLiteral("maxIterations"), maxIterations);
-                step = runPairwise(kPointToPlane, FilterParams(values), doc, { chain[k] }, false, &refined);
+                outcome.coarse = {};
+                outcome.refined = {};
+                outcome.reason.clear();
+                MeshFilterRunResult step = runPairwise(
+                    coarseMethod, FilterParams(values), doc, { chain[k] }, false, &outcome.coarse,
+                    referenceLayers);
+                if (step.success) {
+                    values.insert(QStringLiteral("maxIterations"), maxIterations);
+                    step = runPairwise(
+                        kPointToPlane, FilterParams(values), doc, { chain[k] }, false,
+                        &outcome.refined, referenceLayers);
+                }
+                const double errorPercent =
+                    diagonal > 0.0 ? 100.0 * outcome.refined.inlierRmse / diagonal : 0.0;
+                if (!step.success)
+                    outcome.reason = step.errorMessage;
+                else if (outcome.refined.fitness < minimumFitness)
+                    outcome.reason = QObject::tr("fitness %1 is below the minimum %2")
+                                         .arg(outcome.refined.fitness, 0, 'f', 3)
+                                         .arg(minimumFitness, 0, 'f', 3);
+                else if (maximumPairError > 0.0 && errorPercent > maximumPairError)
+                    outcome.reason = QObject::tr("inlier RMSE %1% of the diagonal is above the maximum %2%")
+                                         .arg(errorPercent, 0, 'f', 2).arg(maximumPairError, 0, 'f', 2);
+
+                outcome.registered = outcome.reason.isEmpty();
+                while (outcome.reason.endsWith(QLatin1Char('.')))
+                    outcome.reason.chop(1);
+                if (!outcome.registered && attempt + 1 < attempts) {
+                    doc.writeLog(QObject::tr("  attempt %1 of %2 for '%3' failed: %4; trying again with "
+                                             "another seed")
+                                     .arg(attempt + 1).arg(attempts).arg(sourceName, outcome.reason));
+                }
             }
-            const double errorPercent = diagonal > 0.0 ? 100.0 * refined.inlierRmse / diagonal : 0.0;
-            if (!step.success)
-                reason = step.errorMessage;
-            else if (refined.fitness < minimumFitness)
-                reason = QObject::tr("fitness %1 is below the minimum %2")
-                             .arg(refined.fitness, 0, 'f', 3).arg(minimumFitness, 0, 'f', 3);
-            else if (maximumPairError > 0.0 && errorPercent > maximumPairError)
-                reason = QObject::tr("inlier RMSE %1% of the diagonal is above the maximum %2%")
-                             .arg(errorPercent, 0, 'f', 2).arg(maximumPairError, 0, 'f', 2);
+            if (!outcome.registered && outcome.attempts > 1)
+                outcome.reason = QObject::tr("%1, after %2 attempts").arg(outcome.reason).arg(outcome.attempts);
+            return outcome;
+        };
 
-            registered = reason.isEmpty();
-            if (!registered && attempt + 1 < attempts) {
-                while (reason.endsWith(QLatin1Char('.')))
-                    reason.chop(1);
-                doc.writeLog(QObject::tr("  attempt %1 of %2 for '%3' failed: %4; trying again with "
-                                         "another seed")
-                                 .arg(attempt + 1).arg(attempts).arg(sourceName, reason));
+        PairOutcome outcome = registerOnto(firstReference);
+        QString referenceLabel = firstLabel;
+        // The last resort before a new group: the layer did not register onto the one before it,
+        // but it may onto the group as a whole, which is more surface to overlap.
+        if (!outcome.registered && referenceMode == QLatin1StringView("allAlignedOnFailure")
+            && group.size() > 1) {
+            doc.writeLog(QObject::tr("'%1' did not register onto '%2' (%3): trying it onto %4 together")
+                             .arg(sourceName, firstLabel, outcome.reason, groupLabel(group.size())),
+                         Document::LogSource::Application, Document::LogLevel::Warning);
+            const PairOutcome second = registerOnto(&group);
+            if (second.registered) {
+                outcome = second;
+                referenceLabel = groupLabel(group.size());
+            } else {
+                outcome.reason = QObject::tr("%1; and onto %2: %3")
+                                     .arg(outcome.reason, groupLabel(group.size()), second.reason);
             }
         }
 
-        if (!registered) {
-            while (reason.endsWith(QLatin1Char('.')))
-                reason.chop(1);
-            if (attemptsMade > 1)
-                reason = QObject::tr("%1, after %2 attempts").arg(reason).arg(attemptsMade);
+        if (!outcome.registered) {
             // A failed pair leaves the layer where it was found rather than
             // wherever the last attempt happened to put it.
             doc.setMeshTransform(chain[k], before);
             doc.writeLog(QObject::tr("Failed to align '%1' onto '%2': %3")
-                             .arg(sourceName, referenceName, reason),
+                             .arg(sourceName, firstLabel, outcome.reason),
                          Document::LogSource::Application, Document::LogLevel::Warning);
-            failures.push_back({ sourceName, referenceName, reason });
+            failures.push_back({ sourceName, firstLabel, outcome.reason });
             closeGroup();
             group = { chain[k] };
             doc.writeLog(QObject::tr("Starting a new group from '%1'").arg(sourceName));
@@ -1210,12 +1254,13 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
         }
         doc.writeLog(QObject::tr("Aligned '%1' onto '%2': inlier RMSE %3 (%4% of the diagonal), "
                                  "fitness %5 (coarse pose alone %6)%7")
-                         .arg(sourceName, referenceName)
-                         .arg(refined.inlierRmse, 0, 'g', 4)
-                         .arg(diagonal > 0.0 ? 100.0 * refined.inlierRmse / diagonal : 0.0, 0, 'f', 2)
-                         .arg(refined.fitness, 0, 'f', 3).arg(coarse.fitness, 0, 'f', 3)
-                         .arg(attemptsMade > 1 ? QObject::tr(", attempt %1 of %2").arg(attemptsMade).arg(attempts)
-                                               : QString()));
+                         .arg(sourceName, referenceLabel)
+                         .arg(outcome.refined.inlierRmse, 0, 'g', 4)
+                         .arg(diagonal > 0.0 ? 100.0 * outcome.refined.inlierRmse / diagonal : 0.0, 0, 'f', 2)
+                         .arg(outcome.refined.fitness, 0, 'f', 3).arg(outcome.coarse.fitness, 0, 'f', 3)
+                         .arg(outcome.attempts > 1
+                                  ? QObject::tr(", attempt %1 of %2").arg(outcome.attempts).arg(attempts)
+                                  : QString()));
         group.push_back(chain[k]);
         progress.report(pairShare * int(k) / pairCount,
                         QObject::tr("Aligned %1 of %2 layers").arg(aligned + group.size() - 1)

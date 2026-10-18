@@ -54,6 +54,8 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QIcon>
+#include <QPainter>
+#include <QPixmap>
 #include <QToolBar>
 #include <QBrush>
 #include <QCheckBox>
@@ -571,16 +573,22 @@ MainWindow::MainWindow(QWidget *parent)
     m_layerDock = new QDockWidget(tr("Layers"), this);
     m_layerDock->setWidget(m_layerWidget);
 
-    // Custom title bar, on one line: the expand/collapse toggle at the far left, over the
-    // disclosure arrows of the tree below it, then the title, the recap of what the layers
-    // hold, and the tree/table toggle at the right.
+    // Custom title bar, on one line: the expand/collapse toggle and the eye, over the disclosure
+    // arrows and the check marks of the tree below them (the tree says where those are), then
+    // the title, the recap of what the layers hold, and the tree/table toggle at the right.
+    constexpr int kTitleButtonSize = 22;
+    const int arrowCenter = m_layerWidget->disclosureArrowCenter();
+    const int checkCenter = m_layerWidget->visibilityCheckCenter();
     auto *titleBar = new QWidget();
     auto *titleLayout = new QHBoxLayout(titleBar);
-    titleLayout->setContentsMargins(2, 0, 4, 0);
+    titleLayout->setContentsMargins(std::max(0, arrowCenter - kTitleButtonSize / 2), 0, 4, 0);
     titleLayout->setSpacing(6);
+    auto *titleButtons = new QHBoxLayout();
+    titleButtons->setContentsMargins(0, 0, 0, 0);
+    titleButtons->setSpacing(std::max(0, checkCenter - arrowCenter - kTitleButtonSize));
     auto *expandBtn = new QToolButton();
     expandBtn->setAutoRaise(true);
-    expandBtn->setFixedSize(22, 22);
+    expandBtn->setFixedSize(kTitleButtonSize, kTitleButtonSize);
     // Keeps the title where it is when the table, which has nothing to expand, replaces the tree.
     QSizePolicy expandPolicy = expandBtn->sizePolicy();
     expandPolicy.setRetainSizeWhenHidden(true);
@@ -592,7 +600,36 @@ MainWindow::MainWindow(QWidget *parent)
     showExpandState(m_layerWidget->anyLayerExpanded());
     connect(expandBtn, &QToolButton::clicked, m_layerWidget, &LayerWidget::toggleExpandAll);
     connect(m_layerWidget, &LayerWidget::expansionChanged, expandBtn, showExpandState);
-    titleLayout->addWidget(expandBtn);
+    titleButtons->addWidget(expandBtn);
+    // The eye shows every layer, or hides every layer when they all are shown: open when all are
+    // shown, closed when none is, and open but faded in between.
+    auto *eyeBtn = new QToolButton();
+    eyeBtn->setAutoRaise(true);
+    eyeBtn->setFixedSize(kTitleButtonSize, kTitleButtonSize);
+    eyeBtn->setIconSize(QSize(18, 18));
+    const auto showEyeState = [eyeBtn](int shown, int total) {
+        static const QPixmap openEye(QStringLiteral(":/img/layer_eye_open.png"));
+        static const QPixmap closedEye(QStringLiteral(":/img/layer_eye_close.png"));
+        QPixmap pixmap = shown > 0 ? openEye : closedEye;
+        if (shown > 0 && shown < total) {
+            QPixmap faded(pixmap.size());
+            faded.fill(Qt::transparent);
+            QPainter painter(&faded);
+            painter.setOpacity(0.45);
+            painter.drawPixmap(0, 0, pixmap);
+            painter.end();
+            pixmap = faded;
+        }
+        eyeBtn->setIcon(QIcon(pixmap));
+        eyeBtn->setEnabled(total > 0);
+        eyeBtn->setToolTip(shown == total && total > 0 ? tr("Hide all layers") : tr("Show all layers"));
+    };
+    const auto [shown, total] = m_layerWidget->layerVisibility();
+    showEyeState(shown, total);
+    connect(eyeBtn, &QToolButton::clicked, m_layerWidget, &LayerWidget::toggleAllVisible);
+    connect(m_layerWidget, &LayerWidget::layerVisibilityChanged, eyeBtn, showEyeState);
+    titleButtons->addWidget(eyeBtn);
+    titleLayout->addLayout(titleButtons);
     auto *titleLabel = new QLabel(tr("Layers"));
     QFont titleFont = titleLabel->font();
     titleFont.setBold(true);
