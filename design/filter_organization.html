@@ -580,7 +580,8 @@ fit layer of <em>Create Grid</em>. That is all 17 filters with a single mesh par
 30 with mesh parameters take two meshes.</p>
 <p><strong>Open3D pairwise aligners, 2026-10-15.</strong> The five pairwise registrations —
 <em>Align by Point-to-Point ICP</em>, <em>Point-to-Plane ICP</em>, <em>Colored ICP</em>, <em>Feature Matching</em> and
-<em>Fast Global Registration</em>, all <code class="docutils literal notranslate"><span class="pre">(Open3D)</span></code> — dropped <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> and now take only
+<em>Fast Global Registration</em>, all <code class="docutils literal notranslate"><span class="pre">(Open3D)</span></code> (renamed <em>Align Layer to Reference by …</em> on
+2026-10-18, see <a class="reference internal" href="vocabulary.html"><span class="std std-doc">vocabulary</span></a> §4) — dropped <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> and now take only
 <code class="docutils literal notranslate"><span class="pre">referenceMesh</span></code>: the current layer is the one that moves and the parameter names the layer
 it moves onto. Measured from their manifests before the change: each declared
 <code class="docutils literal notranslate"><span class="pre">inputDomain:</span> <span class="pre">SingleMesh</span></code> and <code class="docutils literal notranslate"><span class="pre">outputDomain:</span> <span class="pre">ModifyCurrentMesh</span></code>, and each <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code>

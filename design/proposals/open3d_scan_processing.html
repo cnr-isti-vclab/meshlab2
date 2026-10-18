@@ -868,20 +868,20 @@ dependencies before scheduling it.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Align by Colored ICP (Open3D)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">align_by_colored_icp_open3d</span></code></p></td>
+<tr class="row-even"><td><p>Align Layer to Reference by Colored ICP (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_layer_to_reference_by_colored_icp_open3d</span></code></p></td>
 <td><p>Reference and moving point-cloud/mesh layers; update moving layer transform</p></td>
 </tr>
-<tr class="row-odd"><td><p>Align by Point-to-Point ICP (Open3D)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">align_by_point_to_point_icp_open3d</span></code></p></td>
+<tr class="row-odd"><td><p>Align Layer to Reference by Point-to-Point ICP (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_layer_to_reference_by_point_to_point_icp_open3d</span></code></p></td>
 <td><p>Reference and moving layers; update moving layer transform</p></td>
 </tr>
-<tr class="row-even"><td><p>Align by Point-to-Plane ICP (Open3D)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">align_by_point_to_plane_icp_open3d</span></code></p></td>
+<tr class="row-even"><td><p>Align Layer to Reference by Point-to-Plane ICP (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_layer_to_reference_by_point_to_plane_icp_open3d</span></code></p></td>
 <td><p>Reference and moving layers with target normals; update moving layer transform</p></td>
 </tr>
-<tr class="row-odd"><td><p>Align by Feature Matching (Open3D)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">align_by_feature_matching_open3d</span></code></p></td>
+<tr class="row-odd"><td><p>Align Layer to Reference by RANSAC Feature Matching (Open3D)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_layer_to_reference_by_ransac_feature_matching_open3d</span></code></p></td>
 <td><p>Two point-cloud layers; set moving layer transform</p></td>
 </tr>
 </tbody>
@@ -910,7 +910,7 @@ transform between layers</em>, which is exactly what it does. That it returns a
 coarse pose belongs in the description, not in a new verb.</p>
 <p><strong>Two feature-based initializers ship, not one.</strong> Both compute the same FPFH
 descriptors and differ only in what they do with them: <em>Align by Feature
-Matching</em> samples candidate poses with RANSAC, <em>Align by Fast Global
+Matching</em> samples candidate poses with RANSAC, <em>Align Layer to Reference by Fast Global
 Registration</em> optimizes a robust objective over all correspondences directly,
 annealing the scale parameter (Zhou et al. 2016). The second is usually faster
 and has no iteration budget to guess at; the first is the more conservative
@@ -931,7 +931,7 @@ the sequence — each scan onto the one already placed, which is what Open3D’s
 within <strong>0.09%, 0.29%, 0.54%, 0.86%, 0.95%, 0.82% and 0.82%</strong> of the diagonal, at
 fitness 0.81 to 0.92. Drift is bounded rather than cumulative, because each ICP
 pulls the new scan onto real surface.</p>
-<p><em>Align by Feature Matching</em> is the one to chain; <em>Fast Global Registration</em> is
+<p><em>Align Layer to Reference by RANSAC Feature Matching</em> is the one to chain; <em>Fast Global Registration</em> is
 not, and the difference is structural. FGR subtracts each cloud’s mean and then
 optimizes the rotation from the identity with Gauss-Newton
 (<code class="docutils literal notranslate"><span class="pre">NormalizePointCloud</span></code> and the loop after it in <code class="docutils literal notranslate"><span class="pre">FastGlobalRegistration.cpp</span></code>),
@@ -973,7 +973,7 @@ all ICP filters.</p>
 <p><strong>Implemented 2026-10-15: <em>Align Meshes Sequentially (Open3D)</em></strong>
 (<code class="docutils literal notranslate"><span class="pre">align_meshes_sequentially_open3d</span></code>), the one-step form of the chain just
 described, added after the by-hand version proved to work. It is orchestration
-only: each pair is a call to the <em>Align by Feature Matching</em> code followed by the
+only: each pair is a call to the <em>Align Layer to Reference by RANSAC Feature Matching</em> code followed by the
 <em>Point-to-Plane ICP</em> code, and the final stage is the <em>Align Meshes Globally</em>
 code, so there is no second implementation of any of them.</p>
 <p>Behaviour, as the maintainer specified it:</p>
@@ -996,7 +996,7 @@ found and becomes the reference of the layers after it, which are aligned onto i
 group of two or more layers is optimized together as a pose graph with its current poses as the
 starting point, and left as a visibility set (<em>aligned</em>, <em>aligned 2</em>, …); a layer that
 registered with neither neighbour is in no set. Groups are not placed relative to one another,
-because nothing overlapped across the break: <em>Align Sets by Feature Matching</em> is the filter that
+because nothing overlapped across the break: <em>Align Sets by RANSAC Feature Matching</em> is the filter that
 joins them. The run is an error, moving nothing, only if no pair registered at all, so that a
 run which moved nothing never reports success;</p></li>
 <li><p><em>Global Refinement</em> can be switched off, and is skipped below three aligned
@@ -1017,8 +1017,57 @@ aligner opens with a <code class="docutils literal notranslate"><span class="pre
 <code class="docutils literal notranslate"><span class="pre">alignmentFiltersStateTheirStartingAlignment</span></code> in the descriptor tier enforces it.
 It is scoped to the Open3D filters because their requirements were measured; the
 vcglib and TrueForm aligners predate the rule and have not been characterised.</p>
+<p><strong>Renamed 2026-10-18 – the descriptor-based family is four filters, named by what they take and
+how they find the pose; the three ICP filters follow the same pattern.</strong> <em>Align Layer to Reference by RANSAC Feature Matching (Open3D)</em> (was <em>Align by Feature
+Matching</em>) and <em>Align Layer to Reference by Fast Global Registration (Open3D)</em> (was <em>Align by Fast
+Global Registration</em>) move the current layer onto a reference layer, or onto all the visible
+layers; <em>Align Sets by RANSAC Feature Matching (Open3D)</em> (was <em>Align Sets by Feature Matching</em>) and
+the new <em>Align Sets by Fast Global Registration (Open3D)</em> move a visibility set onto another. The
+old name hid that the first was the RANSAC route and that both match the same FPFH features; the
+algorithm is now in each name, and the identifiers follow the names with no aliases. The three
+ICP filters, which are also pairwise layer-to-reference, became <em>Align Layer to Reference by
+Point-to-Point ICP</em>, <em>by Point-to-Plane ICP</em> and <em>by Colored ICP</em> the same day, so the plugin has
+one pattern for “one layer onto one reference” and one for “a set onto a set”. (The vcglib and
+TrueForm ICP filters are other families and keep their names.) Both routes
+take the same parameters wherever they share a step: the reference layer or all the visible
+layers, the matching distance, the downsampling cell, the feature radius and neighbours, and the
+quality estimate; each adds only what its method needs (RANSAC’s mutual filter and iteration
+budget, FGR’s annealing and tuple parameters). Fast Global Registration optimizes the rotation from
+the identity, so it needs the two sides roughly oriented alike (position does not matter: each
+cloud is centred first); RANSAC has no such limit.</p>
+<p><strong>Implemented 2026-10-18: a pair error check and retries on <em>Align Meshes Sequentially</em>.</strong> A pair is
+judged after ICP has refined it, on two counts: the fitness must reach the minimum, and the inlier
+RMSE must stay under <em>Maximum Pair Error</em> (<code class="docutils literal notranslate"><span class="pre">maximumPairError</span></code>, a percentage of the reference’s
+diagonal, 0.8 by default, 0 for off). Measured on the eight range maps, the pairs that really
+registered have an inlier RMSE of 0.35% to 0.56% of the diagonal at fitness 0.81 to 0.92; the side
+scan of the restart test registers onto the face scan before it at fitness <strong>0.92</strong> (it passes the
+fitness test comfortably) but at <strong>0.95%</strong>, which the error check rejects. A failed attempt is then
+tried again with another seed, <em>Attempts per Pair</em> (<code class="docutils literal notranslate"><span class="pre">attempts</span></code>, 3 by default, 1 for no retry) times
+in all, since both coarse methods sample at random: each attempt uses the seed plus its number, so
+the run stays reproducible, and the pair is accepted at the first attempt that passes both checks.
+Only when every attempt fails does the chain restart from that layer. The log shows each failed
+attempt and the number of attempts on the final failure.</p>
+<p><strong>Implemented 2026-10-18: <em>Pair Initialization</em> on <em>Align Meshes Globally</em> takes the same two
+methods.</strong> Its automatic option was called <em>Feature Matching</em> and in fact ran Fast Global
+Registration, which the name did not say. It is now two options, <em>RANSAC Feature Matching
+(automatic)</em> (<code class="docutils literal notranslate"><span class="pre">ransacFeatureMatching</span></code>) and <em>Fast Global Registration (automatic)</em>
+(<code class="docutils literal notranslate"><span class="pre">fastGlobalRegistration</span></code>), beside <em>Current Layer Poses</em>; the old <code class="docutils literal notranslate"><span class="pre">featureMatching</span></code> value is gone,
+with no alias. RANSAC has no orientation limit but spends its whole iteration budget on every pair
+that does not match, and the pairs are quadratic in the layers, so a <em>RANSAC Iterations</em> parameter
+(advanced, 100000) caps it. Both run on the clouds in their own frames and return the source’s pose
+relative to the target, which is what the pose-graph edge carries, so the rest of the filter is
+unchanged. <em>Align Meshes Sequentially</em> still refines each group with the <em>Current Layer Poses</em>
+option.</p>
+<p><strong>Implemented 2026-10-18: <em>Coarse Alignment</em> on <em>Align Meshes Sequentially</em></strong> (<code class="docutils literal notranslate"><span class="pre">coarseMethod</span></code>,
+<code class="docutils literal notranslate"><span class="pre">ransac</span></code> by default or <code class="docutils literal notranslate"><span class="pre">fastGlobalRegistration</span></code>). Each pair is given its starting pose by the
+chosen descriptor-based method, then refined by point-to-plane ICP; nothing else in the chain, the
+restart or the sets changes. Fast Global Registration is faster and has no sampling budget, but
+optimizes the rotation from the identity, so each layer must be roughly oriented like the one
+before it, which a turntable or walk-around sequence is; RANSAC has no such limit and stays the
+default. Four range-map scans (<code class="docutils literal notranslate"><span class="pre">faccia000</span></code> to <code class="docutils literal notranslate"><span class="pre">faccia135</span></code>) chain with either method, within 2% of
+the diagonal of the project’s poses.</p>
 <p><strong>Implemented 2026-10-18: <em>Estimate Quality with ICP</em></strong> (<code class="docutils literal notranslate"><span class="pre">evaluateWithIcp</span></code>, off by default) on
-<em>Align by Feature Matching</em> and <em>Align Sets by Feature Matching</em>. RANSAC scores its own pose on
+<em>Align Layer to Reference by RANSAC Feature Matching</em> and <em>Align Sets by RANSAC Feature Matching</em>, and then on both Fast Global Registration filters (2026-10-18). RANSAC scores its own pose on
 the downsampled clouds it matched on, which flatters it. With the option the pose is scored again
 on the full-resolution layers (<code class="docutils literal notranslate"><span class="pre">EvaluateRegistration</span></code>), and point-to-plane ICP is run from it at
 full resolution – the ICP result is <strong>measured, not applied</strong>: the layers carry the coarse pose,
@@ -1033,9 +1082,9 @@ Every feature-matching run, with or without the option, also reports the inlier 
 count and returns <code class="docutils literal notranslate"><span class="pre">fitness</span></code>, <code class="docutils literal notranslate"><span class="pre">inlier_rmse</span></code> and <code class="docutils literal notranslate"><span class="pre">inlier_correspondences</span></code> as output values (the
 option adds <code class="docutils literal notranslate"><span class="pre">full_fitness</span></code>, <code class="docutils literal notranslate"><span class="pre">full_inlier_rmse</span></code>, <code class="docutils literal notranslate"><span class="pre">icp_fitness</span></code>, <code class="docutils literal notranslate"><span class="pre">icp_inlier_rmse</span></code>,
 <code class="docutils literal notranslate"><span class="pre">icp_rotation_degrees</span></code>, <code class="docutils literal notranslate"><span class="pre">icp_translation</span></code> and <code class="docutils literal notranslate"><span class="pre">icp_translation_percent_of_diagonal</span></code>), which a
-script reads from <code class="docutils literal notranslate"><span class="pre">result.output_values</span></code>. <em>Fast Global Registration</em> shares the code and the
-reporting but does not offer the option.</p>
-<p><strong>Implemented 2026-10-17: <em>Align Sets by Feature Matching</em></strong> (<code class="docutils literal notranslate"><span class="pre">align_sets_by_feature_matching_open3d</span></code>),
+script reads from <code class="docutils literal notranslate"><span class="pre">result.output_values</span></code>. <em>Fast Global Registration</em> shares the code, the reporting
+and, since the 2026-10-18 renaming, the option.</p>
+<p><strong>Implemented 2026-10-17: <em>Align Sets by RANSAC Feature Matching</em></strong> (<code class="docutils literal notranslate"><span class="pre">align_sets_by_ransac_feature_matching_open3d</span></code>),
 the same registration with a visibility set on each side: the points of each set’s layers are
 concatenated in world space (each through its own matrix), downsampled, matched and fitted, and the
 one correction is composed onto every layer of the moving set, so the set stays rigid. It is
@@ -1043,8 +1092,8 @@ one correction is composed onto every layer of the moving set, so the set stays 
 <code class="docutils literal notranslate"><span class="pre">movingSet</span></code> and <code class="docutils literal notranslate"><span class="pre">referenceSet</span></code> are the first parameters of the new <code class="docutils literal notranslate"><span class="pre">visibilityset</span></code> type (the set’s
 name; see <code class="docutils literal notranslate"><span class="pre">adding_a_filter.md</span></code>). For two groups of scans that are each aligned within themselves and
 have to be joined, which pairwise registration cannot do when no one scan overlaps enough.</p>
-<p><strong>Implemented 2026-10-15: <em>Use All Visible Layers as Reference</em></strong> on <em>Align by
-Feature Matching</em> (<code class="docutils literal notranslate"><span class="pre">useAllVisibleAsReference</span></code>; <code class="docutils literal notranslate"><span class="pre">referenceMesh</span></code> is ignored while it
+<p><strong>Implemented 2026-10-15: <em>Use All Visible Layers as Reference</em></strong> on <em>Align Layer to Reference by
+RANSAC Feature Matching</em> (<code class="docutils literal notranslate"><span class="pre">useAllVisibleAsReference</span></code>; <code class="docutils literal notranslate"><span class="pre">referenceMesh</span></code> is ignored while it
 is on). The reference becomes every other visible layer, concatenated in world
 space; everything downstream — the voxel downsampling the feature path already
 does, FPFH, RANSAC, fitness — is unchanged, because none of it cares how many
@@ -1097,7 +1146,7 @@ adapter now takes “has normals” to mean that some live vertex carries a non-
 one, and the refusals fire; the refusal for a reference <em>set</em> names the layer
 without them, since concatenation would otherwise drop them silently. Colors have
 the same flaw and are <strong>not</strong> fixed: an unset color is indistinguishable from a
-white one, so <em>Align by Colored ICP</em> and its “needs color” refusal still cannot
+white one, so <em>Align Layer to Reference by Colored ICP</em> and its “needs color” refusal still cannot
 tell a colored layer from an uncolored one. And because the loader computes smooth
 normals for any layer with faces, only point clouds can lack normals; earlier
 advice to run <em>Compute Vertex Normals</em> on range maps first was unnecessary.</p>

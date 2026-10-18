@@ -335,7 +335,7 @@ second, which is what a filter taking two wants. The framework refuses the call 
 filter runs if the name is not a set, or the set has no layer left (and says, when there are
 no sets at all, how to make one). In the filter, <code class="docutils literal notranslate"><span class="pre">doc.indexOfVisibilitySet(name)</span></code> finds it
 and <code class="docutils literal notranslate"><span class="pre">doc.visibilitySetMeshIndices(index)</span></code> gives its layers in document order.
-<em>Align Sets by Feature Matching (Open3D)</em> takes two.</p>
+<em>Align Sets by RANSAC Feature Matching (Open3D)</em> and <em>Align Sets by Fast Global Registration (Open3D)</em> take two.</p>
 <p><code class="docutils literal notranslate"><span class="pre">point3f</span></code> parameters take an optional <code class="docutils literal notranslate"><span class="pre">point3fRole</span></code>, which decides what the
 editor’s preset combo offers beside the three spin boxes:</p>
 <div class="table-wrapper colwidths-auto docutils container">

@@ -288,7 +288,8 @@ fit layer of *Create Grid*. That is all 17 filters with a single mesh parameter;
 
 **Open3D pairwise aligners, 2026-10-15.** The five pairwise registrations —
 *Align by Point-to-Point ICP*, *Point-to-Plane ICP*, *Colored ICP*, *Feature Matching* and
-*Fast Global Registration*, all `(Open3D)` — dropped `sourceMesh` and now take only
+*Fast Global Registration*, all `(Open3D)` (renamed *Align Layer to Reference by ...* on
+2026-10-18, see [vocabulary](vocabulary.md) §4) — dropped `sourceMesh` and now take only
 `referenceMesh`: the current layer is the one that moves and the parameter names the layer
 it moves onto. Measured from their manifests before the change: each declared
 `inputDomain: SingleMesh` and `outputDomain: ModifyCurrentMesh`, and each `sourceMesh`
