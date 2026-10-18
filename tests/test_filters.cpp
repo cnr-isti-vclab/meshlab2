@@ -474,6 +474,7 @@ private slots:
     void open3dAlignMeshesSequentiallyRegistersRawRangeMaps();
     void open3dVoxelDownsamplingKeepsNormalsUnitLength();
     void open3dFeatureMatchingCanUseAllVisibleLayersAsReference();
+    void open3dFeatureMatchingCanEstimateItsQualityWithIcp();
     void open3dAlignMeshesSequentiallyRestartsAfterAFailedPair();
     void open3dAlignSetsByFeatureMatchingMovesTheWholeMovingSet();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
@@ -5233,6 +5234,72 @@ void FilterTests::open3dAlignSetsByFeatureMatchingMovesTheWholeMovingSet()
 // lato180 is left out of the assertions only for time: its match is weaker, so
 // RANSAC runs to its 100000-iteration cap and takes about 15 s a run where the
 // others take about a second.
+// The ICP estimate is a measurement: with the option on, the pose applied is exactly the one the
+// same run gives without it, and what comes back besides is the score of that pose on the full
+// layers, the score after ICP, and how far ICP moved it.
+void FilterTests::open3dFeatureMatchingCanEstimateItsQualityWithIcp()
+{
+    Document probe;
+    const QString matchKey = filterKeyForId(probe, QStringLiteral("align_by_feature_matching_open3d"));
+    if (matchKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+    const QString normalsKey = filterKeyForId(probe, QStringLiteral("compute_vertex_normals"));
+    QVERIFY(!normalsKey.isEmpty());
+
+    MESHLAB2_REQUIRE_DATASET(firstScan, "rangemaps/faccia000.ply");
+    const QString folder = QFileInfo(firstScan).absolutePath();
+
+    const auto run = [&](bool estimate, QMatrix4x4 &movedPose) {
+        Document doc;
+        for (const QString &name : { QStringLiteral("faccia000.ply"), QStringLiteral("faccia045.ply") }) {
+            const int index = doc.loadMesh(QDir(folder).filePath(name));
+            doc.setCurrentMeshIndex(index);
+            doc.runFilter(normalsKey, {});
+        }
+        doc.setCurrentMeshIndex(1);
+        MeshFilterParameterValues values;
+        values.insert(QStringLiteral("referenceMesh"), 0);
+        values.insert(QStringLiteral("randomSeed"), 1);
+        values.insert(QStringLiteral("evaluateWithIcp"), estimate);
+        const MeshFilterRunResult result = doc.runFilter(matchKey, values);
+        movedPose = doc.mesh(1).transform;
+        return result;
+    };
+    QMatrix4x4 plainPose, estimatedPose;
+    const MeshFilterRunResult plain = run(false, plainPose);
+    const MeshFilterRunResult estimated = run(true, estimatedPose);
+    QVERIFY2(plain.success, qPrintable(plain.errorMessage));
+    QVERIFY2(estimated.success, qPrintable(estimated.errorMessage));
+    qDebug("%s", qPrintable(estimated.infoMessages.join(QStringLiteral(" | "))));
+
+    // The estimate does not touch the pose.
+    QVERIFY(plainPose == estimatedPose);
+
+    // Without it: RANSAC's own figures only. With it: the rest, in the report and as values.
+    QVERIFY(plain.outputValues.contains(QStringLiteral("fitness")));
+    QVERIFY(plain.outputValues.contains(QStringLiteral("inlier_correspondences")));
+    QVERIFY(!plain.outputValues.contains(QStringLiteral("icp_fitness")));
+    QVERIFY(!plain.infoMessages.join(QLatin1Char('\n')).contains(QStringLiteral("After ICP")));
+
+    const QString report = estimated.infoMessages.join(QLatin1Char('\n'));
+    QVERIFY2(report.contains(QStringLiteral("Coarse pose on the full layers")), qPrintable(report));
+    QVERIFY2(report.contains(QStringLiteral("After ICP from it")), qPrintable(report));
+    QVERIFY2(report.contains(QStringLiteral("ICP moved the pose by")), qPrintable(report));
+    for (const char *key : { "full_fitness", "full_inlier_rmse", "icp_fitness", "icp_inlier_rmse",
+                             "icp_rotation_degrees", "icp_translation",
+                             "icp_translation_percent_of_diagonal" })
+        QVERIFY2(estimated.outputValues.contains(QLatin1String(key)), key);
+
+    const double fullFitness = estimated.outputValues.value(QStringLiteral("full_fitness")).toDouble();
+    const double icpFitness = estimated.outputValues.value(QStringLiteral("icp_fitness")).toDouble();
+    const double rotation = estimated.outputValues.value(QStringLiteral("icp_rotation_degrees")).toDouble();
+    QVERIFY2(fullFitness > 0.0 && icpFitness > 0.0, qPrintable(report));
+    // ICP started from the coarse pose cannot score meaningfully worse, and a pose that registers
+    // does not need a half turn to be corrected.
+    QVERIFY2(icpFitness >= fullFitness - 0.02, qPrintable(report));
+    QVERIFY2(rotation >= 0.0 && rotation < 30.0, qPrintable(report));
+}
+
 void FilterTests::open3dFeatureMatchingCanUseAllVisibleLayersAsReference()
 {
     Document probe;

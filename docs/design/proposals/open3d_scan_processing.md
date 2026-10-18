@@ -547,6 +547,25 @@ aligner opens with a `**Starting alignment:**` paragraph, "none" included, and
 It is scoped to the Open3D filters because their requirements were measured; the
 vcglib and TrueForm aligners predate the rule and have not been characterised.
 
+**Implemented 2026-10-18: *Estimate Quality with ICP*** (`evaluateWithIcp`, off by default) on
+*Align by Feature Matching* and *Align Sets by Feature Matching*. RANSAC scores its own pose on
+the downsampled clouds it matched on, which flatters it. With the option the pose is scored again
+on the full-resolution layers (`EvaluateRegistration`), and point-to-plane ICP is run from it at
+full resolution -- the ICP result is **measured, not applied**: the layers carry the coarse pose,
+and the same run without the option gives the same matrix. The report gives the full-resolution
+fitness and inlier RMSE, the same after ICP, and how far ICP moved the pose, as a rotation and as
+the RMS travel of the source's bounding-box corners (not the matrix's translation column, which is
+mostly the distance to the origin), also as a share of the reference's diagonal. The reading: a
+pose ICP barely moves, and that scores about the same afterwards, was a good guess. Measured on
+`faccia045` onto `faccia000`: RANSAC reported fitness 0.85 / RMSE 1.96 on the downsampled clouds, the
+full layers 0.92 / 1.72, after ICP 0.92 / 0.85, a move of 4.1 degrees and 2.5% of the diagonal.
+Every feature-matching run, with or without the option, also reports the inlier correspondence
+count and returns `fitness`, `inlier_rmse` and `inlier_correspondences` as output values (the
+option adds `full_fitness`, `full_inlier_rmse`, `icp_fitness`, `icp_inlier_rmse`,
+`icp_rotation_degrees`, `icp_translation` and `icp_translation_percent_of_diagonal`), which a
+script reads from `result.output_values`. *Fast Global Registration* shares the code and the
+reporting but does not offer the option.
+
 **Implemented 2026-10-17: *Align Sets by Feature Matching*** (`align_sets_by_feature_matching_open3d`),
 the same registration with a visibility set on each side: the points of each set's layers are
 concatenated in world space (each through its own matrix), downsampled, matched and fitted, and the

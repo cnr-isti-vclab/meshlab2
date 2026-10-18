@@ -20,6 +20,7 @@
 #include <QObject>
 #include <QStringList>
 #include <algorithm>
+#include <cmath>
 #include <exception>
 #include <functional>
 #include <utility>
@@ -688,6 +689,13 @@ MeshFilterRunResult runPairwise(
     progress.report(20, isFeature ? QStringLiteral("Preparing clouds...")
                                   : QStringLiteral("Running ICP (no progress available)..."));
 
+    // Optional: judge the coarse pose against full-resolution ICP. The clouds are the world-space
+    // ones, kept before the feature path downsamples them -- which is also why they are copied
+    // only when asked.
+    const bool estimateWithIcp = isFeature && params.getBool(QStringLiteral("evaluateWithIcp"), false);
+    open3d::geometry::PointCloud fullSource;
+    open3d::geometry::PointCloud fullTarget;
+
     reg::RegistrationResult result;
     try {
         const reg::ICPConvergenceCriteria criteria(1e-6, 1e-6, maxIterations);
@@ -722,6 +730,10 @@ MeshFilterRunResult runPairwise(
                 params.getDouble(QStringLiteral("registrationVoxelSize"), 0.0), 0.01);
             const size_t sourceBefore = source.points_.size();
             const size_t targetBefore = target.points_.size();
+            if (estimateWithIcp) {
+                fullSource = source;
+                fullTarget = target;
+            }
             if (registrationVoxelSize > 0.0) {
                 progress.report(30, QStringLiteral("Downsampling for feature matching..."));
                 const auto sourceDown = source.VoxelDownSample(registrationVoxelSize);
@@ -809,6 +821,56 @@ MeshFilterRunResult runPairwise(
         return fail(error);
     }
 
+    // How good the coarse pose is, judged beyond what RANSAC reports about itself. RANSAC scores
+    // the pose on the downsampled clouds it matched on; here it is scored again on the full
+    // layers, and ICP is run from it -- its result is not applied -- so that how far ICP has to
+    // move the pose says how rough the guess was: a pose it barely moves was a good one.
+    struct IcpEstimate
+    {
+        bool done = false;
+        double fullFitness = 0.0;
+        double fullRmse = 0.0;
+        double icpFitness = 0.0;
+        double icpRmse = 0.0;
+        double rotationDegrees = 0.0;
+        double translation = 0.0;   // how far the points travel, RMS over the source's box corners
+    } estimate;
+    QString estimateError;
+    if (estimateWithIcp) {
+        progress.report(85, QStringLiteral("Estimating the quality with ICP (no progress available)..."));
+        try {
+            const auto onFull = reg::EvaluateRegistration(
+                fullSource, fullTarget, maxCorrespondenceDistance, result.transformation_);
+            const auto refined = reg::RegistrationICP(
+                fullSource, fullTarget, maxCorrespondenceDistance, result.transformation_,
+                reg::TransformationEstimationPointToPlane(),
+                reg::ICPConvergenceCriteria(1e-6, 1e-6, maxIterations));
+            // What ICP did to the pose, as a world-space correction on top of it.
+            const Eigen::Matrix4d delta = refined.transformation_ * result.transformation_.inverse();
+            const double cosine = std::clamp((delta.block<3, 3>(0, 0).trace() - 1.0) / 2.0, -1.0, 1.0);
+            // Points, not the matrix's translation column: the scene sits far from the origin,
+            // and a small turn shifts that column by more than the object is wide.
+            const Eigen::Vector3d low = fullSource.GetMinBound();
+            const Eigen::Vector3d high = fullSource.GetMaxBound();
+            double sum = 0.0;
+            for (int corner = 0; corner < 8; ++corner) {
+                const Eigen::Vector3d p(
+                    (corner & 1) ? high.x() : low.x(),
+                    (corner & 2) ? high.y() : low.y(),
+                    (corner & 4) ? high.z() : low.z());
+                const Eigen::Vector3d q = (delta * p.homogeneous()).head<3>();
+                sum += (q - p).squaredNorm();
+            }
+            estimate = { true, onFull.fitness_, onFull.inlier_rmse_, refined.fitness_,
+                         refined.inlier_rmse_, std::acos(cosine) * 180.0 / M_PI,
+                         std::sqrt(sum / 8.0) };
+        } catch (const std::exception &e) {
+            estimateError = QString::fromLocal8Bit(e.what());
+        } catch (...) {
+            estimateError = QObject::tr("unknown error");
+        }
+    }
+
     // The result is a world-space correction, so it is composed onto whatever
     // the layer already carried rather than replacing it. Coordinates are not
     // touched: the layer-transform contract is what every other aligner here
@@ -840,8 +902,39 @@ MeshFilterRunResult runPairwise(
             names << doc.mesh(layer).name;
         out.infoMessages << QObject::tr("Moved layers: %1").arg(names.join(QStringLiteral(", ")));
     }
-    if (isFeature || isFastGlobal)
+    if (isFeature || isFastGlobal) {
+        out.infoMessages << QObject::tr("Inlier correspondences: %1")
+                                .arg(result.correspondence_set_.size());
+        // Also for a script: the numbers behind the lines above and below.
+        out.outputValues[QStringLiteral("fitness")] = result.fitness_;
+        out.outputValues[QStringLiteral("inlier_rmse")] = result.inlier_rmse_;
+        out.outputValues[QStringLiteral("inlier_correspondences")] =
+            qlonglong(result.correspondence_set_.size());
         out.infoMessages << seed.message();
+    }
+    if (estimate.done) {
+        const double percent = referenceDiagonal > 0.0 ? 100.0 * estimate.translation / referenceDiagonal : 0.0;
+        out.infoMessages
+            << QObject::tr("Coarse pose on the full layers: fitness %1, inlier RMSE %2")
+                   .arg(estimate.fullFitness, 0, 'f', 4).arg(estimate.fullRmse, 0, 'f', 6)
+            << QObject::tr("After ICP from it (point-to-plane, at most %n iteration(s)): fitness %1, "
+                           "inlier RMSE %2", "", maxIterations)
+                   .arg(estimate.icpFitness, 0, 'f', 4).arg(estimate.icpRmse, 0, 'f', 6)
+            << QObject::tr("ICP moved the pose by %1 degrees and %2 (%3% of the diagonal). The ICP "
+                           "result was not applied: the layers carry the coarse pose.")
+                   .arg(estimate.rotationDegrees, 0, 'f', 2).arg(estimate.translation, 0, 'g', 4)
+                   .arg(percent, 0, 'f', 2);
+        out.outputValues[QStringLiteral("full_fitness")] = estimate.fullFitness;
+        out.outputValues[QStringLiteral("full_inlier_rmse")] = estimate.fullRmse;
+        out.outputValues[QStringLiteral("icp_fitness")] = estimate.icpFitness;
+        out.outputValues[QStringLiteral("icp_inlier_rmse")] = estimate.icpRmse;
+        out.outputValues[QStringLiteral("icp_rotation_degrees")] = estimate.rotationDegrees;
+        out.outputValues[QStringLiteral("icp_translation")] = estimate.translation;
+        out.outputValues[QStringLiteral("icp_translation_percent_of_diagonal")] = percent;
+    } else if (estimateWithIcp) {
+        out.infoMessages << QObject::tr("The ICP estimate failed (%1); the coarse pose was applied "
+                                        "without it.").arg(estimateError);
+    }
     if (downsampledFrom.first > 0) {
         out.infoMessages << QObject::tr(
             "Matched on %1 and %2 point(s), downsampled from %3 and %4. The pose applies "
