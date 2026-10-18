@@ -38,6 +38,7 @@
 #include <QStyledItemDelegate>
 #include <QStackedWidget>
 #include <QSplitter>
+#include <QStyleOptionViewItem>
 #include <QToolButton>
 #include <QToolTip>
 #include <functional>
@@ -87,9 +88,10 @@ struct LayerTextureInfo {
 
 std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &entry);
 
-// Draws an open/closed eye icon in place of the standard checkbox indicator.
-// Modifier-key clicks on the eye are intercepted in editorEvent and routed
-// to the provided callback instead of toggling the item's own check state.
+// The row's visibility check mark, with the modifier-key clicks on it -- Ctrl hides the others,
+// Alt shows the others, Shift inverts all -- intercepted in editorEvent and routed to the provided
+// callback instead of toggling the item's own check state. It also shades the rows of a visibility
+// set being previewed.
 class EyeCheckDelegate : public QStyledItemDelegate
 {
 public:
@@ -158,46 +160,11 @@ public:
             shade.setAlpha(60);
             painter->fillRect(option.rect, shade);
         }
-        if (!index.data(Qt::CheckStateRole).isValid()) {
-            QStyledItemDelegate::paint(painter, option, index);
-            return;
-        }
-
-        QStyleOptionViewItem opt = option;
-        initStyleOption(&opt, index);
-
-        // Determine the checkbox rect before suppressing the indicator.
-        const QStyle *style = option.widget ? option.widget->style() : QApplication::style();
-        const QRect checkRect = style->subElementRect(
-            QStyle::SE_ItemViewItemCheckIndicator, &opt, option.widget);
-
-        // Remove checkbox so the base class does not draw it.
-        opt.features &= ~QStyleOptionViewItem::HasCheckIndicator;
-        QStyledItemDelegate::paint(painter, opt, index);
-
-        const bool visible = (index.data(Qt::CheckStateRole).toInt() == Qt::Checked);
-        const QPixmap &px = visible ? eyeOpen() : eyeClose();
-        if (!px.isNull()) {
-            const QPixmap scaled = px.scaled(checkRect.size(),
-                Qt::KeepAspectRatio, Qt::SmoothTransformation);
-            const int dx = (checkRect.width()  - scaled.width())  / 2;
-            const int dy = (checkRect.height() - scaled.height()) / 2;
-            painter->drawPixmap(checkRect.topLeft() + QPoint(dx, dy), scaled);
-        }
+        // A layer's visibility is the style's own small check mark; the eye is above the list.
+        QStyledItemDelegate::paint(painter, option, index);
     }
 
 private:
-    static const QPixmap &eyeOpen()
-    {
-        static const QPixmap px(QStringLiteral(":/img/layer_eye_open.png"));
-        return px;
-    }
-    static const QPixmap &eyeClose()
-    {
-        static const QPixmap px(QStringLiteral(":/img/layer_eye_close.png"));
-        return px;
-    }
-
     ModifierCallback m_modifierCb;
     bool m_modifierPressed = false;
 };
@@ -1536,6 +1503,8 @@ void LayerWidget::rebuild()
         rebuildTree();
     updateSummary();
     refreshVisibilitySetChips();
+    const auto [shown, total] = layerVisibility();
+    emit layerVisibilityChanged(shown, total);
     emit expansionChanged(anyLayerExpanded());
 }
 
@@ -1585,6 +1554,46 @@ void LayerWidget::refreshVisibilitySetChips()
         const QSignalBlocker blocker(chip);
         chip->setChecked(m_doc->visibilitySetIsShown(i));
     }
+}
+
+int LayerWidget::disclosureArrowCenter() const
+{
+    // The arrows sit in the indentation that comes before a top-level row.
+    return m_meshTree->frameWidth() + m_meshTree->indentation() / 2;
+}
+
+int LayerWidget::visibilityCheckCenter() const
+{
+    // The check mark is where the style puts it in the first column of a top-level row, which
+    // begins after that indentation.
+    QStyleOptionViewItem option;
+    option.initFrom(m_meshTree);
+    option.widget = m_meshTree;
+    option.features = QStyleOptionViewItem::HasCheckIndicator;
+    option.checkState = Qt::Checked;
+    option.rect = QRect(0, 0, m_meshTree->columnWidth(0), m_meshTree->fontMetrics().height() + 4);
+    const QRect check = style()->subElementRect(QStyle::SE_ItemViewItemCheckIndicator, &option, m_meshTree);
+    return m_meshTree->frameWidth() + m_meshTree->indentation() + check.center().x();
+}
+
+std::pair<int, int> LayerWidget::layerVisibility() const
+{
+    int shown = 0;
+    for (int i = 0; i < m_doc->meshCount(); ++i)
+        shown += m_doc->mesh(i).visible ? 1 : 0;
+    for (int i = 0; i < m_doc->rasterCount(); ++i)
+        shown += m_doc->raster(i).visible ? 1 : 0;
+    return { shown, m_doc->meshCount() + m_doc->rasterCount() };
+}
+
+void LayerWidget::toggleAllVisible()
+{
+    const auto [shown, total] = layerVisibility();
+    const bool show = shown < total;
+    for (int i = 0; i < m_doc->meshCount(); ++i)
+        m_doc->setMeshVisible(i, show);
+    for (int i = 0; i < m_doc->rasterCount(); ++i)
+        m_doc->setRasterVisible(i, show);
 }
 
 QString LayerWidget::askVisibilitySetName()

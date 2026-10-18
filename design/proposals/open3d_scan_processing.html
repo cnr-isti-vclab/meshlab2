@@ -1035,6 +1035,21 @@ quality estimate; each adds only what its method needs (RANSAC’s mutual filter
 budget, FGR’s annealing and tuple parameters). Fast Global Registration optimizes the rotation from
 the identity, so it needs the two sides roughly oriented alike (position does not matter: each
 cloud is centred first); RANSAC has no such limit.</p>
+<p><strong>Implemented 2026-10-18: <em>Reference</em> on <em>Align Meshes Sequentially</em></strong> (<code class="docutils literal notranslate"><span class="pre">referenceMode</span></code>): what each
+layer is registered onto. <em>Previous Layer</em> (<code class="docutils literal notranslate"><span class="pre">previous</span></code>, the default) is the chain as it was.
+<em>All Previously Aligned Layers</em> (<code class="docutils literal notranslate"><span class="pre">allAligned</span></code>) registers every layer onto the whole group placed so
+far, as one combined reference, for both the coarse step and ICP (the same combined-reference path
+as <em>Use All Visible Layers as Reference</em>; a group of one layer is just the previous layer).
+<em>Previous Layer, then All Aligned on Failure</em> (<code class="docutils literal notranslate"><span class="pre">allAlignedOnFailure</span></code>) tries the previous layer, with
+its attempts, and only if that fails tries the whole group, with a fresh set of attempts, before the
+chain restarts from the layer. The pair-error check is always a share of the previous layer’s
+diagonal, so its threshold means the same in every mode. Measured on <code class="docutils literal notranslate"><span class="pre">faccia000</span></code>, <code class="docutils literal notranslate"><span class="pre">045</span></code>, <code class="docutils literal notranslate"><span class="pre">090</span></code>
+and <code class="docutils literal notranslate"><span class="pre">315</span></code> (the last 135 degrees of turntable from the third and 45 from the first): onto the
+previous layer alone, <code class="docutils literal notranslate"><span class="pre">315</span></code> fails (inlier RMSE 1.04% of the diagonal); with the previous layer first
+and the group on failure it joins the group at 0.43% and 0.15% of the diagonal off the project’s
+pose. The cost is the thing to know: a failed RANSAC pair spends its whole sampling budget, so the
+fallback and the second and third modes multiply the cost of every failure by the attempts and by the
+number of references tried; Fast Global Registration fails quickly.</p>
 <p><strong>Implemented 2026-10-18: a pair error check and retries on <em>Align Meshes Sequentially</em>.</strong> A pair is
 judged after ICP has refined it, on two counts: the fitness must reach the minimum, and the inlier
 RMSE must stay under <em>Maximum Pair Error</em> (<code class="docutils literal notranslate"><span class="pre">maximumPairError</span></code>, a percentage of the reference’s
