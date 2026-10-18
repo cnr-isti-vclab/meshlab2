@@ -475,6 +475,7 @@ private slots:
     void open3dVoxelDownsamplingKeepsNormalsUnitLength();
     void open3dFeatureMatchingCanUseAllVisibleLayersAsReference();
     void open3dFeatureMatchingCanEstimateItsQualityWithIcp();
+    void open3dFastGlobalRegistrationCanUseAllVisibleLayersAsReference();
     void open3dAlignMeshesSequentiallyRestartsAfterAFailedPair();
     void open3dAlignSetsByFeatureMatchingMovesTheWholeMovingSet();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
@@ -4134,7 +4135,7 @@ void FilterTests::open3dIcpRecoversAKnownTransform()
 {
     Document doc;
     const QString icpKey = filterKeyForId(
-        doc, QStringLiteral("align_by_point_to_plane_icp_open3d"));
+        doc, QStringLiteral("align_layer_to_reference_by_point_to_plane_icp_open3d"));
     if (icpKey.isEmpty())
         QSKIP("Open3D filter plugin is not available in this build.");
     const QString normalsKey = filterKeyForId(
@@ -4324,8 +4325,8 @@ void FilterTests::open3dGlobalAlignmentDistributesErrorAcrossLayers()
 void FilterTests::open3dGlobalInitializersRecoverACoarsePose()
 {
     const QStringList ids = {
-        QStringLiteral("align_by_feature_matching_open3d"),
-        QStringLiteral("align_by_fast_global_registration_open3d")
+        QStringLiteral("align_layer_to_reference_by_ransac_feature_matching_open3d"),
+        QStringLiteral("align_layer_to_reference_by_fast_global_registration_open3d")
     };
 
     for (const QString &id : ids) {
@@ -4527,7 +4528,7 @@ void FilterTests::open3dIcpReachesTheKnownFineAlignment()
 {
     Document probe;
     const QString icpKey = filterKeyForId(
-        probe, QStringLiteral("align_by_point_to_plane_icp_open3d"));
+        probe, QStringLiteral("align_layer_to_reference_by_point_to_plane_icp_open3d"));
     if (icpKey.isEmpty())
         QSKIP("Open3D filter plugin is not available in this build.");
 
@@ -4769,11 +4770,11 @@ void FilterTests::open3dSequentialInitialRegistrationFromRawScans()
 {
     Document probe;
     const QString coarseKey = filterKeyForId(
-        probe, QStringLiteral("align_by_feature_matching_open3d"));
+        probe, QStringLiteral("align_layer_to_reference_by_ransac_feature_matching_open3d"));
     if (coarseKey.isEmpty())
         QSKIP("Open3D filter plugin is not available in this build.");
     const QString icpKey = filterKeyForId(
-        probe, QStringLiteral("align_by_point_to_plane_icp_open3d"));
+        probe, QStringLiteral("align_layer_to_reference_by_point_to_plane_icp_open3d"));
     const QString normalsKey = filterKeyForId(probe, QStringLiteral("compute_vertex_normals"));
     QVERIFY(!icpKey.isEmpty() && !normalsKey.isEmpty());
 
@@ -5114,9 +5115,11 @@ void FilterTests::open3dAlignMeshesSequentiallyRestartsAfterAFailedPair()
 void FilterTests::open3dAlignSetsByFeatureMatchingMovesTheWholeMovingSet()
 {
     Document probe;
-    const QString setsKey = filterKeyForId(
-        probe, QStringLiteral("align_sets_by_feature_matching_open3d"));
-    if (setsKey.isEmpty())
+    const QString ransacSetsKey = filterKeyForId(
+        probe, QStringLiteral("align_sets_by_ransac_feature_matching_open3d"));
+    const QString fgrSetsKey = filterKeyForId(
+        probe, QStringLiteral("align_sets_by_fast_global_registration_open3d"));
+    if (ransacSetsKey.isEmpty() || fgrSetsKey.isEmpty())
         QSKIP("Open3D filter plugin is not available in this build.");
     const QString normalsKey = filterKeyForId(probe, QStringLiteral("compute_vertex_normals"));
     QVERIFY(!normalsKey.isEmpty());
@@ -5129,87 +5132,97 @@ void FilterTests::open3dAlignSetsByFeatureMatchingMovesTheWholeMovingSet()
     std::vector<QMatrix4x4> expected;
     QVERIFY(expectedRelativePoses(projectPath, names, expected));
 
-    Document doc;
-    for (const QString &name : names) {
-        const int index = doc.loadMesh(QDir(folder).filePath(name));
-        QVERIFY(index >= 0);
-        doc.setCurrentMeshIndex(index);
-        QVERIFY(doc.runFilter(normalsKey, {}).success);
-    }
-    // Every scan where the project puts it, so each pair is aligned within itself; then the
-    // second pair is knocked out of place, a third of a turn about the statue and a shift.
-    const vcg::Point3f centre = doc.mesh(0).mesh.bbox.Center();
-    const float diagonal = doc.mesh(0).mesh.bbox.Diag();
-    QMatrix4x4 knock;
-    knock.translate(centre.X(), centre.Y(), centre.Z());
-    knock.rotate(30.0f, 0.0f, 1.0f, 0.0f);
-    knock.translate(-centre.X(), -centre.Y(), -centre.Z());
-    knock.translate(0.15f * diagonal, 0.0f, 0.0f);
-    for (int i = 0; i < doc.meshCount(); ++i)
-        doc.setMeshTransform(i, i >= 2 ? knock * expected[size_t(i)] : expected[size_t(i)]);
-    const QMatrix4x4 referenceBefore0 = doc.mesh(0).transform;
-    const QMatrix4x4 referenceBefore1 = doc.mesh(1).transform;
-    const QMatrix4x4 relative = doc.mesh(2).transform.inverted() * doc.mesh(3).transform;
-
-    // With no set to name, the filter is refused with a message that says what to do.
-    {
-        QString why;
-        QVERIFY(!doc.validateFilterInvocation(setsKey, {}, why));
-        QVERIFY2(why.contains(QStringLiteral("there are none")), qPrintable(why));
-    }
-    doc.addVisibilitySet(QStringLiteral("front"), { doc.mesh(0).meshId, doc.mesh(1).meshId });
-    doc.addVisibilitySet(QStringLiteral("side"), { doc.mesh(2).meshId, doc.mesh(3).meshId });
-
-    MeshFilterParameterValues values;
-    values.insert(QStringLiteral("movingSet"), QStringLiteral("side"));
-    values.insert(QStringLiteral("referenceSet"), QStringLiteral("front"));
-    values.insert(QStringLiteral("randomSeed"), 1);
-    const MeshFilterRunResult result = doc.runFilter(setsKey, values);
-    QVERIFY2(result.success, qPrintable(result.errorMessage));
-    qDebug("%s", qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
-
-    const auto sameMatrix = [](const QMatrix4x4 &a, const QMatrix4x4 &b) {
-        for (int r = 0; r < 4; ++r) {
-            for (int c = 0; c < 4; ++c) {
-                if (std::abs(a(r, c) - b(r, c)) > 1e-4f)
-                    return false;
-            }
+    // Both methods, on the same pairs. Fast Global Registration depends on the relative orientation
+    // of what it matches (it optimizes the rotation from the identity), so it is given a smaller
+    // turn to undo than RANSAC, which has no such limit.
+    const std::vector<std::pair<QString, float>> cases = { { ransacSetsKey, 30.0f }, { fgrSetsKey, 15.0f } };
+    for (const auto &[setsKey, knockDegrees] : cases) {
+        qDebug("%s", qPrintable(setsKey));
+        Document doc;
+        for (const QString &name : names) {
+            const int index = doc.loadMesh(QDir(folder).filePath(name));
+            QVERIFY(index >= 0);
+            doc.setCurrentMeshIndex(index);
+            QVERIFY(doc.runFilter(normalsKey, {}).success);
         }
-        return true;
-    };
-    // The reference set did not move, and the moving set kept its inner alignment exactly:
-    // one correction for both layers.
-    QVERIFY(sameMatrix(doc.mesh(0).transform, referenceBefore0));
-    QVERIFY(sameMatrix(doc.mesh(1).transform, referenceBefore1));
-    QVERIFY(sameMatrix(doc.mesh(2).transform.inverted() * doc.mesh(3).transform, relative));
-    // And it went back where it belongs, to within what a coarse pose gives.
-    for (int i = 2; i < 4; ++i) {
-        const float error = posePointError(doc.mesh(i).mesh, doc.mesh(i).transform, expected[size_t(i)]);
-        QVERIFY2(error < diagonal * 0.02f,
-                 qPrintable(QStringLiteral("%1 is %2% of the diagonal off")
-                                .arg(doc.mesh(i).name).arg(100.0f * error / diagonal)));
+        // Every scan where the project puts it, so each pair is aligned within itself; then the
+        // second pair is knocked out of place, a third of a turn about the statue and a shift.
+        const vcg::Point3f centre = doc.mesh(0).mesh.bbox.Center();
+        const float diagonal = doc.mesh(0).mesh.bbox.Diag();
+        QMatrix4x4 knock;
+        knock.translate(centre.X(), centre.Y(), centre.Z());
+        knock.rotate(knockDegrees, 0.0f, 1.0f, 0.0f);
+        knock.translate(-centre.X(), -centre.Y(), -centre.Z());
+        knock.translate(0.15f * diagonal, 0.0f, 0.0f);
+        for (int i = 0; i < doc.meshCount(); ++i)
+            doc.setMeshTransform(i, i >= 2 ? knock * expected[size_t(i)] : expected[size_t(i)]);
+        const QMatrix4x4 referenceBefore0 = doc.mesh(0).transform;
+        const QMatrix4x4 referenceBefore1 = doc.mesh(1).transform;
+        const QMatrix4x4 relative = doc.mesh(2).transform.inverted() * doc.mesh(3).transform;
+
+        // With no set to name, the filter is refused with a message that says what to do.
+        {
+            QString why;
+            QVERIFY(!doc.validateFilterInvocation(setsKey, {}, why));
+            QVERIFY2(why.contains(QStringLiteral("there are none")), qPrintable(why));
+        }
+        doc.addVisibilitySet(QStringLiteral("front"), { doc.mesh(0).meshId, doc.mesh(1).meshId });
+        doc.addVisibilitySet(QStringLiteral("side"), { doc.mesh(2).meshId, doc.mesh(3).meshId });
+
+        MeshFilterParameterValues values;
+        values.insert(QStringLiteral("movingSet"), QStringLiteral("side"));
+        values.insert(QStringLiteral("referenceSet"), QStringLiteral("front"));
+        values.insert(QStringLiteral("randomSeed"), 1);
+        const MeshFilterRunResult result = doc.runFilter(setsKey, values);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        qDebug("%s", qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
+
+        const auto sameMatrix = [](const QMatrix4x4 &a, const QMatrix4x4 &b) {
+            for (int r = 0; r < 4; ++r) {
+                for (int c = 0; c < 4; ++c) {
+                    if (std::abs(a(r, c) - b(r, c)) > 1e-4f)
+                        return false;
+                }
+            }
+            return true;
+        };
+        // The reference set did not move, and the moving set kept its inner alignment exactly:
+        // one correction for both layers.
+        QVERIFY(sameMatrix(doc.mesh(0).transform, referenceBefore0));
+        QVERIFY(sameMatrix(doc.mesh(1).transform, referenceBefore1));
+        // Compared as where the points land, not entry by entry: the matrices carry translations of
+        // hundreds of units, and float rounding of the product is far above any entry-wise tolerance.
+        QVERIFY(posePointError(doc.mesh(3).mesh, doc.mesh(3).transform,
+                               doc.mesh(2).transform * relative) < diagonal * 1e-4f);
+        // And it went back where it belongs, to within what a coarse pose gives.
+        for (int i = 2; i < 4; ++i) {
+            const float error = posePointError(doc.mesh(i).mesh, doc.mesh(i).transform, expected[size_t(i)]);
+            QVERIFY2(error < diagonal * 0.02f,
+                     qPrintable(QStringLiteral("%1 is %2% of the diagonal off")
+                                    .arg(doc.mesh(i).name).arg(100.0f * error / diagonal)));
+        }
+        QVERIFY(result.infoMessages.join(QLatin1Char('\n')).contains(QStringLiteral("Moved layers:")));
+
+        // The two sets together, now placed relative to each other, were left as a set of their own,
+        // the reference's layers first.
+        QCOMPARE(doc.visibilitySets().size(), size_t(3));
+        QCOMPARE(doc.visibilitySets()[2].name, QStringLiteral("aligned"));
+        QCOMPARE(doc.visibilitySets()[2].meshIds,
+                 (std::vector<std::uint64_t>{ doc.mesh(0).meshId, doc.mesh(1).meshId,
+                                              doc.mesh(2).meshId, doc.mesh(3).meshId }));
+
+        // A set cannot be given twice, nor one that does not exist, and the message says which.
+        values.insert(QStringLiteral("referenceSet"), QStringLiteral("side"));
+        const MeshFilterRunResult twice = doc.runFilter(setsKey, values);
+        QVERIFY(!twice.success);
+        QVERIFY2(twice.errorMessage.contains(QStringLiteral("two different sets")),
+                 qPrintable(twice.errorMessage));
+        values.insert(QStringLiteral("referenceSet"), QStringLiteral("nothing here"));
+        const MeshFilterRunResult missing = doc.runFilter(setsKey, values);
+        QVERIFY(!missing.success);
+        QVERIFY2(missing.errorMessage.contains(QStringLiteral("nothing here")),
+                 qPrintable(missing.errorMessage));
     }
-    QVERIFY(result.infoMessages.join(QLatin1Char('\n')).contains(QStringLiteral("Moved layers:")));
-
-    // The two sets together, now placed relative to each other, were left as a set of their own,
-    // the reference's layers first.
-    QCOMPARE(doc.visibilitySets().size(), size_t(3));
-    QCOMPARE(doc.visibilitySets()[2].name, QStringLiteral("aligned"));
-    QCOMPARE(doc.visibilitySets()[2].meshIds,
-             (std::vector<std::uint64_t>{ doc.mesh(0).meshId, doc.mesh(1).meshId,
-                                          doc.mesh(2).meshId, doc.mesh(3).meshId }));
-
-    // A set cannot be given twice, nor one that does not exist, and the message says which.
-    values.insert(QStringLiteral("referenceSet"), QStringLiteral("side"));
-    const MeshFilterRunResult twice = doc.runFilter(setsKey, values);
-    QVERIFY(!twice.success);
-    QVERIFY2(twice.errorMessage.contains(QStringLiteral("two different sets")),
-             qPrintable(twice.errorMessage));
-    values.insert(QStringLiteral("referenceSet"), QStringLiteral("nothing here"));
-    const MeshFilterRunResult missing = doc.runFilter(setsKey, values);
-    QVERIFY(!missing.success);
-    QVERIFY2(missing.errorMessage.contains(QStringLiteral("nothing here")),
-             qPrintable(missing.errorMessage));
 }
 
 // "Use All Visible Layers as Reference": feature matching against every other
@@ -5237,11 +5250,69 @@ void FilterTests::open3dAlignSetsByFeatureMatchingMovesTheWholeMovingSet()
 // The ICP estimate is a measurement: with the option on, the pose applied is exactly the one the
 // same run gives without it, and what comes back besides is the score of that pose on the full
 // layers, the score after ICP, and how far ICP moved it.
+// Fast Global Registration takes the same option as feature matching: the reference becomes every
+// other visible layer, combined in world space, and the current layer is placed against them.
+void FilterTests::open3dFastGlobalRegistrationCanUseAllVisibleLayersAsReference()
+{
+    Document probe;
+    const QString fgrKey = filterKeyForId(
+        probe, QStringLiteral("align_layer_to_reference_by_fast_global_registration_open3d"));
+    if (fgrKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+    const QString normalsKey = filterKeyForId(probe, QStringLiteral("compute_vertex_normals"));
+    QVERIFY(!normalsKey.isEmpty());
+
+    MESHLAB2_REQUIRE_DATASET(firstScan, "rangemaps/faccia000.ply");
+    MESHLAB2_REQUIRE_DATASET(projectPath, "rangemaps/partial.mlp");
+    const QString folder = QFileInfo(firstScan).absolutePath();
+    const QStringList names = { QStringLiteral("faccia000.ply"), QStringLiteral("faccia045.ply"),
+                                QStringLiteral("faccia090.ply") };
+    std::vector<QMatrix4x4> expected;
+    QVERIFY(expectedRelativePoses(projectPath, names, expected));
+
+    // The current layer is the raw 045 scan, a turntable step from the others; the reference
+    // layers are 000 and 090 in place.
+    Document doc;
+    QVERIFY(doc.loadMesh(QDir(folder).filePath(names[1])) >= 0);
+    QVERIFY(doc.loadMesh(QDir(folder).filePath(names[0])) >= 0);
+    QVERIFY(doc.loadMesh(QDir(folder).filePath(names[2])) >= 0);
+    for (int i = 0; i < doc.meshCount(); ++i) {
+        doc.setCurrentMeshIndex(i);
+        QVERIFY(doc.runFilter(normalsKey, {}).success);
+    }
+    doc.setMeshTransform(2, expected[2]);
+    doc.setCurrentMeshIndex(0);
+    const QMatrix4x4 reference0 = doc.mesh(1).transform;
+    const QMatrix4x4 reference1 = doc.mesh(2).transform;
+
+    MeshFilterParameterValues values;
+    values.insert(QStringLiteral("useAllVisibleAsReference"), true);
+    values.insert(QStringLiteral("randomSeed"), 1);
+    const MeshFilterRunResult result = doc.runFilter(fgrKey, values);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    qDebug("%s", qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
+
+    const QString report = result.infoMessages.join(QLatin1Char('\n'));
+    QVERIFY2(report.contains(QStringLiteral("2 visible layers")), qPrintable(report));
+    QVERIFY2(report.contains(QStringLiteral("Reference layers:")), qPrintable(report));
+    // The current layer moved, the ones it was matched against did not, and it went where the
+    // project puts it, to within what a coarse pose gives.
+    QVERIFY(doc.mesh(1).transform == reference0);
+    QVERIFY(doc.mesh(2).transform == reference1);
+    const float diagonal = doc.mesh(1).mesh.bbox.Diag();
+    const float error = posePointError(doc.mesh(0).mesh, doc.mesh(0).transform, expected[1]);
+    QVERIFY2(error < diagonal * 0.05f,
+             qPrintable(QStringLiteral("landed %1% of the diagonal off").arg(100.0f * error / diagonal)));
+}
+
 void FilterTests::open3dFeatureMatchingCanEstimateItsQualityWithIcp()
 {
     Document probe;
-    const QString matchKey = filterKeyForId(probe, QStringLiteral("align_by_feature_matching_open3d"));
-    if (matchKey.isEmpty())
+    const QString ransacKey = filterKeyForId(
+        probe, QStringLiteral("align_layer_to_reference_by_ransac_feature_matching_open3d"));
+    const QString fgrKey = filterKeyForId(
+        probe, QStringLiteral("align_layer_to_reference_by_fast_global_registration_open3d"));
+    if (ransacKey.isEmpty() || fgrKey.isEmpty())
         QSKIP("Open3D filter plugin is not available in this build.");
     const QString normalsKey = filterKeyForId(probe, QStringLiteral("compute_vertex_normals"));
     QVERIFY(!normalsKey.isEmpty());
@@ -5249,61 +5320,65 @@ void FilterTests::open3dFeatureMatchingCanEstimateItsQualityWithIcp()
     MESHLAB2_REQUIRE_DATASET(firstScan, "rangemaps/faccia000.ply");
     const QString folder = QFileInfo(firstScan).absolutePath();
 
-    const auto run = [&](bool estimate, QMatrix4x4 &movedPose) {
-        Document doc;
-        for (const QString &name : { QStringLiteral("faccia000.ply"), QStringLiteral("faccia045.ply") }) {
-            const int index = doc.loadMesh(QDir(folder).filePath(name));
-            doc.setCurrentMeshIndex(index);
-            doc.runFilter(normalsKey, {});
-        }
-        doc.setCurrentMeshIndex(1);
-        MeshFilterParameterValues values;
-        values.insert(QStringLiteral("referenceMesh"), 0);
-        values.insert(QStringLiteral("randomSeed"), 1);
-        values.insert(QStringLiteral("evaluateWithIcp"), estimate);
-        const MeshFilterRunResult result = doc.runFilter(matchKey, values);
-        movedPose = doc.mesh(1).transform;
-        return result;
-    };
-    QMatrix4x4 plainPose, estimatedPose;
-    const MeshFilterRunResult plain = run(false, plainPose);
-    const MeshFilterRunResult estimated = run(true, estimatedPose);
-    QVERIFY2(plain.success, qPrintable(plain.errorMessage));
-    QVERIFY2(estimated.success, qPrintable(estimated.errorMessage));
-    qDebug("%s", qPrintable(estimated.infoMessages.join(QStringLiteral(" | "))));
+    // Both methods that find a pose from descriptors take the option, and mean the same by it.
+    for (const QString &matchKey : { ransacKey, fgrKey }) {
+        qDebug("%s", qPrintable(matchKey));
+        const auto run = [&](const QString &matchKey, bool estimate, QMatrix4x4 &movedPose) {
+            Document doc;
+            for (const QString &name : { QStringLiteral("faccia000.ply"), QStringLiteral("faccia045.ply") }) {
+                const int index = doc.loadMesh(QDir(folder).filePath(name));
+                doc.setCurrentMeshIndex(index);
+                doc.runFilter(normalsKey, {});
+            }
+            doc.setCurrentMeshIndex(1);
+            MeshFilterParameterValues values;
+            values.insert(QStringLiteral("referenceMesh"), 0);
+            values.insert(QStringLiteral("randomSeed"), 1);
+            values.insert(QStringLiteral("evaluateWithIcp"), estimate);
+            const MeshFilterRunResult result = doc.runFilter(matchKey, values);
+            movedPose = doc.mesh(1).transform;
+            return result;
+        };
+        QMatrix4x4 plainPose, estimatedPose;
+        const MeshFilterRunResult plain = run(matchKey, false, plainPose);
+        const MeshFilterRunResult estimated = run(matchKey, true, estimatedPose);
+        QVERIFY2(plain.success, qPrintable(plain.errorMessage));
+        QVERIFY2(estimated.success, qPrintable(estimated.errorMessage));
+        qDebug("%s", qPrintable(estimated.infoMessages.join(QStringLiteral(" | "))));
 
-    // The estimate does not touch the pose.
-    QVERIFY(plainPose == estimatedPose);
+        // The estimate does not touch the pose.
+        QVERIFY(plainPose == estimatedPose);
 
-    // Without it: RANSAC's own figures only. With it: the rest, in the report and as values.
-    QVERIFY(plain.outputValues.contains(QStringLiteral("fitness")));
-    QVERIFY(plain.outputValues.contains(QStringLiteral("inlier_correspondences")));
-    QVERIFY(!plain.outputValues.contains(QStringLiteral("icp_fitness")));
-    QVERIFY(!plain.infoMessages.join(QLatin1Char('\n')).contains(QStringLiteral("After ICP")));
+        // Without it: RANSAC's own figures only. With it: the rest, in the report and as values.
+        QVERIFY(plain.outputValues.contains(QStringLiteral("fitness")));
+        QVERIFY(plain.outputValues.contains(QStringLiteral("inlier_correspondences")));
+        QVERIFY(!plain.outputValues.contains(QStringLiteral("icp_fitness")));
+        QVERIFY(!plain.infoMessages.join(QLatin1Char('\n')).contains(QStringLiteral("After ICP")));
 
-    const QString report = estimated.infoMessages.join(QLatin1Char('\n'));
-    QVERIFY2(report.contains(QStringLiteral("Coarse pose on the full layers")), qPrintable(report));
-    QVERIFY2(report.contains(QStringLiteral("After ICP from it")), qPrintable(report));
-    QVERIFY2(report.contains(QStringLiteral("ICP moved the pose by")), qPrintable(report));
-    for (const char *key : { "full_fitness", "full_inlier_rmse", "icp_fitness", "icp_inlier_rmse",
-                             "icp_rotation_degrees", "icp_translation",
-                             "icp_translation_percent_of_diagonal" })
-        QVERIFY2(estimated.outputValues.contains(QLatin1String(key)), key);
+        const QString report = estimated.infoMessages.join(QLatin1Char('\n'));
+        QVERIFY2(report.contains(QStringLiteral("Coarse pose on the full layers")), qPrintable(report));
+        QVERIFY2(report.contains(QStringLiteral("After ICP from it")), qPrintable(report));
+        QVERIFY2(report.contains(QStringLiteral("ICP moved the pose by")), qPrintable(report));
+        for (const char *key : { "full_fitness", "full_inlier_rmse", "icp_fitness", "icp_inlier_rmse",
+                                 "icp_rotation_degrees", "icp_translation",
+                                 "icp_translation_percent_of_diagonal" })
+            QVERIFY2(estimated.outputValues.contains(QLatin1String(key)), key);
 
-    const double fullFitness = estimated.outputValues.value(QStringLiteral("full_fitness")).toDouble();
-    const double icpFitness = estimated.outputValues.value(QStringLiteral("icp_fitness")).toDouble();
-    const double rotation = estimated.outputValues.value(QStringLiteral("icp_rotation_degrees")).toDouble();
-    QVERIFY2(fullFitness > 0.0 && icpFitness > 0.0, qPrintable(report));
-    // ICP started from the coarse pose cannot score meaningfully worse, and a pose that registers
-    // does not need a half turn to be corrected.
-    QVERIFY2(icpFitness >= fullFitness - 0.02, qPrintable(report));
-    QVERIFY2(rotation >= 0.0 && rotation < 30.0, qPrintable(report));
+        const double fullFitness = estimated.outputValues.value(QStringLiteral("full_fitness")).toDouble();
+        const double icpFitness = estimated.outputValues.value(QStringLiteral("icp_fitness")).toDouble();
+        const double rotation = estimated.outputValues.value(QStringLiteral("icp_rotation_degrees")).toDouble();
+        QVERIFY2(fullFitness > 0.0 && icpFitness > 0.0, qPrintable(report));
+        // ICP started from the coarse pose cannot score meaningfully worse, and a pose that registers
+        // does not need a half turn to be corrected.
+        QVERIFY2(icpFitness >= fullFitness - 0.02, qPrintable(report));
+        QVERIFY2(rotation >= 0.0 && rotation < 30.0, qPrintable(report));
+    }
 }
 
 void FilterTests::open3dFeatureMatchingCanUseAllVisibleLayersAsReference()
 {
     Document probe;
-    const QString matchKey = filterKeyForId(probe, QStringLiteral("align_by_feature_matching_open3d"));
+    const QString matchKey = filterKeyForId(probe, QStringLiteral("align_layer_to_reference_by_ransac_feature_matching_open3d"));
     if (matchKey.isEmpty())
         QSKIP("Open3D filter plugin is not available in this build.");
 
@@ -5443,7 +5518,7 @@ void FilterTests::open3dFeatureMatchingCanUseAllVisibleLayersAsReference()
         // The same layer as the single reference of an ICP that needs its normals.
         // Until the adapter learned that "has normals" means non-zero ones, this ran
         // to completion on a field of zero vectors and reported a fitness.
-        const QString icpKey = filterKeyForId(doc, QStringLiteral("align_by_point_to_plane_icp_open3d"));
+        const QString icpKey = filterKeyForId(doc, QStringLiteral("align_layer_to_reference_by_point_to_plane_icp_open3d"));
         QVERIFY(!icpKey.isEmpty());
         MeshFilterParameterValues icp;
         icp.insert(QStringLiteral("referenceMesh"), doc.meshCount() - 1);

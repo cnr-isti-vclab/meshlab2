@@ -100,7 +100,7 @@ second, which is what a filter taking two wants. The framework refuses the call 
 filter runs if the name is not a set, or the set has no layer left (and says, when there are
 no sets at all, how to make one). In the filter, `doc.indexOfVisibilitySet(name)` finds it
 and `doc.visibilitySetMeshIndices(index)` gives its layers in document order.
-*Align Sets by Feature Matching (Open3D)* takes two.
+*Align Sets by RANSAC Feature Matching (Open3D)* and *Align Sets by Fast Global Registration (Open3D)* take two.
 
 `point3f` parameters take an optional `point3fRole`, which decides what the
 editor's preset combo offers beside the three spin boxes:

@@ -431,17 +431,17 @@
       ]
     },
     {
-      "id": "align_by_point_to_point_icp_open3d",
+      "id": "align_layer_to_reference_by_point_to_point_icp_open3d",
       "categories": [
         "Geometry/Alignment"
       ],
-      "name": "Align by Point-to-Point ICP (Open3D)",
-      "pythonName": "align_by_point_to_point_icp_open3d",
+      "name": "Align Layer to Reference by Point-to-Point ICP (Open3D)",
+      "pythonName": "align_layer_to_reference_by_point_to_point_icp_open3d",
       "referenceIds": [
         "open3d"
       ],
       "shortDescription": "Register two layers by minimizing distances between corresponding points, using Open3D.",
-      "longDescriptionMarkdown": "**Starting alignment:** the layers must already be roughly aligned. ICP refines a pose; it cannot find one. Each source point is paired with its nearest reference point within the maximum correspondence distance, so the overlap has to start within that distance of where it belongs. If the layers start far apart or turned, run *Align by Feature Matching* first.\n\nIteratively pairs each source point with the nearest reference point and minimizes the sum of squared distances between the pairs. The classic Besl-McKay objective: it needs no normals and makes no assumption about the surface, which also makes it the slowest to converge on smooth geometry, where sliding along the surface costs it nothing.\n\nThe **current layer** is the one that moves, and the reference layer stays put. The result is written to the current layer's **matrix**, composed onto whatever it already carried; the vertex coordinates are not touched. Fitness (the fraction of source points that found a correspondence) and inlier RMSE are reported so the result can be judged rather than assumed.",
+      "longDescriptionMarkdown": "**Starting alignment:** the layers must already be roughly aligned. ICP refines a pose; it cannot find one. Each source point is paired with its nearest reference point within the maximum correspondence distance, so the overlap has to start within that distance of where it belongs. If the layers start far apart or turned, run *Align Layer to Reference by RANSAC Feature Matching* first.\n\nIteratively pairs each source point with the nearest reference point and minimizes the sum of squared distances between the pairs. The classic Besl-McKay objective: it needs no normals and makes no assumption about the surface, which also makes it the slowest to converge on smooth geometry, where sliding along the surface costs it nothing.\n\nThe **current layer** is the one that moves, and the reference layer stays put. The result is written to the current layer's **matrix**, composed onto whatever it already carried; the vertex coordinates are not touched. Fitness (the fraction of source points that found a correspondence) and inlier RMSE are reported so the result can be judged rather than assumed.",
       "tags": [
         "registration",
         "alignment",
@@ -498,17 +498,17 @@
       ]
     },
     {
-      "id": "align_by_point_to_plane_icp_open3d",
+      "id": "align_layer_to_reference_by_point_to_plane_icp_open3d",
       "categories": [
         "Geometry/Alignment"
       ],
-      "name": "Align by Point-to-Plane ICP (Open3D)",
-      "pythonName": "align_by_point_to_plane_icp_open3d",
+      "name": "Align Layer to Reference by Point-to-Plane ICP (Open3D)",
+      "pythonName": "align_layer_to_reference_by_point_to_plane_icp_open3d",
       "referenceIds": [
         "open3d"
       ],
       "shortDescription": "Register two layers by minimizing point-to-tangent-plane distances, using Open3D.",
-      "longDescriptionMarkdown": "**Starting alignment:** the layers must already be roughly aligned. ICP refines a pose; it cannot find one. Each source point is paired with its nearest reference point within the maximum correspondence distance, so the overlap has to start within that distance of where it belongs. If the layers start far apart or turned, run *Align by Feature Matching* first.\n\nMinimizes the distance from each source point to the *tangent plane* at its corresponding reference point, rather than to the point itself. Sliding along a smooth surface is then free of penalty only in the directions the surface actually permits, so it converges in far fewer iterations than point-to-point on scan data.\n\nThe reference layer must carry normals; the filter refuses without them.\n\nThe **current layer** is the one that moves, and the reference layer stays put. The result is written to the current layer's **matrix**, composed onto whatever it already carried; the vertex coordinates are not touched. Fitness (the fraction of source points that found a correspondence) and inlier RMSE are reported so the result can be judged rather than assumed.",
+      "longDescriptionMarkdown": "**Starting alignment:** the layers must already be roughly aligned. ICP refines a pose; it cannot find one. Each source point is paired with its nearest reference point within the maximum correspondence distance, so the overlap has to start within that distance of where it belongs. If the layers start far apart or turned, run *Align Layer to Reference by RANSAC Feature Matching* first.\n\nMinimizes the distance from each source point to the *tangent plane* at its corresponding reference point, rather than to the point itself. Sliding along a smooth surface is then free of penalty only in the directions the surface actually permits, so it converges in far fewer iterations than point-to-point on scan data.\n\nThe reference layer must carry normals; the filter refuses without them.\n\nThe **current layer** is the one that moves, and the reference layer stays put. The result is written to the current layer's **matrix**, composed onto whatever it already carried; the vertex coordinates are not touched. Fitness (the fraction of source points that found a correspondence) and inlier RMSE are reported so the result can be judged rather than assumed.",
       "tags": [
         "registration",
         "alignment",
@@ -557,17 +557,17 @@
       ]
     },
     {
-      "id": "align_by_colored_icp_open3d",
+      "id": "align_layer_to_reference_by_colored_icp_open3d",
       "categories": [
         "Geometry/Alignment"
       ],
-      "name": "Align by Colored ICP (Open3D)",
-      "pythonName": "align_by_colored_icp_open3d",
+      "name": "Align Layer to Reference by Colored ICP (Open3D)",
+      "pythonName": "align_layer_to_reference_by_colored_icp_open3d",
       "referenceIds": [
         "open3d"
       ],
       "shortDescription": "Register two colored layers using both geometry and color, with Open3D.",
-      "longDescriptionMarkdown": "**Starting alignment:** the layers must already be roughly aligned. ICP refines a pose; it cannot find one. Each source point is paired with its nearest reference point within the maximum correspondence distance, so the overlap has to start within that distance of where it belongs. If the layers start far apart or turned, run *Align by Feature Matching* first.\n\nAdds a photometric term to the point-to-plane objective, so color gradients constrain the motion that geometry alone leaves ambiguous. This is the case it exists for: a flat painted wall, or a cylinder free to slide and spin, where a purely geometric ICP has nothing to hold on to.\n\nBoth layers need per-vertex color, and both need normals.\n\nThe **current layer** is the one that moves, and the reference layer stays put. The result is written to the current layer's **matrix**, composed onto whatever it already carried; the vertex coordinates are not touched. Fitness (the fraction of source points that found a correspondence) and inlier RMSE are reported so the result can be judged rather than assumed.",
+      "longDescriptionMarkdown": "**Starting alignment:** the layers must already be roughly aligned. ICP refines a pose; it cannot find one. Each source point is paired with its nearest reference point within the maximum correspondence distance, so the overlap has to start within that distance of where it belongs. If the layers start far apart or turned, run *Align Layer to Reference by RANSAC Feature Matching* first.\n\nAdds a photometric term to the point-to-plane objective, so color gradients constrain the motion that geometry alone leaves ambiguous. This is the case it exists for: a flat painted wall, or a cylinder free to slide and spin, where a purely geometric ICP has nothing to hold on to.\n\nBoth layers need per-vertex color, and both need normals.\n\nThe **current layer** is the one that moves, and the reference layer stays put. The result is written to the current layer's **matrix**, composed onto whatever it already carried; the vertex coordinates are not touched. Fitness (the fraction of source points that found a correspondence) and inlier RMSE are reported so the result can be judged rather than assumed.",
       "tags": [
         "registration",
         "alignment",
@@ -617,12 +617,12 @@
       ]
     },
     {
-      "id": "align_by_feature_matching_open3d",
+      "id": "align_layer_to_reference_by_ransac_feature_matching_open3d",
       "categories": [
         "Geometry/Alignment"
       ],
-      "name": "Align by Feature Matching (Open3D)",
-      "pythonName": "align_by_feature_matching_open3d",
+      "name": "Align Layer to Reference by RANSAC Feature Matching (Open3D)",
+      "pythonName": "align_layer_to_reference_by_ransac_feature_matching_open3d",
       "referenceIds": [
         "open3d",
         "rusu2009"
@@ -757,18 +757,18 @@
       ]
     },
     {
-      "id": "align_sets_by_feature_matching_open3d",
+      "id": "align_sets_by_ransac_feature_matching_open3d",
       "categories": [
         "Geometry/Alignment"
       ],
-      "name": "Align Sets by Feature Matching (Open3D)",
-      "pythonName": "align_sets_by_feature_matching_open3d",
+      "name": "Align Sets by RANSAC Feature Matching (Open3D)",
+      "pythonName": "align_sets_by_ransac_feature_matching_open3d",
       "referenceIds": [
         "open3d",
         "rusu2009"
       ],
       "shortDescription": "Find a coarse pose between two visibility sets of layers from FPFH descriptors and RANSAC, and move the whole moving set by it, using Open3D.",
-      "longDescriptionMarkdown": "**Starting alignment:** none. The two sets may start in any position and orientation, because the pose is found from surface shape alone and not from where the layers currently are. What it needs is real surface overlap between the two sets, and normals on every layer. The result is a coarse pose; refine it with ICP.\n\nThis is *Align by Feature Matching* with a **visibility set** on each side instead of a layer. Each set is taken as one rigid group: the points of its layers are put together in world space, each through its own matrix, and downsampled by the matching voxel size (so surface covered by several layers is not counted several times). FPFH descriptors are computed on the two groups, matched, and a pose is fitted with RANSAC.\n\n**Every layer of the moving set gets the same correction**, composed onto the matrix it already has, so the set keeps its internal alignment and moves as a whole; the reference set stays put and no vertex coordinates are touched. This is what two groups of scans, each already aligned within itself, need to be joined, when no single scan of one group overlaps enough of the other to be registered on its own.\n\nMake the sets in the layer panel: show the layers that belong together and press **+** under the list. A layer cannot be in both sets, and a layer with no vertices is left out. Fitness (the fraction of source points that found a correspondence) and inlier RMSE are reported so the result can be judged rather than assumed.\n\nOn success the two sets together are left as a new visibility set called *aligned* (*aligned 2* and so on if that name is taken), so the joined group is one click away.\n\n**How good is the guess?** RANSAC scores its own pose on the downsampled clouds, which flatters it. Turn on *Estimate Quality with ICP* to also score the pose on the full layers and to run ICP from it, at full resolution, for an estimate that is not limited by the downsampling: the log reports the fitness and inlier RMSE before and after ICP, and how far ICP moved the pose in degrees and as a share of the diagonal. A pose that ICP leaves almost where it was is a good one; a large move, or a large gain in fitness, says the guess was rough and an ICP filter should follow. The ICP result itself is not applied. The same figures are returned as output values to a script (`fitness`, `inlier_rmse`, `inlier_correspondences`, and with the option `full_fitness`, `full_inlier_rmse`, `icp_fitness`, `icp_inlier_rmse`, `icp_rotation_degrees`, `icp_translation` and `icp_translation_percent_of_diagonal`).",
+      "longDescriptionMarkdown": "**Starting alignment:** none. The two sets may start in any position and orientation, because the pose is found from surface shape alone and not from where the layers currently are. What it needs is real surface overlap between the two sets, and normals on every layer. The result is a coarse pose; refine it with ICP.\n\nThis is *Align Layer to Reference by RANSAC Feature Matching* with a **visibility set** on each side instead of a layer. Each set is taken as one rigid group: the points of its layers are put together in world space, each through its own matrix, and downsampled by the matching voxel size (so surface covered by several layers is not counted several times). FPFH descriptors are computed on the two groups, matched, and a pose is fitted with RANSAC.\n\n**Every layer of the moving set gets the same correction**, composed onto the matrix it already has, so the set keeps its internal alignment and moves as a whole; the reference set stays put and no vertex coordinates are touched. This is what two groups of scans, each already aligned within itself, need to be joined, when no single scan of one group overlaps enough of the other to be registered on its own.\n\nMake the sets in the layer panel: show the layers that belong together and press **+** under the list. A layer cannot be in both sets, and a layer with no vertices is left out. Fitness (the fraction of source points that found a correspondence) and inlier RMSE are reported so the result can be judged rather than assumed.\n\nOn success the two sets together are left as a new visibility set called *aligned* (*aligned 2* and so on if that name is taken), so the joined group is one click away.\n\n**How good is the guess?** RANSAC scores its own pose on the downsampled clouds, which flatters it. Turn on *Estimate Quality with ICP* to also score the pose on the full layers and to run ICP from it, at full resolution, for an estimate that is not limited by the downsampling: the log reports the fitness and inlier RMSE before and after ICP, and how far ICP moved the pose in degrees and as a share of the diagonal. A pose that ICP leaves almost where it was is a good one; a large move, or a large gain in fitness, says the guess was rough and an ICP filter should follow. The ICP result itself is not applied. The same figures are returned as output values to a script (`fitness`, `inlier_rmse`, `inlier_correspondences`, and with the option `full_fitness`, `full_inlier_rmse`, `icp_fitness`, `icp_inlier_rmse`, `icp_rotation_degrees`, `icp_translation` and `icp_translation_percent_of_diagonal`).",
       "tags": [
         "registration",
         "alignment",
@@ -893,19 +893,19 @@
       ]
     },
     {
-      "id": "align_by_fast_global_registration_open3d",
+      "id": "align_layer_to_reference_by_fast_global_registration_open3d",
       "categories": [
         "Geometry/Alignment"
       ],
-      "name": "Align by Fast Global Registration (Open3D)",
-      "pythonName": "align_by_fast_global_registration_open3d",
+      "name": "Align Layer to Reference by Fast Global Registration (Open3D)",
+      "pythonName": "align_layer_to_reference_by_fast_global_registration_open3d",
       "referenceIds": [
         "open3d",
         "zhou2016",
         "rusu2009"
       ],
-      "shortDescription": "Find a pose between two layers from FPFH descriptors without RANSAC, using Open3D.",
-      "longDescriptionMarkdown": "**Starting alignment:** any position, but a limited rotation. The method removes each layer's centre and then refines the rotation starting from the identity, so it does not care where the layers sit but does depend on how they are turned. It registered a turntable pair roughly 45 degrees apart, and failed on a later pair of the same scans once the reference had been moved into place and the next scan had not; the limit between the two is not characterised. For layers in arbitrary orientation use *Align by Feature Matching*.\n\nMatches the same FPFH descriptors as *Align by Feature Matching*, then — instead of sampling candidate poses with RANSAC — optimizes a robust objective over all correspondences at once, annealing the scale parameter downward so that wrong matches lose influence as the solution settles (graduated non-convexity).\n\nThe practical difference is cost: there is no iteration budget to guess at, and no sampling to get unlucky with. It is usually the faster of the two for the same pair. RANSAC remains the more conservative choice where overlap is low, which is why both are offered rather than one replacing the other.\n\n**This is an initializer.** Like the RANSAC route it needs no starting pose, and like it the result is coarse — refine with one of the ICP filters, which run at full resolution.\n\nBoth layers need normals, since the descriptor is built from them, and both are downsampled before matching for the same reason as the RANSAC route.\n\nThe **current layer** is the one that moves, and the reference layer stays put. The result is written to the current layer's **matrix**, composed onto whatever it already carried; the vertex coordinates are not touched. Fitness and inlier RMSE are reported.",
+      "shortDescription": "Find a coarse pose between two layers (or a layer and all the visible ones) from FPFH descriptors without RANSAC, using Open3D.",
+      "longDescriptionMarkdown": "**Starting alignment:** any position, but a limited rotation. The method removes each layer's centre and then refines the rotation starting from the identity, so it does not care where the layers sit but does depend on how they are turned. It registered a turntable pair roughly 45 degrees apart, and failed on a later pair of the same scans once the reference had been moved into place and the next scan had not; the limit between the two is not characterised. For layers in arbitrary orientation use *Align Layer to Reference by RANSAC Feature Matching*.\n\nMatches the same FPFH descriptors as *Align Layer to Reference by RANSAC Feature Matching*, then — instead of sampling candidate poses with RANSAC — optimizes a robust objective over all correspondences at once, annealing the scale parameter downward so that wrong matches lose influence as the solution settles (graduated non-convexity).\n\nThe practical difference is cost: there is no iteration budget to guess at, and no sampling to get unlucky with. It is usually the faster of the two for the same pair. RANSAC remains the more conservative choice where overlap is low, which is why both are offered rather than one replacing the other.\n\n**This is an initializer.** Like the RANSAC route it needs no starting pose, and like it the result is coarse — refine with one of the ICP filters, which run at full resolution.\n\nBoth layers need normals, since the descriptor is built from them, and both are downsampled before matching for the same reason as the RANSAC route.\n\n**The reference can be every other visible layer**, as with the RANSAC route: with *Use All Visible Layers as Reference* the target is those layers combined in world space, and *Reference Mesh* is ignored. The parameters of the two routes are the same where the methods share a step (the matching distance, the downsampling, the descriptors, the visible-layers reference, the quality estimate) and differ only in what each method needs of its own.\n\nThe **current layer** is the one that moves, and the reference layer stays put. The result is written to the current layer's **matrix**, composed onto whatever it already carried; the vertex coordinates are not touched. Fitness and inlier RMSE are reported.\n\n**How good is the pose?** Turn on *Estimate Quality with ICP* to score the pose on the full layers and to run ICP from it, without applying the ICP result: the log reports the fitness and inlier RMSE before and after, and how far ICP moved the pose. A pose ICP barely moves was a good one. The figures are also returned as output values (`fitness`, `inlier_rmse`, `inlier_correspondences`, and with the option `full_fitness`, `full_inlier_rmse`, `icp_fitness`, `icp_inlier_rmse`, `icp_rotation_degrees`, `icp_translation`, `icp_translation_percent_of_diagonal`).",
       "tags": [
         "registration",
         "alignment",
@@ -927,7 +927,16 @@
           "default": "@otherMeshIndex",
           "meshRequirements": {
             "requireVertices": true
-          }
+          },
+          "enabledWhen": "!useAllVisibleAsReference"
+        },
+        {
+          "id": "useAllVisibleAsReference",
+          "label": "Use All Visible Layers as Reference",
+          "help": "Take every other visible layer together as the reference instead of the one named above, which is then ignored. Their points are combined and downsampled internally. Use it when the current layer overlaps the scans already placed but not the one before it in the sequence. Hide the layers that should not take part.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         },
         {
           "id": "maxCorrespondenceDistance",
@@ -981,6 +990,180 @@
           "default": 64,
           "min": 1,
           "max": 10000
+        },
+        {
+          "id": "evaluateWithIcp",
+          "label": "Estimate Quality with ICP",
+          "help": "After the coarse pose is found, measure it again on the full-resolution layers and run point-to-plane ICP from it, and report both scores and how far ICP had to move the pose. A pose that ICP barely moves, and that scores about the same afterwards, was a good guess; one it moves a lot, or that scores much better, was a rough one. The ICP result is only measured, not applied: the layers carry the coarse pose, and refining it is the job of the ICP filters. Costs one ICP run at full resolution. The numbers are also in the result's output values, for a script.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "divisionFactor",
+          "label": "Division Factor",
+          "help": "How fast the scale parameter anneals. Larger values converge sooner and are less tolerant of wrong correspondences.",
+          "group": "advanced",
+          "type": "double",
+          "default": 1.4,
+          "min": 1.0,
+          "max": 10.0,
+          "decimals": 3
+        },
+        {
+          "id": "decreaseMu",
+          "label": "Anneal the scale parameter",
+          "help": "Lower the scale parameter each round, which is what graduated non-convexity means. Turning it off keeps a fixed robustness scale throughout.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "tupleScale",
+          "label": "Tuple Scale",
+          "help": "Similarity tolerance when testing triples of correspondences for geometric compatibility.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.95,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 3
+        },
+        {
+          "id": "maximumTupleCount",
+          "label": "Maximum Tuple Count",
+          "help": "Upper bound on the compatible triples kept from the initial correspondences.",
+          "group": "advanced",
+          "type": "int",
+          "default": 1000,
+          "min": 1,
+          "max": 1000000
+        },
+        {
+          "id": "tupleTest",
+          "label": "Geometric compatibility test",
+          "help": "Discard correspondence triples whose relative distances disagree between the two layers. Cheap, and it removes most wrong matches before the optimization starts.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random Seed",
+          "help": "Seed for the random sampling this method does. Zero draws a fresh seed each run and reports it, so a result can be reproduced afterwards by pinning that value. Two runs with the same seed give the same pose; two runs with different seeds may not.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
+        }
+      ],
+      "outputModifies": [
+        "TM"
+      ]
+    },
+    {
+      "id": "align_sets_by_fast_global_registration_open3d",
+      "categories": [
+        "Geometry/Alignment"
+      ],
+      "name": "Align Sets by Fast Global Registration (Open3D)",
+      "pythonName": "align_sets_by_fast_global_registration_open3d",
+      "referenceIds": [
+        "open3d",
+        "zhou2016",
+        "rusu2009"
+      ],
+      "shortDescription": "Find a coarse pose between two visibility sets of layers from FPFH descriptors without RANSAC, and move the whole moving set by it, using Open3D.",
+      "longDescriptionMarkdown": "**Starting alignment:** any position, but a limited rotation. The method removes the centre of each set's points and then refines the rotation starting from the identity, so it does not care where the sets sit but does depend on how they are turned relative to each other; for sets in arbitrary orientation use *Align Sets by RANSAC Feature Matching*. What it needs is real surface overlap between the two sets, and normals on every layer. The result is a coarse pose; refine it with ICP.\n\nThis is *Align Layer to Reference by Fast Global Registration* with a **visibility set** on each side instead of a layer. Each set is taken as one rigid group: the points of its layers are put together in world space, each through its own matrix, and downsampled by the matching voxel size. FPFH descriptors are computed on the two groups and matched, and a pose is fitted by optimizing a robust objective over all the correspondences at once, annealing the scale parameter downward (graduated non-convexity), instead of sampling candidate poses with RANSAC. It is usually the faster of the two; RANSAC remains the more conservative choice where overlap is low.\n\n**Every layer of the moving set gets the same correction**, composed onto the matrix it already has, so the set keeps its internal alignment and moves as a whole; the reference set stays put and no vertex coordinates are touched. A layer cannot be in both sets, and a layer with no vertices is left out. Make the sets in the layer panel: show the layers that belong together and press **+** under the list.\n\nOn success the two sets together are left as a new visibility set called *aligned* (*aligned 2* and so on if that name is taken). Fitness and inlier RMSE are reported; *Estimate Quality with ICP* adds the full-layer scores and how far ICP would move the pose, as for the other aligners, with the same output values.",
+      "tags": [
+        "registration",
+        "alignment",
+        "global",
+        "fgr",
+        "fpfh",
+        "feature",
+        "set",
+        "group",
+        "open3d"
+      ],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "movingSet",
+          "label": "Moving Set",
+          "help": "The visibility set that is moved. Its layers move together, all by the same correction, so they stay as they are relative to each other. Make the set with the + under the layer list, or let a filter leave one (Align Meshes Sequentially leaves *aligned*).",
+          "group": "main",
+          "type": "visibilityset"
+        },
+        {
+          "id": "referenceSet",
+          "label": "Reference Set",
+          "help": "The visibility set the moving set is placed against. It stays put. A layer cannot be in both sets.",
+          "group": "main",
+          "type": "visibilityset"
+        },
+        {
+          "id": "maxCorrespondenceDistance",
+          "label": "Maximum Correspondence Distance",
+          "help": "A point within this distance of its match counts as matched: it decides which candidate poses are accepted and the fitness reported. In the layer's units, and also as a percentage of the current layer's bounding-box diagonal.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag002",
+          "min": "@bboxDiag00001",
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "registrationVoxelSize",
+          "label": "Downsampling Cell Size",
+          "help": "Edge length of the cubic grid cells, in the layers' units, and also as a percentage of the current layer's bounding-box diagonal. The points of each set are reduced to one point per occupied cell, at the average of its points, before descriptors are computed and matched; the pose found is applied to the full layers of the moving set. Fine cells are slow and coarse ones lose the pose: on one pair of range maps 0.25% of the diagonal took 76 s, 1% took 0.15 s and 8% failed. The default keeps about 4,500 points of 80,000.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": "@bboxDiag00001",
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "featureRadius",
+          "label": "Feature Radius",
+          "help": "Radius of the neighbourhood each descriptor is computed over, in the layers' units, and also as a percentage of the current layer's bounding-box diagonal. Larger values describe more context and match more robustly, at more cost. It is not tied to the matching voxel size: the defaults (5% and 1% of the diagonal) are the ones tested together, and scaling both with a larger voxel made matching worse at 2% and 4%.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag005",
+          "min": "@bboxDiag00001",
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "featureNeighbours",
+          "label": "Feature Neighbours",
+          "help": "Upper bound on neighbours per descriptor, within the feature radius.",
+          "group": "main",
+          "type": "int",
+          "default": 100,
+          "min": 3,
+          "max": 1000
+        },
+        {
+          "id": "fgrIterations",
+          "label": "Iterations",
+          "help": "Annealing rounds. Each one lowers the scale parameter by the division factor.",
+          "group": "main",
+          "type": "int",
+          "default": 64,
+          "min": 1,
+          "max": 10000
+        },
+        {
+          "id": "evaluateWithIcp",
+          "label": "Estimate Quality with ICP",
+          "help": "After the coarse pose is found, measure it again on the full-resolution layers and run point-to-plane ICP from it, and report both scores and how far ICP had to move the pose. A pose that ICP barely moves, and that scores about the same afterwards, was a good guess; one it moves a lot, or that scores much better, was a rough one. The ICP result is only measured, not applied: the layers carry the coarse pose, and refining it is the job of the ICP filters. Costs one ICP run at full resolution. The numbers are also in the result's output values, for a script.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         },
         {
           "id": "divisionFactor",
@@ -1222,7 +1405,7 @@
         "choi2015"
       ],
       "shortDescription": "Align a sequence of overlapping scans one after another from raw positions, restart the chain after a pair that fails, and optimize each aligned group, using Open3D.",
-      "longDescriptionMarkdown": "**Starting alignment:** none. Only the reference stays where it is; every later layer may start in any position and orientation. What the filter does need is that the layers are listed in scanning order, so that **each one overlaps the one before it**, and that every layer has normals. Meshes loaded from a file get smooth normals automatically when the file has none; a point cloud needs *Compute Point Cloud Normals* first.\n\nStarting from the reference layer, it takes each following layer in the layer list and moves it onto the one before it: a coarse pose from *Align by Feature Matching*, then *Align by Point-to-Plane ICP* to refine it. Each pair it attempts is written to the log, with the fitness it reached. This is the sequence Open3D's `register_fragments` tutorial describes, and what registering a set of range maps one by one by hand amounts to.\n\n**A pair that fails starts a new group.** A pair whose registration finds no correspondences, or reaches a fitness below the minimum, ends the group being built. The layer that failed is put back where it was found and becomes the reference of the layers after it, which are aligned onto it in turn: the chain restarts from it rather than giving up. Each group of two or more layers is optimized together with *Align Meshes Globally*, so the drift a chain accumulates is shared across the group instead of being left in its last layer. Turn *Global Refinement* off to keep each chain as it stands.\n\nGroups are not placed relative to one another, because nothing overlapped across the break; each is aligned onto its own first layer. The log and the result name every failure with its reason, and every group. To join two groups, use *Align Sets by Feature Matching* on the sets the run leaves, or place one by hand.\n\nThe feature matcher samples randomly. Every pair of a run uses the same *Random Seed*, which is reported, so a run can be replayed.\n\nLayers listed *before* the reference are not part of the chain and are not touched. Only layer matrices change; no coordinates are modified.\n\nEach group is left as a **visibility set** under the layer list, the group's first layer among its layers: *aligned* for the first, then *aligned 2*, *aligned 3* and so on (a name already taken gets a number, as a layer's does). One click shows exactly what a group placed and hides the layers left out. A layer that registered with neither neighbour is in no set. The run fails, moving nothing, only if no pair registered at all.",
+      "longDescriptionMarkdown": "**Starting alignment:** none. Only the reference stays where it is; every later layer may start in any position and orientation. What the filter does need is that the layers are listed in scanning order, so that **each one overlaps the one before it**, and that every layer has normals. Meshes loaded from a file get smooth normals automatically when the file has none; a point cloud needs *Compute Point Cloud Normals* first.\n\nStarting from the reference layer, it takes each following layer in the layer list and moves it onto the one before it: a coarse pose from *Align Layer to Reference by RANSAC Feature Matching*, then *Align Layer to Reference by Point-to-Plane ICP* to refine it. Each pair it attempts is written to the log, with the fitness it reached. This is the sequence Open3D's `register_fragments` tutorial describes, and what registering a set of range maps one by one by hand amounts to.\n\n**A pair that fails starts a new group.** A pair whose registration finds no correspondences, or reaches a fitness below the minimum, ends the group being built. The layer that failed is put back where it was found and becomes the reference of the layers after it, which are aligned onto it in turn: the chain restarts from it rather than giving up. Each group of two or more layers is optimized together with *Align Meshes Globally*, so the drift a chain accumulates is shared across the group instead of being left in its last layer. Turn *Global Refinement* off to keep each chain as it stands.\n\nGroups are not placed relative to one another, because nothing overlapped across the break; each is aligned onto its own first layer. The log and the result name every failure with its reason, and every group. To join two groups, use *Align Sets by RANSAC Feature Matching* on the sets the run leaves, or place one by hand.\n\nThe feature matcher samples randomly. Every pair of a run uses the same *Random Seed*, which is reported, so a run can be replayed.\n\nLayers listed *before* the reference are not part of the chain and are not touched. Only layer matrices change; no coordinates are modified.\n\nEach group is left as a **visibility set** under the layer list, the group's first layer among its layers: *aligned* for the first, then *aligned 2*, *aligned 3* and so on (a name already taken gets a number, as a layer's does). One click shows exactly what a group placed and hides the layers left out. A layer that registered with neither neighbour is in no set. The run fails, moving nothing, only if no pair registered at all.",
       "tags": [
         "registration",
         "alignment",

@@ -28,14 +28,15 @@
 
 namespace {
 
-constexpr QLatin1StringView kPointToPoint("align_by_point_to_point_icp_open3d");
-constexpr QLatin1StringView kPointToPlane("align_by_point_to_plane_icp_open3d");
-constexpr QLatin1StringView kColored("align_by_colored_icp_open3d");
-constexpr QLatin1StringView kFeature("align_by_feature_matching_open3d");
-constexpr QLatin1StringView kFeatureSets("align_sets_by_feature_matching_open3d");
+constexpr QLatin1StringView kPointToPoint("align_layer_to_reference_by_point_to_point_icp_open3d");
+constexpr QLatin1StringView kPointToPlane("align_layer_to_reference_by_point_to_plane_icp_open3d");
+constexpr QLatin1StringView kColored("align_layer_to_reference_by_colored_icp_open3d");
+constexpr QLatin1StringView kFeature("align_layer_to_reference_by_ransac_feature_matching_open3d");
+constexpr QLatin1StringView kFeatureSets("align_sets_by_ransac_feature_matching_open3d");
 constexpr QLatin1StringView kGlobal("align_meshes_globally_open3d");
 constexpr QLatin1StringView kSequential("align_meshes_sequentially_open3d");
-constexpr QLatin1StringView kFastGlobal("align_by_fast_global_registration_open3d");
+constexpr QLatin1StringView kFastGlobal("align_layer_to_reference_by_fast_global_registration_open3d");
+constexpr QLatin1StringView kFastGlobalSets("align_sets_by_fast_global_registration_open3d");
 
 namespace Adapter = meshlab::open3d;
 namespace reg = open3d::pipelines::registration;
@@ -494,10 +495,14 @@ MeshFilterRunResult runPairwise(
     const bool isPointToPoint = filterId == QString::fromLatin1(kPointToPoint);
     const bool isPointToPlane = filterId == QString::fromLatin1(kPointToPlane);
     const bool isColored = filterId == QString::fromLatin1(kColored);
-    // Aligning two sets is the feature-matching registration with a set on each side.
+    // Aligning two sets is the same registration with a set on each side.
     const bool isFeature = filterId == QString::fromLatin1(kFeature)
         || filterId == QString::fromLatin1(kFeatureSets);
-    const bool isFastGlobal = filterId == QString::fromLatin1(kFastGlobal);
+    const bool isFastGlobal = filterId == QString::fromLatin1(kFastGlobal)
+        || filterId == QString::fromLatin1(kFastGlobalSets);
+    // The two methods that find a pose from descriptors, with no pose to start from, and so share
+    // what is built around that: the visible layers as the reference, the quality estimate.
+    const bool isCoarse = isFeature || isFastGlobal;
     if (!isPointToPoint && !isPointToPlane && !isColored && !isFeature && !isFastGlobal)
         return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 
@@ -511,15 +516,15 @@ MeshFilterRunResult runPairwise(
         return std::find(sourceLayers.begin(), sourceLayers.end(), layer) != sourceLayers.end();
     };
 
-    // The reference is one layer, named by the parameter -- or, for feature
-    // matching only, every other visible layer taken together. Features describe
+    // The reference is one layer, named by the parameter -- or, for the two descriptor-based
+    // methods only, every other visible layer taken together. Features describe
     // shape, not position, so a pose can be found against any surface the layer
     // overlaps; that is what lets the layer join a scan sequence whose previous
     // member does not overlap it. The ICP objectives refine from a pose already
     // near, where a single named reference is the meaningful thing, so they do
     // not offer it.
     const bool useAllVisible =
-        isFeature && params.getBool(QStringLiteral("useAllVisibleAsReference"), false);
+        isCoarse && params.getBool(QStringLiteral("useAllVisibleAsReference"), false);
     std::vector<int> referenceLayers;
     if (referenceOverride) {
         referenceLayers = *referenceOverride;
@@ -640,7 +645,7 @@ MeshFilterRunResult runPairwise(
                     .arg(sourceWithoutNormals));
         }
     }
-    if ((isFeature || isFastGlobal)
+    if (isCoarse
         && (source.normals_.size() != source.points_.size()
             || target.normals_.size() != target.points_.size())) {
         const QString missing = source.normals_.size() != source.points_.size()
@@ -674,7 +679,7 @@ MeshFilterRunResult runPairwise(
     // poses -- which is how this was found, by a test that passed and then
     // failed on the same input.
     RandomSeed seed;
-    if (isFeature || isFastGlobal) {
+    if (isCoarse) {
         seed = params.getRandomSeed();
         open3d::utility::random::Seed(int(seed.value));
     }
@@ -686,13 +691,13 @@ MeshFilterRunResult runPairwise(
     // between the calls, and the label is the honest part -- it names the phase
     // that is about to block. Keeping the phases short is the real fix, which
     // is what the downsampling below is for.
-    progress.report(20, isFeature ? QStringLiteral("Preparing clouds...")
+    progress.report(20, isCoarse ? QStringLiteral("Preparing clouds...")
                                   : QStringLiteral("Running ICP (no progress available)..."));
 
     // Optional: judge the coarse pose against full-resolution ICP. The clouds are the world-space
     // ones, kept before the feature path downsamples them -- which is also why they are copied
     // only when asked.
-    const bool estimateWithIcp = isFeature && params.getBool(QStringLiteral("evaluateWithIcp"), false);
+    const bool estimateWithIcp = isCoarse && params.getBool(QStringLiteral("evaluateWithIcp"), false);
     open3d::geometry::PointCloud fullSource;
     open3d::geometry::PointCloud fullTarget;
 
@@ -713,7 +718,7 @@ MeshFilterRunResult runPairwise(
             result = reg::RegistrationColoredICP(
                 source, target, maxCorrespondenceDistance, Eigen::Matrix4d::Identity(),
                 reg::TransformationEstimationForColoredICP(), criteria);
-        } else if (isFeature || isFastGlobal) {
+        } else if (isCoarse) {
             // Global registration is defined on a *downsampled* cloud, and
             // feeding it a raw scan is not merely slow, it is quadratic-ish
             // misuse: every RANSAC iteration copies and transforms the whole
@@ -902,7 +907,7 @@ MeshFilterRunResult runPairwise(
             names << doc.mesh(layer).name;
         out.infoMessages << QObject::tr("Moved layers: %1").arg(names.join(QStringLiteral(", ")));
     }
-    if (isFeature || isFastGlobal) {
+    if (isCoarse) {
         out.infoMessages << QObject::tr("Inlier correspondences: %1")
                                 .arg(result.correspondence_set_.size());
         // Also for a script: the numbers behind the lines above and below.
@@ -950,13 +955,13 @@ MeshFilterRunResult runPairwise(
     return out;
 }
 
-// Align Sets by Feature Matching: the feature-matching registration with a set of layers on each
-// side. Each set is taken as one rigid group -- its layers' points together, each through its
+// Align Sets by RANSAC Feature Matching, and by Fast Global Registration: the registration with a set
+// of layers on each side. Each set is taken as one rigid group -- its layers' points together, each through its
 // own matrix -- the moving group is registered onto the reference group, and every layer of the
 // moving set gets the same correction. For two sets of scans that are each already aligned among
 // themselves and need placing relative to each other, which pairwise registration of single
 // layers cannot do when no one scan of one set overlaps enough of the other.
-MeshFilterRunResult runAlignSets(const FilterParams &params, Document &doc)
+MeshFilterRunResult runAlignSets(const QString &filterId, const FilterParams &params, Document &doc)
 {
     const int movingSet = doc.indexOfVisibilitySet(params.getString(QStringLiteral("movingSet")));
     const int referenceSet =
@@ -982,8 +987,7 @@ MeshFilterRunResult runAlignSets(const FilterParams &params, Document &doc)
         return fail(QObject::tr("The set '%1' has no layer with vertices.")
                         .arg(doc.visibilitySets()[size_t(moving.empty() ? movingSet : referenceSet)].name));
     }
-    MeshFilterRunResult out = runPairwise(
-        QString::fromLatin1(kFeatureSets), params, doc, moving, true, nullptr, &reference);
+    MeshFilterRunResult out = runPairwise(filterId, params, doc, moving, true, nullptr, &reference);
     if (!out.success)
         return out;
     // Both sets together, now placed relative to each other, as a set of their own: one click
@@ -1207,8 +1211,8 @@ MeshFilterRunResult runOpen3DRegistrationFilter(
         return runGlobalAlignment(params, doc);
     if (filterId == QString::fromLatin1(kSequential))
         return runSequentialAlignment(params, doc);
-    if (filterId == QString::fromLatin1(kFeatureSets))
-        return runAlignSets(params, doc);
+    if (filterId == QString::fromLatin1(kFeatureSets) || filterId == QString::fromLatin1(kFastGlobalSets))
+        return runAlignSets(filterId, params, doc);
     // The layer that moves is the current one; the reference is the parameter.
     return runPairwise(filterId, params, doc, { doc.currentMeshIndex() });
 }
@@ -1222,5 +1226,6 @@ bool isOpen3DRegistrationFilter(const QString &filterId)
         || filterId == QString::fromLatin1(kFeatureSets)
         || filterId == QString::fromLatin1(kGlobal)
         || filterId == QString::fromLatin1(kSequential)
-        || filterId == QString::fromLatin1(kFastGlobal);
+        || filterId == QString::fromLatin1(kFastGlobal)
+        || filterId == QString::fromLatin1(kFastGlobalSets);
 }
