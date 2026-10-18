@@ -326,6 +326,9 @@ public:
     void removeFromVisibilitySet(int index, const std::vector<std::uint64_t> &meshIds);
     void renameVisibilitySet(int index, const QString &name);
     void removeVisibilitySet(int index);
+    // Puts the set at position `to` (counting after it has left its old one): the order is the
+    // panel's, and Alt+1 .. Alt+9 follow it.
+    void moveVisibilitySet(int from, int to);
     // Shows the set's layers and hides the others -- or, with `addToVisible`, leaves the
     // visible ones as they are. Goes through setMeshVisible, so it acts on the current view.
     void showVisibilitySet(int index, bool addToVisible = false);

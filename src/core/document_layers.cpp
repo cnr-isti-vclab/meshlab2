@@ -618,6 +618,22 @@ void Document::removeVisibilitySet(int index)
         endUndoStep(true);
 }
 
+void Document::moveVisibilitySet(int from, int to)
+{
+    const int count = int(m_visibilitySets.size());
+    if (from < 0 || from >= count || to < 0 || to >= count || from == to)
+        return;
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("Move Visibility Set"));
+    VisibilitySet moved = std::move(m_visibilitySets[from]);
+    m_visibilitySets.erase(m_visibilitySets.begin() + from);
+    m_visibilitySets.insert(m_visibilitySets.begin() + to, std::move(moved));
+    emit visibilitySetsChanged();
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
 void Document::showVisibilitySet(int index, bool addToVisible)
 {
     if (index < 0 || index >= int(m_visibilitySets.size()))

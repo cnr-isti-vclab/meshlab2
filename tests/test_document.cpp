@@ -88,6 +88,7 @@ private slots:
     void visibilitySetsSurviveAProjectRoundTripWhateverIsLeftOut();
     void definingRenamingRedefiningAndDeletingASetAreUndoSteps();
     void aFiltersSetGetsAUniqueName();
+    void aSetCanBeMovedInTheOrder();
     void layersCanBeAddedToAndRemovedFromASet();
     void loadMeshLabProjectLoadsRastersAndCamera();
     void rasterCameraUndoRedoRestoresShot();
@@ -1897,6 +1898,40 @@ void DocumentTests::layersCanBeAddedToAndRemovedFromASet()
     QCOMPARE(doc.visibilitySets()[0].meshIds.size(), size_t(3));
     QVERIFY(doc.undo());   // the addition
     QCOMPARE(doc.visibilitySets()[0].meshIds, (std::vector<std::uint64_t>{ id(0) }));
+}
+
+void DocumentTests::aSetCanBeMovedInTheOrder()
+{
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("a"));
+    const std::vector<std::uint64_t> ids{ doc.mesh(0).meshId };
+    for (const char *name : { "one", "two", "three", "four" })
+        doc.addVisibilitySet(QString::fromLatin1(name), ids);
+    const auto names = [&doc] {
+        QStringList out;
+        for (const auto &set : doc.visibilitySets())
+            out << set.name;
+        return out.join(QLatin1Char(','));
+    };
+
+    doc.moveVisibilitySet(0, 2);   // the position after it has left its old one
+    QCOMPARE(names(), QStringLiteral("two,three,one,four"));
+    doc.moveVisibilitySet(3, 0);
+    QCOMPARE(names(), QStringLiteral("four,two,three,one"));
+
+    // Nowhere, or out of range, is no change and no step.
+    const int nodes = int(doc.undoTreeInfo().size());
+    QSignalSpy changed(&doc, &Document::visibilitySetsChanged);
+    doc.moveVisibilitySet(1, 1);
+    doc.moveVisibilitySet(-1, 2);
+    doc.moveVisibilitySet(0, 9);
+    QCOMPARE(changed.count(), 0);
+    QCOMPARE(int(doc.undoTreeInfo().size()), nodes);
+
+    QVERIFY(doc.undo());
+    QCOMPARE(names(), QStringLiteral("two,three,one,four"));
+    QVERIFY(doc.undo());
+    QCOMPARE(names(), QStringLiteral("one,two,three,four"));
 }
 
 void DocumentTests::loadMeshLabProjectLoadsMeshesAndTransforms()

@@ -14,6 +14,7 @@ class QSplitter;
 class QHBoxLayout;
 class QToolButton;
 class QMenu;
+class QLabel;
 
 class LayerWidget : public QWidget
 {
@@ -50,7 +51,7 @@ signals:
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
-    // Hovering a set's chip previews it: its layers' rows are shaded.
+    // Hovering a set's row previews it: its layers' rows are shaded.
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
@@ -90,11 +91,14 @@ private:
     // point has to be mapped before it means anything.
     LayerItemRef layerRefAt(const QPoint &widgetPos) const;
     void updateCurrentItemVisuals();
-    // The row of chips under the layers, one for each of the document's visibility sets and a
-    // "+" that makes a new one from what is visible now. The chips are made again when the
-    // sets' names change and otherwise only have their highlight brought up to date -- the
-    // highlight says which set, if any, is what is on screen.
-    void refreshVisibilitySetChips();
+    // The Sets section under the layers: a row for each of the document's visibility sets with the
+    // number of layers it holds and the Alt+number that shows it, and a "+" in its header that makes
+    // a new one from what is visible now. The row of the set that is on screen is marked.
+    void refreshVisibilitySets();
+    // The eye above the layers: shows them all, or hides them all when they all are shown.
+    void toggleAllVisible();
+    void updateEyeAll();
+    void renameVisibilitySetDialog(int index);
     void saveVisibilitySet();
     // The name asked of the user for a new set; empty if they cancel.
     QString askVisibilitySetName();
@@ -130,8 +134,10 @@ private:
     QTreeWidget *m_rasterTree = nullptr;
     QTableWidget *m_meshTable = nullptr;
     QTableWidget *m_rasterTable = nullptr;
-    QHBoxLayout *m_chipsLayout = nullptr;
-    QList<QToolButton *> m_chips;
-    QStringList m_chipNames;
+    QToolButton *m_eyeAll = nullptr;
+    QToolButton *m_setsToggle = nullptr;
+    QWidget *m_setsBody = nullptr;
+    QLabel *m_setsHint = nullptr;
+    QTreeWidget *m_setList = nullptr;
     std::vector<std::uint64_t> m_previewMeshIds;
 };
