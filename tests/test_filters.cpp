@@ -477,6 +477,7 @@ private slots:
     void open3dFeatureMatchingCanEstimateItsQualityWithIcp();
     void open3dFastGlobalRegistrationCanUseAllVisibleLayersAsReference();
     void open3dAlignMeshesSequentiallyRestartsAfterAFailedPair();
+    void open3dAlignMeshesSequentiallyCanUseFastGlobalRegistration();
     void open3dAlignSetsByFeatureMatchingMovesTheWholeMovingSet();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
     void trueFormCsgSheetsCutWithoutEnclosing();
@@ -4975,6 +4976,71 @@ void FilterTests::open3dAlignMeshesSequentiallyRegistersRawRangeMaps()
     QCOMPARE(chainLog, size_t(7));
     QCOMPARE(chainAligned, size_t(7));
     QVERIFY(globalMessages.join(QLatin1Char('\n')).contains(QStringLiteral("Aligned 7 of 7 layers in 1 group(s)")));
+}
+
+// The coarse method of each pair is a choice: Fast Global Registration in place of RANSAC. Scans
+// of a turntable differ by a step from one to the next, which is what it can undo.
+void FilterTests::open3dAlignMeshesSequentiallyCanUseFastGlobalRegistration()
+{
+    Document probe;
+    const QString sequentialKey = filterKeyForId(
+        probe, QStringLiteral("align_meshes_sequentially_open3d"));
+    if (sequentialKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+    const QString normalsKey = filterKeyForId(probe, QStringLiteral("compute_vertex_normals"));
+    QVERIFY(!normalsKey.isEmpty());
+
+    MESHLAB2_REQUIRE_DATASET(firstScan, "rangemaps/faccia000.ply");
+    MESHLAB2_REQUIRE_DATASET(projectPath, "rangemaps/partial.mlp");
+    const QString folder = QFileInfo(firstScan).absolutePath();
+    const QStringList scans = { QStringLiteral("faccia000.ply"), QStringLiteral("faccia045.ply"),
+                                QStringLiteral("faccia090.ply"), QStringLiteral("faccia135.ply") };
+    std::vector<QMatrix4x4> expected;
+    QVERIFY(expectedRelativePoses(projectPath, scans, expected));
+
+    Document doc;
+    for (const QString &name : scans) {
+        const int index = doc.loadMesh(QDir(folder).filePath(name));
+        QVERIFY(index >= 0);
+        doc.setCurrentMeshIndex(index);
+        QVERIFY(doc.runFilter(normalsKey, {}).success);
+    }
+    doc.setCurrentMeshIndex(0);
+
+    MeshFilterParameterValues values;
+    values.insert(QStringLiteral("referenceMesh"), 0);
+    values.insert(QStringLiteral("coarseMethod"), QStringLiteral("fastGlobalRegistration"));
+    values.insert(QStringLiteral("randomSeed"), 1);
+    const size_t logBefore = doc.logMessages().size();
+    const MeshFilterRunResult result = doc.runFilter(sequentialKey, values);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    qDebug("%s", qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
+    const QString report = result.infoMessages.join(QLatin1Char('\n'));
+    QVERIFY2(report.contains(QStringLiteral("Aligned 3 of 3 layers in 1 group(s)")), qPrintable(report));
+    QCOMPARE(doc.visibilitySets().size(), size_t(1));
+
+    // One log line for each pair, as with RANSAC, and the pose is right to the same tolerance.
+    int alignedLines = 0;
+    for (size_t i = logBefore; i < doc.logMessages().size(); ++i) {
+        if (doc.logMessages()[i].message.startsWith(QStringLiteral("Aligned '")))
+            ++alignedLines;
+    }
+    QCOMPARE(alignedLines, 3);
+    const float diagonal = doc.mesh(0).mesh.bbox.Diag();
+    const QMatrix4x4 anchor = doc.mesh(0).transform;
+    for (int i = 1; i < doc.meshCount(); ++i) {
+        const QMatrix4x4 got = anchor.inverted() * doc.mesh(i).transform;
+        const float error = posePointError(doc.mesh(i).mesh, got, expected[size_t(i)]);
+        QVERIFY2(error < diagonal * 0.02f,
+                 qPrintable(QStringLiteral("%1 landed %2% of the diagonal off")
+                                .arg(doc.mesh(i).name).arg(100.0f * error / diagonal)));
+    }
+
+    // A value that is neither method is refused.
+    MeshFilterParameterValues byDefault;
+    byDefault.insert(QStringLiteral("coarseMethod"), QStringLiteral("nonsense"));
+    QString why;
+    QVERIFY(!doc.validateFilterInvocation(sequentialKey, byDefault, why));
 }
 
 // The restart. A side scan listed in the middle of the face scans registers onto the one before it

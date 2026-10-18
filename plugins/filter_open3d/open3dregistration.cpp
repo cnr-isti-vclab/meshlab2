@@ -1051,6 +1051,12 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
     const int maxIterations = std::max(1, params.getInt(QStringLiteral("maxIterations"), 60));
     const int pairCount = int(chain.size()) - 1;
     const bool refine = params.getBool(QStringLiteral("globalRefinement"), true);
+    // The method that gives each pair its starting pose before ICP: both find one from descriptors
+    // with no pose to start from, and are the same step to this chain.
+    const QString coarseMethod =
+        params.getEnum(QStringLiteral("coarseMethod"), QStringLiteral("ransac"))
+            == QLatin1StringView("fastGlobalRegistration")
+        ? QString::fromLatin1(kFastGlobal) : QString::fromLatin1(kFeature);
 
     // The pairs take the bar up to 90% when a global optimization will follow
     // and to 100% when it will not. With fewer than three layers the refinement
@@ -1119,7 +1125,7 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
         PairQuality refined;
         QString reason;
         MeshFilterRunResult step =
-            runPairwise(kFeature, FilterParams(values), doc, { chain[k] }, false, &coarse);
+            runPairwise(coarseMethod, FilterParams(values), doc, { chain[k] }, false, &coarse);
         if (step.success) {
             values.insert(QStringLiteral("maxIterations"), maxIterations);
             step = runPairwise(kPointToPlane, FilterParams(values), doc, { chain[k] }, false, &refined);
@@ -1151,7 +1157,7 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
         // from one set of scans to the next.
         const double diagonal = double(doc.mesh(chain[k - 1]).mesh.bbox.Diag());
         doc.writeLog(QObject::tr("Aligned '%1' onto '%2': inlier RMSE %3 (%4% of the diagonal), "
-                                 "fitness %5 (feature matching alone %6)")
+                                 "fitness %5 (coarse pose alone %6)")
                          .arg(sourceName, referenceName)
                          .arg(refined.inlierRmse, 0, 'g', 4)
                          .arg(diagonal > 0.0 ? 100.0 * refined.inlierRmse / diagonal : 0.0, 0, 'f', 2)

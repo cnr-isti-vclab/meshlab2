@@ -566,6 +566,15 @@ budget, FGR's annealing and tuple parameters). Fast Global Registration optimize
 the identity, so it needs the two sides roughly oriented alike (position does not matter: each
 cloud is centred first); RANSAC has no such limit.
 
+**Implemented 2026-10-18: *Coarse Alignment* on *Align Meshes Sequentially*** (`coarseMethod`,
+`ransac` by default or `fastGlobalRegistration`). Each pair is given its starting pose by the
+chosen descriptor-based method, then refined by point-to-plane ICP; nothing else in the chain, the
+restart or the sets changes. Fast Global Registration is faster and has no sampling budget, but
+optimizes the rotation from the identity, so each layer must be roughly oriented like the one
+before it, which a turntable or walk-around sequence is; RANSAC has no such limit and stays the
+default. Four range-map scans (`faccia000` to `faccia135`) chain with either method, within 2% of
+the diagonal of the project's poses.
+
 **Implemented 2026-10-18: *Estimate Quality with ICP*** (`evaluateWithIcp`, off by default) on
 *Align Layer to Reference by RANSAC Feature Matching* and *Align Sets by RANSAC Feature Matching*, and then on both Fast Global Registration filters (2026-10-18). RANSAC scores its own pose on
 the downsampled clouds it matched on, which flatters it. With the option the pose is scored again

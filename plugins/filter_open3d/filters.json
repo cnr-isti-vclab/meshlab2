@@ -1405,7 +1405,7 @@
         "choi2015"
       ],
       "shortDescription": "Align a sequence of overlapping scans one after another from raw positions, restart the chain after a pair that fails, and optimize each aligned group, using Open3D.",
-      "longDescriptionMarkdown": "**Starting alignment:** none. Only the reference stays where it is; every later layer may start in any position and orientation. What the filter does need is that the layers are listed in scanning order, so that **each one overlaps the one before it**, and that every layer has normals. Meshes loaded from a file get smooth normals automatically when the file has none; a point cloud needs *Compute Point Cloud Normals* first.\n\nStarting from the reference layer, it takes each following layer in the layer list and moves it onto the one before it: a coarse pose from *Align Layer to Reference by RANSAC Feature Matching*, then *Align Layer to Reference by Point-to-Plane ICP* to refine it. Each pair it attempts is written to the log, with the fitness it reached. This is the sequence Open3D's `register_fragments` tutorial describes, and what registering a set of range maps one by one by hand amounts to.\n\n**A pair that fails starts a new group.** A pair whose registration finds no correspondences, or reaches a fitness below the minimum, ends the group being built. The layer that failed is put back where it was found and becomes the reference of the layers after it, which are aligned onto it in turn: the chain restarts from it rather than giving up. Each group of two or more layers is optimized together with *Align Meshes Globally*, so the drift a chain accumulates is shared across the group instead of being left in its last layer. Turn *Global Refinement* off to keep each chain as it stands.\n\nGroups are not placed relative to one another, because nothing overlapped across the break; each is aligned onto its own first layer. The log and the result name every failure with its reason, and every group. To join two groups, use *Align Sets by RANSAC Feature Matching* on the sets the run leaves, or place one by hand.\n\nThe feature matcher samples randomly. Every pair of a run uses the same *Random Seed*, which is reported, so a run can be replayed.\n\nLayers listed *before* the reference are not part of the chain and are not touched. Only layer matrices change; no coordinates are modified.\n\nEach group is left as a **visibility set** under the layer list, the group's first layer among its layers: *aligned* for the first, then *aligned 2*, *aligned 3* and so on (a name already taken gets a number, as a layer's does). One click shows exactly what a group placed and hides the layers left out. A layer that registered with neither neighbour is in no set. The run fails, moving nothing, only if no pair registered at all.",
+      "longDescriptionMarkdown": "**Starting alignment:** none with the default method. Only the reference stays where it is; every later layer may start in any position and orientation. (With *Fast Global Registration* as the coarse method, each layer must be roughly oriented like the one before it; position still does not matter.) What the filter does need is that the layers are listed in scanning order, so that **each one overlaps the one before it**, and that every layer has normals. Meshes loaded from a file get smooth normals automatically when the file has none; a point cloud needs *Compute Point Cloud Normals* first.\n\nStarting from the reference layer, it takes each following layer in the layer list and moves it onto the one before it: a coarse pose from *Align Layer to Reference by RANSAC Feature Matching* or, with *Coarse Alignment* set to it, from *Align Layer to Reference by Fast Global Registration*, then *Align Layer to Reference by Point-to-Plane ICP* to refine it. Each pair it attempts is written to the log, with the fitness it reached. This is the sequence Open3D's `register_fragments` tutorial describes, and what registering a set of range maps one by one by hand amounts to.\n\n**A pair that fails starts a new group.** A pair whose registration finds no correspondences, or reaches a fitness below the minimum, ends the group being built. The layer that failed is put back where it was found and becomes the reference of the layers after it, which are aligned onto it in turn: the chain restarts from it rather than giving up. Each group of two or more layers is optimized together with *Align Meshes Globally*, so the drift a chain accumulates is shared across the group instead of being left in its last layer. Turn *Global Refinement* off to keep each chain as it stands.\n\nGroups are not placed relative to one another, because nothing overlapped across the break; each is aligned onto its own first layer. The log and the result name every failure with its reason, and every group. To join two groups, use *Align Sets by RANSAC Feature Matching* on the sets the run leaves, or place one by hand.\n\nThe feature matcher samples randomly. Every pair of a run uses the same *Random Seed*, which is reported, so a run can be replayed.\n\nLayers listed *before* the reference are not part of the chain and are not touched. Only layer matrices change; no coordinates are modified.\n\nEach group is left as a **visibility set** under the layer list, the group's first layer among its layers: *aligned* for the first, then *aligned 2*, *aligned 3* and so on (a name already taken gets a number, as a layer's does). One click shows exactly what a group placed and hides the layers left out. A layer that registered with neither neighbour is in no set. The run fails, moving nothing, only if no pair registered at all.",
       "tags": [
         "registration",
         "alignment",
@@ -1438,6 +1438,26 @@
           "group": "main",
           "type": "bool",
           "default": true
+        },
+        {
+          "id": "coarseMethod",
+          "label": "Coarse Alignment",
+          "help": "How each pair gets its starting pose, before ICP refines it.",
+          "group": "main",
+          "type": "enum",
+          "default": "ransac",
+          "enumOptions": [
+            {
+              "id": "ransac",
+              "label": "RANSAC Feature Matching",
+              "help": "Samples candidate poses from the matched FPFH descriptors. The conservative choice: it has no limit on how the two layers are turned relative to each other, and copes with low overlap, at the cost of a sampling budget."
+            },
+            {
+              "id": "fastGlobalRegistration",
+              "label": "Fast Global Registration",
+              "help": "Optimizes a robust objective over all the matched descriptors at once, with no sampling. Usually faster, and deterministic for a given seed, but it optimizes the rotation from the identity, so each layer must be roughly oriented like the one before it (position does not matter). Fine for scans of a turntable or a walk-around, where consecutive views differ by a step; use RANSAC when they may be turned arbitrarily."
+            }
+          ]
         },
         {
           "id": "minimumFitness",
