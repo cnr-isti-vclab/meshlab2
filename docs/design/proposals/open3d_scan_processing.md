@@ -566,6 +566,31 @@ budget, FGR's annealing and tuple parameters). Fast Global Registration optimize
 the identity, so it needs the two sides roughly oriented alike (position does not matter: each
 cloud is centred first); RANSAC has no such limit.
 
+**Implemented 2026-10-18: a pair error check and retries on *Align Meshes Sequentially*.** A pair is
+judged after ICP has refined it, on two counts: the fitness must reach the minimum, and the inlier
+RMSE must stay under *Maximum Pair Error* (`maximumPairError`, a percentage of the reference's
+diagonal, 0.8 by default, 0 for off). Measured on the eight range maps, the pairs that really
+registered have an inlier RMSE of 0.35% to 0.56% of the diagonal at fitness 0.81 to 0.92; the side
+scan of the restart test registers onto the face scan before it at fitness **0.92** (it passes the
+fitness test comfortably) but at **0.95%**, which the error check rejects. A failed attempt is then
+tried again with another seed, *Attempts per Pair* (`attempts`, 3 by default, 1 for no retry) times
+in all, since both coarse methods sample at random: each attempt uses the seed plus its number, so
+the run stays reproducible, and the pair is accepted at the first attempt that passes both checks.
+Only when every attempt fails does the chain restart from that layer. The log shows each failed
+attempt and the number of attempts on the final failure.
+
+**Implemented 2026-10-18: *Pair Initialization* on *Align Meshes Globally* takes the same two
+methods.** Its automatic option was called *Feature Matching* and in fact ran Fast Global
+Registration, which the name did not say. It is now two options, *RANSAC Feature Matching
+(automatic)* (`ransacFeatureMatching`) and *Fast Global Registration (automatic)*
+(`fastGlobalRegistration`), beside *Current Layer Poses*; the old `featureMatching` value is gone,
+with no alias. RANSAC has no orientation limit but spends its whole iteration budget on every pair
+that does not match, and the pairs are quadratic in the layers, so a *RANSAC Iterations* parameter
+(advanced, 100000) caps it. Both run on the clouds in their own frames and return the source's pose
+relative to the target, which is what the pose-graph edge carries, so the rest of the filter is
+unchanged. *Align Meshes Sequentially* still refines each group with the *Current Layer Poses*
+option.
+
 **Implemented 2026-10-18: *Coarse Alignment* on *Align Meshes Sequentially*** (`coarseMethod`,
 `ransac` by default or `fastGlobalRegistration`). Each pair is given its starting pose by the
 chosen descriptor-based method, then refined by point-to-plane ICP; nothing else in the chain, the

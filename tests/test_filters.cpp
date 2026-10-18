@@ -478,6 +478,7 @@ private slots:
     void open3dFastGlobalRegistrationCanUseAllVisibleLayersAsReference();
     void open3dAlignMeshesSequentiallyRestartsAfterAFailedPair();
     void open3dAlignMeshesSequentiallyCanUseFastGlobalRegistration();
+    void open3dAlignMeshesSequentiallyChecksThePairErrorAndTriesAgain();
     void open3dAlignSetsByFeatureMatchingMovesTheWholeMovingSet();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
     void trueFormCsgSheetsCutWithoutEnclosing();
@@ -4413,76 +4414,85 @@ void FilterTests::open3dGlobalInitializersRecoverACoarsePose()
 // Open3D's compute_initial_registration applied to every pair.
 void FilterTests::open3dGlobalAlignmentNeedsNoPriorPlacement()
 {
-    Document doc;
+    Document probe;
     const QString globalKey = filterKeyForId(
-        doc, QStringLiteral("align_meshes_globally_open3d"));
+        probe, QStringLiteral("align_meshes_globally_open3d"));
     if (globalKey.isEmpty())
         QSKIP("Open3D filter plugin is not available in this build.");
-    const QString torusKey = filterKeyForId(doc, QStringLiteral("create_torus"));
+    const QString torusKey = filterKeyForId(probe, QStringLiteral("create_torus"));
     const QString normalsKey = filterKeyForId(
-        doc, QStringLiteral("compute_point_cloud_normals_open3d"));
+        probe, QStringLiteral("compute_point_cloud_normals_open3d"));
     QVERIFY(!torusKey.isEmpty() && !normalsKey.isEmpty());
 
-    // A torus for the same reason as the initializer test: FPFH needs curvature
-    // that actually varies, which a sphere or a cap does not have.
-    MeshFilterParameterValues torusParams;
-    torusParams.insert(QStringLiteral("h_subdiv"), 64);
-    torusParams.insert(QStringLiteral("v_subdiv"), 32);
-    QVERIFY2(doc.runFilter(torusKey, torusParams).success, "create_torus failed");
-    const int referenceIndex = doc.currentMeshIndex();
-    MeshFilterParameterValues normalParams;
-    normalParams.insert(QStringLiteral("orientConsistently"), true);
-    QVERIFY2(doc.runFilter(normalsKey, normalParams).success, "normals failed");
+    // Both descriptor-based initializations, on the same scene. The RANSAC budget is lowered:
+    // the pairs here match, so it is not spent, and a failure should not take minutes.
+    for (const QString &method : { QStringLiteral("ransacFeatureMatching"),
+                                   QStringLiteral("fastGlobalRegistration") }) {
+        qDebug("%s", qPrintable(method));
+        Document doc;
+        // A torus for the same reason as the initializer test: FPFH needs curvature
+        // that actually varies, which a sphere or a cap does not have.
+        MeshFilterParameterValues torusParams;
+        torusParams.insert(QStringLiteral("h_subdiv"), 64);
+        torusParams.insert(QStringLiteral("v_subdiv"), 32);
+        QVERIFY2(doc.runFilter(torusKey, torusParams).success, "create_torus failed");
+        const int referenceIndex = doc.currentMeshIndex();
+        MeshFilterParameterValues normalParams;
+        normalParams.insert(QStringLiteral("orientConsistently"), true);
+        QVERIFY2(doc.runFilter(normalsKey, normalParams).success, "normals failed");
 
-    const float diagonal = doc.mesh(referenceIndex).mesh.bbox.Diag();
+        const float diagonal = doc.mesh(referenceIndex).mesh.bbox.Diag();
 
-    // Scattered far enough apart that the bounding boxes do not even overlap,
-    // so the default pair filter would reject them and the default
-    // initialization would have nothing to work from.
-    std::vector<int> moved;
-    for (int k = 1; k <= 2; ++k) {
-        const int index = doc.addMesh(doc.mesh(referenceIndex).mesh,
-                                      QStringLiteral("scattered %1").arg(k));
-        QVERIFY(index >= 0);
-        doc.mesh(index).ioMask = doc.mesh(referenceIndex).ioMask;
-        QMatrix4x4 displacement;
-        displacement.translate(diagonal * 1.5f * k, diagonal * 0.8f * k, 0.0f);
-        displacement.rotate(25.0f * k, 1.0f, 0.0f, 0.0f);
-        doc.setMeshTransform(index, displacement);
-        moved.push_back(index);
-    }
-
-    MeshFilterParameterValues params;
-    params.insert(QStringLiteral("referenceMesh"), referenceIndex);
-    params.insert(QStringLiteral("pairInitialization"), QStringLiteral("featureMatching"));
-    params.insert(QStringLiteral("maxCorrespondenceDistance"), double(diagonal) * 0.05);
-    params.insert(QStringLiteral("minimumFitness"), 0.3);
-
-    const MeshFilterRunResult result = doc.runFilter(globalKey, params);
-    QVERIFY2(result.success, qPrintable(result.errorMessage));
-
-    // Every scattered copy should have come home onto the pinned reference,
-    // from a starting pose more than a diagonal away.
-    for (int index : moved) {
-        const QMatrix4x4 m = doc.mesh(index).transform;
-        float worst = 0.0f;
-        for (int r = 0; r < 4; ++r) {
-            for (int c = 0; c < 4; ++c) {
-                const float identity = (r == c) ? 1.0f : 0.0f;
-                worst = std::max(worst, std::abs(m(r, c) - identity));
-            }
+        // Scattered far enough apart that the bounding boxes do not even overlap,
+        // so the default pair filter would reject them and the default
+        // initialization would have nothing to work from.
+        std::vector<int> moved;
+        for (int k = 1; k <= 2; ++k) {
+            const int index = doc.addMesh(doc.mesh(referenceIndex).mesh,
+                                          QStringLiteral("scattered %1").arg(k));
+            QVERIFY(index >= 0);
+            doc.mesh(index).ioMask = doc.mesh(referenceIndex).ioMask;
+            QMatrix4x4 displacement;
+            displacement.translate(diagonal * 1.5f * k, diagonal * 0.8f * k, 0.0f);
+            displacement.rotate(25.0f * k, 1.0f, 0.0f, 0.0f);
+            doc.setMeshTransform(index, displacement);
+            moved.push_back(index);
         }
-        QVERIFY2(worst < 0.05f,
-                 qPrintable(QStringLiteral("scattered layer %1 is still %2 from the reference")
-                                .arg(index).arg(worst)));
-    }
 
-    QVERIFY2(std::any_of(result.infoMessages.begin(), result.infoMessages.end(),
-                         [](const QString &m) {
-                             return m.contains(QStringLiteral("feature matching"));
-                         }),
-             qPrintable(QStringLiteral("the log should say how pairs were initialized; got: %1")
-                            .arg(result.infoMessages.join(QStringLiteral(" | ")))));
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("referenceMesh"), referenceIndex);
+        params.insert(QStringLiteral("pairInitialization"), method);
+        params.insert(QStringLiteral("maxCorrespondenceDistance"), double(diagonal) * 0.05);
+        params.insert(QStringLiteral("minimumFitness"), 0.3);
+
+        const MeshFilterRunResult result = doc.runFilter(globalKey, params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+        // Every scattered copy should have come home onto the pinned reference,
+        // from a starting pose more than a diagonal away.
+        for (int index : moved) {
+            const QMatrix4x4 m = doc.mesh(index).transform;
+            float worst = 0.0f;
+            for (int r = 0; r < 4; ++r) {
+                for (int c = 0; c < 4; ++c) {
+                    const float identity = (r == c) ? 1.0f : 0.0f;
+                    worst = std::max(worst, std::abs(m(r, c) - identity));
+                }
+            }
+            QVERIFY2(worst < 0.05f,
+                     qPrintable(QStringLiteral("scattered layer %1 is still %2 from the reference")
+                                    .arg(index).arg(worst)));
+        }
+
+        QVERIFY2(std::any_of(result.infoMessages.begin(), result.infoMessages.end(),
+                             [&method](const QString &m) {
+                                 return m.contains(method == QLatin1String("ransacFeatureMatching")
+                                                       ? QStringLiteral("RANSAC feature matching")
+                                                       : QStringLiteral("Fast Global Registration"));
+                             }),
+                 qPrintable(QStringLiteral("the log should say how pairs were initialized; got: %1")
+                                .arg(result.infoMessages.join(QStringLiteral(" | ")))));
+    }
 }
 
 namespace {
@@ -5043,6 +5053,79 @@ void FilterTests::open3dAlignMeshesSequentiallyCanUseFastGlobalRegistration()
     QVERIFY(!doc.validateFilterInvocation(sequentialKey, byDefault, why));
 }
 
+// The check after ICP, and the retries. The side scan of the restart test registers onto the face
+// scan before it with a fitness of 0.92, but at an inlier RMSE of 0.95% of the diagonal, against
+// 0.35% to 0.56% for the pairs that really registered: with the default maximum pair error it
+// fails, and fails at every attempt, which the log shows; with one attempt there is nothing to
+// retry. The chain restarts from it as for any failed pair.
+void FilterTests::open3dAlignMeshesSequentiallyChecksThePairErrorAndTriesAgain()
+{
+    Document probe;
+    const QString sequentialKey = filterKeyForId(
+        probe, QStringLiteral("align_meshes_sequentially_open3d"));
+    if (sequentialKey.isEmpty())
+        QSKIP("Open3D filter plugin is not available in this build.");
+    const QString normalsKey = filterKeyForId(probe, QStringLiteral("compute_vertex_normals"));
+    QVERIFY(!normalsKey.isEmpty());
+
+    MESHLAB2_REQUIRE_DATASET(firstScan, "rangemaps/faccia000.ply");
+    const QString folder = QFileInfo(firstScan).absolutePath();
+    const QStringList scans = { QStringLiteral("faccia000.ply"), QStringLiteral("faccia045.ply"),
+                                QStringLiteral("lato000.ply") };
+
+    const auto run = [&](int attempts, QStringList &log, MeshFilterRunResult &result) {
+        Document doc;
+        for (const QString &name : scans) {
+            const int index = doc.loadMesh(QDir(folder).filePath(name));
+            doc.setCurrentMeshIndex(index);
+            doc.runFilter(normalsKey, {});
+        }
+        doc.setCurrentMeshIndex(0);
+        const size_t logBefore = doc.logMessages().size();
+        MeshFilterParameterValues values;
+        values.insert(QStringLiteral("referenceMesh"), 0);
+        values.insert(QStringLiteral("randomSeed"), 1);
+        values.insert(QStringLiteral("attempts"), attempts);
+        result = doc.runFilter(sequentialKey, values);
+        for (size_t i = logBefore; i < doc.logMessages().size(); ++i)
+            log << doc.logMessages()[i].message;
+        return doc.mesh(2).transform;
+    };
+    const auto count = [](const QStringList &log, const QString &text) {
+        return int(std::count_if(log.begin(), log.end(),
+                                 [&text](const QString &line) { return line.contains(text); }));
+    };
+
+    QStringList log;
+    MeshFilterRunResult result;
+    const QMatrix4x4 pose = run(3, log, result);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    // The side scan failed on the error, not on the fitness, after the three attempts, and was left
+    // where it was found; the face pair before it stands.
+    QCOMPARE(count(log, QStringLiteral("attempt 1 of 3 for 'lato000.ply' failed")), 1);
+    QCOMPARE(count(log, QStringLiteral("attempt 2 of 3 for 'lato000.ply' failed")), 1);
+    QCOMPARE(count(log, QStringLiteral("attempt 3 of 3")), 0);   // the last one is the failure itself
+    QCOMPARE(count(log, QStringLiteral("Failed to align 'lato000.ply' onto 'faccia045.ply'")), 1);
+    QVERIFY2(count(log, QStringLiteral("is above the maximum 0.80%")) >= 3, qPrintable(log.join('\n')));
+    QVERIFY2(std::any_of(log.begin(), log.end(), [](const QString &line) {
+                 return line.startsWith(QStringLiteral("Failed to align 'lato000.ply'"))
+                     && line.contains(QStringLiteral("after 3 attempts"));
+             }), qPrintable(log.join('\n')));
+    QVERIFY(pose == QMatrix4x4());
+    QVERIFY2(result.infoMessages.join(QLatin1Char('\n')).contains(
+                 QStringLiteral("Aligned 1 of 2 layers in 1 group(s)")),
+             qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
+
+    // One attempt: no retry lines, and the same verdict.
+    QStringList once;
+    MeshFilterRunResult onceResult;
+    run(1, once, onceResult);
+    QVERIFY2(onceResult.success, qPrintable(onceResult.errorMessage));
+    QCOMPARE(count(once, QStringLiteral("trying again")), 0);
+    QCOMPARE(count(once, QStringLiteral("Failed to align 'lato000.ply' onto 'faccia045.ply'")), 1);
+    QCOMPARE(count(once, QStringLiteral("attempts")), 0);
+}
+
 // The restart. A side scan listed in the middle of the face scans registers onto the one before it
 // (it overlaps, a little), but the next face scan does not register onto the side scan: that pair
 // fails, and the chain restarts from the layer that failed, which stays where it was found, and
@@ -5083,6 +5166,9 @@ void FilterTests::open3dAlignMeshesSequentiallyRestartsAfterAFailedPair()
 
     MeshFilterParameterValues values;
     values.insert(QStringLiteral("referenceMesh"), 0);
+    // The error check off, so that the side scan is accepted as far as fitness goes: the restart
+    // is what is tested here, and the check has its own test.
+    values.insert(QStringLiteral("maximumPairError"), 0.0);
     values.insert(QStringLiteral("randomSeed"), 1);
     const MeshFilterRunResult result = doc.runFilter(sequentialKey, values);
     QVERIFY2(result.success, qPrintable(result.errorMessage));

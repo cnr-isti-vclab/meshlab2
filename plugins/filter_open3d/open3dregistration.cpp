@@ -186,11 +186,17 @@ MeshFilterRunResult runGlobalAlignment(
     if (!(maxCorrespondenceDistance > 0.0))
         return fail(QObject::tr("The layers have no extent, so no distances can be derived."));
 
-    // Same reason as the pairwise filters: the feature-matching path samples
-    // randomly, so the run has to be reproducible.
+    // Where each pair starts from: the layers' own poses, or a pose found from descriptors by
+    // one of the two methods the pairwise filters offer.
+    const QString pairInitialization =
+        params.getEnum(QStringLiteral("pairInitialization"), QStringLiteral("currentPose"));
+    const bool useRansac = pairInitialization == QLatin1StringView("ransacFeatureMatching");
+    const bool useFastGlobal = pairInitialization == QLatin1StringView("fastGlobalRegistration");
+
+    // Same reason as the pairwise filters: both descriptor-based methods sample randomly, so the
+    // run has to be reproducible.
     RandomSeed seed;
-    if (params.getEnum(QStringLiteral("pairInitialization"), QStringLiteral("currentPose"))
-            == QLatin1StringView("featureMatching")) {
+    if (useRansac || useFastGlobal) {
         seed = params.getRandomSeed();
         open3d::utility::random::Seed(int(seed.value));
     }
@@ -235,9 +241,10 @@ MeshFilterRunResult runGlobalAlignment(
     // whether the user has already placed them. Trusting the layer matrices is
     // right after a rough manual placement and useless before one, which is
     // what this choice is.
-    const bool matchFeatures =
-        params.getEnum(QStringLiteral("pairInitialization"), QStringLiteral("currentPose"))
-            == QLatin1StringView("featureMatching");
+    const bool matchFeatures = useRansac || useFastGlobal;
+    // RANSAC's budget, spent in full on every pair that does not match, so it is a parameter: the
+    // pairs are quadratic in the layers.
+    const int ransacIterations = std::max(1, params.getInt(QStringLiteral("ransacIterations"), 100000));
 
     // A bounding-box overlap test asks where the layers are, so it is only
     // meaningful when their poses are trusted. With feature matching the poses
@@ -307,11 +314,19 @@ MeshFilterRunResult runGlobalAlignment(
                 // features and then refined -- Open3D's two cases.
                 Eigen::Matrix4d init = poses[t].inverse() * poses[srcIdx];
                 if (matchFeatures) {
-                    const auto coarse = reg::FastGlobalRegistrationBasedOnFeatureMatching(
-                        clouds[srcIdx], clouds[t], *features[srcIdx], *features[t],
-                        reg::FastGlobalRegistrationOption(
-                            1.4, /*use_absolute_scale=*/true, true,
-                            maxCorrespondenceDistance));
+                    // Both return the source's pose relative to the target, in the clouds' own
+                    // frames, which is what the edge carries.
+                    const reg::RegistrationResult coarse = useRansac
+                        ? reg::RegistrationRANSACBasedOnFeatureMatching(
+                              clouds[srcIdx], clouds[t], *features[srcIdx], *features[t],
+                              /*mutual_filter=*/true, maxCorrespondenceDistance,
+                              reg::TransformationEstimationPointToPoint(false), 3, {},
+                              reg::RANSACConvergenceCriteria(ransacIterations, 0.999))
+                        : reg::FastGlobalRegistrationBasedOnFeatureMatching(
+                              clouds[srcIdx], clouds[t], *features[srcIdx], *features[t],
+                              reg::FastGlobalRegistrationOption(
+                                  1.4, /*use_absolute_scale=*/true, true,
+                                  maxCorrespondenceDistance));
                     if (coarse.fitness_ <= 0.0)
                         continue;
                     init = coarse.transformation_;
@@ -455,11 +470,13 @@ MeshFilterRunResult runGlobalAlignment(
                .arg(maxCorrespondenceDistance).arg(voxelSize)
         << (matchFeatures ? seed.message() : QString())
         << (matchFeatures
-                ? QObject::tr("Pair poses found by feature matching; the layers' existing "
-                              "matrices were not used as a starting point, and every pair was "
-                              "attempted.")
-                : QObject::tr("Pair poses refined from the layers' existing matrices. Switch to "
-                              "feature matching if they are not already roughly placed."));
+                ? QObject::tr("Pair poses found by %1; the layers' existing matrices were not used "
+                              "as a starting point, and every pair was attempted.")
+                      .arg(useRansac ? QObject::tr("RANSAC feature matching")
+                                     : QObject::tr("Fast Global Registration"))
+                : QObject::tr("Pair poses refined from the layers' existing matrices. Switch the "
+                              "pair initialization to RANSAC feature matching or Fast Global "
+                              "Registration if they are not already roughly placed."));
     if (connectedComponents > 1) {
         out.infoMessages << QObject::tr(
             "The graph has %1 disconnected groups: layers in different groups share no "
@@ -1051,6 +1068,9 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
     const int maxIterations = std::max(1, params.getInt(QStringLiteral("maxIterations"), 60));
     const int pairCount = int(chain.size()) - 1;
     const bool refine = params.getBool(QStringLiteral("globalRefinement"), true);
+    const int attempts = std::max(1, params.getInt(QStringLiteral("attempts"), 3));
+    // As a share of the reference's diagonal; zero turns the check off.
+    const double maximumPairError = params.getDouble(QStringLiteral("maximumPairError"), 0.8);
     // The method that gives each pair its starting pose before ICP: both find one from descriptors
     // with no pose to start from, and are the same step to this chain.
     const QString coarseMethod =
@@ -1116,29 +1136,66 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
                             .arg(k).arg(pairCount).arg(sourceName, referenceName));
 
         const QMatrix4x4 before = doc.mesh(chain[k]).transform;
-        MeshFilterParameterValues values;
-        values.insert(QStringLiteral("referenceMesh"), chain[k - 1]);
-        values.insert(QStringLiteral("maxCorrespondenceDistance"), correspondenceDistance);
-        values.insert(QStringLiteral("randomSeed"), int(seed.value));
+        // The error is the ICP inlier RMSE -- how far, on average, the source's matched points lie
+        // from the reference surface -- in the layers' units and as a share of the reference's
+        // diagonal, which is the figure comparable from one set of scans to the next.
+        const double diagonal = double(doc.mesh(chain[k - 1]).mesh.bbox.Diag());
 
+        // Both coarse methods sample at random, so a pair that fails is tried again with another
+        // seed before the chain gives up on it. An attempt is judged after ICP has refined it, on
+        // two counts: the fitness must reach the minimum, and the inlier RMSE must stay under the
+        // maximum error -- a pose can cover enough of the surface to pass the first and still sit
+        // visibly off it.
         PairQuality coarse;
         PairQuality refined;
         QString reason;
-        MeshFilterRunResult step =
-            runPairwise(coarseMethod, FilterParams(values), doc, { chain[k] }, false, &coarse);
-        if (step.success) {
-            values.insert(QStringLiteral("maxIterations"), maxIterations);
-            step = runPairwise(kPointToPlane, FilterParams(values), doc, { chain[k] }, false, &refined);
-        }
-        if (!step.success)
-            reason = step.errorMessage;
-        else if (refined.fitness < minimumFitness)
-            reason = QObject::tr("fitness %1 is below the minimum %2")
-                         .arg(refined.fitness, 0, 'f', 3).arg(minimumFitness, 0, 'f', 3);
+        int attemptsMade = 0;
+        bool registered = false;
+        for (int attempt = 0; attempt < attempts && !registered; ++attempt) {
+            ++attemptsMade;
+            // Each attempt starts from where the layer was found: the registrations compose their
+            // result onto the matrix the layer has.
+            if (attempt > 0)
+                doc.setMeshTransform(chain[k], before);
+            MeshFilterParameterValues values;
+            values.insert(QStringLiteral("referenceMesh"), chain[k - 1]);
+            values.insert(QStringLiteral("maxCorrespondenceDistance"), correspondenceDistance);
+            values.insert(QStringLiteral("randomSeed"), (int(seed.value) + attempt) & 0x7fffffff);
 
-        if (!reason.isEmpty()) {
+            coarse = {};
+            refined = {};
+            reason.clear();
+            MeshFilterRunResult step =
+                runPairwise(coarseMethod, FilterParams(values), doc, { chain[k] }, false, &coarse);
+            if (step.success) {
+                values.insert(QStringLiteral("maxIterations"), maxIterations);
+                step = runPairwise(kPointToPlane, FilterParams(values), doc, { chain[k] }, false, &refined);
+            }
+            const double errorPercent = diagonal > 0.0 ? 100.0 * refined.inlierRmse / diagonal : 0.0;
+            if (!step.success)
+                reason = step.errorMessage;
+            else if (refined.fitness < minimumFitness)
+                reason = QObject::tr("fitness %1 is below the minimum %2")
+                             .arg(refined.fitness, 0, 'f', 3).arg(minimumFitness, 0, 'f', 3);
+            else if (maximumPairError > 0.0 && errorPercent > maximumPairError)
+                reason = QObject::tr("inlier RMSE %1% of the diagonal is above the maximum %2%")
+                             .arg(errorPercent, 0, 'f', 2).arg(maximumPairError, 0, 'f', 2);
+
+            registered = reason.isEmpty();
+            if (!registered && attempt + 1 < attempts) {
+                while (reason.endsWith(QLatin1Char('.')))
+                    reason.chop(1);
+                doc.writeLog(QObject::tr("  attempt %1 of %2 for '%3' failed: %4; trying again with "
+                                         "another seed")
+                                 .arg(attempt + 1).arg(attempts).arg(sourceName, reason));
+            }
+        }
+
+        if (!registered) {
             while (reason.endsWith(QLatin1Char('.')))
                 reason.chop(1);
+            if (attemptsMade > 1)
+                reason = QObject::tr("%1, after %2 attempts").arg(reason).arg(attemptsMade);
             // A failed pair leaves the layer where it was found rather than
             // wherever the last attempt happened to put it.
             doc.setMeshTransform(chain[k], before);
@@ -1151,17 +1208,14 @@ MeshFilterRunResult runSequentialAlignment(const FilterParams &params, Document 
             doc.writeLog(QObject::tr("Starting a new group from '%1'").arg(sourceName));
             continue;
         }
-        // The error is the ICP inlier RMSE -- how far, on average, the source's
-        // matched points lie from the reference surface -- in the layers' units and
-        // as a share of the reference's diagonal, which is the figure comparable
-        // from one set of scans to the next.
-        const double diagonal = double(doc.mesh(chain[k - 1]).mesh.bbox.Diag());
         doc.writeLog(QObject::tr("Aligned '%1' onto '%2': inlier RMSE %3 (%4% of the diagonal), "
-                                 "fitness %5 (coarse pose alone %6)")
+                                 "fitness %5 (coarse pose alone %6)%7")
                          .arg(sourceName, referenceName)
                          .arg(refined.inlierRmse, 0, 'g', 4)
                          .arg(diagonal > 0.0 ? 100.0 * refined.inlierRmse / diagonal : 0.0, 0, 'f', 2)
-                         .arg(refined.fitness, 0, 'f', 3).arg(coarse.fitness, 0, 'f', 3));
+                         .arg(refined.fitness, 0, 'f', 3).arg(coarse.fitness, 0, 'f', 3)
+                         .arg(attemptsMade > 1 ? QObject::tr(", attempt %1 of %2").arg(attemptsMade).arg(attempts)
+                                               : QString()));
         group.push_back(chain[k]);
         progress.report(pairShare * int(k) / pairCount,
                         QObject::tr("Aligned %1 of %2 layers").arg(aligned + group.size() - 1)
