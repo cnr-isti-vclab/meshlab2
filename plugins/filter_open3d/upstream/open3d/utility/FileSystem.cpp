@@ -15,7 +15,7 @@
 #include <sstream>
 #ifdef _WIN32
 #include <direct.h>
-#include <dirent/dirent.h>
+#include <dirent.h>
 #include <io.h>
 #include <windows.h>
 #ifndef PATH_MAX
