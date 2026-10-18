@@ -1017,6 +1017,24 @@ aligner opens with a <code class="docutils literal notranslate"><span class="pre
 <code class="docutils literal notranslate"><span class="pre">alignmentFiltersStateTheirStartingAlignment</span></code> in the descriptor tier enforces it.
 It is scoped to the Open3D filters because their requirements were measured; the
 vcglib and TrueForm aligners predate the rule and have not been characterised.</p>
+<p><strong>Implemented 2026-10-18: <em>Estimate Quality with ICP</em></strong> (<code class="docutils literal notranslate"><span class="pre">evaluateWithIcp</span></code>, off by default) on
+<em>Align by Feature Matching</em> and <em>Align Sets by Feature Matching</em>. RANSAC scores its own pose on
+the downsampled clouds it matched on, which flatters it. With the option the pose is scored again
+on the full-resolution layers (<code class="docutils literal notranslate"><span class="pre">EvaluateRegistration</span></code>), and point-to-plane ICP is run from it at
+full resolution – the ICP result is <strong>measured, not applied</strong>: the layers carry the coarse pose,
+and the same run without the option gives the same matrix. The report gives the full-resolution
+fitness and inlier RMSE, the same after ICP, and how far ICP moved the pose, as a rotation and as
+the RMS travel of the source’s bounding-box corners (not the matrix’s translation column, which is
+mostly the distance to the origin), also as a share of the reference’s diagonal. The reading: a
+pose ICP barely moves, and that scores about the same afterwards, was a good guess. Measured on
+<code class="docutils literal notranslate"><span class="pre">faccia045</span></code> onto <code class="docutils literal notranslate"><span class="pre">faccia000</span></code>: RANSAC reported fitness 0.85 / RMSE 1.96 on the downsampled clouds, the
+full layers 0.92 / 1.72, after ICP 0.92 / 0.85, a move of 4.1 degrees and 2.5% of the diagonal.
+Every feature-matching run, with or without the option, also reports the inlier correspondence
+count and returns <code class="docutils literal notranslate"><span class="pre">fitness</span></code>, <code class="docutils literal notranslate"><span class="pre">inlier_rmse</span></code> and <code class="docutils literal notranslate"><span class="pre">inlier_correspondences</span></code> as output values (the
+option adds <code class="docutils literal notranslate"><span class="pre">full_fitness</span></code>, <code class="docutils literal notranslate"><span class="pre">full_inlier_rmse</span></code>, <code class="docutils literal notranslate"><span class="pre">icp_fitness</span></code>, <code class="docutils literal notranslate"><span class="pre">icp_inlier_rmse</span></code>,
+<code class="docutils literal notranslate"><span class="pre">icp_rotation_degrees</span></code>, <code class="docutils literal notranslate"><span class="pre">icp_translation</span></code> and <code class="docutils literal notranslate"><span class="pre">icp_translation_percent_of_diagonal</span></code>), which a
+script reads from <code class="docutils literal notranslate"><span class="pre">result.output_values</span></code>. <em>Fast Global Registration</em> shares the code and the
+reporting but does not offer the option.</p>
 <p><strong>Implemented 2026-10-17: <em>Align Sets by Feature Matching</em></strong> (<code class="docutils literal notranslate"><span class="pre">align_sets_by_feature_matching_open3d</span></code>),
 the same registration with a visibility set on each side: the points of each set’s layers are
 concatenated in world space (each through its own matrix), downsampled, matched and fitted, and the
