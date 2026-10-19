@@ -1719,6 +1719,12 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             mesh.vert.EnableCurvatureDir();
             if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh) > 0)
                 return fail(QObject::tr("Cannot compute principal directions on non-manifold faces."));
+            // A vertex in no face has no neighbourhood, and the estimators dereference its null
+            // face. "Remove Unreferenced Vertices" takes them out before the run; without it,
+            // say so rather than crash.
+            if (vcg::tri::Clean<VCGMesh>::CountUnreferencedVertex(mesh) > 0)
+                return fail(QObject::tr("The mesh has vertices that belong to no face, which have no "
+                                        "curvature: tick Remove Unreferenced Vertices."));
 
             vcg::tri::UpdateNormal<VCGMesh>::NormalizePerVertex(mesh);
 

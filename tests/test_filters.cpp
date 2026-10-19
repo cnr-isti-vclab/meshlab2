@@ -431,6 +431,8 @@ private slots:
     void instantMeshesRemeshesCube();
     void catmullClarkSubdividesCube();
     void dooSabinHonoursItsIterations();
+    void rasterProjectionSkipsTheDepthTestWhenAsked();
+    void curvatureDirectionsRemoveUnreferencedVerticesOnlyWhenAsked();
     void polygonFaceCountCacheTracksFilterChanges();
     void isolatedFoldRepairPreservesFlagsAndConverges();
     void isolatedFoldRepairRejectsUnsupportedMeshes();
@@ -2186,6 +2188,80 @@ void FilterTests::dooSabinHonoursItsIterations()
     QVERIFY(two.FN() > single.FN());
     QCOMPARE(two.VN(), stepwise.VN());
     QCOMPARE(two.FN(), stepwise.FN());
+}
+
+// "Use depth for projection" was in the panel and ignored: the depth buffer was always built and
+// the vertices behind a nearer part of the surface were always left blank. Without it every vertex
+// that faces the camera takes the image color, so on a surface that hides part of itself -- the
+// gargoyle, seen from one of its calibrated views -- more vertices are colored.
+void FilterTests::rasterProjectionSkipsTheDepthTestWhenAsked()
+{
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(
+                 QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
+    QVERIFY(doc.meshCount() > 0 && doc.rasterCount() > 0);
+    doc.setCurrentMeshIndex(0);
+    doc.setCurrentRasterIndex(0);
+
+    QString filterKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("transfer_color_from_current_raster_to_vertex"))
+            filterKey = info.key;
+    }
+    QVERIFY(!filterKey.isEmpty());
+
+    // Vertices that took a color from the image rather than the blank one.
+    const QColor blank(255, 0, 255);
+    const auto projected = [&](bool useDepth) {
+        QVariantMap params;
+        params.insert(QStringLiteral("usedepth"), useDepth);
+        params.insert(QStringLiteral("blankColor"), blank);
+        const MeshFilterRunResult result = doc.runFilter(filterKey, params);
+        if (!result.success)
+            return -1;
+        int count = 0;
+        for (const VCGVertex &v : doc.mesh(0).mesh.vert) {
+            const vcg::Color4b &c = v.cC();
+            count += !v.IsD() && !(c[0] == 255 && c[1] == 0 && c[2] == 255);
+        }
+        return count;
+    };
+    const int withDepth = projected(true);
+    const int withoutDepth = projected(false);
+    QVERIFY(withDepth > 0);
+    QVERIFY2(withoutDepth > withDepth,
+             qPrintable(QStringLiteral("%1 colored with the depth test, %2 without")
+                            .arg(withDepth).arg(withoutDepth)));
+}
+
+// The curvature filter offers to remove unreferenced vertices first -- through the descriptor's
+// pre-run cleanup, not code of its own -- and has to do it only when the box is ticked.
+void FilterTests::curvatureDirectionsRemoveUnreferencedVerticesOnlyWhenAsked()
+{
+    QString filterKey;
+    {
+        Document probe;
+        for (const auto &info : probe.filterInfos()) {
+            if (info.descriptor.id == QStringLiteral("compute_principal_curvature_directions_vcglib"))
+                filterKey = info.key;
+        }
+    }
+    QVERIFY(!filterKey.isEmpty());
+
+    // -1 when the filter refused, as it has to when asked to leave a vertex in no face.
+    const auto vertexCountAfter = [&](bool autoclean) {
+        VCGMesh cube;
+        makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+        vcg::tri::Allocator<VCGMesh>::AddVertex(cube, vcg::Point3f(5.0f, 5.0f, 5.0f));   // in no face
+        Document doc;
+        doc.addMesh(cube, QStringLiteral("Cube"));
+        QVariantMap params;
+        params.insert(QStringLiteral("Autoclean"), autoclean);
+        const MeshFilterRunResult result = doc.runFilter(filterKey, params);
+        return result.success ? doc.mesh(0).mesh.VN() : -1;
+    };
+    QCOMPARE(vertexCountAfter(true), 8);
+    QCOMPARE(vertexCountAfter(false), -1);
 }
 
 void FilterTests::polygonFaceCountCacheTracksFilterChanges()

@@ -137,6 +137,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
 
     // --- single proj ---
     if (fid == QString::fromLatin1(kFilterSingleProj)) {
+        const bool useDepth = p.getBool(QStringLiteral("usedepth"), true);
         float eta = float(p.getDouble(QStringLiteral("deptheta"), 0.5));
         bool onSel = p.getBool(QStringLiteral("selectedOnly"), false);
         bool preserveOccluded = p.getBool(QStringLiteral("preserveoccluded"), false);
@@ -158,8 +159,11 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
         int iw = shot.viewportPx().width(), ih = shot.viewportPx().height();
         QVector3D cz = shot.referenceAxis(2);
 
-        auto dbuf = buildDepthBuffer(shot, m, ent.transform);
-
+        // Without the depth buffer every vertex that faces the camera takes the color, hidden
+        // behind something or not.
+        std::unique_ptr<FloatBuffer> dbuf;
+        if (useDepth)
+            dbuf = buildDepthBuffer(shot, m, ent.transform);
 
         for (VCGVertex &v : m.vert) {
             if (v.IsD() || (onSel && !v.IsS())) continue;
@@ -174,9 +178,8 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
                 v.C() = vcg::Color4b(blank.red(), blank.green(), blank.blue(), blank.alpha());
                 continue;
             }
-            float d = shot.depth(wv);
-            float pd = dbuf->getval(int(pp.x()), int(pp.y()));
-            if (d <= pd + eta) {
+            const float d = shot.depth(wv);
+            if (!useDepth || d <= dbuf->getval(int(pp.x()), int(pp.y())) + eta) {
                 QRgb c = rimg.pixel(int(pp.x()), ih - 1 - int(pp.y()));
                 v.C() = vcg::Color4b(qRed(c), qGreen(c), qBlue(c), 255);
             } else if (!preserveOccluded) {
