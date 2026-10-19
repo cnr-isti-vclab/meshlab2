@@ -251,7 +251,7 @@ void MeasureTool::finishSegment(std::size_t point)
         doc->writeLog(
             QObject::tr("Distance M%1: %2")
                 .arg(m_measurements.size() - 1)
-                .arg(measurementLength(m), 0, 'g', 12),
+                .arg(lengthText(measurementLength(m), 12)),
             Document::LogSource::Application);
     }
 }
@@ -263,6 +263,15 @@ double MeasureTool::measurementLength(const Measurement &measurement) const
     return vcg::Distance(
         vcg::Point3d(a.x(), a.y(), a.z()),
         vcg::Point3d(b.x(), b.y(), b.z()));
+}
+
+QString MeasureTool::lengthText(double length, int precision) const
+{
+    QString text = QString::number(length, 'g', precision);
+    const Document *doc = m_view ? m_view->document() : nullptr;
+    if (doc && doc->unit() != LengthUnit::Unknown)
+        text += QLatin1Char(' ') + LengthUnits::symbol(doc->unit());
+    return text;
 }
 
 void MeasureTool::trimUnusedPoints()
@@ -371,7 +380,7 @@ void MeasureTool::printMeasurements() const
         const QVector3D &b = m_points[m.b];
         doc->writeLog(
             QStringLiteral("M%1: %2 [%3, %4, %5] [%6, %7, %8]")
-                .arg(i).arg(measurementLength(m), 0, 'g', 12)
+                .arg(i).arg(lengthText(measurementLength(m), 12))
                 .arg(a.x(), 0, 'g', 12).arg(a.y(), 0, 'g', 12).arg(a.z(), 0, 'g', 12)
                 .arg(b.x(), 0, 'g', 12).arg(b.y(), 0, 'g', 12).arg(b.z(), 0, 'g', 12),
             Document::LogSource::Application);
@@ -411,7 +420,13 @@ void MeasureTool::saveMeasurements() const
     QTextStream out(&file);
     out.setRealNumberNotation(QTextStream::SmartNotation);
     out.setRealNumberPrecision(17);
-    out << "id\tlength\tax\tay\taz\tbx\tby\tbz\n";
+    // The columns are in the document's unit, which their names say once it is set.
+    const QString suffix = doc->unit() == LengthUnit::Unknown
+        ? QString() : QLatin1Char('_') + LengthUnits::symbol(doc->unit());
+    out << "id";
+    for (const char *column : { "length", "ax", "ay", "az", "bx", "by", "bz" })
+        out << '\t' << column << suffix;
+    out << '\n';
     for (std::size_t i = 0; i < m_measurements.size(); ++i) {
         const Measurement &m = m_measurements[i];
         const QVector3D &a = m_points[m.a];
@@ -450,7 +465,7 @@ void MeasureTool::paintOverlay(
         painter.drawEllipse(a, 4.0, 4.0);
         painter.drawEllipse(b, 4.0, 4.0);
         const QString label = QStringLiteral("M%1: %2")
-            .arg(i).arg(measurementLength(m), 0, 'g', 8);
+            .arg(i).arg(lengthText(measurementLength(m), 8));
         const QRectF textRect = painter.fontMetrics().boundingRect(label).adjusted(-5, -3, 5, 3);
         const QPointF midpoint = (a + b) * 0.5;
         const QRectF placed = textRect.translated(midpoint + QPointF(8, -8) - textRect.topLeft());

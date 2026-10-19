@@ -93,7 +93,7 @@ Options (`MeshLabProjectSaveOptions`, offered by the Save Project dialog): `only
 **Unit** (`Document::unit()`, `LengthUnit` in `lengthunit.h`): what the coordinates are measured in --
 millimeters, centimeters, meters, kilometers, inches or feet -- as far as the user has said. Most mesh
 formats do not, so it is `Unknown` until the status bar's unit menu (or a project that holds one) sets it.
-It is a label and changes no coordinate; today it names the absolute half of an abs/perc parameter. It is
+It is a label and changes no coordinate; it names the absolute half of an abs/perc parameter and the lengths the measure tool shows and saves. It is
 in the undo state (`UndoState::unit`) and setting it is an undo step ("Set Unit"; the same unit again is
 no step), `File > New` (`clearAllLayers()`) forgets it, and `unitChanged()` tells the interface. In the
 project it is `<LengthUnit name="mm"/>` after the visibility sets, written only when set and read by its

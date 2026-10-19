@@ -639,6 +639,8 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     refreshColorSourceAvailability();
 
     connect(m_doc, &Document::bulkLoadFinished, this, [this] { update(); });
+    // A tool that labels lengths with the unit has to show the new one.
+    connect(m_doc, &Document::unitChanged, this, [this] { update(); });
     connect(m_doc, &Document::meshAdded, this, [this](int index) {
         // A structural change invalidates any in-flight pick: the mesh id it
         // encoded no longer maps to the same index. Rejecting it avoids

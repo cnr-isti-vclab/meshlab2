@@ -43,6 +43,8 @@ private:
     void resetSession();
     void finishSegment(std::size_t point);
     double measurementLength(const Measurement &measurement) const;
+    // A length as text, with the document's unit after it once the user has set one.
+    QString lengthText(double length, int precision) const;
     void trimUnusedPoints();
     void clearPendingPoint();
     void exportMeasurements();
