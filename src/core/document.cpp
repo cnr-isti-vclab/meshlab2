@@ -21,3 +21,16 @@ Document::Document(QObject *parent)
 }
 
 Document::~Document() = default;
+
+void Document::setUnit(LengthUnit unit)
+{
+    if (unit == m_unit)
+        return;
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("Set Unit"));
+    m_unit = unit;
+    emit unitChanged();
+    if (ownUndoStep)
+        endUndoStep(true);
+}

@@ -300,6 +300,14 @@ public:
     void removeRaster(int index);
     void setMeshVisible(int index, bool visible);
 
+    // The unit the coordinates are measured in, as far as the user has said: most mesh formats
+    // do not, so it starts Unknown and only a choice (or a project that holds one) sets it.
+    // It labels the lengths the interface shows -- "abs" becomes "mm" in an abs/perc parameter --
+    // and does not change the meshes. Part of the project and of the undo state; File > New
+    // forgets it. Setting it is an undo step.
+    LengthUnit unit() const { return m_unit; }
+    void setUnit(LengthUnit unit);
+
     // Visibility sets: a name and the layers that show together, for jumping between the
     // arrangements of a project (before / after, one scan at a time...). They hold persistent
     // mesh ids, so they follow a layer through moves and renames, and a layer that is gone
@@ -532,6 +540,7 @@ signals:
     void meshVisibilityChanged(int index, bool visible);
     // A visibility set was added, removed, renamed or redefined.
     void visibilitySetsChanged();
+    void unitChanged();
     void currentMeshChanged(int index);
     void meshDataChanged(int index);
     // Selection-bit-only change. Distinct from meshDataChanged so consumers that
@@ -599,6 +608,7 @@ private:
     std::unique_ptr<MeshGpuResourceCache> m_gpuCache;
     std::vector<std::unique_ptr<MeshEntry>> m_meshes;
     std::vector<VisibilitySet> m_visibilitySets;
+    LengthUnit m_unit = LengthUnit::Unknown;
     std::vector<std::unique_ptr<RasterEntry>> m_rasters;
     std::uint64_t m_nextMeshId = 1;
     std::uint64_t m_nextRasterId = 1;

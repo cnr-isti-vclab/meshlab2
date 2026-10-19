@@ -251,6 +251,7 @@ bool parseMeshLabProjectFile(
     std::vector<MeshLabProjectMeshEntry> &meshes,
     std::vector<MeshLabProjectRasterEntry> &rasters,
     std::vector<MeshLabProjectVisibilitySetEntry> &visibilitySets,
+    LengthUnit &unit,
     QString &errorMessage)
 {
     QFile file(filename);
@@ -301,6 +302,8 @@ bool parseMeshLabProjectFile(
                         set.meshOrdinals.push_back(value);
                 }
                 visibilitySets.push_back(std::move(set));
+            } else if (name == QStringLiteral("LengthUnit")) {
+                unit = LengthUnits::fromSymbol(xml.attributes().value(QStringLiteral("name")).toString());
             } else if (name == QStringLiteral("MLRaster")) {
                 MeshLabProjectRasterEntry raster;
                 raster.label = xml.attributes().value(QStringLiteral("label")).toString().trimmed();

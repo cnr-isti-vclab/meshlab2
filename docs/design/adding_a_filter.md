@@ -79,6 +79,12 @@ visibilityset
 
 (`file_open` and `file_save` are accepted as alternates.)
 
+An `absperc` is a **length**, as an absolute value or as a percentage of its range
+(`@bboxDiag` and the other bound tokens). Its absolute half is labelled with the
+document's unit (`Document::unit()`, "mm", "m", ...) once the user has set one, and
+"abs" while it is unknown, so declare as `absperc` only what really is a length in the
+layer's coordinates -- not a count, an angle or a ratio.
+
 Every parameter also carries `label`, `help` and `group` — all 1168 declared
 parameters do. Each distinct `group` becomes one section of the form, in order
 of first appearance, and headings only appear once there is more than one group.

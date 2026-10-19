@@ -89,6 +89,7 @@ private slots:
     void definingRenamingRedefiningAndDeletingASetAreUndoSteps();
     void aFiltersSetGetsAUniqueName();
     void aSetCanBeMovedInTheOrder();
+    void theUnitIsUnknownUntilSetAndIsPartOfTheUndoStateAndTheProject();
     void layersCanBeAddedToAndRemovedFromASet();
     void loadMeshLabProjectLoadsRastersAndCamera();
     void rasterCameraUndoRedoRestoresShot();
@@ -1932,6 +1933,63 @@ void DocumentTests::aSetCanBeMovedInTheOrder()
     QCOMPARE(names(), QStringLiteral("two,three,one,four"));
     QVERIFY(doc.undo());
     QCOMPARE(names(), QStringLiteral("one,two,three,four"));
+}
+
+// The unit is what the user said the coordinates are in: not known to begin with, an undo step to
+// set, kept in the project, and forgotten with the layers.
+void DocumentTests::theUnitIsUnknownUntilSetAndIsPartOfTheUndoStateAndTheProject()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    Document doc;
+    QCOMPARE(doc.unit(), LengthUnit::Unknown);
+    addTinyMesh(doc, QStringLiteral("a"));
+
+    QSignalSpy changed(&doc, &Document::unitChanged);
+    doc.setUnit(LengthUnit::Millimeter);
+    QCOMPARE(doc.unit(), LengthUnit::Millimeter);
+    QCOMPARE(changed.count(), 1);
+    // The same unit again is no change and no step.
+    const int nodes = int(doc.undoTreeInfo().size());
+    doc.setUnit(LengthUnit::Millimeter);
+    QCOMPARE(changed.count(), 1);
+    QCOMPARE(int(doc.undoTreeInfo().size()), nodes);
+
+    doc.setUnit(LengthUnit::Meter);
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.unit(), LengthUnit::Millimeter);
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.unit(), LengthUnit::Unknown);
+    QVERIFY(doc.redo());
+    QCOMPARE(doc.unit(), LengthUnit::Millimeter);
+
+    // In the project, by its symbol; one with none leaves the unit of the document it joins as it is.
+    doc.setUnit(LengthUnit::Kilometer);
+    QString error;
+    const QString withUnit = dir.filePath(QStringLiteral("unit.mlp"));
+    QVERIFY2(doc.saveMeshLabProject(withUnit, Document::MeshLabProjectSaveOptions{}, &error), qPrintable(error));
+    Document back;
+    QCOMPARE(back.loadMeshLabProject(withUnit), 0);
+    QCOMPARE(back.unit(), LengthUnit::Kilometer);
+
+    Document plain;
+    addTinyMesh(plain, QStringLiteral("p"));
+    const QString withoutUnit = dir.filePath(QStringLiteral("plain.mlp"));
+    QVERIFY2(plain.saveMeshLabProject(withoutUnit, Document::MeshLabProjectSaveOptions{}, &error), qPrintable(error));
+    QFile file(withoutUnit);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QVERIFY(!QString::fromUtf8(file.readAll()).contains(QStringLiteral("LengthUnit")));
+    file.close();
+    QCOMPARE(back.loadMeshLabProject(withoutUnit), 0);
+    QCOMPARE(back.unit(), LengthUnit::Kilometer);
+
+    // File > New forgets it.
+    back.clearAllLayers();
+    QCOMPARE(back.unit(), LengthUnit::Unknown);
+
+    // A symbol this version does not know reads as not set.
+    QCOMPARE(LengthUnits::fromSymbol(QStringLiteral("furlong")), LengthUnit::Unknown);
+    QCOMPARE(LengthUnits::fromSymbol(QStringLiteral("ft")), LengthUnit::Foot);
 }
 
 void DocumentTests::loadMeshLabProjectLoadsMeshesAndTransforms()

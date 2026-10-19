@@ -371,6 +371,11 @@ void Document::clearAllLayers()
     emit rasterRemoved(-1);
     if (hadSets)
         emit visibilitySetsChanged();
+    // And the unit is what was said of those layers.
+    if (m_unit != LengthUnit::Unknown) {
+        m_unit = LengthUnit::Unknown;
+        emit unitChanged();
+    }
 }
 
 QMatrix4x4 Document::meshTransform(int index) const

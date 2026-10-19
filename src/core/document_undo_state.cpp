@@ -12,6 +12,7 @@ UndoState Document::captureUndoState() const
     state.nextMeshId = m_nextMeshId;
     state.nextRasterId = m_nextRasterId;
     state.visibilitySets = m_visibilitySets;
+    state.unit = m_unit;
     state.meshes.reserve(m_meshes.size());
     for (const auto &entry : m_meshes) {
         if (!entry)
@@ -252,6 +253,10 @@ void Document::restoreUndoState(const UndoState &state)
             if (m_visibilitySets != state.visibilitySets) {
                 m_visibilitySets = state.visibilitySets;
                 emit visibilitySetsChanged();
+            }
+            if (m_unit != state.unit) {
+                m_unit = state.unit;
+                emit unitChanged();
             }
             const int normalizedCurrent =
                 (state.currentMeshIndex >= 0 && state.currentMeshIndex < meshCount())

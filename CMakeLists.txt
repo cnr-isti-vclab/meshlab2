@@ -184,6 +184,7 @@ add_library(MeshLab2Core STATIC
     src/core/uvpacker.h src/core/uvpacker.cpp
     src/core/viewpointoccluder.h src/core/viewpointoccluder.cpp
     src/core/layerdata.h
+    src/core/lengthunit.h
     src/core/vcgmesh.h
     src/plugins/filtercategories.h src/plugins/filtercategories.cpp
     src/core/preferences.h src/core/preferences.cpp

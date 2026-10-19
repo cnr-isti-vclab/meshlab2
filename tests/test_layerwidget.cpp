@@ -4,7 +4,9 @@
 #include "layerwidget.h"
 
 #include <QImage>
+#include <QScrollBar>
 #include <QScrollArea>
+#include <QTableWidget>
 #include <QTreeWidget>
 #include <QToolButton>
 #include <vcg/complex/allocate.h>
@@ -20,6 +22,7 @@ private slots:
     void hoveringASetChipShadesItsLayersRows();
     void theEyeShowsAllOrHidesAllAndSaysWhatIsShown();
     void theTitleBarButtonsGoOverTheArrowsAndTheCheckMarks();
+    void theListStaysWhereTheUserScrolledItWhenALayerChanges();
 };
 
 namespace {
@@ -217,6 +220,71 @@ void LayerWidgetTests::theTitleBarButtonsGoOverTheArrowsAndTheCheckMarks()
              qPrintable(QStringLiteral("arrow ink %1, reported %2").arg(arrow + offset).arg(widget.disclosureArrowCenter())));
     QVERIFY2(qAbs(check + offset - widget.visibilityCheckCenter()) <= 3,
              qPrintable(QStringLiteral("check ink %1, reported %2").arg(check + offset).arg(widget.visibilityCheckCenter())));
+}
+
+// A change to any layer rebuilds the list, and the rebuild used to send the list to the top and then
+// back down to the current layer: with the current layer at the end, a scroll up to switch an early
+// layer on or off was undone at once, and a click scrolled the clicked layer to the bottom edge.
+void LayerWidgetTests::theListStaysWhereTheUserScrolledItWhenALayerChanges()
+{
+    Document doc;
+    for (int i = 0; i < 40; ++i)
+        addTinyMesh(doc, QStringLiteral("layer %1").arg(i));
+    LayerWidget widget(&doc);
+    widget.resize(320, 300);
+    widget.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&widget));
+    QTest::qWait(50);
+
+    QTreeWidget *tree = nullptr;
+    for (QTreeWidget *candidate : widget.findChildren<QTreeWidget *>()) {
+        if (candidate->topLevelItemCount() == 40)
+            tree = candidate;
+    }
+    QVERIFY(tree);
+    QScrollBar *bar = tree->verticalScrollBar();
+    QVERIFY(bar->maximum() > 10);   // there is something to scroll
+
+    // The last layer is the current one; the user scrolls up and switches the first off.
+    bar->setValue(0);
+    doc.setMeshVisible(0, false);
+    QTest::qWait(50);
+    QCOMPARE(bar->value(), 0);
+
+    // Somewhere in the middle, a change to a layer out of sight leaves it where it is.
+    bar->setValue(10);
+    doc.setMeshVisible(1, false);
+    QTest::qWait(50);
+    QCOMPARE(bar->value(), 10);
+
+    // So does choosing a layer that is wholly in view.
+    const QRect row = tree->visualItemRect(tree->topLevelItem(14));
+    QTest::mouseClick(tree->viewport(), Qt::LeftButton, {}, row.center());
+    QTest::qWait(50);
+    QCOMPARE(doc.currentMeshIndex(), 14);
+    QCOMPARE(bar->value(), 10);
+
+    // A layer that has just come is the current one and is brought into view.
+    addTinyMesh(doc, QStringLiteral("new"));
+    QTest::qWait(50);
+    QCOMPARE(tree->topLevelItemCount(), 41);
+    QVERIFY(tree->viewport()->rect().contains(tree->visualItemRect(tree->topLevelItem(40)).center()));
+
+    // The table is rebuilt in the same way and stays put as well.
+    widget.setViewMode(LayerWidget::ViewMode::Table);
+    QTest::qWait(50);
+    QTableWidget *table = nullptr;
+    for (QTableWidget *candidate : widget.findChildren<QTableWidget *>()) {
+        if (candidate->rowCount() == 41)
+            table = candidate;
+    }
+    QVERIFY(table);
+    QScrollBar *tableBar = table->verticalScrollBar();
+    QVERIFY(tableBar->maximum() > 10);
+    tableBar->setValue(0);
+    doc.setMeshVisible(0, true);
+    QTest::qWait(50);
+    QCOMPARE(tableBar->value(), 0);
 }
 
 QTEST_MAIN(LayerWidgetTests)

@@ -11,9 +11,10 @@ int Document::loadMeshLabProject(const QString &filename)
     std::vector<MeshLabProjectMeshEntry> projectMeshes;
     std::vector<MeshLabProjectRasterEntry> projectRasters;
     std::vector<MeshLabProjectVisibilitySetEntry> projectSets;
+    LengthUnit projectUnit = LengthUnit::Unknown;
     QString parseError;
     if (!parseMeshLabProjectFile(
-            normalizedFilename, projectMeshes, projectRasters, projectSets, parseError)) {
+            normalizedFilename, projectMeshes, projectRasters, projectSets, projectUnit, parseError)) {
         writeLog(parseError, LogSource::Application);
         return -1;
     }
@@ -83,6 +84,10 @@ int Document::loadMeshLabProject(const QString &filename)
                 std::move(ids));
         }
     }
+
+    // A project that says nothing leaves the unit as it is: its layers may be joining others.
+    if (projectUnit != LengthUnit::Unknown)
+        setUnit(projectUnit);
 
     int rasterIdx = 0;
     for (const MeshLabProjectRasterEntry &projectRaster : projectRasters) {
@@ -461,6 +466,13 @@ bool Document::saveMeshLabProject(
     }
     if (openedSets)
         xml.writeEndElement(); // VisibilitySets
+
+    // The unit, when the user has said it; old versions skip the element.
+    if (unit() != LengthUnit::Unknown) {
+        xml.writeStartElement(QStringLiteral("LengthUnit"));
+        xml.writeAttribute(QStringLiteral("name"), LengthUnits::symbol(unit()));
+        xml.writeEndElement(); // LengthUnit
+    }
 
     xml.writeEndElement(); // MeshLabProject
     xml.writeEndDocument();

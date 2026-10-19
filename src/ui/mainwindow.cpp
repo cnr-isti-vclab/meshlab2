@@ -566,6 +566,39 @@ MainWindow::MainWindow(QWidget *parent)
     m_frameStatsLabel->setFont(statsFont);
     statusBar()->addPermanentWidget(m_frameStatsLabel, 1);
 
+    // The unit the coordinates are in, which most mesh formats do not say: it shows what the
+    // document has and offers the others. It names the lengths the parameter panels show.
+    auto *unitButton = new QToolButton(this);
+    unitButton->setAutoRaise(true);
+    unitButton->setPopupMode(QToolButton::InstantPopup);
+    unitButton->setToolTip(tr("The unit the coordinates of the layers are measured in. Most mesh "
+                              "formats do not say, so it starts not set; setting it names the "
+                              "lengths in the filter parameters and does not change the layers."));
+    auto *unitMenu = new QMenu(unitButton);
+    auto *unitGroup = new QActionGroup(unitMenu);
+    const auto addUnitAction = [this, unitMenu, unitGroup](LengthUnit unit, const QString &text) {
+        QAction *action = unitMenu->addAction(text);
+        action->setCheckable(true);
+        action->setActionGroup(unitGroup);
+        action->setData(int(unit));
+        connect(action, &QAction::triggered, this, [this, unit] { m_doc->setUnit(unit); });
+    };
+    addUnitAction(LengthUnit::Unknown, tr("Not Set"));
+    unitMenu->addSeparator();
+    for (const LengthUnits::Info &info : LengthUnits::all())
+        addUnitAction(info.unit, tr("%1 (%2)").arg(LengthUnits::name(info.unit), LengthUnits::symbol(info.unit)));
+    unitButton->setMenu(unitMenu);
+    const auto showUnit = [this, unitButton, unitGroup] {
+        const LengthUnit unit = m_doc->unit();
+        unitButton->setText(unit == LengthUnit::Unknown
+                                ? tr("Unit: not set") : tr("Unit: %1").arg(LengthUnits::symbol(unit)));
+        for (QAction *action : unitGroup->actions())
+            action->setChecked(action->data().toInt() == int(unit));
+    };
+    showUnit();
+    connect(m_doc, &Document::unitChanged, this, showUnit);
+    statusBar()->addPermanentWidget(unitButton, 0);
+
     m_layerWidget = new LayerWidget(m_doc, this);
     connect(m_layerWidget, &LayerWidget::filterActionRequested, this,
             &MainWindow::openFilterOrRunIfParameterless);

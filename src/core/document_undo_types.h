@@ -3,6 +3,7 @@
 #include "camerashot.h"
 #include "meshioplugin.h"
 #include "layerdata.h"
+#include "lengthunit.h"
 #include "rasterplane.h"
 #include "vcgmesh.h"
 #include "viewstate.h"
@@ -108,6 +109,7 @@ struct UndoState {
     std::uint64_t nextMeshId = 1;
     std::uint64_t nextRasterId = 1;
     std::vector<VisibilitySet> visibilitySets;
+    LengthUnit unit = LengthUnit::Unknown;
     ViewState viewState;
 };
 

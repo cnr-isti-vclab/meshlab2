@@ -78,6 +78,7 @@ private slots:
     void resetRestoresDefaults();
     void resetButtonsRestoreOneValue();
     void inlineHelpShowsEachHelpText();
+    void anAbsolutePercentageNamesTheDocumentsUnit();
     void tooltipsAreWrappedRichText();
     void filterShowsMatchingRowsUnderTheirHeadings();
     void skipsDocumentTypesWithoutADocument();
@@ -633,6 +634,51 @@ void ParameterFormTests::visibilitySetParametersOfferTheSetsByName()
     builder2.setContext({ &empty, {}, {}, {} });
     builder2.build({ makeParam(QStringLiteral("moving"), MeshFilterParameterType::VisibilitySet, QVariant()) });
     QCOMPARE(builder2.value(QStringLiteral("moving")).toString(), QString());
+}
+
+// The absolute half of an abs/perc parameter is a length: it says "abs" until the user has said what
+// the document's unit is, then the unit, and it follows the document when the unit is set again.
+void ParameterFormTests::anAbsolutePercentageNamesTheDocumentsUnit()
+{
+    Document doc;
+    QWidget host;
+    auto *layout = new QFormLayout(&host);
+    ParameterFormBuilder builder(layout, &host);
+    builder.setContext({ &doc, {}, {}, {} });
+    auto radius = makeParam(QStringLiteral("radius"), MeshFilterParameterType::AbsPerc, 1.0);
+    radius.minValue = 0.0;
+    radius.maxValue = 10.0;
+    builder.build({ radius });
+
+    // The first label in the editor is the one after the absolute value; the second is the "%".
+    const QList<QLabel *> labels = builder.bindingById(QStringLiteral("radius"))->editor->findChildren<QLabel *>();
+    QCOMPARE(labels.size(), 2);
+    QCOMPARE(labels[0]->text(), QStringLiteral("abs"));
+
+    doc.setUnit(LengthUnit::Millimeter);
+    QCOMPARE(labels[0]->text(), QStringLiteral("mm"));
+    doc.setUnit(LengthUnit::Foot);
+    QCOMPARE(labels[0]->text(), QStringLiteral("ft"));
+    QVERIFY(doc.undo());
+    QCOMPARE(labels[0]->text(), QStringLiteral("mm"));
+    QCOMPARE(labels[1]->text(), QStringLiteral("%"));
+
+    // A form built after the unit was set starts with it.
+    QWidget later;
+    auto *laterLayout = new QFormLayout(&later);
+    ParameterFormBuilder laterBuilder(laterLayout, &later);
+    laterBuilder.setContext({ &doc, {}, {}, {} });
+    laterBuilder.build({ radius });
+    QCOMPARE(laterBuilder.bindingById(QStringLiteral("radius"))->editor->findChildren<QLabel *>()[0]->text(),
+             QStringLiteral("mm"));
+
+    // With no document -- the preferences dialog -- there is no unit to name.
+    QWidget bare;
+    auto *bareLayout = new QFormLayout(&bare);
+    ParameterFormBuilder bareBuilder(bareLayout, &bare);
+    bareBuilder.build({ radius });
+    QCOMPARE(bareBuilder.bindingById(QStringLiteral("radius"))->editor->findChildren<QLabel *>()[0]->text(),
+             QStringLiteral("abs"));
 }
 
 QTEST_MAIN(ParameterFormTests)

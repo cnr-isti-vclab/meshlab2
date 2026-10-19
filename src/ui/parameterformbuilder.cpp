@@ -81,8 +81,9 @@ public:
         if (std::isfinite(span) && std::fabs(span) > 1e-12)
             m_absSpin->setSingleStep(std::max(span / 100.0, 1e-12));
 
-        auto *absLabel = new QLabel(tr("abs"), this);
-        absLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        m_absLabel = new QLabel(this);
+        m_absLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        setUnit(LengthUnit::Unknown);
 
         m_percentSpin = new QDoubleSpinBox(this);
         m_percentSpin->setRange(-200.0, 200.0);
@@ -95,7 +96,7 @@ public:
         percentLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
 
         layout->addWidget(m_absSpin, 1);
-        layout->addWidget(absLabel);
+        layout->addWidget(m_absLabel);
         layout->addSpacing(6);
         layout->addWidget(m_percentSpin, 1);
         layout->addWidget(percentLabel);
@@ -119,6 +120,19 @@ public:
     void setAbsoluteValue(double value)
     {
         m_absSpin->setValue(value);
+    }
+
+    // The absolute value is a length, in the document's unit once the user has said which.
+    void setUnit(LengthUnit unit)
+    {
+        if (unit == LengthUnit::Unknown) {
+            m_absLabel->setText(tr("abs"));
+            m_absLabel->setToolTip(tr("Absolute value, in the coordinate units of the layer. "
+                                      "Set the unit of the document (status bar) to name them."));
+        } else {
+            m_absLabel->setText(LengthUnits::symbol(unit));
+            m_absLabel->setToolTip(tr("Absolute value, in %1").arg(LengthUnits::name(unit).toLower()));
+        }
     }
 
     double absoluteValue() const
@@ -154,6 +168,7 @@ private:
     double m_minValue = 0.0;
     double m_maxValue = 0.0;
     QDoubleSpinBox *m_absSpin = nullptr;
+    QLabel *m_absLabel = nullptr;
     QDoubleSpinBox *m_percentSpin = nullptr;
 };
 
@@ -1187,6 +1202,10 @@ QWidget *ParameterFormBuilder::createEditor(const MeshFilterParameterDescriptor 
         const double maxV = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
         auto *w = new AbsPercEditor(minV, maxV, param.decimals, m_parentWidget);
         w->setAbsoluteValue(param.defaultValue.isValid() ? param.defaultValue.toDouble() : minV);
+        if (doc) {
+            w->setUnit(doc->unit());
+            connect(doc, &Document::unitChanged, w, [w, doc] { w->setUnit(doc->unit()); });
+        }
         return w;
     }
     case MeshFilterParameterType::String: {
