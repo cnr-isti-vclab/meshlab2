@@ -92,6 +92,23 @@ public:
         return { vcg::tri::io::Mask::IOM_VERTCOORD, false, false };
     }
 
+    int load(
+        const QString &filename,
+        VCGMesh &mesh,
+        vcg::CallBackPos *cb,
+        int *outLoadMask,
+        MeshIOMaterialSet *outMaterialSet,
+        LengthUnit *outUnit) const override
+    {
+        if (outMaterialSet)
+            outMaterialSet->clear();
+        const int err = load(filename, mesh, cb, outLoadMask);
+        // The E57 standard (ASTM E2807) has its Cartesian coordinates in meters.
+        if (err == 0 && outUnit)
+            *outUnit = LengthUnit::Meter;
+        return err;
+    }
+
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
     {
         if (outLoadMask)

@@ -91,14 +91,27 @@ The "no file" case used to be skipped when the layer was unmodified, which dropp
 Options (`MeshLabProjectSaveOptions`, offered by the Save Project dialog): `onlyVisibleMeshes` leaves hidden layers out of the project altogether; `saveModifiedMeshes` is the re-save above; `copyFiles` lets the save proceed when some referenced meshes or rasters live outside the project folder. Without it, such a project is refused with an error rather than saved with paths that would break when the folder moves. With it the files are copied into `meshes/` and `images/`, but the project still names the original locations, so the copies are not what a reopened project loads. Paths in the file are relative to the project folder.
 
 **Unit** (`Document::unit()`, `LengthUnit` in `lengthunit.h`): what the coordinates are measured in --
-millimeters, centimeters, meters, kilometers, inches or feet -- as far as the user has said. Most mesh
-formats do not, so it is `Unknown` until the status bar's unit menu (or a project that holds one) sets it.
+micrometers, millimeters, centimeters, meters, kilometers, inches or feet -- as far as it is known. Most
+mesh formats do not say, so it is `Unknown` until the status bar's unit menu, a project that holds one, or
+a file that states its unit sets it.
 It is a label and changes no coordinate; it names the absolute half of an abs/perc parameter and the lengths the measure tool shows and saves. It is
 in the undo state (`UndoState::unit`) and setting it is an undo step ("Set Unit"; the same unit again is
 no step), `File > New` (`clearAllLayers()`) forgets it, and `unitChanged()` tells the interface. In the
 project it is `<LengthUnit name="mm"/>` after the visibility sets, written only when set and read by its
 symbol, so an old version skips it and a symbol this version lacks reads as not set; a project without
-one leaves the unit of the document it is loaded into as it is.
+one leaves the unit of the document it is loaded into as it is; it is applied before the project's layers
+are loaded, so that their files have to agree with it. Old MeshLab reads only `MeshGroup` and `RasterGroup`
+and skips the other elements, so a project with the unit opens there unchanged.
+
+*Formats that know their unit* report it through the extended `MeshIOPlugin::load` (`outUnit`, left
+`Unknown` by the formats that say none: PLY, OBJ, STL, OFF): glTF/GLB and E57 are in meters by their
+definitions, and 3MF carries a unit in the file -- millimeters when it names none, which is what the
+specification says. `Document::loadMesh` hands it to `adoptFileUnit`: it becomes the document's unit only
+when the loaded layer is the only one and no unit is set, so a document with layers of unknown unit is not
+told a guess; a unit the user chose is kept, a disagreeing file is reported in the log as a warning, and
+nothing is ever converted. The adoption is part of the load's undo step. On the way out `saveMesh` puts the
+document's unit in `MeshIOSaveOptions::unit`, which the 3MF writer records (it can name every unit but
+kilometers, which it leaves out, with a note in the log); glTF and E57 have nowhere to say it.
 
 **Visibility sets** (`Document::visibilitySets()`): a name and the persistent `meshId`s of the layers that show together, kept in the document, in the `.mlp` and in the undo state (`UndoState::visibilitySets`, captured and restored with the layers, so their ids stay valid): adding, redefining, renaming and deleting one are undo steps, each with the usual guard so that one made inside an open step -- a project load -- belongs to it. Showing one is not a step, as the layer panel's eye is not. A filter can leave one (`MeshFilterRunResult::visibilitySets`, by layer index): the framework stores it with `addVisibilitySet` inside the filter's own undo step, from the indices as they stand when the filter returns, under `uniqueVisibilitySetName` (a taken name gets " 2", " 3" ..., as a layer's does), so each run leaves a set of its own. A filter can take a set as a parameter (`visibilityset`, whose value is the set's name; `indexOfVisibilitySet`, `visibilitySetMeshIndices`). `moveVisibilitySet` reorders them (an undo step; the Alt+number keys follow the order). `addToVisibilitySet` and `removeFromVisibilitySet` edit a set a layer at a time (each an undo step unless it changes nothing). `showVisibilitySet(i, addToVisible)` goes through `setMeshVisible`, so it acts on the current view, as the layer panel's eye does; `visibilitySetIsShown(i)` is whether the visible layers are exactly the set's; a layer that is gone is not in the set any more, and `clearAllLayers()` (File > New) drops the sets. In the file they follow `RasterGroup` as `<VisibilitySets><VisibilitySet name="..." meshes="0 2"/></VisibilitySets>`, each number the position of an `MLMesh` among those written, so that a layer left out of the file (`onlyVisibleMeshes`, an empty path) does not shift the others; a set left with no layer is not written, and a loaded one maps the positions to the ids the layers got. Old versions skip the element. Rasters have no sets.
 

@@ -8,7 +8,7 @@
 // The unit a document's coordinates are measured in (Document::unit()). Most mesh formats do not
 // say, so a document starts with Unknown; the user sets it, and from then on the lengths the
 // program shows can be named in it. It labels the coordinates and does not change them.
-enum class LengthUnit { Unknown, Millimeter, Centimeter, Meter, Kilometer, Inch, Foot };
+enum class LengthUnit { Unknown, Micrometer, Millimeter, Centimeter, Meter, Kilometer, Inch, Foot };
 
 namespace LengthUnits {
 
@@ -18,10 +18,12 @@ struct Info {
     const char *name;
 };
 
-// The units that can be chosen, smallest metric first; Unknown is the absence of a choice.
-inline const std::array<Info, 6> &all()
+// The units that can be chosen, smallest first; Unknown is the absence of a choice. The
+// symbols are UTF-8 ("\xC2\xB5m" is the micro sign and an m).
+inline const std::array<Info, 7> &all()
 {
-    static const std::array<Info, 6> table{ {
+    static const std::array<Info, 7> table{ {
+        { LengthUnit::Micrometer, "\xC2\xB5m", QT_TRANSLATE_NOOP("LengthUnit", "Micrometers") },
         { LengthUnit::Millimeter, "mm", QT_TRANSLATE_NOOP("LengthUnit", "Millimeters") },
         { LengthUnit::Centimeter, "cm", QT_TRANSLATE_NOOP("LengthUnit", "Centimeters") },
         { LengthUnit::Meter, "m", QT_TRANSLATE_NOOP("LengthUnit", "Meters") },
@@ -37,7 +39,7 @@ inline QString symbol(LengthUnit unit)
 {
     for (const Info &info : all()) {
         if (info.unit == unit)
-            return QString::fromLatin1(info.symbol);
+            return QString::fromUtf8(info.symbol);
     }
     return {};
 }
@@ -57,7 +59,7 @@ inline QString name(LengthUnit unit)
 inline LengthUnit fromSymbol(const QString &symbol)
 {
     for (const Info &info : all()) {
-        if (symbol == QLatin1String(info.symbol))
+        if (symbol == QString::fromUtf8(info.symbol))
             return info.unit;
     }
     return LengthUnit::Unknown;

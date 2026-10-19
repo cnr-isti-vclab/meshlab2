@@ -602,6 +602,11 @@ private:
     static bool dispatchLogCallback(int pos, const char *message);
     void purgeMeshGpuResources(std::uint64_t meshId);
     void mergeImportedStlVertices(const QString &path, VCGMesh &mesh);
+    // What a file that has just been loaded says its unit is (Unknown when it says none). It
+    // becomes the document's unit only if nothing else has said so: the file's layer is the
+    // only one and the unit is not set. Otherwise it is reported when it differs from the
+    // unit the user chose, and nothing is converted.
+    void adoptFileUnit(LengthUnit fileUnit, const QString &filename);
 
     std::unique_ptr<MeshIOPluginManager> m_pluginManager;
     std::unique_ptr<MeshFilterPluginManager> m_filterPluginManager;

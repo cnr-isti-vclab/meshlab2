@@ -90,6 +90,8 @@ private slots:
     void aFiltersSetGetsAUniqueName();
     void aSetCanBeMovedInTheOrder();
     void theUnitIsUnknownUntilSetAndIsPartOfTheUndoStateAndTheProject();
+    void aFilesOwnUnitBecomesTheDocumentsOnlyWhenNothingElseHasSaidSo();
+    void aThreeMFRecordsTheDocumentsUnit();
     void layersCanBeAddedToAndRemovedFromASet();
     void loadMeshLabProjectLoadsRastersAndCamera();
     void rasterCameraUndoRedoRestoresShot();
@@ -1990,6 +1992,123 @@ void DocumentTests::theUnitIsUnknownUntilSetAndIsPartOfTheUndoStateAndTheProject
     // A symbol this version does not know reads as not set.
     QCOMPARE(LengthUnits::fromSymbol(QStringLiteral("furlong")), LengthUnit::Unknown);
     QCOMPARE(LengthUnits::fromSymbol(QStringLiteral("ft")), LengthUnit::Foot);
+}
+
+// Some formats say what their coordinates are in -- glTF is in meters by definition, 3MF names its
+// unit -- and the document takes it up when it is the first layer and the unit has not been said; a
+// unit the user chose is never replaced, and the project's wins over its layers'.
+void DocumentTests::aFilesOwnUnitBecomesTheDocumentsOnlyWhenNothingElseHasSaidSo()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEINDEX;
+    const auto write = [&](const QString &name) {
+        Document source;
+        addTinyMesh(source, QStringLiteral("t"));
+        const QString path = dir.filePath(name);
+        [&] { QCOMPARE(source.saveMesh(0, path, options), 0); }();
+        return path;
+    };
+    const QString glb = write(QStringLiteral("t.glb"));
+    const QString ply = write(QStringLiteral("t.ply"));
+    const auto warned = [](const Document &doc) {
+        return std::any_of(doc.logMessages().begin(), doc.logMessages().end(), [](const Document::LogEntry &e) {
+            return e.level == Document::LogLevel::Warning && e.message.contains(QStringLiteral("nothing was converted"));
+        });
+    };
+
+    // An E57 point cloud is in meters by its standard.
+    {
+        Document source;
+        addTinyMesh(source, QStringLiteral("t"));
+        const QString e57 = dir.filePath(QStringLiteral("t.e57"));
+        QCOMPARE(source.saveMesh(0, e57, options), 0);
+        Document cloud;
+        QCOMPARE(cloud.loadMesh(e57), 0);
+        QCOMPARE(cloud.unit(), LengthUnit::Meter);
+    }
+
+    // The first layer, and a format that names no unit: the document stays as it was.
+    Document plain;
+    QCOMPARE(plain.loadMesh(ply), 0);
+    QCOMPARE(plain.unit(), LengthUnit::Unknown);
+
+    // glTF is in meters, and the load with its unit is one undo step.
+    Document first;
+    QCOMPARE(first.loadMesh(glb), 0);
+    QCOMPARE(first.unit(), LengthUnit::Meter);
+    QVERIFY(first.undo());
+    QCOMPARE(first.meshCount(), 0);
+    QCOMPARE(first.unit(), LengthUnit::Unknown);
+
+    // Other layers already there, with no unit said for them: it is not guessed from the file.
+    Document crowded;
+    addTinyMesh(crowded, QStringLiteral("generated"));
+    QCOMPARE(crowded.loadMesh(glb), 0);
+    QCOMPARE(crowded.meshCount(), 2);
+    QCOMPARE(crowded.unit(), LengthUnit::Unknown);
+
+    // A unit the user chose stays, and the disagreement is reported.
+    Document chosen;
+    chosen.setUnit(LengthUnit::Millimeter);
+    QCOMPARE(chosen.loadMesh(glb), 0);
+    QCOMPARE(chosen.unit(), LengthUnit::Millimeter);
+    QVERIFY(warned(chosen));
+    // The same unit is no news.
+    Document agreeing;
+    agreeing.setUnit(LengthUnit::Meter);
+    QCOMPARE(agreeing.loadMesh(glb), 0);
+    QCOMPARE(agreeing.unit(), LengthUnit::Meter);
+    QVERIFY(!warned(agreeing));
+
+    // A project's unit is the user's word and its layers' files have to agree with it.
+    Document author;
+    QCOMPARE(author.loadMesh(glb), 0);
+    author.setUnit(LengthUnit::Foot);
+    QString error;
+    const QString project = dir.filePath(QStringLiteral("p.mlp"));
+    QVERIFY2(author.saveMeshLabProject(project, Document::MeshLabProjectSaveOptions{}, &error), qPrintable(error));
+    Document reader;
+    QCOMPARE(reader.loadMeshLabProject(project), 0);
+    QCOMPARE(reader.meshCount(), 1);
+    QCOMPARE(reader.unit(), LengthUnit::Foot);
+    // One that says nothing lets the file speak.
+    Document nothing;
+    QCOMPARE(nothing.loadMesh(glb), 0);
+    const QString bare = dir.filePath(QStringLiteral("bare.mlp"));
+    nothing.setUnit(LengthUnit::Unknown);
+    QVERIFY2(nothing.saveMeshLabProject(bare, Document::MeshLabProjectSaveOptions{}, &error), qPrintable(error));
+    Document fromFile;
+    QCOMPARE(fromFile.loadMeshLabProject(bare), 0);
+    QCOMPARE(fromFile.unit(), LengthUnit::Meter);
+}
+
+// A 3MF file states its unit, and one that says none is in millimeters by the specification: the
+// document's unit is written, read back, and kilometers -- which 3MF cannot name -- are written
+// as no unit at all.
+void DocumentTests::aThreeMFRecordsTheDocumentsUnit()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEINDEX;
+    const auto roundTrip = [&](LengthUnit unit) {
+        Document source;
+        addTinyMesh(source, QStringLiteral("t"));
+        source.setUnit(unit);
+        const QString path = dir.filePath(QStringLiteral("t%1.3mf").arg(int(unit)));
+        const int err = source.saveMesh(0, path, options);
+        if (err != 0)
+            return LengthUnit::Unknown;
+        Document back;
+        return back.loadMesh(path) == 0 ? back.unit() : LengthUnit::Unknown;
+    };
+    for (const LengthUnit unit : { LengthUnit::Micrometer, LengthUnit::Millimeter, LengthUnit::Centimeter,
+                                   LengthUnit::Meter, LengthUnit::Inch, LengthUnit::Foot })
+        QCOMPARE(roundTrip(unit), unit);
+    QCOMPARE(roundTrip(LengthUnit::Unknown), LengthUnit::Millimeter);
+    QCOMPARE(roundTrip(LengthUnit::Kilometer), LengthUnit::Millimeter);
 }
 
 void DocumentTests::loadMeshLabProjectLoadsMeshesAndTransforms()

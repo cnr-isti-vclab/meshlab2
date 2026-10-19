@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lengthunit.h"
 #include "vcgmesh.h"
 #include <QImage>
 #include <QString>
@@ -73,6 +74,9 @@ struct MeshIOSaveOptions
     bool dracoCompression = false;
     // Compression level in [0, 10], where 10 prefers smaller output over speed.
     int dracoCompressionLevel = 7;
+    // The document's unit (Unknown when the user has not said), for formats that record one.
+    // Document::saveMesh fills it in; a caller's value is replaced.
+    LengthUnit unit = LengthUnit::Unknown;
 };
 
 struct MeshIOTextureContext
@@ -135,6 +139,22 @@ public:
         if (outMaterialSet)
             outMaterialSet->clear();
         return load(filename, mesh, cb, outLoadMask);
+    }
+
+    // Also reports the unit the file says its coordinates are in, for the formats that say one --
+    // by their definition (glTF and E57 are in meters) or in the file (3MF). *outUnit is left
+    // alone, Unknown, when the file does not say, which is what most formats do. Document::loadMesh
+    // uses this overload.
+    virtual int load(
+        const QString &filename,
+        VCGMesh &mesh,
+        vcg::CallBackPos *cb,
+        int *outLoadMask,
+        MeshIOMaterialSet *outMaterialSet,
+        LengthUnit *outUnit) const
+    {
+        (void) outUnit;
+        return load(filename, mesh, cb, outLoadMask, outMaterialSet);
     }
 
     // Qt file dialog filter string for this plugin's formats, e.g. "Mesh Files (*.ply *.obj)".

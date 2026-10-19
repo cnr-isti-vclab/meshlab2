@@ -36,6 +36,12 @@ int Document::loadMeshLabProject(const QString &filename)
     int loadedMeshes = 0;
     int loadedRasters = 0;
 
+    // The unit the project says is the user's word, so it comes before the layers, whose own
+    // files then have to agree with it. A project that says nothing leaves the unit as it is:
+    // its layers may be joining others.
+    if (projectUnit != LengthUnit::Unknown)
+        setUnit(projectUnit);
+
     // The id each entry of the file got, by its position in the file; 0 for one that was skipped.
     // What the visibility sets name.
     std::vector<std::uint64_t> idOfOrdinal(projectMeshes.size(), 0);
@@ -84,10 +90,6 @@ int Document::loadMeshLabProject(const QString &filename)
                 std::move(ids));
         }
     }
-
-    // A project that says nothing leaves the unit as it is: its layers may be joining others.
-    if (projectUnit != LengthUnit::Unknown)
-        setUnit(projectUnit);
 
     int rasterIdx = 0;
     for (const MeshLabProjectRasterEntry &projectRaster : projectRasters) {

@@ -20,6 +20,7 @@
 #include <cstddef>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <stdexcept>
@@ -170,6 +171,34 @@ void appendObject(
     path.erase(id);
 }
 
+LengthUnit fromModelUnit(Lib3MF::eModelUnit unit)
+{
+    switch (unit) {
+    case Lib3MF::eModelUnit::MicroMeter: return LengthUnit::Micrometer;
+    case Lib3MF::eModelUnit::MilliMeter: return LengthUnit::Millimeter;
+    case Lib3MF::eModelUnit::CentiMeter: return LengthUnit::Centimeter;
+    case Lib3MF::eModelUnit::Inch: return LengthUnit::Inch;
+    case Lib3MF::eModelUnit::Foot: return LengthUnit::Foot;
+    case Lib3MF::eModelUnit::Meter: return LengthUnit::Meter;
+    }
+    return LengthUnit::Unknown;
+}
+
+std::optional<Lib3MF::eModelUnit> toModelUnit(LengthUnit unit)
+{
+    switch (unit) {
+    case LengthUnit::Micrometer: return Lib3MF::eModelUnit::MicroMeter;
+    case LengthUnit::Millimeter: return Lib3MF::eModelUnit::MilliMeter;
+    case LengthUnit::Centimeter: return Lib3MF::eModelUnit::CentiMeter;
+    case LengthUnit::Inch: return Lib3MF::eModelUnit::Inch;
+    case LengthUnit::Foot: return Lib3MF::eModelUnit::Foot;
+    case LengthUnit::Meter: return Lib3MF::eModelUnit::Meter;
+    case LengthUnit::Kilometer:
+    case LengthUnit::Unknown: break;
+    }
+    return std::nullopt;
+}
+
 class ThreeMFPlugin final : public MeshIOPlugin
 {
 public:
@@ -201,6 +230,17 @@ public:
         vcg::CallBackPos *cb,
         int *mask,
         MeshIOMaterialSet *materials) const override
+    {
+        return load(filename, mesh, cb, mask, materials, nullptr);
+    }
+
+    int load(
+        const QString &filename,
+        VCGMesh &mesh,
+        vcg::CallBackPos *cb,
+        int *mask,
+        MeshIOMaterialSet *materials,
+        LengthUnit *outUnit) const override
     {
         if (mask)
             *mask = 0;
@@ -281,6 +321,9 @@ public:
                 loadMask |= Mask::IOM_WEDGTEXMULTI;
             if (mask)
                 *mask = loadMask;
+            // Every 3MF file has a unit: the one it declares, millimeters when it does not.
+            if (outUnit)
+                *outUnit = fromModelUnit(model->GetUnit());
             progress(cb, 100,
                 QObject::tr("Loaded %1 3MF mesh object(s).").arg(ctx.meshObjects));
             return Ok;
@@ -307,6 +350,14 @@ public:
             const auto model = wrapper->CreateModel();
             model->GetMetaDataGroup()->AddMetaData(
                 "", "Application", "MeshLab", "string", false);
+            // 3MF's units are the micron, millimeter, centimeter, meter, inch and foot, and a
+            // file that says none is in millimeters. Kilometers cannot be said, so a document in
+            // them is written without a unit, which reads as millimeters.
+            if (const std::optional<Lib3MF::eModelUnit> unit = toModelUnit(options.unit))
+                model->SetUnit(*unit);
+            else if (options.unit != LengthUnit::Unknown)
+                progress(cb, 0, QObject::tr("3MF cannot say %1: the file is written without a unit.")
+                                    .arg(LengthUnits::name(options.unit).toLower()));
             const auto object = model->AddMeshObject();
             object->SetName(QFileInfo(filename).completeBaseName().toStdString());
 
@@ -371,6 +422,9 @@ public:
                 if (properties.size() == 1) {
                     object->SetObjectLevelProperty(resourceId, properties.begin()->second);
                 } else {
+                    // lib3mf refuses per-triangle properties on an object that has no
+                    // object-level one: the first color stands for the triangles with none.
+                    object->SetObjectLevelProperty(resourceId, properties.begin()->second);
                     for (std::size_t i = 0; i < triangleColors.size(); ++i) {
                         const Lib3MF_uint32 property = properties.at(triangleColors[i]);
                         Lib3MF::sTriangleProperties p {};

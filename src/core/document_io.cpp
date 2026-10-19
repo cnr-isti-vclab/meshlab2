@@ -176,10 +176,11 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
     g_callbackDocument = this;
     int loadMask = 0;
     MeshIOMaterialSet loadedMaterialSet;
+    LengthUnit fileUnit = LengthUnit::Unknown;
     // Pre-enable storable OCF fields so the importer can write into them.
     entry->mesh.vert.EnableTexCoord();
     entry->mesh.face.EnableWedgeTexCoord();
-    int err = plugin->load(filename, entry->mesh, logCallback(), &loadMask, &loadedMaterialSet);
+    int err = plugin->load(filename, entry->mesh, logCallback(), &loadMask, &loadedMaterialSet, &fileUnit);
     // Disable storable OCF fields that the importer did not actually populate.
     if (!(loadMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD))  entry->mesh.vert.DisableTexCoord();
     if (!(loadMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD))  entry->mesh.face.DisableWedgeTexCoord();
@@ -287,6 +288,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
         .arg(meshEntry.mesh.FN())
         .arg(meshEntry.mesh.EN()),
         LogSource::Application);
+    adoptFileUnit(fileUnit, filename);
     if (elapsedMs >= 250) {
         writeLog(tr("Load timing '%1': import %2 ms, post %3 ms")
                 .arg(meshEntry.name)
@@ -576,6 +578,28 @@ int Document::reloadMesh(int index)
     return 0;
 }
 
+void Document::adoptFileUnit(LengthUnit fileUnit, const QString &filename)
+{
+    if (fileUnit == LengthUnit::Unknown || fileUnit == m_unit)
+        return;
+    const QString fileName = QFileInfo(filename).fileName();
+    if (m_unit != LengthUnit::Unknown) {
+        writeLog(tr("'%1' is in %2 and the document's unit is %3: nothing was converted.")
+                     .arg(fileName, LengthUnits::name(fileUnit).toLower(),
+                          LengthUnits::name(m_unit).toLower()),
+                 LogSource::Application, LogLevel::Warning);
+    } else if (meshCount() == 1) {   // the layer just loaded is the only one
+        setUnit(fileUnit);
+        writeLog(tr("The unit of the document is %1, as '%2' says.")
+                     .arg(LengthUnits::name(fileUnit).toLower(), fileName),
+                 LogSource::Application);
+    } else {
+        writeLog(tr("'%1' is in %2, but the document has other layers and no unit: it was left unset.")
+                     .arg(fileName, LengthUnits::name(fileUnit).toLower()),
+                 LogSource::Application);
+    }
+}
+
 int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptions &options)
 {
     if (index < 0 || index >= meshCount()) {
@@ -616,10 +640,13 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
         &entry.textureAssets,
         &entry.materialSet
     };
+    // The formats that record a unit get the document's.
+    MeshIOSaveOptions saveOptions = options;
+    saveOptions.unit = m_unit;
     const int err = plugin->save(
         normalizedFilename,
         entry.mesh,
-        options,
+        saveOptions,
         logCallback(),
         &textureContext);
     g_callbackDocument = previousCallbackDocument;

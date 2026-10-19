@@ -807,6 +807,21 @@ public:
         VCGMesh &mesh,
         vcg::CallBackPos *cb,
         int *outLoadMask,
+        MeshIOMaterialSet *outMaterialSet,
+        LengthUnit *outUnit) const override
+    {
+        const int err = load(filename, mesh, cb, outLoadMask, outMaterialSet);
+        // The glTF specification measures every distance in meters.
+        if (err == 0 && outUnit)
+            *outUnit = LengthUnit::Meter;
+        return err;
+    }
+
+    int load(
+        const QString &filename,
+        VCGMesh &mesh,
+        vcg::CallBackPos *cb,
+        int *outLoadMask,
         MeshIOMaterialSet *outMaterialSet) const override
     {
         if (outLoadMask)
