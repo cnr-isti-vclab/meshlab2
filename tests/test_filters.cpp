@@ -430,6 +430,7 @@ private slots:
     void qslimSimplifiesCube();
     void instantMeshesRemeshesCube();
     void catmullClarkSubdividesCube();
+    void dooSabinHonoursItsIterations();
     void polygonFaceCountCacheTracksFilterChanges();
     void isolatedFoldRepairPreservesFlagsAndConverges();
     void isolatedFoldRepairRejectsUnsupportedMeshes();
@@ -2138,6 +2139,53 @@ void FilterTests::catmullClarkSubdividesCube()
     const MeshFilterRunResult result = doc.runFilter(filterKey, {});
     QVERIFY2(result.success, qPrintable(result.errorMessage));
     QVERIFY(doc.mesh(doc.currentMeshIndex()).mesh.FN() > 12);
+}
+
+// The Iterations parameter of Doo-Sabin was declared and shown but never passed to the refiner,
+// which then did one pass whatever it said. N iterations must be N passes: the same mesh as running
+// the filter N times with one, and more geometry than a single pass.
+void FilterTests::dooSabinHonoursItsIterations()
+{
+    QString filterKey;
+    {
+        Document probe;
+        for (const auto &info : probe.filterInfos()) {
+            if (info.descriptor.id == QStringLiteral("subdivide_by_doo_sabin"))
+                filterKey = info.key;
+        }
+    }
+    QVERIFY(!filterKey.isEmpty());
+
+    const auto cubeDocument = [](Document &doc) {
+        VCGMesh cube;
+        makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+        QVERIFY(doc.addMesh(cube, QStringLiteral("Cube")) >= 0);
+    };
+    const auto run = [&](Document &doc, int iterations) {
+        QVariantMap params;
+        params.insert(QStringLiteral("Iterations"), iterations);
+        const MeshFilterRunResult result = doc.runFilter(filterKey, params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+    };
+
+    Document once;
+    cubeDocument(once);
+    run(once, 1);
+    Document twice;
+    cubeDocument(twice);
+    run(twice, 2);
+    Document oneThenOne;
+    cubeDocument(oneThenOne);
+    run(oneThenOne, 1);
+    run(oneThenOne, 1);
+
+    const VCGMesh &single = once.mesh(0).mesh;
+    const VCGMesh &two = twice.mesh(0).mesh;
+    const VCGMesh &stepwise = oneThenOne.mesh(0).mesh;
+    QVERIFY(two.VN() > single.VN());
+    QVERIFY(two.FN() > single.FN());
+    QCOMPARE(two.VN(), stepwise.VN());
+    QCOMPARE(two.FN(), stepwise.FN());
 }
 
 void FilterTests::polygonFaceCountCacheTracksFilterChanges()

@@ -1959,7 +1959,8 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             vcg::tri::PolygonSupport<VCGMesh, PMesh>::ImportFromTriMesh(baseIn, mesh);
             vcg::tri::Clean<PMesh>::RemoveUnreferencedVertex(baseIn);
             vcg::tri::Allocator<PMesh>::CompactEveryVector(baseIn);
-            vcg::tri::DooSabin<PMesh>::Refine(baseIn, refinedOut);
+            const int it = std::max(1, params.getInt(QStringLiteral("Iterations")));
+            vcg::tri::DooSabin<PMesh>::Refine(baseIn, refinedOut, it);
             if (!vcg::tri::PolygonSupport<VCGMesh, PMesh>::ImportFromPolyMesh(mesh, refinedOut))
                 return fail(QObject::tr("Doo-Sabin produced a polygon that cannot be triangulated."));
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
