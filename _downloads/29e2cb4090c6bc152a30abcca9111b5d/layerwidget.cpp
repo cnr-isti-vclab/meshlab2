@@ -88,6 +88,23 @@ struct LayerTextureInfo {
 
 std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &entry);
 
+// A rebuild empties a tree and fills it again, which sends it to the top, and then makes the
+// current layer current again, which scrolls to that layer: the list would jump whenever anything
+// in it changed -- a scroll up to switch an early layer, with the current one at the end, was undone
+// at once. So a rebuild puts the list back where it was, unless the current layer is one that was
+// not there before, which is brought into view.
+QPoint scrollPosition(const QAbstractScrollArea *view)
+{
+    return { view->horizontalScrollBar()->value(), view->verticalScrollBar()->value() };
+}
+
+void restoreScrollPosition(QAbstractItemView *view, const QPoint &position)
+{
+    view->doItemsLayout();   // so that the scroll bars have the new ranges before they are set
+    view->horizontalScrollBar()->setValue(position.x());
+    view->verticalScrollBar()->setValue(position.y());
+}
+
 // The row's visibility check mark, with the modifier-key clicks on it -- Ctrl hides the others,
 // Alt shows the others, Shift inverts all -- intercepted in editorEvent and routed to the provided
 // callback instead of toggling the item's own check state. It also shades the rows of a visibility
@@ -1767,6 +1784,8 @@ void LayerWidget::rebuildTree()
     };
     collectExpanded(m_meshTree);
     collectExpanded(m_rasterTree);
+    const QPoint meshScroll = scrollPosition(m_meshTree);
+    const QPoint rasterScroll = scrollPosition(m_rasterTree);
     // A layer nobody has opened or closed yet starts expanded, unless there are so many that
     // expanding them all would bury the list (view.collapseLayersAbove).
     const int collapseAbove =
@@ -1781,6 +1800,7 @@ void LayerWidget::rebuildTree()
 
         m_meshTree->clear();
         QTreeWidgetItem *meshCurrentItem = nullptr;
+        bool currentIsNew = false;
 
         for (int i = 0; i < m_doc->meshCount(); ++i) {
             const auto &entry = m_doc->mesh(i);
@@ -1920,11 +1940,14 @@ void LayerWidget::rebuildTree()
             if (m_doc->currentLayerKind() == CurrentLayerKind::Mesh
                 && i == m_doc->currentMeshIndex()) {
                 meshCurrentItem = item;
+                currentIsNew = !expandedState.contains(itemKey);
             }
         }
 
         if (meshCurrentItem)
             m_meshTree->setCurrentItem(meshCurrentItem);
+        if (!currentIsNew)
+            restoreScrollPosition(m_meshTree, meshScroll);
 
         const int requiredWidth =
             maxCountTextWidth + kFirstColumnPadding + m_meshTree->indentation() + kFirstColumnTreePadding;
@@ -1939,6 +1962,7 @@ void LayerWidget::rebuildTree()
 
         m_rasterTree->clear();
         QTreeWidgetItem *rasterCurrentItem = nullptr;
+        bool currentIsNew = false;
 
         for (int i = 0; i < m_doc->rasterCount(); ++i) {
             const auto &entry = m_doc->raster(i);
@@ -2005,11 +2029,14 @@ void LayerWidget::rebuildTree()
             if (m_doc->currentLayerKind() == CurrentLayerKind::Raster
                 && i == m_doc->currentRasterIndex()) {
                 rasterCurrentItem = item;
+                currentIsNew = !expandedState.contains(itemKey);
             }
         }
 
         if (rasterCurrentItem)
             m_rasterTree->setCurrentItem(rasterCurrentItem);
+        if (!currentIsNew)
+            restoreScrollPosition(m_rasterTree, rasterScroll);
 
         m_rasterTree->setVisible(m_doc->rasterCount() > 0);
     }

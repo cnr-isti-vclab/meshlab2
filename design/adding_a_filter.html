@@ -316,6 +316,11 @@ falls through to <code class="docutils literal notranslate"><span class="pre">st
 </pre></div>
 </div>
 <p>(<code class="docutils literal notranslate"><span class="pre">file_open</span></code> and <code class="docutils literal notranslate"><span class="pre">file_save</span></code> are accepted as alternates.)</p>
+<p>An <code class="docutils literal notranslate"><span class="pre">absperc</span></code> is a <strong>length</strong>, as an absolute value or as a percentage of its range
+(<code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code> and the other bound tokens). Its absolute half is labelled with the
+document’s unit (<code class="docutils literal notranslate"><span class="pre">Document::unit()</span></code>, “mm”, “m”, …) once the user has set one, and
+“abs” while it is unknown, so declare as <code class="docutils literal notranslate"><span class="pre">absperc</span></code> only what really is a length in the
+layer’s coordinates – not a count, an angle or a ratio.</p>
 <p>Every parameter also carries <code class="docutils literal notranslate"><span class="pre">label</span></code>, <code class="docutils literal notranslate"><span class="pre">help</span></code> and <code class="docutils literal notranslate"><span class="pre">group</span></code> — all 1168 declared
 parameters do. Each distinct <code class="docutils literal notranslate"><span class="pre">group</span></code> becomes one section of the form, in order
 of first appearance, and headings only appear once there is more than one group.
