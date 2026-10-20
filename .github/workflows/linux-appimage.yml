@@ -1,4 +1,4 @@
-name: Linux
+name: Linux AppImage
 
 # Build and test only; there is no package yet. The point of this job is to find out
 # what stops the tree compiling and passing on GCC, before an AppImage is built on
@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: linux-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'push' }}
+  group: linux-appimage-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'push' }}
   cancel-in-progress: true
 
 jobs:
@@ -103,7 +103,12 @@ jobs:
         id: vcpkg-install
         run: |
           set -o pipefail
+          # --allow-unsupported: the rapidobj port is declared unsupported on Linux
+          # (no vcpkg CI covers it). It is a header-only library and the plugin
+          # already links Threads for it, so build it and let the tests say whether
+          # the OBJ reader works.
           "$VCPKG_ROOT/vcpkg" install \
+            --allow-unsupported \
             --triplet "$VCPKG_TARGET_TRIPLET" \
             --overlay-triplets="$VCPKG_OVERLAY_TRIPLETS" \
             --x-manifest-root="$GITHUB_WORKSPACE" \
