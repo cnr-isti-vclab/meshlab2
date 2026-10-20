@@ -2,8 +2,15 @@ name: Windows Portable
 
 on:
   workflow_dispatch:
+  # Called by release.yml with the release version; a push or manual run leaves it
+  # empty and gets the date-and-commit artifact name instead.
+  workflow_call:
+    inputs:
+      release_version:
+        type: string
+        default: ''
   push:
-    branches: [main]
+    branches: [devel]
     # A documentation-only commit cannot break packaging. paths-ignore only skips
     # the run when *every* changed file matches, so a commit touching both docs
     # and code still builds.
@@ -267,16 +274,20 @@ jobs:
       - name: Define release artifact name
         id: release-metadata
         shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
-          $releaseDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
-          $shortSha = $env:GITHUB_SHA.Substring(0, 8)
-          $artifactStem = "MeshLab-$releaseDate-$shortSha-windows-x86_64"
+          if ($env:RELEASE_VERSION) {
+            $artifactStem = "MeshLab-$env:RELEASE_VERSION-windows-x86_64"
+          } else {
+            $releaseDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
+            $shortSha = $env:GITHUB_SHA.Substring(0, 8)
+            $artifactStem = "MeshLab-$releaseDate-$shortSha-windows-x86_64"
+          }
           "artifact_stem=$artifactStem" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-      - name: Create portable package
+      - name: Assemble portable folder
         shell: pwsh
-        env:
-          RELEASE_ARTIFACT_STEM: ${{ steps.release-metadata.outputs.artifact_stem }}
         run: |
           $exePath = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\MeshLab.exe"
           if (!(Test-Path $exePath)) {
@@ -306,9 +317,18 @@ jobs:
             Copy-Item (Join-Path $vcpkgBin "*.dll") $portableDir -Force -ErrorAction SilentlyContinue
           }
 
+      # Code signing goes here, before the archive: the files inside the ZIP must
+      # already be signed, and a ZIP itself cannot carry a signature.
+
+      - name: Create portable ZIP
+        shell: pwsh
+        env:
+          RELEASE_ARTIFACT_STEM: ${{ steps.release-metadata.outputs.artifact_stem }}
+        run: |
+          $distRoot = Join-Path $env:GITHUB_WORKSPACE "dist"
           $zipPath = Join-Path $distRoot "$env:RELEASE_ARTIFACT_STEM.zip"
           Remove-Item -Force $zipPath -ErrorAction SilentlyContinue
-          Compress-Archive -Path $portableDir -DestinationPath $zipPath
+          Compress-Archive -Path (Join-Path $distRoot "MeshLab-portable-win64") -DestinationPath $zipPath
           Get-ChildItem $distRoot
 
       - name: Upload portable ZIP artifact

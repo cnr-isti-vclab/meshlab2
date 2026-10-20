@@ -28,6 +28,7 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [Filter Organization](filter_organization.md) | Settled naming and organization principles, plus parameter conventions. |
 | [Test Data](test_data.md) | Where test inputs live by size, the fetched-dataset manifest, and the skip-when-absent rule. |
 | [TrueForm Plugin](trueform_plugin.md) | How the TrueForm-backed plugins relate to the rest of the tree. |
+| [Branches and Releases](release_process.md) | The `devel`/`main` model, version tags, the release workflow and what is still open. |
 
 > **[Vocabulary](vocabulary.md) is read by the test suite at runtime.**
 > `test_filter_descriptors.cpp` and `test_filters.cpp` open it by path and parse

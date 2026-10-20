@@ -2,8 +2,15 @@ name: macOS DMG
 
 on:
   workflow_dispatch:
+  # Called by release.yml with the release version; a push or manual run leaves it
+  # empty and gets the date-and-commit artifact name instead.
+  workflow_call:
+    inputs:
+      release_version:
+        type: string
+        default: ''
   push:
-    branches: [main]
+    branches: [devel]
     # A documentation-only commit cannot break packaging. paths-ignore only skips
     # the run when *every* changed file matches, so a commit touching both docs
     # and code still builds.
@@ -219,10 +226,15 @@ jobs:
 
       - name: Define release artifact name
         id: release-metadata
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
-          RELEASE_DATE="$(date -u +%Y-%m-%d)"
-          SHORT_SHA="${GITHUB_SHA:0:8}"
-          echo "artifact_stem=$APP_NAME-$RELEASE_DATE-$SHORT_SHA-macos-arm64" >> "$GITHUB_OUTPUT"
+          if [ -n "$RELEASE_VERSION" ]; then
+            STEM="$APP_NAME-$RELEASE_VERSION-macos-arm64"
+          else
+            STEM="$APP_NAME-$(date -u +%Y-%m-%d)-${GITHUB_SHA:0:8}-macos-arm64"
+          fi
+          echo "artifact_stem=$STEM" >> "$GITHUB_OUTPUT"
 
       - name: Import Developer ID certificate
         env:

@@ -2,7 +2,7 @@ name: Documentation
 
 on:
   push:
-    branches: [main]
+    branches: [main, devel]
 
 permissions:
   contents: write
@@ -69,3 +69,9 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs_build
+          # main is the released state and owns the site root; devel is the nightly
+          # and lives under /nightly/. keep_files stops either deploy from wiping the
+          # other, at the cost that a page deleted from the docs lingers until removed
+          # from gh-pages by hand.
+          destination_dir: ${{ github.ref_name == 'devel' && 'nightly' || '' }}
+          keep_files: true
