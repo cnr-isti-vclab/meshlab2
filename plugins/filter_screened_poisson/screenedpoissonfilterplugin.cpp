@@ -4,12 +4,7 @@
 #include "meshfilterpluginmanager.h"
 #include "poissonrecon_backend.h"
 
-#include <algorithm>
-#include <limits>
-#include <thread>
-
-#include <vcg/complex/allocate.h>
-#include <vcg/complex/algorithms/update/normal.h>
+#include "poissonrecon_adapter.h"
 
 namespace {
 constexpr QLatin1StringView kFilterScreenedPoisson("reconstruct_surface_by_screened_poisson");
@@ -34,50 +29,12 @@ std::vector<int> selectedMeshIndices(const Document &doc, bool mergeVisible)
     return indices;
 }
 
-QString invalidNormalsMessage()
+QString noNormalsMessage()
 {
     return QObject::tr(
-        "Filter requires correct per-vertex normals.\n"
-        "All input vertices must have a proper, non-null normal.\n\n"
-        "Try enabling the Pre-Clean option and retry.\n\n"
-        "To permanently remove this problem:\n"
-        "- on triangulated meshes, use Remove Unreferenced Vertices\n"
-        "- on point clouds, use Select Vertices by Expression with\n"
-        "  (nx==0.0) && (ny==0.0) && (nz==0.0)\n"
-        "  and then delete the selected vertices.");
-}
-
-template<class MeshType>
-void cleanInputMesh(MeshType &mesh, bool scaleNormalByQuality, bool cleanFlag)
-{
-    vcg::tri::UpdateNormal<MeshType>::NormalizePerVertex(mesh);
-
-    if (cleanFlag) {
-        for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-            if (vcg::SquaredNorm(vi->N()) < std::numeric_limits<float>::min() * 10.0f)
-                vcg::tri::Allocator<MeshType>::DeleteVertex(mesh, *vi);
-        }
-
-        for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            if (fi->V(0)->IsD() || fi->V(1)->IsD() || fi->V(2)->IsD())
-                vcg::tri::Allocator<MeshType>::DeleteFace(mesh, *fi);
-        }
-    }
-
-    vcg::tri::Allocator<MeshType>::CompactEveryVector(mesh);
-    if (scaleNormalByQuality) {
-        for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi)
-            vi->N() *= vi->Q();
-    }
-}
-
-bool hasGoodNormals(VCGMesh &mesh)
-{
-    for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-        if (vcg::SquaredNorm(vi->N()) < std::numeric_limits<float>::min() * 10.0f)
-            return false;
-    }
-    return true;
+        "Filter requires oriented points, and none of the input vertices has a usable "
+        "(non-null) normal.\n\n"
+        "On a point cloud, compute and orient the normals first (Compute Point Cloud Normals).");
 }
 }
 
@@ -116,23 +73,13 @@ MeshFilterRunResult ScreenedPoissonFilterPlugin::runFilter(
             };
         }
 
-        const bool confidence = params.getBool(QStringLiteral("confidence"));
-        const bool preClean = params.getBool(QStringLiteral("preClean"));
-
-        for (int meshIndex : meshIndices) {
-            if (meshIndex < 0 || meshIndex >= doc.meshCount())
-                continue;
-            Document::MeshEntry &entry = doc.mesh(meshIndex);
-            cleanInputMesh(entry.mesh, confidence, preClean);
-            if (!hasGoodNormals(entry.mesh))
-                return { false, false, invalidNormalsMessage() };
-
-            if (preClean) {
-                doc.markMeshGeometryChanged(meshIndex);
-            } else {
-                doc.markMeshMaterialChanged(meshIndex);
-            }
-        }
+        // The layers are only read. A point without a normal -- the vertices of a triangle mesh that
+        // belong to no face have none -- is not fed to the reconstruction, and is not removed from
+        // the layer either.
+        const qsizetype usablePoints = ScreenedPoisson::countInputSamples(doc, meshIndices);
+        const qsizetype withoutNormal = ScreenedPoisson::countPointsWithoutNormal(doc, meshIndices);
+        if (usablePoints == 0)
+            return { false, false, noNormalsMessage() };
 
         MeshFilterRunResult result =
             (filterId == QString::fromLatin1(kFilterSSDRecon))
@@ -143,6 +90,9 @@ MeshFilterRunResult ScreenedPoissonFilterPlugin::runFilter(
         if (result.success) {
             for (int meshIndex : meshIndices)
                 result.sourceMeshIndices.push_back(meshIndex);
+            if (withoutNormal > 0)
+                result.infoMessages.push_back(
+                    QObject::tr("%1 points without a normal were left out.").arg(withoutNormal));
         }
         return result;
     }

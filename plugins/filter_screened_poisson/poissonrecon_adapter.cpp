@@ -82,9 +82,15 @@ bool nextSampleImpl(
         const auto &vertices = entry.mesh.vert;
         while (vertexCursor < vertices.size()) {
             const VCGVertex &vertex = vertices[vertexCursor++];
+            if (!ScreenedPoisson::hasUsableNormal(vertex))
+                continue;
 
             const vcg::Point3<float> pos = qMatrixMapPoint<float>(entry.transform, vcg::Point3<float>(vertex.cP()));
             vcg::Point3<float> normal = qMatrixMapDirection<float>(entry.transform, vcg::Point3<float>(vertex.cN()));
+            // A unit normal, so that the confidence is the only thing that scales it.
+            const float length = normal.Norm();
+            if (length > 0.0f)
+                normal /= length;
             if (options.confidenceFromQuality)
                 normal *= vertex.cQ();
 
@@ -142,33 +148,26 @@ bool allSelectedMeshesHaveVertexColor(const Document &doc, const std::vector<int
     return true;
 }
 
-qsizetype countInputSamples(const Document &doc, const std::vector<int> &meshIndices)
+qsizetype countPointsWithoutNormal(const Document &doc, const std::vector<int> &meshIndices)
 {
     qsizetype count = 0;
     for (int meshIndex : meshIndices) {
         if (meshIndex < 0 || meshIndex >= doc.meshCount())
             continue;
-        const Document::MeshEntry &entry = doc.mesh(meshIndex);
-        for (const VCGVertex &vertex : entry.mesh.vert) {
-            
-                ++count;
-        }
+        for (const VCGVertex &vertex : doc.mesh(meshIndex).mesh.vert)
+            count += hasUsableNormal(vertex) ? 0 : 1;
     }
     return count;
 }
 
-vcg::Box3f computeBounds(const Document &doc, const std::vector<int> &meshIndices)
+qsizetype countInputSamples(const Document &doc, const std::vector<int> &meshIndices)
 {
-    vcg::Box3f bb;
+    qsizetype count = 0;
     for (int meshIndex : meshIndices) {
-        if (meshIndex < 0 || meshIndex >= doc.meshCount())
-            continue;
-        const Document::MeshEntry &entry = doc.mesh(meshIndex);
-        for (const VCGVertex &vertex : entry.mesh.vert) {
-            bb.Add(qMatrixMapPoint<float>(entry.transform, vcg::Point3<float>(vertex.cP())));
-        }
+        if (meshIndex >= 0 && meshIndex < doc.meshCount())
+            count += doc.mesh(meshIndex).mesh.VN();
     }
-    return bb;
+    return count - countPointsWithoutNormal(doc, meshIndices);
 }
 
 DocumentOrientedPointStream::DocumentOrientedPointStream(const Document &doc, std::vector<int> meshIndices, SelectionOptions options)

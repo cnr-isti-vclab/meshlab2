@@ -345,6 +345,13 @@ up front, or with a `success = false` result that says why.
   `VVStarVE` and the like.
 - **Cleanup/compaction**: after a successful filter the framework compacts the
   affected meshes; don't leave deleted elements around expecting them to persist.
+- **Read-only inputs stay read-only**: a filter that makes a new layer (`NewMeshes`) or only
+  measures (`Information`) must not clean, compact, renormalize or otherwise edit the layer it
+  reads -- not in code, and not through `preRunCleanup`, which edits the input by design and is for
+  filters that modify the layer anyway. What such a filter cannot use -- a vertex in no face, a
+  point with a null normal -- it **leaves out of what it reads** (a copy, or a stream that skips it),
+  and says in the log how many it left out. *Screened Poisson* is the model: its point stream
+  skips the points without a normal, with no option to ask for it, and the layer is left exactly as it was.
 - **Notify changes**: after mutating a mesh, call the matching
   `doc.markMeshGeometryChanged` / `markMeshSelectionChanged` /
   `markMeshMaterialChanged` so the render/layer views refresh.

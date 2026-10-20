@@ -8,6 +8,7 @@
 #include "Src/Reconstructors.h"
 
 #include <QMatrix4x4>
+#include <limits>
 #include <vector>
 
 namespace ScreenedPoisson
@@ -28,6 +29,14 @@ struct SelectionOptions
     bool confidenceFromQuality = false;
 };
 
+// A point the reconstruction can use: its normal is finite and not null. The others -- the vertices
+// of a triangle mesh that belong to no face, a point cloud without normals -- are not fed to it; the
+// layers are only read, so they are passed over and never deleted.
+inline bool hasUsableNormal(const VCGVertex &vertex)
+{
+    return vcg::SquaredNorm(vertex.cN()) >= std::numeric_limits<float>::min() * 10.0f;
+}
+
 struct VertexRecord
 {
     Position position;
@@ -45,8 +54,9 @@ struct VertexColorRecord
 
 std::vector<int> selectedMeshIndices(const Document &doc, bool mergeVisible);
 bool allSelectedMeshesHaveVertexColor(const Document &doc, const std::vector<int> &meshIndices);
+// How many points the stream hands to the solver, and how many of the layers' points it leaves out.
 qsizetype countInputSamples(const Document &doc, const std::vector<int> &meshIndices);
-vcg::Box3f computeBounds(const Document &doc, const std::vector<int> &meshIndices);
+qsizetype countPointsWithoutNormal(const Document &doc, const std::vector<int> &meshIndices);
 
 class DocumentOrientedPointStream
     : public PoissonRecon::Reconstructor::InputOrientedSampleStream<Real, Dim>

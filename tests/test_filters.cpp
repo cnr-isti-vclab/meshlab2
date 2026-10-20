@@ -432,6 +432,7 @@ private slots:
     void catmullClarkSubdividesCube();
     void dooSabinHonoursItsIterations();
     void rasterProjectionSkipsTheDepthTestWhenAsked();
+    void poissonReadsTheLayerAndLeavesItAlone();
     void curvatureDirectionsRemoveUnreferencedVerticesOnlyWhenAsked();
     void polygonFaceCountCacheTracksFilterChanges();
     void isolatedFoldRepairPreservesFlagsAndConverges();
@@ -2262,6 +2263,77 @@ void FilterTests::curvatureDirectionsRemoveUnreferencedVerticesOnlyWhenAsked()
     };
     QCOMPARE(vertexCountAfter(true), 8);
     QCOMPARE(vertexCountAfter(false), -1);
+}
+
+// Screened Poisson used to "clean" its input in place: with Pre-Clean it deleted the points without a
+// normal from the layer itself, and it rewrote every normal (unit length, and scaled by the quality
+// with Confidence, which the point stream then applied a second time). The layer is only read now: a
+// point without a normal is not fed to the solver, and nothing in the layer changes.
+void FilterTests::poissonReadsTheLayerAndLeavesItAlone()
+{
+    QString filterKey;
+    {
+        Document probe;
+        for (const auto &info : probe.filterInfos()) {
+            if (info.descriptor.id == QStringLiteral("reconstruct_surface_by_screened_poisson"))
+                filterKey = info.key;
+        }
+    }
+    QVERIFY(!filterKey.isEmpty());
+
+    // A sphere of oriented points, with normals that are not unit length and a quality, and one
+    // stray point that has no normal at all.
+    VCGMesh cloud;
+    const int samples = 800;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(cloud, samples + 1);
+    for (int i = 0; i < samples; ++i) {
+        const float z = 1.0f - 2.0f * (float(i) + 0.5f) / float(samples);
+        const float r = std::sqrt(1.0f - z * z);
+        const float angle = 2.3999632f * float(i);   // the golden angle
+        const vcg::Point3f p(r * std::cos(angle), r * std::sin(angle), z);
+        cloud.vert[size_t(i)].P() = p;
+        cloud.vert[size_t(i)].N() = p * 3.0f;
+        cloud.vert[size_t(i)].Q() = 0.5f;
+    }
+    cloud.vert[size_t(samples)].P() = vcg::Point3f(4.0f, 4.0f, 4.0f);
+    cloud.vert[size_t(samples)].N() = vcg::Point3f(0.0f, 0.0f, 0.0f);
+
+    const auto run = [&](const VCGMesh &input, bool confidence, QString *error) {
+        Document doc;
+        doc.addMesh(input, QStringLiteral("cloud"), vcg::tri::io::Mask::IOM_VERTNORMAL);
+        QVariantMap params;
+        params.insert(QStringLiteral("confidence"), confidence);
+        params.insert(QStringLiteral("depth"), 5);
+        params.insert(QStringLiteral("fullDepth"), 3);
+        const MeshFilterRunResult result = doc.runFilter(filterKey, params);
+        if (error)
+            *error = result.errorMessage;
+        // The layer as the filter left it: every vertex and every normal as they were.
+        const VCGMesh &layer = doc.mesh(0).mesh;
+        bool untouched = layer.VN() == input.VN();
+        for (int i = 0; untouched && i < input.VN(); ++i)
+            untouched = layer.vert[size_t(i)].cP() == input.vert[size_t(i)].cP()
+                && layer.vert[size_t(i)].cN() == input.vert[size_t(i)].cN();
+        return std::make_tuple(result.success, untouched, doc.meshCount());
+    };
+
+    QString error;
+    for (const bool confidence : { false, true }) {
+        const auto result = run(cloud, confidence, &error);
+        QVERIFY2(std::get<0>(result), qPrintable(error));
+        QVERIFY(std::get<1>(result));        // the stray point is still there, normals as they were
+        QCOMPARE(std::get<2>(result), 2);   // and the surface is a layer of its own
+    }
+
+    // With no point that has a normal there is nothing to reconstruct from, and it says so.
+    VCGMesh bare;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(bare, 10);
+    for (int i = 0; i < 10; ++i)
+        bare.vert[size_t(i)].P() = vcg::Point3f(float(i), 0, 0);
+    const auto none = run(bare, false, &error);
+    QVERIFY(!std::get<0>(none));
+    QVERIFY(error.contains(QStringLiteral("normal")));
+    QVERIFY(std::get<1>(none));
 }
 
 void FilterTests::polygonFaceCountCacheTracksFilterChanges()

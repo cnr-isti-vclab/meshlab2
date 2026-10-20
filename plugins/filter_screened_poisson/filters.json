@@ -153,14 +153,6 @@
           "default": false
         },
         {
-          "id": "preClean",
-          "label": "Pre-Clean",
-          "help": "Enabling this flag forces a cleaning pre-pass on the data, removing all unreferenced vertices or vertices with null normals.",
-          "group": "main",
-          "type": "bool",
-          "default": false
-        },
-        {
           "id": "threads",
           "label": "Number of Threads",
           "help": "Maximum number of threads that the reconstruction algorithm can use.",
@@ -353,14 +345,6 @@
           "id": "confidence",
           "label": "Confidence Flag",
           "help": "Enabling this flag tells the reconstructor to use the quality as confidence information. This is done by scaling the unit normals with the quality values. When the flag is not enabled, all normals are normalized to have unit length prior to reconstruction.",
-          "group": "main",
-          "type": "bool",
-          "default": false
-        },
-        {
-          "id": "preClean",
-          "label": "Pre-Clean",
-          "help": "Enabling this flag forces a cleaning pre-pass on the data, removing all unreferenced vertices or vertices with null normals.",
           "group": "main",
           "type": "bool",
           "default": false
