@@ -18,6 +18,11 @@ extern "C" PyObject *PyInit__meshlab();
 #include <QSettings>
 #include <QStringList>
 
+#ifdef Q_OS_WIN
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 namespace {
 
 // The application was called MeshLab until 2026-09; QSettings keyed its store on that
@@ -71,6 +76,15 @@ int main(int argc, char *argv[])
 #ifdef MESHLAB2_PYTHON_CONSOLE
     // Early-exit mode: generate Python API documentation then quit.
     if (args.size() >= 2 && args[1] == QStringLiteral("--generate-docs")) {
+#ifdef Q_OS_WIN
+        // A GUI-subsystem exe has no console; borrow the caller's so the script's
+        // output reaches the terminal it was started from.
+        if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+            FILE *unused = nullptr;
+            freopen_s(&unused, "CONOUT$", "w", stdout);
+            freopen_s(&unused, "CONOUT$", "w", stderr);
+        }
+#endif
         // Register the built-in _meshlab extension.
         PyImport_AppendInittab("_meshlab", &PyInit__meshlab);
 

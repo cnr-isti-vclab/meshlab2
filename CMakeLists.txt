@@ -334,6 +334,23 @@ set_target_properties(MeshLab2 PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION "${MESHLAB2_VERSION}"
 )
 
+# Windows version resource. VERSIONINFO wants four numeric fields, so the YYYY.MM
+# scheme is padded; the copyright sign is replaced because the .rc is read in the
+# ANSI code page.
+if (WIN32)
+    # GUI subsystem: qt_add_executable leaves a console one, which opens a terminal
+    # window behind the application. main() re-attaches the parent console for the
+    # command-line-only modes.
+    set_target_properties(MeshLab2 PROPERTIES WIN32_EXECUTABLE ON)
+    string(REPLACE "." ";" _rc_version "${MESHLAB2_VERSION}.0.0.0")
+    list(SUBLIST _rc_version 0 4 _rc_version)
+    list(JOIN _rc_version "," MESHLAB2_RC_VERSION)
+    string(REPLACE "©" "(C)" MESHLAB2_RC_COPYRIGHT "${MESHLAB2_BUNDLE_COPYRIGHT}")
+    configure_file("${MESHLAB2_SOURCE_DIR}/resources/MeshLab.rc.in"
+                   "${CMAKE_CURRENT_BINARY_DIR}/MeshLab.rc" @ONLY)
+    target_sources(MeshLab2 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/MeshLab.rc")
+endif()
+
 option(MESHLAB2_MACOS_BUNDLE_ICON "Generate and embed the macOS app bundle icon" ON)
 if (APPLE AND MESHLAB2_MACOS_BUNDLE_ICON)
     set(MESHLAB2_APP_ICON_PNG "${MESHLAB2_SOURCE_DIR}/img/MeshLab_Icon_512x512.png")
