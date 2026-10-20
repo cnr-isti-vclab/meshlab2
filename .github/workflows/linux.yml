@@ -1,0 +1,168 @@
+name: Linux
+
+# Build and test only; there is no package yet. The point of this job is to find out
+# what stops the tree compiling and passing on GCC, before an AppImage is built on
+# top of it. See docs/design/release_process.md.
+on:
+  workflow_dispatch:
+  push:
+    branches: [devel]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/workflows/docs.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'push' }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build and test (Linux x86_64)
+    # The oldest runner image we can use, because an AppImage runs on anything with
+    # a glibc at least as new as the one it was built against.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    env:
+      BUILD_DIR: build-release
+      QT_VERSION: 6.11.2
+      QT_ARCH: linux_gcc_64
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      VCPKG_TARGET_TRIPLET: x64-linux-release
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/ci/vcpkg-triplets
+      # No window server on a runner. Right for the ctest suite, wrong for the render
+      # probes, which need a GPU and are not run here -- see docs/design/rendering.md.
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          # The autotools are for ports vcpkg builds with configure (GMP, Python).
+          # The GL/xkb/fontconfig/dbus headers are what Qt's CMake config looks for
+          # when it is linked into a program.
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build \
+            autoconf autoconf-archive automake libtool \
+            libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev \
+            libxkbcommon-dev libfontconfig1-dev libdbus-1-dev
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: linux
+          target: desktop
+          arch: ${{ env.QT_ARCH }}
+          # qtimageformats carries the tga/tiff/webp image plugins; see macos-dmg.yml.
+          modules: qtshadertools qtimageformats
+          cache: true
+          cache-key-prefix: meshlab-qt-linux-imgfmt
+
+      - name: Expose Qt tools
+        run: |
+          echo "$QT_ROOT_DIR/bin" >> "$GITHUB_PATH"
+          echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR" >> "$GITHUB_ENV"
+          echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> "$GITHUB_ENV"
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
+          VCPKG_BASELINE="$(python3 - <<'PY'
+          import json
+          with open("vcpkg.json", "r", encoding="utf-8") as f:
+              print(json.load(f)["builtin-baseline"])
+          PY
+          )"
+          git -C "$VCPKG_ROOT" checkout --detach "$VCPKG_BASELINE"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+
+      # Only the binary archives are cached, not vcpkg_installed or the source
+      # downloads the other platforms keep: vcpkg rebuilds the installed tree from
+      # the archives in a minute or two, and the repository's cache budget (10 GB) is
+      # shared with the macOS and Windows jobs. The run id makes the key unique, so
+      # the entry is written only when something was actually compiled, below.
+      - name: Restore vcpkg archives
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/vcpkg/archives
+          key: linux-vcpkg-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
+          restore-keys: |
+            linux-vcpkg-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-
+            linux-vcpkg-${{ runner.arch }}-
+
+      - name: Install vcpkg dependencies
+        id: vcpkg-install
+        run: |
+          set -o pipefail
+          "$VCPKG_ROOT/vcpkg" install \
+            --triplet "$VCPKG_TARGET_TRIPLET" \
+            --overlay-triplets="$VCPKG_OVERLAY_TRIPLETS" \
+            --x-manifest-root="$GITHUB_WORKSPACE" \
+            --x-install-root="$GITHUB_WORKSPACE/$BUILD_DIR/vcpkg_installed" \
+            --clean-after-build 2>&1 | tee "$GITHUB_WORKSPACE/vcpkg-install.log"
+          if grep -q '^Building ' "$GITHUB_WORKSPACE/vcpkg-install.log"; then
+            echo "rebuilt=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rebuilt=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Save now rather than in a post-job hook, so a later compile failure does not
+      # discard an otherwise successful dependency build.
+      - name: Save vcpkg archives
+        if: steps.vcpkg-install.outputs.rebuilt == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/vcpkg/archives
+          key: linux-vcpkg-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
+
+      - name: Upload vcpkg failure logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: meshlab-linux-vcpkg-logs
+          path: |
+            ${{ github.workspace }}/vcpkg-install.log
+            ${{ env.VCPKG_ROOT }}/buildtrees/**/*.log
+            ${{ env.VCPKG_ROOT }}/buildtrees/**/*.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Configure
+        run: |
+          cmake --preset vcpkg-manifest \
+            -B "$BUILD_DIR" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
+            -DVCPKG_TARGET_TRIPLET="$VCPKG_TARGET_TRIPLET" \
+            -DVCPKG_OVERLAY_TRIPLETS="$VCPKG_OVERLAY_TRIPLETS" \
+            -DVCPKG_INSTALLED_DIR="$GITHUB_WORKSPACE/$BUILD_DIR/vcpkg_installed" \
+            -DVCPKG_MANIFEST_INSTALL=OFF
+
+      - name: Build
+        run: cmake --build "$BUILD_DIR" -j"$(nproc)"
+
+      - name: Run ctest
+        run: |
+          cd "$BUILD_DIR"
+          # --no-tests=error so a configuration that registers nothing fails loudly
+          # instead of reporting a green run with zero tests. The large datasets are
+          # not fetched: tests that need them skip when they are absent.
+          ctest --output-on-failure --no-tests=error
+
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-ctest-logs
+          path: ${{ env.BUILD_DIR }}/Testing/
+          retention-days: 7
+          if-no-files-found: ignore
