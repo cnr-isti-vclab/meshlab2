@@ -1,0 +1,172 @@
+.. _meshset-api:
+
+MeshSet
+=======
+
+This page documents the core ``MeshSet`` API.
+Filter-specific methods are documented in :ref:`filters` to avoid
+duplicating the full filter list here.
+
+.. py:currentmodule:: _meshlab
+
+Methods
+-------
+
+.. py:method:: MeshSet.__init__(...)
+   :module: _meshlab
+
+   __init__(self) -> None
+
+.. py:method:: MeshSet.__len__(...)
+   :module: _meshlab
+
+   __len__(self) -> int
+
+.. py:method:: MeshSet.__repr__(self, /)
+   :module: _meshlab
+
+   Return repr(self).
+
+.. py:method:: MeshSet.apply_filter(...)
+   :module: _meshlab
+
+   apply_filter(self, filter: str, params: dict = {}) -> _meshlab.FilterRunResult
+
+.. py:method:: MeshSet.clear(...)
+   :module: _meshlab
+
+   clear(self) -> None
+
+.. py:method:: MeshSet.current_mesh(...)
+   :module: _meshlab
+
+   current_mesh(self) -> object
+   
+   The current Mesh object. Raises if the MeshSet has no current mesh.
+
+.. py:method:: MeshSet.current_mesh_id(...)
+   :module: _meshlab
+
+   current_mesh_id(self) -> int
+   
+   Persistent id of the current mesh -- NOT its index. Raises if the MeshSet has no current mesh. Render-state JSON wants this value as a string: {'mesh_id': str(ms.current_mesh_id()), 'settings': {...}}.
+
+.. py:method:: MeshSet.current_mesh_index(...)
+   :module: _meshlab
+
+   current_mesh_index(self) -> int
+   
+   0-based position of the current mesh in the layer list, or -1 if there is none.
+
+.. py:method:: MeshSet.current_raster(...)
+   :module: _meshlab
+
+   current_raster(self) -> int
+
+.. py:method:: MeshSet.filter_list(...)
+   :module: _meshlab
+
+   filter_list(self) -> list[str]
+
+.. py:method:: MeshSet.is_current_mesh_visible(...)
+   :module: _meshlab
+
+   is_current_mesh_visible(self) -> bool
+
+.. py:method:: MeshSet.is_mesh_visible(...)
+   :module: _meshlab
+
+   is_mesh_visible(self, index: int) -> bool
+   
+   Whether the mesh at this 0-based position is visible.
+
+.. py:method:: MeshSet.list_filters(...)
+   :module: _meshlab
+
+   list_filters(self) -> list[_meshlab.FilterInfo]
+
+.. py:method:: MeshSet.load_new_mesh(...)
+   :module: _meshlab
+
+   load_new_mesh(self, path: str) -> None
+
+.. py:method:: MeshSet.load_new_raster(...)
+   :module: _meshlab
+
+   load_new_raster(self, file_name: str) -> None
+
+.. py:method:: MeshSet.load_project(...)
+   :module: _meshlab
+
+   load_project(self, file_name: str) -> None
+
+.. py:method:: MeshSet.mesh(...)
+   :module: _meshlab
+
+   mesh(self, index: int) -> object
+   
+   Mesh at this 0-based position in the layer list.
+
+.. py:method:: MeshSet.mesh_id(...)
+   :module: _meshlab
+
+   mesh_id(self, index: int) -> int
+   
+   Persistent id of the mesh at this 0-based position, for building render-state JSON covering meshes other than the current one.
+
+.. py:method:: MeshSet.mesh_id_exists(...)
+   :module: _meshlab
+
+   mesh_id_exists(self, id: int) -> bool
+   
+   Whether a mesh with this persistent id is still in the document. Takes an id, not an index: ids are never reused, so a stale one is simply False.
+
+.. py:method:: MeshSet.mesh_number(...)
+   :module: _meshlab
+
+   mesh_number(self) -> int
+
+.. py:method:: MeshSet.raster_number(...)
+   :module: _meshlab
+
+   raster_number(self) -> int
+
+.. py:method:: MeshSet.render_snapshot(...)
+   :module: _meshlab
+
+   render_snapshot(self, render_state_json: str, width: int, height: int) -> bytes
+
+.. py:method:: MeshSet.save_current_mesh(...)
+   :module: _meshlab
+
+   save_current_mesh(self, path: str) -> None
+
+.. py:method:: MeshSet.save_project(...)
+   :module: _meshlab
+
+   save_project(self, file_name: str) -> None
+
+.. py:method:: MeshSet.set_current_mesh(...)
+   :module: _meshlab
+
+   set_current_mesh(self, index: int) -> None
+   
+   Make the mesh at this 0-based position current.
+
+.. py:method:: MeshSet.set_current_mesh_visibility(...)
+   :module: _meshlab
+
+   set_current_mesh_visibility(self, visibility: bool) -> None
+
+.. py:method:: MeshSet.set_current_raster(...)
+   :module: _meshlab
+
+   set_current_raster(self, index: int) -> None
+
+.. py:method:: MeshSet.set_mesh_visibility(...)
+   :module: _meshlab
+
+   set_mesh_visibility(self, index: int, visibility: bool) -> None
+   
+   Show or hide the mesh at this 0-based position. Takes an index, matching the positional 'mesh_visibility' array in render-state JSON.
+

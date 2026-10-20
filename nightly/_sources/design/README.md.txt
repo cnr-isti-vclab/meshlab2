@@ -1,0 +1,67 @@
+# Design Documents
+
+Three kinds of document live here, and the distinction is worth keeping:
+
+- **Reference** (this directory) — how MeshLab works *today*. Read these to
+  understand or change the code; correct them when the code changes.
+- **[Proposals](proposals/)** — design settled before the code exists. Every one
+  says "not implemented" in its opening paragraph. When one ships, its content
+  moves into a reference document and the proposal is deleted, not left to rot.
+- **[History](history/)** — dated records of work that is finished. They are
+  evidence of how something came to be, not statements about the present.
+  **Records are never edited after the fact**; if one turns out to be wrong,
+  that is itself a fact about the record. Where a record's conclusions are still
+  in force, the rule lives in a reference document and the record only shows the
+  reasoning.
+
+## Reference
+
+| Document | What it covers |
+| --- | --- |
+| [Architecture](architecture.md) | Single-document, multi-view structure; ownership and signals. |
+| [Data Model](data_model.md) | Layers, revisions, undo, what a snapshot holds. |
+| [Rendering](rendering.md) | The QRhi pipeline, pass planning, render modes. |
+| [Memory Accounting](memory_accounting.md) | Why there are several different numbers for "size". |
+| [Preferences](preferences.md) | Application settings, sharing the filter-parameter schema. |
+| [Adding a Filter](adding_a_filter.md) | The practical how-to: descriptor schema, plugin class, wiring. |
+| [Vocabulary](vocabulary.md) | The controlled vocabulary: categories, verb lexicon, naming grammar, layer naming. |
+| [Filter Organization](filter_organization.md) | Settled naming and organization principles, plus parameter conventions. |
+| [Test Data](test_data.md) | Where test inputs live by size, the fetched-dataset manifest, and the skip-when-absent rule. |
+| [TrueForm Plugin](trueform_plugin.md) | How the TrueForm-backed plugins relate to the rest of the tree. |
+| [Branches and Releases](release_process.md) | The `devel`/`main` model, version tags, the release workflow and what is still open. |
+
+> **[Vocabulary](vocabulary.md) is read by the test suite at runtime.**
+> `test_filter_descriptors.cpp` and `test_filters.cpp` open it by path and parse
+> the `## 3. Verb lexicon` section. Renaming the file or that heading breaks the
+> build. Adding or retiring a verb there changes what the tests enforce, which is
+> the intent.
+
+## Proposals
+
+| Document | Status |
+| --- | --- |
+| [LLM Integration](proposals/llm_integration.md) | Option space for driving MeshLab from a model. Not implemented. |
+| [Usage Statistics](proposals/usage_statistics.md) | Aggregate usage collection, designed for privacy. Not implemented. |
+| [Gaussian Splatting](proposals/gaussian_splatting.md) | Splat loading, rendering and editing. Not implemented; some decisions taken. |
+| [Edge Support](proposals/edge_support.md) | The two kinds of edge, what is missing in selection and rendering, and filters that would generate per-edge colour. Per-edge colour implemented; the rest not. |
+| [Coral Branch Phenotyping](proposals/coral_branch_phenotyping.md) | Mapping table for porting Yuri Andraccio's curve-skeleton branch segmentation and measurement plugin (and its three vcglib additions). Not implemented; awaiting approval; `curve skeleton` approved, five issues open. |
+| [OpenSCAD CSG](proposals/openscad_csg.md) | One filter exposing geogram's OpenSCAD-subset compiler, to build a mesh from a script. Not implemented; split out of the geogram port. |
+| [CinoLib Port](proposals/cinolib_port.md) | Nine proposed surface filters in three stages: UV mapping, polyharmonic fields, topology and polygon tools; source-verified integration constraints and a deferred-candidate survey. Not implemented. |
+| [Open3D Scan Processing and Reconstruction](proposals/open3d_scan_processing.md) | Proposed RGB-D sequence workflow plus Open3D's independent point-cloud, registration and reconstruction implementations; shared-core Poisson provenance distinguished. Not implemented. |
+| [Layer Selection Model](proposals/layer_selection_model.md) | Merging *visible* and *current* into one *selected* set with a last-selected member, from the Tarini and Callieri sessions: the 136-reference mapping table, seven open decisions and a seven-step staging. Not implemented; awaiting approval of the table and the names. |
+| [Orthographic Camera](proposals/orthographic_camera.md) | An orthographic projection for the 3D view and every camera consumer: one invariant (the visible height at the orbit centre) that makes switching seamless, the JSON extension, rays, shaders, glyphs, snapshots, raster filters and the one vcglib fix; a 45-row mapping table. Implemented in five stages (2026-10); kept here for the mapping table and the open questions until it moves to reference. |
+| [Directional and Frame Fields](proposals/directional_port.md) | Ten proposed field synthesis, visualization, analysis, seamless parametrization and polygon remeshing filters, plus QuadWild and Instant Meshes consumers. Not implemented. |
+
+## History
+
+| Document | Records |
+| --- | --- |
+| [Filter Classification](history/filter_classification.md) | The 2026-07-29 pass-1 migration of 272 filters. |
+| [Filter Names](history/filter_names.md) | The pass-1 renaming rounds, verb by verb, with the rulings made along the way. |
+| [Pass 2 Identifier Map](history/pass2_identifier_map.md) | The `id` / `pythonName` mapping applied 2026-09-03. |
+| [Repository Rename](history/repository_rename.md) | The QMeshLab → meshlab2 rename, six surfaces in five phases, applied 2026-09-13. |
+| [Layer Naming](history/layer_naming.md) | The 87 layer-creating filters, measured before and after, applied 2026-09-19. |
+| [Geogram Port](history/geogram_port.md) | The `filter_geogram` plugin: four phases, eight rulings and four measured corrections, completed 2026-09-20. |
+| [Clipping Plane](history/clipping_plane.md) | Replacing the near-plane cutting trick with a real plane in the shaders: the OpenGL 3.2 floor and the measurements behind it, applied 2026-09-24. |
+| [Selection Scope Audit](history/selection_scope_audit.md) | The 50 filters that honour a selection, measured, and their migration to one framework `selectedOnly` with a single contract; eleven defects fixed, applied 2026-09-28. |
+| [Transform Result Audit](history/transform_result_audit.md) | The 20 filters that write a layer matrix, and the migration of nine Freeze Matrix toggles and five alignments to one framework *Assign matrix* / *Bake positions* choice; the ignored `compose` and the camera filters' double move fixed, applied 2026-09-29. |

@@ -1,0 +1,655 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>Python Scripting - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="_sources/python_scripting.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="python-scripting">
+<h1>Python Scripting<a class="headerlink" href="#python-scripting" title="Link to this heading">¶</a></h1>
+<p>MeshLab can expose an embedded Python console and script editor when it is built
+with <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PYTHON_CONSOLE=ON</span></code>. The embedded interpreter works on the live
+application document, so scripts can inspect the current scene, run filters,
+load/save meshes and rasters, and capture view snapshots.</p>
+<p>The shared API is the <code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet</span></code> interface, and MeshLab reuses that
+same model inside the desktop application. Generated API reference files live
+under <code class="docutils literal notranslate"><span class="pre">docs/api/</span></code> when regenerated from the current filter descriptors; the
+local generated snapshot can lag until the app is run with <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code>.
+The desktop-only additions are the predefined live <code class="docutils literal notranslate"><span class="pre">ms</span></code> object and the <code class="docutils literal notranslate"><span class="pre">mlgui</span></code>
+helper.</p>
+<section id="predefined-names">
+<h2>Predefined Names<a class="headerlink" href="#predefined-names" title="Link to this heading">¶</a></h2>
+<p>The script environment is the Python <code class="docutils literal notranslate"><span class="pre">__main__</span></code> namespace used by the embedded
+console. Names created in the console and names created by scripts share the
+same namespace for the current MeshLab session.</p>
+<section id="ms">
+<h3><code class="docutils literal notranslate"><span class="pre">ms</span></code><a class="headerlink" href="#ms" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">ms</span></code> is the live document, exposed as a <code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet</span></code>-compatible object. This is the
+main entry point for document and filter operations.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Meshes:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Rasters:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">raster_number</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>Important: <code class="docutils literal notranslate"><span class="pre">ms</span></code> borrows the live MeshLab <code class="docutils literal notranslate"><span class="pre">Document</span></code>. Calling modifying methods
+on it changes the open document.</p>
+<p>If you already know <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code>, you can think of <code class="docutils literal notranslate"><span class="pre">ms</span></code> as “the current
+MeshLab document presented through the same MeshSet-style API”.</p>
+</section>
+<section id="mlgui">
+<h3><code class="docutils literal notranslate"><span class="pre">mlgui</span></code><a class="headerlink" href="#mlgui" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">mlgui</span></code> is the live GUI/view helper. It is backed by the private <code class="docutils literal notranslate"><span class="pre">_meshlab.MlGui</span></code> type. It is
+available in the desktop application when an active render view exists.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">mlgui</span><span class="o">.</span><span class="n">camera_state_json</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">mlgui</span><span class="o">.</span><span class="n">render_state_json</span><span class="p">())</span>
+<span class="n">mlgui</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="s2">"/tmp/meshlab_snapshot.png"</span><span class="p">,</span> <span class="mi">1200</span><span class="p">,</span> <span class="mi">900</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The camera and render-state JSON carry the projection as <code class="docutils literal notranslate"><span class="pre">&quot;projection&quot;:</span> <span class="pre">&quot;orthographic&quot;</span></code>
+inside the <code class="docutils literal notranslate"><span class="pre">trackball</span></code> object; it is left out for the default <code class="docutils literal notranslate"><span class="pre">&quot;perspective&quot;</span></code>. Both
+projections frame the same height at the orbit centre (<code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">*</span> <span class="pre">distance</span> <span class="pre">*</span> <span class="pre">tan(fov_y_degrees</span> <span class="pre">/</span> <span class="pre">2)</span></code>),
+so adding or removing the key changes how the scene is projected and nothing about what is
+framed:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="n">state</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">mlgui</span><span class="o">.</span><span class="n">camera_state_json</span><span class="p">())</span>
+<span class="n">state</span><span class="p">[</span><span class="s2">"trackball"</span><span class="p">][</span><span class="s2">"projection"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"orthographic"</span>
+<span class="n">mlgui</span><span class="o">.</span><span class="n">apply_camera_state_json</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">state</span><span class="p">))</span>
+<span class="n">png</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">render_snapshot</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">"trackball"</span><span class="p">:</span> <span class="n">state</span><span class="p">[</span><span class="s2">"trackball"</span><span class="p">]}),</span> <span class="mi">800</span><span class="p">,</span> <span class="mi">600</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Use <code class="docutils literal notranslate"><span class="pre">mlgui</span></code> for view state and rendering operations. It is not meant to be a
+general document API.</p>
+</section>
+<section id="pymeshlab">
+<h3><code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code><a class="headerlink" href="#pymeshlab" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> is the public Python facade for standalone, GUI-less mesh processing.
+In the embedded MeshLab console it is injected as a lightweight module backed by
+the same private <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> extension used by the headless package.</p>
+<p>Use it when you want a separate mesh set that does not operate on the live GUI
+document.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pymeshlab</span>
+
+<span class="n">other</span> <span class="o">=</span> <span class="n">pymeshlab</span><span class="o">.</span><span class="n">MeshSet</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Standalone mesh set:"</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>Most scripts inside MeshLab should use the predefined <code class="docutils literal notranslate"><span class="pre">ms</span></code> object. Import
+<code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> only when you want the same public API exposed by the GUI-less
+package, or when you want to create an independent <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code>.</p>
+</section>
+</section>
+<section id="console-and-script-editor">
+<h2>Console and Script Editor<a class="headerlink" href="#console-and-script-editor" title="Link to this heading">¶</a></h2>
+<p>The Python dock contains a script editor and an interactive console side by
+side. Both execute in the same <code class="docutils literal notranslate"><span class="pre">__main__</span></code> namespace, so variables created in a
+script remain available at the console prompt and vice versa.</p>
+<p>Useful entry points:</p>
+<ul class="simple">
+<li><p>Run the editor contents with the <code class="docutils literal notranslate"><span class="pre">Run</span></code> button or <code class="docutils literal notranslate"><span class="pre">Ctrl+Enter</span></code> / <code class="docutils literal notranslate"><span class="pre">Cmd+Return</span></code>.</p></li>
+<li><p>Use the console for quick one-line calls and Up/Down history navigation.</p></li>
+<li><p>Use the filter panel’s copy-to-console action when you need exact parameter ids.</p></li>
+<li><p>Use the undo graph’s <code class="docutils literal notranslate"><span class="pre">Generate</span> <span class="pre">Python</span> <span class="pre">Script</span></code> command to export the current
+undo path into the script editor.</p></li>
+</ul>
+<p>History export offers two styles: full scripts keep every recorded parameter for
+exact replay, while compact scripts omit parameters that matched the descriptor
+defaults at the time each action was recorded.</p>
+</section>
+<section id="available-module-objects">
+<h2>Available Module Objects<a class="headerlink" href="#available-module-objects" title="Link to this heading">¶</a></h2>
+<p>The public <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> facade exposes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.Mesh</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.FilterInfo</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.FilterRunResult</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pymeshlab.MlGui</span></code></p></li>
+</ul>
+</section>
+<section id="meshset-basics">
+<h2>MeshSet Basics<a class="headerlink" href="#meshset-basics" title="Link to this heading">¶</a></h2>
+<p>The live <code class="docutils literal notranslate"><span class="pre">ms</span></code> object supports the following core methods:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">mesh_number()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">current_mesh()</span></code>, <code class="docutils literal notranslate"><span class="pre">current_mesh_index()</span></code>, <code class="docutils literal notranslate"><span class="pre">set_current_mesh(index)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mesh(index)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">current_mesh_id()</span></code>, <code class="docutils literal notranslate"><span class="pre">mesh_id(index)</span></code>, <code class="docutils literal notranslate"><span class="pre">mesh_id_exists(id)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">set_current_mesh_visibility(visible)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">set_mesh_visibility(index,</span> <span class="pre">visible)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">is_current_mesh_visible()</span></code>, <code class="docutils literal notranslate"><span class="pre">is_mesh_visible(index)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">load_new_mesh(path)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">save_current_mesh(path)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">raster_number()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">current_raster()</span></code>, <code class="docutils literal notranslate"><span class="pre">set_current_raster(index)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">load_new_raster(path)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">clear()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">load_project(path)</span></code>, <code class="docutils literal notranslate"><span class="pre">save_project(path)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">filter_list()</span></code>, <code class="docutils literal notranslate"><span class="pre">list_filters()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">apply_filter(filter,</span> <span class="pre">params={})</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">render_snapshot(render_state_json,</span> <span class="pre">width,</span> <span class="pre">height)</span></code></p></li>
+</ul>
+<section id="mesh-index-vs-mesh-id">
+<h3>Mesh index vs mesh id<a class="headerlink" href="#mesh-index-vs-mesh-id" title="Link to this heading">¶</a></h3>
+<p>A mesh is addressed two ways, and they are not interchangeable:</p>
+<ul class="simple">
+<li><p><strong>index</strong> – the 0-based position in the layer list. Every operation above
+(<code class="docutils literal notranslate"><span class="pre">mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">set_current_mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">set_mesh_visibility</span></code>, <code class="docutils literal notranslate"><span class="pre">is_mesh_visible</span></code>) takes
+an index, and it is what the GUI writes into exported scripts. An index
+shifts whenever a layer before it is removed, or a layer is dragged to another
+place in the list (the Layers panel’s tree view allows that).</p></li>
+<li><p><strong>id</strong> – a persistent opaque handle, minted from 1 and never reused. It
+survives removals and reordering (it is not saved in project files: ids are
+minted again on load), and it is what the render-state JSON keys
+<code class="docutils literal notranslate"><span class="pre">mesh_render_modes</span></code> by. Obtain one with <code class="docutils literal notranslate"><span class="pre">current_mesh_id()</span></code>, <code class="docutils literal notranslate"><span class="pre">mesh_id(index)</span></code>
+or <code class="docutils literal notranslate"><span class="pre">Mesh.id()</span></code>; check it is still live with <code class="docutils literal notranslate"><span class="pre">mesh_id_exists(id)</span></code>.</p></li>
+</ul>
+<p>The first mesh loaded therefore has <strong>index 0</strong> and <strong>id 1</strong>. Passing an index
+where an id is wanted is the common mistake, so note that <code class="docutils literal notranslate"><span class="pre">mesh_render_modes</span></code>
+wants the id, <strong>as a string</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">load_new_mesh</span><span class="p">(</span><span class="s2">"bunny.ply"</span><span class="p">)</span>
+<span class="n">state</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"mesh_render_modes"</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s2">"mesh_id"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">current_mesh_id</span><span class="p">()),</span> <span class="s2">"settings"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"show_fill"</span><span class="p">:</span> <span class="kc">True</span><span class="p">}},</span>
+<span class="p">]}</span>
+<span class="n">png</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">render_snapshot</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">state</span><span class="p">),</span> <span class="mi">800</span><span class="p">,</span> <span class="mi">600</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">mesh_visibility</span></code> in the same JSON is, by contrast, a positional array, which
+is why <code class="docutils literal notranslate"><span class="pre">set_mesh_visibility</span></code> takes an index.</p>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Mesh count:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">())</span>
+
+<span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh index:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh_index</span><span class="p">())</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh id:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh_id</span><span class="p">())</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh label:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh</span><span class="p">()</span><span class="o">.</span><span class="n">label</span><span class="p">())</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="listing-filters">
+<h2>Listing Filters<a class="headerlink" href="#listing-filters" title="Link to this heading">¶</a></h2>
+<p>Use <code class="docutils literal notranslate"><span class="pre">ms.list_filters()</span></code> for structured filter information:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">ms</span><span class="o">.</span><span class="n">list_filters</span><span class="p">()[:</span><span class="mi">20</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">python_name</span><span class="p">,</span> <span class="s2">"-"</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Each <code class="docutils literal notranslate"><span class="pre">FilterInfo</span></code> has:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">key</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plugin_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plugin_name</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">python_name</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">applicable</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">applicability_error</span></code></p></li>
+</ul>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">ms</span><span class="o">.</span><span class="n">list_filters</span><span class="p">():</span>
+    <span class="k">if</span> <span class="s2">"texture"</span> <span class="ow">in</span> <span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">python_name</span><span class="p">,</span> <span class="s2">"|"</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="running-filters">
+<h2>Running Filters<a class="headerlink" href="#running-filters" title="Link to this heading">¶</a></h2>
+<p>There are two equivalent styles.</p>
+<p>Call <code class="docutils literal notranslate"><span class="pre">apply_filter()</span></code> with the filter Python name:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">apply_filter</span><span class="p">(</span><span class="s2">"simplification_quadric_edge_collapse"</span><span class="p">,</span> <span class="p">{</span>
+    <span class="s2">"TargetFaceNum"</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
+    <span class="s2">"PreserveBoundary"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">})</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">error_message</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Or call the dynamically generated convenience method:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">simplification_quadric_edge_collapse</span><span class="p">(</span>
+    <span class="n">TargetFaceNum</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>
+    <span class="n">PreserveBoundary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The generated convenience methods are attached to the shared <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> type when the
+console starts. Their names come from each filter descriptor’s <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>.</p>
+</section>
+<section id="filter-parameters">
+<h2>Filter Parameters<a class="headerlink" href="#filter-parameters" title="Link to this heading">¶</a></h2>
+<p>Filter parameters are passed as Python keyword arguments or as a dictionary.
+Currently supported parameter value types are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">bool</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">float</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">str</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">None</span></code></p></li>
+<li><p>3-item <code class="docutils literal notranslate"><span class="pre">tuple</span></code> or <code class="docutils literal notranslate"><span class="pre">list</span></code> for point/vector values, for example <code class="docutils literal notranslate"><span class="pre">(1.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0)</span></code></p></li>
+</ul>
+<p>Example with a vector parameter:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">apply_filter</span><span class="p">(</span><span class="s2">"translate"</span><span class="p">,</span> <span class="p">{</span>
+    <span class="s2">"traslMethod"</span><span class="p">:</span> <span class="s2">"xyz"</span><span class="p">,</span>
+    <span class="s2">"axis"</span><span class="p">:</span> <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+    <span class="s2">"transformResult"</span><span class="p">:</span> <span class="s2">"assign_matrix"</span><span class="p">,</span>
+<span class="p">})</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Parameter names must match the filter descriptor ids. The easiest way to get a
+valid call is to use the filter panel’s copy-to-console action. For longer
+reproducible scripts, export the current undo path from the action-history graph
+and choose either the full or compact format.</p>
+</section>
+<section id="filter-results">
+<h2>Filter Results<a class="headerlink" href="#filter-results" title="Link to this heading">¶</a></h2>
+<p>Filter calls return a <code class="docutils literal notranslate"><span class="pre">pymeshlab.FilterRunResult</span></code>-compatible object.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">apply_filter</span><span class="p">(</span><span class="s2">"mesh_info"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"precision"</span><span class="p">:</span> <span class="mi">3</span><span class="p">})</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">"success:"</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"modified:"</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">document_modified</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"error:"</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">error_message</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"new meshes:"</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">new_mesh_indices</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"outputs:"</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">output_values</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">info_messages</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Fields:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">success</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">document_modified</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">error_message</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">info_messages</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">new_mesh_indices</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">output_values</span></code></p></li>
+</ul>
+</section>
+<section id="snapshot-examples">
+<h2>Snapshot Examples<a class="headerlink" href="#snapshot-examples" title="Link to this heading">¶</a></h2>
+<p>Save the current view to a PNG:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">mlgui</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="s2">"/tmp/meshlab_view.png"</span><span class="p">,</span> <span class="mi">1600</span><span class="p">,</span> <span class="mi">1200</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Capture and reapply render state:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">state</span> <span class="o">=</span> <span class="n">mlgui</span><span class="o">.</span><span class="n">render_state_json</span><span class="p">()</span>
+<span class="n">mlgui</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="s2">"/tmp/meshlab_view.png"</span><span class="p">,</span> <span class="mi">1600</span><span class="p">,</span> <span class="mi">1200</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Get raw RGBA bytes:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">state</span> <span class="o">=</span> <span class="n">mlgui</span><span class="o">.</span><span class="n">render_state_json</span><span class="p">()</span>
+<span class="n">pixels</span> <span class="o">=</span> <span class="n">mlgui</span><span class="o">.</span><span class="n">render_snapshot</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="mi">800</span><span class="p">,</span> <span class="mi">600</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Bytes:"</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">pixels</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Render from a standalone mesh set without borrowing the live GUI document:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pymeshlab</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="n">other</span> <span class="o">=</span> <span class="n">pymeshlab</span><span class="o">.</span><span class="n">MeshSet</span><span class="p">()</span>
+<span class="n">other</span><span class="o">.</span><span class="n">load_new_mesh</span><span class="p">(</span><span class="s2">"/tmp/input.ply"</span><span class="p">)</span>
+<span class="n">state_json</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"/tmp/render_state.json"</span><span class="p">)</span><span class="o">.</span><span class="n">read_text</span><span class="p">()</span>
+<span class="n">pixels</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">render_snapshot</span><span class="p">(</span><span class="n">state_json</span><span class="p">,</span> <span class="mi">800</span><span class="p">,</span> <span class="mi">600</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Bytes:"</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">pixels</span><span class="p">))</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">mlgui</span></code> uses the live active render view. <code class="docutils literal notranslate"><span class="pre">MeshSet.render_snapshot(...)</span></code> uses a
+hidden <code class="docutils literal notranslate"><span class="pre">HeadlessRenderContext</span></code>, so it is the right path for standalone
+processing and batch-style scripts.</p>
+</section>
+<section id="minimal-useful-scripts">
+<h2>Minimal Useful Scripts<a class="headerlink" href="#minimal-useful-scripts" title="Link to this heading">¶</a></h2>
+<p>Print a short document report:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Meshes:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Rasters:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">raster_number</span><span class="p">())</span>
+
+<span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">ms</span><span class="o">.</span><span class="n">list_filters</span><span class="p">()[:</span><span class="mi">10</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">python_name</span><span class="p">,</span> <span class="s2">"-"</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Load a mesh and save it in another format:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ms</span><span class="o">.</span><span class="n">load_new_mesh</span><span class="p">(</span><span class="s2">"/tmp/input.obj"</span><span class="p">)</span>
+<span class="n">ms</span><span class="o">.</span><span class="n">save_current_mesh</span><span class="p">(</span><span class="s2">"/tmp/output.ply"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Run a filter and inspect the result:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">apply_filter</span><span class="p">(</span><span class="s2">"mesh_info"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"precision"</span><span class="p">:</span> <span class="mi">2</span><span class="p">})</span>
+
+<span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Filter failed:"</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">error_message</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">info_messages</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="caveats">
+<h2>Caveats<a class="headerlink" href="#caveats" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> is the private compiled extension module. User scripts should prefer the predefined <code class="docutils literal notranslate"><span class="pre">ms</span></code> object or <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">pymeshlab</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ms</span></code> operates on the live document; scripts can modify the scene.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mlgui</span></code> depends on an active desktop render view.</p></li>
+<li><p>Standalone <code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet()</span></code> objects own their own document and do not
+automatically share the live application document.</p></li>
+<li><p>History-generated scripts replay recorded action metadata. Compact scripts are
+intentionally smaller and omit descriptor-default parameters; full scripts are
+better when exact parameter visibility matters.</p></li>
+<li><p>The API is still evolving. Prefer generated filter calls from the filter panel
+when you need exact parameter names.</p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Python Scripting</a><ul>
+<li><a class="reference internal" href="#predefined-names">Predefined Names</a><ul>
+<li><a class="reference internal" href="#ms"><code class="docutils literal notranslate"><span class="pre">ms</span></code></a></li>
+<li><a class="reference internal" href="#mlgui"><code class="docutils literal notranslate"><span class="pre">mlgui</span></code></a></li>
+<li><a class="reference internal" href="#pymeshlab"><code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#console-and-script-editor">Console and Script Editor</a></li>
+<li><a class="reference internal" href="#available-module-objects">Available Module Objects</a></li>
+<li><a class="reference internal" href="#meshset-basics">MeshSet Basics</a><ul>
+<li><a class="reference internal" href="#mesh-index-vs-mesh-id">Mesh index vs mesh id</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#listing-filters">Listing Filters</a></li>
+<li><a class="reference internal" href="#running-filters">Running Filters</a></li>
+<li><a class="reference internal" href="#filter-parameters">Filter Parameters</a></li>
+<li><a class="reference internal" href="#filter-results">Filter Results</a></li>
+<li><a class="reference internal" href="#snapshot-examples">Snapshot Examples</a></li>
+<li><a class="reference internal" href="#minimal-useful-scripts">Minimal Useful Scripts</a></li>
+<li><a class="reference internal" href="#caveats">Caveats</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=2709fde1"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

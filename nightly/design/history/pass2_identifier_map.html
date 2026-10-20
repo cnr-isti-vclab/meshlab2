@@ -1,0 +1,1945 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>Pass 2 — identifier map - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/history/pass2_identifier_map.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="pass-2-identifier-map">
+<h1>Pass 2 — identifier map<a class="headerlink" href="#pass-2-identifier-map" title="Link to this heading">¶</a></h1>
+<p><strong>Applied 2026-09-03.</strong> <code class="docutils literal notranslate"><span class="pre">id</span></code> and <code class="docutils literal notranslate"><span class="pre">pythonName</span></code> both become the snake_case of the display
+name: punctuation collapses to <code class="docutils literal notranslate"><span class="pre">_</span></code>, <code class="docutils literal notranslate"><span class="pre">(Backend)</span></code> becomes a trailing <code class="docutils literal notranslate"><span class="pre">_backend</span></code>, and the
+articles <code class="docutils literal notranslate"><span class="pre">the</span></code>/<code class="docutils literal notranslate"><span class="pre">a</span></code>/<code class="docutils literal notranslate"><span class="pre">an</span></code> drop. Nothing else is dropped – connectors included – so the
+menu name and the API name are the same string in two spellings.</p>
+<p>328 filters; 281 ids and 259 pythonNames change. All 328 derived names are
+distinct, so no filter collides with another.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Display name</p></th>
+<th class="head"><p>current id</p></th>
+<th class="head"><p>current pythonName</p></th>
+<th class="head"><p>new id = pythonName</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Measure Mesh Summary</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_info</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">get_info</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_mesh_summary</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Isosurface from Perlin Noise</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_noisy_isosurface</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_noisy_isosurface</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_isosurface_from_perlin_noise</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Mesh Camera</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_camera_per_mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_camera_per_mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_mesh_camera</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Set Raster Camera</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_camera_per_raster</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_camera_per_raster</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_raster_camera</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Vertex Scalar from Camera</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_from_camera_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_from_camera_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_scalar_from_camera</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Rotate Cameras</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_cameras_rotation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_cameras_rotation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rotate_cameras</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Scale Cameras</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_cameras_scaling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_cameras_scaling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">scale_cameras</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Translate Cameras</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_cameras_translation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_cameras_translation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">translate_cameras</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transform Camera Extrinsics</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_cameras_extrinsics_transformation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_cameras_extrinsics_transformation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transform_camera_extrinsics</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Orient Vertex Normals by Cameras</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_normal_from_cameras_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_normal_from_cameras_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_vertex_normals_by_cameras</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Camera to View Selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_camera_to_view_selection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_camera_to_view_selection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_camera_to_view_selection</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Set Camera from Direction</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_camera_from_direction</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_camera_from_direction</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_camera_from_direction</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Reconstruct Surface by Alpha Wrapping</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_alpha_wrap</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_alpha_wrap</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_alpha_wrapping</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Reconstruct Surface by Alpha Shape</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_alpha_shape</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_alpha_shape</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_alpha_shape</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Reconstruct Surface by Voronoi Filtering</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_voronoi_filtering</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_voronoi_filtering</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_voronoi_filtering</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Reconstruct Surface by Scale Space</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_scale_space_reconstruction</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_scale_space_reconstruction</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_scale_space</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Reconstruct Surface by Advancing Front</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_advancing_front_reconstruction</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_advancing_front_reconstruction</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_advancing_front</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Orient Point Cloud Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_normal_orientation_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_normal_orientation_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_point_cloud_normals</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Reconstruct Surface by Poisson (CGAL)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_poisson_reconstruction_cgal</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_poisson_reconstruction_cgal</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_poisson_cgal</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Reconstruct Surface by Kinetic Partition</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_kinetic_reconstruction</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_kinetic_reconstruction</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_kinetic_partition</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Reconstruct Surface by Ball Pivoting (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">surface_reconstruction_ball_pivoting</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_surface_reconstruction_ball_pivoting</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_ball_pivoting_vcglib</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Vertices by Scalar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_vertices_wrt_quality</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_vertices_wrt_quality</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_vertices_by_scalar</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Isolated Components by Face Count</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_isolated_pieces_face_num</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_isolated_pieces_by_face_num</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_isolated_components_by_face_count</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Isolated Components by Diameter</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_isolated_pieces_diameter</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_isolated_pieces_by_diameter</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_isolated_components_by_diameter</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove T-Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_t_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_t_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_t_vertices</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Repair Mismatched Borders</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">snap_mismatched_borders</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">snap_mismatched_borders</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_mismatched_borders</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Merge Close Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">merge_close_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">merge_close_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">merge_close_vertices</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Merge Close Wedge UVs</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">merge_wedge_texture_coord</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">merge_wedge_texture_coords</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">merge_close_wedge_uvs</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Duplicate Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_duplicate_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_duplicate_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_duplicate_faces</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Isolated Folded Faces by Edge Flip</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_folded_faces_by_edge_flip</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_isolated_folded_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_isolated_folded_faces_by_edge_flip</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Repair Non-Manifold Edges</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_non_manifold_edges</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_non_manifold_edges</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_non_manifold_edges</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Repair Non-Manifold Vertices by Splitting</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_non_manifold_vertices_split</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_non_manifold_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_non_manifold_vertices_by_splitting</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Unreferenced Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_unreferenced_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_unreferenced_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_unreferenced_vertices</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Duplicate Vertices (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_duplicated_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_duplicate_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_duplicate_vertices_vcglib</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Zero-Area Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_zero_area_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_zero_area_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_zero_area_faces</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Color from Current Raster to Vertex</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_from_current_raster_projection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_from_current_raster_projection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_current_raster_to_vertex</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Color from Visible Rasters to Vertex</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_from_active_rasters_projection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_from_active_rasters_projection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_visible_rasters_to_vertex</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Color from Visible Rasters to Texture</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_and_texture_from_active_rasters_projection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_and_texture_from_active_rasters_projection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_visible_rasters_to_texture</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_color_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vertex_color_filling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Threshold Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_color_thresholding_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vertex_color_thresholding</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">threshold_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Adjust Vertex Color Brightness/Contrast/Gamma</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_color_brightness_contrast_gamma_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vertex_color_brightness_contrast_gamma</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">adjust_vertex_color_brightness_contrast_gamma</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Invert Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_color_inverse_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vertex_color_invert</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">invert_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Adjust Vertex Color Levels</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_color_level_adjustment_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vertex_color_levels_adjustment</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">adjust_vertex_color_levels</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Tint Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_color_intensity_colourisation_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vertex_color_colourisation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tint_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Desaturate Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_color_desaturation_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vertex_color_desaturation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">desaturate_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Equalize Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_color_equalization_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">equalize_vertex_color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">equalize_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Adjust Vertex Color White Balance</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_color_white_balance_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vertex_color_white_balance</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">adjust_vertex_color_white_balance</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Colorize Vertices by Perlin Noise</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_perlin_noise_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">perlin_color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorize_vertices_by_perlin_noise</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Add Noise to Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_color_noising_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">color_noise</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">add_noise_to_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Set Random Layer Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_scattering_per_mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">color_scattering</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_random_layer_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Mesh Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_set_per_mesh_color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_per_mesh_color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_mesh_color</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Clamp Vertex Scalar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_scalar_clamping_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clamp_vertex_quality</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clamp_vertex_scalar</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Clamp Vertex Scalar Gradient</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_scalar_saturation_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">saturate_vertex_quality</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clamp_vertex_scalar_gradient</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Colorize Vertices by Scalar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_from_scalar_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorize_by_vertex_quality</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorize_vertices_by_scalar</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Colorize Faces by Scalar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_from_scalar_per_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorize_by_face_quality</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorize_faces_by_scalar</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Curvature (Discrete)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_discrete_curvature_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">discrete_curvatures</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_curvature_discrete</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Face Scalar from Geometry</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_geometric_measure_per_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_face_quality_by_geometric_measure</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_scalar_from_geometry</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute UV Distortion</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_texture_distortion_per_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_face_quality_by_texture_distortion</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_uv_distortion</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Smooth Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_color_laplacian_smoothing_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_laplacian_vertex_color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth Face Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_color_laplacian_smoothing_per_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_laplacian_face_color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_face_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Color from Vertex to Face</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_transfer_vertex_to_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_vertex_to_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_vertex_to_face</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Color from Mesh to Face</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_transfer_mesh_to_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_mesh_to_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_mesh_to_face</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Color from Face to Vertex</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_transfer_face_to_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_face_to_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_face_to_vertex</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Color from Texture to Vertex</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_from_texture_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_texture_to_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_texture_to_vertex</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Random Face Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_random_per_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">random_face_color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_random_face_color</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Set Random Component Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_by_conntected_component_per_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">random_component_color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_random_component_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Scalar from Vertex to Face</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_transfer_vertex_to_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_quality_vertex_to_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_scalar_from_vertex_to_face</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Scalar from Face to Vertex</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_transfer_face_to_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_quality_face_to_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_scalar_from_face_to_vertex</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Tetrahedron</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_tetrahedron</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_tetrahedron</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_tetrahedron</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Icosahedron</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_icosahedron</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_icosahedron</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_icosahedron</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Dodecahedron</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_dodecahedron</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_dodecahedron</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_dodecahedron</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Symmetric Dodecahedron</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_dodecahedron_sym</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_dodecahedron_symmetric</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_symmetric_dodecahedron</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Octahedron</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_octahedron</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_octahedron</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_octahedron</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Box</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_box</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_box</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_box</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Annulus</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_annulus</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_annulus</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_annulus</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Sphere</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_sphere</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_sphere</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_sphere</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Sphere Cap</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_sphere_cap</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_sphere_cap</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_sphere_cap</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Points on a Sphere</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_sphere_points</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_points_on_sphere</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_points_on_sphere</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Points on a Spherical Cap</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_points_on_a_spherical_cap</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_points_on_a_spherical_cap</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_points_on_spherical_cap</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Cone</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_cone</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_cone</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_cone</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Torus</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_torus</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_torus</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_torus</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Plane from Selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fit_plane_to_selection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fit_plane_to_selection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_plane_from_selection</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Convex Hull</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_convex_hull</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_convex_hull</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_convex_hull</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Obscurance</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_obscurance</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_obscurance</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_obscurance</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Face Ambient Occlusion</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_ambient_occlusion</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_ambient_occlusion</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_ambient_occlusion</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Point Cloud Ambient Occlusion</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_point_cloud_ambient_occlusion</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_point_cloud_ambient_occlusion</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_point_cloud_ambient_occlusion</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Shape Diameter Function</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_shape_diameter_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_shape_diameter_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_shape_diameter_function</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Visible Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_visible_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_visible_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_visible_faces</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Orient Face Normals by Ray Casting</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">analyze_normals</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reorient_face_normals</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_face_normals_by_ray_casting</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Vertices by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">conditional_vertex_selection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertices_by_condition</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertices_by_expression</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Faces by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">conditional_face_selection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_by_condition</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_by_expression</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Vertex Coordinates by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_vertex_geometric_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_vertex_geometric_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_coordinates_by_expression</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Vertex Normals by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_vertex_normal_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_vertex_normal_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_normals_by_expression</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Face Normals by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_face_normal_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_face_normal_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_normals_by_expression</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Vertex Color by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_vertex_color_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_vertex_color_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_color_by_expression</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Face Color by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_face_color_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_face_color_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_color_by_expression</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Vertex Scalar by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_vertex_quality_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_vertex_quality_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_scalar_by_expression</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Face Scalar by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_face_quality_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_face_quality_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_scalar_by_expression</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Parametrize per Vertex by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_vertex_texture_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_vertex_texture_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_per_vertex_by_expression</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrize per Wedge by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_wedge_texture_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_wedge_texture_function</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_per_wedge_by_expression</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Define Custom Vertex Scalar Attribute</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_per_vertex_scalar_attribute</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_vertex_scalar_attribute</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_custom_vertex_scalar_attribute</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Define Custom Face Scalar Attribute</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_per_face_scalar_attribute</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_face_scalar_attribute</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_custom_face_scalar_attribute</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Define Custom Vertex Point Attribute</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_per_vertex_point_attribute</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_vertex_point_attribute</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_custom_vertex_point_attribute</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Define Custom Face Point Attribute</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_per_face_point_attribute</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_face_point_attribute</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_custom_face_point_attribute</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Grid</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">grid_generator</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_grid</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_grid</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Isosurface from Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">implicit_surface</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_implicit_surface</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_isosurface_from_expression</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Refine by User Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">refine_user_defined</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">refine_user_defined</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">refine_by_user_expression</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Geodesic Distance from Border</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_border_distance_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_border_distance_quality</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_geodesic_distance_from_border</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Geodesic Distance from Point</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_geodesic_distance_from_given_point_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_geodesic_distance_from_point</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_geodesic_distance_from_point</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Geodesic Distance from Selection (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_geodesic_distance_from_selection_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_geodesic_distance_from_selection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_geodesic_distance_from_selection_vcglib</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Heat Geodesic Distance from Selection (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_heat_geodesic_distance_from_selection_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_heat_geodesic_distance</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_heat_geodesic_distance_from_selection_vcglib</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Align by ICP (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_by_icp_between_meshes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_by_icp_between_meshes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_by_icp_vcglib</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Align Meshes Globally</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_by_mesh_global_alignment</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_by_mesh_global_alignment</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_meshes_globally</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Measure Layer Overlap</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">get_overlapping_meshes_graph</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">get_overlapping_meshes_graph</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_layer_overlap</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Mesh Intersection (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_intersection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_intersection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_intersection_libigl</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Mesh Union (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_union</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_union</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_union_libigl</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Mesh Difference (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_difference</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_difference</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_difference_libigl</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Mesh Symmetric Difference (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_xor</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_xor</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_symmetric_difference_libigl</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Parametrize by Harmonic Map (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_harmonic</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_harmonic</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_harmonic_map_libigl</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrize by Least Squares Conformal Maps (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_least_squares_conformal_maps</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_least_squares_conformal_maps</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_least_squares_conformal_maps_libigl</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Gaussian Curvature (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_gaussian_curvature_per_vertex_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_gaussian_curvature_per_vertex_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_gaussian_curvature_libigl</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Principal Curvature Directions (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_curvature_principal_directions_per_vertex_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_curvature_principal_directions_per_vertex_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_principal_curvature_directions_libigl</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Exact Geodesic Distance from Selection (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_exact_geodesic_distance_from_selection_per_vertex_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_exact_geodesic_distance_from_selection_per_vertex_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_exact_geodesic_distance_from_selection_libigl</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Heat Geodesic Distance from Selection (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_heat_geodesic_distance_from_selection_per_vertex_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_heat_geodesic_distance_from_selection_per_vertex_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_heat_geodesic_distance_from_selection_libigl</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Parametrize by As-Rigid-As-Possible (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_as_rigid_as_possible_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_as_rigid_as_possible_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_as_rigid_as_possible_libigl</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrize by SLIM (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_slim_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_slim_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_slim_libigl</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Generalized Winding Number (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_generalized_winding_number_per_vertex_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_generalized_winding_number_per_vertex_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_generalized_winding_number_libigl</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth Vertex Scalar by Hessian Energy (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_scalar_hessian_smoothing_per_vertex_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_scalar_hessian_smoothing_per_vertex_libigl</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertex_scalar_by_hessian_energy_libigl</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Parametrize from Registered Rasters</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_from_registered_rasters</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_from_registered_rasters</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_from_registered_rasters</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrize from Registered Rasters with Texture</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_and_texture_from_registered_rasters</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_and_texture_from_registered_rasters</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_from_registered_rasters_with_texture</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Vertex Scalar from Raster Coverage</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_from_raster_coverage_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_from_raster_coverage_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_scalar_from_raster_coverage</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Face Scalar from Raster Coverage</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_from_raster_coverage_per_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_from_raster_coverage_per_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_scalar_from_raster_coverage</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remesh to Quads (Instant Meshes)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remesh_to_quads_instant_meshes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remesh_to_quads_instant_meshes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remesh_to_quads_instant_meshes</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Extract Selected Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_from_selected_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">move_faces_to_layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">extract_selected_faces</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Extract Selected Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_from_selected_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">move_vertices_to_layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">extract_selected_vertices</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Split into Connected Components</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_splitting_by_connected_components</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">split_in_connected_components</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">split_into_connected_components</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Duplicate Current Layer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_copy_of_current_mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">duplicate_layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">duplicate_current_layer</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Current Mesh Layer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_current_mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_current_mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_current_mesh_layer</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Hidden Mesh Layers</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_non_visible_meshes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_hidden_meshes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_hidden_mesh_layers</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Current Raster</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_current_raster</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_current_raster</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_current_raster</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Hidden Rasters</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_non_active_rasters</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_non_active_rasters</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_hidden_rasters</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Merge Visible Layers</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_by_merging_visible_meshes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">flatten_visible_layers</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">merge_visible_layers</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Rename Current Mesh Layer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_mesh_name</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rename_mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rename_current_mesh_layer</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Rename Current Raster</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_raster_name</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_raster_name</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rename_current_raster</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Export Cameras from Visible Rasters</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">save_active_raster_cameras</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">save_active_raster_cameras</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">export_cameras_from_visible_rasters</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Import Cameras to Visible Rasters</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">load_active_raster_cameras</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">load_active_raster_cameras</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">import_cameras_to_visible_rasters</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Render from Render-State JSON</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">render_from_render_state_json</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">render_from_render_state_json</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">render_from_render_state_json</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Measure Topological Properties</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_topological_measures</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_topological_measures</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Measure Topological Properties for Quad Mesh</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_topological_measures_quad_meshes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_topological_measures_quad</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties_for_quad_mesh</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Measure Geometric Properties</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_geometric_measures</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_geometric_measures</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_geometric_properties</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Measure Selection Area and Perimeter</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_area_perimeter_selection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_selection_area_perimeter</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_selection_area_and_perimeter</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Measure Vertex Scalar Statistics</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_vertex_quality_stat</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_quality_stat</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_vertex_scalar_statistics</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Measure Face Scalar Statistics</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_face_quality_stat</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_quality_stat</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_face_scalar_statistics</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Measure Vertex Scalar Histogram</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_vertex_quality_histogram</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_quality_histogram</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_vertex_scalar_histogram</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Measure Face Scalar Histogram</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">per_face_quality_histogram</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_quality_histogram</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_face_scalar_histogram</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Repair Watertight Mesh (MeshFix)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_watertight_mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_watertight_mesh_meshfix</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_watertight_mesh_meshfix</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Subdivide by Loop</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_surface_subdivision_loop</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">subdivision_loop</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">subdivide_by_loop</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Subdivide by Butterfly</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_surface_subdivision_butterfly</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">subdivision_butterfly</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">subdivide_by_butterfly</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Subdivide by Midpoint</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_surface_subdivision_midpoint</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">subdivision_midpoint</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">subdivide_by_midpoint</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Subdivide by LS3 Loop</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_surface_subdivision_ls3_loop</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">subdivision_ls3_loop</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">subdivide_by_ls3_loop</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Simplify by Vertex Clustering</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_decimation_clustering</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplification_clustering</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplify_by_vertex_clustering</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Simplify by Quadric Edge Collapse (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_decimation_quadric_edge_collapse</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplification_quadric_edge_collapse</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplify_by_quadric_edge_collapse_vcglib</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Simplify by Quadric Edge Collapse with Texture (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_decimation_quadric_edge_collapse_with_texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplification_quadric_edge_collapse_with_texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplify_by_quadric_edge_collapse_with_texture_vcglib</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remesh Isotropically (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_isotropic_explicit_remeshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remeshing_isotropic</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remesh_isotropically_vcglib</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Orient Faces Consistently (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_re_orient_faces_coherently</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reorient_all_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_faces_consistently_vcglib</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Invert Face Orientation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_invert_face_orientation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">invert_faces_orientation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">invert_face_orientation</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Mirror or Swap Axes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_matrix_flip_or_swap_axis</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transform_flip_axis</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mirror_or_swap_axes</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Rotate</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_from_rotation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transform_rotate</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rotate</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Rotate to Fitted Plane</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_by_fitting_to_plane</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transform_rotate_to_fit_plane</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rotate_to_fitted_plane</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Normalize Reference Frame</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_by_reference_frame_normalization</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normalize_reference_frame</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normalize_reference_frame</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Scale</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_from_scaling_or_normalization</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transform_scale</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">scale</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Translate</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_from_translation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transform_translate</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">translate</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Matrix to Identity</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_matrix_identity</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">matrix_reset</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_matrix_to_identity</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Freeze Matrix</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_matrix_freeze</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">matrix_freeze</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">freeze_matrix</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Invert Matrix</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_matrix_inverse</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">matrix_invert</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">invert_matrix</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Set Matrix from Translation/Rotation/Scale</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_from_translation_rotation_scale</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">matrix_set_from_trs</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_matrix_from_translation_rotation_scale</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Matrix from Values or Layer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_matrix</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">matrix_set_copy</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_matrix_from_values_or_layer</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Point Cloud Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_normal_for_point_clouds</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_point_cloud_normals</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_point_cloud_normals</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Smooth Point Cloud Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_normal_point_cloud_smoothing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_point_cloud_normals</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_point_cloud_normals</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Principal Curvature Directions (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_curvature_principal_directions_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_curvature_principal_directions</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_principal_curvature_directions_vcglib</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Close Holes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_close_holes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">close_holes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">close_holes</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrize by Cylindrical Projection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_cylindrical_unwrapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">geometric_cylindrical_unwrapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_cylindrical_projection</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Subdivide by Catmull-Clark</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_surface_subdivision_catmull_clark</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">subdivision_catmull_clark</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">subdivide_by_catmull_clark</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Convert to Quads by 4-8 Subdivision</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_tri_to_quad_by_4_8_subdivision</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tri_to_quad_4_8_subdivision</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_to_quads_by_4_8_subdivision</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Subdivide by Doo-Sabin</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_surface_subdivision_doo_sabin</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">subdivision_doo_sabin</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">subdivide_by_doo_sabin</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Convert to Quad-Dominant Mesh</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_tri_to_quad_dominant</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_to_quad_dominant</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_to_quad_dominant_mesh</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Convert to Pure Triangles</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_poly_to_tri</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_to_triangular</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_to_pure_triangles</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Convert to Quads by Triangle Pairing</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_tri_to_quad_by_smart_triangle_pairing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tri_to_quad_by_pairing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_to_quads_by_triangle_pairing</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Crease Edges (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_selection_crease_per_edge</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_crease_edges</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_crease_edges_vcglib</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Polyline from Selected Edges</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_polyline_from_selected_edges</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">build_polyline_from_selection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_selected_edges</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Split Vertices by Attribute Seam</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_vertex_attribute_seam</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vertex_attribute_seam</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">split_vertices_by_attribute_seam</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Polyline from Selection Perimeter</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_polyline_from_selection_perimeter</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_selection_perimeter</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_selection_perimeter</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Polyline from Planar Section</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_polyline_from_planar_section</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_planar_section</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_planar_section</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Project Vertices onto MLS Surface (APSS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_mls_projection_apss</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_mls_apss</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">project_vertices_onto_mls_surface_apss</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Project Vertices onto MLS Surface (RIMLS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_mls_projection_rimls</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_mls_rimls</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">project_vertices_onto_mls_surface_rimls</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Reconstruct Surface by Marching Cubes (APSS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_marching_cubes_apss</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_marching_cubes_apss</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_marching_cubes_apss</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Reconstruct Surface by Marching Cubes (RIMLS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_marching_cubes_rimls</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_marching_cubes_rimls</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_marching_cubes_rimls</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Curvature (APSS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_curvature_and_color_apss_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_apss_curvature</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_curvature_apss</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Curvature (RIMLS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_curvature_and_color_rimls_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_rimls_curvature</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_curvature_rimls</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Estimate Radius from Density</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_custom_radius_scalar_attribute_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">estimate_radius_from_density</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">estimate_radius_from_density</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Small Disconnected Components</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_selection_by_small_disconnected_components_per_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_small_disconnected_component</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_small_disconnected_components</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Reconstruct Surface by Volumetric Merging</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_surface_reconstruction_vcg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_surface_reconstruction_vcg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_volumetric_merging</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Simplify Marching-Cubes Mesh by Edge Collapse</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_decimation_edge_collapse_for_marching_cube_meshes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_decimation_edge_collapse_for_marching_cube_meshes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplify_marching_cubes_mesh_by_edge_collapse</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Simplify by Quadric Edge Collapse (QSlim)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplification_quadric_edge_collapse_qslim</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplification_quadric_edge_collapse_qslim</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplify_by_quadric_edge_collapse_qslim</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remesh to Quads (QuadWild-BiMDF)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remesh_to_quads_quadwild_bimdf</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remesh_to_quads_quadwild_bimdf</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remesh_to_quads_quadwild_bimdf</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Sample Mesh Elements</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_sampling_element</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_mesh_elements</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_mesh_elements</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Sample Surface by Monte Carlo</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_sampling_montecarlo</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_montecarlo</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_surface_by_monte_carlo</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Sample Surface by Stratified Triangles</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_sampling_stratified_triangle</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_stratified_triangles</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_surface_by_stratified_triangles</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Sample Vertices by Clustering</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_sampling_clustered_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_clustered_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_vertices_by_clustering</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Sample Surface by Poisson Disk</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_sampling_poisson_disk</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_poisson_disk</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_surface_by_poisson_disk</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Measure Hausdorff Distance</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">get_hausdorff_distance</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_hausdorff_distance</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_hausdorff_distance</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Distance from Reference Mesh</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_distance_from_another_mesh_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_distance_from_reference</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_distance_from_reference_mesh</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Sample Texels</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_sampling_texel</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_texels</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_texels</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Vertex Attributes by Closest Point</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_attributes_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_vertex_attributes</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_vertex_attributes_by_closest_point</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remesh Uniformly by Volumetric Resampling</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_resampled_uniform_mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">resample_uniform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remesh_uniformly_by_volumetric_resampling</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Colorize Vertices by Voronoi Regions</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_color_by_point_cloud_voronoi_projection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">voronoi_vertex_coloring</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorize_vertices_by_voronoi_regions</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Colorize Vertices by Disk Distance</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_distance_from_point_cloud_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">disk_vertex_coloring</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorize_vertices_by_disk_distance</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Sample Offset Surface Recursively</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_sampling_regular_recursive</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_regular_recursive</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_offset_surface_recursively</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Simplify Point Cloud</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_simplified_point_cloud</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplify_point_cloud</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplify_point_cloud</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Reconstruct Surface by Screened Poisson</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">surface_reconstruction_screened_poisson</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_screened_poisson</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_screened_poisson</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Reconstruct Surface by Smooth Signed Distance</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">surface_reconstruction_ssd</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_ssd_reconstruction</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_smooth_signed_distance</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Trim Surface by Scalar Isovalue</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">surface_reconstruction_surface_trimmer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trim_reconstructed_surface</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trim_surface_by_scalar_isovalue</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select All</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_all</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_all</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_all</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select None</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_none</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_none</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_none</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Faces by View Angle</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_by_view_angle</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_by_view_angle</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_by_view_angle</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Ill-Shaped Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_problematic_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_problematic_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_ill_shaped_faces</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Invert Selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_invert</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">invert_selection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">invert_selection</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Connected Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_connected_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_connected_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_connected_faces</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Faces from Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_from_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_from_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_from_vertices</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Vertices from Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertices_from_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertices_from_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertices_from_faces</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Selected Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_selected_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_selected_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_selected_vertices</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove All Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_all_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_all_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_all_faces</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Selected Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_selected_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_selected_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_selected_faces</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Selected Faces and Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_selected_faces_and_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">delete_selected_faces_and_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_selected_faces_and_vertices</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Erode Selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_erode</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">erode_selection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">erode_selection</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Dilate Selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_dilate</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">dilate_selection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">dilate_selection</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Border</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_border</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_border</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_border</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Faces by Scalar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_by_face_quality</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_by_face_quality</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_by_scalar</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Vertices by Scalar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_by_vertex_quality</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_by_vertex_quality</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertices_by_scalar</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Faces by Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_by_color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_by_color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_by_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Self-Intersecting Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_self_intersecting_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_self_intersecting_faces</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_self_intersecting_faces</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Vertex Texture Seams</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertex_texture_seams</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertex_texture_seams</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertex_texture_seams</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Non-Manifold Edges (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_non_manifold_edges</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_non_manifold_edges</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_non_manifold_edges_vcglib</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Non-Manifold Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_non_manifold_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_non_manifold_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_non_manifold_vertices</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Faces by Edge Length</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_by_edge_length</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_with_edges_longer_than</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_by_edge_length</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Outliers</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_outliers</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_outliers</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_outliers</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select by Screen Rectangle</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_by_rectangle</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_by_rectangle</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_by_screen_rectangle</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Visible Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_visible_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_visible_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_visible_vertices</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Parametrize by Voronoi Atlas (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_voronoi_atlas_parametrization</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_voronoi_atlas</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_voronoi_atlas_vcglib</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Convert Per-Wedge UV to Per-Vertex UV</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_transfer_wedge_to_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_wedge_uv_to_vertex_uv</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_per_wedge_uv_to_per_vertex_uv</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Convert Per-Vertex UV to Per-Wedge UV</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_transfer_vertex_to_wedge</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_vertex_uv_to_wedge_uv</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_per_vertex_uv_to_per_wedge_uv</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrize by Flat Plane</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_flat_plane_per_wedge</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_flat_plane</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_flat_plane</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Parametrize by Trivial Per-Triangle Layout</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texcoord_parametrization_triangle_trivial_per_wedge</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_trivial_per_triangle</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_trivial_per_triangle_layout</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Set Texture</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_texture_per_mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_texture</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Color from Vertex to Texture</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_texmap_from_color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_vertex_color_to_texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_vertex_to_texture</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Color from Texture to Vertex by Closest Point</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_texture_to_color_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_texture_to_vertex_color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_texture_to_vertex_by_closest_point</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Vertex Attributes to Texture by Closest Point</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_attributes_to_texture_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_vertex_attributes_to_texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_vertex_attributes_to_texture_by_closest_point</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Convert Object-Space Normal Map to Tangent Space</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_object_space_normal_map_to_tangent_space</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_normal_map_to_tangent_space</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_object_space_normal_map_to_tangent_space</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Pack Texture Images</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pack_textures</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pack_texture_per_mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pack_texture_images</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Defragment Texture Atlas</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_texmap_defragmentation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">defragment_texture_map</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">defragment_texture_atlas</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Merge Texture Islands</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_small_islands_remover</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">small_islands_remover</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">merge_texture_islands</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Pack UV Charts</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pack_uv_charts</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pack_uv_charts</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pack_uv_charts</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Flip Edges by Planarity</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_edge_flip_by_planar_optimization</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_edge_flip_by_planar_optimization</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">flip_edges_by_planarity</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Flip Edges by Curvature</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_edge_flip_by_curvature_optimization</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_edge_flip_by_curvature_optimization</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">flip_edges_by_curvature</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Smooth Vertices by Surface-Preserving Laplacian (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_coord_laplacian_smoothing_surface_preserving</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_coord_laplacian_smoothing_surface_preserving</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_surface_preserving_laplacian_vcglib</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Align by Bounding Box (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_by_obb_alignment</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_by_obb_alignment</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_by_bounding_box_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Align by ICP (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_by_icp_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_by_icp_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_by_icp_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Align to Corresponding Points (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_by_corresponding_points</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_matrix_by_corresponding_points</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_to_corresponding_points_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Mesh Union (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_union_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_union_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_union_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Mesh Intersection (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_intersection_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_intersection_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_intersection_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Mesh Difference (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_difference_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_difference_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_difference_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Mesh Symmetric Difference (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_xor_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_boolean_xor_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_symmetric_difference_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Mesh CSG Expression (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_csg_expression</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_csg_expression</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_csg_expression_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Extract Outer Shell (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_outer_shell</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_outer_shell</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">extract_outer_shell_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Polyline from Self-Intersections (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_polyline_from_self_intersections</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_polyline_from_self_intersections</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_self_intersections_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Polyline from Mesh Intersection (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_polyline_from_mesh_intersection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_polyline_from_mesh_intersection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_mesh_intersection_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Polyline from Scalar Isocontour (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_polyline_from_scalar_isocontour</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_polyline_from_scalar_isocontour</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_scalar_isocontour_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Tube from Polyline (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_tube_from_polyline</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_tube_from_polyline</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_tube_from_polyline_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Signed Distance to Mesh (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_signed_distance_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_signed_distance_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_signed_distance_to_mesh_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Vertices Inside Mesh (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertices_inside_mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertices_inside_mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertices_inside_mesh_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Measure Chamfer Distance (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_chamfer_distance</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_chamfer_distance</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_chamfer_distance_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth Vertices by Laplacian (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_laplacian_smoothing_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_laplacian_smoothing_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_laplacian_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Smooth Vertices by Taubin (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_taubin_smoothing_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_taubin_smoothing_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_taubin_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Curvature (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_curvature_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_curvature_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_curvature_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Normals (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_normals_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_normals_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_normals_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remesh Isotropically (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remeshing_isotropic_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remeshing_isotropic_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remesh_isotropically_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Simplify by Error Bound (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplification_by_error_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplification_by_error_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplify_by_error_bound_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Simplify by Decimation (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplification_by_decimation_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplification_by_decimation_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">simplify_by_decimation_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Orient Faces Consistently (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_faces_coherently_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_faces_coherently_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_faces_consistently_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Orient Faces Outward (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_faces_outward_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_faces_outward_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_faces_outward_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Crease Edges (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_crease_edges_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_crease_edges_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_crease_edges_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Non-Manifold Edges (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_non_manifold_edges_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_non_manifold_edges_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_non_manifold_edges_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Repair Self-Intersections (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_self_intersections</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_self_intersections</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_self_intersections_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Cut Along Scalar Isocontour (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cut_along_scalar_isocontour</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cut_along_scalar_isocontour</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cut_along_scalar_isocontour_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Duplicate Vertices (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_duplicate_vertices_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_duplicate_vertices_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_duplicate_vertices_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remesh by Edge Flipping (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">improve_triangulation_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">improve_triangulation_trueform</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remesh_by_edge_flipping_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Cut Along Crease Edges</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing_cut_along_crease_edges</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cut_mesh_along_crease_edges</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cut_along_crease_edges</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth Vertices by Laplacian (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_coord_laplacian_smoothing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_laplacian</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_laplacian_vcglib</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Smooth Vertices by HC Laplacian</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_coord_hc_laplacian_smoothing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_hc_laplacian</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_hc_laplacian</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth Vertices by Scale-Dependent Laplacian</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_coord_laplacian_smoothing_scale_dependent</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_scale_dependent_laplacian</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_scale_dependent_laplacian</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Smooth Vertices by Two-Step Normal Fitting</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_coord_two_steps_smoothing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_two_step</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_two_step_normal_fitting</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth Vertices by Taubin (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_coord_taubin_smoothing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_taubin</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_taubin_vcglib</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Smooth Vertices along One Direction</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_coord_depth_smoothing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_depth</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_along_one_direction</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Project Vertices onto the Line of Sight</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_coord_directional_preservation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_directional</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">project_vertices_onto_line_of_sight</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Smooth Vertex Scalar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_scalar_smoothing_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertex_quality</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertex_scalar</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth Face Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_normal_smoothing_per_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_face_normals</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_face_normals</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Sharpen Face Normals by Unsharp Mask</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_normal_unsharp_mask_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp_mask_normals</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sharpen_face_normals_by_unsharp_mask</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Sharpen Vertices by Unsharp Mask</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_coord_unsharp_mask</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp_mask_geometry</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sharpen_vertices_by_unsharp_mask</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Sharpen Vertex Scalar by Unsharp Mask</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_scalar_unsharp_mask_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp_mask_quality</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sharpen_vertex_scalar_by_unsharp_mask</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Sharpen Vertex Color by Unsharp Mask</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_color_unsharp_mask_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp_mask_color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sharpen_vertex_color_by_unsharp_mask</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Vertex Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_normal_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_normals</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_normals</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Face Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_normal_per_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_normals</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_normals</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Polygon Face Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_normal_polygon_mesh_per_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_per_polygon_face_normals</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_polygon_face_normals</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Normalize Face Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_normal_normalization_per_face</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normalize_face_normals</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normalize_face_normals</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Normalize Vertex Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apply_normal_normalization_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normalize_vertex_normals</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normalize_vertex_normals</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Displace Vertices toward Target Mesh</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_coord_linear_morphing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vertex_linear_morphing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_toward_target_mesh</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Harmonic Scalar Field</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_scalar_by_scalar_harmonic_field_per_vertex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_scalar_harmonic_field</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_harmonic_scalar_field</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Displace Vertices Randomly</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_randomly</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_randomly</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_randomly</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Displace Vertices by Fractal Brownian Motion</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_by_fractal_brownian_motion</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_by_fractal_brownian_motion</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_by_fractal_brownian_motion</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Displace Vertices by Standard Multifractal Noise</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_by_standard_multifractal_noise</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_by_standard_multifractal_noise</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_by_standard_multifractal_noise</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Displace Vertices by Heterogeneous Multifractal Noise</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_by_heterogeneous_multifractal_noise</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_by_heterogeneous_multifractal_noise</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_by_heterogeneous_multifractal_noise</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Displace Vertices by Hybrid Multifractal Noise</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_by_hybrid_multifractal_noise</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_by_hybrid_multifractal_noise</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_by_hybrid_multifractal_noise</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Displace Vertices by Ridged Multifractal Noise</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_by_ridged_multifractal_noise</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_by_ridged_multifractal_noise</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_by_ridged_multifractal_noise</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Sample Surface by Voronoi Relaxation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_sampling_voronoi</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_sampling_voronoi</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_surface_by_voronoi_relaxation</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Sample Volume</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_sampling_volumetric</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_sampling_volumetric</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_volume</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Voronoi Scaffolding</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_voronoi_scaffolding</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_voronoi_scaffolding</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_voronoi_scaffolding</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Solid Wireframe</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_solid_wireframe</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_solid_wireframe</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_solid_wireframe</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrize by Atlas (xatlas)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">generate_xatlas_parametrization</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_xatlas</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_atlas_xatlas</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

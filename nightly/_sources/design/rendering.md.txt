@@ -1,0 +1,564 @@
+# Rendering
+
+See also: [Architecture](architecture.md) · [Data Model](data_model.md) · [Memory Accounting](memory_accounting.md)
+
+## Overview
+
+`RenderWidget` (`QRhiWidget`) runs in three modes:
+
+- **`Scene3D`**: layered mesh rendering with trackball camera, depth picking, and current-mesh highlight.
+- **`ParametrizationUV`**: orthographic UV-space rendering for the current mesh (requires faces + UV coords).
+- **`RasterImage`**: active-raster image-domain rendering. Entering the mode requires a valid current raster. The active raster is drawn as a screen-space overlay reference; if it has a valid `CameraShot`, visible meshes are rendered by the normal Scene3D pass pipeline through that raster camera.
+
+Ownership: `Document` owns canonical mesh/raster data; `MeshGpuResourceCache` (owned by `Document`) holds shared GPU mesh resources; `RenderWidget` owns per-view pipelines/SRBs/UBOs, offscreen targets, camera/UV state, raster GPU image resources, headlight/trackball/view-axis gizmo state, overlays, active/suspended interactive-tool state, depth-cued tool-line resources, and per-mesh render modes.
+
+Undo/redo integration: undo-tree nodes include one `ViewState` snapshot (active view camera + render settings + per-mesh style map) captured/restored via `Document::setViewStateFunctions(...)`. History jumps can restore render style while intentionally leaving the live camera untouched until the final target node.
+
+## Programmatic Render-State JSON
+
+`RenderWidget` exposes a versioned render-state JSON contract intended for repeatable programmatic rendering (for example, filters that need deterministic offscreen snapshots):
+
+- `RenderWidget::renderStateJson()` exports the current per-view rendering state.
+- `RenderWidget::applyRenderStateJson(...)` applies such JSON back to a view.
+
+Schema (`kind = "MeshLab.RenderState"`, `version = 1`) includes:
+
+- `view_mode`: `Scene3D` | `ParametrizationUV` | `RasterImage`
+- `raster_opacity`: float in `[0, 1]`
+- `trackball`: same trackball payload used by camera JSON (`center`, `rotation_xyzw`, `distance`, `radius`, `fov_y_degrees`, near-clip and gizmo fields, and `projection`: `"orthographic"`, omitted for the default `"perspective"`; see [Orthographic Camera](proposals/orthographic_camera.md))
+- `render_settings`: sparse `GlobalRenderSettings` payload (background, histogram settings, UV options, current-mesh highlight settings, etc.; default-valued fields are omitted)
+- `mesh_visibility`: per-view visibility bool array, emitted only when at least one mesh is hidden in the view
+- `mesh_render_modes`: array of `{ mesh_id, settings }`, where `settings` is a sparse `PerMeshRenderSettings` payload
+- `current_mesh_index`, `current_raster_index`, `current_layer_kind`
+- `viewport_px`: informational viewport size metadata
+
+Design notes:
+
+- Mesh render modes are keyed by persistent `mesh_id`, not by row index.
+- The JSON is intentionally request-level and compact; GPU resources and concrete draw plans remain internal.
+- Export omits default-valued settings. During import, omitted settings/mode maps start from defaults, while omitted `view_mode` and `raster_opacity` keep the current view values.
+- This contract is forward-versioned (`version`) and can be extended without changing filter call sites.
+
+Filter integration:
+
+- `MainWindow` wires `Document::setRenderStateSnapshotFunction(...)` to the active view. `Document::renderSnapshotFromStateJson(...)` applies JSON to that view, renders an offscreen image at the requested size, returns both the `QImage` and resulting `CameraShot`, then restores the previous render state.
+- Layer menu filter `Render from Render-State JSON` (`id: render_from_render_state_json`) consumes typed `camera_state` (`MeshLab.CameraState`) and `render_state` (`MeshLab.RenderState`) payloads and runs an offscreen render.
+- Both parameters support the same UI source modes: inline text, JSON file, or capture from current view.
+- The filter can write a PNG snapshot and/or inject the snapshot as a raster layer, enabling reproducible scriptable rendering workflows.
+
+## Scene3D Request and Plan Pipeline
+
+Scene3D rendering is split into a lightweight request layer and a concrete GPU draw-plan layer.
+
+`RenderFramePassRequests` is collected once per frame from visible meshes, visible/current rasters, and resolved `PerMeshRenderSettings`. It contains one `RenderMeshPassRequests` per visible mesh, raster backplate/projected/frustum requests when relevant, plus frame-wide aggregate flags for fill, wire, edges, bbox, points, selection, decorator normals, decorator boundary/seam/non-manifold resources, and raster drawing.
+
+The same request object is used for two things:
+
+1. `prepareDirtyBuffers(...)` asks `Document::ensureMeshGpuResources(...)` only for the cache products needed by the requested passes, plus extra resources needed by current-mesh highlighting.
+2. `buildRenderFramePlan(...)` converts the request into concrete draw items after resources/pipelines are available.
+
+`RenderFrameRequest` adds frame-local state to the pass requests: view mode, pixel size, projection matrix, view matrix, light direction, and raster overlay state (opacity plus raster pan/zoom in `RasterImage` mode). `RenderFramePlan` is the concrete in-process result: fill items, buffer items, decorator items, selection items, and raster draw items with QRhi buffers/pipelines and material renderer pointers. Pass presence is derived from non-empty draw-item lists (`hasFillPass()`, `hasSceneDrawItems()`, etc.).
+
+This is an internal architecture boundary, not a public serialization contract. The implemented programmatic path serializes camera/render-state intent and lets MeshLab build the GPU `RenderFramePlan` internally.
+
+## Shared GPU Cache (`MeshGpuResourceCache`)
+
+Cache key: `(QRhi*, meshId, variant, geometryRevision, materialRevision, selectionRevision where relevant)`. Quality variants also include fixed-range mode, min/max, center-on-zero, and percentile crop. Wire resources also track whether faux polygon edges should be respected.
+
+Cached outputs:
+
+- **fill**: one or more batches — vertex/index buffers, optional base/normal/occlusion/roughness textures and per-batch PBR factors. Variants: `Constant`, `PerVertex`, `PerFace`, `PerVertexQuality`, `PerFaceQuality`, `Texture`. Texture lookup can use legacy texture paths, `MeshIOTextureAsset` entries, and material slots. PBR normal textures can be interpreted as tangent-space maps or object-space maps according to `fillPbr.normalMapSpace`.
+- **wire**: barycentric-expanded triangle buffer, optionally honoring faux-edge bits for polygonal faces.
+- **edges**: line buffer + fat-line buffer from explicit mesh edges. Each expanded vertex stores packed endpoint RGBA and packed edge RGBA; the shader selects constant, interpolated per-vertex, or flat per-edge color without rebuilding geometry.
+- **points**: position/color/normal payload + normal-valid flag. Variants: `Constant`, `PerVertex`, `PerVertexQuality`.
+- **bbox**: line buffer.
+- **selection**: selected-face triangles, selected-vertex points, and selected edges both as plain segments and as fat-line quads (`LineRenderer::buildFatLineVertices`), keyed on `selectionRevision` so selection overlays rebuild without invalidating fill/wire/point resources.
+- **decorators**: vertex normals, face normals, boundary edges (line + fat-line), texture seams (line + fat-line), non-manifold edges (line + fat-line), non-manifold vertices, and curvature principal-direction lines.
+
+`MeshGpuResourceCache::gpuMemoryStats()` sums the QRhi buffer sizes and known RGBA8
+texture payloads for all cache variants and RHIs, including non-manifold decorator
+buffers. This is a **logical mesh-cache size**, not total GPU or process memory: per-view
+UV/raster/offscreen resources, backend alignment, staging/command storage, and driver
+allocations are outside it. The Memory Info dialog therefore presents it separately from
+tracked CPU allocations and OS physical footprint.
+
+Fill uses an indexed path (shared vertices) or an expanded-triangle path for per-face colors or texture batching. For quality variants, normalized quality is stored in the buffer and resolved via LUT sampling in shaders. Changing colormap, inversion, or isoline settings updates only the per-view LUT texture; changing fixed range, center-on-zero, or percentile crop changes normalization and rebuilds the affected quality buffers.
+
+Boundary extraction: topological edge incidence (`incidentCount == 1`). Non-manifold edge extraction: topological edge incidence above two. Non-manifold vertex extraction: vertices whose faces form more than one fan -- two cones touching at the tip -- and that lie on no non-manifold edge, which that decorator already shows; the definition of vcglib's `CountNonManifoldVertexFF`, which the info panel counts with. The cache holds a const mesh without FF adjacency, so it finds the fans from the same edge map, joining the corners at each end of every manifold edge. Seam extraction: per-topological-edge UV sample comparison (texture-index changes, missing/invalid UV). Colors: green boundaries, blue seams, and one red-purple for both non-manifold decorators.
+
+## Per-Mesh Render Modes
+
+`RenderWidget` holds a `PerMeshRenderSettings` per mesh id (`m_meshRenderModes`; `MeshRenderMode` is a local alias). View-level settings are in `m_renderSettings` (`GlobalRenderSettings`). See [Data Model](data_model.md) for field details.
+
+Default mode for new meshes:
+- surfaces (`FN > 0`): fill on, wire on for `FN < 10000`
+- edge-only meshes: edges on (`edgeSize = 4.0`)
+- point-only: points on
+
+Default fill color source preference: texture → per-vertex → per-face → per-vertex-quality → per-face-quality → constant, clamped to mesh `ioMask` + texture availability. Texture availability is based on `Document::meshTextureAssociationCount(...)`.
+
+Default explicit-edge color source preference: per-edge → per-vertex → constant. Availability is clamped to `IOM_EDGECOLOR` and `IOM_VERTCOLOR`; unavailable choices are disabled in the overlay panel. Edge-only PLY layers carrying edge colors therefore open with `PerEdge` selected automatically.
+
+## Radiance scaling
+
+Radiance scaling (Vergne, Pacanowski, Barla, Granier, *Radiance Scaling for Versatile Surface Enhancement*,
+I3D 2010) is an **option of the plain fill material** (`fillPlain.radianceScaling`, with `rsEnhancement`
+and `rsResolutionBias`), not a material of its own. It used to be a third material, with a shader that replaced the
+lighting by a diffuse-only one and had its own copy of the colour logic; a render state that still says
+`fill_material: 2` or has a `fill_rs` block is refused (`parsePerMeshSettings`), with a message saying where it
+went.
+
+**What it does.** The lighting scalar before the albedo -- `shade = ambient + diffuse`, in [0, 1] -- is replaced by
+`shade * sigma(kappa, shade)`, and the colour is `albedo * shade + specular`. `sigma` is the paper's scaling function
+(eq. 2) with the scaling-invariant point alpha = 0.1 and magnitude 1: it leaves `shade = alpha` alone, brightens
+the brighter values on convexities and darkens them on concavities, and the other way round below alpha. The
+colour source is out of it, so a texture, per-vertex colours or a scalar map keep their hues, and the
+specular term is added unscaled. With the lighting off `shade` is one, which is the curvature shading the paper
+notes. PBR does not have the option. (There was an invert switch, the sign of the gain, which the curvature signal is odd in;
+it was dropped as of little use.)
+
+**Where the curvature comes from.** A **pre-pass** (`RenderWidget::renderRadianceScalingPrepass`,
+`fill_radscale_buf.frag` for surfaces and `points_radscale_buf.frag` for points)
+draws every filled layer and every layer's points into `m_rsGradTexture` (`RGBA32F`): `(gx, gy, logZ, 1)` from the
+interpolated view-space normal and the log of the view depth, using the normals each layer is shaded with: the interpolated vertex normal
+for a smooth layer, the face's own for a flat one (the pass is told which through the occlusion-strength slot of the
+uniform block). For a flat layer the curvature is therefore zero inside a face and high across the edges, where the
+convex ones come out as bright lines, as in the original MeshLab; from the smooth normals the curvature would spread
+over every face and whiten it towards the silhouette. It draws all layers, not only those with the
+option on, so that an occluder's silhouette is a depth step. The fill shaders (`fill_smooth.frag`,
+`fill_flat.frag`) and the points shader (`overlay_points.frag`) read it back, all through one shared block,
+`shaders/radiance_scaling.glsl` (pulled in with `#include`, through `GL_GOOGLE_include_directive`; `qt_add_shaders`
+tracks it as a dependency of each), by absolute framebuffer position -- bound in the slot the
+normal map would use, which plain does not -- takes the Hessian of the gradient over a 3x3 neighbourhood,
+`tanh`s it with the gain, and fades it to nothing at depth discontinuities. The pre-pass runs only when some
+layer asks, and a layer's draw drops the option for the frame if the buffer could not be made.
+
+**Points.** The option is the same switch for a layer's points: there is no separate setting, and the Points settings panel carries the same three controls as the Fill one (`RenderOverlayPanel::buildRadianceScalingRows`, kept in step by `syncRadianceScalingRows`). The points take it whatever the layer's fill material is (the frame plan gives their draw items the plain material), so with a PBR fill the points panel is where it is controlled. A point with a normal
+writes it (made two-sided, as the lighting of the points is) into the buffer as a round dot, and a point without one
+writes a flat patch facing the viewer, which occludes but has no curvature; `overlay_points.frag` scales its lighting
+scalar (the ambient `0.75` plus the diffuse part, or one when the points' lighting is off) by the curvature at the
+point, and leaves a point without a normal alone. The points draw with the fill-texture bindings so that the buffer sits in
+the normal-map slot, as for the fill; a point cloud with no fill still gets the pre-pass. The texture-coordinate
+view does not draw the buffer and so draws its points without the option.
+
+**The curvature is measured in pixels, on purpose.** It makes the enhancement crisper the smaller the object is on
+screen, which is a feature of the technique; there is no world-space normalization. The strength therefore also
+depends on the zoom and on the size of the render target, a snapshot of another size included.
+
+`rsResolutionBias` (JSON `rs_resolution_bias`, *Resolution bias* next to the other radiance-scaling controls) lets the
+user trade some of that away. The Hessian of a gradient buffer measured per pixel shrinks in proportion to the view's
+height, so a snapshot twice as big reads half as curved. The bias multiplies the gain by
+`(viewHeight / 1000) ^ bias` (`radianceScalingGain`, on the CPU, against the height of the tile being drawn): 0, the
+default, leaves the pixel-space behaviour as it is, 1 makes the strength about the same at any resolution, and
+between is a blend. The reference of 1000 pixels is where the bias changes nothing. The probe measures that the
+strength at 240 and 720 pixels is much closer with the bias at 1 than at 0 (not equal: the signal goes through `tanh`
+and the display clamps).
+
+**Bindings.** The pass binds the main uniform buffer through its own shader-resource bindings, with a dynamic
+offset like every other binding of that buffer. The buffer is replaced when it has to grow (its capacity follows the
+layer count), so the replacement drops the pass's pipeline and bindings, and `ensureRsGradResources`, which tears
+everything down when the size is unset, rebuilds them; a binding left behind would hold a pointer to the old
+buffer.
+
+Tested by the render probe `tests/render_probes/radiance_scaling` (the option changes the lighting, scales
+nothing at zero gain, keeps the colour proportions of vertex colours, works with flat shading and with point
+clouds, survives the buffer being replaced under 81 layers, and the refusal) and by `RenderSettingsJsonTests`.
+
+## Back lighting
+
+`PerMeshRenderSettings::fillBackLighting` (`Single`, `Double`, `Fancy`; JSON `fill_back_lighting`; *Back lighting*
+in the Fill settings, for both materials) is how the old MeshLab's Single / Double / Fancy back-face modes come over.
+They were two fixed-function lights, the light and one opposite to it; here the fill shaders do the same with the
+diffuse term, through `shaders/two_sided_lighting.glsl` (`sidedDiffuse`, shared by `fill_smooth.frag` and
+`fill_flat.frag`):
+
+- **Single** -- `max(N.L, 0)`: a surface turned away from the light gets the ambient and nothing else.
+- **Double** -- `abs(N.L)`: the opposite light is the same as the first, so a surface is lit from whichever side it faces.
+- **Fancy** -- as Double, with the diffuse part tinted bluish (`0.8, 0.8, 1.0`) where the light reaches the surface and
+  pinkish (`1.0, 0.8, 0.8`) where only the opposite one does; the old defaults for its two diffuse colours. Together with
+  the lighting of the back it makes the side of a surface readable from its colour.
+
+"Back" is relative to the **light**, not the viewer, as it was in the old MeshLab, so the tints follow the light when it
+is moved; the ambient stays white and the specular term is left as it was. It reaches the shader in
+`lightingParams.w`, which is 0 with the fill lighting off and `1 + mode` otherwise. The tints are constants of the
+shader (the old MeshLab had them as application settings). Backface *culling* is a separate switch.
+Tested by the render probe `tests/render_probes/back_lighting`.
+
+## Reference grid
+
+`GlobalRenderSettings::referenceGrid` (`None`, `XY`, `XZ`; JSON `reference_grid`; *Reference grid* in the
+View Settings panel) draws a plane through the world origin, ruled in powers of ten, with the two
+world axes in it drawn red (X), green (Y) and blue (Z): a reference for where the origin is and how big
+things are. It is a different thing from the layer grid (`LayerArrangement::Grid`), the tiling of layers.
+
+**One quad, ruled by its fragment shader** (`shaders/grid.frag`; one draw in `render()`, after the
+fills and the point/edge/box items and before the decorators). The quad is `halfSize` wide about the
+point of the plane nearest the orbit centre -- so it follows a pan -- and the shader fades the grid out
+over its outer part, so no edge is seen. It is depth-tested against the scene and writes no depth.
+Lines are one pixel wide whatever the zoom (from the screen-space derivative of the cell coordinate)
+and the axes about two.
+
+**Three decades are drawn at once**, each ten times the last (`viewGridLevels`): from the world size of
+a pixel at the orbit centre, the fine one is between 1 and 10 pixels apart, the middle one 10 to 100 and
+the coarse one 100 to 1000. The middle is always drawn in full; the fine fades out as it gets too dense
+to read and the coarse fades in as it becomes sparse enough to, so a decade never pops in or out when
+zooming (the weights are one fraction and its complement, and line up across a decade). Each level also
+fades by how many of its cells fall in a pixel, which is what lets a plane seen at a grazing angle go
+quietly to nothing in the distance instead of to noise.
+
+**Which plane** (`chooseViewGridPlane`): the setting names XY (a scene standing on Z) or XZ (on Y). An
+*orthographic* view looking straight down a coordinate axis (within about one degree) -- front, side, top,
+which the axis gizmo and the numeric views give -- always gets the plane *across* its line of sight
+whatever the setting, so the grid is never seen edge-on and an orthographic view with the grid on always
+has something to measure with. An orthographic view off the axes uses the chosen plane.
+
+**Depth.** An orthographic view fits its depth range to the scene, and the plane through the origin may be
+nowhere near it, so `sceneProjection` widens the volume to hold the plane (both ends, as for the peer-view
+glyphs). A perspective view lets the far reaches of the grid be clipped by its far plane; they have faded
+by then. The setting is part of the render-state JSON, so snapshots and scripted renders draw it too.
+
+**Preferences.** `view.referenceGrid` is the grid a new view starts with (read when a view is created and by
+File > New), and `view.grid.*` set how it looks: the strength of the fine, middle and coarse lines, the width
+of the axis lines, the reach (a multiple of the default radius the grid fades out by), and the colours of the
+rules and of the three axes. They are read every frame (`viewGridStyle()`), and a change in the dialog repaints
+the views. A newly loaded layer's point size, edge width, edge-only-layer width and wireframe width start from
+`render.pointSize`, `render.edgeSize`, `render.edgeLayerWidth` and `render.wireSize`.
+
+Tests: `ViewGridTests` (plane choice and level arithmetic) and the render probe
+`tests/render_probes/reference_grid` (the axis colours, the orthographic rule, and the grid far from the
+scene).
+
+## Resetting the views
+
+*File > New* closes the layers, the undo history and the log, and then puts everything else the
+user could have changed back as a fresh start has it: `RenderWidget::resetToDefaults()` on the
+remaining view (render settings seeded from the preferences again, per-layer render modes dropped, default
+camera and projection, headlight, 3D mode, UV and raster views refitted), the active tool, the
+camera synchronisation, and the values the filter panel remembers
+(`MeshFilterPanel::forgetRememberedParameters()`). The camera is framed by the next layer, by the
+same path as Reset Camera. Split views are closed down to one, the current view, as a launch opens with. Preferences are kept. State a new
+view carries should be added to `resetToDefaults()`, or New will not clear it.
+
+## Clip-space convention
+
+Every projection the application builds -- the trackball's, a raster's, the 2D UV view's -- is in
+OpenGL convention: clip depth in [-1, 1], Y up. The backend may want otherwise (Metal and
+Direct3D keep depth in [0, 1], Vulkan has Y down), and that is Qt's to describe, not ours:
+`QRhi::clipSpaceCorrMatrix()` is the matrix that converts. `RenderWidget::forBackend()` applies
+it, and it is applied where a matrix is written into a GPU buffer -- never to the matrices the CPU
+keeps. The depth pick therefore unprojects in OpenGL convention too (`ndcZ = depth * 2 - 1`, Y up),
+and nothing outside `forBackend` asks which backend is running. A new pass that uploads a
+view-projection must go through it; `tests/render_probes/clip_space` fails if a pass forgets, as a
+near plane pushed in front of an object cuts the object on Metal.
+
+## `Scene3D` Frame Sequence
+
+1. Advance animation/camera state, sync per-mesh render modes, and update the camera frame when needed.
+2. Collect `RenderFramePassRequests` once for visible meshes and raster-layer requests.
+3. Prepare shared mesh GPU resources from those requests.
+4. Upload per-frame textures/UBOs such as the quality LUT, gizmo buffers, light gizmo UBO, and background gradient.
+5. Execute depth pick (if scheduled).
+6. Build current-mesh highlight masks (if `highlightCurrentMesh`).
+7. Build a concrete `RenderFramePlan` from a `RenderFrameRequest`.
+8. Run the radiance-scaling gradient pre-pass (if any planned plain fill item has `fillPlain.radianceScaling` on).
+9. Run main onscreen pass.
+
+Main pass draw order: scene background · raster background in RasterImage mode only · fill · wire · edges · bbox · points · raster camera frustums · decorators · trackball gizmo · light gizmo · depth-cued tool guides · current-mesh outline/debug composite · selection overlay · 2D informational/tool overlays.
+
+## `Scene3D` Pass Details
+
+**Scene background**: full-screen gradient triangle, `sceneBackgroundBottomColor`/`TopColor`, drawn first.
+
+**Fill**: Fill planning and execution are isolated in `renderwidget_fill.cpp`. `SceneFillFramePlan` contains fill draw items, each with a material renderer selected from `PlainFillRenderer` or `PbrFillRenderer`. Shared behavior such as UBO upload, texture SRB resolution, selected PBR texture lookup, and radiance-scaling gradient resource access goes through `FillRenderServices`.
+
+Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. Quality normalization honors fixed range, center-on-zero, and percentile crop settings; automatic ranges default to a `0.01` crop at both tails to reduce outlier influence when filters map newly computed quality values to color. PBR binds base/normal/occlusion/roughness per batch. Tangent-space normal maps derive TBN from screen-space derivatives of view position and UV; object-space normal maps are transformed by the normal matrix and blended with the base normal using `normalScale`. Radiance scaling is covered below.
+
+**Wireframe**: barycentric triangles + fragment edge test; depth `LessOrEqual`, no depth write; alpha blending; `wireBackfaceCulling`; optional `wireRespectFaux` controls faux polygon edge handling in the cached wire data.
+
+**Edges**: fat-edge triangles when available, line fallback; depth `LessOrEqual`; alpha blending; width from `edgeSize`. `edgeColorSource` chooses `edgeColor` (`Constant`), interpolated endpoint vertex colors (`PerVertex`), or one flat `VCGEdge` color (`PerEdge`). This pass renders explicit `VCGMesh::edge` elements and is independent of triangle **Wireframe** and boundary/seam/non-manifold decorators.
+
+**Bounding box**: line topology; depth on, no depth write.
+
+**Points**: `QRhiGraphicsPipeline::Points`; depth test+write; point lighting, size, and color source from settings; quality variant LUT-sampled. The size is `pointSize` pixels, or, with `pointSizeObjectSpace`, a diameter of `pointObjectSize` in the mesh's own units: `pointParams.x` carries the pixel size as a positive number and the object size as a negative one (`encodedPointSize`). The vertex shader projects an offset of that length along the view's vertical, carried back into mesh space, so the dot is as tall on screen as the surface it stands for, under a perspective or an orthographic camera, and holds it between 1 and 64 pixels (`kMaxObjectPointPixels`). `depth_pick.vert` repeats the computation, so a pick hits the dot that was drawn. The first time a layer switches to object space with no size set, the view fills in the spacing its points would have spread evenly over its bounding box (diagonal / sqrt(vertex count), to two significant digits).
+
+**Decorators**: depth `LessOrEqual`, no depth write. Normals and curvature directions use the line pipeline. Boundary, seams, and non-manifold edges use the fat-decorator pipeline (`decoratorBoundaryWidth`) with line fallback. Non-manifold vertices use a point pipeline.
+
+**Selection overlay** (final pass): semi-transparent red fill triangles + red vertex points; depth `LessOrEqual`, no depth write; per-mesh `showSelection`/`showSelectionFaces`/`showSelectionVertices`/`showSelectionEdges`, all in `RenderWidget::kSelectionColor`. Selected edges are drawn as quads `render.selectedEdgeWidth` pixels wide (default 4, the width an edge layer is first drawn with), through the fat-line decorator pipeline: `planSelectionPasses` puts them on the decorator list, so they draw in the decorators' slot of the order above. A line primitive is one device pixel wide on Metal whatever width is asked for, so the plain-line selection pipeline only stands in when the fat one cannot be drawn. Scene3D selection resources come from the shared mesh GPU cache; UV mode has a dedicated UV-space selection overlay.
+
+**Decorator info overlay**: 2D label controlled by `showDecoratorInfo`, on by default. It reports numeric counts for enabled decorator data on the current mesh (boundary/seam/non-manifold families) while the boundary decorator is on, and hides itself otherwise or when no relevant decorator information is available. All four boundary-page decorators -- boundary edges, texture seams, non-manifold edges and vertices -- default on, so turning the pass on shows everything it can.
+
+Simple buffer pass execution (wire, edges, bbox, points), decorator execution, and selection execution are isolated in `renderwidget_scene_passes.cpp`. Their draw order remains controlled by `renderwidget_render.cpp`.
+
+**Rasters**: `renderwidget_raster.cpp` owns per-raster texture upload and draw execution. In `Scene3D`, rasters with valid camera shots draw as small line frustums with the apex at the raster camera origin and the base oriented by the camera view frustum (an orthographic shot draws as a box instead: no apex, four parallel edges between two equal rectangles, as does a peer view's camera when that view is orthographic); the current raster frustum is highlighted in warm yellow while other raster frustums use blue. Rasters without cameras are not drawn in the 3D view. The raster image itself is not pasted into the 3D scene. In `RasterImage`, only the active raster layer is requested as the full-viewport background reference, and mesh passes are included only when that raster has a valid camera.
+
+## Current Mesh Highlight
+
+Runs when `highlightCurrentMesh` is on, the current mesh is visible, the document holds more than one layer, and the layers are overlaid rather than arranged in a grid: with a single layer the outline marks nothing, and in the grid every layer already has a tile of its own. Every outline pass asks `RenderWidget::wantsCurrentMeshOutline()`, so the rule lives in one place.
+
+**Surface/edge path**: render current mesh depth mask → extract silhouette into `work` → render all other meshes into `mask` for occlusion → composite outline. Occluded outline portions use half alpha.
+
+**Point-cloud path**: render occupancy mask → dilate (`base → work`) → erode (`work → mask`) → composite outline from final mask.
+
+Debug views: `FullMask`, `VisibleMask`, `OccludedMask`, `DilatedMask`, `ErodedMask`. Normal path is `Outline`.
+
+## Clipping Plane
+
+A world-space plane that cuts away everything on its negative side, in every `Scene3D` pass
+including depth picking. Off by default; `GlobalRenderSettings` holds it, so it is per view,
+inherited by a split, and carried in a render state.
+
+`ClipPlane::world()` ([clipplane.h](../../src/render/clipplane.h)) resolves
+`clipPlaneAxis` (`X`/`Y`/`Z`/`View`/`Custom`), `clipPlaneRelativeTo` (`Origin`/`Center`/
+`Min`/`Max`), `clipPlaneOffset` and `clipPlaneFlipped` against the visible scene's bounding
+box into a `vec4` — xyz normal, w offset, a point surviving when `dot(vec4(p, 1), plane)`
+is at least 0. All-zero means keep everything, which is what every pass writes when clipping
+is off, so no shader branches and no pass has a second pipeline. The offset is a fraction of
+the scene's diagonal, so one range fits every model and a saved state survives a rescale.
+`View` resolves from the camera each frame; the others hold still while you orbit.
+
+Vertex shaders see **local** positions, so the world plane is transformed per layer:
+`ClipPlane::toLocal()` applies the transpose of the layer matrix, since a plane transforms
+as a row vector. That makes the plane per-mesh data with the same cadence as `mvp`, which is
+why it rides in the per-mesh uniform slice (`kUbufClipPlaneOffset`, and
+`kDecoratorClipPlaneOffset` for the two decorator blocks) rather than in a buffer of its own.
+
+Eleven vertex shaders write `gl_ClipDistance[0]`: the seven fill/wire/edge/point/bbox
+shaders and `selection_mask.vert` on `m_srb`, `depth_pick.vert` on `m_depthPickSrb`, and
+`overlay_decorator.vert` / `overlay_fat_decorator.vert` on the decorator and selection SRBs.
+The three that already redeclare `gl_PerVertex` for `gl_PointSize` list the clip distance
+there too, or `qsb` refuses the build. Gizmos, the background, raster passes and everything
+in UV mode are deliberately not clipped.
+
+> **This sets the OpenGL floor at 3.2 core.** `qt_add_shaders` passes `GLSL "150"` because
+> Qt's default set also bakes GLSL 100 es and 120, and SPIRV-Cross emits a global `out
+> float gl_ClipDistance[1]` for those profiles, which they reject. `qsb` exits 0 either way,
+> so the breakage would only appear when the GL backend compiled the shader at run time.
+> Metal, Vulkan and D3D are unaffected.
+
+**Cut rim.** `fill_smooth.vert` and `fill_flat.vert` also pass the clip distance to the
+fragment stage, where `fill_smooth.frag` and `fill_flat.frag` blend
+`clipRim.rgb` into the sliver just above zero, `clipRim.a` pixels wide:
+`smoothstep(width * fwidth(d), 0.0, d)`. `fwidth` is what keeps the band a constant number
+of pixels whatever angle the surface meets the plane at. Width 0 disables it.
+
+**Solid cut.** With `clipPlaneSolidCut` the cut is drawn as a face on the plane, found per
+pixel rather than built as geometry, in two draws after all the fills
+(`renderSceneSolidCut`):
+
+1. *Count.* Every clipped layer whose fill is showing is drawn again into the stencil only —
+   colour and depth off, both faces — decrementing on front faces and incrementing on back
+   faces. The main pass clears stencil to `kSolidCutStencilBias` (128), so the count can go
+   negative without wrapping into the range tested next.
+2. *Cap.* `ClipPlane::capQuad` — the square the plane gizmo spans, which covers every point
+   where the plane can meet the scene's box — drawn where the stored value exceeds the bias,
+   depth-tested and depth-writing.
+
+Seen from the discarded side, a ray through a point of the cut that lies inside a closed
+solid leaves it once more than it enters, so the count is positive exactly on the cross-
+section. A **winding** count rather than parity keeps nested and overlapping solids capped
+(parity would cancel them), and on open surfaces it turns most failures into a missing cap
+rather than a spurious sheet: a ray that leaves through a hole simply counts zero. That is
+the remaining limit — on an open mesh, the cap is absent wherever a view ray leaves the
+object through a hole. On by default, since the failure is a missing face and never a
+wrong one.
+
+The cap is planar and the light directional, so its diffuse shading is one value per frame;
+the CPU computes it with the fill shaders' own model (ambient 0.18 plus Lambert) against the
+cap's normal, which faces the discarded side. It is drawn through the raster-projected
+shaders, which carry no clip distance: the cap lies exactly on the plane that would cut it.
+Depth picking does not see it — a click on the cap picks the wall behind.
+
+**Plane gizmo.** A bordered grid on the plane with a stem along the surviving side, built by
+`ClipPlane::planeGizmo()` and drawn on the line-gizmo pipeline the peer-view cameras use
+(`kClipPlaneGizmoRasterIndex`). It appears while the plane is moving and for 1200 ms after;
+`clipPlaneShowPlane` keeps it up permanently.
+
+**Snapping.** Every edge crossing the plane is split exactly, except at a vertex already
+lying on the plane to within rounding -- vcglib's `PlaneTolerance`: 1e-5 of the diagonal, or
+16 float ulps of the largest coordinate for a small piece far from the origin, the same test
+`CapPlanarBoundary` and the filter's open-edge count use -- which is moved onto the plane
+instead. That snap is invisible, and it is the only one the cut needs: split a float's width
+away from such a vertex, its crossing edges leave a cluster of split points that zig-zag at
+rounding level, and the planar tessellator rightly rejects the outline. The filter's *Snap
+to existing vertices* (`ClipMeshWithPlane`'s tolerance, 0 by default) goes further: a
+crossing within that fraction of an edge from an endpoint moves the endpoint rather than
+splitting the edge. It saves thin triangles, but a fraction of an edge is a long way on a
+long edge -- a second cut through the cap of a first drags that cap's vertices visibly off
+its plane -- so it is off unless asked for. A non-manifold edge cannot be split, so its
+nearer end is moved onto the plane in any case. A face a move lays flat on the plane is
+discarded with the removed side; kept, it would lie under the cap and leave edges shared by
+four faces.
+
+**Capping.** *Close the cut* is vcglib's `CapPlanarBoundary`, which fills only the loops lying
+on the plane and leaves holes the mesh already had alone. All of them are tessellated at once
+under the even-odd rule, so a torus cut through its central circle caps as a ring. When the
+planar tessellator rejects them -- it takes only outlines that neither cross nor touch
+themselves -- each outer outline is tried again alone with the holes inside it, outer and
+hole told apart by the mesh's winding rather than by nesting, so shells of one layer that
+pass through each other get a cap each. What it still rejects is ear-cut on the mesh
+boundary instead: a loop that crosses itself because the scanned surface does, or an
+outline pinched where it touches itself. Ear cutting always closes such a hole, but where
+the outline crosses itself a few of its triangles fold over others. Left open, and counted
+in the filter's log: an outline that runs into a pre-existing hole, an outer outline with
+holes that the tessellator rejects, and a hole that needs ear cutting beside a non-manifold
+edge, which vcglib's boundary walk cannot cross.
+
+**Making the cut real.** The clip-plane page's *Trim Current Layer* button runs
+`meshlab2.filter.meshing::trim_surface_by_plane` on the current layer -- or, when the layer
+is a bare point cloud (vertices, no faces or edges),
+`meshlab2.filter.meshing::trim_point_cloud_by_plane`, which drops the points behind the plane
+and has no cut to close -- and then switches the clipping plane off, so what is on screen
+becomes the geometry rather than a view of it.
+
+The plane is handed over as a normal measured from the origin rather than copied across as
+the settings: the view measures its offset in diagonals of the whole visible scene while the
+filter measures a distance against one layer's bounding box, so the same numbers would mean
+different planes as soon as there is more than one layer. And it is the plane in the layer's
+own coordinates (`ClipPlane::toLocal`, what the shaders clip with), because the filters work
+in those and ignore the layer matrix; the world plane would cut a different slab once the
+layer has been moved. It matches what the viewport shows -- one layer, and the cut closed when
+it is shown as solid (`closeCut` follows `clipPlaneSolidCut`); the Filters panel has the rest
+of the filter's options.
+
+**Interaction.** `Ctrl`+wheel slides the plane along its normal at 0.02 diagonals a notch;
+`Alt`+drag tips it, switching the axis to `Custom`. Both enable clipping if it is off, and
+the wheel starts it at `ClipPlane::offsetClearOfScene()` — the offset where the plane just
+touches the scene — so the next notch cuts. `Ctrl`+wheel used to scale `view.nearClipRatio`;
+that ratio is now a depth-precision setting reached only from the preferences. The controls
+also live behind the `RenderPass::ClipPlane` button on the pass bar.
+
+## Depth Picking
+
+Double click schedules an offscreen depth-pick frame: depth encoded in RGB → one pixel read back → backend conventions normalized (Y flip, clip-depth range) → unprojected via inverse MVP → `trackballCenterPicked(worldPos)` emitted, animated recenter starts.
+
+## `Scene3D` Camera and Interaction
+
+`ViewTrackball`: left drag = arcball/hyperbola rotation; middle/right drag or `Ctrl+Left` = pan; `Shift+Left` drag = roll, the view turning about its own axis by the angle the cursor sweeps about the centre of the viewport (nothing turns within 32 pixels of the centre; a layer tool that is live takes the drag first, as it does every left drag); wheel = dolly; `Shift+Wheel` = vertigo (FOV + compensating dolly), which past the narrowest field of view goes on into orthographic and back; `5` or View > Orthographic Projection toggles the projection of the current 3D view (the `view.projection` preference sets where a new view starts); double click = depth-pick + animated recenter. `Ctrl+Shift+Left` rotates the view-space headlight and shows the light gizmo while dragging. `Ctrl+Wheel` slides the clipping plane and `Alt+Left` tips it (see [Clipping Plane](#clipping-plane)). Gizmos are depth-aware and scale-stable across dolly/FOV changes. The corner `ViewAxisGizmo` uses the `view.axisGizmoSize` preference and lets axis clicks snap the 3D camera orientation. `MainWindow` can optionally synchronize camera state across 3D views and exposes a `Center on Selection` camera command; UV views keep independent pan/zoom.
+
+## Interactive Tools
+
+Interactive tools are thin view-owned interaction front-ends over filter/document operations. A tool is active in at most one `RenderWidget`; it owns mouse/keyboard input while active, shows a cursor and an icon, can paint a 2D overlay, and can contribute depth-cued line segments to the scene pass. Durable edits commit through `Document::runFilter(...)` when possible so undo nodes and Python action history stay coherent. `Tab` suspends the tool and temporarily returns gestures to camera navigation; `Esc` exits the tool or cancels the active gesture.
+
+**The tool strip** (`ToolStrip`, `toolstrip.h`) is how an engaged tool shows itself: a bar at the bottom centre of its owner view (above the texture chooser in the UV view) with the tool's name, a line of text, a button for each of the tool's options and actions, and two buttons every tool has, *Camera* (`Tab`) and *Exit* (`Esc`, which reads *Cancel* while a gesture is under way, since `Esc` then cancels it). Each button shows its key as a keycap and its purpose in the tooltip; pressing the key lights the button. The border is the accent colour while the tool has the mouse and grey while it does not (Tab, another view current), and in a view that does not take the tool (the layer grid, an unsupported mode) the buttons are greyed and the text says so. The text is the tool's `statusHint()` -- what the mouse does, in a few words -- or, while it works, its `statusDetail()` (the transform readout, the measurement count). On a narrow view the groups of buttons wrap onto more rows and the text is cut short, whole in its tooltip.
+
+The buttons and the keys come from one description: a tool lists its controls (`InteractiveTool::controls()`: id, toggle or action, label, help, keys, group) and answers `isControlChecked`, `isControlEnabled` and `triggerControl(id, modifiers)`. `RenderWidget` runs a control from its button or from its key alike (`toolControlForKey`, then `triggerToolControl`); only what is left -- a gesture's own keys, such as typing a value or closing a lasso -- reaches `InteractiveTool::keyPress`. A key with `Ctrl`, `Alt` or `Cmd` held never reaches a control, so the menus keep their shortcuts, an auto-repeated press is swallowed, and a disabled control lets its key go on to the tool. The strip never takes the keyboard focus, keeps the presses on its background so that a click between two buttons does not reach the scene, and makes its view current when pressed. Its test (`tests/test_toolstrip.cpp`) drives it with a stand-in tool; `MESHLAB2_GRAB_DIR` saves what it looks like.
+
+Current built-in tools:
+
+- `Select Layer`: click in Scene3D to schedule an asynchronous GPU surface pick; on hit, the picked mesh becomes the current mesh layer.
+- `Rubber-band Select`: drag a rectangle in Scene3D or UV mode, then run `meshlab2.filter.select::select_by_screen_rectangle`. `Shift` adds, `Ctrl` subtracts, *Faces* (`F`) and *Vertices* (`V`) choose what is selected, *Visible Only* (`B`) keeps only the faces visible from the viewpoint, and *Components* (`C`) and *UV Islands* (`T`) grow what the rectangle touched to whole connected components or whole UV islands (the filter's `expand_to`). *Lasso* (`P`) switches to a polygonal lasso: click the corners, close it with a double click, `Enter` or a click on the first corner (`Backspace` takes back the last corner, `Esc` drops the polygon, and `Tab` is held back while one is open); it commits `select_by_screen_polygon`, whose polygon is a JSON array of normalized `[x, y]` points tested even-odd, and the modifiers and the other keys apply to it as to the rectangle. The tool passes either camera-state JSON or UV pan/zoom parameters depending on the active view mode.
+
+  Six more controls edit the selection already made, each by running one ordinary selection filter (so each is one undo step and one recorded script call) on whichever of faces or vertices the tool is picking: *All* (`A`), *None* (`N`), *Invert* (`I`), *Dilate* (`+` or `=`), *Erode* (`-`), *Remove* (`X`). Remove removes the selected faces together with the vertices no face uses any more (`remove_selected_faces_and_vertices`) in face mode, and the selected vertices with their faces (`remove_selected_vertices`) in vertex mode. The key-to-filter mapping lives in `tools/selectionshortcuts.h` and passes the kind explicitly, because the filters' own defaults act on both kinds (`select_all`, `select_none`), on whichever kind already has something selected (`invert_selection`, which would do nothing to an empty selection) or, before `dilate_selection` and `erode_selection` took an `element`, from faces only. They are disabled while a drag or a polygon is in progress, and None, Dilate and Erode skip an empty selection rather than leave an empty undo step. They apply in the UV view too, where selection is the same selection.
+- `Measuring Tool`: click surface points in Scene3D to build/edit measurement segments. It uses asynchronous surface picking for placement and drag previews, draws labels and depth-cued segments, *Undo* (Backspace) takes back the point just placed or the last segment, *Clear* (`C`) removes them all, *Print* (`P`) writes them to the log, *Save* (`S`) saves a TSV, and *Export Layer* (`X`) adds them as an edge-only mesh layer; the strip's text says how many there are and which point comes next.
+- `Transform Layer`: modal layer transform tool for the current mesh. *Move* (`G`), *Rotate* (`R`) and *Scale* (`S`) start translate/rotate/scale gestures; *X*, *Y* and *Z* constrain to an axis, `Shift` plus an axis constrains to the perpendicular plane, typed numbers set exact values, and *Apply* (Enter) or a click commits. The readout is the strip's text. A gesture started from its button, with the pointer on the strip, starts from where the pointer first moves in the scene. During preview it updates the layer matrix directly, then restores the original matrix and commits exactly one transform filter so undo/script history remain clean. The tool exposes the shared `:/img/axis.png` toolbar icon.
+
+`Rubber-band Select` is the only tool that currently supports `ParametrizationUV`. The other built-ins are Scene3D-only, and Raster mode remains image-navigation oriented.
+
+## Camera Models: `CameraShot` vs `ViewTrackball`
+
+MeshLab uses two distinct camera representations that overlap but are not interchangeable:
+
+| | `CameraShot` | `ViewTrackball` |
+|---|---|---|
+| **Type** | Pinhole camera (eye position, view direction, FOV, intrinsics) | Orbit camera (center, rotation, distance, FOV) |
+| **Stored in** | `Document::RasterEntry::shot` (raster cameras), serialized from MLP | `RenderWidget::m_trackball` (view navigation) |
+| **Provides** | `project()`, `unproject()`, `depth()`, `viewMatrix()`, `projectionMatrix()` | `cameraEyePosition()`, `cameraViewDirection()`, `viewMatrix()`, `projectionMatrix()` |
+| **Key difference** | No orbit center — just eye + direction | Has an explicit 3D orbit center |
+
+**Conversion:**
+
+- **Trackball → Shot** (`cameraShotForViewport()`): eye position and view direction from the trackball are used to derive a VCG shot. The center is lost. `PixelSizeMm` is set to `(1,1)` — a fictitious calibration, but self-consistent because `FocalMm` is computed from the same unit system. The ratio `FocalMm / PixelSizeMm` determines the angular resolution, which is correctly derived from FOV and viewport size.
+
+- **Shot → Trackball**: underdetermined. The shot stores only the eye and direction; you must supply either an orbit center point or a distance along the view direction. No single conversion exists — `PeerViewCamera` therefore carries the actual `QMatrix4x4` view/projection matrices alongside near/far distances rather than just a `CameraShot`.
+
+## `ParametrizationUV` Frame Sequence
+
+Current status: UV mode is still a separate renderer in `renderwidget_uv.cpp`. It shares the document, per-mesh render settings, color-map/range controls, and some mesh GPU products, but it does not yet consume the Scene3D `RenderFrameRequest`/`RenderFramePlan` path. The intended next architecture step is UV convergence: reuse the Scene3D material/fill lighting path and substitute UV-space geometry/projection so lighting can remain the original 3D lighting reprojected into texture space.
+
+1. Sync per-mesh mode state and UV cache against current document.
+2. Ensure UV resources (`m_uvMeshGpu`); fit UV view if requested.
+3. Draw UV background (`uv_background.vert/.frag`).
+4. If `uvShowFullTexture`: draw the active group's selected PBR channel over `[0,1]²` (`uvTextureNearestSampling` switches bilinear → nearest).
+5. Draw only the active texture group's triangles and their UV decorations: fill · wire · edges · boundary edges · texture seams · points · selection overlay.
+6. If `uvShowReferenceFrame`: draw unit square outline + colored U/V axes from origin.
+
+When the mesh has multiple texture/material groups, a bottom-centered viewport strip shows one thumbnail per group. Clicking a thumbnail changes view-local, per-mesh state; it does not modify the document or undo history. Each UV buffer remains a single GPU allocation, with compact per-group byte ranges selecting what is drawn.
+
+UV fill: color source comes from `fillPlain.colorSource`. Quality UV buffers use the same fixed-range, center-on-zero, and percentile-crop normalization controls as Scene3D quality rendering. In `Texture` mode, `uvTextureChannel` selects base color, normal, occlusion, or roughness for the active group. Non-texture paths force `fillMaterial = Plain`. Scene corner/dimension overlays are hidden in UV mode.
+
+## `ParametrizationUV` Camera and Interaction
+
+Orthographic projection; `m_uvPan` + `m_uvZoom`. Left/middle drag = pan; wheel = zoom around cursor; double click = fit to mesh UV bounds (or `[0,1]²` when `uvShowFullTexture`); `Reset Camera` = UV fit. When `Rubber-band Select` is active, the same view coordinates are converted to UV-space filter parameters so rectangle selection can operate directly in the parametrization view.
+
+Undo/redo restores trackball/render-style `ViewState`; UV pan/zoom and per-view visibility remain local runtime state.
+
+## `RasterImage` Frame Sequence
+
+Current status: raster mode reuses the Scene3D request/plan/pass executors for mesh rendering. The active raster image is drawn as a background reference fitted to the widget while preserving its image aspect ratio. If the raster has a valid `CameraShot`, `CameraShot::viewMatrix()` and `CameraShot::projectionMatrix(...)` provide the frame matrices and visible meshes are rendered through that camera. The same raster pan/zoom transform is applied to both the background image and the raster-camera projection, so image navigation keeps the mesh aligned with the raster. If no camera is available, raster mode behaves as an image-only view.
+
+Raster mode interaction mirrors UV mode: left or middle drag pans the raster, wheel zooms around the cursor, and double click zooms in around the clicked image position. Raster mode starts with `75%` opacity. `Ctrl+Wheel` adjusts raster opacity. Trackball motion, depth picking, current-mesh outline, and camera synchronization remain disabled so the raster camera stays locked.
+
+## Raster Projection Filters
+
+`filter_color_projection` performs CPU-side projection from calibrated raster layers into mesh color/texture data:
+
+- `compute_color_from_current_raster_projection`: projects the current raster onto current mesh vertex colors, optionally restricted by a software depth buffer and/or vertex selection.
+- `compute_color_from_active_rasters_projection`: blends all visible rasters with valid `CameraShot`s into vertex colors using optional angle, distance, image-border, depth-discontinuity, and alpha weights.
+- `compute_color_and_texture_from_active_rasters_projection`: projects visible rasters into a generated texture image over existing wedge UVs, with optional pull-push gap filling to reduce mipmapping seams.
+
+These filters use `CameraShot::project(...)`/`depth(...)` and the mesh transform, not the live GPU scene pass. Their outputs are ordinary mesh data changes: vertex-color filters mark `VC`, while the texture bake marks wedge texture output and updates material/texture metadata through the normal filter/document path.
+
+## Texture Normal-Map Workflow
+
+PBR rendering can consume normal maps directly as either tangent-space or object-space textures through the render overlay's `Normal space` control. The Texture filter `convert_object_space_normal_map_to_tangent_space` converts an associated object-space normal map into a tangent-space image for the selected UV/material slot. It samples only faces using that slot, supports axis inversion and output-to-existing-or-new texture targets, and can bind the generated image as the selected material slot's PBR normal texture.
+
+## Quality Histogram Overlay
+
+2D overlay label inside `RenderWidget`. Controlled by `showQualityHistogram` and `qualityHistogramSource` (auto / forced vertex / forced face). Configurable bin count, optional fixed range (`qualityHistogramFixedRange`/`Min`/`Max`), center-on-zero mode, percentile crop (default `0.01` for automatic ranges), selectable colormap (`qualityHistogramColorMapId`), colormap inversion, and optional isolines (`qualityIsolinesEnabled`, `qualityIsolineCount`). Color mapping is shared with quality-based rendering so histogram colors and rendered quality colors stay aligned.
+
+Unlike the pass-bar/settings overlay panel, which floats over the 3D content regardless (fine for something you open briefly to change a setting), the histogram claims a real strip on the left of the on-screen view for as long as it is showing, so it never sits on top of the mesh it describes. `RenderWidget::sceneContentRect()` narrows the viewport by that strip whenever `wantsQualityHistogramPanel()` holds -- `showQualityHistogram`, `Scene3D`, and a valid current mesh, mirroring `updateQualityHistogramOverlay()`'s own conditions for showing something at all -- and `viewTiles()` tiles within the result, in both layer arrangements, so the camera aspect ratio, mouse hit-testing, and every overlay that follows a tile's rect (the trackball gizmo, the current-mesh outline, grid tile captions) move together. The pass-bar panel and the tool badge, which anchor to the content area rather than to a tile, shift right by the same amount in `layoutOverlayButtons()`. In UV/Raster mode, where nothing consults `viewTiles()` for its own viewport, the histogram (if shown there at all) still just floats.
+
+The strip is decided once, in logical pixels: `qualityHistogramPanelWidth()` takes no size and reads the widget's own width (a fraction of it, clamped to 180-300 px), because the panel is a native widget laid out in logical pixels. `sceneContentRect()` only scales it into the caller's units -- 1:1 for hit-testing, the device pixel ratio for the on-screen render target. Evaluating the clamp separately in each unit system is the mistake to avoid: on a Retina screen it caps the rendered strip at 300 device pixels under a panel 250 logical (500 device) pixels wide, so the gradient starts halfway under the panel and the content area the camera frames is not the one the mouse is tested against.
+
+An offscreen capture keeps the whole frame (`m_offscreenCaptureActive`, set for the duration of `renderOffscreenToImage()`): the panel is never part of a capture, and `cameraShotForViewport()` describes a capture as one full-frame camera, so a reserved strip would come out as a blank band and a snapshot raster would be misregistered against its own camera.
+
+The backdrop is drawn across the whole target when there is a single tile, rather than in the tile's viewport, so the strip behind the translucent panel continues the gradient instead of showing the flat clear colour; the gradient only varies with height and the tile spans all of it, so nothing inside the tile changes. With more than one tile the strip is one more gap and clears to the grid's own frame colour like the others. `tests/render_probes/quality_histogram_layout` checks the capture side: a snapshot is pixel-identical with the histogram on or off, in both arrangements. The on-screen strip cannot be checked from a probe -- every render a probe can ask for is a capture, which is exactly the case that keeps the full frame -- so it was checked by grabbing a live window (`QWidget::grab()`, which composites the native panel over the view) at DPR 2: every row inside the panel one colour across its width, and the mesh centred in what the strip leaves.
+
+## Snapshot Capture
+
+`MainWindow::saveSnapshotPng()`: set fixed color-buffer size → request update → wait for `frameRendered` → `grabFramebuffer` → restore previous size. Saved PNG embeds camera JSON in `MeshLab.CameraTrackballState` metadata.
+
+Snapshot-to-raster paths reuse the same view capture mechanics but add the resulting image to `Document` through `addRasterImage(...)` with a `CameraShot` from `RenderWidget::cameraShotForViewport(...)` or from `renderSnapshotFromStateJson(...)`. This is how manual snapshot rasters and the `Render from Render-State JSON` layer filter create raster layers.
+
+Programmatic snapshots use the same render-state JSON contract. Embedded `mlgui.render_snapshot(...)` and `mlgui.save_snapshot(...)` render through the live active `RenderWidget`; standalone `pymeshlab.MeshSet.render_snapshot(...)` uses `HeadlessRenderContext`, which owns a hidden `RenderWidget`/QRhi lifecycle for offscreen and batch rendering.
+
+## Verifying the Render Path
+
+The render path lives in the `MeshLab` executable, not a library, so a Qt test cannot link
+`RenderWidget` and there is no ctest for anything a shader decides. The route is the
+application's own `--generate-docs <dir>` hook, which execs `<dir>/generate_api.py` with the
+`_meshlab` module importable; a probe there builds a `MeshSet`, calls `render_snapshot()`
+with a render-state JSON, and asserts on the returned raw RGBA8888.
+
+`tests/render_probes/` holds these -- `clip_plane` for the clipping plane and solid cut,
+`clip_space` for the backend correction of clip space, `radiance_scaling` for the radiance-scaling option, `reference_grid` for the reference grid, `orthographic` for the orthographic camera through snapshots and projection filters, `boundary_decorators` for what the boundary decorator marks and in which colors,
+`quality_histogram_layout` for captures staying full-frame while the histogram is open. Each is a
+directory with a `generate_api.py`, because that is the filename the hook runs:
+
+```
+build-release/MeshLab.app/Contents/MacOS/MeshLab --generate-docs tests/render_probes/clip_plane
+```
+
+They need a real GPU and a window server. Under `QT_QPA_PLATFORM=offscreen` there is no QRhi
+and every snapshot fails, which is the opposite of how the ctest suite is run.
+
+Two things to know before writing one, both of which look like bugs first: the default
+background is a gradient that passes through a band any naive "is this pixel lit" test
+scores as geometry, so render on a flat colour; and a pass that changes only hidden geometry
+must leave the image **exactly** unchanged, so equality is the assertion, not a tolerance.
+
+Moving the render sources into a linkable library would let these become real tests.
+
+## Frame Timing
+
+`RenderWidget` emits per-frame CPU time (`QElapsedTimer`) and GPU time when `QRhi::Timestamps` is supported (`lastCompletedGpuTime`). `MainWindow` displays a rolling 100-frame average in the status bar.

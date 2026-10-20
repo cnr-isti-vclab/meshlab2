@@ -1,0 +1,2480 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>Filter Classification — pass 1 record - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/history/filter_classification.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="filter-classification-pass-1-record">
+<h1>Filter Classification — pass 1 record<a class="headerlink" href="#filter-classification-pass-1-record" title="Link to this heading">¶</a></h1>
+<blockquote>
+<div><p><strong>Current registry (2026-08-31): 327 filters across 33 filter plugins.</strong> Every
+272-filter total and table below is a dated record of the 2026-07-29 migration,
+not a current implementation count.</p>
+</div></blockquote>
+<p>This document records the <code class="docutils literal notranslate"><span class="pre">categories</span></code> applied to the <strong>272-filter migration
+baseline</strong>. It was generated once, by rules, from the pre-migration descriptors and
+the ontology in
+<a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a> §1; see <a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a>
+for the plugin-side mapping.</p>
+<p><strong>Status: APPLIED</strong> (pass 1, 2026-07-29). All 272 filters present on that date received
+a <code class="docutils literal notranslate"><span class="pre">categories</span></code> array. The loader now validates every entry against the ontology and
+reports no offenders in the current registry.
+The tables below are the record of what was applied — the <code class="docutils literal notranslate"><span class="pre">Note</span></code> column flags each row
+that moved somewhere other than a mechanical translation of the old <code class="docutils literal notranslate"><span class="pre">menuPath</span></code>.
+The implementation has since grown to 327 filters across 33 filter plugins; newly
+added filters are categorized in their <code class="docutils literal notranslate"><span class="pre">filters.json</span></code> descriptors, but this document
+intentionally remains the pass-1 migration record rather than a regenerated live
+catalog.</p>
+<p>Representation (§2) is deliberately <strong>out of scope</strong> for this pass.</p>
+<section id="how-to-read-this-record">
+<h2>How to read this record<a class="headerlink" href="#how-to-read-this-record" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p>The four ontology additions in the next section were the rulings that made
+the pass possible.</p></li>
+<li><p>Rows with a <strong>bold</strong> note are the ones that moved somewhere other than where
+a naive <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> translation would have put them.</p></li>
+<li><p>Categories are <strong>ordered</strong>: the first is primary (canonical home); the rest
+are cross-listings.</p></li>
+</ol>
+</section>
+<section id="ontology-additions-applied-in-this-pass">
+<h2>Ontology additions applied in this pass<a class="headerlink" href="#ontology-additions-applied-in-this-pass" title="Link to this heading">¶</a></h2>
+<p>Classifying the real filters exposed four gaps. These rulings are now implemented:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Applied ontology addition</p></th>
+<th class="head"><p>Filters</p></th>
+<th class="head"><p>Why</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Deletion</span></code></p></td>
+<td><p>4</p></td>
+<td><p><em>Delete Selected Faces/Vertices</em>, <em>Delete ALL Faces</em>. These <strong>delete geometry</strong>, so by the “what changed?” rule they are not <code class="docutils literal notranslate"><span class="pre">Selection</span></code> at all, and nothing is broken so they are not <code class="docutils literal notranslate"><span class="pre">Repair</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Selection/Set</span> <span class="pre">Operations</span></code></p></td>
+<td><p>5</p></td>
+<td><p><em>Select All/None</em>, <em>Invert</em>, <em>Erode</em>, <em>Dilate</em>. Selection algebra, not selection <em>by a criterion</em> — the other three subcategories all answer “selected how?”.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Custom</span></code></p></td>
+<td><p>4</p></td>
+<td><p><em>Define New Per-Vertex/Face Custom Scalar/Point Attribute</em>. User-defined attributes are not normal/scalar/curvature/color.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Deformation</span></code></p></td>
+<td><p>3</p></td>
+<td><p><em>Random Vertex Displacement</em>, <em>Vertex Linear Morphing</em>, <em>Per Vertex Geometric Function</em>. They move vertices but are neither an affine <code class="docutils literal notranslate"><span class="pre">Transform</span></code> nor noise-reducing <code class="docutils literal notranslate"><span class="pre">Smoothing</span></code> — <em>Random Vertex Displacement</em> <strong>adds</strong> noise.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>A related rule this pass assumes, worth confirming: <strong><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code> covers
+positions only.</strong> Smoothing an <em>attribute</em> is classified by the attribute —
+<em>Smooth Vertex Scalar</em> → <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code>, <em>Smooth Vertex Color</em> →
+<code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code>, <em>Smooth Face Normals</em> → <code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code>.</p>
+</section>
+<section id="resulting-shape">
+<h2>Resulting shape<a class="headerlink" href="#resulting-shape" title="Link to this heading">¶</a></h2>
+<p>Historical pass-1 shape on 2026-07-29: 272 filters → 43 distinct categories; 24
+filters carried more than one.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Category</p></th>
+<th class="head"><p>Primary</p></th>
+<th class="head"><p>Total (incl. cross-listed)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p>28</p></td>
+<td><p>33</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p></td>
+<td><p>4</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Custom</span></code> <strong>(new)</strong></p></td>
+<td><p>4</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p>13</p></td>
+<td><p>13</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p>19</p></td>
+<td><p>26</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>21</p></td>
+<td><p>21</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
+<td><p>8</p></td>
+<td><p>8</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
+<td><p>9</p></td>
+<td><p>9</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
+<td><p>10</p></td>
+<td><p>10</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
+<td><p>11</p></td>
+<td><p>11</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Document/Render</span></code></p></td>
+<td><p>1</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Alignment</span></code></p></td>
+<td><p>2</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Deformation</span></code> <strong>(new)</strong></p></td>
+<td><p>3</p></td>
+<td><p>3</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
+<td><p>11</p></td>
+<td><p>11</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
+<td><p>12</p></td>
+<td><p>12</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p></td>
+<td><p>5</p></td>
+<td><p>6</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p></td>
+<td><p>5</p></td>
+<td><p>5</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p></td>
+<td><p>3</p></td>
+<td><p>3</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p></td>
+<td><p>4</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Deletion</span></code> <strong>(new)</strong></p></td>
+<td><p>4</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p></td>
+<td><p>5</p></td>
+<td><p>5</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code></p></td>
+<td><p>6</p></td>
+<td><p>6</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Quad</span></code> <strong>(new)</strong></p></td>
+<td><p>4</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Subdivision</span></code></p></td>
+<td><p>7</p></td>
+<td><p>7</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Parametrization</span></code></p></td>
+<td><p>0</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/Atlas</span> <span class="pre">Packing</span></code></p></td>
+<td><p>0</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/Defragmentation</span></code></p></td>
+<td><p>2</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Conversion</span></code></p></td>
+<td><p>2</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
+<td><p>11</p></td>
+<td><p>11</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code></p></td>
+<td><p>4</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p></td>
+<td><p>6</p></td>
+<td><p>6</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Repair/Holes</span> <span class="pre">and</span> <span class="pre">Borders</span></code></p></td>
+<td><p>2</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
+<td><p>7</p></td>
+<td><p>7</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Selection/Set</span> <span class="pre">Operations</span></code> <strong>(new)</strong></p></td>
+<td><p>5</p></td>
+<td><p>5</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Attribute</span></code></p></td>
+<td><p>8</p></td>
+<td><p>8</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code></p></td>
+<td><p>11</p></td>
+<td><p>11</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Visibility</span></code></p></td>
+<td><p>2</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
+<td><p>0</p></td>
+<td><p>6</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code></p></td>
+<td><p>1</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Texture/Conversion</span></code></p></td>
+<td><p>1</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Texture/Packing</span></code></p></td>
+<td><p>1</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code></p></td>
+<td><p>3</p></td>
+<td><p>3</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code></p></td>
+<td><p>7</p></td>
+<td><p>7</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p></td>
+<td><p>0</p></td>
+<td><p>4</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>In the pre-migration descriptors, 47 filters were mis-filed</strong>: their applied
+category moved them to a different root from the one implied by their old <code class="docutils literal notranslate"><span class="pre">menuPath</span></code>.
+That was the main finding of this pass.</p>
+</section>
+<section id="applied-classification-by-pre-migration-bucket">
+<h2>Applied classification, by pre-migration bucket<a class="headerlink" href="#applied-classification-by-pre-migration-bucket" title="Link to this heading">¶</a></h2>
+<section id="camera-10">
+<h3><code class="docutils literal notranslate"><span class="pre">Camera</span></code> (10)<a class="headerlink" href="#camera-10" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Set Camera from Direction</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Set Camera to View Selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Orient Vertex Normals by Cameras</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p><strong>mis-filed</strong> under <code class="docutils literal notranslate"><span class="pre">Camera</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Set Mesh Camera</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Raster Camera</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transform Camera Extrinsics</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
+<td><p>transforms the <strong>camera</strong>, not the mesh</p></td>
+</tr>
+<tr class="row-even"><td><p>Rotate Cameras</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
+<td><p>transforms the <strong>camera</strong>, not the mesh</p></td>
+</tr>
+<tr class="row-odd"><td><p>Scale Cameras</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
+<td><p>transforms the <strong>camera</strong>, not the mesh</p></td>
+</tr>
+<tr class="row-even"><td><p>Translate Cameras</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
+<td><p>transforms the <strong>camera</strong>, not the mesh</p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Vertex Scalar from Camera</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><strong>mis-filed</strong> under <code class="docutils literal notranslate"><span class="pre">Camera</span></code> <sub>touches: color, scalar</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="cleaning-15">
+<h3><code class="docutils literal notranslate"><span class="pre">Cleaning</span></code> (15)<a class="headerlink" href="#cleaning-15" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Merge Close Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Merge Close Wedge UVs</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p></td>
+<td><p><sub>touches: uv</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Duplicate Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Duplicate Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Isolated Folded Faces by Edge Flip</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Isolated Components by Diameter</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Isolated Components by Face Count</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove T-Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Unreferenced Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Vertices by Scalar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Zero-Area Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Repair Watertight Mesh (MeshFix)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshfix</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Repair Non-Manifold Edges</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Repair Non-Manifold Vertices by Splitting</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Repair Mismatched Borders</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Holes</span> <span class="pre">and</span> <span class="pre">Borders</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="color-24">
+<h3><code class="docutils literal notranslate"><span class="pre">Color</span></code> (24)<a class="headerlink" href="#color-24" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Clamp Vertex Scalar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><strong>scalar</strong>, not color <sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Add Noise to Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Colorize Faces by Scalar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p>scalar -&gt; color <sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Colorize Vertices by Scalar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p>scalar -&gt; color <sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Equalize Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Set Random Layer Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Colorize Vertices by Perlin Noise</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Set Random Component Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Random Face Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Clamp Vertex Scalar Gradient</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><strong>scalar</strong>, not color <sub>touches: color, scalar</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Mesh Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth Face Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Smooth Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Color from Face to Vertex</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Color from Mesh to Face</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Color from Texture to Vertex</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Color from Vertex to Face</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Scalar from Face to Vertex</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Scalar from Vertex to Face</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Tint Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Desaturate Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Adjust Vertex Color Levels</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Adjust Vertex Color White Balance</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="compute-attributes-4">
+<h3><code class="docutils literal notranslate"><span class="pre">Compute/Attributes</span></code> (4)<a class="headerlink" href="#compute-attributes-4" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Define Custom Face Point Attribute</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Custom</span></code> <strong>(new)</strong></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Define Custom Face Scalar Attribute</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Custom</span></code> <strong>(new)</strong></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Define Custom Vertex Point Attribute</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Custom</span></code> <strong>(new)</strong></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Define Custom Vertex Scalar Attribute</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Custom</span></code> <strong>(new)</strong></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="compute-color-2">
+<h3><code class="docutils literal notranslate"><span class="pre">Compute/Color</span></code> (2)<a class="headerlink" href="#compute-color-2" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Compute Face Color by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Vertex Color by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="compute-geometry-1">
+<h3><code class="docutils literal notranslate"><span class="pre">Compute/Geometry</span></code> (1)<a class="headerlink" href="#compute-geometry-1" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Per Vertex Geometric Function</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Deformation</span></code> <strong>(new)</strong></p></td>
+<td><p>moves vertices by a formula</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="compute-normals-9">
+<h3><code class="docutils literal notranslate"><span class="pre">Compute/Normals</span></code> (9)<a class="headerlink" href="#compute-normals-9" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Normalize Face Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Normalize Vertex Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Face Normals by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Vertex Normals by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Face Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Polygon Face Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Vertex Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth Face Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Sharpen Face Normals by Unsharp Mask</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="compute-quality-2">
+<h3><code class="docutils literal notranslate"><span class="pre">Compute/Quality</span></code> (2)<a class="headerlink" href="#compute-quality-2" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Compute Face Scalar by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Vertex Scalar by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><sub>touches: scalar</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="compute-texture-2">
+<h3><code class="docutils literal notranslate"><span class="pre">Compute/Texture</span></code> (2)<a class="headerlink" href="#compute-texture-2" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Parametrize per Vertex by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
+<td><p><strong>writes UVs</strong>, not an image <sub>touches: uv</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrize per Wedge by Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
+<td><p><strong>writes UVs</strong>, not an image <sub>touches: uv</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="create-16">
+<h3><code class="docutils literal notranslate"><span class="pre">Create</span></code> (16)<a class="headerlink" href="#create-16" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Create Annulus</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Box</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-even"><td><p>Create Cone</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Dodecahedron</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-even"><td><p>Create Symmetric Dodecahedron</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Plane from Selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code> · <code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Grid</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Icosahedron</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-even"><td><p>Create Isosurface from Expression</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Isosurface from Perlin Noise</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">basic</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Octahedron</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Points on a Sphere</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-even"><td><p>Create Points on a Spherical Cap</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Sphere</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-even"><td><p>Create Sphere Cap</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Tetrahedron</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-even"><td><p>Create Torus</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="geometry-transform-1">
+<h3><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code> (1)<a class="headerlink" href="#geometry-transform-1" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Normalize To Unit Box</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">basic</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="inspection-1">
+<h3><code class="docutils literal notranslate"><span class="pre">Inspection</span></code> (1)<a class="headerlink" href="#inspection-1" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Measure Mesh Summary</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">basic</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="layer-14">
+<h3><code class="docutils literal notranslate"><span class="pre">Layer</span></code> (14)<a class="headerlink" href="#layer-14" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Remove Current Mesh Layer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Current Raster</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Hidden Rasters</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Hidden Mesh Layers</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-even"><td><p>Duplicate Current Layer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Export Cameras from Visible Rasters</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Merge Visible Layers</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Import Cameras to Visible Rasters</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Extract Selected Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
+<td><p>bucket default <sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Extract Selected Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
+<td><p>bucket default <sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Rename Current Mesh Layer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Rename Current Raster</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+<tr class="row-even"><td><p>Render from Render-State JSON</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Render</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Split into Connected Components</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
+<td><p>bucket default</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="layer-boolean-4">
+<h3><code class="docutils literal notranslate"><span class="pre">Layer/Boolean</span></code> (4)<a class="headerlink" href="#layer-boolean-4" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Mesh Boolean: Difference</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_booleans</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p></td>
+<td><p>was mis-filed under <code class="docutils literal notranslate"><span class="pre">Layer</span></code> <sub>touches: color, scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Mesh Boolean: Intersection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_booleans</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p></td>
+<td><p>was mis-filed under <code class="docutils literal notranslate"><span class="pre">Layer</span></code> <sub>touches: color, scalar</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Mesh Boolean: Symmetric Difference (XOR)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_booleans</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p></td>
+<td><p>was mis-filed under <code class="docutils literal notranslate"><span class="pre">Layer</span></code> <sub>touches: color, scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Mesh Boolean: Union</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mesh_booleans</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p></td>
+<td><p>was mis-filed under <code class="docutils literal notranslate"><span class="pre">Layer</span></code> <sub>touches: color, scalar</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="mls-8">
+<h3><code class="docutils literal notranslate"><span class="pre">MLS</span></code> (8)<a class="headerlink" href="#mls-8" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Compute Curvature (APSS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mls</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p></td>
+<td><p><sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Curvature (RIMLS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mls</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p></td>
+<td><p><sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Estimate Radius from Density</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mls</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>MLS projection (APSS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mls</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>MLS projection (RIMLS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mls</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Reconstruct Surface by Marching Cubes (APSS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mls</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Reconstruct Surface by Marching Cubes (RIMLS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mls</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select small disconnected component</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mls</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="measure-5">
+<h3><code class="docutils literal notranslate"><span class="pre">Measure</span></code> (5)<a class="headerlink" href="#measure-5" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Measure Selection Area and Perimeter</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Measure Geometric Properties</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Measure Topological Properties</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Measure Topological Properties for Quad Mesh</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Measure Layer Overlap</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">icp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="measure-quality-4">
+<h3><code class="docutils literal notranslate"><span class="pre">Measure/Quality</span></code> (4)<a class="headerlink" href="#measure-quality-4" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Measure Face Scalar Histogram</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Measure Face Scalar Statistics</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Measure Vertex Scalar Histogram</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Measure Vertex Scalar Statistics</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="meshing-38">
+<h3><code class="docutils literal notranslate"><span class="pre">Meshing</span></code> (38)<a class="headerlink" href="#meshing-38" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Create Polyline from Selected Edges</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>creates a new polyline layer</p></td>
+</tr>
+<tr class="row-odd"><td><p>Close Holes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Holes</span> <span class="pre">and</span> <span class="pre">Borders</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Polyline from Planar Section</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>creates a new polyline layer</p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Principal Curvature Directions</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p></td>
+<td><p><sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Point Cloud Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Polyline from Selection Perimeter</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>creates a new polyline layer</p></td>
+</tr>
+<tr class="row-even"><td><p>Parametrize by Cylindrical Projection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Invert Face Orientation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
+<td><p>orientation is topological</p></td>
+</tr>
+<tr class="row-even"><td><p>Matrix: Freeze Current Matrix</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Matrix: Invert Current Matrix</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Matrix: Reset Current Matrix</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Matrix: Set from translation/rotation/scale</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Matrix: Set/Copy Transformation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Orient Faces Consistently (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
+<td><p>orientation is topological</p></td>
+</tr>
+<tr class="row-even"><td><p>Remeshing: Isotropic Explicit Remeshing</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Crease Edges</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Simplification: Clustering Decimation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Simplification: Original QSlim Quadric Edge Collapse</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qslim</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Simplification: Quadric Edge Collapse Decimation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Simplification: Quadric Edge Collapse Decimation (with texture)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
+<td><p>preserves texture <sub>touches: uv</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Smooth Point Cloud Normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Subdivision Surfaces: Butterfly Subdivision</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Subdivision</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Subdivision Surfaces: Catmull-Clark</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Subdivision</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Subdivision Surfaces: Doo Sabin</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Subdivision</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Subdivision Surfaces: LS3 Loop</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Subdivision</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Subdivision Surfaces: Loop</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Subdivision</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Subdivision Surfaces: Midpoint</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Subdivision</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transform: Align to Principal Axis</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Transform: Flip and/or swap axis</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transform: Rotate</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Transform: Rotate to Fit to a plane</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transform: Scale, Normalize</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Transform: Translate, Center, set Origin</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Tri to Quad by 4-8 Subdivision</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Quad</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Tri to Quad by smart triangle pairing</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Quad</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Turn into Quad-Dominant mesh</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Quad</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Turn into a Pure-Triangular mesh</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Quad</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Split Vertices by Attribute Seam</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p></td>
+<td><p>splits vertices on attribute discontinuity <sub>touches: uv, color</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="normals-embree-1">
+<h3><code class="docutils literal notranslate"><span class="pre">Normals/Embree</span></code> (1)<a class="headerlink" href="#normals-embree-1" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Orient Face Normals by Ray Casting</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">embree</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="parameterization-2">
+<h3><code class="docutils literal notranslate"><span class="pre">Parameterization</span></code> (2)<a class="headerlink" href="#parameterization-2" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Parametrize from Registered Rasters with Texture</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">img_patch_param</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p></td>
+<td><p><sub>touches: texture, uv</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrize from Registered Rasters</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">img_patch_param</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p></td>
+<td><p><sub>touches: uv</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="quality-7">
+<h3><code class="docutils literal notranslate"><span class="pre">Quality</span></code> (7)<a class="headerlink" href="#quality-7" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Compute Curvature (Discrete)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p></td>
+<td><p><sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Face Scalar from Geometry</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute UV Distortion</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Adjust Vertex Color Brightness/Contrast/Gamma</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><strong>mis-filed</strong> under <code class="docutils literal notranslate"><span class="pre">Quality</span></code> <sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><strong>mis-filed</strong> under <code class="docutils literal notranslate"><span class="pre">Quality</span></code> <sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Invert Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><strong>mis-filed</strong> under <code class="docutils literal notranslate"><span class="pre">Quality</span></code> <sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Threshold Vertex Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><strong>mis-filed</strong> under <code class="docutils literal notranslate"><span class="pre">Quality</span></code> <sub>touches: color</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="quality-embree-3">
+<h3><code class="docutils literal notranslate"><span class="pre">Quality/Embree</span></code> (3)<a class="headerlink" href="#quality-embree-3" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Compute Ambient Occlusion</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">embree</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p>backend dropped <sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Obscurance</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">embree</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p>backend dropped <sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Shape Diameter Function</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">embree</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p>backend dropped <sub>touches: scalar</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="quality-geodesic-4">
+<h3><code class="docutils literal notranslate"><span class="pre">Quality/Geodesic</span></code> (4)<a class="headerlink" href="#quality-geodesic-4" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Compute Geodesic Distance from Border</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">geodesic</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p>backend dropped <sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Geodesic Distance from Point</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">geodesic</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p>backend dropped <sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Geodesic Distance from Selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">geodesic</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p>backend dropped <sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Geodesic Distance from Selection (Heat Method)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">geodesic</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p>backend dropped <sub>touches: scalar</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="raster-5">
+<h3><code class="docutils literal notranslate"><span class="pre">Raster</span></code> (5)<a class="headerlink" href="#raster-5" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Transfer Color from Visible Rasters to Vertex</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">color_projection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Color from Visible Rasters to Texture</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">color_projection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
+<td><p><sub>touches: uv</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Color from Current Raster to Vertex</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">color_projection</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Face Scalar from Raster Coverage</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">img_patch_param</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p></td>
+<td><p><strong>mis-filed</strong> as <code class="docutils literal notranslate"><span class="pre">Raster</span></code> <sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Vertex Scalar from Raster Coverage</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">img_patch_param</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p></td>
+<td><p><strong>mis-filed</strong> as <code class="docutils literal notranslate"><span class="pre">Raster</span></code> <sub>touches: scalar</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="remeshing-8">
+<h3><code class="docutils literal notranslate"><span class="pre">Remeshing</span></code> (8)<a class="headerlink" href="#remeshing-8" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Reconstruct Surface by Alpha Wrapping</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cgal</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
+<td><p><strong>mis-filed</strong> as Remeshing</p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Solid Wireframe</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">voronoi</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>builds a new structure</p></td>
+</tr>
+<tr class="row-even"><td><p>Curvature flipping optimization</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trioptimize</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p></td>
+<td><p><sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Global Align Meshes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">icp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Alignment</span></code></p></td>
+<td><p><strong>mis-filed</strong> as Remeshing <sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>ICP Between Meshes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">icp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Alignment</span></code></p></td>
+<td><p><strong>mis-filed</strong> as Remeshing <sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Planar flipping optimization</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trioptimize</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p></td>
+<td><p><sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Refine User-Defined</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Subdivision</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Reconstruct Surface by Ball Pivoting (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
+<td><p><strong>not cleaning</strong> - reconstruction</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="remeshing-smoothing-and-resampling-2">
+<h3><code class="docutils literal notranslate"><span class="pre">Remeshing,</span> <span class="pre">Smoothing</span> <span class="pre">and</span> <span class="pre">Resampling</span></code> (2)<a class="headerlink" href="#remeshing-smoothing-and-resampling-2" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Simplification: Edge Collapse for Marching Cube meshes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">plymc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Reconstruct Surface by Volumetric Merging</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">plymc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="remeshing-surface-reconstruction-3">
+<h3><code class="docutils literal notranslate"><span class="pre">Remeshing/Surface</span> <span class="pre">Reconstruction</span></code> (3)<a class="headerlink" href="#remeshing-surface-reconstruction-3" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Reconstruct Surface by Smooth Signed Distance</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">screened_poisson</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Reconstruct Surface by Screened Poisson</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">screened_poisson</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Trim Surface by Scalar Isovalue</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">screened_poisson</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="sampling-17">
+<h3><code class="docutils literal notranslate"><span class="pre">Sampling</span></code> (17)<a class="headerlink" href="#sampling-17" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Sample Vertices by Clustering</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Colorize Vertices by Disk Distance</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Distance from Reference Mesh</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><strong>mis-filed</strong> - it measures <sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Measure Hausdorff Distance</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><strong>mis-filed</strong> - it measures</p></td>
+</tr>
+<tr class="row-even"><td><p>Sample Mesh Elements</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Sample Surface by Monte Carlo</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Point Cloud Simplification</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code></p></td>
+<td><p><strong>mis-filed</strong> as Sampling</p></td>
+</tr>
+<tr class="row-odd"><td><p>Sample Surface by Poisson Disk</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Sample Offset Surface Recursively</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Sample Surface by Stratified Triangles</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Sample Texels</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Uniform Mesh Resampling</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p></td>
+<td><p><strong>mis-filed</strong> as Sampling</p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Vertex Attributes by Closest Point</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code></p></td>
+<td><p><strong>mis-filed</strong> as Sampling <sub>touches: color, scalar, selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Sample Volume</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">voronoi</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Sample Surface by Voronoi Relaxation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">voronoi</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
+<td><p><sub>touches: color, scalar, selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Voronoi Scaffolding</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">voronoi</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
+<td><p>builds a new structure</p></td>
+</tr>
+<tr class="row-even"><td><p>Colorize Vertices by Voronoi Regions</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="selection-27">
+<h3><code class="docutils literal notranslate"><span class="pre">Selection</span></code> (27)<a class="headerlink" href="#selection-27" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Conditional Face Selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Attribute</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Conditional Vertex Selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Attribute</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Delete ALL Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Deletion</span></code> <strong>(new)</strong></p></td>
+<td><p><strong>deletes geometry</strong> - not a Selection op</p></td>
+</tr>
+<tr class="row-odd"><td><p>Delete Selected Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Deletion</span></code> <strong>(new)</strong></p></td>
+<td><p><strong>deletes geometry</strong> - not a Selection op</p></td>
+</tr>
+<tr class="row-even"><td><p>Delete Selected Faces and Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Deletion</span></code> <strong>(new)</strong></p></td>
+<td><p><strong>deletes geometry</strong> - not a Selection op</p></td>
+</tr>
+<tr class="row-odd"><td><p>Delete Selected Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Deletion</span></code> <strong>(new)</strong></p></td>
+<td><p><strong>deletes geometry</strong> - not a Selection op</p></td>
+</tr>
+<tr class="row-even"><td><p>Dilate Selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/Set</span> <span class="pre">Operations</span></code> <strong>(new)</strong></p></td>
+<td><p>selection algebra, not a criterion <sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Erode Selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/Set</span> <span class="pre">Operations</span></code> <strong>(new)</strong></p></td>
+<td><p>selection algebra, not a criterion <sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Invert Selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/Set</span> <span class="pre">Operations</span></code> <strong>(new)</strong></p></td>
+<td><p>selection algebra, not a criterion <sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select ‘Problematic’ Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Select All</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/Set</span> <span class="pre">Operations</span></code> <strong>(new)</strong></p></td>
+<td><p>selection algebra, not a criterion <sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Border</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Connected Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Faces by Color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Attribute</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Faces by View Angle</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Attribute</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Faces from Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Faces with Edges Longer Than…</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Attribute</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select None</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/Set</span> <span class="pre">Operations</span></code> <strong>(new)</strong></p></td>
+<td><p>selection algebra, not a criterion <sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Outliers</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Attribute</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Self Intersecting Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Vertex Texture Seams</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code> · <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code></p></td>
+<td><p>seam = UV topology <sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Vertices from Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Select by Face Quality</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Attribute</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select by Rectangle (Screen)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Visibility</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Select by Vertex Quality</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Attribute</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select non Manifold Edges</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Select non Manifold Vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="selection-embree-1">
+<h3><code class="docutils literal notranslate"><span class="pre">Selection/Embree</span></code> (1)<a class="headerlink" href="#selection-embree-1" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Select Visible Faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">embree</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Visibility</span></code></p></td>
+<td><p><sub>touches: selection</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="smoothing-16">
+<h3><code class="docutils literal notranslate"><span class="pre">Smoothing</span></code> (16)<a class="headerlink" href="#smoothing-16" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Cut mesh along crease edges</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p></td>
+<td><p><strong>topology change</strong>, not smoothing</p></td>
+</tr>
+<tr class="row-odd"><td><p>Depth Smooth</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Directional Geometry Preservation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Harmonic Scalar Field</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>HC Laplacian Smooth</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Laplacian Smooth</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Laplacian Smooth (surface preserving)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trioptimize</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Random Vertex Displacement</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Deformation</span></code> <strong>(new)</strong></p></td>
+<td><p><strong>adds</strong> noise - not smoothing</p></td>
+</tr>
+<tr class="row-even"><td><p>ScaleDependent Laplacian Smooth</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth Vertex Scalar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><strong>scalar</strong>, not color <sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Taubin Smooth</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>TwoStep Smooth</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Sharpen Vertex Color by Unsharp Mask</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>UnSharp Mask Geometry</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Sharpen Vertex Scalar by Unsharp Mask</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><sub>touches: scalar</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Vertex Linear Morphing</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Deformation</span></code> <strong>(new)</strong></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="texture-16">
+<h3><code class="docutils literal notranslate"><span class="pre">Texture</span></code> (16)<a class="headerlink" href="#texture-16" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Applied categories</p></th>
+<th class="head"><p>Note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Convert Per-Vertex UV to Per-Wedge UV</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Conversion</span></code></p></td>
+<td><p><sub>touches: uv</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Convert Per-Wedge UV to Per-Vertex UV</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Conversion</span></code></p></td>
+<td><p><sub>touches: uv</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Convert Object-Space Normal Map to Tangent Space</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Texture/Conversion</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrize by Harmonic Map (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrization</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
+<td><p><sub>touches: uv</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Parametrize by Least Squares Conformal Maps (libigl)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrization</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
+<td><p><sub>touches: uv</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Pack Texture Images</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Texture/Packing</span></code> · <code class="docutils literal notranslate"><span class="pre">Parametrization/Atlas</span> <span class="pre">Packing</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Parametrize by Flat Plane</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
+<td><p><sub>touches: uv</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrize by Trivial Per-Triangle Layout</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
+<td><p><sub>touches: uv</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Parametrize by Voronoi Atlas (vcglib)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrize by Atlas (xatlas)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">xatlas</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
+<td><p><sub>touches: texture, uv</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Texture</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Merge Texture Islands</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture_defragmentation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/Defragmentation</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
+<td><p>chart surgery; image resample is a consequence</p></td>
+</tr>
+<tr class="row-even"><td><p>Defragment Texture Atlas</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture_defragmentation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/Defragmentation</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
+<td><p>chart surgery; image resample is a consequence</p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Color from Texture to Vertex by Closest Point</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><sub>touches: color</sub></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Vertex Attributes to Texture by Closest Point</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Color from Vertex to Texture</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
+<td><p><sub>touches: texture</sub></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Filter Classification — pass 1 record</a><ul>
+<li><a class="reference internal" href="#how-to-read-this-record">How to read this record</a></li>
+<li><a class="reference internal" href="#ontology-additions-applied-in-this-pass">Ontology additions applied in this pass</a></li>
+<li><a class="reference internal" href="#resulting-shape">Resulting shape</a></li>
+<li><a class="reference internal" href="#applied-classification-by-pre-migration-bucket">Applied classification, by pre-migration bucket</a><ul>
+<li><a class="reference internal" href="#camera-10"><code class="docutils literal notranslate"><span class="pre">Camera</span></code> (10)</a></li>
+<li><a class="reference internal" href="#cleaning-15"><code class="docutils literal notranslate"><span class="pre">Cleaning</span></code> (15)</a></li>
+<li><a class="reference internal" href="#color-24"><code class="docutils literal notranslate"><span class="pre">Color</span></code> (24)</a></li>
+<li><a class="reference internal" href="#compute-attributes-4"><code class="docutils literal notranslate"><span class="pre">Compute/Attributes</span></code> (4)</a></li>
+<li><a class="reference internal" href="#compute-color-2"><code class="docutils literal notranslate"><span class="pre">Compute/Color</span></code> (2)</a></li>
+<li><a class="reference internal" href="#compute-geometry-1"><code class="docutils literal notranslate"><span class="pre">Compute/Geometry</span></code> (1)</a></li>
+<li><a class="reference internal" href="#compute-normals-9"><code class="docutils literal notranslate"><span class="pre">Compute/Normals</span></code> (9)</a></li>
+<li><a class="reference internal" href="#compute-quality-2"><code class="docutils literal notranslate"><span class="pre">Compute/Quality</span></code> (2)</a></li>
+<li><a class="reference internal" href="#compute-texture-2"><code class="docutils literal notranslate"><span class="pre">Compute/Texture</span></code> (2)</a></li>
+<li><a class="reference internal" href="#create-16"><code class="docutils literal notranslate"><span class="pre">Create</span></code> (16)</a></li>
+<li><a class="reference internal" href="#geometry-transform-1"><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code> (1)</a></li>
+<li><a class="reference internal" href="#inspection-1"><code class="docutils literal notranslate"><span class="pre">Inspection</span></code> (1)</a></li>
+<li><a class="reference internal" href="#layer-14"><code class="docutils literal notranslate"><span class="pre">Layer</span></code> (14)</a></li>
+<li><a class="reference internal" href="#layer-boolean-4"><code class="docutils literal notranslate"><span class="pre">Layer/Boolean</span></code> (4)</a></li>
+<li><a class="reference internal" href="#mls-8"><code class="docutils literal notranslate"><span class="pre">MLS</span></code> (8)</a></li>
+<li><a class="reference internal" href="#measure-5"><code class="docutils literal notranslate"><span class="pre">Measure</span></code> (5)</a></li>
+<li><a class="reference internal" href="#measure-quality-4"><code class="docutils literal notranslate"><span class="pre">Measure/Quality</span></code> (4)</a></li>
+<li><a class="reference internal" href="#meshing-38"><code class="docutils literal notranslate"><span class="pre">Meshing</span></code> (38)</a></li>
+<li><a class="reference internal" href="#normals-embree-1"><code class="docutils literal notranslate"><span class="pre">Normals/Embree</span></code> (1)</a></li>
+<li><a class="reference internal" href="#parameterization-2"><code class="docutils literal notranslate"><span class="pre">Parameterization</span></code> (2)</a></li>
+<li><a class="reference internal" href="#quality-7"><code class="docutils literal notranslate"><span class="pre">Quality</span></code> (7)</a></li>
+<li><a class="reference internal" href="#quality-embree-3"><code class="docutils literal notranslate"><span class="pre">Quality/Embree</span></code> (3)</a></li>
+<li><a class="reference internal" href="#quality-geodesic-4"><code class="docutils literal notranslate"><span class="pre">Quality/Geodesic</span></code> (4)</a></li>
+<li><a class="reference internal" href="#raster-5"><code class="docutils literal notranslate"><span class="pre">Raster</span></code> (5)</a></li>
+<li><a class="reference internal" href="#remeshing-8"><code class="docutils literal notranslate"><span class="pre">Remeshing</span></code> (8)</a></li>
+<li><a class="reference internal" href="#remeshing-smoothing-and-resampling-2"><code class="docutils literal notranslate"><span class="pre">Remeshing,</span> <span class="pre">Smoothing</span> <span class="pre">and</span> <span class="pre">Resampling</span></code> (2)</a></li>
+<li><a class="reference internal" href="#remeshing-surface-reconstruction-3"><code class="docutils literal notranslate"><span class="pre">Remeshing/Surface</span> <span class="pre">Reconstruction</span></code> (3)</a></li>
+<li><a class="reference internal" href="#sampling-17"><code class="docutils literal notranslate"><span class="pre">Sampling</span></code> (17)</a></li>
+<li><a class="reference internal" href="#selection-27"><code class="docutils literal notranslate"><span class="pre">Selection</span></code> (27)</a></li>
+<li><a class="reference internal" href="#selection-embree-1"><code class="docutils literal notranslate"><span class="pre">Selection/Embree</span></code> (1)</a></li>
+<li><a class="reference internal" href="#smoothing-16"><code class="docutils literal notranslate"><span class="pre">Smoothing</span></code> (16)</a></li>
+<li><a class="reference internal" href="#texture-16"><code class="docutils literal notranslate"><span class="pre">Texture</span></code> (16)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

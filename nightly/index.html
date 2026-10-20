@@ -1,0 +1,739 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="MeshSet" href="api/meshset.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="#"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="#">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="_sources/index.rst.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="meshlab-python-api">
+<h1>MeshLab Python API<a class="headerlink" href="#meshlab-python-api" title="Link to this heading">¶</a></h1>
+<p>MeshLab is a mesh processing application with an embedded Python console.
+This documentation covers the embedded Python environment and the public
+<code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> facade backed by the private <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> module.</p>
+<p>For a practical overview of the in-app Python environment, see
+<a class="reference external" href="python_scripting.md">Python scripting</a>.</p>
+<p>The documentation is shared on purpose: the core Python API is the
+<code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet</span></code> interface and the filter set built on top of it. MeshLab
+adds desktop-specific conveniences such as the predefined live <code class="docutils literal notranslate"><span class="pre">ms</span></code> object and
+the <code class="docutils literal notranslate"><span class="pre">mlgui</span></code> helper for view snapshots and render-state access.</p>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/meshset.html">MeshSet</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/meshset.html#methods">Methods</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/mlgui.html">MlGui</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/mlgui.html#methods">Methods</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/filters.html">Filters</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#add-noise-to-vertex-color">Add Noise to Vertex Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#adjust-vertex-color-brightness-contrast-gamma">Adjust Vertex Color Brightness/Contrast/Gamma</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#adjust-vertex-color-levels">Adjust Vertex Color Levels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#adjust-vertex-color-white-balance">Adjust Vertex Color White Balance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#colorize-edges-by-scalar">Colorize Edges by Scalar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#colorize-faces-by-scalar">Colorize Faces by Scalar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#colorize-vertices-by-disk-distance">Colorize Vertices by Disk Distance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#colorize-vertices-by-perlin-noise">Colorize Vertices by Perlin Noise</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#colorize-vertices-by-scalar">Colorize Vertices by Scalar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#colorize-vertices-by-voronoi-regions">Colorize Vertices by Voronoi Regions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-edge-color-by-expression">Compute Edge Color by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-face-color-by-expression">Compute Face Color by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-vertex-color-by-expression">Compute Vertex Color by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#desaturate-vertex-color">Desaturate Vertex Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#equalize-vertex-color">Equalize Vertex Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#invert-vertex-color">Invert Vertex Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#set-mesh-color">Set Mesh Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#set-random-component-color">Set Random Component Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#set-random-face-color">Set Random Face Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#set-random-layer-color">Set Random Layer Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#set-vertex-color">Set Vertex Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sharpen-vertex-color-by-unsharp-mask">Sharpen Vertex Color by Unsharp Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-face-color">Smooth Face Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-vertex-color">Smooth Vertex Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#threshold-vertex-color">Threshold Vertex Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#tint-vertex-color">Tint Vertex Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-curvature-apss">Compute Curvature (APSS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-curvature-discrete">Compute Curvature (Discrete)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-curvature-rimls">Compute Curvature (RIMLS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-curvature-trueform">Compute Curvature (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-gaussian-curvature-libigl">Compute Gaussian Curvature (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-principal-curvature-directions-libigl">Compute Principal Curvature Directions (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-principal-curvature-directions-vcglib">Compute Principal Curvature Directions (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#define-custom-face-point-attribute">Define Custom Face Point Attribute</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#define-custom-face-scalar-attribute">Define Custom Face Scalar Attribute</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#define-custom-vertex-point-attribute">Define Custom Vertex Point Attribute</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#define-custom-vertex-scalar-attribute">Define Custom Vertex Scalar Attribute</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-face-normals">Compute Face Normals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-face-normals-by-expression">Compute Face Normals by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-normals-trueform">Compute Normals (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-point-cloud-normals-open3d">Compute Point Cloud Normals (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-point-cloud-normals-vcglib">Compute Point Cloud Normals (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-polygon-face-normals">Compute Polygon Face Normals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-vertex-normals">Compute Vertex Normals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-vertex-normals-by-expression">Compute Vertex Normals by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#normalize-face-normals">Normalize Face Normals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#normalize-vertex-normals">Normalize Vertex Normals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#orient-face-normals-by-ray-casting">Orient Face Normals by Ray Casting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#orient-point-cloud-normals">Orient Point Cloud Normals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#orient-vertex-normals-by-cameras">Orient Vertex Normals by Cameras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sharpen-face-normals-by-unsharp-mask">Sharpen Face Normals by Unsharp Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-face-normals">Smooth Face Normals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-point-cloud-normals">Smooth Point Cloud Normals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#clamp-vertex-scalar">Clamp Vertex Scalar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#clamp-vertex-scalar-gradient">Clamp Vertex Scalar Gradient</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-edge-scalar-by-expression">Compute Edge Scalar by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-exact-geodesic-distance-from-selection-libigl">Compute Exact Geodesic Distance from Selection (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-face-quality-trueform">Compute Face Quality (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-face-scalar-by-expression">Compute Face Scalar by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-face-scalar-from-geometry">Compute Face Scalar from Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-face-scalar-from-raster-coverage">Compute Face Scalar from Raster Coverage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-generalized-winding-number-libigl">Compute Generalized Winding Number (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-geodesic-distance-from-border">Compute Geodesic Distance from Border</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-geodesic-distance-from-point">Compute Geodesic Distance from Point</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-geodesic-distance-from-selection-vcglib">Compute Geodesic Distance from Selection (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-harmonic-scalar-field">Compute Harmonic Scalar Field</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-heat-geodesic-distance-from-selection-libigl">Compute Heat Geodesic Distance from Selection (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-heat-geodesic-distance-from-selection-vcglib">Compute Heat Geodesic Distance from Selection (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-mesh-ambient-occlusion">Compute Mesh Ambient Occlusion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-obscurance">Compute Obscurance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-point-cloud-ambient-occlusion">Compute Point Cloud Ambient Occlusion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-shape-diameter-function">Compute Shape Diameter Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-signed-distance-to-mesh-trueform">Compute Signed Distance to Mesh (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-uv-distortion">Compute UV Distortion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-vertex-scalar-by-expression">Compute Vertex Scalar by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-vertex-scalar-from-camera">Compute Vertex Scalar from Camera</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-vertex-scalar-from-raster-coverage">Compute Vertex Scalar from Raster Coverage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sharpen-vertex-scalar-by-unsharp-mask">Sharpen Vertex Scalar by Unsharp Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-vertex-scalar">Smooth Vertex Scalar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-vertex-scalar-by-hessian-energy-libigl">Smooth Vertex Scalar by Hessian Energy (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-annulus">Create Annulus</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-circle">Create Circle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-cone">Create Cone</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-cylinder">Create Cylinder</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-dodecahedron">Create Dodecahedron</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-grid">Create Grid</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-handle-and-tunnel-loops">Create Handle and Tunnel Loops</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-hexahedron">Create Hexahedron</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-icosahedron">Create Icosahedron</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-isosurface-from-expression">Create Isosurface from Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-isosurface-from-perlin-noise">Create Isosurface from Perlin Noise</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-mesh-bounding-box">Create Mesh Bounding Box</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-octahedron">Create Octahedron</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-plane-from-selection">Create Plane from Selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-points-on-a-sphere">Create Points on a Sphere</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-points-on-a-spherical-cap">Create Points on a Spherical Cap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-polyline-from-boundary-rims-trueform">Create Polyline from Boundary Rims (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-polyline-from-cut-graph">Create Polyline from Cut Graph</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-polyline-from-geodesic-path">Create Polyline from Geodesic Path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-polyline-from-mesh-intersection-trueform">Create Polyline from Mesh Intersection (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-polyline-from-planar-section">Create Polyline from Planar Section</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-polyline-from-scalar-isocontour-trueform">Create Polyline from Scalar Isocontour (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-polyline-from-selected-edges">Create Polyline from Selected Edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-polyline-from-selection-perimeter">Create Polyline from Selection Perimeter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-polyline-from-self-intersections-trueform">Create Polyline from Self-Intersections (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-reeb-graph-from-vertex-scalar">Create Reeb Graph from Vertex Scalar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-scene-bounding-box">Create Scene Bounding Box</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-solid-wireframe">Create Solid Wireframe</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-sphere">Create Sphere</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-sphere-cap">Create Sphere Cap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-square">Create Square</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-symmetric-dodecahedron">Create Symmetric Dodecahedron</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-tetrahedron">Create Tetrahedron</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-torus">Create Torus</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-tube-from-polyline-trueform">Create Tube from Polyline (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-voronoi-scaffolding">Create Voronoi Scaffolding</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-convex-hull">Create Convex Hull</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-surface-from-polyline-loop-hrbf">Create Surface from Polyline Loop (HRBF)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-advancing-front">Reconstruct Surface by Advancing Front</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-alpha-shape">Reconstruct Surface by Alpha Shape</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-alpha-wrapping">Reconstruct Surface by Alpha Wrapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-ball-pivoting-gruber">Reconstruct Surface by Ball Pivoting (Gruber)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-ball-pivoting-open3d">Reconstruct Surface by Ball Pivoting (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-ball-pivoting-vcglib">Reconstruct Surface by Ball Pivoting (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-kinetic-partition">Reconstruct Surface by Kinetic Partition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-marching-cubes-apss">Reconstruct Surface by Marching Cubes (APSS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-marching-cubes-rimls">Reconstruct Surface by Marching Cubes (RIMLS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-poisson-cgal">Reconstruct Surface by Poisson (CGAL)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-scale-space">Reconstruct Surface by Scale Space</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-screened-poisson">Reconstruct Surface by Screened Poisson</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-smooth-signed-distance">Reconstruct Surface by Smooth Signed Distance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-volumetric-merging">Reconstruct Surface by Volumetric Merging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-voronoi-filtering">Reconstruct Surface by Voronoi Filtering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#trim-surface-by-scalar-isovalue">Trim Surface by Scalar Isovalue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-mesh-elements">Sample Mesh Elements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-offset-surface-recursively">Sample Offset Surface Recursively</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-point-cloud-by-voxel-grid-open3d">Sample Point Cloud by Voxel Grid (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-surface-by-monte-carlo">Sample Surface by Monte Carlo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-surface-by-poisson-disk">Sample Surface by Poisson Disk</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-surface-by-stratified-triangles">Sample Surface by Stratified Triangles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-surface-by-voronoi-relaxation">Sample Surface by Voronoi Relaxation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-texels">Sample Texels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-vertices-by-clustering">Sample Vertices by Clustering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-volume">Sample Volume</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#export-cameras-from-visible-rasters">Export Cameras from Visible Rasters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#import-cameras-to-visible-rasters">Import Cameras to Visible Rasters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#rotate-cameras">Rotate Cameras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#scale-cameras">Scale Cameras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#set-camera-from-direction">Set Camera from Direction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#set-camera-to-view-selection">Set Camera to View Selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#set-mesh-camera">Set Mesh Camera</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#set-raster-camera">Set Raster Camera</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transform-camera-extrinsics">Transform Camera Extrinsics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#translate-cameras">Translate Cameras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#duplicate-current-layer">Duplicate Current Layer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#extract-selected-faces">Extract Selected Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#extract-selected-vertices">Extract Selected Vertices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#merge-visible-layers">Merge Visible Layers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-current-mesh-layer">Remove Current Mesh Layer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-current-raster">Remove Current Raster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-hidden-mesh-layers">Remove Hidden Mesh Layers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-hidden-rasters">Remove Hidden Rasters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#rename-current-mesh-layer">Rename Current Mesh Layer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#rename-current-raster">Rename Current Raster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#split-into-connected-components">Split into Connected Components</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#split-into-connected-components-trueform">Split into Connected Components (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#render-from-render-state-json">Render from Render-State JSON</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-by-bounding-box-trueform">Align by Bounding Box (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-by-icp-trueform">Align by ICP (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-by-icp-vcglib">Align by ICP (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-layer-to-reference-by-colored-icp-open3d">Align Layer to Reference by Colored ICP (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-layer-to-reference-by-fast-global-registration-open3d">Align Layer to Reference by Fast Global Registration (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-layer-to-reference-by-point-to-plane-icp-open3d">Align Layer to Reference by Point-to-Plane ICP (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-layer-to-reference-by-point-to-point-icp-open3d">Align Layer to Reference by Point-to-Point ICP (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-layer-to-reference-by-ransac-feature-matching-open3d">Align Layer to Reference by RANSAC Feature Matching (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-meshes-globally-open3d">Align Meshes Globally (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-meshes-globally-vcglib">Align Meshes Globally (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-meshes-sequentially-open3d">Align Meshes Sequentially (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-sets-by-fast-global-registration-open3d">Align Sets by Fast Global Registration (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-sets-by-ransac-feature-matching-open3d">Align Sets by RANSAC Feature Matching (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#align-to-corresponding-points-trueform">Align to Corresponding Points (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-vertex-coordinates-by-expression">Compute Vertex Coordinates by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#displace-vertices-by-fractal-brownian-motion">Displace Vertices by Fractal Brownian Motion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#displace-vertices-by-heterogeneous-multifractal-noise">Displace Vertices by Heterogeneous Multifractal Noise</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#displace-vertices-by-hybrid-multifractal-noise">Displace Vertices by Hybrid Multifractal Noise</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#displace-vertices-by-ridged-multifractal-noise">Displace Vertices by Ridged Multifractal Noise</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#displace-vertices-by-standard-multifractal-noise">Displace Vertices by Standard Multifractal Noise</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#displace-vertices-randomly">Displace Vertices Randomly</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#displace-vertices-toward-target-mesh">Displace Vertices toward Target Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#project-vertices-onto-the-line-of-sight">Project Vertices onto the Line of Sight</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#project-vertices-onto-mls-surface-apss">Project Vertices onto MLS Surface (APSS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#project-vertices-onto-mls-surface-rimls">Project Vertices onto MLS Surface (RIMLS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#sharpen-vertices-by-unsharp-mask">Sharpen Vertices by Unsharp Mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-polyline-on-surface">Smooth Polyline on Surface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-vertices-along-one-direction">Smooth Vertices along One Direction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-vertices-by-hc-laplacian">Smooth Vertices by HC Laplacian</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-vertices-by-laplacian-trueform">Smooth Vertices by Laplacian (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-vertices-by-laplacian-vcglib">Smooth Vertices by Laplacian (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-vertices-by-scale-dependent-laplacian">Smooth Vertices by Scale-Dependent Laplacian</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-vertices-by-surface-preserving-laplacian-vcglib">Smooth Vertices by Surface-Preserving Laplacian (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-vertices-by-taubin-trueform">Smooth Vertices by Taubin (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-vertices-by-taubin-vcglib">Smooth Vertices by Taubin (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#smooth-vertices-by-two-step-normal-fitting">Smooth Vertices by Two-Step Normal Fitting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#freeze-matrix">Freeze Matrix</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#invert-matrix">Invert Matrix</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mirror-or-swap-axes">Mirror or Swap Axes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#normalize-reference-frame">Normalize Reference Frame</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#rotate">Rotate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#rotate-to-fitted-plane">Rotate to Fitted Plane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#scale">Scale</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#set-matrix-from-translation-rotation-scale">Set Matrix from Translation/Rotation/Scale</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#set-matrix-from-values-or-layer">Set Matrix from Values or Layer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#set-matrix-to-identity">Set Matrix to Identity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#translate">Translate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-distance-from-reference-mesh">Compute Distance from Reference Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-chamfer-distance-trueform">Measure Chamfer Distance (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-geometric-properties">Measure Geometric Properties</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-hausdorff-distance">Measure Hausdorff Distance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-layer-overlap">Measure Layer Overlap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-selection-area-and-perimeter">Measure Selection Area and Perimeter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#estimate-radius-from-density">Estimate Radius from Density</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-face-scalar-histogram">Measure Face Scalar Histogram</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-face-scalar-statistics">Measure Face Scalar Statistics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-vertex-scalar-histogram">Measure Vertex Scalar Histogram</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-vertex-scalar-statistics">Measure Vertex Scalar Statistics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-abstract-domain">Measure Abstract Domain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-mesh-health-trueform">Measure Mesh Health (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-mesh-summary">Measure Mesh Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-topological-properties">Measure Topological Properties</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-topological-properties-for-quad-mesh">Measure Topological Properties for Quad Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-csg-expression-trueform">Mesh CSG Expression (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-difference-geogram">Mesh Difference (geogram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-difference-libigl">Mesh Difference (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-difference-trueform">Mesh Difference (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-intersection-geogram">Mesh Intersection (geogram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-intersection-libigl">Mesh Intersection (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-intersection-trueform">Mesh Intersection (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-symmetric-difference-geogram">Mesh Symmetric Difference (geogram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-symmetric-difference-libigl">Mesh Symmetric Difference (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-symmetric-difference-trueform">Mesh Symmetric Difference (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-union-geogram">Mesh Union (geogram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-union-libigl">Mesh Union (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#mesh-union-trueform">Mesh Union (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#split-into-solid-domains-trueform">Split into Solid Domains (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-all-faces">Remove All Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-selected-faces">Remove Selected Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-selected-faces-and-vertices">Remove Selected Faces and Vertices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-selected-vertices">Remove Selected Vertices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#convert-to-pure-triangles">Convert to Pure Triangles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#convert-to-quad-dominant-mesh">Convert to Quad-Dominant Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#convert-to-quads-by-4-8-subdivision">Convert to Quads by 4-8 Subdivision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#convert-to-quads-by-triangle-pairing">Convert to Quads by Triangle Pairing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#cut-along-crease-edges">Cut Along Crease Edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#cut-along-scalar-isocontour-trueform">Cut Along Scalar Isocontour (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#cut-along-selected-edges">Cut Along Selected Edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#embed-polyline-in-surface">Embed Polyline in Surface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#flip-edges-by-curvature">Flip Edges by Curvature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#flip-edges-by-planarity">Flip Edges by Planarity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remesh-by-abstract-domain">Remesh by Abstract Domain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remesh-by-centroidal-voronoi-tessellation-geogram">Remesh by Centroidal Voronoi Tessellation (geogram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remesh-by-edge-flipping-trueform">Remesh by Edge Flipping (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remesh-isotropically-trueform">Remesh Isotropically (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remesh-isotropically-vcglib">Remesh Isotropically (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remesh-to-quads-instant-meshes">Remesh to Quads (Instant Meshes)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remesh-to-quads-quadwild-bimdf">Remesh to Quads (QuadWild-BiMDF)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remesh-uniformly-by-volumetric-resampling">Remesh Uniformly by Volumetric Resampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#trim-point-cloud-by-plane">Trim Point Cloud by Plane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#trim-surface-by-plane">Trim Surface by Plane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#simplify-by-decimation-trueform">Simplify by Decimation (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#simplify-by-error-bound-trueform">Simplify by Error Bound (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#simplify-by-quadric-edge-collapse-qslim">Simplify by Quadric Edge Collapse (QSlim)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#simplify-by-quadric-edge-collapse-vcglib">Simplify by Quadric Edge Collapse (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#simplify-by-quadric-edge-collapse-with-texture-vcglib">Simplify by Quadric Edge Collapse with Texture (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#simplify-by-vertex-clustering">Simplify by Vertex Clustering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#simplify-marching-cubes-mesh-by-edge-collapse">Simplify Marching-Cubes Mesh by Edge Collapse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#simplify-point-cloud">Simplify Point Cloud</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#refine-by-user-expression">Refine by User Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#subdivide-by-butterfly">Subdivide by Butterfly</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#subdivide-by-catmull-clark">Subdivide by Catmull-Clark</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#subdivide-by-doo-sabin">Subdivide by Doo-Sabin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#subdivide-by-loop">Subdivide by Loop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#subdivide-by-ls3-loop">Subdivide by LS3 Loop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#subdivide-by-midpoint">Subdivide by Midpoint</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#pack-uv-charts-geogram">Pack UV Charts (geogram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#pack-uv-charts-vcglib">Pack UV Charts (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#defragment-texture-atlas">Defragment Texture Atlas</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#merge-texture-islands">Merge Texture Islands</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-chart-segmentation-geogram">Compute Chart Segmentation (geogram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#convert-per-vertex-uv-to-per-wedge-uv">Convert Per-Vertex UV to Per-Wedge UV</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#convert-per-wedge-uv-to-per-vertex-uv">Convert Per-Wedge UV to Per-Vertex UV</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-atlased-mesh-from-abstract-domain">Create Atlased Mesh from Abstract Domain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-abstract-domain">Parametrize by Abstract Domain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-angle-based-flattening-geogram">Parametrize by Angle-Based Flattening (geogram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-as-rigid-as-possible-libigl">Parametrize by As-Rigid-As-Possible (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-atlas-geogram">Parametrize by Atlas (geogram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-atlas-xatlas">Parametrize by Atlas (xatlas)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-cylindrical-projection">Parametrize by Cylindrical Projection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-flat-plane">Parametrize by Flat Plane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-harmonic-map-libigl">Parametrize by Harmonic Map (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-least-squares-conformal-maps-geogram">Parametrize by Least Squares Conformal Maps (geogram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-least-squares-conformal-maps-libigl">Parametrize by Least Squares Conformal Maps (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-slim-libigl">Parametrize by SLIM (libigl)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-spectral-conformal-maps-geogram">Parametrize by Spectral Conformal Maps (geogram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-trivial-per-triangle-layout">Parametrize by Trivial Per-Triangle Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-by-voronoi-atlas-vcglib">Parametrize by Voronoi Atlas (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-from-registered-rasters">Parametrize from Registered Rasters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-from-registered-rasters-with-texture">Parametrize from Registered Rasters with Texture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-per-vertex-by-expression">Parametrize per Vertex by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#parametrize-per-wedge-by-expression">Parametrize per Wedge by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-isolated-components-by-diameter">Remove Isolated Components by Diameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-isolated-components-by-face-count">Remove Isolated Components by Face Count</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-vertices-by-scalar">Remove Vertices by Scalar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-zero-area-faces">Remove Zero-Area Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#merge-close-vertices">Merge Close Vertices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#merge-close-wedge-uvs">Merge Close Wedge UVs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-duplicate-faces">Remove Duplicate Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-duplicate-vertices-trueform">Remove Duplicate Vertices (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-duplicate-vertices-vcglib">Remove Duplicate Vertices (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-unreferenced-vertices">Remove Unreferenced Vertices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#split-vertices-by-attribute-seam">Split Vertices by Attribute Seam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#close-holes">Close Holes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#repair-mismatched-borders">Repair Mismatched Borders</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#extract-outer-shell-trueform">Extract Outer Shell (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#invert-face-orientation">Invert Face Orientation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#orient-faces-consistently-trueform">Orient Faces Consistently (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#orient-faces-consistently-vcglib">Orient Faces Consistently (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#orient-faces-outward-trueform">Orient Faces Outward (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-isolated-folded-faces-by-edge-flip">Remove Isolated Folded Faces by Edge Flip</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#remove-t-vertices">Remove T-Vertices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#repair-non-manifold-edges">Repair Non-Manifold Edges</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#repair-non-manifold-vertices-by-splitting">Repair Non-Manifold Vertices by Splitting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#repair-self-intersections-geogram">Repair Self-Intersections (geogram)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#repair-self-intersections-trueform">Repair Self-Intersections (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#repair-watertight-mesh-meshfix">Repair Watertight Mesh (MeshFix)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#split-non-manifold-vertices-trueform">Split Non-Manifold Vertices (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#dilate-selection">Dilate Selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#erode-selection">Erode Selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#invert-selection">Invert Selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-all">Select All</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-none">Select None</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-coplanar-faces">Select Coplanar Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-edges-by-expression">Select Edges by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-faces-by-color">Select Faces by Color</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-faces-by-edge-length">Select Faces by Edge Length</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-faces-by-expression">Select Faces by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-faces-by-scalar">Select Faces by Scalar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-faces-by-view-angle">Select Faces by View Angle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-outliers">Select Outliers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-point-cloud-outliers-by-radius-open3d">Select Point Cloud Outliers by Radius (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-point-cloud-outliers-statistically-open3d">Select Point Cloud Outliers Statistically (Open3D)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-vertices-by-expression">Select Vertices by Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-vertices-by-scalar">Select Vertices by Scalar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-vertices-inside-mesh-trueform">Select Vertices Inside Mesh (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-border">Select Border</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-connected-faces">Select Connected Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-crease-edges-trueform">Select Crease Edges (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-crease-edges-vcglib">Select Crease Edges (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-faces-from-vertices">Select Faces from Vertices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-ill-shaped-faces">Select Ill-Shaped Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-non-manifold-edges-trueform">Select Non-Manifold Edges (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-non-manifold-edges-vcglib">Select Non-Manifold Edges (vcglib)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-non-manifold-vertices">Select Non-Manifold Vertices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-non-manifold-vertices-trueform">Select Non-Manifold Vertices (TrueForm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-self-intersecting-faces">Select Self-Intersecting Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-small-disconnected-components">Select Small Disconnected Components</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-vertex-texture-seams">Select Vertex Texture Seams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-vertices-from-faces">Select Vertices from Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-by-screen-polygon">Select by Screen Polygon</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-by-screen-rectangle">Select by Screen Rectangle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-visible-faces">Select Visible Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-visible-vertices">Select Visible Vertices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#set-texture">Set Texture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#convert-object-space-normal-map-to-tangent-space">Convert Object-Space Normal Map to Tangent Space</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#pack-texture-images">Pack Texture Images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-abstract-domain-to-another-layer">Transfer Abstract Domain to Another Layer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-color-from-texture-to-vertex-by-closest-point">Transfer Color from Texture to Vertex by Closest Point</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-vertex-attributes-by-closest-point">Transfer Vertex Attributes by Closest Point</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-vertex-attributes-to-texture-by-closest-point">Transfer Vertex Attributes to Texture by Closest Point</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-color-from-current-raster-to-vertex">Transfer Color from Current Raster to Vertex</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-color-from-visible-rasters-to-texture">Transfer Color from Visible Rasters to Texture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-color-from-visible-rasters-to-vertex">Transfer Color from Visible Rasters to Vertex</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-color-from-face-to-vertex">Transfer Color from Face to Vertex</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-color-from-mesh-to-face">Transfer Color from Mesh to Face</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-color-from-texture-to-vertex">Transfer Color from Texture to Vertex</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-color-from-vertex-to-face">Transfer Color from Vertex to Face</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-color-from-vertex-to-texture">Transfer Color from Vertex to Texture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-scalar-from-face-to-vertex">Transfer Scalar from Face to Vertex</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#transfer-scalar-from-vertex-to-face">Transfer Scalar from Vertex to Face</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="expressions.html">Expressions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="expressions.html#which-filters-take-expressions">Which filters take expressions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="expressions.html#writing-an-expression">Writing an expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="expressions.html#variables">Variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="expressions.html#custom-attributes">Custom attributes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="expressions.html#working-on-the-selection">Working on the selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="expressions.html#examples">Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="expressions.html#what-to-expect">What to expect</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/types.html">Supporting Types</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/types.html#FilterInfo"><code class="docutils literal notranslate"><span class="pre">FilterInfo</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/types.html#attributes">Attributes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/types.html#methods">Methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/types.html#id1">Attributes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/types.html#id2">Methods</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/first_steps.html">Getting started</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="building.html">Building the documentation</a></li>
+</ul>
+</div>
+<p>Design documents describing the internal architecture are available at
+<a class="reference external" href="https://github.com/cnr-isti-vclab/meshlab2/tree/main/docs/design">docs/design/</a>.</p>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="api/meshset.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">MeshSet</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=2709fde1"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

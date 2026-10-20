@@ -1,0 +1,1028 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>Usage Statistics - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/proposals/usage_statistics.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="usage-statistics">
+<h1>Usage Statistics<a class="headerlink" href="#usage-statistics" title="Link to this heading">¶</a></h1>
+<p>A plan for collecting aggregate usage data from MeshLab installs, designed so that
+the data is useful enough to change decisions and narrow enough that it cannot
+identify anyone. Nothing in this document is implemented yet; the codebase today has
+no network code at all (<code class="docutils literal notranslate"><span class="pre">find_package(Qt6</span> <span class="pre">...</span> <span class="pre">)</span></code> in <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:33</span></code> does not
+include <code class="docutils literal notranslate"><span class="pre">Network</span></code>) and no crash handling.</p>
+<p>See also: <a class="reference internal" href="../preferences.html"><span class="std std-doc">Preferences</span></a> · <a class="reference internal" href="../architecture.html"><span class="std std-doc">Architecture</span></a> ·
+<a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a></p>
+<section id="why-collect-anything">
+<h2>1. Why collect anything<a class="headerlink" href="#why-collect-anything" title="Link to this heading">¶</a></h2>
+<p>MeshLab ships <strong>334 filters across 34 filter plugins, exposing 1163 parameters</strong>,
+organized into 11 root categories and 42 subcategories, plus 6 I/O plugins covering 9
+file formats, 4 interactive tools and 15 preferences. (Counts as of 2026-09-06; they
+moved twice while this document was being written, which is itself part of the
+argument.) Nobody knows which parts of that surface are load-bearing. Every maintenance decision — what to deprecate,
+what to test, what to optimize, what to document first — is currently made on
+intuition and on the loudest issue reports.</p>
+<p>Telemetry is only worth its cost if it changes decisions, so the schema is derived
+from decisions rather than from “what is easy to log”. Each field must name the
+question it answers; a field that answers nothing is deleted at the next release
+review. This register is the contract:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Decision</p></th>
+<th class="head"><p>What answers it</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Which filters can be deprecated or merged?</p></td>
+<td><p>invocation counts per filter, per version, over months</p></td>
+</tr>
+<tr class="row-odd"><td><p>Which filters are broken in the field?</p></td>
+<td><p>failure counts + stable error codes per filter</p></td>
+</tr>
+<tr class="row-even"><td><p>Which of the 1163 parameters are dead UI?</p></td>
+<td><p>count of runs where a parameter differed from its default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Where does time go for real users?</p></td>
+<td><p>runtime histograms bucketed by mesh size</p></td>
+</tr>
+<tr class="row-even"><td><p>Did release N regress performance?</p></td>
+<td><p>same histograms, sliced by app version</p></td>
+</tr>
+<tr class="row-odd"><td><p>Which file formats deserve engineering?</p></td>
+<td><p>I/O counts and failure rates per format and direction</p></td>
+</tr>
+<tr class="row-even"><td><p>Which importer should own a contested format?</p></td>
+<td><p>the same counts keyed by plugin — <code class="docutils literal notranslate"><span class="pre">obj</span></code> is claimed by three plugins today, <code class="docutils literal notranslate"><span class="pre">stl</span></code> by two</p></td>
+</tr>
+<tr class="row-odd"><td><p>Which languages and regions to translate for?</p></td>
+<td><p>country distribution against UI language, collected unlinked (§3.6)</p></td>
+</tr>
+<tr class="row-even"><td><p>What hardware must keep working?</p></td>
+<td><p>coarse OS / arch / GPU-family / RAM buckets</p></td>
+</tr>
+<tr class="row-odd"><td><p>What document sizes must stay interactive?</p></td>
+<td><p>peak mesh count, peak face count, peak memory buckets</p></td>
+</tr>
+<tr class="row-even"><td><p>Are new features discovered at all?</p></td>
+<td><p>entry-point counters (menu, panel, search, Python, tool)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Is a release stable enough to promote?</p></td>
+<td><p>unclean-exit rate per version, and which filter was running</p></td>
+</tr>
+<tr class="row-even"><td><p>How long must old versions be supported?</p></td>
+<td><p>version distribution over time</p></td>
+</tr>
+<tr class="row-odd"><td><p>Which defaults are wrong?</p></td>
+<td><p>which preferences are non-default</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Fourteen decisions, and every one of them is answerable from counters and histograms.
+None of them needs a per-action timeline, a user identity, a file name, or a
+timestamp. That is the whole basis of the privacy design: <strong>the useful questions are
+aggregate questions, so collect aggregates and nothing else.</strong></p>
+</section>
+<section id="what-to-change-relative-to-old-meshlab">
+<h2>2. What to change relative to old MeshLab<a class="headerlink" href="#what-to-change-relative-to-old-meshlab" title="Link to this heading">¶</a></h2>
+<p>MeshLab’s mechanism was a per-event ping to a server-side script, with the interesting
+data arriving as URL parameters and being tallied into counts. It worked, and the
+counts were genuinely useful. Four things about that shape are worth fixing:</p>
+<ol class="arabic simple">
+<li><p><strong>One request per event.</strong> Chatty, IP-visible at every action, and it reconstructs
+a session timeline server-side whether you want one or not. Replaced here by <em>one
+digest per session</em>, aggregated on the client.</p></li>
+<li><p><strong>Counters fixed at design time.</strong> A tally can only answer the question it was
+built for; a new question requires waiting a release. Replaced by a versioned
+schema over <em>raw session digests</em> retained briefly, so new aggregations can be
+recomputed over recent history.</p></li>
+<li><p><strong>No consent boundary and no visible payload.</strong> Replaced by explicit opt-in, a
+local copy of everything ever sent, and a viewer that shows the exact bytes.</p></li>
+<li><p><strong>No reciprocity.</strong> The data went one way. Replaced by published monthly
+aggregates — see <a class="reference internal" href="#8-giving-the-data-back"><span class="xref myst">§8</span></a>.</p></li>
+</ol>
+</section>
+<section id="privacy-architecture">
+<h2>3. Privacy architecture<a class="headerlink" href="#privacy-architecture" title="Link to this heading">¶</a></h2>
+<p>Seven invariants. They are design-time constraints, not policies to remember while
+writing code — the point of each is that violating it requires deliberately defeating
+a mechanism rather than merely forgetting a rule.</p>
+<section id="pii-is-unrepresentable-not-filtered">
+<h3>3.1 PII is unrepresentable, not filtered<a class="headerlink" href="#pii-is-unrepresentable-not-filtered" title="Link to this heading">¶</a></h3>
+<p>The wire format has <strong>no free-text field anywhere</strong>. Every value is one of:</p>
+<ul class="simple">
+<li><p>an identifier from a compile-time-known vocabulary (a filter key from the plugin
+registry, a parameter id, a preference id, an error code);</p></li>
+<li><p>an enum (<code class="docutils literal notranslate"><span class="pre">os</span></code>, <code class="docutils literal notranslate"><span class="pre">arch</span></code>, <code class="docutils literal notranslate"><span class="pre">channel</span></code>, <code class="docutils literal notranslate"><span class="pre">entry_point</span></code>);</p></li>
+<li><p>a bucket index into a fixed ladder (size, duration, memory, count);</p></li>
+<li><p>a small non-negative integer count.</p></li>
+</ul>
+<p>There is no <code class="docutils literal notranslate"><span class="pre">QString</span></code> in the payload that came from user data, so a path, a mesh
+name, a URL or a log line has nowhere to go. The serializer refuses unknown keys
+(allowlist, not denylist), and the ingest endpoint validates against the same
+schema and drops the whole submission on any unknown key. This matters because the
+richest sources of “what the user did” in this codebase are also the most dangerous:
+<code class="docutils literal notranslate"><span class="pre">ScriptAction</span></code> in <code class="docutils literal notranslate"><span class="pre">src/core/document_undo_types.h</span></code> carries <code class="docutils literal notranslate"><span class="pre">filePaths</span></code> and a
+<code class="docutils literal notranslate"><span class="pre">pythonCall</span></code> string with paths interpolated into it. It is a tempting source and must
+never be one; only <code class="docutils literal notranslate"><span class="pre">filterKey</span></code> and the <em>ids</em> of non-default parameters may be read
+from it.</p>
+</section>
+<section id="a-session-digest-not-an-event-stream">
+<h3>3.2 A session digest, not an event stream<a class="headerlink" href="#a-session-digest-not-an-event-stream" title="Link to this heading">¶</a></h3>
+<p>The client accumulates counters in memory for the duration of a session and emits one
+digest. Sending <code class="docutils literal notranslate"><span class="pre">{smooth:</span> <span class="pre">12,</span> <span class="pre">decimate:</span> <span class="pre">3}</span></code> instead of fifteen timestamped events
+destroys the ordering and timing information that would let anyone reconstruct a
+work session — and cuts request volume and storage by roughly two orders of
+magnitude. Privacy and cost point the same way here, which is usually a sign the
+design is right.</p>
+</section>
+<section id="no-timestamps">
+<h3>3.3 No timestamps<a class="headerlink" href="#no-timestamps" title="Link to this heading">¶</a></h3>
+<p>The payload contains no wall-clock time of any kind — no session start, no per-action
+time, not even a timezone. Durations are sent as bucket histograms; the only date
+attached to a digest is the <strong>server’s ingest day</strong>. This removes “works at 03:00”,
+“active on Italian holidays”, and clock-skew-as-a-fingerprint in one stroke, and it
+removes any need to trust the client’s clock.</p>
+</section>
+<section id="identity-a-session-id-and-a-rotating-install-id">
+<h3>3.4 Identity: a session id and a rotating install id<a class="headerlink" href="#identity-a-session-id-and-a-rotating-install-id" title="Link to this heading">¶</a></h3>
+<p>Two identifiers, both random, neither derived from anything about the machine:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">session_id</span></code> — fresh UUIDv4 per run. Used only to deduplicate retries.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">install_id</span></code> — random, stored locally, <strong>rotated on the first launch of each
+calendar month</strong>, with only the current value kept.</p></li>
+</ul>
+<p>The rotating id is the compromise that makes the data honest: without it, one power
+user running 200 sessions is indistinguishable from 200 users, and every per-user
+statistic is wrong. With monthly rotation, “sessions per install this month” and
+“filters per install this month” are answerable, while cross-month tracking is not —
+the previous value is gone from disk and was never sent alongside the new one.</p>
+<p>A “Forget me” button clears the local id and queues a deletion request for the
+current id; combined with the 90-day raw retention in §3.8, most erasure happens by
+expiry rather than by request.</p>
+</section>
+<section id="a-fingerprinting-budget-for-the-envelope">
+<h3>3.5 A fingerprinting budget for the envelope<a class="headerlink" href="#a-fingerprinting-budget-for-the-envelope" title="Link to this heading">¶</a></h3>
+<p>The envelope is where re-identification risk actually lives, because a combination of
+coarse facts can be near-unique even when every fact in it is harmless on its own.
+This is the oldest result in the field — ZIP code, birth date and sex identify most of
+the US population; the EFF’s browser-fingerprinting work found the average browser
+carried around 18 bits and was unique among half a million. Each field is innocuous;
+the tuple is an identifier.</p>
+<p>The budget is not an efficiency measure. The envelope is a few hundred bytes against a
+payload dominated by the filter map, and sending raw GPU and driver strings would cost
+on the order of 60 MB a year even at the largest scale in §7.2 — nothing. It buys
+three specific things:</p>
+<ol class="arabic simple">
+<li><p><strong>It protects the id rotation.</strong> Monthly rotation (§3.4) only works if September’s
+rows cannot be matched to October’s. A rotated id sitting next to a rare hardware
+tuple is only pseudo-rotated: join on the tuple and the year-long profile
+reassembles. Without the budget, the rotation is theatre.</p></li>
+<li><p><strong>It closes the linkage path this project actually has</strong> — the public issue
+tracker. “Crashes on my M2 Ultra, 128 GB, Italian UI, 2026.3 from the dmg” is five
+envelope fields in one sentence, written voluntarily, in public, next to a name.</p></li>
+<li><p><strong>It decides which legal regime applies.</strong> Data that cannot single anyone out is
+not personal data and most of the GDPR does not reach it; data that can is
+pseudonymous, with the whole apparatus attached — records of processing, DPIA,
+erasure requests, breach notification. For a service hosted by a public research
+institution that distinction is worth more than any individual field.</p></li>
+</ol>
+<p>So the envelope is budgeted in bits, and the budget is part of the schema review:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Granularity</p></th>
+<th class="head"><p>≈ bits</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>os</p></td>
+<td><p>macos / windows / linux</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-odd"><td><p>os_version</p></td>
+<td><p>major only</p></td>
+<td><p>3</p></td>
+</tr>
+<tr class="row-even"><td><p>arch</p></td>
+<td><p>arm64 / x86_64</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-odd"><td><p>app_version</p></td>
+<td><p>release tag, no build id in the envelope</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-even"><td><p>gpu_family</p></td>
+<td><p>allowlisted family, else <code class="docutils literal notranslate"><span class="pre">other</span></code></p></td>
+<td><p>5</p></td>
+</tr>
+<tr class="row-odd"><td><p>ram_bucket</p></td>
+<td><p>8 / 16 / 32 / 64 / more</p></td>
+<td><p>3</p></td>
+</tr>
+<tr class="row-even"><td><p>cpu_cores_bucket</p></td>
+<td><p>4 / 8 / 16 / more</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-odd"><td><p>language</p></td>
+<td><p>language subtag only, no region</p></td>
+<td><p>5</p></td>
+</tr>
+<tr class="row-even"><td><p>channel</p></td>
+<td><p>dmg / installer / package / source</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>total</strong></p></td>
+<td><p></p></td>
+<td><p><strong>~27</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>27 bits is ~134 M distinct signatures against a population several orders of
+magnitude smaller: on a uniform distribution every single install would be unique.
+Real signatures are not uniform — most pile into a handful of modal tuples (current
+macOS, arm64, English, latest release), while the singletons live in the tail: older
+distributions, unusual memory sizes, rare languages. The bit count is therefore a
+<strong>prior, not a mechanism</strong>.</p>
+<p>Two controls do the actual work. First, the client sends <code class="docutils literal notranslate"><span class="pre">other</span></code> for anything not on
+the shipped allowlist — notably GPU strings, which are otherwise nearly unique and
+must never be sent raw. Second, <strong>ingest enforces k-anonymity</strong>, which measures real
+occupancy instead of assuming it: a rolling per-month count per envelope signature,
+and any signature below k = 50 installs is generalized before it is written to
+storage.</p>
+<p>The two are not redundant, and their interaction is the real reason to keep the budget
+tight: <strong>low entropy is what makes k-anonymity affordable.</strong> At 40-odd bits the
+coarsening would fire on a large fraction of records and the platform breakdown would
+survive only for the modal configurations — losing precisely the tail where the bugs
+are. Spending few bits up front is what lets the threshold almost never trigger.</p>
+<p>Note what is <em>not</em> in the table: no timezone, no screen resolution, no locale region,
+no build id, no CPU model, no GPU driver version — and no country, which <em>is</em>
+collected, but not here. See §3.6.</p>
+</section>
+<section id="country-without-spending-bits">
+<h3>3.6 Country, without spending bits<a class="headerlink" href="#country-without-spending-bits" title="Link to this heading">¶</a></h3>
+<p>Country is worth keeping: it is the only thing that answers which languages and
+regions to translate for, and UI language alone does not answer it — an Italian lab
+running an English UI is a translation opportunity, an English UI in Ohio is not. But
+as an envelope field it is expensive, roughly 6 effective bits once the skew of the
+install base is accounted for, and it would push a large share of tuples into
+k-anonymity coarsening.</p>
+<p>The way out is that <strong>the translation question needs a marginal distribution, never a
+join.</strong> Nobody needs to know which filters Japanese users run; they need to know how
+many installs are in Japan and what language those installs are set to. So country
+never enters the digest:</p>
+<ul class="simple">
+<li><p>the proxy already sees the client IP transiently, for rate limiting (§3.7);</p></li>
+<li><p>ingest maps it to a country code in memory, reads <code class="docutils literal notranslate"><span class="pre">language</span></code> and <code class="docutils literal notranslate"><span class="pre">app_version</span></code> from
+the payload, and <strong>increments a counter</strong> in a separate geo table;</p></li>
+<li><p>that table holds tallies only — no install id, no session id, no submission id, no
+behavioural data, and no per-row timestamp, because increments are accumulated in
+memory and flushed on a fixed schedule.</p></li>
+</ul>
+<p>There is consequently nothing to join on: the geo table is a set of counts, not a set
+of records. Country costs zero bits of the §3.5 budget, the digest never carries it,
+and a full database breach yields a row saying “1 842 installs in Japan in August, 61
+of them with an English UI” and nothing further. Published country figures get the
+same k = 20 suppression as everything else in §8, with small countries rolled into a
+region bucket rather than named.</p>
+<p>The residual limitation is real and deliberate: country <strong>cannot</strong> be crossed with
+filter usage, crash rate or hardware. If that ever becomes a question worth answering
+it costs about 3 bits with an 8-region bucket — a decision to take explicitly rather
+than drift into (§10).</p>
+</section>
+<section id="the-ip-address-is-never-stored">
+<h3>3.7 The IP address is never stored<a class="headerlink" href="#the-ip-address-is-never-stored" title="Link to this heading">¶</a></h3>
+<p>TLS terminates on a reverse proxy with access logging disabled; the application
+receives no <code class="docutils literal notranslate"><span class="pre">X-Forwarded-For</span></code> and writes no client address. The IP exists only in the
+proxy’s memory for the life of the request, where it is used for rate limiting and
+then discarded. The one thing derived from it — a country code — is immediately
+reduced to a counter increment and never attached to a digest, as described in §3.6.</p>
+</section>
+<section id="self-hosted-short-raw-retention-no-third-party">
+<h3>3.8 Self-hosted, short raw retention, no third party<a class="headerlink" href="#self-hosted-short-raw-retention-no-third-party" title="Link to this heading">¶</a></h3>
+<p>No SaaS analytics, no error-reporting service, no CDN in front — a third-party
+processor would add a data-processing agreement, an international-transfer analysis,
+and a party that sees IPs, in exchange for convenience the workload does not need
+(see <a class="reference internal" href="#7-server-side-sizing"><span class="xref myst">§7</span></a>). Raw digests are kept <strong>90 days</strong> and then deleted;
+daily rollups, which contain no envelope signature finer than the k-anonymized one,
+are kept indefinitely. Server code and schema live in this repository so the claims
+here are checkable.</p>
+</section>
+<section id="consent">
+<h3>3.9 Consent<a class="headerlink" href="#consent" title="Link to this heading">¶</a></h3>
+<p><strong>Opt-in, off by default.</strong> The alternative — opt-out — yields far better coverage,
+and for a project maintained inside a European public research institution it is not
+worth defending. The honest consent flow is also the effective one: a first-run
+dialog that states the fourteen decisions, links this document, and offers a <strong>“Show me
+exactly what would be sent”</strong> button that renders the real payload from the current
+session. Opt-in rates rise sharply when the payload is inspectable, and the same
+viewer is the best debugging tool the feature has.</p>
+<p>Additional rules: consent is versioned, and a schema change that adds a <em>category</em> of
+data re-asks; <code class="docutils literal notranslate"><span class="pre">MESHLAB2_NO_TELEMETRY=1</span></code> and the conventional <code class="docutils literal notranslate"><span class="pre">DO_NOT_TRACK=1</span></code> force
+off; headless, Python-driven, <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code> and test runs default to off, because
+there is no one present to consent — a CI farm must never be able to skew the data.</p>
+<p>The honest cost: an opt-in cohort skews toward engaged users. Therefore <strong>absolute
+install counts are never a published or internal KPI</strong>. Only ratios within the cohort
+and version-to-version deltas are treated as sound.</p>
+</section>
+</section>
+<section id="the-schema">
+<h2>4. The schema<a class="headerlink" href="#the-schema" title="Link to this heading">¶</a></h2>
+<p>One submission, one JSON object, gzipped. Illustrative rather than final:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">"schema"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"consent"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"submission_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"b1c1…"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"sample_rate"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"envelope"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"app_version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026.3"</span><span class="p">,</span><span class="w"> </span><span class="nt">"os"</span><span class="p">:</span><span class="w"> </span><span class="s2">"macos"</span><span class="p">,</span><span class="w"> </span><span class="nt">"os_version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"26"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"arch"</span><span class="p">:</span><span class="w"> </span><span class="s2">"arm64"</span><span class="p">,</span><span class="w"> </span><span class="nt">"gpu_family"</span><span class="p">:</span><span class="w"> </span><span class="s2">"apple-m"</span><span class="p">,</span><span class="w"> </span><span class="nt">"ram_bucket"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"cpu_cores_bucket"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">"language"</span><span class="p">:</span><span class="w"> </span><span class="s2">"it"</span><span class="p">,</span><span class="w"> </span><span class="nt">"channel"</span><span class="p">:</span><span class="w"> </span><span class="s2">"dmg"</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"session"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"session_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"7f3a…"</span><span class="p">,</span><span class="w"> </span><span class="nt">"install_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"d9e0…"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"sessions_this_month_bucket"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"duration_bucket"</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"exit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"clean"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"prev_exit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"unclean"</span><span class="p">,</span><span class="w"> </span><span class="nt">"prev_exit_filter"</span><span class="p">:</span><span class="w"> </span><span class="s2">"filter_meshing::poisson_disk_sampling"</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"filters"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"filter_meshing::taubin_smooth"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"runs"</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nt">"failed"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">"cancelled"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"ms_hist"</span><span class="p">:</span><span class="w">   </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+<span class="w">      </span><span class="nt">"size_hist"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+<span class="w">      </span><span class="nt">"entry"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"menu"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"panel"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">},</span>
+<span class="w">      </span><span class="nt">"nondefault"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"stepSmoothNum"</span><span class="p">,</span><span class="w"> </span><span class="s2">"lambda"</span><span class="p">]</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">"filter_clean::remove_duplicate_vertices"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"runs"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">"failed"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">}</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"errors"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"filter_quadwild::quadrangulate"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"E_SOLVER_FAILED"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">}},</span>
+<span class="w">  </span><span class="nt">"io"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"ply:in:io_vcg"</span><span class="p">:</span><span class="w">          </span><span class="p">{</span><span class="nt">"n"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nt">"failed"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">"size_hist"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]},</span>
+<span class="w">    </span><span class="nt">"obj:in:io_obj_rapidobj"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"n"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">"failed"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">},</span>
+<span class="w">    </span><span class="nt">"gltf:out:io_gltf"</span><span class="p">:</span><span class="w">       </span><span class="p">{</span><span class="nt">"n"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"failed"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">}</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"ui"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"tool.measure"</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="nt">"undo_graph.jump"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">"render_mode.radiance_scaling"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"document"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"max_meshes_bucket"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">"max_faces_bucket"</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="nt">"peak_mem_bucket"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"preferences_nondefault"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"view.fieldOfView"</span><span class="p">,</span><span class="w"> </span><span class="s2">"render.wireframeOnLoadMaxFaces"</span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Notes on specific choices:</p>
+<ul class="simple">
+<li><p><strong>Histograms, not values.</strong> Fixed exponential ladders (faces: 1e3, 1e4, 1e5, 1e6,
+1e7, …; ms: 10, 100, 1e3, 1e4, …). A histogram of eight small integers cannot carry
+a fingerprint the way a list of exact runtimes can, and it aggregates trivially.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">nondefault</span></code> lists parameter ids, never values.</strong> A value could be a path or a
+coordinate; the id answers the question (“is this control dead?”) on its own.</p></li>
+<li><p><strong>Errors are codes, not messages.</strong> This requires a codebase change; see §6.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">prev_exit_filter</span></code></strong> is the cheapest crash signal that exists and is entirely
+public information: the filter key that was running when the previous session
+failed to shut down cleanly.</p></li>
+<li><p><strong>I/O keys carry the plugin id</strong>, because three plugins claim <code class="docutils literal notranslate"><span class="pre">obj</span></code> and two claim
+<code class="docutils literal notranslate"><span class="pre">stl</span></code>, and <code class="docutils literal notranslate"><span class="pre">Document::preferredImportPluginForExtension</span></code>
+(<code class="docutils literal notranslate"><span class="pre">src/core/document_io.cpp:92</span></code>) makes the winner a user-visible choice. Which
+importer people actually end up on, and whether it fails more than its rivals, is a
+question nothing else answers.</p></li>
+<li><p><strong>No country field.</strong> It is counted at ingest instead, unlinked; see §3.6.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">sample_rate</span></code></strong> is present from day one so that client-side sampling can be
+switched on later without invalidating comparisons.</p></li>
+</ul>
+</section>
+<section id="client-architecture">
+<h2>5. Client architecture<a class="headerlink" href="#client-architecture" title="Link to this heading">¶</a></h2>
+<p>The instrumentation cost is unusually low here because the existing architecture
+already funnels everything interesting through single call sites:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Signal</p></th>
+<th class="head"><p>Funnel</p></th>
+<th class="head"><p>Covers</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>filter runs, timing, success</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document::runFilter</span></code> — <code class="docutils literal notranslate"><span class="pre">src/core/document_filters.cpp:50</span></code></p></td>
+<td><p>menu, filter panel, Python API, interactive tools — all of them, and it already measures elapsed ms</p></td>
+</tr>
+<tr class="row-odd"><td><p>I/O counts, formats, failures</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document::loadMesh</span></code> / <code class="docutils literal notranslate"><span class="pre">Document::saveMesh</span></code> — <code class="docutils literal notranslate"><span class="pre">src/core/document_io.cpp:106</span></code>, <code class="docutils literal notranslate"><span class="pre">:539</span></code></p></td>
+<td><p>every import and export</p></td>
+</tr>
+<tr class="row-even"><td><p>session lifecycle, unclean exit</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MainWindow</span></code> ctor/dtor, <code class="docutils literal notranslate"><span class="pre">src/app/main.cpp</span></code></p></td>
+<td><p>one flag file written at start, removed on clean quit</p></td>
+</tr>
+<tr class="row-odd"><td><p>document shape</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document</span></code> layer add/remove</p></td>
+<td><p>peak counts and memory</p></td>
+</tr>
+<tr class="row-even"><td><p>feature discovery</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code> mode changes, <code class="docutils literal notranslate"><span class="pre">InteractiveTool</span></code> activation</p></td>
+<td><p>4 tools, render modes</p></td>
+</tr>
+<tr class="row-odd"><td><p>wrong defaults</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Preferences::changed</span></code> — <code class="docutils literal notranslate"><span class="pre">src/core/preferences.h</span></code></p></td>
+<td><p>15 preferences</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Document::runFilter ──┐
+Document::loadMesh  ──┼──&gt; Telemetry::instance()   (src/core/telemetry.{h,cpp})
+MainWindow lifecycle──┤        │  in-memory counters, no I/O during the session
+RenderWidget / tools──┘        │
+                               ├──&gt; digest.json in QStandardPaths::AppDataLocation
+                               │       one file per session, queue capped at 20 / 7 days
+                               └──&gt; sent.jsonl  (the local transparency log)
+                                        │
+   next app start ──&gt; TelemetrySubmitter ──&gt; POST https://stats.meshlab.org/v1/ingest
+</pre></div>
+</div>
+<p>Design points worth committing to:</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Telemetry</span></code> is a <code class="docutils literal notranslate"><span class="pre">src/core</span></code> singleton shaped like <code class="docutils literal notranslate"><span class="pre">Preferences</span></code></strong> — same
+instance-plus-id-string idiom, no UI dependency, callable from any layer.</p></li>
+<li><p><strong>Submit the <em>previous</em> session at the <em>next</em> start.</strong> One decision solves three
+problems: the network call never delays quit, a session that crashed still gets
+reported (that is exactly where <code class="docutils literal notranslate"><span class="pre">prev_exit</span></code> comes from), and offline machines simply
+submit later. Multiple queued digests go in one request.</p></li>
+<li><p><strong>Bounded queue.</strong> At most 20 digests or 7 days, oldest dropped, so a machine that
+is offline for a year neither grows a spool nor sends a year of history at once.</p></li>
+<li><p><strong>One dependency added:</strong> <code class="docutils literal notranslate"><span class="pre">Qt6::Network</span></code>. It is the only new external requirement.</p></li>
+<li><p><strong>Kill switch both ways.</strong> A preference, two environment variables, and a
+server response field that can tell clients to back off (bad deploy, schema
+mistake) without shipping a build.</p></li>
+<li><p><strong>Tests assert the privacy invariants.</strong> A test that serializes a digest built from
+a document with real file paths and asserts the bytes contain no <code class="docutils literal notranslate"><span class="pre">/</span></code>, no <code class="docutils literal notranslate"><span class="pre">\</span></code>, and
+nothing matching a path or extension pattern; plus a schema round-trip test and a
+test that the queue cap holds. These are cheap and they are what makes §3.1 a
+mechanism rather than a promise.</p></li>
+</ul>
+</section>
+<section id="codebase-changes-this-requires">
+<h2>6. Codebase changes this requires<a class="headerlink" href="#codebase-changes-this-requires" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Change</p></th>
+<th class="head"><p>Where</p></th>
+<th class="head"><p>Why</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Stable error codes on filter results</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult</span></code> — <code class="docutils literal notranslate"><span class="pre">src/plugins/meshfilterplugin.h:317</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">errorMessage</span></code> is a translated free-text <code class="docutils literal notranslate"><span class="pre">QString</span></code>; it can never be sent. Add an <code class="docutils literal notranslate"><span class="pre">errorCode</span></code> enum/interned id alongside it. Useful independently: scripts and tests can branch on a code instead of matching English prose</p></td>
+</tr>
+<tr class="row-odd"><td><p>Unclean-exit detection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/app/main.cpp</span></code></p></td>
+<td><p>none exists today; a sentinel file at startup is ~15 lines and unlocks the single best release-gating metric</p></td>
+</tr>
+<tr class="row-even"><td><p>GPU family allowlist</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/render</span></code></p></td>
+<td><p>map the driver string to a coarse family; raw strings must never leave</p></td>
+</tr>
+<tr class="row-odd"><td><p>Bucket ladders</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/core/telemetry.h</span></code></p></td>
+<td><p>shared by client and server rollups; changing one is a schema version bump</p></td>
+</tr>
+<tr class="row-even"><td><p>Consent + viewer UI</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/ui</span></code></p></td>
+<td><p>first-run dialog, a preferences page, and a payload viewer</p></td>
+</tr>
+<tr class="row-odd"><td><p>Telemetry preferences</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">resources/preferences.json</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">stats.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">stats.consentVersion</span></code> — the existing schema renders them with no UI code, per <a class="reference internal" href="../preferences.html"><span class="std std-doc">Preferences</span></a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="server-side-sizing">
+<h2>7. Server side sizing<a class="headerlink" href="#server-side-sizing" title="Link to this heading">¶</a></h2>
+<section id="shape">
+<h3>7.1 Shape<a class="headerlink" href="#shape" title="Link to this heading">¶</a></h3>
+<p>Deliberately boring, because the workload is small and the operational budget of a
+research lab is the real constraint:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>nginx (TLS, no access log, rate limit, 64 KB body cap)
+  └─ ingest service (~300 lines, Go or Python): schema validate → k-anon coarsen
+       ├─ append to /data/raw/YYYY-MM-DD.ndjson.gz         (deleted after 90 days)
+       │    └─ nightly DuckDB job → /data/rollup/*.parquet (kept indefinitely)
+       │         └─ static HTML dashboard, regenerated nightly
+       └─ in-memory geo tallies, flushed hourly → /data/geo/*.parquet
+            (country × language × app_version counts only, no join key — §3.6)
+</pre></div>
+</div>
+<p>No database server, no dashboard service, no queue, no container orchestration. The
+rollup tables are small enough to be embarrassing: filter × version × day is
+334 × ~8 × 365 ≈ <strong>975 k rows per year</strong>, which DuckDB queries in milliseconds and
+which fits in a file you can email. The geo table is smaller still — country ×
+language × app_version × month is a few tens of thousands of sparse rows a year.</p>
+</section>
+<section id="traffic-model">
+<h3>7.2 Traffic model<a class="headerlink" href="#traffic-model" title="Link to this heading">¶</a></h3>
+<p>One submission per session; <strong>average 2.5 KB raw, ~1 KB gzipped on the wire</strong>
+(median session touches ~6 distinct filters; p95 ≈ 5 KB raw). Payload hard-capped at
+64 KB.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>submissions/month = monthly_active_installs × sessions_per_install × opt_in_rate
+</pre></div>
+</div>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Scenario</p></th>
+<th class="head"><p>Active installs/mo</p></th>
+<th class="head"><p>Sessions</p></th>
+<th class="head"><p>Opt-in</p></th>
+<th class="head"><p>Submissions/mo</p></th>
+<th class="head"><p>Avg req/s</p></th>
+<th class="head"><p>Peak req/s</p></th>
+<th class="head"><p>Raw/mo</p></th>
+<th class="head"><p>Raw for 90 days</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Dogfood</p></td>
+<td><p>1 000</p></td>
+<td><p>15</p></td>
+<td><p>40 %</p></td>
+<td><p>6 000</p></td>
+<td><p>0.002</p></td>
+<td><p>0.02</p></td>
+<td><p>15 MB</p></td>
+<td><p>45 MB</p></td>
+</tr>
+<tr class="row-odd"><td><p>Established</p></td>
+<td><p>50 000</p></td>
+<td><p>10</p></td>
+<td><p>25 %</p></td>
+<td><p>125 000</p></td>
+<td><p>0.05</p></td>
+<td><p>0.5</p></td>
+<td><p>310 MB</p></td>
+<td><p>0.9 GB</p></td>
+</tr>
+<tr class="row-even"><td><p>MeshLab-scale</p></td>
+<td><p>500 000</p></td>
+<td><p>8</p></td>
+<td><p>25 %</p></td>
+<td><p>1 000 000</p></td>
+<td><p>0.4</p></td>
+<td><p>4</p></td>
+<td><p>2.5 GB</p></td>
+<td><p>7.5 GB</p></td>
+</tr>
+<tr class="row-odd"><td><p>Blowout</p></td>
+<td><p>2 000 000</p></td>
+<td><p>8</p></td>
+<td><p>40 %</p></td>
+<td><p>6 400 000</p></td>
+<td><p>2.5</p></td>
+<td><p>25</p></td>
+<td><p>16 GB</p></td>
+<td><p>48 GB</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Peak assumes a 10× diurnal factor over the average. Gzipped storage is ~40 % of raw.</p>
+</section>
+<section id="what-that-costs">
+<h3>7.3 What that costs<a class="headerlink" href="#what-that-costs" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>CPU.</strong> Validate + coarsen + append ≈ 100 µs per submission, so even the blowout
+row is 0.25 % of one core. TLS handshakes dominate at ~1–2 ms of CPU each: 25 req/s
+≈ 5 % of a core. nginx serves thousands of these per second.</p></li>
+<li><p><strong>Memory.</strong> The ingest service is stateless apart from the rolling k-anonymity
+counters — one month of envelope signatures, tens of MB at worst.</p></li>
+<li><p><strong>Disk.</strong> 90-day raw window plus rollups: <strong>&lt; 1 GB</strong> through “Established”,
+<strong>~8 GB</strong> at MeshLab-scale, ~50 GB at blowout. Rollups add a few hundred MB/year
+forever.</p></li>
+<li><p><strong>Bandwidth.</strong> MeshLab-scale is ~33 MB/day inbound.</p></li>
+<li><p><strong>Machine.</strong> <strong>2 vCPU / 4 GB / 80 GB SSD</strong> covers everything through
+MeshLab-scale with room to spare; blowout wants 200 GB or a shorter raw window with
+cold archive to object storage. That is a €5–10/month VPS, or a small VM on
+institutional infrastructure.</p></li>
+<li><p><strong>People.</strong> This is the real cost: roughly 2–3 weeks of part-time work to build
+phases 0–2, then a few hours a month — plus the recurring hour per release to review
+the decisions register and delete dead fields.</p></li>
+<li><p><strong>When to reach for ClickHouse:</strong> only if interactive slicing over the <em>raw</em> history
+becomes a daily activity, i.e. above ~1 billion fact rows retained. Nightly Parquet
+rollups do not get there.</p></li>
+</ul>
+</section>
+<section id="abuse-resistance">
+<h3>7.4 Abuse resistance<a class="headerlink" href="#abuse-resistance" title="Link to this heading">¶</a></h3>
+<p>An anonymous unauthenticated endpoint can be poisoned; identity is the only real
+defense and it has been given up on purpose, so the goal is bounding the damage:
+size cap, schema validation, plausibility caps (a session cannot run 10⁶ filters),
+per-IP rate limiting at the proxy (transient use of an IP, never stored),
+<code class="docutils literal notranslate"><span class="pre">submission_id</span></code> deduplication, and reporting that leans on medians, trimmed means and
+version-to-version <em>distribution shifts</em> rather than absolute totals. A shared HMAC
+key compiled into official builds raises the effort slightly and should be understood
+as obfuscation, not authentication.</p>
+</section>
+</section>
+<section id="giving-the-data-back">
+<h2>8. Giving the data back<a class="headerlink" href="#giving-the-data-back" title="Link to this heading">¶</a></h2>
+<p>The community supplies the data, so the community gets the data. Monthly, publish:</p>
+<ul class="simple">
+<li><p>a static dashboard with filter usage, failure rates, version adoption, platform mix
+and a country/region map;</p></li>
+<li><p>machine-readable aggregate CSVs, with any cell below k = 20 installs suppressed;</p></li>
+<li><p>the schema, the ingest code, and the decisions register — in this repository.</p></li>
+</ul>
+<p>This is also what makes the feature defensible: a user who wonders what is collected
+can read the schema, press the button that shows their own payload, and then look at
+exactly what everyone’s payloads became.</p>
+</section>
+<section id="phasing">
+<h2>9. Phasing<a class="headerlink" href="#phasing" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Phase</p></th>
+<th class="head"><p>Content</p></th>
+<th class="head"><p>Why in this order</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Telemetry</span></code> core, counters at the funnels, local digest file, payload viewer. <strong>No network code at all.</strong></p></td>
+<td><p>Schema mistakes are cheap now and expensive after collection starts. Dogfood a full release cycle, then delete the fields nobody looked at</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>Consent flow, <code class="docutils literal notranslate"><span class="pre">Qt6::Network</span></code> submitter, ingest service, raw storage</p></td>
+<td><p>Smallest thing that produces real data</p></td>
+</tr>
+<tr class="row-even"><td><p>2</p></td>
+<td><p>Nightly rollup, public dashboard, published CSVs</p></td>
+<td><p>Closes the loop; §8 is what earns the opt-ins</p></td>
+</tr>
+<tr class="row-odd"><td><p>3</p></td>
+<td><p>Error codes, unclean-exit signal, runtime/size histograms</p></td>
+<td><p>Needs the <code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult</span></code> change and is worth its own review</p></td>
+</tr>
+<tr class="row-even"><td><p>4</p></td>
+<td><p>Sampling, k-anonymity tightening, cold archive</p></td>
+<td><p>Only if scale demands it; the model in §7.2 says it may never</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="open-decisions">
+<h2>10. Open decisions<a class="headerlink" href="#open-decisions" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Consent model</strong> — opt-in (recommended, assumed throughout) vs. opt-out with a
+prominent first-run notice. Changes coverage by roughly 3–5× and changes the
+legal posture entirely.</p></li>
+<li><p><strong>Identity model</strong> — session-only (maximum privacy, cannot separate heavy users
+from many users) vs. monthly rotating install id (recommended) vs. a stable
+install id (rejected here).</p></li>
+<li><p><strong>Hosting</strong> — institutional VM vs. commercial VPS. Both are adequate; the
+institutional route affects who the data controller is.</p></li>
+<li><p><strong>Whether country may ever be crossed with behaviour.</strong> Assumed no: the marginal
+distribution in §3.6 is free, but a join needs country inside the envelope, which
+costs ~3 bits even with an 8-region bucket and re-opens the k-anonymity question.</p></li>
+<li><p><strong>GPU driver version.</strong> Currently excluded as 4–6 bits. It is also the difference
+between “Radeon users have problems” and “this driver branch has problems”, which
+for a renderer-heavy application may be worth buying.</p></li>
+</ol>
+</section>
+<section id="related">
+<h2>Related<a class="headerlink" href="#related" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Telemetry</span></code> is deliberately shaped like <a class="reference internal" href="../preferences.html"><span class="std std-doc"><code class="docutils literal notranslate"><span class="pre">Preferences</span></code></span></a> — a <code class="docutils literal notranslate"><span class="pre">src/core</span></code>
+singleton over a declared schema — so that adding a counter is a schema entry plus one
+call, and so that the same JSON-declared-parameters machinery can render the consent
+and settings UI without new widget code.</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Usage Statistics</a><ul>
+<li><a class="reference internal" href="#why-collect-anything">1. Why collect anything</a></li>
+<li><a class="reference internal" href="#what-to-change-relative-to-old-meshlab">2. What to change relative to old MeshLab</a></li>
+<li><a class="reference internal" href="#privacy-architecture">3. Privacy architecture</a><ul>
+<li><a class="reference internal" href="#pii-is-unrepresentable-not-filtered">3.1 PII is unrepresentable, not filtered</a></li>
+<li><a class="reference internal" href="#a-session-digest-not-an-event-stream">3.2 A session digest, not an event stream</a></li>
+<li><a class="reference internal" href="#no-timestamps">3.3 No timestamps</a></li>
+<li><a class="reference internal" href="#identity-a-session-id-and-a-rotating-install-id">3.4 Identity: a session id and a rotating install id</a></li>
+<li><a class="reference internal" href="#a-fingerprinting-budget-for-the-envelope">3.5 A fingerprinting budget for the envelope</a></li>
+<li><a class="reference internal" href="#country-without-spending-bits">3.6 Country, without spending bits</a></li>
+<li><a class="reference internal" href="#the-ip-address-is-never-stored">3.7 The IP address is never stored</a></li>
+<li><a class="reference internal" href="#self-hosted-short-raw-retention-no-third-party">3.8 Self-hosted, short raw retention, no third party</a></li>
+<li><a class="reference internal" href="#consent">3.9 Consent</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#the-schema">4. The schema</a></li>
+<li><a class="reference internal" href="#client-architecture">5. Client architecture</a></li>
+<li><a class="reference internal" href="#codebase-changes-this-requires">6. Codebase changes this requires</a></li>
+<li><a class="reference internal" href="#server-side-sizing">7. Server side sizing</a><ul>
+<li><a class="reference internal" href="#shape">7.1 Shape</a></li>
+<li><a class="reference internal" href="#traffic-model">7.2 Traffic model</a></li>
+<li><a class="reference internal" href="#what-that-costs">7.3 What that costs</a></li>
+<li><a class="reference internal" href="#abuse-resistance">7.4 Abuse resistance</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#giving-the-data-back">8. Giving the data back</a></li>
+<li><a class="reference internal" href="#phasing">9. Phasing</a></li>
+<li><a class="reference internal" href="#open-decisions">10. Open decisions</a></li>
+<li><a class="reference internal" href="#related">Related</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>
