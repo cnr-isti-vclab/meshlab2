@@ -13,7 +13,7 @@ public:
     QString id() const override;
     QString name() const override;
     QString statusHint() const override;
-    QString badgeDetail() const override;
+    QString statusDetail() const override;
     QString iconPath() const override;
     QCursor cursor() const override;
 
@@ -22,7 +22,9 @@ public:
     bool mousePress(QMouseEvent *e) override;
     bool mouseMove(QMouseEvent *e) override;
     bool mouseRelease(QMouseEvent *e) override;
-    bool keyPress(QKeyEvent *e) override;
+    std::vector<ToolControl> controls() const override;
+    bool isControlEnabled(const QString &id) const override;
+    void triggerControl(const QString &id, Qt::KeyboardModifiers modifiers) override;
     void onSurfacePicked(const SurfacePick &result) override;
     void cancelGesture() override;
     void paintOverlay(

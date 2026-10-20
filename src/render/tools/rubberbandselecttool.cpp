@@ -89,22 +89,116 @@ QString RubberBandSelectTool::name() const
 QString RubberBandSelectTool::statusHint() const
 {
     if (m_shape == Shape::Polygon)
-        return QObject::tr("Polygon lasso: click the corners, double-click or Enter to close — Backspace last corner, Esc drop it, Shift add, Ctrl subtract, F/V faces/vertices, B visible-only, C connected components, T UV islands, P rectangle; Tab: camera, Esc: exit");
-    return QObject::tr("Rubber-band: drag to select — Shift add, Ctrl subtract, F/V faces/vertices, B visible-only, C connected components, T UV islands, P polygon lasso — A all, N none, I invert, + / − grow / shrink, X delete; Tab: camera, Esc: exit");
+        return QObject::tr("Click the corners, double-click or Enter to close · Backspace takes "
+                           "back a corner · Shift add · Ctrl subtract");
+    return QObject::tr("Drag to select · Shift add · Ctrl subtract");
 }
 
-QString RubberBandSelectTool::badgeDetail() const
+std::vector<ToolControl> RubberBandSelectTool::controls() const
 {
-    QStringList parts;
-    parts << (m_shape == Shape::Polygon ? QObject::tr("polygon") : QObject::tr("rectangle"));
-    parts << (m_selectFaces ? QObject::tr("faces") : QObject::tr("vertices"));
-    if (m_visibleOnly && m_selectFaces)
-        parts << QObject::tr("visible-only");
-    if (m_expansion == Expansion::Components)
-        parts << QObject::tr("connected components");
-    else if (m_expansion == Expansion::UvIslands)
-        parts << QObject::tr("UV islands");
-    return parts.join(QStringLiteral(" · "));
+    using Kind = ToolControl::Kind;
+    return {
+        { QStringLiteral("faces"), Kind::Toggle, QObject::tr("Faces"),
+          QObject::tr("Select faces"), { Qt::Key_F }, QStringLiteral("element") },
+        { QStringLiteral("vertices"), Kind::Toggle, QObject::tr("Vertices"),
+          QObject::tr("Select vertices"), { Qt::Key_V }, QStringLiteral("element") },
+        { QStringLiteral("visible"), Kind::Toggle, QObject::tr("Visible Only"),
+          QObject::tr("Select only the faces in sight, not those hidden behind others"),
+          { Qt::Key_B }, QStringLiteral("options") },
+        { QStringLiteral("components"), Kind::Toggle, QObject::tr("Components"),
+          QObject::tr("Grow the selection to whole connected components"),
+          { Qt::Key_C }, QStringLiteral("options") },
+        { QStringLiteral("islands"), Kind::Toggle, QObject::tr("UV Islands"),
+          QObject::tr("Grow the selection to whole UV islands"),
+          { Qt::Key_T }, QStringLiteral("options") },
+        { QStringLiteral("lasso"), Kind::Toggle, QObject::tr("Lasso"),
+          QObject::tr("Select inside a polygon clicked out corner by corner, instead of a rectangle"),
+          { Qt::Key_P }, QStringLiteral("options") },
+        { QStringLiteral("all"), Kind::Action, QObject::tr("All"),
+          QObject::tr("Select all"), { Qt::Key_A }, QStringLiteral("edit") },
+        { QStringLiteral("none"), Kind::Action, QObject::tr("None"),
+          QObject::tr("Select none"), { Qt::Key_N }, QStringLiteral("edit") },
+        { QStringLiteral("invert"), Kind::Action, QObject::tr("Invert"),
+          QObject::tr("Invert the selection"), { Qt::Key_I }, QStringLiteral("edit") },
+        { QStringLiteral("dilate"), Kind::Action, QObject::tr("Dilate"),
+          QObject::tr("Grow the selection by one ring"), { Qt::Key_Plus, Qt::Key_Equal },
+          QStringLiteral("edit") },
+        { QStringLiteral("erode"), Kind::Action, QObject::tr("Erode"),
+          QObject::tr("Shrink the selection by one ring"), { Qt::Key_Minus }, QStringLiteral("edit") },
+        { QStringLiteral("remove"), Kind::Action, QObject::tr("Remove"),
+          QObject::tr("Remove the selected elements from the layer"), { Qt::Key_X },
+          QStringLiteral("edit") },
+    };
+}
+
+bool RubberBandSelectTool::isControlChecked(const QString &id) const
+{
+    if (id == QLatin1String("faces"))
+        return m_selectFaces;
+    if (id == QLatin1String("vertices"))
+        return !m_selectFaces;
+    if (id == QLatin1String("visible"))
+        return m_visibleOnly && m_selectFaces;
+    if (id == QLatin1String("components"))
+        return m_expansion == Expansion::Components;
+    if (id == QLatin1String("islands"))
+        return m_expansion == Expansion::UvIslands;
+    if (id == QLatin1String("lasso"))
+        return m_shape == Shape::Polygon;
+    return false;
+}
+
+bool RubberBandSelectTool::isControlEnabled(const QString &id) const
+{
+    // Occlusion applies to faces only.
+    if (id == QLatin1String("visible"))
+        return m_selectFaces;
+    // The selection must not change underneath an outline that is still being drawn.
+    for (const char *edit : { "all", "none", "invert", "dilate", "erode", "remove" }) {
+        if (id == QLatin1String(edit))
+            return !gestureInFlight();
+    }
+    return true;
+}
+
+void RubberBandSelectTool::triggerControl(const QString &id, Qt::KeyboardModifiers modifiers)
+{
+    (void) modifiers;
+    Document *doc = m_view ? m_view->document() : nullptr;
+    const auto log = [doc](const QString &text) {
+        if (doc)
+            doc->writeLog(text, Document::LogSource::Application);
+    };
+    if (id == QLatin1String("faces") || id == QLatin1String("vertices")) {
+        m_selectFaces = (id == QLatin1String("faces"));
+        log(m_selectFaces ? QObject::tr("Rubber-band: selecting faces")
+                          : QObject::tr("Rubber-band: selecting vertices"));
+    } else if (id == QLatin1String("visible")) {
+        m_visibleOnly = !m_visibleOnly;
+        log(m_visibleOnly ? QObject::tr("Rubber-band: visible (non-occluded) faces only")
+                          : QObject::tr("Rubber-band: all faces (ignore occlusion)"));
+    } else if (id == QLatin1String("components") || id == QLatin1String("islands")) {
+        const Expansion pressed =
+            (id == QLatin1String("components")) ? Expansion::Components : Expansion::UvIslands;
+        m_expansion = (m_expansion == pressed) ? Expansion::None : pressed;
+        log(m_expansion == Expansion::Components
+                ? QObject::tr("Rubber-band: expand to whole connected components")
+            : m_expansion == Expansion::UvIslands
+                ? QObject::tr("Rubber-band: expand to whole UV islands")
+                : QObject::tr("Rubber-band: select only what the rectangle covers"));
+    } else if (id == QLatin1String("lasso")) {
+        m_shape = (m_shape == Shape::Polygon) ? Shape::Rectangle : Shape::Polygon;
+        endDrag();
+        clearPolygon();
+        log(m_shape == Shape::Polygon
+                ? QObject::tr("Rubber-band: polygon lasso (click the corners, double-click or Enter to close)")
+                : QObject::tr("Rubber-band: rectangle"));
+    } else {
+        for (const ToolControl &control : controls()) {
+            if (control.id == id && control.kind == ToolControl::Kind::Action)
+                runEditingShortcut(control.keys.front());
+        }
+    }
 }
 
 QString RubberBandSelectTool::iconPath() const
@@ -452,87 +546,34 @@ bool RubberBandSelectTool::keyPress(QKeyEvent *e)
             return true;
         }
     }
-    if (e->key() == Qt::Key_P) {
-        m_shape = (m_shape == Shape::Polygon) ? Shape::Rectangle : Shape::Polygon;
-        endDrag();
-        clearPolygon();
-        if (m_view && m_view->document())
-            m_view->document()->writeLog(
-                m_shape == Shape::Polygon
-                    ? QObject::tr("Rubber-band: polygon lasso (click the corners, double-click or Enter to close)")
-                    : QObject::tr("Rubber-band: rectangle"),
-                Document::LogSource::Application);
-        return true;
-    }
-    // Esc is handled globally by the view (exits the tool); the tool owns F/V, B, C and T.
-    if (e->key() == Qt::Key_F || e->key() == Qt::Key_V) {
-        m_selectFaces = (e->key() == Qt::Key_F);
-        if (m_view && m_view->document())
-            m_view->document()->writeLog(
-                m_selectFaces ? QObject::tr("Rubber-band: selecting faces")
-                              : QObject::tr("Rubber-band: selecting vertices"),
-                Document::LogSource::Application);
-        return true;
-    }
-    if (e->key() == Qt::Key_B) {
-        m_visibleOnly = !m_visibleOnly;
-        if (m_view && m_view->document())
-            m_view->document()->writeLog(
-                m_visibleOnly ? QObject::tr("Rubber-band: visible (non-occluded) faces only")
-                              : QObject::tr("Rubber-band: all faces (ignore occlusion)"),
-                Document::LogSource::Application);
-        return true;
-    }
-    if (e->key() == Qt::Key_C || e->key() == Qt::Key_T) {
-        const Expansion pressed =
-            (e->key() == Qt::Key_C) ? Expansion::Components : Expansion::UvIslands;
-        m_expansion = (m_expansion == pressed) ? Expansion::None : pressed;
-        if (m_view && m_view->document())
-            m_view->document()->writeLog(
-                m_expansion == Expansion::Components
-                    ? QObject::tr("Rubber-band: expand to whole connected components")
-                : m_expansion == Expansion::UvIslands
-                    ? QObject::tr("Rubber-band: expand to whole UV islands")
-                    : QObject::tr("Rubber-band: select only what the rectangle covers"),
-                Document::LogSource::Application);
-        return true;
-    }
-    return runEditingShortcut(e);
+    // The options and the editing actions are controls: the view runs them from their keys.
+    return false;
 }
 
-// A, N, I, + / -, X: one press runs one selection filter on the kind of element the tool is
-// picking (see selectionshortcuts.h). Left alone while a drag or a polygon is being drawn,
-// since the selection must not change underneath an outline that is still being made, and
-// when Ctrl, Alt or Cmd is down, so Cmd+A and the like still reach the menus.
-bool RubberBandSelectTool::runEditingShortcut(QKeyEvent *e)
+// All, None, Invert, Dilate, Erode, Remove: one runs one selection filter on the kind of
+// element the tool is picking (see selectionshortcuts.h), by the key the control lists.
+void RubberBandSelectTool::runEditingShortcut(int key)
 {
-    if (gestureInFlight()
-        || (e->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier)))
-        return false;
-    const std::optional<SelectionShortcut> shortcut = selectionShortcutFor(e->key(), m_selectFaces);
+    const std::optional<SelectionShortcut> shortcut = selectionShortcutFor(key, m_selectFaces);
     if (!shortcut)
-        return false;
-    // Holding a key down must not repeat it: inverting twice undoes itself, and growing by
-    // one ring per auto-repeat tick would flood the undo history on a large mesh.
-    if (e->isAutoRepeat())
-        return true;
+        return;
 
     Document *doc = m_view ? m_view->document() : nullptr;
     const int meshIndex = doc ? doc->currentMeshIndex() : -1;
     if (!doc || meshIndex < 0 || meshIndex >= doc->meshCount())
-        return true;
+        return;
 
     // Clearing, growing or shrinking nothing would still leave an empty step in the undo
     // history, so those are skipped when there is nothing of this kind selected.
-    const bool changesExisting = e->key() == Qt::Key_N || e->key() == Qt::Key_Plus
-        || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Minus;
+    const bool changesExisting = key == Qt::Key_N || key == Qt::Key_Plus
+        || key == Qt::Key_Equal || key == Qt::Key_Minus;
     if (changesExisting) {
         const VCGMesh &mesh = doc->mesh(meshIndex).mesh;
         const size_t selected = m_selectFaces
             ? vcg::tri::UpdateSelection<VCGMesh>::FaceCount(mesh)
             : vcg::tri::UpdateSelection<VCGMesh>::VertexCount(mesh);
         if (selected == 0)
-            return true;
+            return;
     }
 
     const MeshFilterRunResult result = doc->runFilter(
@@ -540,5 +581,4 @@ bool RubberBandSelectTool::runEditingShortcut(QKeyEvent *e)
     if (!result.success)
         doc->writeLog(QObject::tr("Selection shortcut failed: %1").arg(result.errorMessage),
                       Document::LogSource::Application, Document::LogLevel::Error);
-    return true;
 }

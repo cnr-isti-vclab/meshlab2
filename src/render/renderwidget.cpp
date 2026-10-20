@@ -6,6 +6,7 @@
 #include "colormap.h"
 #include "document.h"
 #include "interactivetool.h"
+#include "toolstrip.h"
 #include "qualityrange.h"
 #include "clipplane.h"
 #include "renderoverlaypanel.h"
@@ -648,7 +649,7 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         invalidateToolPick();
         if (m_activeTool) {
             m_activeTool->cancelGesture();
-            updateToolBadge();
+            updateToolStrip();
         }
         if (index >= 0 && index <= int(m_meshVisibility.size()))
             m_meshVisibility.insert(m_meshVisibility.begin() + index, true);
@@ -688,7 +689,7 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         invalidateToolPick();
         if (m_activeTool) {
             m_activeTool->cancelGesture();
-            updateToolBadge();
+            updateToolStrip();
         }
         ensureVisibilitySize();
         if (from >= 0 && from < int(m_meshVisibility.size()) && to >= 0
@@ -704,7 +705,7 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         invalidateToolPick(); // invalidate in-flight picks (see meshAdded)
         if (m_activeTool) {
             m_activeTool->cancelGesture();
-            updateToolBadge();
+            updateToolStrip();
         }
         if (index >= 0 && index < int(m_meshVisibility.size()))
             m_meshVisibility.erase(m_meshVisibility.begin() + index);
@@ -741,7 +742,7 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         invalidateToolPick();
         if (m_activeTool) {
             m_activeTool->cancelGesture();
-            updateToolBadge();
+            updateToolStrip();
         }
         syncPerMeshRenderModesWithDocument();
         syncOverlaySettingsToCurrentMesh();
@@ -828,7 +829,7 @@ void RenderWidget::setRenderSettings(const RenderSettings &settings)
     }
     if (prev.layerArrangement != m_renderSettings.layerArrangement) {
         // The grid suspends any active tool, so its badge and cursor have to follow.
-        updateToolBadge();
+        updateToolStrip();
         applyToolCursor();
     }
     syncOverlaySettingsToCurrentMesh();
@@ -1690,7 +1691,7 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
 
     m_viewMode = mode;
     applyToolCursor();
-    updateToolBadge();
+    updateToolStrip();
     syncUvTextureGroupUi();
     if (m_overlayPanel)
         m_overlayPanel->setViewerModeUv(m_viewMode == ViewMode::ParametrizationUV);
@@ -1943,9 +1944,32 @@ void RenderWidget::createOverlayButtons()
         "  padding: 10px 12px;"
         "}"));
     m_helpOverlayLabel->setText(quickHelpOverlayHtml());
-    m_toolBadgeLabel = new QLabel(this);
-    m_toolBadgeLabel->setVisible(false);
-    m_toolBadgeLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    m_toolStrip = new ToolStrip(this);
+    m_toolStrip->setVisible(false);
+    // A press on the strip is a press in this view: it becomes the current one, and takes the
+    // keys, as it would had the press landed on the scene.
+    connect(m_toolStrip, &ToolStrip::pressed, this, [this] {
+        emit viewActivated(this);
+        setFocus(Qt::MouseFocusReason);
+    });
+    connect(m_toolStrip, &ToolStrip::controlClicked, this,
+            [this](const QString &id, Qt::KeyboardModifiers modifiers) {
+        if (id == ToolStrip::kCameraId) {
+            toggleToolSuspended();
+        } else if (id == ToolStrip::kExitId) {
+            // What Esc does: cancel what is under way, and only then leave the tool.
+            if (m_activeTool && m_activeTool->gestureInFlight()) {
+                invalidateToolPick();
+                m_activeTool->cancelGesture();
+                updateToolStrip();
+                update();
+            } else {
+                emit toolExitRequested();
+            }
+        } else {
+            triggerToolControl(id, modifiers);
+        }
+    });
 
     m_interactionStatusOverlayLabel = new QLabel(this);
     m_interactionStatusOverlayLabel->setVisible(false);
@@ -1967,11 +1991,7 @@ void RenderWidget::createOverlayButtons()
     m_interactionStatusOverlayTimer = new QTimer(this);
     m_interactionStatusOverlayTimer->setSingleShot(true);
     connect(m_interactionStatusOverlayTimer, &QTimer::timeout, this, [this]() {
-        // Transient camera/view messages may temporarily replace the command
-        // help. Restore that help while an interactive tool remains active.
-        if (m_activeTool && !m_activeTool->statusHint().isEmpty())
-            showInteractionStatusOverlay(m_activeTool->statusHint(), true);
-        else if (m_interactionStatusOverlayLabel)
+        if (m_interactionStatusOverlayLabel)
             m_interactionStatusOverlayLabel->hide();
     });
     for (int i = 0; i <= 10; ++i) {
@@ -2447,11 +2467,16 @@ void RenderWidget::layoutOverlayButtons()
         m_interactionStatusOverlayLabel->raise();
     }
 
-    if (m_toolBadgeLabel && m_toolBadgeLabel->isVisible()) {
-        m_toolBadgeLabel->adjustSize();
-        m_toolBadgeLabel->move(leftInset + kOverlayMargin,
-                               height() - m_toolBadgeLabel->height() - kOverlayMargin);
-        m_toolBadgeLabel->raise();
+    if (m_toolStrip && m_toolStrip->isVisible()) {
+        m_toolStrip->fitWidth(maxOverlayWidth);
+        // Centred under the 3D content, and above the texture chooser of the UV view, which
+        // takes the bottom centre itself.
+        int bottom = height() - kOverlayMargin;
+        if (m_uvTextureGroupList && m_uvTextureGroupList->isVisible())
+            bottom -= m_uvTextureGroupList->height() + kOverlayMargin;
+        const int x = leftInset + (width() - leftInset - m_toolStrip->width()) / 2;
+        m_toolStrip->move(std::max(leftInset + kOverlayMargin, x), bottom - m_toolStrip->height());
+        m_toolStrip->raise();
     }
 
     // The gizmo takes the top-right corner, so everything else on that side
@@ -3517,18 +3542,12 @@ void RenderWidget::setActiveTool(InteractiveTool *tool)
     m_toolOwnerIsCurrent = true;
     if (m_activeTool) {
         m_activeTool->activate(*this);
-        showInteractionStatusOverlay(m_activeTool->statusHint(), true);
         if (m_doc)
             m_doc->writeLog(tr("Tool engaged: %1").arg(m_activeTool->name()),
                             Document::LogSource::Application);
-    } else {
-        if (m_interactionStatusOverlayTimer)
-            m_interactionStatusOverlayTimer->stop();
-        if (m_interactionStatusOverlayLabel)
-            m_interactionStatusOverlayLabel->hide();
     }
     applyToolCursor();
-    updateToolBadge();
+    updateToolStrip();
     update();
 }
 
@@ -3543,7 +3562,7 @@ void RenderWidget::setToolOwnerIsCurrent(bool current)
         m_activeTool->cancelGesture();
     }
     applyToolCursor();
-    updateToolBadge();
+    updateToolStrip();
     update();
 }
 
@@ -3585,37 +3604,55 @@ void RenderWidget::applyToolCursor()
         setCursor(QCursor(QPixmap(QStringLiteral(":/img/cur_trackball.png")), 1, 1));
 }
 
-void RenderWidget::updateToolBadge()
+void RenderWidget::updateToolStrip()
 {
-    if (!m_toolBadgeLabel)
+    if (!m_toolStrip)
         return;
     if (!m_activeTool) {
-        m_toolBadgeLabel->hide();
+        m_toolStrip->hide();
         return;
     }
-    const bool live = toolLive();
-    const QString state = !toolAllowedInCurrentMode()
-        ? tr("unavailable in this view")
-        : !m_toolOwnerIsCurrent
-        ? tr("suspended — click this view to resume")
-        : m_toolSuspended ? tr("camera (Tab to resume)")
-                          : tr("active — Tab: camera, Esc: exit");
-    const QString detail = m_activeTool->badgeDetail();
-    m_toolBadgeLabel->setText(detail.isEmpty()
-        ? QStringLiteral("● %1 — %2").arg(m_activeTool->name(), state)
-        : QStringLiteral("● %1 [%2] — %3").arg(m_activeTool->name(), detail, state));
-    // Accent border when the tool owns the mouse; muted while suspended.
-    const QString accent = live ? QStringLiteral("0,174,255") : QStringLiteral("150,150,160");
-    m_toolBadgeLabel->setStyleSheet(QStringLiteral(
-        "QLabel {"
-        "  color: rgba(246,246,250,248);"
-        "  background: rgba(20,20,24,188);"
-        "  border: 1px solid rgba(%1,220);"
-        "  border-radius: 6px;"
-        "  padding: 4px 9px;"
-        "}").arg(accent));
-    m_toolBadgeLabel->show();
+    const ToolStrip::State state = !toolAllowedInCurrentMode() ? ToolStrip::State::Unavailable
+        : !m_toolOwnerIsCurrent                               ? ToolStrip::State::NotCurrent
+        : m_toolSuspended                                     ? ToolStrip::State::Camera
+                                                              : ToolStrip::State::Live;
+    m_toolStrip->sync(*m_activeTool, state);
+    m_toolStrip->show();
     layoutOverlayButtons();
+}
+
+void RenderWidget::toggleToolSuspended()
+{
+    if (!m_activeTool)
+        return;
+    m_toolSuspended = !m_toolSuspended;
+    applyToolCursor();
+    updateToolStrip();
+    update();
+}
+
+void RenderWidget::triggerToolControl(const QString &id, Qt::KeyboardModifiers modifiers)
+{
+    if (!m_activeTool || !toolAllowedInCurrentMode() || !m_activeTool->isControlEnabled(id))
+        return;
+    m_activeTool->triggerControl(id, modifiers);
+    // An option may change the cursor (faces or vertices, the shape) as well as the strip.
+    applyToolCursor();
+    updateToolStrip();
+    update();
+}
+
+QString RenderWidget::toolControlForKey(const QKeyEvent &e) const
+{
+    // Ctrl, Alt and Cmd belong to the menus: Cmd+A must still reach Select All there. Shift is
+    // the tool's -- it adds to a selection, or turns an axis into the plane across it.
+    if (!m_activeTool || (e.modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier)))
+        return {};
+    for (const ToolControl &control : m_activeTool->controls()) {
+        if (control.keys.contains(e.key()) && m_activeTool->isControlEnabled(control.id))
+            return control.id;
+    }
+    return {};
 }
 
 void RenderWidget::requestSurfacePick(QPoint pixel)
@@ -3645,7 +3682,7 @@ void RenderWidget::keyPressEvent(QKeyEvent *e)
         if (m_activeTool->gestureInFlight()
             && (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Tab)) {
             if (m_activeTool->keyPress(e)) {
-                updateToolBadge();
+                updateToolStrip();
                 update();
                 e->accept();
                 return;
@@ -3660,28 +3697,32 @@ void RenderWidget::keyPressEvent(QKeyEvent *e)
         // Tab flips the mouse between the tool and the camera without leaving
         // the tool (MeshLab's "suspend editing").
         if (e->key() == Qt::Key_Tab) {
-            m_toolSuspended = !m_toolSuspended;
-            applyToolCursor();
-            updateToolBadge();
-            showInteractionStatusOverlay(
-                m_toolSuspended
-                    ? tr("Camera — Tab to resume %1").arg(m_activeTool->name())
-                    : tr("%1 — Tab for camera, Esc to exit").arg(m_activeTool->name()));
-            update();
+            toggleToolSuspended();
             e->accept();
             return;
         }
-        // Other keys go to the tool only while it owns the mouse.
-        if (toolLive() && m_activeTool->keyPress(e)) {
-            // A toggle (faces/vertices, visible-only, the shape) may change the cursor, the
-            // badge and the hint that says what the tool does now.
-            applyToolCursor();
-            updateToolBadge();
-            if (!m_activeTool->statusHint().isEmpty())
-                showInteractionStatusOverlay(m_activeTool->statusHint(), true);
-            e->accept();
-            update();
-            return;
+        // Other keys go to the tool only while it owns the mouse: first to the control that
+        // lists the key -- the same one its button in the strip runs -- then to the tool's own
+        // gesture keys.
+        if (toolLive()) {
+            const QString control = toolControlForKey(*e);
+            if (!control.isEmpty()) {
+                // Holding a key down does not repeat it: inverting twice undoes itself, and one
+                // ring per auto-repeat tick would flood the undo history on a large mesh.
+                if (!e->isAutoRepeat()) {
+                    triggerToolControl(control, e->modifiers());
+                    m_toolStrip->flash(control);
+                }
+                e->accept();
+                return;
+            }
+            if (m_activeTool->keyPress(e)) {
+                applyToolCursor();
+                updateToolStrip();
+                e->accept();
+                update();
+                return;
+            }
         }
         // A modifier (Shift/Ctrl/…) may have changed the tool's cursor.
         applyToolCursor();

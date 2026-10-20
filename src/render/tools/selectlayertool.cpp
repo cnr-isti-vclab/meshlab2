@@ -18,7 +18,7 @@ QString SelectLayerTool::name() const
 
 QString SelectLayerTool::statusHint() const
 {
-    return QObject::tr("Select Layer: click a layer to make it current — Tab: camera, Esc: exit");
+    return QObject::tr("Click a layer to make it current");
 }
 
 QString SelectLayerTool::iconPath() const

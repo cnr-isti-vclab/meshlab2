@@ -10,7 +10,6 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QApplication>
-#include <QKeyEvent>
 #include <QMatrix4x4>
 #include <QMouseEvent>
 #include <QPainter>
@@ -54,15 +53,64 @@ QString MeasureTool::name() const
 
 QString MeasureTool::statusHint() const
 {
-    return QObject::tr(
-        "Measure: click two points; click an endpoint to continue, or drag it to edit — C clear, Backspace undo, P print, S save, X export layer");
+    return QObject::tr("Click two points · click an endpoint to go on from it, drag it to move it");
 }
 
-QString MeasureTool::badgeDetail() const
+QString MeasureTool::statusDetail() const
 {
-    return QObject::tr("%1 — select %2 point")
-        .arg(m_measurements.size())
-        .arg(m_pendingPoint >= 0 ? QObject::tr("second") : QObject::tr("first"));
+    if (m_pendingPoint >= 0)
+        return QObject::tr("Click the second point");
+    if (m_measurements.empty())
+        return {};
+    return QObject::tr("%n measurement(s) · click the first point of the next", nullptr,
+                       int(m_measurements.size()));
+}
+
+std::vector<ToolControl> MeasureTool::controls() const
+{
+    using Kind = ToolControl::Kind;
+    return {
+        { QStringLiteral("undo"), Kind::Action, QObject::tr("Undo"),
+          QObject::tr("Take back the point just placed, or the last measurement"),
+          { Qt::Key_Backspace, Qt::Key_Delete }, QStringLiteral("edit") },
+        { QStringLiteral("clear"), Kind::Action, QObject::tr("Clear"),
+          QObject::tr("Remove every measurement"), { Qt::Key_C }, QStringLiteral("edit") },
+        { QStringLiteral("print"), Kind::Action, QObject::tr("Print"),
+          QObject::tr("Write the measurements to the log"), { Qt::Key_P }, QStringLiteral("out") },
+        { QStringLiteral("save"), Kind::Action, QObject::tr("Save"),
+          QObject::tr("Save the measurements as a table"), { Qt::Key_S }, QStringLiteral("out") },
+        { QStringLiteral("export"), Kind::Action, QObject::tr("Export Layer"),
+          QObject::tr("Add the measurements to the document as a layer of segments"),
+          { Qt::Key_X }, QStringLiteral("out") },
+    };
+}
+
+bool MeasureTool::isControlEnabled(const QString &id) const
+{
+    if (id == QLatin1String("undo") || id == QLatin1String("clear"))
+        return m_pendingPoint >= 0 || !m_measurements.empty();
+    return !m_measurements.empty();
+}
+
+void MeasureTool::triggerControl(const QString &id, Qt::KeyboardModifiers modifiers)
+{
+    (void) modifiers;
+    if (id == QLatin1String("undo")) {
+        if (m_pendingPoint >= 0)
+            clearPendingPoint();
+        else if (!m_measurements.empty()) {
+            m_measurements.pop_back();
+            trimUnusedPoints();
+        }
+    } else if (id == QLatin1String("clear")) {
+        resetSession();
+    } else if (id == QLatin1String("print")) {
+        printMeasurements();
+    } else if (id == QLatin1String("save")) {
+        saveMeasurements();
+    } else if (id == QLatin1String("export")) {
+        exportMeasurements();
+    }
 }
 
 QString MeasureTool::iconPath() const
@@ -306,38 +354,6 @@ void MeasureTool::cancelGesture()
     m_pressedPoint = m_dragPoint = -1;
     m_hasPreviewPoint = false;
     m_pickAction = PickAction::None;
-}
-
-bool MeasureTool::keyPress(QKeyEvent *e)
-{
-    if (!e)
-        return false;
-    if (e->key() == Qt::Key_C) {
-        resetSession();
-        return true;
-    }
-    if (e->key() == Qt::Key_Backspace || e->key() == Qt::Key_Delete) {
-        if (m_pendingPoint >= 0)
-            clearPendingPoint();
-        else if (!m_measurements.empty()) {
-            m_measurements.pop_back();
-            trimUnusedPoints();
-        }
-        return true;
-    }
-    if (e->key() == Qt::Key_P) {
-        printMeasurements();
-        return true;
-    }
-    if (e->key() == Qt::Key_S) {
-        saveMeasurements();
-        return true;
-    }
-    if (e->key() == Qt::Key_X) {
-        exportMeasurements();
-        return true;
-    }
-    return false;
 }
 
 void MeasureTool::exportMeasurements()

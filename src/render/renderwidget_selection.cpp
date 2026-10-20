@@ -354,7 +354,7 @@ void RenderWidget::executePendingDepthPick(
                 result.meshIndex = result.hit ? meshIndex : -1;
                 result.worldPos = worldPos;
                 self->m_activeTool->onSurfacePicked(result);
-                self->updateToolBadge();
+                self->updateToolStrip();
                 // A pick may change GPU-rendered tool geometry (for example a
                 // measurement rubber band), not only its QPainter overlay.
                 self->update();

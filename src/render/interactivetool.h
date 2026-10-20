@@ -2,6 +2,7 @@
 
 #include <QColor>
 #include <QCursor>
+#include <QList>
 #include <QString>
 #include <QVector3D>
 
@@ -29,6 +30,23 @@ struct ToolLineSegment
     QVector3D b;
 };
 
+// One of a tool's options or actions. A tool describes each once; the view builds the tool
+// strip's buttons from the list and routes the keys to the same place, so a button and its key
+// always do the same thing and the strip always shows what the keys are.
+struct ToolControl
+{
+    enum class Kind {
+        Toggle,   // shows whether it is on (isControlChecked); a choice is a few of these
+        Action,   // does something once
+    };
+    QString id;
+    Kind kind = Kind::Action;
+    QString label;       // the button's text
+    QString help;        // its tooltip
+    QList<int> keys;     // Qt::Key values that trigger it; the first is shown on the button
+    QString group;       // buttons of one group sit together, groups are set apart
+};
+
 // Base class for interactive editing tools (selection, transform, measure, …).
 //
 // A tool is a thin interactive front-end: it captures mouse/keyboard input in a
@@ -48,11 +66,12 @@ public:
 
     virtual QString id() const = 0;
     virtual QString name() const = 0;
-    // Short one-line usage hint shown when the tool becomes active. Empty = none.
+    // What the mouse does, in a few words, for the tool strip ("Drag to select · Shift add").
+    // The options and actions are not listed here: they are the strip's buttons (controls()).
     virtual QString statusHint() const { return {}; }
-    // Optional short summary of the current toggle state, appended to the
-    // persistent status badge (e.g. "👁 visible-only"). Empty = nothing extra.
-    virtual QString badgeDetail() const { return {}; }
+    // What the tool is in the middle of, when that changes as it works (a transform's readout,
+    // the measurement count). Shown in the strip in place of the hint. Empty = nothing.
+    virtual QString statusDetail() const { return {}; }
     // Toolbar/menu icon resource path (e.g. ":/img/tool_select_rect.png"). Empty = none.
     virtual QString iconPath() const { return {}; }
     // Cursor shown while the tool owns the mouse (not suspended).
@@ -72,7 +91,22 @@ public:
     // The second press of a double click arrives here instead of as a press. Without a
     // handler the view treats it as a request to recentre on the picked point.
     virtual bool mouseDoubleClick(QMouseEvent *e) { (void)e; return false; }
+    // Keys that are part of a gesture rather than a control -- typing a value, closing a polygon.
+    // The view tries the controls' keys first.
     virtual bool keyPress(QKeyEvent *e) { (void)e; return false; }
+
+    // The tool's options and actions, in the order the strip shows them. The list may depend on
+    // the tool's state; the view rebuilds the strip when the ids change.
+    virtual std::vector<ToolControl> controls() const { return {}; }
+    virtual bool isControlChecked(const QString &id) const { (void)id; return false; }
+    // A disabled control is shown greyed, and its key goes on to keyPress().
+    virtual bool isControlEnabled(const QString &id) const { (void)id; return true; }
+    // Runs a control, from its button or from its key, with the modifiers held at the time.
+    virtual void triggerControl(const QString &id, Qt::KeyboardModifiers modifiers)
+    {
+        (void)id;
+        (void)modifiers;
+    }
 
     // Optional screen-space overlay. The matrix maps world coordinates to clip
     // space; viewportSize is in logical widget pixels.

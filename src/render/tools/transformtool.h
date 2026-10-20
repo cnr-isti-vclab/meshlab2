@@ -9,9 +9,9 @@
 
 // Session tool: Blender-style modal transforms of the current layer.
 //
-// The tool is engaged once and stays engaged; inside it, G, R and S each start a
-// modal *gesture* that follows the mouse until Enter/click commits it or Esc
-// cancels. That mapping keeps the project's tool contract (engage -> many
+// The tool is engaged once and stays engaged; inside it, Move (G), Rotate (R) and
+// Scale (S) each start a modal *gesture* that follows the mouse until Enter/click
+// commits it or Esc cancels; X, Y and Z constrain it, with Shift to the plane across. That mapping keeps the project's tool contract (engage -> many
 // operations -> disengage) while matching Blender's muscle memory, and it lets
 // G/R/S switch freely mid-gesture instead of tearing a tool down to build another.
 //
@@ -29,7 +29,7 @@ public:
     QString id() const override;
     QString name() const override;
     QString statusHint() const override;
-    QString badgeDetail() const override;
+    QString statusDetail() const override;
     QString iconPath() const override;
     QCursor cursor() const override;
 
@@ -40,6 +40,10 @@ public:
     bool mouseMove(QMouseEvent *e) override;
     bool mouseRelease(QMouseEvent *e) override;
     bool keyPress(QKeyEvent *e) override;
+    std::vector<ToolControl> controls() const override;
+    bool isControlChecked(const QString &id) const override;
+    bool isControlEnabled(const QString &id) const override;
+    void triggerControl(const QString &id, Qt::KeyboardModifiers modifiers) override;
 
     void paintOverlay(QPainter &painter,
                       const QMatrix4x4 &worldToClip,
@@ -50,10 +54,6 @@ public:
 
     bool gestureInFlight() const override { return m_gesture != Gesture::None; }
     void cancelGesture() override;
-
-    // Pre-arm a gesture so the toolbar can offer separate Move/Rotate/Scale
-    // buttons that all engage this one tool.
-    void armGesture(Gesture g);
 
 private:
     bool beginGesture(Gesture g);
@@ -77,6 +77,9 @@ private:
     QVector3D m_pivot;
     QPointF m_startMouse;
     QPointF m_currentMouse;
+    // A gesture started from the strip's button has its pointer on the button, outside the
+    // scene: it starts from where the pointer first moves in the view instead.
+    bool m_awaitingFirstMove = false;
     int m_axis = -1;                  // -1 = unconstrained, 0/1/2 = X/Y/Z
     bool m_planeConstraint = false;   // constrain to the plane normal to m_axis
     QString m_numeric;                // typed value, empty = follow the mouse

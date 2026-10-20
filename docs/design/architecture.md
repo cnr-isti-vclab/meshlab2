@@ -66,11 +66,11 @@ Base class for interactive editing tools. A tool owns mouse/keyboard handling fo
 Built-in tools are registered by `createBuiltinInteractiveTools()`:
 
 - `SelectLayerTool`: uses asynchronous surface picking to make the clicked mesh layer current.
-- `RubberBandSelectTool`: runs the `select_by_screen_rectangle` filter -- or, in polygon mode (`P`), `select_by_screen_polygon` -- in Scene3D or UV space, with replace/add/subtract modes, face/vertex selection, and growth to whole connected components or UV islands.
+- `RubberBandSelectTool`: runs the `select_by_screen_rectangle` filter -- or, with the lasso (`P`), `select_by_screen_polygon` -- in Scene3D or UV space, with replace/add/subtract modes, face/vertex selection, and growth to whole connected components or UV islands.
 - `MeasureTool`: uses asynchronous surface picks to place/edit endpoints, draws 2D labels plus depth-cued segments, can print/save measurements, and can export them as an edge-only document layer. Each length, in the label, the log and the saved table, carries the document's unit (`Document::unit()`) once it is set -- "12.5 mm", and `length_mm`, `ax_mm`... as the table's column names -- and plain numbers while it is unknown; the view redraws when the unit changes (`RenderWidget` follows `unitChanged()`).
 - `TransformTool`: provides Blender-style `G`/`R`/`S` layer transforms with axis/plane constraints, numeric entry, a toolbar icon, depth-cued constraint guides, and one filter-backed commit per gesture.
 
-`MainWindow` owns the tool instances and toolbar/menu actions. A tool is pinned to its owner view; `Tab` temporarily suspends the tool so camera navigation can use the same gestures, and `Esc` exits the tool.
+`MainWindow` owns the tool instances and toolbar/menu actions. A tool is pinned to its owner view, where its `ToolStrip` shows its name, what it is doing and a button for each of its controls with the key that does the same (see [rendering.md](rendering.md#interactive-tools)); `Tab` temporarily suspends the tool so camera navigation can use the same gestures, and `Esc` exits the tool.
 
 ### `RenderOverlayPanel`
 

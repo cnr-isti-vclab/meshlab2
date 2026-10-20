@@ -312,6 +312,7 @@ qt_add_executable(MeshLab2
     src/render/viewstate.h
     src/render/renderoverlaypanel.h src/render/renderoverlaypanel.cpp
     src/render/interactivetool.h src/render/interactivetoolfactory.cpp
+    src/render/toolstrip.h src/render/toolstrip.cpp
     src/render/tools/selectlayertool.h src/render/tools/selectlayertool.cpp
     src/render/tools/rubberbandselecttool.h src/render/tools/rubberbandselecttool.cpp
     src/render/tools/measuretool.h src/render/tools/measuretool.cpp
@@ -732,6 +733,24 @@ target_link_libraries(MeshLab2LayerWidgetTests PRIVATE
 )
 
 add_test(NAME MeshLab2LayerWidgetTests COMMAND MeshLab2LayerWidgetTests)
+
+# The interactive tools' strip only needs the InteractiveTool interface and Qt Widgets, so it is
+# compiled into its test, which drives it with a stand-in tool.
+qt_add_executable(MeshLab2ToolStripTests
+    tests/test_toolstrip.cpp
+    src/render/toolstrip.h src/render/toolstrip.cpp
+)
+
+target_include_directories(MeshLab2ToolStripTests PRIVATE
+    ${MESHLAB2_SOURCE_DIR}/src/render
+)
+
+target_link_libraries(MeshLab2ToolStripTests PRIVATE
+    Qt6::Test
+    Qt6::Widgets
+)
+
+add_test(NAME MeshLab2ToolStripTests COMMAND MeshLab2ToolStripTests)
 
 qt_add_executable(MeshLab2PreferencesTests
     tests/test_preferences.cpp

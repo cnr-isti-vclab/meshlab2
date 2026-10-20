@@ -45,15 +45,89 @@ QString TransformTool::name() const { return QObject::tr("Transform Layer"); }
 
 QString TransformTool::statusHint() const
 {
-    return QObject::tr("G move · R rotate · S scale — then X/Y/Z to constrain, type a number, "
-                       "Enter or click to apply, Esc to cancel");
+    return QObject::tr("Move, rotate or scale the current layer");
 }
 
-QString TransformTool::badgeDetail() const
+QString TransformTool::statusDetail() const
 {
     if (m_gesture == Gesture::None)
         return {};
-    return readout();
+    return readout()
+        + (m_numeric.isEmpty() ? QObject::tr(" · type a value, or click to apply")
+                               : QObject::tr(" · Enter to apply"));
+}
+
+std::vector<ToolControl> TransformTool::controls() const
+{
+    using Kind = ToolControl::Kind;
+    const QString axisHelp = QObject::tr("Constrain to the %1 axis; with Shift, to the plane across it");
+    return {
+        { QStringLiteral("move"), Kind::Toggle, QObject::tr("Move"),
+          QObject::tr("Move the current layer with the mouse"), { Qt::Key_G }, QStringLiteral("gesture") },
+        { QStringLiteral("rotate"), Kind::Toggle, QObject::tr("Rotate"),
+          QObject::tr("Rotate the current layer around its centre"), { Qt::Key_R }, QStringLiteral("gesture") },
+        { QStringLiteral("scale"), Kind::Toggle, QObject::tr("Scale"),
+          QObject::tr("Scale the current layer about its centre"), { Qt::Key_S }, QStringLiteral("gesture") },
+        { QStringLiteral("x"), Kind::Toggle, QStringLiteral("X"), axisHelp.arg(QStringLiteral("X")),
+          { Qt::Key_X }, QStringLiteral("axis") },
+        { QStringLiteral("y"), Kind::Toggle, QStringLiteral("Y"), axisHelp.arg(QStringLiteral("Y")),
+          { Qt::Key_Y }, QStringLiteral("axis") },
+        { QStringLiteral("z"), Kind::Toggle, QStringLiteral("Z"), axisHelp.arg(QStringLiteral("Z")),
+          { Qt::Key_Z }, QStringLiteral("axis") },
+        { QStringLiteral("apply"), Kind::Action, QObject::tr("Apply"),
+          QObject::tr("Apply the transformation"), { Qt::Key_Return, Qt::Key_Enter },
+          QStringLiteral("apply") },
+    };
+}
+
+bool TransformTool::isControlChecked(const QString &id) const
+{
+    if (id == QLatin1String("move"))
+        return m_gesture == Gesture::Translate;
+    if (id == QLatin1String("rotate"))
+        return m_gesture == Gesture::Rotate;
+    if (id == QLatin1String("scale"))
+        return m_gesture == Gesture::Scale;
+    const int axis = id == QLatin1String("x") ? 0 : id == QLatin1String("y") ? 1
+        : id == QLatin1String("z") ? 2 : -1;
+    return axis >= 0 && m_axis == axis;
+}
+
+bool TransformTool::isControlEnabled(const QString &id) const
+{
+    // The axes and Apply act on a gesture under way.
+    if (id == QLatin1String("move") || id == QLatin1String("rotate") || id == QLatin1String("scale"))
+        return true;
+    return m_gesture != Gesture::None;
+}
+
+void TransformTool::triggerControl(const QString &id, Qt::KeyboardModifiers modifiers)
+{
+    const Gesture gesture = id == QLatin1String("move") ? Gesture::Translate
+        : id == QLatin1String("rotate")                 ? Gesture::Rotate
+        : id == QLatin1String("scale")                  ? Gesture::Scale
+                                                        : Gesture::None;
+    if (gesture != Gesture::None) {
+        abortGesture();
+        beginGesture(gesture);
+        return;
+    }
+    if (m_gesture == Gesture::None)
+        return;
+    if (id == QLatin1String("apply")) {
+        commitGesture();
+        return;
+    }
+    const int axis = id == QLatin1String("x") ? 0 : id == QLatin1String("y") ? 1 : 2;
+    const bool plane = modifiers.testFlag(Qt::ShiftModifier);
+    if (m_axis == axis && m_planeConstraint == plane) {
+        m_axis = -1;             // the same constraint again clears it
+        m_planeConstraint = false;
+    } else {
+        m_axis = axis;
+        m_planeConstraint = plane;
+    }
+    updatePreview();
 }
 
 QString TransformTool::iconPath() const
@@ -78,13 +152,6 @@ void TransformTool::deactivate(bool commit)
     // Leaving the tool never commits a half-finished drag.
     abortGesture();
     InteractiveTool::deactivate(commit);
-}
-
-void TransformTool::armGesture(Gesture g)
-{
-    if (m_gesture != Gesture::None)
-        abortGesture();
-    beginGesture(g);
 }
 
 QVector3D TransformTool::pivotWorld() const
@@ -136,6 +203,8 @@ bool TransformTool::beginGesture(Gesture g)
     m_numeric.clear();
     m_startMouse = m_view->mapFromGlobal(QCursor::pos());
     m_currentMouse = m_startMouse;
+    m_awaitingFirstMove = !m_view->rect().contains(m_startMouse.toPoint())
+        || m_view->childAt(m_startMouse.toPoint()) != nullptr;
     m_view->update();
     return true;
 }
@@ -343,6 +412,7 @@ void TransformTool::clearGesture()
     m_axis = -1;
     m_planeConstraint = false;
     m_numeric.clear();
+    m_awaitingFirstMove = false;
     if (m_view) {
             m_view->update();
     }
@@ -373,6 +443,10 @@ bool TransformTool::mouseMove(QMouseEvent *e)
     if (!e || m_gesture == Gesture::None)
         return false;
     m_currentMouse = e->position();
+    if (m_awaitingFirstMove) {
+        m_startMouse = m_currentMouse;
+        m_awaitingFirstMove = false;
+    }
     if (m_numeric.isEmpty())
         updatePreview();
     return true;
@@ -391,41 +465,15 @@ bool TransformTool::keyPress(QKeyEvent *e)
         return false;
     const int k = e->key();
 
-    if (m_gesture == Gesture::None) {
-        switch (k) {
-        case Qt::Key_G: return beginGesture(Gesture::Translate);
-        case Qt::Key_R: return beginGesture(Gesture::Rotate);
-        case Qt::Key_S: return beginGesture(Gesture::Scale);
-        default: return false;
-        }
-    }
+    // Move, Rotate, Scale, the axes and Apply are controls, run by the view from their keys;
+    // what is left is the gesture's own: Esc cancels it, and a value can be typed.
+    if (m_gesture == Gesture::None)
+        return false;
 
     switch (k) {
-    case Qt::Key_G: abortGesture(); return beginGesture(Gesture::Translate);
-    case Qt::Key_R: abortGesture(); return beginGesture(Gesture::Rotate);
-    case Qt::Key_S: abortGesture(); return beginGesture(Gesture::Scale);
     case Qt::Key_Escape:
         abortGesture();
         return true;
-    case Qt::Key_Return:
-    case Qt::Key_Enter:
-        commitGesture();
-        return true;
-    case Qt::Key_X:
-    case Qt::Key_Y:
-    case Qt::Key_Z: {
-        const int axis = (k == Qt::Key_X) ? 0 : (k == Qt::Key_Y) ? 1 : 2;
-        const bool plane = e->modifiers().testFlag(Qt::ShiftModifier);
-        if (m_axis == axis && m_planeConstraint == plane) {
-            m_axis = -1;             // pressing the same constraint again clears it
-            m_planeConstraint = false;
-        } else {
-            m_axis = axis;
-            m_planeConstraint = plane;
-        }
-        updatePreview();
-        return true;
-    }
     case Qt::Key_Backspace:
         if (!m_numeric.isEmpty()) {
             m_numeric.chop(1);
@@ -569,11 +617,6 @@ void TransformTool::paintOverlay(QPainter &painter,
     painter.drawLine(c, m_currentMouse);
     painter.drawEllipse(c, 4.0, 4.0);
 
-    const QString text = readout();
-    if (!text.isEmpty()) {
-        const QRectF box(12, viewportSize.height() - 34, viewportSize.width() - 24, 22);
-        painter.setPen(QColor(255, 255, 255));
-        painter.drawText(box, Qt::AlignLeft | Qt::AlignVCenter, text);
-    }
+    // The readout is in the tool strip (statusDetail), not drawn here.
     painter.restore();
 }

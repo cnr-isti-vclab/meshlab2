@@ -12,25 +12,24 @@ class QWidget;
 // Session tool: drag a rectangle to select the current mesh's faces (by centroid)
 // or vertices. On release it commits exactly one select_by_screen_rectangle filter call
 // (camera + normalized rect) → one undo node, fully scriptable. Modifiers:
-// Shift = add, Ctrl = subtract, otherwise replace. Keys: F/V switch faces/vertices,
-// B toggles visible-only, C and T toggle growth to whole connected components or whole
-// UV islands, Esc cancels the drag.
+// Shift = add, Ctrl = subtract, otherwise replace. Its options (controls(), the strip's
+// buttons): Faces (F) or Vertices (V), Visible Only (B), growth to whole Components (C) or
+// whole UV Islands (T), and the Lasso (P).
 //
-// A, N, I, + / - and X edit the selection already made, each by running one ordinary
-// selection filter on whichever of faces or vertices the tool is picking: select all,
-// select none, invert, dilate, erode, delete (see selectionshortcuts.h).
+// All (A), None (N), Invert (I), Dilate (+), Erode (-) and Remove (X) edit the selection
+// already made, each by running one ordinary selection filter on whichever of faces or
+// vertices the tool is picking (see selectionshortcuts.h).
 //
-// P switches the shape to a polygonal lasso: click the corners, then close it with a
-// double click, Enter, or a click on the first corner; Backspace takes back the last
-// corner, Esc drops the polygon. It commits one select_by_screen_polygon call, and the
-// modifiers, the faces/vertices choice, B, C and T apply to it as to the rectangle.
+// The lasso: click the corners, then close it with a double click, Enter, or a click on the
+// first corner; Backspace takes back the last corner, Esc drops the polygon. It commits one
+// select_by_screen_polygon call, and the modifiers and the options apply to it as to the
+// rectangle.
 class RubberBandSelectTool final : public InteractiveTool
 {
 public:
     QString id() const override;
     QString name() const override;
     QString statusHint() const override;
-    QString badgeDetail() const override;
     QString iconPath() const override;
     QCursor cursor() const override;
     bool supportsUvView() const override { return true; }
@@ -41,12 +40,16 @@ public:
     bool mouseRelease(QMouseEvent *e) override;
     bool mouseDoubleClick(QMouseEvent *e) override;
     bool keyPress(QKeyEvent *e) override;
+    std::vector<ToolControl> controls() const override;
+    bool isControlChecked(const QString &id) const override;
+    bool isControlEnabled(const QString &id) const override;
+    void triggerControl(const QString &id, Qt::KeyboardModifiers modifiers) override;
     void cancelGesture() override;
     bool gestureInFlight() const override { return m_dragging || !m_polygon.isEmpty(); }
 
 private:
     void endDrag();
-    bool runEditingShortcut(QKeyEvent *e);
+    void runEditingShortcut(int key);
     // Runs the selection filter for a region the caller has put in `regionParams`
     // (rect_* or polygon), with everything else -- the camera, the elements, the mode
     // from `modifiers`, visible-only and the growth -- filled in here.

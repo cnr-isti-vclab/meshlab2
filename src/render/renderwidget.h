@@ -28,6 +28,7 @@
 class Document;
 class InteractiveTool;
 class RenderOverlayPanel;
+class ToolStrip;
 class ViewAxisGizmo;
 class QLabel;
 class QPixmap;
@@ -676,7 +677,7 @@ struct SceneRasterProjectedDrawItem {
     // False while another view is current: the owning view keeps the tool but
     // routes the mouse to the camera until it becomes current again.
     bool m_toolOwnerIsCurrent = true;
-    QLabel *m_toolBadgeLabel = nullptr; // persistent "tool owned here" indicator
+    ToolStrip *m_toolStrip = nullptr; // the active tool's name, state and controls, along the bottom
     QWidget *m_toolOverlayWidget = nullptr; // transparent screen-space tool drawing
     QWidget *m_statePreview = nullptr;      // StatePreviewOverlay, made on first use
     // View support is a tool capability: all tools support 3D, while only some
@@ -685,7 +686,13 @@ struct SceneRasterProjectedDrawItem {
     // The tool receives mouse input only when owned-here, current, supported, and not suspended.
     bool toolLive() const;
     void applyToolCursor(); // sets the cursor for the current tool/suspend state
-    void updateToolBadge();  // refreshes the persistent tool-status badge
+    void updateToolStrip();  // brings the tool strip up to date with the tool and its state
+    // Tab, from the key or the strip: the mouse goes to the camera, or back to the tool.
+    void toggleToolSuspended();
+    // A control of the active tool, from its button in the strip or from its key.
+    void triggerToolControl(const QString &id, Qt::KeyboardModifiers modifiers);
+    // The control a key press reaches, or an empty id. See keyPressEvent.
+    QString toolControlForKey(const QKeyEvent &e) const;
     void invalidateToolPick(); // reject pending/in-flight asynchronous tool picks
     // Distinguishes a double-click recenter pick from a tool-requested pick that
     // shares the same depth-pick machinery.

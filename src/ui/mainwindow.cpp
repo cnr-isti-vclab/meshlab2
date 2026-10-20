@@ -1757,7 +1757,8 @@ void MainWindow::setupToolsMenu(QMenu *toolsMenu)
         action->setCheckable(true);
         if (!tool.iconPath().isEmpty())
             action->setIcon(QIcon(tool.iconPath()));
-        action->setToolTip(tool.statusHint().isEmpty() ? tool.name() : tool.statusHint());
+        // What the tool offers is on its strip once it is engaged; the toolbar names it.
+        action->setToolTip(tool.name());
         group->addAction(action);
         m_toolActions.append(action);
         toolsMenu->addAction(action); // menu and toolbar share the same QAction
