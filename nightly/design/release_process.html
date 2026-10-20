@@ -377,8 +377,10 @@ default branch. Otherwise every release starts from a cold cache.</p>
 <li><p>Make <code class="docutils literal notranslate"><span class="pre">devel</span></code> the default branch on GitHub (Settings → Branches). Do this before the
 first release, for the cache reason above; branch protection comes after.</p></li>
 <li><p>Windows signing step (waiting on Certum activation and a manual <code class="docutils literal notranslate"><span class="pre">signtool</span></code> test).</p></li>
-<li><p>Linux: no workflow exists. Plan is a plain build job first, then an AppImage built on
-<code class="docutils literal notranslate"><span class="pre">ubuntu-22.04</span></code>; Flatpak later for discoverability.</p></li>
+<li><p>Linux: <code class="docutils literal notranslate"><span class="pre">linux.yml</span></code> builds and runs ctest on <code class="docutils literal notranslate"><span class="pre">devel</span></code> pushes, but has not run yet, so
+whether the tree compiles on GCC 11 is unknown. Next is an AppImage built on
+<code class="docutils literal notranslate"><span class="pre">ubuntu-22.04</span></code> (bundle Qt, the QuadWild helpers and the Python standard library);
+Flatpak later for discoverability.</p></li>
 <li><p>Nightly and beta channels as public GitHub pre-releases: designed, not built. Actions
 artifacts need a GitHub login, so testers cannot use them.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">tests.yml</span></code> is manual on purpose: it restores the packaging job’s vcpkg cache and the
