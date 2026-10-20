@@ -103,17 +103,22 @@ jobs:
         id: vcpkg-install
         run: |
           set -o pipefail
-          # --allow-unsupported: the rapidobj port is declared unsupported on Linux
-          # (no vcpkg CI covers it). It is a header-only library and the plugin
-          # already links Threads for it, so build it and let the tests say whether
-          # the OBJ reader works.
+          # The overlay port of rapidobj: the original is marked unsupported on Linux
+          # and fails vcpkg's pkg-config check there; see ci/vcpkg-ports/rapidobj.
           "$VCPKG_ROOT/vcpkg" install \
-            --allow-unsupported \
+            --overlay-ports="$GITHUB_WORKSPACE/ci/vcpkg-ports" \
             --triplet "$VCPKG_TARGET_TRIPLET" \
             --overlay-triplets="$VCPKG_OVERLAY_TRIPLETS" \
             --x-manifest-root="$GITHUB_WORKSPACE" \
             --x-install-root="$GITHUB_WORKSPACE/$BUILD_DIR/vcpkg_installed" \
             --clean-after-build 2>&1 | tee "$GITHUB_WORKSPACE/vcpkg-install.log"
+
+      # Runs even when the install failed: the ports built before the failing one are
+      # in the archive directory, and on a first run they are hours of work.
+      - name: Check whether vcpkg compiled anything
+        id: vcpkg-built
+        if: ${{ !cancelled() }}
+        run: |
           if grep -q '^Building ' "$GITHUB_WORKSPACE/vcpkg-install.log"; then
             echo "rebuilt=true" >> "$GITHUB_OUTPUT"
           else
@@ -123,7 +128,7 @@ jobs:
       # Save now rather than in a post-job hook, so a later compile failure does not
       # discard an otherwise successful dependency build.
       - name: Save vcpkg archives
-        if: steps.vcpkg-install.outputs.rebuilt == 'true'
+        if: ${{ !cancelled() && steps.vcpkg-built.outputs.rebuilt == 'true' }}
         uses: actions/cache/save@v6
         with:
           path: ~/.cache/vcpkg/archives
