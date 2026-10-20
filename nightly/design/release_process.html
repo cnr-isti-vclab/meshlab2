@@ -377,7 +377,7 @@ default branch. Otherwise every release starts from a cold cache.</p>
 <li><p>Make <code class="docutils literal notranslate"><span class="pre">devel</span></code> the default branch on GitHub (Settings → Branches). Do this before the
 first release, for the cache reason above; branch protection comes after.</p></li>
 <li><p>Windows signing step (waiting on Certum activation and a manual <code class="docutils literal notranslate"><span class="pre">signtool</span></code> test).</p></li>
-<li><p>Linux: <code class="docutils literal notranslate"><span class="pre">linux.yml</span></code> builds and runs ctest on <code class="docutils literal notranslate"><span class="pre">devel</span></code> pushes, but has not run yet, so
+<li><p>Linux: <code class="docutils literal notranslate"><span class="pre">linux-appimage.yml</span></code> builds and runs ctest on <code class="docutils literal notranslate"><span class="pre">devel</span></code> pushes, but has not run yet, so
 whether the tree compiles on GCC 11 is unknown. Next is an AppImage built on
 <code class="docutils literal notranslate"><span class="pre">ubuntu-22.04</span></code> (bundle Qt, the QuadWild helpers and the Python standard library);
 Flatpak later for discoverability.</p></li>

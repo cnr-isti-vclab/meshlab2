@@ -99,7 +99,7 @@ default branch. Otherwise every release starts from a cold cache.
 - Make `devel` the default branch on GitHub (Settings → Branches). Do this before the
   first release, for the cache reason above; branch protection comes after.
 - Windows signing step (waiting on Certum activation and a manual `signtool` test).
-- Linux: `linux.yml` builds and runs ctest on `devel` pushes, but has not run yet, so
+- Linux: `linux-appimage.yml` builds and runs ctest on `devel` pushes, but has not run yet, so
   whether the tree compiles on GCC 11 is unknown. Next is an AppImage built on
   `ubuntu-22.04` (bundle Qt, the QuadWild helpers and the Python standard library);
   Flatpak later for discoverability.
