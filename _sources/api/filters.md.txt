@@ -3597,7 +3597,6 @@ Reconstructs a watertight surface from an oriented point set using the screened 
 - **pointWeight** (*double*, default: `4.0`) — This floating point value specifies the importance that interpolation of the point samples is given in the formulation of the screened Poisson equation. The results of the original unscreened Poisson reconstruction can be obtained by setting this value to 0. The default value for this parameter is 4.
 - **iters** (*int*, default: `8`) — This integer value specifies the number of Gauss-Seidel relaxations to be performed at each level of the hierarchy. The default value for this parameter is 8.
 - **confidence** (*bool*, default: `False`) — Enabling this flag tells the reconstructor to use the quality as confidence information. This is done by scaling the unit normals with the quality values. When the flag is not enabled, all normals are normalized to have unit length prior to reconstruction.
-- **preClean** (*bool*, default: `False`) — Enabling this flag forces a cleaning pre-pass on the data, removing all unreferenced vertices or vertices with null normals.
 - **threads** (*int*, default: `@hardwareThreads`) — Maximum number of threads that the reconstruction algorithm can use.
 ```
 
@@ -3639,7 +3638,6 @@ Compared to Screened Poisson, the SSD formulation exposes separate weights for z
 - **cgAccuracy** (*double*, default: `0.001`) — This floating point value specifies the accuracy used by the conjugate gradients solver. Smaller values make the linear solve more accurate and more expensive.
 - **dataScale** (*double*, default: `32.0`) — This floating point value specifies the pull factor used by the hierarchical SSD formulation. The default value is 32.
 - **confidence** (*bool*, default: `False`) — Enabling this flag tells the reconstructor to use the quality as confidence information. This is done by scaling the unit normals with the quality values. When the flag is not enabled, all normals are normalized to have unit length prior to reconstruction.
-- **preClean** (*bool*, default: `False`) — Enabling this flag forces a cleaning pre-pass on the data, removing all unreferenced vertices or vertices with null normals.
 - **threads** (*int*, default: `@hardwareThreads`) — Maximum number of threads that the reconstruction algorithm can use.
 ```
 

@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
 
-    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
         <title>Adding a Filter Plugin - MeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
@@ -570,6 +570,13 @@ layer’s real edges, for filters that walk the edge graph with <code class="doc
 <code class="docutils literal notranslate"><span class="pre">VVStarVE</span></code> and the like.</p></li>
 <li><p><strong>Cleanup/compaction</strong>: after a successful filter the framework compacts the
 affected meshes; don’t leave deleted elements around expecting them to persist.</p></li>
+<li><p><strong>Read-only inputs stay read-only</strong>: a filter that makes a new layer (<code class="docutils literal notranslate"><span class="pre">NewMeshes</span></code>) or only
+measures (<code class="docutils literal notranslate"><span class="pre">Information</span></code>) must not clean, compact, renormalize or otherwise edit the layer it
+reads – not in code, and not through <code class="docutils literal notranslate"><span class="pre">preRunCleanup</span></code>, which edits the input by design and is for
+filters that modify the layer anyway. What such a filter cannot use – a vertex in no face, a
+point with a null normal – it <strong>leaves out of what it reads</strong> (a copy, or a stream that skips it),
+and says in the log how many it left out. <em>Screened Poisson</em> is the model: its point stream
+skips the points without a normal, with no option to ask for it, and the layer is left exactly as it was.</p></li>
 <li><p><strong>Notify changes</strong>: after mutating a mesh, call the matching
 <code class="docutils literal notranslate"><span class="pre">doc.markMeshGeometryChanged</span></code> / <code class="docutils literal notranslate"><span class="pre">markMeshSelectionChanged</span></code> /
 <code class="docutils literal notranslate"><span class="pre">markMeshMaterialChanged</span></code> so the render/layer views refresh.</p></li>

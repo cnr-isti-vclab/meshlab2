@@ -131,7 +131,7 @@ Defined in `renderingsettings.h`:
 
 ## Plugin System
 
-**I/O plugins** (`MeshIOPlugin`): `canLoad`/`load`, `canSave`/`save`, dialog filter strings, mask capability. MeshLab project (`.mlp`) loading and saving are handled directly by `Document` so project files can combine plugin-loaded/saved mesh files with transforms, generated mesh paths, raster planes, and raster camera shots.
+**I/O plugins** (`MeshIOPlugin`): `canLoad`/`load`, `canSave`/`save`, dialog filter strings, mask capability, and for the formats that state one the unit of their coordinates (see the Unit paragraph of [data_model.md](data_model.md)). MeshLab project (`.mlp`) loading and saving are handled directly by `Document` so project files can combine plugin-loaded/saved mesh files with transforms, generated mesh paths, raster planes, and raster camera shots.
 
 **Filter plugins** (`MeshFilterPlugin`): plugin id/name, `filters(const Document&)` returning descriptors (domain/codomain, validated ordered categories, requirements, tags, structured provenance/references, parameters, `pythonName`), `runFilter(id, params, Document&)`.
 

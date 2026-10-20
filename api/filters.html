@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Expressions" href="../expressions.html"><link rel="prev" title="MlGui" href="mlgui.html">
 
-    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
         <title>Filters - MeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
@@ -3076,7 +3076,6 @@ Thijs van Lankveld, Marc van Kreveld, Remco Veltkamp, <strong>Watertight Scenes 
 <li><p><strong>pointWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">4.0</span></code>) — This floating point value specifies the importance that interpolation of the point samples is given in the formulation of the screened Poisson equation. The results of the original unscreened Poisson reconstruction can be obtained by setting this value to 0. The default value for this parameter is 4.</p></li>
 <li><p><strong>iters</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — This integer value specifies the number of Gauss-Seidel relaxations to be performed at each level of the hierarchy. The default value for this parameter is 8.</p></li>
 <li><p><strong>confidence</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Enabling this flag tells the reconstructor to use the quality as confidence information. This is done by scaling the unit normals with the quality values. When the flag is not enabled, all normals are normalized to have unit length prior to reconstruction.</p></li>
-<li><p><strong>preClean</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Enabling this flag forces a cleaning pre-pass on the data, removing all unreferenced vertices or vertices with null normals.</p></li>
 <li><p><strong>threads</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hardwareThreads</span></code>) — Maximum number of threads that the reconstruction algorithm can use.</p></li>
 </ul>
 </dd></dl>
@@ -3112,7 +3111,6 @@ Thijs van Lankveld, Marc van Kreveld, Remco Veltkamp, <strong>Watertight Scenes 
 <li><p><strong>cgAccuracy</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.001</span></code>) — This floating point value specifies the accuracy used by the conjugate gradients solver. Smaller values make the linear solve more accurate and more expensive.</p></li>
 <li><p><strong>dataScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">32.0</span></code>) — This floating point value specifies the pull factor used by the hierarchical SSD formulation. The default value is 32.</p></li>
 <li><p><strong>confidence</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Enabling this flag tells the reconstructor to use the quality as confidence information. This is done by scaling the unit normals with the quality values. When the flag is not enabled, all normals are normalized to have unit length prior to reconstruction.</p></li>
-<li><p><strong>preClean</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Enabling this flag forces a cleaning pre-pass on the data, removing all unreferenced vertices or vertices with null normals.</p></li>
 <li><p><strong>threads</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hardwareThreads</span></code>) — Maximum number of threads that the reconstruction algorithm can use.</p></li>
 </ul>
 </dd></dl>
