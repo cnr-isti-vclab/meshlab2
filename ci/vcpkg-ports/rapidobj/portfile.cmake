@@ -1,6 +1,7 @@
 # Overlay of vcpkg's rapidobj port (baseline in vcpkg.json), used by the Linux job only.
-# Two changes from the original: "supports" no longer excludes Linux, and the
-# pkg-config check is skipped. See the comment above vcpkg_fixup_pkgconfig below.
+# Changes from the original: "supports" no longer excludes Linux, the CMake config
+# fixup is given the config directory's real case, and the pkg-config check is
+# skipped. Each is explained where it is made.
 
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
@@ -19,7 +20,10 @@ vcpkg_cmake_configure(
 
 vcpkg_cmake_install()
 
-vcpkg_cmake_config_fixup()
+# PACKAGE_NAME: rapidobj installs its CMake config to share/RapidObj. The default
+# (share/rapidobj) only matches that on a case-insensitive filesystem; on Linux the
+# fixup silently skipped it and left absolute build-directory paths in the config.
+vcpkg_cmake_config_fixup(PACKAGE_NAME RapidObj)
 
 # SKIP_CHECK: the check runs `pkg-config --exists RapidObj` and fails on Linux even
 # though the file is installed; nothing here consumes it, MeshLab uses the CMake config.
