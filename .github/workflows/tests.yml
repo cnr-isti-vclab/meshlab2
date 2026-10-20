@@ -101,7 +101,7 @@ jobs:
 
       # Restore only, and from the packaging job's cache. This job never saves a
       # vcpkg entry: dependencies here are identical to the ones macos-dmg.yml
-      # already builds on every push to main, and a second ~4 GB copy under its
+      # already builds on every push to devel, and a second ~4 GB copy under its
       # own key would spend twice from the 10 GB per-repository budget and let
       # the two jobs evict each other. The cost is that a run with no warm
       # packaging cache compiles the dependencies itself and throws them away.
