@@ -358,11 +358,17 @@ const QHash<QString, QString> &expectedRefusals()
         {QStringLiteral("remesh_by_abstract_domain"),                      QStringLiteral("needs an abstract domain from Parametrize by Abstract Domain")},
         {QStringLiteral("create_atlased_mesh_from_abstract_domain"),       QStringLiteral("needs an abstract domain from Parametrize by Abstract Domain")},
         {QStringLiteral("transfer_abstract_domain_to_another_layer"),      QStringLiteral("needs an abstract domain on a second layer")},
-
-        // Optional component, absent from some build configurations.
-        {QStringLiteral("remesh_to_quads_quadwild_bimdf"),                 QStringLiteral("bundled helpers not present in every build")},
     };
     return table;
+}
+
+// Filters whose outcome depends on how the build was made, so either result is correct and
+// neither direction of the table above applies. QuadWild runs a helper program built beside
+// the executable: a build without it must refuse with a message, a build with it must run.
+const QSet<QString> &buildDependent()
+{
+    static const QSet<QString> set = {QStringLiteral("remesh_to_quads_quadwild_bimdf")};
+    return set;
 }
 
 } // namespace
@@ -519,7 +525,7 @@ void FilterSmokeTests::runsOrRefuses()
 
     ++m_refused;
     m_ladderReport << QStringLiteral("none\t%1").arg(filterId);
-    QVERIFY2(expectedRefusals().contains(filterId),
+    QVERIFY2(expectedRefusals().contains(filterId) || buildDependent().contains(filterId),
              qPrintable(QStringLiteral("%1 runs on no fixture and is not listed in "
                                        "kExpectedRefusals. Either build it an input, or add it "
                                        "with a reason.\n  %2")

@@ -151,6 +151,7 @@ jobs:
           cmake --preset vcpkg-manifest \
             -B "$BUILD_DIR" \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS=-g1 \
             -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
             -DVCPKG_TARGET_TRIPLET="$VCPKG_TARGET_TRIPLET" \
             -DVCPKG_OVERLAY_TRIPLETS="$VCPKG_OVERLAY_TRIPLETS" \
@@ -167,6 +168,21 @@ jobs:
           # instead of reporting a green run with zero tests. The large datasets are
           # not fetched: tests that need them skip when they are absent.
           ctest --output-on-failure --no-tests=error
+
+      # QtTest names the test function that crashed but not where, and a runner cannot
+      # be attached to. -g1 above keeps function names and line numbers in the backtrace.
+      - name: Backtrace of failed tests
+        if: failure()
+        run: |
+          sudo apt-get install -y --no-install-recommends gdb
+          cd "$BUILD_DIR"
+          for t in $(sed 's/^[0-9]*://' Testing/Temporary/LastTestsFailed.log); do
+            exe="$(ctest -R "^${t}$" --show-only=json-v1 |
+              python3 -c "import json,sys; print(json.load(sys.stdin)['tests'][0]['command'][0])")"
+            echo "::group::gdb $t"
+            gdb -batch -ex run -ex "thread apply all bt 30" --args "$exe" -silent || true
+            echo "::endgroup::"
+          done
 
       - name: Upload test logs
         if: failure()
