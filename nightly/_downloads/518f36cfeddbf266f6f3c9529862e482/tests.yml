@@ -48,6 +48,13 @@ jobs:
       QT_QPA_PLATFORM: offscreen
 
     steps:
+      # QuadWild's own submodules (OpenMesh, CoMISo, cmake-library) still point at
+      # www.graphics.rwth-aachen.de:9000, which is gone. The same repositories, at the same
+      # commits, are served by RWTH's GitLab; rewrite the URL for git before the checkout
+      # fetches them. Remove this once the cgg-bern fork updates its .gitmodules.
+      - name: Use RWTH's new git host
+        run: git config --global "url.https://gitlab.vci.rwth-aachen.de:9000/.insteadOf" "https://www.graphics.rwth-aachen.de:9000/"
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
