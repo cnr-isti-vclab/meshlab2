@@ -8962,15 +8962,40 @@ QString scopeViolations(const ScopeSnapshot &before, const ScopeSnapshot &after,
     return out.join(QStringLiteral("; "));
 }
 
-// Everything but the selection, for comparing two runs that differ only in it.
-bool sameResultIgnoringSelection(const ScopeSnapshot &a, const ScopeSnapshot &b)
+// Two runs of one filter agree to rounding, not always to the bit: a sum taken in another
+// order, or a NaN, which is never equal to itself. A selection that mattered would move whole
+// values, orders of magnitude beyond this.
+bool nearlySame(float a, float b)
 {
+    if (std::isnan(a) && std::isnan(b))
+        return true;
+    return std::abs(a - b) <= 1e-4f * std::max({ 1.0f, std::abs(a), std::abs(b) });
+}
+
+// Everything but the selection, for comparing two runs that differ only in it. `why` gets
+// the first difference found.
+bool sameResultIgnoringSelection(const ScopeSnapshot &a, const ScopeSnapshot &b, QString *why = nullptr)
+{
+    const auto differ = [why](const QString &what) {
+        if (why)
+            *why = what;
+        return false;
+    };
     if (a.vert.size() != b.vert.size() || a.faceTri != b.faceTri || a.faceData != b.faceData
         || a.edgeData != b.edgeData)
-        return false;
-    for (size_t i = 0; i < a.vert.size(); ++i)
-        if (!sameVertexData(a.vert[i], b.vert[i]))
-            return false;
+        return differ(QStringLiteral("vertex, face or edge data"));
+    for (size_t i = 0; i < a.vert.size(); ++i) {
+        const ScopeVertexData &x = a.vert[i], &y = b.vert[i];
+        for (int k = 0; k < 3; ++k)
+            if (!nearlySame(x.p[k], y.p[k]))
+                return differ(QStringLiteral("vertex %1 position[%2]: %3 vs %4").arg(i).arg(k).arg(x.p[k]).arg(y.p[k]));
+        if (!(x.c == y.c))
+            return differ(QStringLiteral("vertex %1 color").arg(i));
+        if (!nearlySame(x.q, y.q))
+            return differ(QStringLiteral("vertex %1 quality: %2 vs %3").arg(i).arg(x.q).arg(y.q));
+        if (!nearlySame(x.t.U(), y.t.U()) || !nearlySame(x.t.V(), y.t.V()))
+            return differ(QStringLiteral("vertex %1 texture coordinate").arg(i));
+    }
     return true;
 }
 
@@ -14659,9 +14684,10 @@ void FilterTests::scopedFiltersConfineThemselvesToTheSelection()
     QVERIFY2(offWithout.result.success, qPrintable(offWithout.result.errorMessage));
     QCOMPARE(offWith.doc->meshCount(), offWithout.doc->meshCount());
     for (int i = 0; i < offWith.doc->meshCount(); ++i) {
+        QString why;
         QVERIFY2(sameResultIgnoringSelection(scopeSnapshot(offWith.doc->mesh(i).mesh),
-                                             scopeSnapshot(offWithout.doc->mesh(i).mesh)),
-                 qPrintable(QStringLiteral("layer %1 differs with the toggle off").arg(i)));
+                                             scopeSnapshot(offWithout.doc->mesh(i).mesh), &why),
+                 qPrintable(QStringLiteral("layer %1 differs with the toggle off: %2").arg(i).arg(why)));
     }
 
     // 4. With only the other kind selected -- the everyday case after a face rectangle, for

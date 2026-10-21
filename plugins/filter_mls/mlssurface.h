@@ -76,6 +76,15 @@ public:
 		mDomainMinNofNeighbors = 4;
 		mDomainRadiusScale     = 2.;
 		mDomainNormalScale     = 1.;
+
+		// The projection loops stop when a step is shorter than
+		// mAveragePointSpacing * mProjectionAccuracy, but nothing ever sets the spacing (classic
+		// MeshLab left it the same way). Whatever the allocator had left there decided how many
+		// iterations a projection ran, so results changed from run to run and between platforms.
+		// Zero, which is what fresh memory usually gave: iterate until the point stops moving or
+		// the iteration cap is reached. What the spacing should be is a question for the authors.
+		mAveragePointSpacing = 0;
+		mCachedQueryPoint.SetZero();
 	}
 
 	virtual ~MlsSurface() {}

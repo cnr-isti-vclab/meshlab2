@@ -55,7 +55,27 @@ class APSS : public MlsSurface<_MeshType>
 	enum Status { ASS_SPHERE, ASS_PLANE, ASS_UNDETERMINED };
 
 public:
-	APSS(const MeshType& m) : Base(m) { mSphericalParameter = 1; }
+	APSS(const MeshType& m) : Base(m)
+	{
+		mSphericalParameter = 1;
+		// The fit and its cached sums are written by fit(); start from zeros so that no path
+		// can read what the allocator left in them.
+		mStatus = ASS_UNDETERMINED;
+		uConstant = uQuad = mRadius = 0;
+		mCachedSumDotPP = mCachedSumDotPN = mCachedSumW = 0;
+		uLinear.SetZero();
+		mCenter.SetZero();
+		mCachedSumP.SetZero();
+		mCachedSumN.SetZero();
+		for (int k = 0; k < 3; ++k) {
+			mCachedGradSumP[k].SetZero();
+			mCachedGradSumN[k].SetZero();
+			mCachedGradULinear[k].SetZero();
+			mCachedGradSumDotPN[k] = mCachedGradSumDotPP[k] = mCachedGradSumW[k] = 0;
+			mCachedGradNume[k] = mCachedGradDeno[k] = 0;
+			mCachedGradUConstant[k] = mCachedGradUQuad[k] = 0;
+		}
+	}
 
 	virtual Scalar     potential(const VectorType& x, int* errorMask = 0) const;
 	virtual VectorType gradient(const VectorType& x, int* errorMask = 0) const;
