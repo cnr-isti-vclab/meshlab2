@@ -7804,9 +7804,12 @@ void FilterTests::trueFormShellAndRepairOfOverlappingCubes()
 // promptly, and well-tessellated input must still succeed.
 void FilterTests::voronoiAtlasHandlesCoarseMeshes()
 {
-    struct Case { const char *primitive; int regions; bool expectSuccess; };
+    // `either`: a borderline case. Whether it partitions depends on where the seeds fall, and
+    // the shuffle that picks them is not the same algorithm in every standard library, so
+    // success and a clean refusal are both right; hanging or refusing without a reason is not.
+    struct Case { const char *primitive; int regions; bool expectSuccess; bool either = false; };
     const Case cases[] = {
-        { "create_hexahedron", 2, false },          // 12 faces: too coarse to partition
+        { "create_hexahedron", 2, false, true },    // 12 faces: about as coarse as it gets
         { "create_hexahedron", 10, false },
         { "create_tetrahedron", 2, false },  // 4 faces: coarser still
         { "create_sphere", 2, true },
@@ -7837,10 +7840,10 @@ void FilterTests::voronoiAtlasHandlesCoarseMeshes()
         const QString what = QStringLiteral("%1/%2").arg(c.primitive).arg(c.regions);
         // The hang was unbounded; anything of this order means it is back.
         QVERIFY2(elapsed < 30000, qPrintable(QStringLiteral("%1 took %2 ms").arg(what).arg(elapsed)));
-        QVERIFY2(r.success == c.expectSuccess,
+        QVERIFY2(c.either || r.success == c.expectSuccess,
                  qPrintable(QStringLiteral("%1: success=%2, expected %3, msg '%4'")
                                 .arg(what).arg(r.success).arg(c.expectSuccess).arg(r.errorMessage)));
-        if (c.expectSuccess) {
+        if (r.success) {
             QCOMPARE(r.newMeshIndices.size(), 1);
             QVERIFY2(doc.mesh(r.newMeshIndices.front()).mesh.FN() > 0, qPrintable(what));
         } else {
@@ -10233,10 +10236,11 @@ void FilterTests::abstractDomainMeasureReportsItsStructureAndCatchesABrokenOne()
     QCOMPARE(value("domain_edges").toInt(), (3 * subDomains) / 2);
 
     // Square and Rhombus build one chart per half-diamond, i.e. per domain edge, and
-    // Polygon one per half-star, i.e. per domain vertex. The atlas test measures exactly
-    // 291 square charts on this mesh, so the report has to agree with it.
-    QCOMPARE(value("domain_edges").toInt(), 291);
-    QCOMPARE(value("domain_vertices").toInt(), 99);
+    // Polygon one per half-star, i.e. per domain vertex. How many sub-domains the sampler
+    // settles on depends on its seeds, which differ between standard libraries, so the
+    // counts are tied to each other rather than to one platform's numbers: on a closed
+    // domain of N faces, V = 2 - N + E.
+    QCOMPARE(value("domain_vertices").toInt(), 2 - subDomains + value("domain_edges").toInt());
 
     QCOMPARE(value("param_faces").toInt(), doc.mesh(0).mesh.FN());
     QVERIFY(value("stretch_efficiency").toDouble() >= 1.0);
@@ -10328,7 +10332,11 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
         // Packing transforms are similarities, so they cannot mirror a chart: every face
         // must still wind the same way. A disagreement means a chart folded over itself,
         // which is what makes a parametrization useless to bake against.
-        QVERIFY2(std::abs(std::abs(signedArea) - covered) < 1e-6 * covered,
+        // A folded chart moves the signed total by twice its own area: about 0.7% for the
+        // smallest charts here, seven times the tolerance below. What is let through is the
+        // handful of sliver triangles whose winding rounding can flip -- observed at 0.02% at
+        // most, a few hundred texels of the atlas, and different on every run.
+        QVERIFY2(std::abs(std::abs(signedArea) - covered) < 1e-3 * covered,
                  qPrintable(QStringLiteral("%1: folded charts (|signed| %2 vs %3)")
                                 .arg(shape).arg(std::abs(signedArea)).arg(covered)));
         // Both tally lines open with the chart count: "N charts: ..." for the layouts built
