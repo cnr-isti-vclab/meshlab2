@@ -20,6 +20,13 @@
     "cgal",
     "geogram",
     "dirent",
+    {
+      "name": "openblas",
+      "features": [
+        "dynamic-arch"
+      ],
+      "platform": "linux"
+    },
     "nanoflann",
     "fmt",
     "qhull",

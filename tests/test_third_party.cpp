@@ -90,6 +90,7 @@ const QHash<QString, QString> &notGeometry()
         { QStringLiteral("fmt"),            QStringLiteral("string formatting inside Open3D") },
         { QStringLiteral("jsoncpp"),        QStringLiteral("JSON, required by Open3D's camera intrinsics") },
         { QStringLiteral("qhull"),          QStringLiteral("convex hull and Delaunay, reached only through Open3D") },
+        { QStringLiteral("openblas"),       QStringLiteral("BLAS for geogram's solvers on Linux (macOS uses Accelerate)") },
         { QStringLiteral("dirent"),         QStringLiteral("<dirent.h> for MSVC, which the vendored Open3D subset includes") },
     };
     return table;
