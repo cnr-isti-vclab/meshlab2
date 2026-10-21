@@ -50,9 +50,16 @@ jobs:
       release_version: ${{ github.ref_name }}
     secrets: inherit
 
+  linux:
+    needs: check
+    uses: ./.github/workflows/linux-appimage.yml
+    with:
+      release_version: ${{ github.ref_name }}
+    secrets: inherit
+
   publish:
     name: Create draft release
-    needs: [macos, windows]
+    needs: [macos, windows, linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -68,7 +75,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -l release
-          gh release create "$GITHUB_REF_NAME" release/*.dmg release/*.zip \
+          gh release create "$GITHUB_REF_NAME" release/*.dmg release/*.zip release/*.AppImage \
             --repo "$GITHUB_REPOSITORY" \
             --title "MeshLab $GITHUB_REF_NAME" \
             --generate-notes \

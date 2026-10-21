@@ -1,10 +1,15 @@
 name: Linux AppImage
 
-# Build and test only; there is no package yet. The point of this job is to find out
-# what stops the tree compiling and passing on GCC, before an AppImage is built on
-# top of it. See docs/design/release_process.md.
+# Build, test, and package the result as an AppImage. See docs/design/release_process.md.
 on:
   workflow_dispatch:
+  # Called by release.yml with the release version; a push or manual run leaves it
+  # empty and gets the date-and-commit artifact name instead.
+  workflow_call:
+    inputs:
+      release_version:
+        type: string
+        default: ''
   push:
     branches: [devel]
     paths-ignore:
@@ -174,6 +179,77 @@ jobs:
           # instead of reporting a green run with zero tests. The large datasets are
           # not fetched: tests that need them skip when they are absent.
           ctest --output-on-failure --no-tests=error
+
+      # linuxdeploy bundles the libraries libqxcb.so links to, but only those it finds here.
+      - name: Install AppImage runtime libraries
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1 libxkbcommon-x11-0
+
+      # Pinned releases, checked against their SHA-256: the continuous builds move.
+      - name: Download linuxdeploy
+        run: |
+          mkdir -p "$RUNNER_TEMP/linuxdeploy"
+          cd "$RUNNER_TEMP/linuxdeploy"
+          curl -fsSLO https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage
+          curl -fsSLO https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/1-alpha-20250213-1/linuxdeploy-plugin-qt-x86_64.AppImage
+          sha256sum -c - <<'SUMS'
+          c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d  linuxdeploy-x86_64.AppImage
+          15106be885c1c48a021198e7e1e9a48ce9d02a86dd0a1848f00bdbf3c1c92724  linuxdeploy-plugin-qt-x86_64.AppImage
+          SUMS
+          chmod +x ./*.AppImage
+
+      - name: Define release artifact name
+        id: release-metadata
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          if [ -n "$RELEASE_VERSION" ]; then
+            STEM="MeshLab-$RELEASE_VERSION-linux-x86_64"
+          else
+            STEM="MeshLab-$(date -u +%Y-%m-%d)-${GITHUB_SHA:0:8}-linux-x86_64"
+          fi
+          echo "artifact_stem=$STEM" >> "$GITHUB_OUTPUT"
+
+      - name: Package AppImage
+        env:
+          RELEASE_ARTIFACT_STEM: ${{ steps.release-metadata.outputs.artifact_stem }}
+        run: |
+          ./scripts/package-linux-appimage.sh \
+            --build-dir "$BUILD_DIR" \
+            --linuxdeploy "$RUNNER_TEMP/linuxdeploy/linuxdeploy-x86_64.AppImage" \
+            --output "$BUILD_DIR/$RELEASE_ARTIFACT_STEM.AppImage"
+
+      # What can be checked without a display: nothing the executables need is left
+      # unresolved, and the bundled interpreter, Qt and libraries start (the documentation
+      # generator imports the Python standard library and the _meshlab module, offscreen).
+      - name: Smoke-test the AppImage
+        env:
+          RELEASE_ARTIFACT_STEM: ${{ steps.release-metadata.outputs.artifact_stem }}
+        run: |
+          cd "$BUILD_DIR"
+          chmod +x "$RELEASE_ARTIFACT_STEM.AppImage"
+          "./$RELEASE_ARTIFACT_STEM.AppImage" --appimage-extract > /dev/null
+          for exe in squashfs-root/usr/bin/MeshLab \
+                     squashfs-root/usr/bin/quadwild-bimdf/bin/quadwild \
+                     squashfs-root/usr/bin/quadwild-bimdf/bin/quad_from_patches; do
+            if ldd "$exe" | grep "not found"; then
+              echo "$exe has unresolved libraries" >&2
+              exit 1
+            fi
+          done
+          cp -r "$GITHUB_WORKSPACE/docs" "$RUNNER_TEMP/docs-smoke"
+          QT_QPA_PLATFORM=offscreen squashfs-root/AppRun --generate-docs "$RUNNER_TEMP/docs-smoke"
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.release-metadata.outputs.artifact_stem }}
+          path: ${{ github.workspace }}/${{ env.BUILD_DIR }}/${{ steps.release-metadata.outputs.artifact_stem }}.AppImage
+          if-no-files-found: error
+          # Every push builds one of these; see macos-dmg.yml.
+          retention-days: 14
 
       # QtTest names the test function that crashed but not where, and a runner cannot
       # be attached to. The binaries are not stripped, so the backtrace has function
