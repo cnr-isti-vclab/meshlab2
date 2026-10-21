@@ -4406,8 +4406,9 @@ void FilterTests::open3dIcpRecoversAKnownTransform()
         }
     }
     QVERIFY2(worst < 0.02f,
-             qPrintable(QStringLiteral("after ICP the layer matrix is still %1 from identity")
-                            .arg(worst)));
+             qPrintable(QStringLiteral("after ICP the layer matrix is still %1 from identity (%2)")
+                            .arg(worst)
+                            .arg(result.infoMessages.join(QStringLiteral(" | ")))));
 
     // And the run must report a fitness the user can act on.
     QVERIFY2(std::any_of(result.infoMessages.begin(), result.infoMessages.end(),
