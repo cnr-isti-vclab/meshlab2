@@ -859,8 +859,13 @@ void DocumentTests::helperProcessLoopEndsWhenTheEventPumpReapsTheChild()
     busy.start();
 
     // A watchdog, so a regression fails this test instead of wedging the whole suite:
-    // the old loop spun forever, and only the cancel check could still break it out.
-    QTimer::singleShot(4000, [&doc] { doc.requestOperationCancel(); });
+    // the old loop spun forever, and only the cancel check could still break it out. A
+    // member of the test, not QTimer::singleShot: that timer outlives the test and, four
+    // seconds on, cancels whichever Document of a later test sits where `doc` was.
+    QTimer watchdog;
+    watchdog.setSingleShot(true);
+    QObject::connect(&watchdog, &QTimer::timeout, [&doc] { doc.requestOperationCancel(); });
+    watchdog.start(4000);
 
     QString error;
     QElapsedTimer timer;
