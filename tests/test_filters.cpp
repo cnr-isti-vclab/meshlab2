@@ -4396,17 +4396,24 @@ void FilterTests::open3dIcpRecoversAKnownTransform()
     QCOMPARE(doc.mesh(sourceIndex).mesh.vert[0].cP(), firstVertexBefore);
 
     // The composed matrix should now be close to the identity: ICP had to undo
-    // exactly the displacement applied above.
+    // exactly the displacement applied above -- except for rotation about Z. The cap maps
+    // onto itself under it, so point-to-plane ICP cannot see it: the solver's answer in that
+    // direction is whatever rounding leaves, none on macOS and about three degrees on Linux,
+    // both with the same fitness and a surface that fits just as well. The tilt about X and
+    // the translation, which the cap does constrain, are the third row and column and the
+    // translation column, so the 2x2 block that holds the Z rotation is left out.
     const QMatrix4x4 composed = doc.mesh(sourceIndex).transform;
     float worst = 0.0f;
     for (int r = 0; r < 4; ++r) {
         for (int c = 0; c < 4; ++c) {
+            if (r < 2 && c < 2)
+                continue;
             const float expected = (r == c) ? 1.0f : 0.0f;
             worst = std::max(worst, std::abs(composed(r, c) - expected));
         }
     }
     QVERIFY2(worst < 0.02f,
-             qPrintable(QStringLiteral("after ICP the layer matrix is still %1 from identity (%2)")
+             qPrintable(QStringLiteral("after ICP the layer matrix is still %1 from identity, Z rotation aside (%2)")
                             .arg(worst)
                             .arg(result.infoMessages.join(QStringLiteral(" | ")))));
 
