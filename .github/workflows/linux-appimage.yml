@@ -180,7 +180,8 @@ jobs:
             exe="$(ctest -R "^${t}$" --show-only=json-v1 |
               python3 -c "import json,sys; print(json.load(sys.stdin)['tests'][0]['command'][0])")"
             echo "::group::gdb $t"
-            gdb -batch -ex run -ex "thread apply all bt 30" --args "$exe" -silent || true
+            gdb -batch -iex "set print thread-events off" -ex run -ex "x/6i \$pc" \
+                -ex "info registers" -ex "bt 30" --args "$exe" -silent || true
             echo "::endgroup::"
           done
 
