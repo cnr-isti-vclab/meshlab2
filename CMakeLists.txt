@@ -12,6 +12,18 @@ endif()
 
 project(MeshLab2 LANGUAGES CXX)
 
+# Core, Plugins and every plugin library depend on each other: Document's constructor
+# calls the registries in MeshLab2Plugins, which pull in plugin objects, which use more
+# of Core. The Mach-O and MSVC linkers resolve that whatever the order, but GNU ld reads
+# each static archive once, in command-line order, and leaves symbols undefined. A link
+# group makes it rescan the archives until nothing new resolves. Only the library list is
+# wrapped, so the rest of CMake's link rule stays whatever this CMake version defines.
+if(UNIX AND NOT APPLE)
+    string(REPLACE "<LINK_LIBRARIES>"
+        "-Wl,--start-group <LINK_LIBRARIES> -Wl,--end-group"
+        CMAKE_CXX_LINK_EXECUTABLE "${CMAKE_CXX_LINK_EXECUTABLE}")
+endif()
+
 # geogram is the first vcpkg dependency that is a shared library (its port
 # forces dynamic linkage on Darwin), and its install name is @rpath-relative.
 # CMake does not add the vcpkg lib directory to the build rpath by itself
@@ -270,15 +282,6 @@ qt_add_resources(MeshLab2Core "colormaps"
 )
 
 add_subdirectory(plugins)
-
-# Core and Plugins depend on each other: Document's constructor calls the registries in
-# MeshLab2Plugins, which links Core. The Mach-O and MSVC linkers resolve that whatever
-# the order, but GNU ld reads each static archive once, in command-line order, and
-# leaves the registry functions undefined. Declaring the cycle makes CMake repeat the
-# archives on the link line.
-if(UNIX AND NOT APPLE)
-    target_link_libraries(MeshLab2Core PRIVATE MeshLab2Plugins)
-endif()
 
 if(MESHLAB2_PYTHON_CONSOLE)
     add_subdirectory(src/python)
