@@ -3,8 +3,8 @@
 How code moves from a change to a published build. The workflows are in
 `.github/workflows/`; this document is the reasoning behind them.
 
-> **Status.** The workflows and both branches exist. The first tag, Windows code
-> signing, a Linux package and the nightly/beta channels do not yet — see
+> **Status.** The workflows and both branches exist, and Linux builds and passes its tests.
+> The first tag, Windows code signing, a tested Linux package and the nightly/beta channels do not yet — see
 > [Open items](#open-items).
 
 ## Branches
@@ -99,10 +99,11 @@ default branch. Otherwise every release starts from a cold cache.
 - Make `devel` the default branch on GitHub (Settings → Branches). Do this before the
   first release, for the cache reason above; branch protection comes after.
 - Windows signing step (waiting on Certum activation and a manual `signtool` test).
-- Linux: `linux-appimage.yml` builds and runs ctest on `devel` pushes, but has not run yet, so
-  whether the tree compiles on GCC 11 is unknown. Next is an AppImage built on
-  `ubuntu-22.04` (bundle Qt, the QuadWild helpers and the Python standard library);
-  Flatpak later for discoverability.
+- Linux: `linux-appimage.yml` builds, tests and packages an AppImage on `devel` pushes,
+  and `release.yml` attaches it to a release. The build and the tests are green; the
+  packaging step (`scripts/package-linux-appimage.sh`) has not run yet. It is built on
+  `ubuntu-22.04`, so it needs a glibc and libstdc++ at least that new; the file has to be
+  made executable after download (`chmod +x`). Flatpak later for discoverability.
 - Nightly and beta channels as public GitHub pre-releases: designed, not built. Actions
   artifacts need a GitHub login, so testers cannot use them.
 - `tests.yml` is manual on purpose: it restores the packaging job's vcpkg cache and the
