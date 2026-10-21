@@ -271,6 +271,15 @@ qt_add_resources(MeshLab2Core "colormaps"
 
 add_subdirectory(plugins)
 
+# Core and Plugins depend on each other: Document's constructor calls the registries in
+# MeshLab2Plugins, which links Core. The Mach-O and MSVC linkers resolve that whatever
+# the order, but GNU ld reads each static archive once, in command-line order, and
+# leaves the registry functions undefined. Declaring the cycle makes CMake repeat the
+# archives on the link line.
+if(UNIX AND NOT APPLE)
+    target_link_libraries(MeshLab2Core PRIVATE MeshLab2Plugins)
+endif()
+
 if(MESHLAB2_PYTHON_CONSOLE)
     add_subdirectory(src/python)
 endif()
