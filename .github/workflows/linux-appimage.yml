@@ -151,7 +151,6 @@ jobs:
           cmake --preset vcpkg-manifest \
             -B "$BUILD_DIR" \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS=-g1 \
             -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
             -DVCPKG_TARGET_TRIPLET="$VCPKG_TARGET_TRIPLET" \
             -DVCPKG_OVERLAY_TRIPLETS="$VCPKG_OVERLAY_TRIPLETS" \
@@ -170,7 +169,8 @@ jobs:
           ctest --output-on-failure --no-tests=error
 
       # QtTest names the test function that crashed but not where, and a runner cannot
-      # be attached to. -g1 above keeps function names and line numbers in the backtrace.
+      # be attached to. The binaries are not stripped, so the backtrace has function
+      # names; -g1 would add line numbers but made the build run out of resources.
       - name: Backtrace of failed tests
         if: failure()
         run: |
