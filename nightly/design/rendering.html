@@ -771,13 +771,30 @@ application’s own <code class="docutils literal notranslate"><span class="pre"
 with a render-state JSON, and asserts on the returned raw RGBA8888.</p>
 <p><code class="docutils literal notranslate"><span class="pre">tests/render_probes/</span></code> holds these – <code class="docutils literal notranslate"><span class="pre">clip_plane</span></code> for the clipping plane and solid cut,
 <code class="docutils literal notranslate"><span class="pre">clip_space</span></code> for the backend correction of clip space, <code class="docutils literal notranslate"><span class="pre">radiance_scaling</span></code> for the radiance-scaling option, <code class="docutils literal notranslate"><span class="pre">reference_grid</span></code> for the reference grid, <code class="docutils literal notranslate"><span class="pre">orthographic</span></code> for the orthographic camera through snapshots and projection filters, <code class="docutils literal notranslate"><span class="pre">boundary_decorators</span></code> for what the boundary decorator marks and in which colors,
-<code class="docutils literal notranslate"><span class="pre">quality_histogram_layout</span></code> for captures staying full-frame while the histogram is open. Each is a
+<code class="docutils literal notranslate"><span class="pre">quality_histogram_layout</span></code> for captures staying full-frame while the histogram is open, <code class="docutils literal notranslate"><span class="pre">current_layer_outline</span></code> for the current-layer outline landing round the current layer (not mirrored top to bottom). Each is a
 directory with a <code class="docutils literal notranslate"><span class="pre">generate_api.py</span></code>, because that is the filename the hook runs:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">build</span><span class="o">-</span><span class="n">release</span><span class="o">/</span><span class="n">MeshLab</span><span class="o">.</span><span class="n">app</span><span class="o">/</span><span class="n">Contents</span><span class="o">/</span><span class="n">MacOS</span><span class="o">/</span><span class="n">MeshLab</span> <span class="o">--</span><span class="n">generate</span><span class="o">-</span><span class="n">docs</span> <span class="n">tests</span><span class="o">/</span><span class="n">render_probes</span><span class="o">/</span><span class="n">clip_plane</span>
 </pre></div>
 </div>
 <p>They need a real GPU and a window server. Under <code class="docutils literal notranslate"><span class="pre">QT_QPA_PLATFORM=offscreen</span></code> there is no QRhi
-and every snapshot fails, which is the opposite of how the ctest suite is run.</p>
+and every snapshot fails, which is the opposite of how the ctest suite is run. With
+<code class="docutils literal notranslate"><span class="pre">MESHLAB2_GRAPHICS_API=opengl</span></code> they run on OpenGL (4.1 core on a Mac), the API Linux uses:
+run them both ways after touching a shader or the way a pass samples another’s output.
+<code class="docutils literal notranslate"><span class="pre">HeadlessRenderContext</span></code> adds its view to the hidden window <em>before</em> showing it, since a
+top-level window sets up its QRhi only for the QRhiWidgets it holds when first shown: shown
+empty, every snapshot fell back to a QRhi of its own, made and destroyed each time, and on
+OpenGL made as a legacy 2.1 context the GLSL 150 shaders cannot run in.</p>
+<p><strong>Sampling a pass’s own output.</strong> A pass that reads, at its fragment, a texture another pass
+of this frame rendered at the same size (the current-layer masks, read back by the outline)
+reads at <code class="docutils literal notranslate"><span class="pre">gl_FragCoord.xy</span> <span class="pre">/</span> <span class="pre">size</span></code> and never flips: both targets were rendered by the same
+backend, so their rows run the same way – from the bottom on OpenGL, from the top elsewhere
+– and <code class="docutils literal notranslate"><span class="pre">isYUpInFramebuffer</span></code> must not enter into it. The outline composite flipped on Y-up
+framebuffers, which mirrored the outline on OpenGL only. A CPU readback (the depth pick) is
+different: there the bottom-up rows of OpenGL do have to be turned round, and that is the one
+place the flag is read.</p>
+<p><strong>The clipping plane does nothing on OpenGL.</strong> Qt’s OpenGL backend never enables
+<code class="docutils literal notranslate"><span class="pre">GL_CLIP_DISTANCE0</span></code>, so the <code class="docutils literal notranslate"><span class="pre">gl_ClipDistance</span></code> the shaders write is ignored; Metal, Vulkan and
+D3D apply it without being asked. <code class="docutils literal notranslate"><span class="pre">clip_plane</span></code> fails on OpenGL for this reason.</p>
 <p>Two things to know before writing one, both of which look like bugs first: the default
 background is a gradient that passes through a band any naive “is this pixel lit” test
 scores as geometry, so render on a flat colour; and a pass that changes only hidden geometry
