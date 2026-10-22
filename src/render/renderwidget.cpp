@@ -17,6 +17,7 @@
 #include <vcg/complex/algorithms/update/topology.h>
 #include <vcg/complex/algorithms/update/flag.h>
 #include <vcg/simplex/face/topology.h>
+#include <QApplication>
 #include <QEventLoop>
 #include <QScopeGuard>
 #include <QElapsedTimer>
@@ -1704,8 +1705,10 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
     return true;
 }
 
-void RenderWidget::setCurrentViewHighlighted(bool highlighted)
+void RenderWidget::setCurrentView(bool current, bool showIndicator)
 {
+    m_isCurrentView = current;
+    const bool highlighted = current && showIndicator;
     if (m_currentViewHighlighted == highlighted)
         return;
     m_currentViewHighlighted = highlighted;
@@ -1983,6 +1986,11 @@ void RenderWidget::createOverlayButtons()
         "  border-radius: 6px;"
         "  padding: 5px 10px;"
         "}"));
+    m_layerClickTimer = new QTimer(this);
+    m_layerClickTimer->setSingleShot(true);
+    connect(m_layerClickTimer, &QTimer::timeout, this, [this]() {
+        scheduleDepthPick(m_layerClickPos, PickPurpose::CurrentLayer);
+    });
     m_clipPlaneGizmoDwellTimer = new QTimer(this);
     m_clipPlaneGizmoDwellTimer->setSingleShot(true);
     // One repaint when the dwell expires, to take the grid back down.
@@ -3657,12 +3665,17 @@ QString RenderWidget::toolControlForKey(const QKeyEvent &e) const
 
 void RenderWidget::requestSurfacePick(QPoint pixel)
 {
+    scheduleDepthPick(pixel, PickPurpose::Tool);
+}
+
+void RenderWidget::scheduleDepthPick(QPoint pixel, PickPurpose purpose)
+{
     if (!m_doc || m_viewMode != ViewMode::Scene3D || m_doc->meshCount() <= 0)
         return;
     m_depthPickPos = pixel;
     ++m_depthPickSequence; // reject stale in-flight picks
     m_depthPickPending = true;
-    m_depthPickPurpose = PickPurpose::Tool;
+    m_depthPickPurpose = purpose;
     update();
 }
 
@@ -3740,6 +3753,11 @@ void RenderWidget::keyReleaseEvent(QKeyEvent *e)
 
 void RenderWidget::mousePressEvent(QMouseEvent *e)
 {
+    // A press in a view that is not current only makes it current: it does not also pick a
+    // layer, here or in the grid, since that is what a click to focus a view would do by chance.
+    const bool wasCurrent = m_isCurrentView;
+    m_layerClickCandidate = false;
+    m_layerClickTimer->stop();   // a second press: the click before it picks nothing
     emit viewActivated(this);
     setFocus(Qt::MouseFocusReason); // ensure the view receives key events for tools
     if (toolAllowedInCurrentMode() && toolLive() && m_activeTool->mousePress(e)) {
@@ -3769,6 +3787,8 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
             e->accept();
         return;
     }
+    // A press that stops the camera moving was meant to stop it, not to pick a layer.
+    const bool cameraWasMoving = m_centerAnimActive || m_rotationAnimActive;
     cancelCenterAnimation();
     cancelRotationAnimation();
     // Alt+Left → tip the clipping plane. Alt rather than Ctrl because macOS turns a
@@ -3800,11 +3820,17 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
     // Clicking a tile makes its layer current. Without it the grid is only a way of looking
     // at several layers; with it, it is also the way you pick one -- and the marked tile and
     // highlighted caption say immediately which one you got.
-    if (m_doc) {
+    if (m_doc && wasCurrent) {
         const int clickedLayer = layerAtViewPoint(e->position().toPoint());
         if (clickedLayer >= 0 && clickedLayer != m_doc->currentMeshIndex())
             m_doc->setCurrentMeshIndex(clickedLayer);
     }
+    // In the overlaid arrangement the layer under the cursor is found by a pick, on release,
+    // and only for a plain click: a press that becomes a drag is a rotation, and Shift, Ctrl
+    // and Alt start the roll, the pan, the light and the clipping plane.
+    m_layerClickCandidate = wasCurrent && !cameraWasMoving && e->button() == Qt::LeftButton
+        && e->modifiers() == Qt::NoModifier && !isLayerGridActive();
+    m_layerClickPressPos = e->position().toPoint();
 
     // Every tile shares one camera, but the arcball is sized to the viewport the drag
     // happens in: a drag inside a quarter-sized tile measured against the whole view would
@@ -3819,6 +3845,9 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
 
 void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
 {
+    // The first click of the pair was not a click on its own: it picks no layer.
+    m_layerClickTimer->stop();
+    m_layerClickCandidate = false;
     emit viewActivated(this);
     if (e && toolAllowedInCurrentMode() && toolLive() && m_activeTool->mouseDoubleClick(e)) {
         e->accept();
@@ -3910,6 +3939,11 @@ void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
         return;
     }
     m_trackball.mouseRelease(e);
+    if (m_layerClickCandidate && e && e->button() == Qt::LeftButton) {
+        m_layerClickCandidate = false;
+        m_layerClickPos = e->position().toPoint();
+        m_layerClickTimer->start(QApplication::doubleClickInterval());
+    }
     if (m_lightDragActive && e && e->buttons() == Qt::NoButton) {
         m_lightDragActive = false;
         update();
@@ -3924,6 +3958,10 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
 {
     if (e && e->buttons() != Qt::NoButton)
         emit viewActivated(this);
+    if (m_layerClickCandidate && e
+        && (e->position().toPoint() - m_layerClickPressPos).manhattanLength()
+               >= QApplication::startDragDistance())
+        m_layerClickCandidate = false;
     if (toolAllowedInCurrentMode() && toolLive() && m_activeTool->mouseMove(e)) {
         if (e)
             e->accept();

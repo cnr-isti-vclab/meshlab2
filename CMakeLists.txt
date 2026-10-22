@@ -325,7 +325,6 @@ qt_add_executable(MeshLab2
     src/render/renderoverlaypanel.h src/render/renderoverlaypanel.cpp
     src/render/interactivetool.h src/render/interactivetoolfactory.cpp
     src/render/toolstrip.h src/render/toolstrip.cpp
-    src/render/tools/selectlayertool.h src/render/tools/selectlayertool.cpp
     src/render/tools/rubberbandselecttool.h src/render/tools/rubberbandselecttool.cpp
     src/render/tools/measuretool.h src/render/tools/measuretool.cpp
     src/render/tools/transformtool.h src/render/tools/transformtool.cpp
@@ -540,12 +539,10 @@ qt_add_resources(MeshLab2 "icons"
         img/MeshLab_Icon_512x512.png
         img/layer_eye_open.png
         img/layer_eye_close.png
-        img/tool_select_layer.png
         img/tool_select_rect.png
         img/icon_measure.png
         img/snapshot.png
         img/axis.png
-        img/cur_pick.png
         img/cur_measure.png
         img/cur_trackball.png
         img/cur_sel_rect.png

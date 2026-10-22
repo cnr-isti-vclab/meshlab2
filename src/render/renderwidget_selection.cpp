@@ -348,6 +348,16 @@ void RenderWidget::executePendingDepthPick(
                                  : tr("Double-click: no surface under the cursor, nothing to recenter on."),
                     Document::LogSource::Application,
                     Document::LogLevel::Debug);
+            } else if (purpose == PickPurpose::CurrentLayer) {
+                // A click on a layer makes it current; on the background it changes nothing,
+                // so a stray click cannot leave the document without a current layer. Said
+                // briefly over the view, since what the filters act on has just changed.
+                Document *doc = self->m_doc;
+                if (hit && meshIndex < doc->meshCount() && meshIndex != doc->currentMeshIndex()) {
+                    doc->setCurrentMeshIndex(meshIndex);
+                    self->showInteractionStatusOverlay(
+                        tr("Current layer: %1").arg(doc->mesh(meshIndex).name));
+                }
             } else if (self->m_activeTool) {
                 SurfacePick result;
                 result.hit = hit && haveWorldPos;

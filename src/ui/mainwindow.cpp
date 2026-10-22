@@ -1819,7 +1819,7 @@ void MainWindow::updateCurrentViewBorder()
         if (!view)
             continue;
         const bool isCurrent = (view == m_currentRenderWidget);
-        view->setCurrentViewHighlighted(showCurrentViewIndicator && isCurrent);
+        view->setCurrentView(isCurrent, showCurrentViewIndicator);
         view->update();
     }
 }

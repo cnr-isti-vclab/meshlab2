@@ -70,7 +70,9 @@ public:
     // Schedules a GPU surface pick at the given pixel; the result is delivered
     // asynchronously to the active tool's onSurfacePicked().
     void requestSurfacePick(QPoint pixel);
-    void setCurrentViewHighlighted(bool highlighted);
+    // Whether this is the current view, and whether to mark it as such (only when there are
+    // several). A press in a view that is not current only makes it current.
+    void setCurrentView(bool current, bool showIndicator);
     void resetCameraToScene();
     // Recenters the trackball on the current mesh's selection barycenter and
     // zooms to frame it. Returns false if there is no selection (Scene3D only).
@@ -696,7 +698,8 @@ struct SceneRasterProjectedDrawItem {
     void invalidateToolPick(); // reject pending/in-flight asynchronous tool picks
     // Distinguishes a double-click recenter pick from a tool-requested pick that
     // shares the same depth-pick machinery.
-    enum class PickPurpose { Recenter, Tool };
+    enum class PickPurpose { Recenter, Tool, CurrentLayer };
+    void scheduleDepthPick(QPoint pixel, PickPurpose purpose);
     PickPurpose m_depthPickPurpose = PickPurpose::Recenter;
     QRhi *m_rhi = nullptr;
     std::function<std::vector<PeerViewCamera>()> m_peerViewCameraProvider;
@@ -969,6 +972,15 @@ struct SceneRasterProjectedDrawItem {
     ViewAxisGizmo *m_axisGizmo = nullptr;
     QWidget *m_currentViewIndicator = nullptr;
     bool m_currentViewHighlighted = false;
+    bool m_isCurrentView = false;
+    // A plain left press that may turn out to be a click -- released without moving -- which
+    // makes the layer under the cursor current. Cleared by a move beyond the drag distance.
+    bool m_layerClickCandidate = false;
+    QPoint m_layerClickPressPos;
+    // The click's pick waits out the double-click interval: a double click recenters and must
+    // not change the current layer, and until the interval is over a click may be its first half.
+    QTimer *m_layerClickTimer = nullptr;
+    QPoint m_layerClickPos;
     // Pooled rather than rebuilt: tiles come and go every time a layer's visibility is
     // toggled, and recreating widgets on each toggle is churn for nothing.
     std::vector<QLabel *> m_tileCaptionLabels;
