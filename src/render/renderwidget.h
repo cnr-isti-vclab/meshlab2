@@ -153,10 +153,17 @@ public:
     float nearClipDistance() const { return m_trackball.nearClipPlaneDistance(); }
     float farClipDistance() const { return m_trackball.farClipPlaneDistance(); }
     QMatrix4x4 viewMatrix() const { return m_trackball.viewMatrix(); }
+    // Where the 3D content is drawn, in widget pixels: the whole view, less the quality
+    // histogram's strip while it is shown. A tool measures the screen against this, not against
+    // the widget, or with the strip shown a selection lands to one side of what it was drawn on.
+    QRect sceneRect() const { return sceneContentRect(size()); }
     QMatrix4x4 projectionMatrix() const {
-        QSize sz = size();
-        return m_trackball.projectionMatrix(float(sz.width()) / float(sz.height()));
+        const QRect scene = sceneRect();
+        return m_trackball.projectionMatrix(float(scene.width()) / float(qMax(1, scene.height())));
     }
+    // A world point's position in widget pixels, through the camera the scene is drawn with.
+    // False when it is behind the eye.
+    bool projectToWidget(const QVector3D &world, QPointF &widgetPos) const;
 
 signals:
     void frameRendered(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);

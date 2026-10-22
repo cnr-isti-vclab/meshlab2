@@ -437,17 +437,18 @@ bool RubberBandSelectTool::mouseRelease(QMouseEvent *e)
     endDrag(); // hide the band before committing so the change signal is a no-op here
 
     Document *doc = m_view->document();
-    const int w = std::max(1, m_view->width());
-    const int h = std::max(1, m_view->height());
     if (!doc || rect.width() < 2 || rect.height() < 2)
         return true; // ignore accidental clicks
 
-    // Normalize to [0..1], y up (bottom-left origin) to match the filter's convention.
+    // Normalize to [0..1], y up (bottom-left origin) to match the filter's convention, over the
+    // rect the scene is drawn in.
+    const QPointF low = normalizedScenePoint(rect.bottomLeft());
+    const QPointF high = normalizedScenePoint(rect.topRight());
     QVariantMap region;
-    region[QStringLiteral("rect_min_x")] = double(rect.left()) / w;
-    region[QStringLiteral("rect_min_y")] = 1.0 - double(rect.bottom()) / h;
-    region[QStringLiteral("rect_max_x")] = double(rect.right()) / w;
-    region[QStringLiteral("rect_max_y")] = 1.0 - double(rect.top()) / h;
+    region[QStringLiteral("rect_min_x")] = low.x();
+    region[QStringLiteral("rect_min_y")] = low.y();
+    region[QStringLiteral("rect_max_x")] = high.x();
+    region[QStringLiteral("rect_max_y")] = high.y();
     commitSelection(QStringLiteral("select_by_screen_rectangle"), region, e->modifiers());
     return true;
 }
@@ -464,6 +465,13 @@ bool RubberBandSelectTool::mouseDoubleClick(QMouseEvent *e)
     return true;
 }
 
+QPointF RubberBandSelectTool::normalizedScenePoint(const QPoint &widgetPos) const
+{
+    const QRect scene = m_view->sceneRect();
+    return { double(widgetPos.x() - scene.left()) / double(std::max(1, scene.width())),
+             1.0 - double(widgetPos.y() - scene.top()) / double(std::max(1, scene.height())) };
+}
+
 void RubberBandSelectTool::commitPolygon(Qt::KeyboardModifiers modifiers)
 {
     const QVector<QPoint> corners = m_polygon;
@@ -471,11 +479,11 @@ void RubberBandSelectTool::commitPolygon(Qt::KeyboardModifiers modifiers)
     Document *doc = m_view ? m_view->document() : nullptr;
     if (!doc || corners.size() < 3)
         return;
-    const int w = std::max(1, m_view->width());
-    const int h = std::max(1, m_view->height());
     QJsonArray points;
-    for (const QPoint &p : corners)
-        points.append(QJsonArray{double(p.x()) / w, 1.0 - double(p.y()) / h});
+    for (const QPoint &p : corners) {
+        const QPointF n = normalizedScenePoint(p);
+        points.append(QJsonArray{ n.x(), n.y() });
+    }
     QVariantMap region;
     region[QStringLiteral("polygon")] =
         QString::fromUtf8(QJsonDocument(points).toJson(QJsonDocument::Compact));
@@ -488,13 +496,12 @@ void RubberBandSelectTool::commitSelection(const QString &filterId, QVariantMap 
     Document *doc = m_view->document();
     if (!doc)
         return;
-    const int w = std::max(1, m_view->width());
-    const int h = std::max(1, m_view->height());
+    const QRect scene = m_view->sceneRect();
     const QString mode = (mods & Qt::ShiftModifier) ? QStringLiteral("add")
         : (mods & Qt::ControlModifier) ? QStringLiteral("subtract")
         : QStringLiteral("replace");
 
-    params[QStringLiteral("aspect")] = double(w) / double(h);
+    params[QStringLiteral("aspect")] = double(std::max(1, scene.width())) / double(std::max(1, scene.height()));
     params[QStringLiteral("element")] = m_selectFaces ? QStringLiteral("face") : QStringLiteral("vertex");
     params[QStringLiteral("mode")] = mode;
     params[QStringLiteral("visible_only")] = m_visibleOnly;

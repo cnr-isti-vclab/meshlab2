@@ -424,6 +424,8 @@ private slots:
     void trimByPlaneClosesObliqueCutsToo();
     void cameraFramingFiltersMakeAndKeepOrthographicShots();
     void visibleOnlySelectionCastsParallelRaysInAnOrthographicView();
+    void screenSelectionFollowsTheLayerMatrix();
+    void visibleOnlySelectionLooksThroughTheLayerMatrix();
     void polygonSelectionTakesWhatTheLassoEncloses();
     void filterParameterValidation();
     void meshFixRepairsOpenCube();
@@ -1868,6 +1870,140 @@ void FilterTests::visibleOnlySelectionCastsParallelRaysInAnOrthographicView()
     select(true);
     QCOMPARE(selectedOnPlane(4.0f), 2); // the top of the upper cube: nothing above it
     QCOMPARE(selectedOnPlane(1.0f), 0); // the top of the lower cube: the upper cube is in the way
+}
+
+// A layer's matrix places it in the scene, and a selection on the screen is of what the screen
+// shows: the layer where its matrix puts it, not where its own coordinates are. A unit cube,
+// stretched along X, turned a quarter about Z and moved ten units along X, is looked at straight
+// down; the right half of the screen then holds what is right of the cube's centre in the scene,
+// which is its local y = 0 side -- with the layer's own coordinates, it would be nothing at all.
+// For both projections, for the rectangle on vertices and for the lasso on faces.
+void FilterTests::screenSelectionFollowsTheLayerMatrix()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int layer = doc.addMesh(cube, QStringLiteral("cube"));
+    QVERIFY(layer >= 0);
+    QMatrix4x4 matrix;
+    matrix.translate(10.0f, 0.0f, 0.0f);
+    matrix.rotate(90.0f, 0.0f, 0.0f, 1.0f);
+    matrix.scale(2.0f, 1.0f, 1.0f);
+    doc.mesh(layer).transform = matrix;   // in the scene: x in [9, 10], y in [0, 2], z in [0, 1]
+
+    const QString rectangleKey = filterKeyForId(doc, QStringLiteral("select_by_screen_rectangle"));
+    const QString polygonKey = filterKeyForId(doc, QStringLiteral("select_by_screen_polygon"));
+    QVERIFY(!rectangleKey.isEmpty() && !polygonKey.isEmpty());
+
+    for (const QString &projection : { QStringLiteral("perspective"), QStringLiteral("orthographic") }) {
+        // Straight down -Z onto the centre of the cube as the scene has it.
+        const QString camera = QStringLiteral(
+            R"({"kind":"MeshLab.CameraState","version":1,"trackball":{"center":[9.5,1,0.5],)"
+            R"("rotation_xyzw":[0,0,0,1],"distance":5,"radius":1.5,"fov_y_degrees":60,)"
+            R"("projection":"%1"}})").arg(projection);
+        const auto params = [&](const QString &element) {
+            MeshFilterParameterValues p;
+            p.insert(QStringLiteral("space"), QStringLiteral("view3d"));
+            p.insert(QStringLiteral("camera_state"), camera);
+            p.insert(QStringLiteral("aspect"), 1.0);
+            p.insert(QStringLiteral("element"), element);
+            p.insert(QStringLiteral("mode"), QStringLiteral("replace"));
+            p.insert(QStringLiteral("visible_only"), false);
+            p.insert(QStringLiteral("expand_to"), QStringLiteral("none"));
+            return p;
+        };
+
+        MeshFilterParameterValues rectangle = params(QStringLiteral("vertex"));
+        rectangle.insert(QStringLiteral("rect_min_x"), 0.5);
+        rectangle.insert(QStringLiteral("rect_max_x"), 1.0);
+        rectangle.insert(QStringLiteral("rect_min_y"), 0.0);
+        rectangle.insert(QStringLiteral("rect_max_y"), 1.0);
+        const MeshFilterRunResult byRectangle = doc.runFilter(rectangleKey, rectangle);
+        QVERIFY2(byRectangle.success, qPrintable(byRectangle.errorMessage));
+        int selected = 0;
+        for (const VCGVertex &v : doc.mesh(layer).mesh.vert) {
+            QVERIFY2(v.IsS() == (v.cP().Y() < 0.5f),
+                     qPrintable(QStringLiteral("%1: vertex (%2, %3, %4)").arg(projection)
+                                    .arg(v.cP().X()).arg(v.cP().Y()).arg(v.cP().Z())));
+            selected += v.IsS() ? 1 : 0;
+        }
+        QCOMPARE(selected, 4);
+
+        MeshFilterParameterValues lasso = params(QStringLiteral("face"));
+        lasso.insert(QStringLiteral("polygon"), QStringLiteral("[[0.5,0],[1,0],[1,1],[0.5,1]]"));
+        const MeshFilterRunResult byLasso = doc.runFilter(polygonKey, lasso);
+        QVERIFY2(byLasso.success, qPrintable(byLasso.errorMessage));
+        for (const VCGFace &f : doc.mesh(layer).mesh.face) {
+            const vcg::Point3f centroid = vcg::Barycenter(f);
+            QVERIFY2(f.IsS() == (centroid.Y() < 0.5f),
+                     qPrintable(QStringLiteral("%1: face at (%2, %3, %4)").arg(projection)
+                                    .arg(centroid.X()).arg(centroid.Y()).arg(centroid.Z())));
+        }
+    }
+}
+
+// Visible only is decided where the scene has the layer too. Two cubes of one layer, one above
+// the other in its own coordinates, turned upside down by its matrix and lifted: seen from above,
+// the face that is on top in the scene is the lower cube's bottom (local z = 0), and the upper
+// cube's bottom (local z = 3) is the face hidden under the other cube. Taken in the layer's own
+// coordinates the answer would be the other way round.
+void FilterTests::visibleOnlySelectionLooksThroughTheLayerMatrix()
+{
+    Document doc;
+    VCGMesh lower;
+    makeCubeMesh(lower, 0.0f, 0.0f, 0.0f);
+    VCGMesh upper;
+    makeCubeMesh(upper, 0.0f, 0.0f, 3.0f);
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(lower, upper);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(lower);
+    const int layer = doc.addMesh(lower, QStringLiteral("two cubes"));
+    QVERIFY(layer >= 0);
+    QMatrix4x4 matrix;
+    matrix.translate(0.0f, 0.0f, 10.0f);
+    matrix.rotate(180.0f, 1.0f, 0.0f, 0.0f);
+    doc.mesh(layer).transform = matrix;   // local z = 0 is at 10 in the scene, local z = 3 at 7
+
+    const QString key = filterKeyForId(doc, QStringLiteral("select_by_screen_rectangle"));
+    QVERIFY(!key.isEmpty());
+    // How many selected faces lie flat at local height z.
+    const auto selectedOnPlane = [&](float z) {
+        int count = 0;
+        for (const VCGFace &f : doc.mesh(layer).mesh.face) {
+            const bool flat = std::abs(f.cP(0).Z() - z) < 1e-5f && std::abs(f.cP(1).Z() - z) < 1e-5f
+                && std::abs(f.cP(2).Z() - z) < 1e-5f;
+            if (flat && f.IsS())
+                ++count;
+        }
+        return count;
+    };
+    for (const QString &projection : { QStringLiteral("perspective"), QStringLiteral("orthographic") }) {
+        const QString camera = QStringLiteral(
+            R"({"kind":"MeshLab.CameraState","version":1,"trackball":{"center":[0.5,-0.5,8],)"
+            R"("rotation_xyzw":[0,0,0,1],"distance":6,"radius":3,"fov_y_degrees":60,)"
+            R"("projection":"%1"}})").arg(projection);
+        const auto select = [&](bool visibleOnly) {
+            MeshFilterParameterValues params;
+            params.insert(QStringLiteral("space"), QStringLiteral("view3d"));
+            params.insert(QStringLiteral("camera_state"), camera);
+            params.insert(QStringLiteral("aspect"), 1.0);
+            params.insert(QStringLiteral("rect_min_x"), 0.0);
+            params.insert(QStringLiteral("rect_max_x"), 1.0);
+            params.insert(QStringLiteral("rect_min_y"), 0.0);
+            params.insert(QStringLiteral("rect_max_y"), 1.0);
+            params.insert(QStringLiteral("element"), QStringLiteral("face"));
+            params.insert(QStringLiteral("mode"), QStringLiteral("replace"));
+            params.insert(QStringLiteral("visible_only"), visibleOnly);
+            params.insert(QStringLiteral("expand_to"), QStringLiteral("none"));
+            const MeshFilterRunResult r = doc.runFilter(key, params);
+            QVERIFY2(r.success, qPrintable(r.errorMessage));
+        };
+        select(false);
+        QCOMPARE(selectedOnPlane(0.0f), 2);
+        QCOMPARE(selectedOnPlane(3.0f), 2);
+        select(true);
+        QVERIFY2(selectedOnPlane(0.0f) == 2, qPrintable(projection));   // on top in the scene
+        QVERIFY2(selectedOnPlane(3.0f) == 0, qPrintable(projection));   // under the other cube
+    }
 }
 
 // The lasso's filter: the polygon is in normalized screen coordinates (origin bottom-left, y up),

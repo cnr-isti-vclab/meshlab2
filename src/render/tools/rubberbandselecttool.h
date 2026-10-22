@@ -56,6 +56,9 @@ private:
     void commitSelection(const QString &filterId, QVariantMap regionParams,
                          Qt::KeyboardModifiers modifiers);
     void commitPolygon(Qt::KeyboardModifiers modifiers);
+    // A point of the view in the filter's screen coordinates: [0, 1] across the rect the scene is
+    // drawn in (RenderWidget::sceneRect, which leaves out the histogram's strip), y up.
+    QPointF normalizedScenePoint(const QPoint &widgetPos) const;
     void clearPolygon();
     void updateLassoOverlay();
 

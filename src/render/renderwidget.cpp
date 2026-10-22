@@ -76,10 +76,7 @@ protected:
         if (!tool || m_view->viewMode() != RenderWidget::ViewMode::Scene3D)
             return;
         QPainter painter(this);
-        tool->paintOverlay(
-            painter,
-            m_view->projectionMatrix() * m_view->viewMatrix(),
-            size());
+        tool->paintOverlay(painter);
     }
 
 private:
@@ -3661,6 +3658,18 @@ QString RenderWidget::toolControlForKey(const QKeyEvent &e) const
             return control.id;
     }
     return {};
+}
+
+bool RenderWidget::projectToWidget(const QVector3D &world, QPointF &widgetPos) const
+{
+    const QVector4D clip = projectionMatrix() * viewMatrix() * QVector4D(world, 1.0f);
+    if (clip.w() <= 1e-6f)
+        return false;
+    const QRect scene = sceneRect();
+    const QVector3D ndc = clip.toVector3DAffine();
+    widgetPos = QPointF(scene.left() + (ndc.x() * 0.5f + 0.5f) * scene.width(),
+                        scene.top() + (0.5f - ndc.y() * 0.5f) * scene.height());
+    return std::isfinite(widgetPos.x()) && std::isfinite(widgetPos.y());
 }
 
 void RenderWidget::requestSurfacePick(QPoint pixel)

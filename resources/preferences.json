@@ -461,6 +461,14 @@
       "default": false
     },
     {
+      "id": "advanced.gpuTiming",
+      "label": "Measure GPU frame time",
+      "help": "Time each frame on the GPU as well, and show it in the status bar next to the CPU time. Off, the status bar says *GPU: not measured*. Measuring asks the graphics driver for timestamps on every frame, which costs a little, and takes effect the next time MeshLab starts. Setting the `QSG_RHI_PROFILE` environment variable turns it on as well.",
+      "group": "advanced",
+      "type": "bool",
+      "default": false
+    },
+    {
       "id": "advanced.rayCallbackChunks",
       "label": "Ray-tracing progress chunks",
       "help": "How many chunks the face array is split into when ray-tracing filters report progress. Higher values update the progress bar and respond to Cancel more often, at a small synchronisation cost.",

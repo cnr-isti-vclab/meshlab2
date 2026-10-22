@@ -3710,8 +3710,14 @@ void MainWindow::updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSu
     const float cpuMinMs = (cpuMinIt != m_lastCpuFrameTimes.end()) ? *cpuMinIt : cpuMs;
     const float cpuMaxMs = (cpuMaxIt != m_lastCpuFrameTimes.end()) ? *cpuMaxIt : cpuMs;
 
+    // Whether this run asked for GPU timestamps: the advanced.gpuTiming preference, as it stood at
+    // startup (see main.cpp), or the variable set by hand.
+    static const bool gpuTimingRequested = qEnvironmentVariableIntValue("QSG_RHI_PROFILE") != 0;
     QString gpuText;
-    if (!gpuTimingSupported) {
+    if (!gpuTimingRequested) {
+        m_lastGpuFrameTimes.clear();
+        gpuText = tr("GPU: not measured");
+    } else if (!gpuTimingSupported) {
         m_lastGpuFrameTimes.clear();
         gpuText = tr("GPU: n/a");
     } else {

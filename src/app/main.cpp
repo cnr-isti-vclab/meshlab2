@@ -11,6 +11,7 @@ extern "C" PyObject *PyInit__meshlab();
 
 #include "helperprocess.h"
 #include "mainwindow.h"
+#include "preferences.h"
 #include <QApplication>
 #include <QFileInfo>
 #include <QIcon>
@@ -143,6 +144,13 @@ int main(int argc, char *argv[])
     const QIcon appIcon(QStringLiteral(":/img/MeshLab_Icon_512x512.png"));
     if (!appIcon.isNull())
         app.setWindowIcon(appIcon);
+
+    // GPU frame timing needs the window's graphics context created with timestamps on, which Qt
+    // does when QSG_RHI_PROFILE is set (it adds debug markers too). It has to be set before the
+    // first window is, so the preference applies from the next start; one set by hand is kept.
+    if (Preferences::instance().boolValue(QStringLiteral("advanced.gpuTiming"))
+        && !qEnvironmentVariableIsSet("QSG_RHI_PROFILE"))
+        qputenv("QSG_RHI_PROFILE", "1");
 
     MainWindow w;
     if (!appIcon.isNull())

@@ -13,8 +13,6 @@ class RenderWidget;
 class QMouseEvent;
 class QKeyEvent;
 class QPainter;
-class QMatrix4x4;
-class QSize;
 
 // Result of an asynchronous GPU surface pick (see RenderWidget::requestSurfacePick).
 struct SurfacePick
@@ -108,17 +106,9 @@ public:
         (void)modifiers;
     }
 
-    // Optional screen-space overlay. The matrix maps world coordinates to clip
-    // space; viewportSize is in logical widget pixels.
-    virtual void paintOverlay(
-        QPainter &painter,
-        const QMatrix4x4 &worldToClip,
-        const QSize &viewportSize)
-    {
-        (void)painter;
-        (void)worldToClip;
-        (void)viewportSize;
-    }
+    // Optional screen-space overlay, in the view's widget pixels; RenderWidget::projectToWidget
+    // places a world point in them as the scene is drawn.
+    virtual void paintOverlay(QPainter &painter) { (void)painter; }
     // World-space segments drawn with the standard depth cue: dotted where
     // occluded by scene geometry and solid where visible.
     virtual std::vector<ToolLineSegment> depthCuedLines() const { return {}; }

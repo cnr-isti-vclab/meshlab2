@@ -171,15 +171,10 @@ QVector3D TransformTool::pivotWorld() const
 
 QPointF TransformTool::pivotScreen() const
 {
-    if (!m_view)
+    QPointF screen;
+    if (!m_view || !m_view->projectToWidget(m_pivot, screen))
         return {};
-    const QMatrix4x4 worldToClip = m_view->projectionMatrix() * m_view->viewMatrix();
-    const QVector4D clip = worldToClip * QVector4D(m_pivot, 1.0f);
-    if (std::abs(clip.w()) < 1e-9f)
-        return {};
-    const QSize sz = m_view->size();
-    return { (clip.x() / clip.w() * 0.5f + 0.5f) * sz.width(),
-             (1.0f - (clip.y() / clip.w() * 0.5f + 0.5f)) * sz.height() };
+    return screen;
 }
 
 bool TransformTool::beginGesture(Gesture g)
@@ -216,8 +211,9 @@ float TransformTool::worldUnitsPerPixel() const
 {
     if (!m_view)
         return 1.0f;
-    const QSize sz = m_view->size();
-    if (sz.width() <= 0)
+    // The scene's width, not the widget's: the histogram's strip is not part of it.
+    const int sceneWidth = m_view->sceneRect().width();
+    if (sceneWidth <= 0)
         return 1.0f;
     const QMatrix4x4 worldToClip = m_view->projectionMatrix() * m_view->viewMatrix();
     bool invertible = false;
@@ -228,7 +224,7 @@ float TransformTool::worldUnitsPerPixel() const
     if (std::abs(clip.w()) < 1e-9f)
         return 1.0f;
     QVector4D shifted = clip;
-    shifted.setX(clip.x() + (2.0f / float(sz.width())) * clip.w());
+    shifted.setX(clip.x() + (2.0f / float(sceneWidth)) * clip.w());
     const QVector4D a = clipToWorld * clip;
     const QVector4D b = clipToWorld * shifted;
     if (std::abs(a.w()) < 1e-9f || std::abs(b.w()) < 1e-9f)
@@ -599,11 +595,8 @@ QColor TransformTool::toolLineColor() const
     }
 }
 
-void TransformTool::paintOverlay(QPainter &painter,
-                                 const QMatrix4x4 &worldToClip,
-                                 const QSize &viewportSize)
+void TransformTool::paintOverlay(QPainter &painter)
 {
-    (void) worldToClip;
     if (m_gesture == Gesture::None)
         return;
 

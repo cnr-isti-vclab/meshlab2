@@ -10,36 +10,14 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QApplication>
-#include <QMatrix4x4>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPixmap>
 #include <QSaveFile>
 #include <QTextStream>
-#include <QVector4D>
 
 #include <algorithm>
 #include <cmath>
-
-namespace {
-
-bool projectPoint(
-    const QVector3D &world,
-    const QMatrix4x4 &worldToClip,
-    const QSize &viewportSize,
-    QPointF &screen)
-{
-    const QVector4D clip = worldToClip * QVector4D(world, 1.0f);
-    if (clip.w() <= 1e-6f)
-        return false;
-    const QVector3D ndc = clip.toVector3DAffine();
-    screen = QPointF(
-        (ndc.x() * 0.5f + 0.5f) * viewportSize.width(),
-        (1.0f - (ndc.y() * 0.5f + 0.5f)) * viewportSize.height());
-    return std::isfinite(screen.x()) && std::isfinite(screen.y());
-}
-
-} // namespace
 
 QString MeasureTool::id() const
 {
@@ -260,8 +238,6 @@ int MeasureTool::pointAt(const QPointF &screenPos) const
 {
     if (!m_view)
         return -1;
-    const QMatrix4x4 worldToClip = m_view->projectionMatrix() * m_view->viewMatrix();
-    const QSize viewportSize = m_view->size();
     int nearest = -1;
     qreal nearestSquared = 9.0 * 9.0;
 
@@ -271,7 +247,7 @@ int MeasureTool::pointAt(const QPointF &screenPos) const
         const std::size_t indices[2] = {m.a, m.b};
         for (const std::size_t index : indices) {
             QPointF projected;
-            if (!projectPoint(m_points[index], worldToClip, viewportSize, projected))
+            if (!m_view->projectToWidget(m_points[index], projected))
                 continue;
             const QPointF delta = projected - screenPos;
             const qreal squared = delta.x() * delta.x() + delta.y() * delta.y();
@@ -460,11 +436,10 @@ void MeasureTool::saveMeasurements() const
                   Document::LogSource::Application);
 }
 
-void MeasureTool::paintOverlay(
-    QPainter &painter,
-    const QMatrix4x4 &worldToClip,
-    const QSize &viewportSize)
+void MeasureTool::paintOverlay(QPainter &painter)
 {
+    if (!m_view)
+        return;
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.setBrush(QColor(85, 170, 255));
     for (std::size_t i = 0; i < m_measurements.size(); ++i) {
@@ -472,8 +447,8 @@ void MeasureTool::paintOverlay(
         const QVector3D &worldA = m_points[m.a];
         const QVector3D &worldB = m_points[m.b];
         QPointF a, b;
-        if (!projectPoint(worldA, worldToClip, viewportSize, a)
-            || !projectPoint(worldB, worldToClip, viewportSize, b))
+        if (!m_view->projectToWidget(worldA, a)
+            || !m_view->projectToWidget(worldB, b))
             continue;
         QPen pen(QColor(85, 170, 255), 2.0);
         pen.setCosmetic(true);
@@ -491,7 +466,7 @@ void MeasureTool::paintOverlay(
     }
     if (m_pendingPoint >= 0 && std::size_t(m_pendingPoint) < m_points.size()) {
         QPointF p;
-        if (projectPoint(m_points[std::size_t(m_pendingPoint)], worldToClip, viewportSize, p)) {
+        if (m_view->projectToWidget(m_points[std::size_t(m_pendingPoint)], p)) {
             painter.setBrush(QColor(255, 170, 85));
             painter.setPen(QPen(QColor(255, 220, 160), 2.0));
             painter.drawEllipse(p, 5.0, 5.0);
@@ -499,7 +474,7 @@ void MeasureTool::paintOverlay(
     }
     if (m_hoverPoint >= 0 && std::size_t(m_hoverPoint) < m_points.size()) {
         QPointF p;
-        if (projectPoint(m_points[std::size_t(m_hoverPoint)], worldToClip, viewportSize, p)) {
+        if (m_view->projectToWidget(m_points[std::size_t(m_hoverPoint)], p)) {
             painter.setBrush(Qt::NoBrush);
             painter.setPen(QPen(QColor(255, 230, 120), 2.5));
             painter.drawEllipse(p, 8.0, 8.0);

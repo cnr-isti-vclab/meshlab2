@@ -45,9 +45,7 @@ public:
     bool isControlEnabled(const QString &id) const override;
     void triggerControl(const QString &id, Qt::KeyboardModifiers modifiers) override;
 
-    void paintOverlay(QPainter &painter,
-                      const QMatrix4x4 &worldToClip,
-                      const QSize &viewportSize) override;
+    void paintOverlay(QPainter &painter) override;
 
     std::vector<ToolLineSegment> depthCuedLines() const override;
     QColor toolLineColor() const override;

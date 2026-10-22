@@ -27,10 +27,7 @@ public:
     void triggerControl(const QString &id, Qt::KeyboardModifiers modifiers) override;
     void onSurfacePicked(const SurfacePick &result) override;
     void cancelGesture() override;
-    void paintOverlay(
-        QPainter &painter,
-        const QMatrix4x4 &worldToClip,
-        const QSize &viewportSize) override;
+    void paintOverlay(QPainter &painter) override;
     std::vector<ToolLineSegment> depthCuedLines() const override;
 
 private:
