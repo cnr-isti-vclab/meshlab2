@@ -2,11 +2,13 @@
 
 #include <QClipboard>
 #include <QDialogButtonBox>
+#include <QFontDatabase>
 #include <QFrame>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPixmap>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSysInfo>
 #include <QTabWidget>
@@ -157,7 +159,7 @@ QString htmlTableRow(const QString &label, const QString &value)
 
 } // namespace
 
-AboutDialog::AboutDialog(QWidget *parent)
+AboutDialog::AboutDialog(const QString &systemReport, const QStringList &warnings, QWidget *parent)
     : QDialog(parent)
 {
     setWindowTitle(tr("About MeshLab"));
@@ -263,13 +265,28 @@ AboutDialog::AboutDialog(QWidget *parent)
         "agreement. File formats, UI and numerics depend on further libraries that are "
         "not listed here.</p>");
     tabs->addTab(htmlPage(librariesHtml, tabs), tr("Libraries"));
+
+    // Plain text, to be read in a bug report as much as here: the build, the machine, the
+    // graphics backend and what it can do, and the warnings Qt gave.
+    QString systemText = buildInformation() + QStringLiteral("\n\n") + systemReport;
+    systemText += QStringLiteral("\n") + tr("Recent warnings:") + QLatin1Char('\n');
+    systemText += warnings.isEmpty() ? tr("none") + QLatin1Char('\n')
+                                     : warnings.join(QStringLiteral("\n---\n")) + QLatin1Char('\n');
+    auto *systemPage = new QPlainTextEdit(systemText, tabs);
+    systemPage->setReadOnly(true);
+    systemPage->setFrameShape(QFrame::NoFrame);
+    systemPage->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    systemPage->setLineWrapMode(QPlainTextEdit::NoWrap);
+    tabs->addTab(systemPage, tr("System"));
     root->addWidget(tabs, 1);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok, this);
-    auto *copyButton = buttons->addButton(tr("Copy Build Information"),
+    auto *copyButton = buttons->addButton(tr("Copy System Information"),
                                            QDialogButtonBox::ActionRole);
-    connect(copyButton, &QPushButton::clicked, this, [] {
-        QGuiApplication::clipboard()->setText(buildInformation());
+    copyButton->setToolTip(tr("Copy the System tab -- the build, the machine, the graphics "
+                              "backend and the recent warnings -- for a bug report"));
+    connect(copyButton, &QPushButton::clicked, this, [systemText] {
+        QGuiApplication::clipboard()->setText(systemText);
     });
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     root->addWidget(buttons);

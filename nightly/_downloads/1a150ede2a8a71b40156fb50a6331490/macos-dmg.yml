@@ -330,8 +330,18 @@ jobs:
             exit 1
           fi
 
-          xcrun stapler staple "$DMG_PATH"
-          xcrun stapler validate "$DMG_PATH"
+          # Stapling fetches the ticket from Apple's CloudKit, which drops the connection now
+          # and then (NSURLErrorDomain -1005, "CloudKit's response is inconsistent", error 68)
+          # even though the notarization above was accepted; a ticket can also lag the
+          # acceptance by a few seconds. Retry rather than lose a twenty-minute build.
+          for attempt in 1 2 3 4 5; do
+            if xcrun stapler staple "$DMG_PATH" && xcrun stapler validate "$DMG_PATH"; then
+              break
+            fi
+            [ "$attempt" -lt 5 ] || { echo "Stapling failed after $attempt attempts" >&2; exit 1; }
+            echo "Stapling attempt $attempt failed; retrying in $((attempt * 20)) s" >&2
+            sleep $((attempt * 20))
+          done
           spctl --assess --type open --context context:primary-signature \
             --verbose=2 "$DMG_PATH"
 
