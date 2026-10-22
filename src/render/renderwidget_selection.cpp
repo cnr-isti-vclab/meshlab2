@@ -402,6 +402,11 @@ void RenderWidget::renderCurrentMeshMask(
     ensureCurrentMeshMaskResources(pixelSize);
     if (!m_currentMaskRt || !m_currentMaskBaseRt || !m_currentMaskWorkRt)
         return;
+    // The passes that read the masks -- the morphology, the extraction, the outline itself -- are
+    // made by ensureRenderResources once the masks exist, and the masks may have only just been
+    // made: on the first frame, and again at every new size. Made now, this frame has its
+    // outline; left to the next one, the outline was missing for as long as a resize went on.
+    ensureRenderResources();
 
     // The mask buffers span the whole view and the morphology and outline passes below read
     // them full-screen; only the geometry goes in at the tile, so the outline lands on the
@@ -607,7 +612,7 @@ void RenderWidget::renderCurrentMeshMask(
         const float extractData[4] = {
             1.0f / float(qMax(1, pixelSize.width())),
             1.0f / float(qMax(1, pixelSize.height())),
-            m_rhi->isYUpInFramebuffer() ? 1.0f : 0.0f,
+            0.0f,
             0.0f
         };
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
@@ -761,7 +766,7 @@ void RenderWidget::drawCurrentMeshDebugView(QRhiCommandBuffer *cb, const QSize &
     const float debugData[4] = {
         1.0f / float(qMax(1, pixelSize.width())),
         1.0f / float(qMax(1, pixelSize.height())),
-        m_rhi->isYUpInFramebuffer() ? 1.0f : 0.0f,
+        0.0f,
         debugMode
     };
     QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
@@ -802,8 +807,10 @@ void RenderWidget::drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pi
     outlineData[4] = widthPx;
     outlineData[5] = 1.0f / float(qMax(1, pixelSize.width()));
     outlineData[6] = 1.0f / float(qMax(1, pixelSize.height()));
-    // Offscreen texture sampling needs a vertical flip on Y-up framebuffers.
-    outlineData[7] = m_rhi->isYUpInFramebuffer() ? 1.0f : 0.0f;
+    // No vertical flip: the masks were rendered into targets laid out as this one is, on every
+    // backend (see selection_outline.frag). Flipping on Y-up framebuffers mirrored the outline
+    // top to bottom on OpenGL.
+    outlineData[7] = 0.0f;
     if (m_currentMaskFromPoints) {
         // Keep point-cloud outline behavior unchanged: no occlusion tinting.
         outlineData[8] = m_renderSettings.currentMeshOutlineColor.redF();

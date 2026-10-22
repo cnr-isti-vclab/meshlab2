@@ -565,7 +565,7 @@ with a render-state JSON, and asserts on the returned raw RGBA8888.
 
 `tests/render_probes/` holds these -- `clip_plane` for the clipping plane and solid cut,
 `clip_space` for the backend correction of clip space, `radiance_scaling` for the radiance-scaling option, `reference_grid` for the reference grid, `orthographic` for the orthographic camera through snapshots and projection filters, `boundary_decorators` for what the boundary decorator marks and in which colors,
-`quality_histogram_layout` for captures staying full-frame while the histogram is open. Each is a
+`quality_histogram_layout` for captures staying full-frame while the histogram is open, `current_layer_outline` for the current-layer outline landing round the current layer (not mirrored top to bottom). Each is a
 directory with a `generate_api.py`, because that is the filename the hook runs:
 
 ```
@@ -573,7 +573,26 @@ build-release/MeshLab.app/Contents/MacOS/MeshLab --generate-docs tests/render_pr
 ```
 
 They need a real GPU and a window server. Under `QT_QPA_PLATFORM=offscreen` there is no QRhi
-and every snapshot fails, which is the opposite of how the ctest suite is run.
+and every snapshot fails, which is the opposite of how the ctest suite is run. With
+`MESHLAB2_GRAPHICS_API=opengl` they run on OpenGL (4.1 core on a Mac), the API Linux uses:
+run them both ways after touching a shader or the way a pass samples another's output.
+`HeadlessRenderContext` adds its view to the hidden window *before* showing it, since a
+top-level window sets up its QRhi only for the QRhiWidgets it holds when first shown: shown
+empty, every snapshot fell back to a QRhi of its own, made and destroyed each time, and on
+OpenGL made as a legacy 2.1 context the GLSL 150 shaders cannot run in.
+
+**Sampling a pass's own output.** A pass that reads, at its fragment, a texture another pass
+of this frame rendered at the same size (the current-layer masks, read back by the outline)
+reads at `gl_FragCoord.xy / size` and never flips: both targets were rendered by the same
+backend, so their rows run the same way -- from the bottom on OpenGL, from the top elsewhere
+-- and `isYUpInFramebuffer` must not enter into it. The outline composite flipped on Y-up
+framebuffers, which mirrored the outline on OpenGL only. A CPU readback (the depth pick) is
+different: there the bottom-up rows of OpenGL do have to be turned round, and that is the one
+place the flag is read.
+
+**The clipping plane does nothing on OpenGL.** Qt's OpenGL backend never enables
+`GL_CLIP_DISTANCE0`, so the `gl_ClipDistance` the shaders write is ignored; Metal, Vulkan and
+D3D apply it without being asked. `clip_plane` fails on OpenGL for this reason.
 
 Two things to know before writing one, both of which look like bugs first: the default
 background is a gradient that passes through a band any naive "is this pixel lit" test

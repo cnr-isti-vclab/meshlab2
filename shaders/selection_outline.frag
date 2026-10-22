@@ -2,7 +2,7 @@
 
 layout(std140, binding = 0) uniform outlineBuf {
     vec4 outlineColor;
-    vec4 outlineParams; // x: widthPx, y: invWidth, z: invHeight, w: flipY
+    vec4 outlineParams; // x: widthPx, y: invWidth, z: invHeight, w: unused
     vec4 occludedOutlineColor;
 } ub;
 
@@ -20,9 +20,10 @@ float decodePackedDepth24(vec3 enc)
 void main()
 {
     vec2 invSize = vec2(ub.outlineParams.y, ub.outlineParams.z);
+    // The masks were rendered by this same backend into targets laid out as this one is, so
+    // the pixel under gl_FragCoord is at gl_FragCoord / size in them on every backend: OpenGL
+    // counts both from the bottom row, Metal, Vulkan and D3D both from the top. No flip.
     vec2 uv = gl_FragCoord.xy * invSize;
-    if (ub.outlineParams.w > 0.5)
-        uv.y = 1.0 - uv.y;
     vec2 uvClamped = clamp(uv, vec2(0.0), vec2(1.0));
 
     vec2 d = invSize * max(1.0, ub.outlineParams.x);

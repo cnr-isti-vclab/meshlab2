@@ -37,10 +37,12 @@ void HeadlessRenderContext::ensureInitialized()
     m_container = std::make_unique<QWidget>(nullptr);
     m_container->setAttribute(Qt::WA_DontShowOnScreen, true);
     m_container->resize(1, 1);
-    m_container->show();
-
+    // The view goes in before the window is shown: a top-level window sets up its QRhi when it
+    // is first shown, and only for the QRhiWidgets it holds then. Shown empty, it had none, and
+    // every snapshot fell back to a QRhi of its own, made and torn down each time (and, on
+    // OpenGL, made without the context format the view asks for).
     m_renderWidget = new RenderWidget(m_doc, m_container.get());
-    m_renderWidget->show();
+    m_container->show();
 
     // Wait for the first frame so the QRhi is fully initialised.
     {
