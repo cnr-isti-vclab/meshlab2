@@ -228,6 +228,9 @@ jobs:
         env:
           RELEASE_ARTIFACT_STEM: ${{ steps.release-metadata.outputs.artifact_stem }}
         run: |
+          # The Qt install action points these at the runner's own Qt; with them set, both
+          # checks below would pass by borrowing it, and prove nothing about the bundle.
+          unset LD_LIBRARY_PATH QT_ROOT_DIR
           cd "$BUILD_DIR"
           chmod +x "$RELEASE_ARTIFACT_STEM.AppImage"
           "./$RELEASE_ARTIFACT_STEM.AppImage" --appimage-extract > /dev/null
