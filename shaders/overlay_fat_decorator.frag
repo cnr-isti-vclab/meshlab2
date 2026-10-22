@@ -3,7 +3,9 @@
 layout(std140, binding = 0) uniform buf {
     mat4 mvp;
     vec4 color;
-    vec4 params;
+    vec4 params; // width(px), 1/viewport width, 1/viewport height, dashed flag
+    // Mesh-LOCAL clipping plane; see kUbufClipPlaneOffset. All zero disables clipping.
+    vec4 clipPlane;
 } ub;
 
 layout(location = 0) in float vSide;

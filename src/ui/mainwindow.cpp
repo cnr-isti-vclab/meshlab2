@@ -77,6 +77,7 @@
 
 #include "colormap.h"
 #include "preferences.h"
+#include "systeminfo.h"
 #include "preferencesdialog.h"
 #include "processmemoryinfo.h"
 
@@ -406,6 +407,8 @@ MainWindow::MainWindow(QWidget *parent)
     }
 
     m_doc = new Document(this);
+    // A shader the driver refuses, a pipeline that is not made: in the log, not only on stderr.
+    SystemInfo::forwardQtWarnings(m_doc);
     m_doc->setUndoMemoryLimitBytes(
         qint64(Preferences::instance().intValue(QStringLiteral("document.undoMemoryLimitMiB")))
         * 1024LL * 1024LL);
@@ -1637,6 +1640,13 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
     });
     connect(view, &RenderWidget::frameRendered, this,
             [this, view](float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid) {
+        // What the views draw with, said once, so a log sent from another machine says it.
+        static bool graphicsLogged = false;
+        if (!graphicsLogged && view->rhi()) {
+            graphicsLogged = true;
+            m_doc->writeLog(tr("Graphics: %1").arg(SystemInfo::graphicsSummary(view->rhi())),
+                            Document::LogSource::Application);
+        }
         if (view != currentRenderWidget())
             return;
         updateFrameTimeStats(cpuMs, gpuMs, gpuTimingSupported, gpuSampleValid);
@@ -3128,7 +3138,9 @@ void MainWindow::showMemoryInfo()
 
 void MainWindow::showAbout()
 {
-    AboutDialog(this).exec();
+    RenderWidget *view = currentRenderWidget();
+    AboutDialog(SystemInfo::graphicsReport(view ? view->rhi() : nullptr), SystemInfo::recentWarnings(),
+                this).exec();
 }
 
 void MainWindow::showImportPlugins()

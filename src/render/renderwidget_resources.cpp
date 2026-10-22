@@ -363,10 +363,11 @@ void RenderWidget::ensureDepthPickResources(const QSize &pixelSize)
 
     if (!m_depthPickSrb && m_ubuf) {
         m_depthPickSrb.reset(m_rhi->newShaderResourceBindings());
+        // The fragment stage reads the block too: depth_pick.frag takes the picked id from it.
         m_depthPickSrb->setBindings({
             QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
                 0,
-                QRhiShaderResourceBinding::VertexStage,
+                QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
                 m_ubuf.get(),
                 kUbufSize)
         });

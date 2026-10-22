@@ -157,6 +157,9 @@ public:
     // histogram's strip while it is shown. A tool measures the screen against this, not against
     // the widget, or with the strip shown a selection lands to one side of what it was drawn on.
     QRect sceneRect() const { return sceneContentRect(size()); }
+    // The graphics backend the view draws with, null until it has drawn: for the System tab of
+    // the About box and the log line that says what MeshLab runs on.
+    using QRhiWidget::rhi;
     QMatrix4x4 projectionMatrix() const {
         const QRect scene = sceneRect();
         return m_trackball.projectionMatrix(float(scene.width()) / float(qMax(1, scene.height())));

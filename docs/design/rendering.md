@@ -335,6 +335,30 @@ in UV mode are deliberately not clipped.
 > so the breakage would only appear when the GL backend compiled the shader at run time.
 > Metal, Vulkan and D3D are unaffected.
 
+> **OpenGL links a pipeline's two stages into one program, and checks what they share.**
+> The GLSL that Qt bakes for its OpenGL backend has no uniform blocks: the block a stage
+> declares as `ub` becomes a plain struct uniform, so **every stage of a pipeline must declare
+> its blocks with the same members** -- a fragment shader that stops at the members it reads
+> declares a different struct under the same name, and the driver refuses the link ("Uniform
+> type mismatch 'ub'"). And GLSL 150 matches what the vertex shader passes on to the fragment
+> shader **by name**, not by location: a fragment input that no vertex output of that name and
+> type writes fails the link too. Metal, Vulkan and D3D check neither, which is how the
+> fragment blocks left behind when the clipping plane was added to their vertex shaders took
+> points, wireframe, the bounding box and the decorators off the screen on Linux only, with
+> fill untouched (its vertex block is anonymous, so the stages' uniforms have different
+> names). `tests/test_shader_interfaces.cpp` reads the GLSL 150 the build baked for every
+> vertex and fragment shader the renderer pairs (found by the order `src/render/*.cpp` loads
+> them) and checks both rules, so the next one fails in ctest on any platform.
+> `depth_pick.frag` takes the picked id from the block (`pointParams.y`) rather than from the
+> vertex shader for this reason: it is paired with the fat edges' vertex shader too.
+>
+> To see the OpenGL path on another platform, set `MESHLAB2_GRAPHICS_API` (`opengl`, `vulkan`,
+> `metal`, `d3d11`, `d3d12`): `RenderWidget` hands it to `QRhiWidget::setApi`, which is what
+> picks the API -- `QT_WIDGETS_RHI_BACKEND` does not, under a `QRhiWidget`. Asked for OpenGL,
+> it also requests a 3.3 core context, since a Mac's default 2.1 cannot run GLSL 150; a Mac
+> then fails as a Linux driver does. `QT_LOGGING_RULES="qt.rhi.general=true"` says which
+> context Qt created.
+
 **Cut rim.** `fill_smooth.vert` and `fill_flat.vert` also pass the clip distance to the
 fragment stage, where `fill_smooth.frag` and `fill_flat.frag` blend
 `clipRim.rgb` into the sliver just above zero, `clipRim.a` pixels wide:
@@ -557,6 +581,19 @@ scores as geometry, so render on a flat colour; and a pass that changes only hid
 must leave the image **exactly** unchanged, so equality is the assertion, not a tolerance.
 
 Moving the render sources into a linkable library would let these become real tests.
+
+## Diagnosing Another Machine
+
+Qt's warnings -- a shader the driver will not compile, a pipeline it will not link -- go to
+stderr, which nobody reads for a program started from a desktop launcher. `SystemInfo`
+(`src/ui/systeminfo.h`) forwards them, and MeshLab's own `qWarning()`s, to the log as warnings
+(each distinct one once, the first few lines of it; a pipeline that fails is retried every
+frame), and keeps the last twenty. The first frame any view draws writes one *Graphics:* line
+to the log: the API, the device and its kind, and on OpenGL the driver's version string.
+**Help > About > System** shows the build, the windowing system and the graphics-related
+environment, the screens, the API, device and driver (OpenGL's version, renderer, vendor, GLSL
+version and profile), the QRhi features and limits the renderer leans on, and the recent
+warnings; *Copy System Information* puts it all on the clipboard for a bug report.
 
 ## Frame Timing
 

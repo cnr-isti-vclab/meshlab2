@@ -25,7 +25,6 @@ layout(std140, binding = 0) uniform buf {
     vec4 clipRim;
 } ub;
 
-layout(location = 0) flat out float vPickId;
 
 out gl_PerVertex {
     vec4 gl_Position;
@@ -65,6 +64,4 @@ void main()
     gl_ClipDistance[0] = dot(vec4(position, 1.0), ub.clipPlane);
     gl_Position = ub.mvp * vec4(position, 1.0);
     gl_PointSize = max(1.0, pointSizePixels(position, gl_Position));
-    // pointParams.y carries (meshIndex+1)/255 during id-picks (0 otherwise).
-    vPickId = ub.pointParams.y;
 }

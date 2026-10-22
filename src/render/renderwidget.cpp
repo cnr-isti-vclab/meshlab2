@@ -18,6 +18,7 @@
 #include <vcg/complex/algorithms/update/flag.h>
 #include <vcg/simplex/face/topology.h>
 #include <QApplication>
+#include <QSurfaceFormat>
 #include <QEventLoop>
 #include <QScopeGuard>
 #include <QElapsedTimer>
@@ -588,6 +589,27 @@ QKeySequence RenderWidget::resetCameraShortcut()
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     : QRhiWidget(parent), m_doc(doc)
 {
+    // MESHLAB2_GRAPHICS_API picks the graphics API instead of the platform's default (Metal on
+    // macOS, Direct3D 11 on Windows, OpenGL elsewhere): opengl, vulkan, metal, d3d11 or d3d12. It
+    // is for trying a problem on another platform's API -- OpenGL on a Mac fails as Linux does --
+    // and for asking a tester to try another one. Every view reads it, so a window never mixes two.
+    const QByteArray requestedApi = qgetenv("MESHLAB2_GRAPHICS_API").toLower();
+    const std::pair<const char *, QRhiWidget::Api> apis[] = {
+        { "opengl", Api::OpenGL }, { "vulkan", Api::Vulkan }, { "metal", Api::Metal },
+        { "d3d11", Api::Direct3D11 }, { "d3d12", Api::Direct3D12 },
+    };
+    for (const auto &[name, api] : apis) {
+        if (requestedApi == name)
+            setApi(api);
+    }
+    // Asked for, OpenGL gets a core profile: the shaders are GLSL 150, which the 2.1 context a
+    // Mac gives by default cannot run, and which a Linux driver's default context runs as this.
+    if (requestedApi == "opengl" && QSurfaceFormat::defaultFormat().profile() != QSurfaceFormat::CoreProfile) {
+        QSurfaceFormat format = QSurfaceFormat::defaultFormat();
+        format.setVersion(3, 3);
+        format.setProfile(QSurfaceFormat::CoreProfile);
+        QSurfaceFormat::setDefaultFormat(format);
+    }
     m_renderSettings = preferenceRenderSettings();
     m_trackball.setProjection(preferenceProjection());
     // The grid's look is read from the preferences every frame; this is what makes a change in the

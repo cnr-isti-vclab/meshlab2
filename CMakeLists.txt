@@ -301,6 +301,7 @@ endif()
 qt_add_executable(MeshLab2
     src/app/main.cpp
     src/ui/aboutdialog.h src/ui/aboutdialog.cpp
+    src/ui/systeminfo.h src/ui/systeminfo.cpp
     src/ui/mainwindow.h src/ui/mainwindow.cpp
     src/ui/meshfilterpanel.h src/ui/meshfilterpanel.cpp
     src/ui/parameterformbuilder.h src/ui/parameterformbuilder.cpp
@@ -777,6 +778,26 @@ target_link_libraries(MeshLab2ToolStripTests PRIVATE
 )
 
 add_test(NAME MeshLab2ToolStripTests COMMAND MeshLab2ToolStripTests)
+
+# OpenGL links a pipeline's two stages into one program, and refuses it when they declare a
+# shared uniform differently -- which the other backends never check. This reads the GLSL the
+# build baked for the application's shaders, so it runs after the application is built.
+qt_add_executable(MeshLab2ShaderInterfaceTests
+    tests/test_shader_interfaces.cpp
+)
+
+target_compile_definitions(MeshLab2ShaderInterfaceTests PRIVATE
+    TEST_SOURCE_DIR="${MESHLAB2_SOURCE_DIR}"
+    MESHLAB2_QSB_DIR="${CMAKE_CURRENT_BINARY_DIR}/.qsb/shaders"
+)
+
+target_link_libraries(MeshLab2ShaderInterfaceTests PRIVATE
+    Qt6::GuiPrivate
+    Qt6::Test
+)
+
+add_dependencies(MeshLab2ShaderInterfaceTests MeshLab2)
+add_test(NAME MeshLab2ShaderInterfaceTests COMMAND MeshLab2ShaderInterfaceTests)
 
 qt_add_executable(MeshLab2PreferencesTests
     tests/test_preferences.cpp

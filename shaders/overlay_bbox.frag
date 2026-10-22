@@ -5,6 +5,22 @@ layout(std140, binding = 0) uniform buf {
     mat4 modelView;
     mat3 normalMatrix;
     vec4 bboxColor;
+    vec4 pointColor;
+    vec4 pointParams;
+    vec4 wireColor;
+    vec4 wireParams;
+    vec4 fillColor;
+    vec4 lightingParams;
+    vec4 edgeColor;
+    vec4 materialFlags;
+    vec4 materialParams;
+    vec4 lightDir;
+    // Mesh-LOCAL clipping plane: a vertex survives when dot(vec4(pos,1), clipPlane) >= 0.
+    // All zero disables clipping. Written at kUbufClipPlaneOffset.
+    vec4 clipPlane;
+    // rgb = the colour of the band where the surface meets the clipping plane, a = its
+    // width in pixels. Zero width leaves the band undrawn.
+    vec4 clipRim;
 } ub;
 
 layout(location = 0) out vec4 fragColor;
