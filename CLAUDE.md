@@ -66,6 +66,19 @@ primitive belongs upstream rather than worked around here — MeshLab is the lib
 largest consumer, and a workaround in a filter leaves the defect in place for everyone
 else.
 
+**General geometry processing belongs in vcglib, not in MeshLab's own code.** When a
+feature needs mesh, UV or geometric code that does not depend on MeshLab's document,
+GUI, Qt or GPU, and there is no easy path to it (no suitable library, a candidate
+repository with unclear licensing or a heavy dependency, or a port that would bury
+general-purpose code inside a plugin), **write it into vcglib** and keep the filter a
+thin adapter: descriptor, parameters, document and undo plumbing, `QImage` access,
+`outputValues`. Precedents: the Reeb graph and handle/tunnel loops (`reeb_graph.h`,
+`handle_tunnel_loops.h`), planar polygon tessellation with Steiner refinement
+(`planar_polygon_tessellation.h`), and plane clipping and capping (`clip.h`). Vendored
+algorithm code that must stay comparable with its upstream (the `upstream/` trees) is
+the exception: it keeps its provenance where it is. Search vcglib first, as its own rules
+require: what you are about to write is often already there.
+
 **Read `vcglib/AGENTS.md` before touching anything under `vcglib/`.** Its rules govern
 there and are not repeated here: the library idioms (`Allocator`, `MeshAssert`, throw
 rather than assert, report through `CallBackPos`), no duplication inside the library, and
