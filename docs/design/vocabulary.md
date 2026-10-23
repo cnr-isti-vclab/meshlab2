@@ -113,7 +113,7 @@ validates against; this table mirrors it and must be updated together with it.
 | `Parametrization` | `UV Creation` · `UV Conversion` · `Segmentation` · `Atlas Packing` · `Defragmentation` | Creates or edits texture coordinates and atlas layout |
 | `Texture` | `Assignment` · `Conversion` · `Packing` | Creates or edits texture images |
 | `Transfer` | `Within a Mesh` · `Between Layers` · `From Rasters` | Moves an attribute to another element, layer or raster. The subcategory names what supplies the correspondence: a mesh's own incidence, a computed match between two layers, or a raster's camera |
-| `Measurement` | `Geometric` · `Topological` · `Statistics` | Reports values; does **not** modify the document |
+| `Measurement` | `Geometric` · `Topological` · `Statistics` · `UV Mapping` | Reports values; does **not** modify the document |
 | `Document` | `Layer` · `Camera` · `Render` | Document structure and view state |
 
 `Repair` is a root, not a `Meshing` subcategory: at ~19 filters it is the single
@@ -172,6 +172,12 @@ Discriminators for the borderline cases:
 
 - **`Attribute` vs `Measurement`** — `Attribute` *stores* data on the mesh;
   `Measurement` only *reports*. If nothing is stored, it is `Measurement`.
+- **`Measurement/UV Mapping`** (approved 2026-10-23) — reports about a UV layout and the
+  texture it addresses: its islands, folds, distortion and texel coverage. The name avoids
+  `Measurement/Texture`, which form rule 4 forbids since it would repeat the root `Texture`.
+  A filter that *stores* a per-face distortion as quality is `Attribute/Scalar`, as
+  *Compute UV Distortion* is; one that selects faces by a UV property is
+  `Selection/by Topology` with `Parametrization`, as *Select Vertex Texture Seams* is.
 - **`Attribute/Scalar` vs `Attribute/Color`** — the compute-vs-colorize rule: a
   filter computing a scalar field must not bake color. It returns a visualization hint
   instead. A filter that genuinely does both carries both categories.

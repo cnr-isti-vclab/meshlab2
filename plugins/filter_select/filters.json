@@ -818,6 +818,35 @@
       ]
     },
     {
+      "id": "select_folded_uv_faces",
+      "categories": [
+        "Selection/by Topology",
+        "Parametrization"
+      ],
+      "name": "Select Folded UV Faces",
+      "pythonName": "select_folded_uv_faces",
+      "shortDescription": "Select the faces whose UV triangle is flipped against the rest of its UV island.",
+      "longDescriptionMarkdown": "Selects the faces that are **folded**: those whose texture coordinates lay the triangle out the other way round from its UV island, so that the image is mirrored on them. The face selection is replaced by the result.\n\nThe UV islands are the maximal sets of faces connected across edges whose UV agree on both sides. A face is folded when the sign of its UV area is opposite to that of the net UV area of its island, so an island laid out mirrored as a whole has no folds. A face with no UV area is not folded. Both per-wedge and per-vertex texture coordinates are supported.\n\n*Measure UV Mapping* reports how many faces this selects, as `nfolds`.",
+      "tags": [
+        "selection",
+        "texture",
+        "uv",
+        "fold",
+        "parametrization"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireTextureCoordinates": true
+      },
+      "parameters": [],
+      "outputModifies": [
+        "FS"
+      ]
+    },
+    {
       "id": "select_non_manifold_edges_vcglib",
       "categories": [
         "Selection/by Topology"

@@ -18,6 +18,8 @@
 #include <vcg/complex/allocate.h>
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/convex_hull.h>
+#include <vcg/complex/algorithms/parametrization/distortion.h>
+#include <vcg/complex/algorithms/parametrization/uv_utils.h>
 #include <vcg/complex/algorithms/point_outlier.h>
 #include <vcg/complex/algorithms/stat.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -59,6 +61,7 @@ constexpr QLatin1StringView kFilterSelectByVertQuality("select_vertices_by_scala
 constexpr QLatin1StringView kFilterSelectByColor("select_faces_by_color");
 constexpr QLatin1StringView kFilterSelectSelfIntersect("select_self_intersecting_faces");
 constexpr QLatin1StringView kFilterSelectTexBorder("select_vertex_texture_seams");
+constexpr QLatin1StringView kFilterSelectFoldedUv("select_folded_uv_faces");
 constexpr QLatin1StringView kFilterSelectNonManifoldFace("select_non_manifold_edges_vcglib");
 constexpr QLatin1StringView kFilterSelectNonManifoldVertex("select_non_manifold_vertices");
 constexpr QLatin1StringView kFilterSelectFacesByEdge("select_faces_by_edge_length");
@@ -1129,6 +1132,40 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             meshIndex,
             entry,
             QObject::tr("Selected texture seams on '%1'").arg(entry.name));
+    }
+
+    if (filterId == QString::fromLatin1(kFilterSelectFoldedUv)) {
+        // The same test the UV reader makes: the mask says the UVs were loaded, the enabled
+        // flag that the storage still exists.
+        const bool wedgeUV = (entry.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD)
+            && mesh.face.IsWedgeTexCoordEnabled();
+        const bool vertexUV = (entry.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD)
+            && mesh.vert.IsTexCoordEnabled();
+        if (!wedgeUV && !vertexUV)
+            return fail(QObject::tr("'%1' has no texture coordinates.").arg(entry.name));
+
+        // A face is folded against its own UV island, so the islands come first. Per-wedge UVs
+        // cut the adjacency at their seams; per-vertex UVs hold a seam only by splitting its
+        // vertices, which already cuts the plain adjacency there.
+        std::vector<int> faceChart;
+        int folded = 0;
+        {
+            VCGMeshFFAdjScope _ffAdj(mesh);
+            if (wedgeUV) {
+                vcg::tri::UV_Utils<VCGMesh>::PerWedgeCharts(mesh, faceChart);
+                folded = vcg::tri::Distortion<VCGMesh, true>::FoldedNum(mesh, faceChart, true);
+            } else {
+                vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+                std::vector<std::pair<int, VCGMesh::FacePointer>> islands;
+                vcg::tri::Clean<VCGMesh>::ConnectedComponents(mesh, islands, &faceChart);
+                folded = vcg::tri::Distortion<VCGMesh, false>::FoldedNum(mesh, faceChart, true);
+            }
+        }
+        return selectionResult(
+            meshIndex,
+            entry,
+            QObject::tr("Selected folded UV faces on '%1'").arg(entry.name),
+            { QObject::tr("Folded faces found: %1").arg(folded) });
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectNonManifoldFace)) {

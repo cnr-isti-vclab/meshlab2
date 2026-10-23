@@ -4,7 +4,7 @@ This document evaluates bringing [TexMetro](https://github.com/cnr-isti-vclab/te
 metrics into MeshLab, either by vendoring the tool as a subrepo or by reimplementing
 it on QRhi, and recommends a third route: **reimplement the metrics on the CPU, with a
 deterministic texel rasterizer, as algorithms in vcglib and thin `Measurement` filters in
-MeshLab**. **Stage 1 is implemented (2026-10-23); the rest is not.** The recommendation
+MeshLab**. **Stages 1 and 2 are implemented (2026-10-23); the rest is not.** The recommendation
 rests on measurements made for this proposal, listed under [Evidence](#evidence).
 
 See also: [Edge Support](edge_support.md), [Adding a Filter](../adding_a_filter.md),
@@ -87,9 +87,9 @@ Totals: 11 covered + 1 derivable + 6 missing + 1 dropped + 1 not a metric = 20.
 
 | TexMetro keys | Count | In MeshLab today | Needs raster | Plan |
 |---|---|---|---|---|
-| `num_charts` `en_uv` `en_uv_b` `area_uv` `boundary_len_uv` `num_null_charts` `mapped_fraction` `nfolds` | 8 | none reported (charts exist inside the defragmentation code, not as a report) | no | new report |
+| `num_charts` `en_uv` `en_uv_b` `area_uv` `boundary_len_uv` `num_null_charts` `mapped_fraction` `nfolds` | 8 | none reported (charts exist inside the defragmentation code, not as a report) | no | *Measure UV Mapping* (**Stage 2, done**) |
 | `ntex` `textures` | 2 | known to the document | no | none |
-| `qcd_perc1` … `qcd_perc99` (11), `qcd_min` `qcd_max` `qcd_avg` `qcd_stddev` `qcd_discardedArea` | 16 | **none.** *Compute UV Distortion* has angle, area, edge, L2 and L∞ stretch, not σmax/σmin | no | new metric, new report |
+| `qcd_perc1` … `qcd_perc99` (11), `qcd_min` `qcd_max` `qcd_avg` `qcd_stddev` `qcd_discardedArea` | 16 | **none.** *Compute UV Distortion* has angle, area, edge, L2 and L∞ stretch, not σmax/σmin | no | metric in *Compute UV Distortion* (**Stage 1, done**); statistics in *Measure UV Mapping* (**Stage 2, done**). TexMetro's JSON also carries `qcd_rms` and `qcd_var`, which its README omits; both are reported |
 | `sf_perc1` … `sf_perc99` (11), `sf_min` `sf_max` `sf_avg` `sf_stddev` `sf_discardedArea` | 16 | **close.** *Compute UV Distortion → Area distortion* is `\|sf − 1\|` (shown below), minus the sign and TexMetro's outlier rule | **yes**, for the outlier cutoff | new metric, new report |
 | `seam_discrepancy_avg` `_min` `_max` `_stddev` | 4 | none | no (needs the texture images) | new report |
 | `occupancy`, `texture_N` | 2 | none | **yes** | new report |
@@ -254,6 +254,7 @@ are collected in [Open questions](#open-questions).
 | 10 | texture too large | If a side exceeds `GL_MAX_TEXTURE_SIZE` the level returns all zeros with a warning on `stderr`, and the JSON carries the zeros. |
 | 11 | percentiles | Binned `vcg::Histogram<double>`: 500,000 bins for QCD, **20,000,000** for `sf`. Each histogram stores two arrays of that length, so `sf` costs about 320 MB of memory, and a percentile is only as exact as the bin width (2 × 10⁻⁴ and 5 × 10⁻⁶). |
 | 12 | seams | Every seam edge is visited from both sides, so each is counted twice; the average is unaffected. Sampling is 5 samples per texel of UV length, bilinear, with `%` wraparound, and the discrepancy is the Euclidean distance of two 8-bit sRGB triples (0 – 441.7), unweighted by perception, weighted in the histogram by 3D edge length. |
+| 13 | `nfolds` | A face is a fold when `signbit(its UV area) != signbit(its chart's net area)`. A face with **no** UV area has a zero of either sign, so it counts as a fold or not by the sign of that zero. The native count does not count a zero-area face as a fold: on the two atlases that is **20** faces fewer of 1,231 (good) and **22** of 1,475 (bad), measured by running both rules on the same files. |
 
 ## Options
 
@@ -339,7 +340,7 @@ are no duplication and less code):
 |---|---|---|---|---|
 | V1 | `parametrization/distortion.h` | `QuasiConformalDistortion(f)`, `σmax/σmin` of the face's Jacobian; `UVScaling(f, scale)`, the *signed* area ratio | `mappingTransform2D` and `svd2x2`, already there and measured above to agree with TexMetro to 10⁻¹¹. `AreaDistortion` becomes `\|UVScaling − 1\|`, so it is not duplicated | ~15 |
 | V2 | `clean.h` | a `DeleteFacesFlag` on `RemoveDuplicateFace`, as `RemoveZeroAreaFace` and `RemoveDegenerateFace` already have | the counting modes that exist | ~5 |
-| V3 | `parametrization/uv_utils.h` | UV charts: a per-face chart id and the chart count; a chart's signed area; the chart-relative fold test behind `nfolds` | `UpdateTopology::FaceFaceFromTexCoord` and the connected-component iterator do the partition (measured above). `Distortion::IsFolded` tests the sign against zero, not against the chart | ~30 |
+| V3 | `parametrization/uv_utils.h` | UV charts: `PerWedgeCharts` (a per-face chart id and the chart count), `CountUVEdgeNum`, and the chart-relative `Distortion::FoldedNum(m, faceChart)` behind `nfolds`. **Landed in Stage 2**, with an optional per-face label on `Clean::ConnectedComponents` and `AreaUV` taken in double | `UpdateTopology::FaceFaceFromTexCoord` and `ConnectedComponents` do the partition (measured above). `Distortion::IsFolded` tests the sign against zero, not against the chart | ~110 |
 | V4 | `parametrization/texel_coverage.h` (new) | a scan converter on a fixed-point grid with the top-left fill rule, and TexMetro's counters for one MIP level; banding for large textures | `SurfaceSampler::Texture` / `SingleFaceRaster` is a *sampler*: it tests edges inclusively, so a texel centre exactly on a shared edge is produced by both triangles, which a coverage count would report as overwritten, and it adds border samples. Different job | ~120 (the prototype is ~55) |
 | V5 | `parametrization/texel_coverage.h` or a sibling | seam colour discrepancy, **templated on a texel-fetch functor** so vcglib keeps no image library | the seam edges are those the geometric `FaceFace` joins and `FaceFaceFromTexCoord` detaches | ~60 |
 
@@ -471,7 +472,7 @@ Stages 1 to 4 each end in one vcglib bump, with the MeshLab code that uses it.
 |---|---|---|---|
 | **0** | none | **Reference values.** Build TexMetro on Linux or Windows; run it on the two gargoyle atlases and on benchmark models; keep the JSON. Decide the tolerance between our rare counters and the GL ones (the measured 8-bit-vs-4-bit spread, about 0.1 % to 1 %, is the floor) and which quirks to keep. Settle the [open questions](#open-questions) with the authors. | no code |
 | **1** | V1 (`QuasiConformalDistortion`, `UVScaling`); V2 (the counting flag) | QCD and UV scaling in *Compute UV Distortion*; the six missing mesh keys; the recursive Python conversion | nothing; it ships alone. **Implemented 2026-10-23** |
-| **2** | V3 (charts, signed chart area, folds) | *Measure UV Mapping* (charts, folds, QCD percentiles through `vcg::Histogram`), and *Select Folded UV Faces*. `sf` and `occupancy` wait for the raster | Stage 1 |
+| **2** | V3 (charts, signed chart area, folds) | *Measure UV Mapping* (charts, folds, QCD percentiles through `vcg::Histogram`), and *Select Folded UV Faces*. `sf` and `occupancy` wait for the raster | Stage 1, and approval of the category. **Implemented 2026-10-23** (`sf` and `occupancy` still wait for the raster) |
 | **3** | V4 (the rasterizer, banding) | *Measure Texel Coverage*, the full pyramid; `occupancy` and `sf` added to *Measure UV Mapping* | Stage 2, and Stage 0 for the `sf` outlier rule |
 | **4** | V5 (seam discrepancy, templated on a texel functor) | *Measure Texture Seam Color Discrepancy*; optionally the seam polyline with per-edge values | Stage 2, edge support |
 | **5** *(optional)* | none | An overdraw and clash overlay in the UV view, on QRhi (B1), as a diagnostic that reports no numbers | Stage 3 |
@@ -511,17 +512,18 @@ For the authors of TexMetro, since several of its choices are undocumented
 
 For this repository:
 
-9. **`Select Folded UV Faces`.** Does it belong under `Selection/by Topology` and
-   `Parametrization`, like *Select Vertex Texture Seams*? (The category
-   `Measurement/UV Mapping` itself is settled.)
+9. **`Select Folded UV Faces`.** Stage 2 gave it `Selection/by Topology` and
+   `Parametrization`, as *Select Vertex Texture Seams* has. Say if it should be otherwise.
 10. **Key names.** For the mesh keys added to the existing measure filters, Stage 1
     used MeshLab-style names (`duplicate_faces`, `zero_area_faces`, `degenerate_faces`,
     `is_mesh_oriented`, `boundary_length`, `normalized_surface_area`,
     `normalized_boundary_length`), since they sit beside `faces_number` and
-    `unreferenced_vertices` and TexMetro's `fndup` or `fnzero` would not. For the new UV and
-    raster reports, TexMetro's names (`qcd_perc50`, `seam_discrepancy_avg`, …) or
-    MeshLab-style (`charts_number`, `folded_faces_number`, …)? The first preserves the
-    benchmark's JSON; the second matches the neighbours. Open.
+    `unreferenced_vertices` and TexMetro's `fndup` or `fnzero` would not. For the UV
+    reports Stage 2 kept TexMetro's names (`num_charts`, `qcd_perc50`, …), as the
+    proposal said: they preserve the benchmark's JSON, and they fit the existing suffixes
+    (`_min`, `_avg`, `_stddev`, `_perc95`). The vocabulary's word for a chart is *UV island*,
+    which the descriptors say next to the key. Open for a veto, before the raster and seam
+    keys follow.
 11. **The gargoyle atlases** can be published as a test dataset?
 
 ## Non-goals

@@ -55,6 +55,51 @@
       "parameters": []
     },
     {
+      "id": "measure_uv_mapping",
+      "categories": ["Measurement/UV Mapping"],
+      "name": "Measure UV Mapping",
+      "pythonName": "measure_uv_mapping",
+      "shortDescription": "Report the UV islands, folds and quasi-conformal distortion of a UV mapping, in texels.",
+      "longDescriptionMarkdown": "Reports how the texture coordinates of the current layer lay its surface out, with the measures of the TexMetro tool behind the *Real-World Textured Things* benchmark (the output keys are its own). Both per-wedge and per-vertex coordinates are measured.\n\nUV coordinates are taken **in texels**: those of each face are scaled by the size of its texture image, so the stretch of a non-square texture counts, or by the size given in *Texture Width* and *Texture Height*. A layer with no texture image and no size is measured in its own unit square, and says so. Measures are taken in world space, through the layer matrix.\n\n- **UV islands** (`num_charts`, what TexMetro calls charts): the maximal sets of faces connected across edges whose UV agree on both sides. `num_null_charts` counts those with no UV area. `en_uv` and `en_uv_b` are the edges of the layout and those on its boundary, where a seam is two edges, one for each side; `area_uv` and `boundary_len_uv` are its area and boundary length, in texels.\n\n- **Folds** (`nfolds`): the faces whose UV orientation is opposite to that of their island. A face with no UV area is not a fold. (TexMetro counts it as one when the sign of its zero differs from the island's.)\n\n- **Mapped fraction** (`mapped_fraction`): the share of the surface whose faces have both surface area and UV area.\n\n- **Quasi-conformal distortion** (`qcd_*`): the ratio between the largest and the smallest stretch of the map from a face to its UV triangle,\n\n$$Q=\\frac{\\sigma_{\\max}}{\\sigma_{\\min}},$$\n\nwhich is $1$ for a map that preserves angles whatever its scale. It does not see orientation, so a fold counts as its mirror image. Percentiles (`qcd_perc1` to `qcd_perc99`), minimum, maximum, mean, root mean square, variance and standard deviation are weighted by the surface area of each face. Faces with $Q$ at or above the threshold are outliers: they are left out, and their area is reported in `qcd_discardedArea`. Faces with no surface or UV area, and infinite values, are not counted at all.",
+      "tags": ["measure", "uv", "texture", "distortion", "quality", "info"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "inputRequirements": { "requireFaces": true, "requireTextureCoordinates": true },
+      "parameters": [
+        {
+          "id": "textureWidth",
+          "label": "Texture Width",
+          "help": "Width in texels in which to measure the UV, for every texture. With 0 each face takes the width of its own texture image, and a layer with no image is measured in its unit square. Set Texture Height with it.",
+          "group": "main",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 65536
+        },
+        {
+          "id": "textureHeight",
+          "label": "Texture Height",
+          "help": "Height in texels in which to measure the UV, for every texture. With 0 each face takes the height of its own texture image. Set Texture Width with it.",
+          "group": "main",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 65536
+        },
+        {
+          "id": "qcdThreshold",
+          "label": "Distortion Threshold",
+          "help": "Faces whose quasi-conformal distortion is at or above this value are outliers: they are left out of its statistics and their area is reported apart. TexMetro uses 100.",
+          "group": "advanced",
+          "type": "double",
+          "default": 100.0,
+          "min": 1.001,
+          "max": 1000000.0,
+          "decimals": 3
+        }
+      ]
+    },
+    {
       "id": "measure_selection_area_and_perimeter",
       "categories": ["Measurement/Geometric"],
       "name": "Measure Selection Area and Perimeter",

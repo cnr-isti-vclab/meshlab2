@@ -524,6 +524,10 @@ private slots:
     void faceQualityFiltersAreSplit();
     void quasiConformalAndUvScalingTellShapeFromDensity();
     void measureReportsFaceDefectsOrientationAndBoundaryLength();
+    void measureUvMappingCountsIslandsEdgesAndDistortionInTexels();
+    void foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds();
+    void aThinFoldedUvTriangleIsFoundWhereFloatArithmeticMissesIt();
+    void measureUvMappingAgreesWithTexMetroOnARealAtlas();
     void libiglParametrizationFiltersRunWhenAvailable();
     void libiglQuantityFiltersRunWhenAvailable();
     void meshBooleanFiltersRunWhenAvailable();
@@ -8746,6 +8750,242 @@ void FilterTests::measureReportsFaceDefectsOrientationAndBoundaryLength()
     // A face repeating a vertex is counted by the same call as the zero-area ones, but it is not
     // built here: the face-face adjacency every topological measure is prepared with asserts on
     // such a face in a debug build.
+}
+
+// Two triangles that make a unit square in 3D and are laid out apart in UV, so the diagonal is a
+// seam: two islands, and every edge of the layout is on its boundary. Measured in a 100 x 50
+// texture the map is the scale diag(100, 50), whose stretch is 2 along its worst direction.
+void FilterTests::measureUvMappingCountsIslandsEdgesAndDistortionInTexels()
+{
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 4);
+    mesh.vert[0].P() = vcg::Point3f(0, 0, 0);
+    mesh.vert[1].P() = vcg::Point3f(1, 0, 0);
+    mesh.vert[2].P() = vcg::Point3f(1, 1, 0);
+    mesh.vert[3].P() = vcg::Point3f(0, 1, 0);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 2, 3);
+    mesh.face.EnableWedgeTexCoord();
+    for (int f = 0; f < 2; ++f) {
+        for (int corner = 0; corner < 3; ++corner) {
+            VCGFace &face = mesh.face[std::size_t(f)];
+            face.WT(corner).U() = face.cP(corner).X() + (f == 1 ? 2.0f : 0.0f);
+            face.WT(corner).V() = face.cP(corner).Y();
+            face.WT(corner).N() = 0;
+        }
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+
+    Document doc;
+    const int index = doc.addMesh(
+        mesh, QStringLiteral("Two islands"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    doc.setCurrentMeshIndex(index);
+    const QString key = filterKeyForId(doc, QStringLiteral("measure_uv_mapping"));
+    QVERIFY(!key.isEmpty());
+    const auto number = [](const MeshFilterRunResult &r, const char *name) {
+        return r.outputValues.value(QString::fromLatin1(name)).toDouble();
+    };
+
+    // With no texture image and no size the UV are measured as they are, and the map is an
+    // isometry: both islands, no fold, no distortion.
+    MeshFilterRunResult r = doc.runFilter(key, MeshFilterParameterValues());
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.outputValues.value(QStringLiteral("num_charts")).toInt(), 2);
+    QCOMPARE(r.outputValues.value(QStringLiteral("num_null_charts")).toInt(), 0);
+    QCOMPARE(r.outputValues.value(QStringLiteral("nfolds")).toInt(), 0);
+    QCOMPARE(r.outputValues.value(QStringLiteral("en_uv")).toInt(), 6);
+    QCOMPARE(r.outputValues.value(QStringLiteral("en_uv_b")).toInt(), 6);
+    QVERIFY(std::abs(number(r, "area_uv") - 1.0) < 1e-9);
+    QVERIFY(std::abs(number(r, "mapped_fraction") - 1.0) < 1e-12);
+    QVERIFY(std::abs(number(r, "qcd_min") - 1.0) < 1e-9);
+    QVERIFY(std::abs(number(r, "qcd_max") - 1.0) < 1e-9);
+
+    // In a 100 x 50 texture each triangle is 2500 texel^2 and all its edges are on the boundary:
+    // 100 + 50 + 111.803 each. The stretch is 2 everywhere, to the width of a histogram bin.
+    MeshFilterParameterValues texels;
+    texels.insert(QStringLiteral("textureWidth"), 100);
+    texels.insert(QStringLiteral("textureHeight"), 50);
+    r = doc.runFilter(key, texels);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(std::abs(number(r, "area_uv") - 5000.0) < 1e-6);
+    QVERIFY(std::abs(number(r, "boundary_len_uv") - 2.0 * (150.0 + std::sqrt(12500.0))) < 1e-6);
+    for (const char *name : { "qcd_min", "qcd_max", "qcd_avg", "qcd_perc1", "qcd_perc50", "qcd_perc99" })
+        QVERIFY2(std::abs(number(r, name) - 2.0) < 1e-3, name);
+    QVERIFY(number(r, "qcd_stddev") < 1e-6);
+    QCOMPARE(number(r, "qcd_discardedArea"), 0.0);
+
+    // A threshold under that stretch makes both faces outliers: their area (1) is reported apart
+    // and nothing is left to take statistics of.
+    texels.insert(QStringLiteral("qcdThreshold"), 1.5);
+    r = doc.runFilter(key, texels);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(std::abs(number(r, "qcd_discardedArea") - 1.0) < 1e-9);
+    QVERIFY(!r.outputValues.contains(QStringLiteral("qcd_perc50")));
+
+    // One of the two sizes is not a size, and a layer without UV has nothing to measure.
+    MeshFilterParameterValues half;
+    half.insert(QStringLiteral("textureWidth"), 100);
+    QVERIFY(!doc.runFilter(key, half).success);
+    VCGMesh plain;
+    makeOpenDiskMesh(plain);
+    doc.setCurrentMeshIndex(doc.addMesh(plain, QStringLiteral("no UV")));
+    QVERIFY(!doc.runFilter(key, MeshFilterParameterValues()).success);
+}
+
+// The unit square in four triangles with the centre's UV pulled out to (1.5, 0.5): the UV agree
+// at every shared vertex, so it is one island, and the second face comes out inverted -- a
+// fold -- while the other three keep their orientation. Run with the UV on the corners and on
+// the vertices, since a seam is held differently by each. Then the same square with the second
+// face mirrored in its own island, which is not a fold at all.
+void FilterTests::foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds()
+{
+    for (const bool perWedge : { true, false }) {
+        VCGMesh mesh;
+        makeOpenDiskMesh(mesh);
+        const vcg::Point2f centre(1.5f, 0.5f);
+        int mask = vcg::tri::io::Mask::IOM_VERTCOORD;
+        if (perWedge) {
+            mesh.face.EnableWedgeTexCoord();
+            for (VCGFace &face : mesh.face) {
+                for (int corner = 0; corner < 3; ++corner) {
+                    const bool isCentre = face.cV(corner) == &mesh.vert[4];
+                    face.WT(corner).P() = isCentre ? centre : vcg::Point2f(face.cP(corner).X(), face.cP(corner).Y());
+                    face.WT(corner).N() = 0;
+                }
+            }
+            mask |= vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
+        } else {
+            mesh.vert.EnableTexCoord();
+            for (std::size_t v = 0; v < mesh.vert.size(); ++v) {
+                mesh.vert[v].T().P() = (v == 4) ? centre : vcg::Point2f(mesh.vert[v].P().X(), mesh.vert[v].P().Y());
+                mesh.vert[v].T().N() = 0;
+            }
+            mask |= vcg::tri::io::Mask::IOM_VERTTEXCOORD;
+        }
+        Document doc;
+        const int index = doc.addMesh(mesh, QStringLiteral("Folded"), mask);
+        doc.setCurrentMeshIndex(index);
+
+        MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_uv_mapping")), {});
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QCOMPARE(r.outputValues.value(QStringLiteral("num_charts")).toInt(), 1);
+        QCOMPARE(r.outputValues.value(QStringLiteral("nfolds")).toInt(), 1);
+        // 4 faces, 12 corners, 8 distinct edges, the 4 of the square on the boundary.
+        QCOMPARE(r.outputValues.value(QStringLiteral("en_uv")).toInt(), 8);
+        QCOMPARE(r.outputValues.value(QStringLiteral("en_uv_b")).toInt(), 4);
+
+        // The selection is the folded face alone, and replaces what was there unless asked to add.
+        const QString select = filterKeyForId(doc, QStringLiteral("select_folded_uv_faces"));
+        QVERIFY(!select.isEmpty());
+        doc.mesh(index).mesh.face[0].SetS();
+        r = doc.runFilter(select, MeshFilterParameterValues());
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        for (std::size_t f = 0; f < 4; ++f)
+            QCOMPARE(doc.mesh(index).mesh.face[f].IsS(), f == 1);
+        MeshFilterParameterValues add;
+        add.insert(QStringLiteral("incremental_selection"), true);
+        doc.mesh(index).mesh.face[3].SetS();
+        r = doc.runFilter(select, add);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        for (std::size_t f = 0; f < 4; ++f)
+            QCOMPARE(doc.mesh(index).mesh.face[f].IsS(), f == 1 || f == 3);
+    }
+
+    // Mirroring a whole island is not folding it: with the second face's UV reflected in V it
+    // no longer shares its edges' UV with the others, so it is an island of its own, laid out
+    // the other way round and entirely consistent with itself.
+    VCGMesh mesh;
+    makeOpenDiskMesh(mesh);
+    mesh.face.EnableWedgeTexCoord();
+    for (std::size_t f = 0; f < 4; ++f) {
+        for (int corner = 0; corner < 3; ++corner) {
+            VCGFace &face = mesh.face[f];
+            face.WT(corner).P() = vcg::Point2f(face.cP(corner).X(), f == 1 ? -face.cP(corner).Y() : face.cP(corner).Y());
+            face.WT(corner).N() = 0;
+        }
+    }
+    Document doc;
+    doc.setCurrentMeshIndex(doc.addMesh(
+        mesh, QStringLiteral("Mirrored"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD));
+    const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_uv_mapping")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.outputValues.value(QStringLiteral("num_charts")).toInt(), 2);
+    QCOMPARE(r.outputValues.value(QStringLiteral("nfolds")).toInt(), 0);
+}
+
+// The two photogrammetry atlases of the same gargoyle that the TexMetro proposal measured, which
+// only the maintainer has. The counts below were made by TexMetro's own method -- cut the vertices
+// at the seams, then count edges and flood the faces -- on the files themselves, and the folds by
+// its rule less the zero-area faces it counts by the sign of their zero (20 and 22 of them).
+// A thin UV triangle whose area is -8.6e-11. Its two edge products are 0.0211 and 0.0211 to
+// within 1e-9, so in float they cancel to +9.3e-10, the wrong side of zero, and the fold goes
+// unseen; in double the sign is right. Joined to a large face of the same island it is the one
+// face folded against it, for the selection (which works on the layer's float UV) as for the
+// measure (which works in double).
+void FilterTests::aThinFoldedUvTriangleIsFoundWhereFloatArithmeticMissesIt()
+{
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 4);
+    mesh.vert[0].P() = vcg::Point3f(0, 0, 0);
+    mesh.vert[1].P() = vcg::Point3f(1, 0, 0);
+    mesh.vert[2].P() = vcg::Point3f(1, 1, 0);
+    mesh.vert[3].P() = vcg::Point3f(0, 1, 0);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 2, 3);
+    mesh.face.EnableWedgeTexCoord();
+    const vcg::Point2f a(0.131964371f, 0.30198884f);
+    const vcg::Point2f b(0.0161815956f, 0.209203511f);
+    const vcg::Point2f c(-0.0996011719f, 0.11641819f);
+    const vcg::Point2f d(0.4f, 0.1f);
+    const vcg::Point2f uv[2][3] = { { a, b, c }, { a, c, d } };
+    for (int f = 0; f < 2; ++f) {
+        for (int corner = 0; corner < 3; ++corner) {
+            mesh.face[std::size_t(f)].WT(corner).P() = uv[f][corner];
+            mesh.face[std::size_t(f)].WT(corner).N() = 0;
+        }
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+
+    Document doc;
+    const int index = doc.addMesh(
+        mesh, QStringLiteral("Sliver"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    doc.setCurrentMeshIndex(index);
+
+    MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_uv_mapping")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.outputValues.value(QStringLiteral("num_charts")).toInt(), 1);
+    QCOMPARE(r.outputValues.value(QStringLiteral("nfolds")).toInt(), 1);
+
+    r = doc.runFilter(filterKeyForId(doc, QStringLiteral("select_folded_uv_faces")), MeshFilterParameterValues());
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(doc.mesh(index).mesh.face[0].IsS());
+    QVERIFY(!doc.mesh(index).mesh.face[1].IsS());
+}
+
+void FilterTests::measureUvMappingAgreesWithTexMetroOnARealAtlas()
+{
+    struct Expected { const char *file; int charts; int uvEdges; int uvBorderEdges; int folds; };
+    for (const Expected &e : { Expected{ "gargo3M_good.ply", 1961, 4604220, 208698, 1211 },
+                               Expected{ "gargo3M_bad.ply", 1716, 4592770, 185798, 1453 } }) {
+        MESHLAB2_REQUIRE_DATASET(path, "COLOR_gargoyle/gargo3M_good.ply");
+        const QString file = QFileInfo(path).absolutePath() + QLatin1Char('/') + QLatin1String(e.file);
+        Document doc;
+        QCOMPARE(doc.loadMesh(file), 0);
+        doc.setCurrentMeshIndex(0);
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_uv_mapping")), {});
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QCOMPARE(r.outputValues.value(QStringLiteral("num_charts")).toInt(), e.charts);
+        QCOMPARE(r.outputValues.value(QStringLiteral("en_uv")).toInt(), e.uvEdges);
+        QCOMPARE(r.outputValues.value(QStringLiteral("en_uv_b")).toInt(), e.uvBorderEdges);
+        QCOMPARE(r.outputValues.value(QStringLiteral("nfolds")).toInt(), e.folds);
+        // Both textures are 4096 x 4096, so the UV are in texels: the layout cannot hold more
+        // than the image, nor be anywhere near empty.
+        const double areaUv = r.outputValues.value(QStringLiteral("area_uv")).toDouble();
+        QVERIFY(areaUv > 0.2 * 4096.0 * 4096.0 && areaUv < 4096.0 * 4096.0);
+    }
 }
 
 void FilterTests::libiglParametrizationFiltersRunWhenAvailable()

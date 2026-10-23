@@ -37,6 +37,10 @@ bool loadAssociatedTextureImage(
     int textureIndex,
     QImage &image,
     QString &error);
+// The size in texels of one of the layer's textures, or an invalid size if it has no image data
+// and no readable file. A texture held in memory answers at once, and a file is asked only for
+// its header, so this is cheap where loadAssociatedTextureImage reads the whole image.
+QSize associatedTextureSize(const Document::MeshEntry &entry, int textureIndex);
 bool saveImages(const QStringList &paths, const std::vector<QImage> &images, QString &error);
 
 void rebuildLegacyTextureAssociation(Document::MeshEntry &entry);

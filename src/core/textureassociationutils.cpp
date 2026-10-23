@@ -262,6 +262,27 @@ bool loadAssociatedTextureImage(
     return readImageFile(sourcePath, image, error);
 }
 
+QSize associatedTextureSize(const Document::MeshEntry &entry, int textureIndex)
+{
+    if (const MeshIOTextureAsset *asset = Document::meshTextureAsset(entry, textureIndex)) {
+        if (asset->hasImage())
+            return asset->image.size();
+    }
+
+    const QString sourcePath = Document::meshTextureSourcePath(entry, textureIndex).trimmed();
+    if (sourcePath.isEmpty())
+        return {};
+
+    const QSize size = QImageReader(sourcePath).size();
+    if (size.isValid())
+        return size;
+
+    // A format Qt has no reader for may still be one readImageFile can decode.
+    QImage image;
+    QString error;
+    return readImageFile(sourcePath, image, error) ? image.size() : QSize();
+}
+
 bool saveImages(const QStringList &paths, const std::vector<QImage> &images, QString &error)
 {
     if (paths.size() != int(images.size())) {

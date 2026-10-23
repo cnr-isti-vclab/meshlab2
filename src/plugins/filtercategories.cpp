@@ -37,7 +37,7 @@ const std::vector<Root> &ontology()
         { "Transfer",        { QStringLiteral("Within a Mesh"), QStringLiteral("Between Layers"),
                                QStringLiteral("From Rasters") } },
         { "Measurement",     { QStringLiteral("Geometric"), QStringLiteral("Topological"),
-                               QStringLiteral("Statistics") } },
+                               QStringLiteral("Statistics"), QStringLiteral("UV Mapping") } },
         { "Document",        { QStringLiteral("Layer"), QStringLiteral("Camera"),
                                QStringLiteral("Render") } },
     };

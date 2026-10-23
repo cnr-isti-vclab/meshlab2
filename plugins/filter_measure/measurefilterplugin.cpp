@@ -2,11 +2,14 @@
 
 #include "document.h"
 #include "meshfilterpluginmanager.h"
+#include "textureassociationutils.h"
 #include "vcgmesh.h"
 #include <vcg/complex/algorithms/bitquad_support.h>
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/inertia.h>
 #include <vcg/complex/algorithms/mesh_to_matrix.h>
+#include <vcg/complex/algorithms/parametrization/distortion.h>
+#include <vcg/complex/algorithms/parametrization/uv_utils.h>
 #include <vcg/complex/algorithms/stat.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/selection.h>
@@ -14,6 +17,7 @@
 #include <vcg/complex/append.h>
 #include <Eigen/Eigenvalues>
 #include <QMatrix4x4>
+#include <QSizeF>
 #include <QVector4D>
 #include <algorithm>
 #include <cmath>
@@ -24,6 +28,7 @@ namespace {
 constexpr QLatin1StringView kFilterTopo("measure_topological_properties");
 constexpr QLatin1StringView kFilterTopoQuad("measure_topological_properties_for_quad_mesh");
 constexpr QLatin1StringView kFilterGeom("measure_geometric_properties");
+constexpr QLatin1StringView kFilterUvMapping("measure_uv_mapping");
 constexpr QLatin1StringView kFilterSelectionArea("measure_selection_area_and_perimeter");
 constexpr QLatin1StringView kFilterVertStat("measure_vertex_scalar_statistics");
 constexpr QLatin1StringView kFilterFaceStat("measure_face_scalar_statistics");
@@ -52,6 +57,25 @@ vcg::Point3<Scalar> qMatrixMapPoint(const QMatrix4x4 &matrix, const vcg::Point3<
     const QVector4D mapped = matrix * QVector4D(point.X(), point.Y(), point.Z(), 1.0f);
     return vcg::Point3<Scalar>(Scalar(mapped.x()), Scalar(mapped.y()), Scalar(mapped.z()));
 }
+
+// The faces of a layer as the UV measures see them: in double precision, in world space, and
+// with the UV in texels, so a metric computed on them is the one TexMetro computes on its own
+// mesh. Every algorithm below is a vcglib one, templated on this type.
+class UVMeshVertex;
+class UVMeshFace;
+struct UVMeshUsedTypes : vcg::UsedTypes<
+    vcg::Use<UVMeshVertex>::AsVertexType,
+    vcg::Use<UVMeshFace>::AsFaceType> {};
+class UVMeshVertex : public vcg::Vertex<UVMeshUsedTypes, vcg::vertex::Coord3d, vcg::vertex::BitFlags> {};
+class UVMeshFace : public vcg::Face<
+    UVMeshUsedTypes,
+    vcg::face::VertexRef,
+    vcg::face::FFAdj,
+    vcg::face::WedgeTexCoord2d,
+    vcg::face::BitFlags> {};
+class UVMesh : public vcg::tri::TriMesh<std::vector<UVMeshVertex>, std::vector<UVMeshFace>> {};
+
+namespace Tex = TextureAssociationUtils;
 
 QString formatFloat(double value, int decimals = 6)
 {
@@ -254,6 +278,177 @@ void addPolylineGeometry(const VCGMesh &mesh, MeshFilterRunResult &result)
 QString histogramCountString(double value, bool areaWeighted)
 {
     return areaWeighted ? formatFloat(value, 7) : QString::number(std::llround(value));
+}
+
+// Measure UV Mapping: the UV islands, folds and quasi-conformal distortion of a layer's
+// texture coordinates, in texels. The metrics themselves are vcglib's (UV_Utils and Distortion).
+MeshFilterRunResult measureUvMapping(const Document::MeshEntry &entry, const FilterParams &params)
+{
+    using Mask = vcg::tri::io::Mask;
+    using Distortion = vcg::tri::Distortion<UVMesh, true>;
+    using UV = vcg::tri::UV_Utils<UVMesh>;
+    const VCGMesh &mesh = entry.mesh;
+    if (mesh.FN() == 0)
+        return fail(QObject::tr("'%1' has no faces: a UV mapping needs triangles.").arg(entry.name));
+    const bool wedgeUV = (entry.ioMask & Mask::IOM_WEDGTEXCOORD) && mesh.face.IsWedgeTexCoordEnabled();
+    const bool vertexUV = (entry.ioMask & Mask::IOM_VERTTEXCOORD) && mesh.vert.IsTexCoordEnabled();
+    if (!wedgeUV && !vertexUV)
+        return fail(QObject::tr("'%1' has no texture coordinates.").arg(entry.name));
+
+    // The texel size of each texture: the one asked for, or that of the images, or, with neither,
+    // the unit square (in which case the UV are left as they are).
+    const int askedWidth = params.getInt(QStringLiteral("textureWidth"));
+    const int askedHeight = params.getInt(QStringLiteral("textureHeight"));
+    if ((askedWidth > 0) != (askedHeight > 0))
+        return fail(QObject::tr("Give both Texture Width and Texture Height, or neither."));
+    const int textureCount = Document::meshTextureAssociationCount(entry);
+    std::vector<QSizeF> sizes;
+    QString units;
+    if (askedWidth > 0) {
+        sizes.assign(size_t(std::max(textureCount, 1)), QSizeF(askedWidth, askedHeight));
+        units = QObject::tr("texels of a %1 x %2 texture").arg(askedWidth).arg(askedHeight);
+    } else if (textureCount > 0) {
+        QStringList described;
+        for (int i = 0; i < textureCount; ++i) {
+            const QSize size = Tex::associatedTextureSize(entry, i);
+            if (!size.isValid())
+                return fail(QObject::tr(
+                    "The size of texture %1 is unknown: it has no image data and no readable file. "
+                    "Give Texture Width and Texture Height to measure without it.")
+                        .arg(Document::meshTextureDisplayName(entry, i)));
+            sizes.push_back(QSizeF(size));
+            described << QObject::tr("%1 x %2").arg(size.width()).arg(size.height());
+        }
+        units = QObject::tr("texels (texture sizes: %1)").arg(described.join(QStringLiteral(", ")));
+    } else {
+        sizes.push_back(QSizeF(1, 1));
+        units = QObject::tr("the unit square: the layer has no texture image, so give Texture Width and "
+                            "Texture Height to measure in texels");
+    }
+    // A single size serves every face; with several textures a face must name one that exists.
+    int badTexture = -1;
+    auto sizeOf = [&](int texture) -> const QSizeF * {
+        if (sizes.size() == 1)
+            return &sizes.front();
+        if (texture < 0 || texture >= int(sizes.size())) {
+            badTexture = texture;
+            return nullptr;
+        }
+        return &sizes[size_t(texture)];
+    };
+
+    UVMesh um;
+    vcg::tri::Allocator<UVMesh>::AddVertices(um, mesh.vert.size());
+    const bool identity = isIdentityTransform(entry.transform);
+    for (size_t i = 0; i < mesh.vert.size(); ++i) {
+        const vcg::Point3d p(mesh.vert[i].cP()[0], mesh.vert[i].cP()[1], mesh.vert[i].cP()[2]);
+        um.vert[i].P() = identity ? p : qMatrixMapPoint<double>(entry.transform, p);
+    }
+    vcg::tri::Allocator<UVMesh>::AddFaces(um, size_t(mesh.FN()));
+    size_t next = 0;
+    for (const VCGFace &face : mesh.face) {
+        if (face.IsD())
+            continue;
+        UVMeshFace &f = um.face[next++];
+        const int texture = wedgeUV ? face.cWT(0).N() : face.cV(0)->cT().N();
+        const QSizeF *size = sizeOf(texture);
+        if (!size)
+            return fail(QObject::tr("A face uses texture %1, but the layer has %2 texture(s).")
+                            .arg(badTexture).arg(textureCount));
+        for (int c = 0; c < 3; ++c) {
+            f.V(c) = &um.vert[vcg::tri::Index(mesh, face.cV(c))];
+            const auto &uv = wedgeUV ? face.cWT(c).P() : face.cV(c)->cT().P();
+            f.WT(c).P() = vcg::Point2d(double(uv[0]) * size->width(), double(uv[1]) * size->height());
+            f.WT(c).N() = short(texture);
+        }
+    }
+
+    std::vector<int> faceChart;
+    const int chartNum = UV::PerWedgeCharts(um, faceChart);
+    int uvEdges = 0, uvBorderEdges = 0;
+    UV::CountUVEdgeNum(um, uvEdges, uvBorderEdges);
+    const int folds = Distortion::FoldedNum(um, faceChart);
+
+    // TexMetro's constants: the bins of the quasi-conformal histogram, which fix how finely its
+    // percentiles read.
+    constexpr int kQcdBins = 500000;
+    const double qcdThreshold = params.getDouble(QStringLiteral("qcdThreshold"));
+    vcg::Histogram<double> qcd;
+    qcd.SetRange(0.0, qcdThreshold, kQcdBins);
+    double area3D = 0, mappedArea3D = 0, areaUV = 0, boundaryLengthUV = 0, discardedArea = 0;
+    std::vector<double> chartAreaUV(size_t(chartNum), 0.0);
+    for (size_t i = 0; i < um.face.size(); ++i) {
+        const UVMeshFace &f = um.face[i];
+        const double a3 = Distortion::Area3D(&f);
+        const double au = Distortion::AreaUV(&f);
+        area3D += a3;
+        areaUV += std::abs(au);
+        chartAreaUV[size_t(faceChart[i])] += std::abs(au);
+        for (int e = 0; e < 3; ++e) {
+            if (vcg::face::IsBorder(f, e))
+                boundaryLengthUV += Distortion::EdgeLenghtUV(&f, e);
+        }
+        if (a3 == 0 || au == 0)
+            continue;
+        mappedArea3D += a3;
+        const double q = Distortion::QuasiConformalDistortion(&f);
+        if (!std::isfinite(q))
+            continue;
+        if (q < qcdThreshold)
+            qcd.Add(q, a3);
+        else
+            discardedArea += a3;
+    }
+    const int nullCharts = int(std::count(chartAreaUV.begin(), chartAreaUV.end(), 0.0));
+    const double mappedFraction = area3D > 0 ? mappedArea3D / area3D : 0.0;
+
+    QStringList info;
+    info << QObject::tr("Mesh: %1").arg(entry.name);
+    info << QObject::tr("UV measured in %1").arg(units);
+    info << QObject::tr("UV islands: %1 (%2 with no UV area)").arg(chartNum).arg(nullCharts);
+    info << QObject::tr("Folded faces: %1").arg(folds);
+    info << QObject::tr("Edges of the UV layout: %1 (on its boundary: %2)").arg(uvEdges).arg(uvBorderEdges);
+    info << QObject::tr("UV area: %1, UV boundary length: %2")
+                .arg(formatFloat(areaUV)).arg(formatFloat(boundaryLengthUV));
+    info << QObject::tr("Mapped fraction of the surface: %1").arg(formatFloat(mappedFraction));
+    MeshFilterRunResult result = successInfo(info);
+    result.outputValues["num_charts"] = chartNum;
+    result.outputValues["num_null_charts"] = nullCharts;
+    result.outputValues["nfolds"] = folds;
+    result.outputValues["en_uv"] = uvEdges;
+    result.outputValues["en_uv_b"] = uvBorderEdges;
+    result.outputValues["area_uv"] = areaUV;
+    result.outputValues["boundary_len_uv"] = boundaryLengthUV;
+    result.outputValues["mapped_fraction"] = mappedFraction;
+    result.outputValues["qcd_discardedArea"] = discardedArea;
+    if (qcd.Cnt() > 0) {
+        // TexMetro's keys: the percentiles it reports, then the moments of the histogram.
+        const struct { const char *key; double fraction; } percentiles[] = {
+            { "qcd_perc1", 0.01 }, { "qcd_perc10", 0.10 }, { "qcd_perc20", 0.20 }, { "qcd_perc30", 0.30 },
+            { "qcd_perc40", 0.40 }, { "qcd_perc50", 0.50 }, { "qcd_perc60", 0.60 }, { "qcd_perc70", 0.70 },
+            { "qcd_perc80", 0.80 }, { "qcd_perc90", 0.90 }, { "qcd_perc99", 0.99 } };
+        for (const auto &p : percentiles)
+            result.outputValues[QString::fromLatin1(p.key)] = qcd.Percentile(p.fraction);
+        result.outputValues["qcd_min"] = qcd.MinElem();
+        result.outputValues["qcd_max"] = qcd.MaxElem();
+        result.outputValues["qcd_avg"] = qcd.Avg();
+        result.outputValues["qcd_rms"] = qcd.RMS();
+        result.outputValues["qcd_var"] = qcd.Variance();
+        result.outputValues["qcd_stddev"] = qcd.StandardDeviation();
+        info << QObject::tr("Quasi-conformal distortion: min %1, median %2, 90th percentile %3, max %4; "
+                            "outliers (at or above %5) cover an area of %6")
+                    .arg(formatFloat(qcd.MinElem(), 4))
+                    .arg(formatFloat(qcd.Percentile(0.5), 4))
+                    .arg(formatFloat(qcd.Percentile(0.9), 4))
+                    .arg(formatFloat(qcd.MaxElem(), 4))
+                    .arg(formatFloat(qcdThreshold, 3))
+                    .arg(formatFloat(discardedArea));
+    } else {
+        info << QObject::tr("No face has a finite quasi-conformal distortion below %1; the qcd_* statistics are absent.")
+                    .arg(formatFloat(qcdThreshold, 3));
+    }
+    result.infoMessages = info;
+    return result;
 }
 
 } // namespace
@@ -466,6 +661,9 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         result.outputValues["quad_ratio_max"] = ratioDist.Max();
         return result;
     }
+
+    if (filterId == QString::fromLatin1(kFilterUvMapping))
+        return measureUvMapping(entry, params);
 
     if (filterId == QString::fromLatin1(kFilterGeom)) {
         std::unique_ptr<VCGMesh> measureMesh = transformedCopy(entry);
