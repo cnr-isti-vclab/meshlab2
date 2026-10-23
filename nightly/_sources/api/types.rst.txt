@@ -99,7 +99,7 @@ Attributes
 .. py:attribute:: FilterRunResult.output_values
    :module: _meshlab
 
-   (self) -> dict
+   (self) -> object
 
 .. py:attribute:: FilterRunResult.success
    :module: _meshlab

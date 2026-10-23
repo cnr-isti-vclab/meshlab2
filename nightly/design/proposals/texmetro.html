@@ -1,0 +1,1216 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>TexMetro: Texture and Parametrization Quality Metrics - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/proposals/texmetro.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="texmetro-texture-and-parametrization-quality-metrics">
+<h1>TexMetro: Texture and Parametrization Quality Metrics<a class="headerlink" href="#texmetro-texture-and-parametrization-quality-metrics" title="Link to this heading">¶</a></h1>
+<p>This document evaluates bringing <a class="reference external" href="https://github.com/cnr-isti-vclab/texmetro">TexMetro</a>’s
+metrics into MeshLab, either by vendoring the tool as a subrepo or by reimplementing
+it on QRhi, and recommends a third route: <strong>reimplement the metrics on the CPU, with a
+deterministic texel rasterizer, as algorithms in vcglib and thin <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> filters in
+MeshLab</strong>. <strong>Stage 1 is implemented (2026-10-23); the rest is not.</strong> The recommendation
+rests on measurements made for this proposal, listed under <a class="reference internal" href="#evidence"><span class="xref myst">Evidence</span></a>.</p>
+<p>See also: <a class="reference internal" href="edge_support.html"><span class="std std-doc">Edge Support</span></a>, <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>,
+<a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a>, <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>,
+<a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a>, <a class="reference internal" href="../test_data.html"><span class="std std-doc">Test Data</span></a>, <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a>.</p>
+<section id="status-and-evidence">
+<h2>Status and evidence<a class="headerlink" href="#status-and-evidence" title="Link to this heading">¶</a></h2>
+<p>Evaluated on <strong>2026-10-23</strong> against TexMetro at commit
+<code class="docutils literal notranslate"><span class="pre">cfc35548dad7526a1c6936293a213d52b5fab7a0</span></code> (2020-04-24; the first commit is 2019-07-19;
+the authors are Andrea Maggiordomo and Paolo Cignoni). Every source file was read:
+<code class="docutils literal notranslate"><span class="pre">src/</span></code> is 1,701 lines in nine files. It is GPL-3.0, as MeshLab is, so nothing in it is
+blocked by licence. The vcglib checkout surveyed for what already exists is at
+<code class="docutils literal notranslate"><span class="pre">d5f5ae997</span></code>.</p>
+<p>Two kinds of statement follow, kept apart:</p>
+<ul class="simple">
+<li><p><strong>Read</strong> from the code: what each metric computes, and its quirks.</p></li>
+<li><p><strong>Measured</strong> on an Apple M3 Max (macOS, Qt 6.11.2), with throw-away probes in the
+session scratchpad (not committed), compiled <code class="docutils literal notranslate"><span class="pre">-O2</span></code> against this checkout’s vcglib:
+the OpenGL version the machine offers, whether TexMetro’s shaders compile, TexMetro’s
+quasi-conformal formula against vcglib’s, and a CPU texel rasterizer. The inputs were
+two real photogrammetry atlases of the same gargoyle, <code class="docutils literal notranslate"><span class="pre">gargo3M_good.ply</span></code> and
+<code class="docutils literal notranslate"><span class="pre">gargo3M_bad.ply</span></code> (2,999,914 triangles each, a 4096 × 4096 texture each, in
+<code class="docutils literal notranslate"><span class="pre">tests/local/COLOR_gargoyle/</span></code>, which is a local-only dataset).</p></li>
+</ul>
+<p>Not measured: TexMetro itself was <strong>neither built nor run</strong>; the part of it that does the
+texel metrics cannot work on this machine (below). So nothing here compares our numbers
+to its numbers, and the validation that does so is <a class="reference internal" href="#staging"><span class="xref myst">Stage 0</span></a>. Other GPUs and
+operating systems were not measured either.</p>
+</section>
+<section id="recommendation">
+<h2>Recommendation<a class="headerlink" href="#recommendation" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>Option</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>A</strong></p></td>
+<td><p>Vendor TexMetro as a subrepo (or call it as an external tool)</p></td>
+<td><p><strong>Reject.</strong> Its raster shaders are GLSL 4.30, so an OpenGL 4.3-class driver, and a Mac stops at 4.1; it has its own mesh loader and works on files, not on the document. Keep it as the reference to validate against.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>B</strong></p></td>
+<td><p>Reimplement the texel raster on QRhi</p></td>
+<td><p><strong>Defer.</strong> Possible (B1 needs no compute), but the GPU can only speed up half of a step that costs 0.35 s, its counts depend on the device, and it cannot be tested in <code class="docutils literal notranslate"><span class="pre">ctest</span></code> or run headless. Worth doing later, for <em>visualization</em> only.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>C</strong></p></td>
+<td><p>CPU metrics and a deterministic CPU texel rasterizer, written <strong>into vcglib</strong>; thin <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> filters in MeshLab</p></td>
+<td><p><strong>Recommended.</strong> No new dependency or plugin; runs on every platform, in <code class="docutils literal notranslate"><span class="pre">ctest</span></code>, in <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> without a GPU; 0.9 s for a full 13-level pyramid on a 3 M-face atlas. The same vcglib code can serve TexMetro itself, which would then no longer need OpenGL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Of TexMetro’s 68 top-level report keys, 14 need nothing built (MeshLab already reports
+them, or the document already knows them), 1 is derivable, 1 (<code class="docutils literal notranslate"><span class="pre">orientable</span></code>) is dropped by
+decision, and <strong>52 are new</strong>. 34 of the 52 need no rasterization at all. They are plain mesh and UV arithmetic, and vcglib
+already holds most of the pieces (see <a class="reference internal" href="#where-the-code-lives"><span class="xref myst">Where the code lives</span></a>).</p>
+</section>
+<section id="decisions-taken">
+<h2>Decisions taken<a class="headerlink" href="#decisions-taken" title="Link to this heading">¶</a></h2>
+<p>Settled by the maintainer on <strong>2026-10-23</strong>, after the first version of this proposal:</p>
+<ul class="simple">
+<li><p><strong>Option C, with the algorithms in vcglib</strong> and thin filters in <code class="docutils literal notranslate"><span class="pre">filter_measure</span></code>
+(<a class="reference internal" href="#where-the-code-lives"><span class="xref myst">Where the code lives</span></a>).</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">orientable</span></code> is dropped</strong> from the report. <code class="docutils literal notranslate"><span class="pre">oriented</span></code> stays, as it needs nothing new.</p></li>
+<li><p><strong>The category <code class="docutils literal notranslate"><span class="pre">Measurement/UV</span> <span class="pre">Mapping</span></code> is approved.</strong> The vocabulary table and
+<code class="docutils literal notranslate"><span class="pre">src/plugins/filtercategories.{h,cpp}</span></code> change together, in the stage whose first filter
+uses it (Stage 2), not before: an approved term with no filter would be dead code.</p></li>
+<li><p><strong>Percentiles use <code class="docutils literal notranslate"><span class="pre">vcg::Histogram</span></code></strong> at TexMetro’s own bin counts, which reproduces the
+published values; the sorted-pairs alternative is not built.</p></li>
+</ul>
+</section>
+<section id="what-texmetro-reports-against-what-meshlab-has">
+<h2>What TexMetro reports, against what MeshLab has<a class="headerlink" href="#what-texmetro-reports-against-what-meshlab-has" title="Link to this heading">¶</a></h2>
+<p>The keys are those of TexMetro’s <code class="docutils literal notranslate"><span class="pre">README.md</span></code> JSON table. “Needs raster” means the value
+depends on the texel raster, the one part TexMetro does with OpenGL.</p>
+<p><strong>Mesh metrics (20 keys).</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>TexMetro key</p></th>
+<th class="head"><p>In MeshLab today</p></th>
+<th class="head"><p>Plan</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">fn</span></code> <code class="docutils literal notranslate"><span class="pre">vn</span></code> <code class="docutils literal notranslate"><span class="pre">en</span></code> <code class="docutils literal notranslate"><span class="pre">en_b</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">faces_number</span></code> <code class="docutils literal notranslate"><span class="pre">vertices_number</span></code> <code class="docutils literal notranslate"><span class="pre">edges_number</span></code> <code class="docutils literal notranslate"><span class="pre">boundary_edges</span></code> (<em>Measure Topological Properties</em>)</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">area</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">surface_area</span></code> (<em>Measure Geometric Properties</em>)</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">boundary_loops</span></code> <code class="docutils literal notranslate"><span class="pre">nonmanif_edge</span></code> <code class="docutils literal notranslate"><span class="pre">nonmanif_vert</span></code> <code class="docutils literal notranslate"><span class="pre">connected_components</span></code> <code class="docutils literal notranslate"><span class="pre">genus</span></code> <code class="docutils literal notranslate"><span class="pre">vnunref</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">number_holes</span></code> <code class="docutils literal notranslate"><span class="pre">non_two_manifold_edges</span></code> <code class="docutils literal notranslate"><span class="pre">non_two_manifold_vertices</span></code> <code class="docutils literal notranslate"><span class="pre">connected_components_number</span></code> <code class="docutils literal notranslate"><span class="pre">genus</span></code> <code class="docutils literal notranslate"><span class="pre">unreferenced_vertices</span></code></p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">area_normalized</span></code></p></td>
+<td><p>derivable from <code class="docutils literal notranslate"><span class="pre">surface_area</span></code> and <code class="docutils literal notranslate"><span class="pre">bbox_dim_*</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normalized_surface_area</span></code> (<strong>Stage 1, done</strong>)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">boundary_len</span></code>, <code class="docutils literal notranslate"><span class="pre">boundary_len_normalized</span></code></p></td>
+<td><p><strong>missing.</strong> The only <code class="docutils literal notranslate"><span class="pre">perimeter</span></code> output belongs to the <em>selection</em> measure, not the whole mesh</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">boundary_length</span></code>, <code class="docutils literal notranslate"><span class="pre">normalized_boundary_length</span></code> in <em>Measure Geometric Properties</em> (<strong>Stage 1, done</strong>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">fndup</span></code> <code class="docutils literal notranslate"><span class="pre">fnzero</span></code> <code class="docutils literal notranslate"><span class="pre">fndegen</span></code></p></td>
+<td><p><strong>missing from the filters.</strong> vcglib counts two of them already: <code class="docutils literal notranslate"><span class="pre">Clean::RemoveZeroAreaFace(m,</span> <span class="pre">false)</span></code> and <code class="docutils literal notranslate"><span class="pre">RemoveDegenerateFace(m,</span> <span class="pre">false)</span></code> count without deleting (TexMetro’s <code class="docutils literal notranslate"><span class="pre">CountDegenerateFace</span></code> is the same test); <code class="docutils literal notranslate"><span class="pre">RemoveDuplicateFace</span></code> has no counting mode</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">duplicate_faces</span></code>, <code class="docutils literal notranslate"><span class="pre">zero_area_faces</span></code>, <code class="docutils literal notranslate"><span class="pre">degenerate_faces</span></code> in <em>Measure Topological Properties</em>, with the flag on <code class="docutils literal notranslate"><span class="pre">RemoveDuplicateFace</span></code> (<strong>Stage 1, done</strong>)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">oriented</span></code></p></td>
+<td><p><strong>missing</strong> (<code class="docutils literal notranslate"><span class="pre">is_mesh_two_manifold</span></code> is a different property). vcglib’s <code class="docutils literal notranslate"><span class="pre">IsCoherentlyOrientedMesh</span></code> gives it without touching the mesh</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">is_mesh_oriented</span></code> in <em>Measure Topological Properties</em> (<strong>Stage 1, done</strong>); it is absent when the mesh has non-manifold edges, where an orientation means nothing</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">orientable</span></code></p></td>
+<td><p>exists in vcglib only inside <code class="docutils literal notranslate"><span class="pre">OrientCoherentlyMesh</span></code>, which flips faces, so a report cannot use it</p></td>
+<td><p><strong>dropped</strong> (decision)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mesh</span></code></p></td>
+<td><p>a file name, not a metric</p></td>
+<td><p>none</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Totals: 11 covered + 1 derivable + 6 missing + 1 dropped + 1 not a metric = 20.</p>
+<p><strong>UV and texture metrics (48 keys).</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>TexMetro keys</p></th>
+<th class="head"><p>Count</p></th>
+<th class="head"><p>In MeshLab today</p></th>
+<th class="head"><p>Needs raster</p></th>
+<th class="head"><p>Plan</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">num_charts</span></code> <code class="docutils literal notranslate"><span class="pre">en_uv</span></code> <code class="docutils literal notranslate"><span class="pre">en_uv_b</span></code> <code class="docutils literal notranslate"><span class="pre">area_uv</span></code> <code class="docutils literal notranslate"><span class="pre">boundary_len_uv</span></code> <code class="docutils literal notranslate"><span class="pre">num_null_charts</span></code> <code class="docutils literal notranslate"><span class="pre">mapped_fraction</span></code> <code class="docutils literal notranslate"><span class="pre">nfolds</span></code></p></td>
+<td><p>8</p></td>
+<td><p>none reported (charts exist inside the defragmentation code, not as a report)</p></td>
+<td><p>no</p></td>
+<td><p>new report</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ntex</span></code> <code class="docutils literal notranslate"><span class="pre">textures</span></code></p></td>
+<td><p>2</p></td>
+<td><p>known to the document</p></td>
+<td><p>no</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc1</span></code> … <code class="docutils literal notranslate"><span class="pre">qcd_perc99</span></code> (11), <code class="docutils literal notranslate"><span class="pre">qcd_min</span></code> <code class="docutils literal notranslate"><span class="pre">qcd_max</span></code> <code class="docutils literal notranslate"><span class="pre">qcd_avg</span></code> <code class="docutils literal notranslate"><span class="pre">qcd_stddev</span></code> <code class="docutils literal notranslate"><span class="pre">qcd_discardedArea</span></code></p></td>
+<td><p>16</p></td>
+<td><p><strong>none.</strong> <em>Compute UV Distortion</em> has angle, area, edge, L2 and L∞ stretch, not σmax/σmin</p></td>
+<td><p>no</p></td>
+<td><p>new metric, new report</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sf_perc1</span></code> … <code class="docutils literal notranslate"><span class="pre">sf_perc99</span></code> (11), <code class="docutils literal notranslate"><span class="pre">sf_min</span></code> <code class="docutils literal notranslate"><span class="pre">sf_max</span></code> <code class="docutils literal notranslate"><span class="pre">sf_avg</span></code> <code class="docutils literal notranslate"><span class="pre">sf_stddev</span></code> <code class="docutils literal notranslate"><span class="pre">sf_discardedArea</span></code></p></td>
+<td><p>16</p></td>
+<td><p><strong>close.</strong> <em>Compute UV Distortion → Area distortion</em> is <code class="docutils literal notranslate"><span class="pre">|sf</span> <span class="pre">−</span> <span class="pre">1|</span></code> (shown below), minus the sign and TexMetro’s outlier rule</p></td>
+<td><p><strong>yes</strong>, for the outlier cutoff</p></td>
+<td><p>new metric, new report</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_avg</span></code> <code class="docutils literal notranslate"><span class="pre">_min</span></code> <code class="docutils literal notranslate"><span class="pre">_max</span></code> <code class="docutils literal notranslate"><span class="pre">_stddev</span></code></p></td>
+<td><p>4</p></td>
+<td><p>none</p></td>
+<td><p>no (needs the texture images)</p></td>
+<td><p>new report</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">occupancy</span></code>, <code class="docutils literal notranslate"><span class="pre">texture_N</span></code></p></td>
+<td><p>2</p></td>
+<td><p>none</p></td>
+<td><p><strong>yes</strong></p></td>
+<td><p>new report</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Totals: 8 + 2 + 16 + 16 + 4 + 2 = 48. <code class="docutils literal notranslate"><span class="pre">texture_N</span></code> is a list of eight raster counters per
+MIP level, listed below, so the whole JSON is 68 top-level keys plus those eight.</p>
+<p><strong>Raster counters, per texture and MIP level (8 keys, all need the raster).</strong> <code class="docutils literal notranslate"><span class="pre">rw</span></code> and
+<code class="docutils literal notranslate"><span class="pre">rh</span></code> (the level’s size), <code class="docutils literal notranslate"><span class="pre">totalTexels</span></code>, <code class="docutils literal notranslate"><span class="pre">totalTexels_bilinear</span></code>, <code class="docutils literal notranslate"><span class="pre">overwrittenTexels</span></code>,
+<code class="docutils literal notranslate"><span class="pre">lostTexels</span></code>, <code class="docutils literal notranslate"><span class="pre">texelClashes</span></code>, <code class="docutils literal notranslate"><span class="pre">boundaryTexels</span></code>. None exists in MeshLab.</p>
+<p><strong>Why <code class="docutils literal notranslate"><span class="pre">sf</span></code> is nearly there already.</strong> With the existing global scale
+<code class="docutils literal notranslate"><span class="pre">s_A</span> <span class="pre">=</span> <span class="pre">ΣA₃D</span> <span class="pre">/</span> <span class="pre">ΣA_UV</span></code>, <em>Area distortion</em> is <code class="docutils literal notranslate"><span class="pre">|s_A</span> <span class="pre">·</span> <span class="pre">A_UV</span> <span class="pre">/</span> <span class="pre">A₃D</span> <span class="pre">−</span> <span class="pre">1|</span></code>. TexMetro’s
+per-face <code class="docutils literal notranslate"><span class="pre">sf</span></code> is <code class="docutils literal notranslate"><span class="pre">(A_UV</span> <span class="pre">/</span> <span class="pre">A₃D)</span> <span class="pre">/</span> <span class="pre">(ΣA_UV</span> <span class="pre">/</span> <span class="pre">ΣA₃D)</span></code>, which is <code class="docutils literal notranslate"><span class="pre">s_A</span> <span class="pre">·</span> <span class="pre">A_UV</span> <span class="pre">/</span> <span class="pre">A₃D</span></code>. So the
+existing metric is <code class="docutils literal notranslate"><span class="pre">|sf</span> <span class="pre">−</span> <span class="pre">1|</span></code>: the sign (compression against expansion) is lost, and
+the sums run over every face with oriented UV area, where TexMetro’s skip faces beyond
+its outlier cutoff and use unsigned area.</p>
+</section>
+<section id="evidence">
+<h2>Evidence<a class="headerlink" href="#evidence" title="Link to this heading">¶</a></h2>
+<section id="texmetro-s-raster-path-cannot-run-on-a-mac">
+<h3>TexMetro’s raster path cannot run on a Mac<a class="headerlink" href="#texmetro-s-raster-path-cannot-run-on-a-mac" title="Link to this heading">¶</a></h3>
+<p>The machine offers OpenGL <strong>4.1</strong> (<code class="docutils literal notranslate"><span class="pre">4.1</span> <span class="pre">Metal</span> <span class="pre">-</span> <span class="pre">90.5</span></code>, whatever version is asked for:
+4.3, 4.2 and 4.1 were each requested and each returned 4.1). TexMetro asks for a 4.2 core
+context and its shaders start with <code class="docutils literal notranslate"><span class="pre">#version</span> <span class="pre">430</span></code>. Both were extracted verbatim and
+compiled on this machine’s driver:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ERROR</span><span class="p">:</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">:</span> <span class="s1">''</span> <span class="p">:</span>  <span class="n">version</span> <span class="s1">'430'</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">supported</span>
+<span class="n">ERROR</span><span class="p">:</span> <span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span> <span class="s1">'uimage2D'</span> <span class="p">:</span> <span class="n">Reserved</span> <span class="n">word</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>Neither shader compiles, so the texel metrics (the 8 counters, <code class="docutils literal notranslate"><span class="pre">occupancy</span></code>, and through
+the outlier cutoff all of <code class="docutils literal notranslate"><span class="pre">sf</span></code>) cannot be computed here. The same driver reports
+<code class="docutils literal notranslate"><span class="pre">GL_SUBPIXEL_BITS</span> <span class="pre">=</span> <span class="pre">4</span></code>, the minimum the specification allows, and
+<code class="docutils literal notranslate"><span class="pre">GL_MAX_TEXTURE_SIZE</span> <span class="pre">=</span> <span class="pre">16384</span></code>.</p>
+</section>
+<section id="vcglib-already-computes-the-quasi-conformal-distortion">
+<h3>vcglib already computes the quasi-conformal distortion<a class="headerlink" href="#vcglib-already-computes-the-quasi-conformal-distortion" title="Link to this heading">¶</a></h3>
+<p>TexMetro builds a local isometry, a 2 × 2 Jacobian and a closed-form singular-value
+ratio, <code class="docutils literal notranslate"><span class="pre">qcd</span> <span class="pre">=</span> <span class="pre">σmax/σmin</span></code>. vcglib’s <code class="docutils literal notranslate"><span class="pre">Distortion::mappingTransform2D</span></code> followed by
+<code class="docutils literal notranslate"><span class="pre">svd2x2</span></code> produces the same two singular values, since a rotation of the source frame does
+not change them. Both were run on all 3 M faces of each atlas, with the UVs scaled to
+texels as TexMetro does:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>good</p></th>
+<th class="head"><p>bad</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>faces TexMetro would count (non-zero 3D and UV area)</p></td>
+<td><p>2,968,650</p></td>
+<td><p>2,903,156</p></td>
+</tr>
+<tr class="row-odd"><td><p>largest relative difference, TexMetro vs vcglib, over those faces</p></td>
+<td><p>8.1 × 10⁻¹²</p></td>
+<td><p>6.4 × 10⁻¹²</p></td>
+</tr>
+<tr class="row-even"><td><p>faces finite and below the cutoff of 100 for only one of the two</p></td>
+<td><p>0</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>faces TexMetro skips for zero UV area</p></td>
+<td><p>30,085 (1.0 %)</p></td>
+<td><p>94,754 (3.2 %)</p></td>
+</tr>
+<tr class="row-even"><td><p>time for 3 M faces: TexMetro’s formula / vcglib</p></td>
+<td><p>0.10 s / 0.04 s</p></td>
+<td><p>0.10 s / 0.04 s</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>On the skipped faces the two formulas disagree (infinite on one, a huge number on the
+other), which is why the zero-area guard is part of the metric and not an optimisation.
+A face is <em>not</em> zero-area in 3D in either atlas; the zero-UV faces are degenerate UV
+triangles, and in the bad atlas they are three percent of the mesh.</p>
+<p>The conclusion for the design: <strong>QCD is one call to vcglib plus the guard</strong>, so it is a
+few lines added to <code class="docutils literal notranslate"><span class="pre">Distortion</span></code>, next to the metrics already there, and costs almost
+nothing.</p>
+</section>
+<section id="vcglib-already-partitions-the-mesh-into-uv-charts">
+<h3>vcglib already partitions the mesh into UV charts<a class="headerlink" href="#vcglib-already-partitions-the-mesh-into-uv-charts" title="Link to this heading">¶</a></h3>
+<p>TexMetro splits vertices at the seams and floods across face adjacency (<code class="docutils literal notranslate"><span class="pre">GenerateAtlas</span></code>).
+vcglib has the same thing without touching the mesh’s vertices:
+<code class="docutils literal notranslate"><span class="pre">UpdateTopology::FaceFaceFromTexCoord</span></code> makes two faces adjacent only across an edge whose
+UVs agree on both sides, so a connected-component count of the result is the number of
+charts. On the two atlases it gives <strong>1,961</strong> and <strong>1,716</strong> charts in 0.48 s, the same
+numbers as an independent union-find over shared edges. What is missing is only the
+per-face chart id, which the existing <code class="docutils literal notranslate"><span class="pre">ConnectedComponentIterator</span></code> provides.</p>
+</section>
+<section id="a-cpu-rasterizer-is-fast-and-it-is-the-more-reproducible-choice">
+<h3>A CPU rasterizer is fast, and it is the more reproducible choice<a class="headerlink" href="#a-cpu-rasterizer-is-fast-and-it-is-the-more-reproducible-choice" title="Link to this heading">¶</a></h3>
+<p>A prototype of about 55 lines rasterizes UV triangles on a fixed-point grid with a chosen
+number of sub-pixel bits <code class="docutils literal notranslate"><span class="pre">S</span></code>, using the top-left rule (so a texel on a shared edge
+belongs to exactly one triangle), a saturating 16-bit coverage count and a 32-bit
+last-writer chart id per texel. It then runs TexMetro’s counting passes verbatim. On a 4096² texture and
+3 M triangles, single-threaded:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>step, level 0</p></th>
+<th class="head"><p>time</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>rasterize (clearing the two buffers included)</p></td>
+<td><p>0.17 s</p></td>
+</tr>
+<tr class="row-odd"><td><p>TexMetro’s per-texel 3 × 3 passes (bilinear footprint, boundary, clash)</p></td>
+<td><p>0.18 s</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>one MIP level</strong></p></td>
+<td><p><strong>0.35 s</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>the whole 13-level pyramid, 4096² down to 1 × 1</p></td>
+<td><p><strong>≈ 0.9 s</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The pyramid figure is derived, not timed on its own: the whole probe run takes 3.6 s,
+which also loads the mesh, labels the charts and computes QCD, and holds three full
+pyramids, one per sub-pixel precision. Coarser levels cost less (0.06 s at 512²). Only
+the first row is something a GPU could do, and it is half of a step that already takes a
+third of a second. The buffers need
+<strong>6 bytes per texel</strong> (a 16-bit count and a 32-bit id), 100 MB at 4096² and 1.6 GB at
+16384². TexMetro keeps two 32-bit GPU textures and two 32-bit CPU copies, 16 bytes per
+texel, 4.3 GB at 16384².</p>
+</section>
+<section id="the-published-counters-depend-on-the-rasterizer-s-sub-pixel-precision">
+<h3>The published counters depend on the rasterizer’s sub-pixel precision<a class="headerlink" href="#the-published-counters-depend-on-the-rasterizer-s-sub-pixel-precision" title="Link to this heading">¶</a></h3>
+<p>The same prototype was run with <code class="docutils literal notranslate"><span class="pre">S</span></code> = 4 (what this machine’s GL driver reports, and the
+specification’s minimum), 8 and 16, on the same triangles. The <strong>level 0</strong> counters, in
+texels (<code class="docutils literal notranslate"><span class="pre">clash</span></code> is TexMetro’s rule, diagonal neighbours only, see the quirks below):</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>atlas, <code class="docutils literal notranslate"><span class="pre">S</span></code></p></th>
+<th class="head"><p>total</p></th>
+<th class="head"><p>overwritten</p></th>
+<th class="head"><p>lost</p></th>
+<th class="head"><p>clash</p></th>
+<th class="head"><p>boundary</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>good, 16</p></td>
+<td><p>6,380,465</p></td>
+<td><p>8,077</p></td>
+<td><p>8,652</p></td>
+<td><p>9,102</p></td>
+<td><p>425,195</p></td>
+</tr>
+<tr class="row-odd"><td><p>good, 8</p></td>
+<td><p>6,380,479 (+14)</p></td>
+<td><p>8,087 (+10, 0.12 %)</p></td>
+<td><p>8,666 (+14, 0.16 %)</p></td>
+<td><p>9,097 (−5)</p></td>
+<td><p>425,171 (−24)</p></td>
+</tr>
+<tr class="row-even"><td><p>good, 4</p></td>
+<td><p>6,380,585 (+120, 0.002 %)</p></td>
+<td><p>8,127 (+50, 0.62 %)</p></td>
+<td><p>8,752 (+100, 1.2 %)</p></td>
+<td><p>9,089 (−13)</p></td>
+<td><p>425,087 (−108)</p></td>
+</tr>
+<tr class="row-odd"><td><p>bad, 16</p></td>
+<td><p>6,454,993</p></td>
+<td><p>11,962</p></td>
+<td><p>12,628</p></td>
+<td><p>9,522</p></td>
+<td><p>351,499</p></td>
+</tr>
+<tr class="row-even"><td><p>bad, 8</p></td>
+<td><p>6,454,976 (−17)</p></td>
+<td><p>11,966 (+4)</p></td>
+<td><p>12,629 (+1)</p></td>
+<td><p>9,519 (−3)</p></td>
+<td><p>351,507 (+8)</p></td>
+</tr>
+<tr class="row-odd"><td><p>bad, 4</p></td>
+<td><p>6,455,051 (+58)</p></td>
+<td><p>11,991 (+29, 0.24 %)</p></td>
+<td><p>12,696 (+68, 0.54 %)</p></td>
+<td><p>9,525 (+3)</p></td>
+<td><p>351,302 (−197)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The large counters move by a few parts per million. The rare ones (overwritten, lost)
+move by about 0.1 % at 8 bits and about 1 % at 4. At coarse levels, where the counts
+themselves are small, the effect is larger: on the good atlas at 512², going from 16 to
+4 bits changes <em>lost texels</em> from 122 to 161 (+32 %).</p>
+<p>The consequence for the design is that <strong>bit-for-bit agreement with a GPU is not a
+meaningful goal</strong>: the numbers in the published benchmark were produced by whichever
+drivers ran them, and a different driver would have printed slightly different rare
+counts. A CPU rasterizer pins the precision (a parameter, default 8) and the tie rule,
+and returns the same numbers on every machine. How closely it must match the benchmark is
+a Stage 0 question.</p>
+</section>
+<section id="what-qrhi-offers">
+<h3>What QRhi offers<a class="headerlink" href="#what-qrhi-offers" title="Link to this heading">¶</a></h3>
+<p>From the Qt 6.12 documentation (the project requires Qt 6.11 or later):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">QRhi::Compute</span></code> (compute shaders, image load/store, storage buffers) is absent on
+OpenGL older than 4.3. The project’s OpenGL floor is <strong>3.2 core</strong> (shaders are baked as
+GLSL 150), and Linux runs on OpenGL, so a compute path needs a fallback there. Metal and
+Direct3D have compute.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">QRhi::ReadBackAnyTextureFormat</span></code> is typically false on OpenGL, where only <code class="docutils literal notranslate"><span class="pre">RGBA8</span></code>,
+<code class="docutils literal notranslate"><span class="pre">BGRA8</span></code> and (non-ES) <code class="docutils literal notranslate"><span class="pre">R8</span></code> are guaranteed readable. <code class="docutils literal notranslate"><span class="pre">R32UI</span></code>, TexMetro’s format, exists
+since Qt 6.9 but need not be readable back on the OpenGL backend.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">QRhi::TextureSizeMax</span></code> is “typically 4096 – 16384”, and a larger texture “is expected to
+fail”, so a 16 K texture, or a bigger one, needs tiling. This machine reports 16384.</p></li>
+<li><p>QRhi “does not at the moment allow freely creating and submitting command buffers”: all
+GPU work is inside a frame, with readbacks completing after it.</p></li>
+<li><p>The render path lives in the <code class="docutils literal notranslate"><span class="pre">MeshLab</span></code> executable and needs a window server and a GPU:
+<code class="docutils literal notranslate"><span class="pre">tests/</span></code> cannot link it, and <code class="docutils literal notranslate"><span class="pre">HeadlessRenderContext</span></code> needs both, which is why the render
+probes are run by hand (see <a class="reference internal" href="../rendering.html#verifying-the-render-path"><span class="std std-ref">Rendering</span></a>). A
+texel metric on QRhi would have no <code class="docutils literal notranslate"><span class="pre">ctest</span></code> row and could not run in <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> on a
+machine without a display.</p></li>
+</ul>
+</section>
+<section id="quirks-found-in-texmetro-s-code">
+<h3>Quirks found in TexMetro’s code<a class="headerlink" href="#quirks-found-in-texmetro-s-code" title="Link to this heading">¶</a></h3>
+<p>Read, not run. They matter because a reimplementation either reproduces them or
+deliberately does not, and the published numbers include them. Questions for the authors
+are collected in <a class="reference internal" href="#open-questions"><span class="xref myst">Open questions</span></a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Where</p></th>
+<th class="head"><p>What it does</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Clash3x3</span></code></p></td>
+<td><p>The test is <code class="docutils literal notranslate"><span class="pre">i</span> <span class="pre">!=</span> <span class="pre">row</span> <span class="pre">&amp;&amp;</span> <span class="pre">j</span> <span class="pre">!=</span> <span class="pre">col</span></code>, which skips the centre <strong>and the four edge neighbours</strong>, so only the four diagonal neighbours are ever compared. Counting all eight changes <code class="docutils literal notranslate"><span class="pre">texelClashes</span></code> by +3.3 % (good: 9,102 → 9,403) and +4.0 % (bad: 9,522 → 9,907).</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ComputeTexImageInfo</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">checkMask</span> <span class="pre">&amp;=</span> <span class="pre">BitClear</span></code> assigns, but the mask is not read again, so it behaves as a plain test. Harmless.</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>the id buffer</p></td>
+<td><p>Each fragment does <code class="docutils literal notranslate"><span class="pre">imageStore(idbuf,</span> <span class="pre">…,</span> <span class="pre">chartId)</span></code> with no ordering. Which chart “wins” a texel written twice is up to the GPU, so <code class="docutils literal notranslate"><span class="pre">texelClashes</span></code> is not deterministic wherever a texel is overwritten. The coverage <em>count</em> is (it is an atomic add).</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ComputeAtlasInfo</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf</span></code>’s outlier cutoff, <code class="docutils literal notranslate"><span class="pre">thresholdUV</span> <span class="pre">=</span> <span class="pre">perc3D</span> <span class="pre">·</span> <span class="pre">realTextureArea</span> <span class="pre">·</span> <span class="pre">100</span></code>, uses <code class="docutils literal notranslate"><span class="pre">realTextureArea</span> <span class="pre">=</span> <span class="pre">occupancy</span> <span class="pre">×</span> <span class="pre">texel</span> <span class="pre">count</span></code>, so <code class="docutils literal notranslate"><span class="pre">sf</span></code> cannot be computed without the raster.</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">occupancy</span></code></p></td>
+<td><p>Taken from the <strong>first</strong> MIP level with any texels, per texture, as <code class="docutils literal notranslate"><span class="pre">(totalTexels</span> <span class="pre">−</span> <span class="pre">lostTexels)</span> <span class="pre">/</span> <span class="pre">(w·h)</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">totalTexels</span></code></p></td>
+<td><p>Counts fragments (<code class="docutils literal notranslate"><span class="pre">Σ</span> <span class="pre">n</span></code>, overwrites included), not distinct texels. <code class="docutils literal notranslate"><span class="pre">totalTexels_bilinear</span></code> counts covered texels plus every uncovered texel with a covered one in its 3 × 3 neighbourhood.</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>MIP levels</p></td>
+<td><p>Each level re-rasterizes the triangles at the smaller size; none is downsampled from the one above.</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>units</p></td>
+<td><p>UVs are scaled to texels (<code class="docutils literal notranslate"><span class="pre">texmetro.cpp</span></code>) before every UV metric, so <code class="docutils literal notranslate"><span class="pre">area_uv</span></code> and <code class="docutils literal notranslate"><span class="pre">boundary_len_uv</span></code> are in texels, and QCD sees the texel anisotropy of a non-square texture.</p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">LoadMesh</span></code></p></td>
+<td><p>If the UV box of a texture is centred outside [0,1] the UVs are shifted by an integer plus 10⁻³ <strong>UV units</strong> (4 texels at 4096). The raster clips to [0,1] while the seam sampler wraps, so the two disagree for UVs outside the unit square.</p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>texture too large</p></td>
+<td><p>If a side exceeds <code class="docutils literal notranslate"><span class="pre">GL_MAX_TEXTURE_SIZE</span></code> the level returns all zeros with a warning on <code class="docutils literal notranslate"><span class="pre">stderr</span></code>, and the JSON carries the zeros.</p></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p>percentiles</p></td>
+<td><p>Binned <code class="docutils literal notranslate"><span class="pre">vcg::Histogram&lt;double&gt;</span></code>: 500,000 bins for QCD, <strong>20,000,000</strong> for <code class="docutils literal notranslate"><span class="pre">sf</span></code>. Each histogram stores two arrays of that length, so <code class="docutils literal notranslate"><span class="pre">sf</span></code> costs about 320 MB of memory, and a percentile is only as exact as the bin width (2 × 10⁻⁴ and 5 × 10⁻⁶).</p></td>
+</tr>
+<tr class="row-odd"><td><p>12</p></td>
+<td><p>seams</p></td>
+<td><p>Every seam edge is visited from both sides, so each is counted twice; the average is unaffected. Sampling is 5 samples per texel of UV length, bilinear, with <code class="docutils literal notranslate"><span class="pre">%</span></code> wraparound, and the discrepancy is the Euclidean distance of two 8-bit sRGB triples (0 – 441.7), unweighted by perception, weighted in the histogram by 3D edge length.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<section id="options">
+<h2>Options<a class="headerlink" href="#options" title="Link to this heading">¶</a></h2>
+<section id="a-vendor-texmetro-subrepo-or-external-tool">
+<h3>A. Vendor TexMetro (subrepo or external tool)<a class="headerlink" href="#a-vendor-texmetro-subrepo-or-external-tool" title="Link to this heading">¶</a></h3>
+<p>Brought in as a submodule it would follow the pattern of the other vendored plugins
+(an <code class="docutils literal notranslate"><span class="pre">upstream/</span></code> tree, a <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code>). Against it, measured and read:</p>
+<ul class="simple">
+<li><p>The texel metrics cannot run on a Mac: the shaders do not compile (above). On Windows
+TexMetro needs GLEW, on Linux <code class="docutils literal notranslate"><span class="pre">-lGL</span> <span class="pre">-lGLEW</span></code>; none is a MeshLab dependency (MeshLab
+renders through QRhi). It is a qmake project and the build is separate.</p></li>
+<li><p>Its <code class="docutils literal notranslate"><span class="pre">Mesh</span></code> type, OBJ/PLY/FBX importers and UV recentring duplicate what the document
+already holds. A vendored copy would work on a file path, not on the layer in front of
+the user, so it could neither respect the document’s textures nor produce per-face
+results to look at or select.</p></li>
+<li><p>Run as an external tool from a filter (export, spawn, parse the JSON), it keeps the same
+platform limit and adds a process boundary, a temporary export of the model and a
+failure mode for every error message.</p></li>
+<li><p>Nothing in it uses <code class="docutils literal notranslate"><span class="pre">Document</span></code>, selection, undo, <code class="docutils literal notranslate"><span class="pre">outputValues</span></code> or the Python API.</p></li>
+</ul>
+<p>What survives is its value as a <em>reference</em>: the Stage 0 validation runs it on a Linux or
+Windows machine.</p>
+</section>
+<section id="b-reimplement-the-raster-on-qrhi">
+<h3>B. Reimplement the raster on QRhi<a class="headerlink" href="#b-reimplement-the-raster-on-qrhi" title="Link to this heading">¶</a></h3>
+<p>Two ways, both constrained by the facts under <a class="reference internal" href="#what-qrhi-offers"><span class="xref myst">What QRhi offers</span></a>.</p>
+<p><strong>B1, portable, no compute.</strong> One <code class="docutils literal notranslate"><span class="pre">RGBA8</span></code> render target the size of the MIP level;
+colour replaced by the chart id (24 bits), alpha <em>added</em> (a blend with different colour
+and alpha operations; count saturates at 255); read back with <code class="docutils literal notranslate"><span class="pre">readBackTexture</span></code>, the one
+format guaranteed readable on every backend, including OpenGL. The 3 × 3 passes then run
+on the CPU anyway, since TexMetro has them there too. Pros: works wherever QRhi does, no
+new shader stage. Cons: a render target per level, tiled above <code class="docutils literal notranslate"><span class="pre">TextureSizeMax</span></code>; the UVs
+are quantized to 32-bit floats on the way in (about 10⁻³ texel at 16384, finer than the
+precision difference above, but not the same as double); the fill rule and sub-pixel
+precision are the device’s, with the spread measured above; and no <code class="docutils literal notranslate"><span class="pre">ctest</span></code>, no headless
+<code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code>.</p>
+<p><strong>B2, compute.</strong> A storage-buffer <code class="docutils literal notranslate"><span class="pre">atomicAdd</span></code> per texel, as TexMetro does with
+<code class="docutils literal notranslate"><span class="pre">imageAtomicAdd</span></code>. Needs <code class="docutils literal notranslate"><span class="pre">QRhi::Compute</span></code> (so a fallback on OpenGL &lt; 4.3, the Linux
+default), a compute shader baked for GLSL 430 (the project bakes 150 today), and it is the
+first compute use in the project. It removes the readback of the counters but not that of
+the buffers the CPU passes use.</p>
+<p>Both give a number that changes with the machine, in a path no test can reach. B is
+worth building <strong>for what only a GPU does well</strong>: drawing the overdraw count and the
+clash texels live in the UV view (<code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp</span></code> already exists), as a diagnostic.
+That is a separate, optional stage (<a class="reference internal" href="#staging"><span class="xref myst">Stage 5</span></a>) and its numbers would not be
+the reported ones.</p>
+</section>
+<section id="c-cpu-algorithms-in-vcglib-thin-filters-in-meshlab-recommended">
+<h3>C. CPU algorithms in vcglib, thin filters in MeshLab (recommended)<a class="headerlink" href="#c-cpu-algorithms-in-vcglib-thin-filters-in-meshlab-recommended" title="Link to this heading">¶</a></h3>
+<p>The precedent is in the tree: when <em>Defragment Texture Atlas</em> was ported, its OpenGL
+atlas rasterizer was replaced by a QImage CPU renderer behind the same API
+(<code class="docutils literal notranslate"><span class="pre">plugins/filter_texture_defragmentation/UPSTREAM.md</span></code>). TexMetro’s raster is the same
+kind of problem, by overlapping authors. The measurements above are what make C safe:
+0.35 s a level, deterministic, six bytes a texel.</p>
+<p>What this proposal adds is <em>where</em> the code goes. Nothing here is MeshLab-specific: UV
+charts, distortion and texel coverage are mesh and UV processing, with no document, GUI
+or Qt in them. The repository’s rule is that such code is <strong>written into vcglib</strong> when
+there is no easy path to it (the Reeb graph and handle/tunnel loops, the planar polygon
+tessellation and the plane clipping are the precedents), and TexMetro is such a case: the
+only candidate source is a tool whose raster cannot run on a Mac. Hosting it in vcglib
+also lets TexMetro itself adopt it later and drop OpenGL and GLEW, so there is one
+implementation and two consumers.</p>
+</section>
+</section>
+<section id="proposed-design-option-c">
+<h2>Proposed design (Option C)<a class="headerlink" href="#proposed-design-option-c" title="Link to this heading">¶</a></h2>
+<section id="where-the-code-lives">
+<h3>Where the code lives<a class="headerlink" href="#where-the-code-lives" title="Link to this heading">¶</a></h3>
+<p><strong>vcglib holds the algorithms; MeshLab holds adapters.</strong> The adapters, all in
+<strong><code class="docutils literal notranslate"><span class="pre">filter_measure</span></code></strong> (the plugin of the <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> family; <a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter
+Organization</span></a>, decision 1: plugins follow the family and split
+only for a dependency, and there is none), are: the descriptors, the parameters, the
+<code class="docutils literal notranslate"><span class="pre">QImage</span></code> access (<code class="docutils literal notranslate"><span class="pre">TextureAssociationUtils::loadAssociatedTextureImage</span></code>, wrapped in a
+texel functor), and the <code class="docutils literal notranslate"><span class="pre">outputValues</span></code>.</p>
+<p>What goes into vcglib, checked against what is already there (the library’s own rules
+are no duplication and less code):</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>vcglib file</p></th>
+<th class="head"><p>Addition</p></th>
+<th class="head"><p>What it reuses, and why nothing existing will do</p></th>
+<th class="head"><p>Lines (estimate)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>V1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrization/distortion.h</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">QuasiConformalDistortion(f)</span></code>, <code class="docutils literal notranslate"><span class="pre">σmax/σmin</span></code> of the face’s Jacobian; <code class="docutils literal notranslate"><span class="pre">UVScaling(f,</span> <span class="pre">scale)</span></code>, the <em>signed</em> area ratio</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mappingTransform2D</span></code> and <code class="docutils literal notranslate"><span class="pre">svd2x2</span></code>, already there and measured above to agree with TexMetro to 10⁻¹¹. <code class="docutils literal notranslate"><span class="pre">AreaDistortion</span></code> becomes <code class="docutils literal notranslate"><span class="pre">|UVScaling</span> <span class="pre">−</span> <span class="pre">1|</span></code>, so it is not duplicated</p></td>
+<td><p>~15</p></td>
+</tr>
+<tr class="row-odd"><td><p>V2</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean.h</span></code></p></td>
+<td><p>a <code class="docutils literal notranslate"><span class="pre">DeleteFacesFlag</span></code> on <code class="docutils literal notranslate"><span class="pre">RemoveDuplicateFace</span></code>, as <code class="docutils literal notranslate"><span class="pre">RemoveZeroAreaFace</span></code> and <code class="docutils literal notranslate"><span class="pre">RemoveDegenerateFace</span></code> already have</p></td>
+<td><p>the counting modes that exist</p></td>
+<td><p>~5</p></td>
+</tr>
+<tr class="row-even"><td><p>V3</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrization/uv_utils.h</span></code></p></td>
+<td><p>UV charts: a per-face chart id and the chart count; a chart’s signed area; the chart-relative fold test behind <code class="docutils literal notranslate"><span class="pre">nfolds</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UpdateTopology::FaceFaceFromTexCoord</span></code> and the connected-component iterator do the partition (measured above). <code class="docutils literal notranslate"><span class="pre">Distortion::IsFolded</span></code> tests the sign against zero, not against the chart</p></td>
+<td><p>~30</p></td>
+</tr>
+<tr class="row-odd"><td><p>V4</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrization/texel_coverage.h</span></code> (new)</p></td>
+<td><p>a scan converter on a fixed-point grid with the top-left fill rule, and TexMetro’s counters for one MIP level; banding for large textures</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SurfaceSampler::Texture</span></code> / <code class="docutils literal notranslate"><span class="pre">SingleFaceRaster</span></code> is a <em>sampler</em>: it tests edges inclusively, so a texel centre exactly on a shared edge is produced by both triangles, which a coverage count would report as overwritten, and it adds border samples. Different job</p></td>
+<td><p>~120 (the prototype is ~55)</p></td>
+</tr>
+<tr class="row-even"><td><p>V5</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrization/texel_coverage.h</span></code> or a sibling</p></td>
+<td><p>seam colour discrepancy, <strong>templated on a texel-fetch functor</strong> so vcglib keeps no image library</p></td>
+<td><p>the seam edges are those the geometric <code class="docutils literal notranslate"><span class="pre">FaceFace</span></code> joins and <code class="docutils literal notranslate"><span class="pre">FaceFaceFromTexCoord</span></code> detaches</p></td>
+<td><p>~60</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Statistics need no addition: area-weighted percentiles use <code class="docutils literal notranslate"><span class="pre">vcg::Histogram</span></code> as it is (see
+<a class="reference internal" href="#engine"><span class="xref myst">Engine</span></a>). The line counts are estimates, not measurements.</p>
+<p>Following <code class="docutils literal notranslate"><span class="pre">vcglib/AGENTS.md</span></code>: algorithms are static members of a class templated on the
+mesh type; long runs take a <code class="docutils literal notranslate"><span class="pre">CallBackPos</span> <span class="pre">*</span></code>, defaulting to null; bad input throws through
+<code class="docutils literal notranslate"><span class="pre">MeshAssert</span></code>, it does not <code class="docutils literal notranslate"><span class="pre">assert</span></code>; and there are no regression tests in vcglib, since its
+samples are documentation. The behavioural tests live in MeshLab’s <code class="docutils literal notranslate"><span class="pre">tests/test_filters.cpp</span></code>
+and drive the vcglib code through the filters.</p>
+<p><strong>Each vcglib piece lands as the four-part task</strong> (commit inside <code class="docutils literal notranslate"><span class="pre">vcglib/</span></code>, push to
+<code class="docutils literal notranslate"><span class="pre">origin/devel</span></code>, bump the gitlink, land the MeshLab code that depends on it in the same
+bump), so <a class="reference internal" href="#staging"><span class="xref myst">Staging</span></a> is organised around that.</p>
+</section>
+<section id="filters">
+<h3>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h3>
+<p>Naming follows <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>: <code class="docutils literal notranslate"><span class="pre">Measure</span></code> reports without modifying,
+<code class="docutils literal notranslate"><span class="pre">Compute</span></code> stores an attribute, <code class="docutils literal notranslate"><span class="pre">Select</span></code> changes selection. <strong>The category
+<code class="docutils literal notranslate"><span class="pre">Measurement/UV</span> <span class="pre">Mapping</span></code> is approved (2026-10-23):</strong> it extends the closed ontology (the
+current subcategories are Geometric, Topological, Statistics), and <code class="docutils literal notranslate"><span class="pre">Measurement/Texture</span></code>
+was excluded by form rule 4, which forbids a subcategory that repeats another root’s
+name.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter (display name)</p></th>
+<th class="head"><p>Id</p></th>
+<th class="head"><p>Kind</p></th>
+<th class="head"><p>Reports or writes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Measure UV Mapping</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p>Information</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">num_charts</span></code>, <code class="docutils literal notranslate"><span class="pre">en_uv</span></code>, <code class="docutils literal notranslate"><span class="pre">en_uv_b</span></code>, <code class="docutils literal notranslate"><span class="pre">area_uv</span></code>, <code class="docutils literal notranslate"><span class="pre">boundary_len_uv</span></code>, <code class="docutils literal notranslate"><span class="pre">num_null_charts</span></code>, <code class="docutils literal notranslate"><span class="pre">mapped_fraction</span></code>, <code class="docutils literal notranslate"><span class="pre">nfolds</span></code>, the 16 <code class="docutils literal notranslate"><span class="pre">qcd_*</span></code> and the 16 <code class="docutils literal notranslate"><span class="pre">sf_*</span></code> keys, <code class="docutils literal notranslate"><span class="pre">occupancy</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Measure Texel Coverage</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_texel_coverage</span></code></p></td>
+<td><p>Information</p></td>
+<td><p>per texture and MIP level: <code class="docutils literal notranslate"><span class="pre">rw</span></code>, <code class="docutils literal notranslate"><span class="pre">rh</span></code>, <code class="docutils literal notranslate"><span class="pre">totalTexels</span></code>, <code class="docutils literal notranslate"><span class="pre">totalTexels_bilinear</span></code>, <code class="docutils literal notranslate"><span class="pre">overwrittenTexels</span></code>, <code class="docutils literal notranslate"><span class="pre">lostTexels</span></code>, <code class="docutils literal notranslate"><span class="pre">texelClashes</span></code>, <code class="docutils literal notranslate"><span class="pre">boundaryTexels</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Measure Texture Seam Color Discrepancy</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_texture_seam_discrepancy</span></code></p></td>
+<td><p>Information</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_avg</span></code>, <code class="docutils literal notranslate"><span class="pre">_min</span></code>, <code class="docutils literal notranslate"><span class="pre">_max</span></code>, <code class="docutils literal notranslate"><span class="pre">_stddev</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Compute UV Distortion</strong> (existing)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_uv_distortion</span></code></p></td>
+<td><p>writes face quality</p></td>
+<td><p>two new metrics, <strong>Quasi-conformal distortion</strong> (<code class="docutils literal notranslate"><span class="pre">σmax/σmin</span></code>) and <strong>UV scaling</strong> (signed <code class="docutils literal notranslate"><span class="pre">sf</span></code>) — done in Stage 1</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Select Folded UV Faces</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_folded_uv_faces</span></code></p></td>
+<td><p>selection</p></td>
+<td><p>faces whose UV orientation disagrees with their chart’s</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Measure Topological Properties</em>, <em>Measure Geometric Properties</em> (existing)</p></td>
+<td><p></p></td>
+<td><p>Information</p></td>
+<td><p>the 6 missing mesh keys of the first table</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Compute</span> <span class="pre">UV</span> <span class="pre">Distortion</span></code> is the cheapest slice of the whole proposal: two enumerators and
+about thirty lines, with a visualization (a face-quality map of where the distortion is)
+that TexMetro never had. It needs no raster. The sign matters for UV scaling: the existing
+<em>Area distortion</em> cannot tell a compressed face from a stretched one, which is exactly
+what a texel-density map is for.</p>
+<p><strong>Outputs.</strong> The keys keep TexMetro’s names where they do not collide, since they are the
+ones in the published benchmark and already lower-case and underscored like MeshLab’s
+(<code class="docutils literal notranslate"><span class="pre">qcd_perc50</span></code>, <code class="docutils literal notranslate"><span class="pre">seam_discrepancy_avg</span></code>). The raster counters are nested (texture, then
+level). <code class="docutils literal notranslate"><span class="pre">FilterRunRecord.output_values</span></code> in the Python binding converts only scalars and
+<code class="docutils literal notranslate"><span class="pre">QVector3D</span></code> today: <strong>a list or map becomes <code class="docutils literal notranslate"><span class="pre">None</span></code></strong>. The binding needs a recursive
+conversion of <code class="docutils literal notranslate"><span class="pre">QVariantList</span></code> and <code class="docutils literal notranslate"><span class="pre">QVariantMap</span></code> (about fifteen lines in
+<code class="docutils literal notranslate"><span class="pre">src/python/bindings/module.cpp</span></code>, useful to any filter), and then
+<code class="docutils literal notranslate"><span class="pre">json.dumps(result.output_values)</span></code> writes a TexMetro-compatible file with no file output
+in the filter. A table of old key to new key goes in the filter documentation.</p>
+<p><strong>Parameters</strong> (advanced, with these defaults):</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Parameter</p></th>
+<th class="head"><p>Default</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Texture size</p></td>
+<td><p>from the layer’s texture images</p></td>
+<td><p>or a virtual size <code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">×</span> <span class="pre">H</span></code>, for a model with UVs and no image (TexMetro’s <code class="docutils literal notranslate"><span class="pre">--texsize</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Sub-pixel bits</p></td>
+<td><p>8</p></td>
+<td><p>the rasterizer’s fixed-point grid, the one source of device difference above</p></td>
+</tr>
+<tr class="row-even"><td><p>MIP levels</p></td>
+<td><p>all</p></td>
+<td><p>or the base level only</p></td>
+</tr>
+<tr class="row-odd"><td><p>Outlier cutoffs</p></td>
+<td><p>100 for QCD, 100 for UV scaling</p></td>
+<td><p>TexMetro’s constants</p></td>
+</tr>
+<tr class="row-even"><td><p>TexMetro-compatible clash rule</p></td>
+<td><p>on</p></td>
+<td><p>reproduces quirk 1; off compares all eight neighbours</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="engine">
+<h3>Engine<a class="headerlink" href="#engine" title="Link to this heading">¶</a></h3>
+<p>Three pieces, the first two in vcglib (V3 and V4 above).</p>
+<ol class="arabic simple">
+<li><p><strong>Charts (V3).</strong> A UV chart is a set of faces connected across edges whose two endpoint
+UVs agree on both sides: <code class="docutils literal notranslate"><span class="pre">FaceFaceFromTexCoord</span></code> followed by the component iterator,
+0.48 s for 3 M faces. The geometric <code class="docutils literal notranslate"><span class="pre">FaceFace</span></code> is built first and kept, since the seam
+test needs to tell a UV seam (joined in 3D, detached in UV) from a real border. A
+non-manifold edge, shared by more than two faces, is never joined across.</p></li>
+<li><p><strong>Texel raster (V4).</strong> The prototype above, grouped by texture index (<code class="docutils literal notranslate"><span class="pre">WT(i).N()</span></code>),
+with the chart id as the last-writer value so the clash count is defined. Memory is
+six bytes a texel. A texture whose buffers exceed a limit (default one gigabyte) is
+rasterized in horizontal bands, one texel of overlap each side, each band holding only
+the triangles that touch it, with the triangles bucketed by band once.</p></li>
+<li><p><strong>Statistics.</strong> <code class="docutils literal notranslate"><span class="pre">vcg::Histogram</span></code> as it is, with TexMetro’s bin counts (500,000 for QCD,
+20,000,000 for <code class="docutils literal notranslate"><span class="pre">sf</span></code>). That is no new code and it <strong>reproduces the published
+percentiles exactly</strong>, at the cost TexMetro already pays: two arrays of that length, so
+about 320 MB transient for <code class="docutils literal notranslate"><span class="pre">sf</span></code>. The alternative, exact percentiles from a sorted array
+of (value, weight) pairs, is 48 MB for 3 M faces and not binned, but it is new code and
+it differs from the published values by up to a bin (5 × 10⁻⁶ for <code class="docutils literal notranslate"><span class="pre">sf</span></code>, 2 × 10⁻⁴ for
+QCD). The histogram was chosen (2026-10-23); the alternative is not built, and stays in
+reserve for the day the memory matters.</p></li>
+</ol>
+<p>Concurrency: none to begin with; a full pyramid is under a second. Charts, bands and
+textures are independent if that ever changes.</p>
+</section>
+<section id="where-it-connects-to-the-rest-of-meshlab">
+<h3>Where it connects to the rest of MeshLab<a class="headerlink" href="#where-it-connects-to-the-rest-of-meshlab" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Seams as polylines, with a value per edge.</strong> Edges now carry colour and a scalar
+(<a class="reference internal" href="edge_support.html"><span class="std std-doc">Edge Support</span></a>, <code class="docutils literal notranslate"><span class="pre">IOM_EDGEQUALITY</span></code>). The seam discrepancy is a value
+per seam edge, so a later filter can create the UV-seam polyline and store each edge’s
+discrepancy in it, to be coloured by the existing edge colorizers. Not in the first
+stages; the report comes first.</p></li>
+<li><p><strong>The UV view</strong> already fills triangles by quality, with the same colour map and range
+controls as the 3D view (<a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a>, <em>UV fill</em>), so the face quality
+that <em>Compute UV Distortion</em> writes is visible on the UV layout without further work.</p></li>
+<li><p><strong>Texture images</strong> come from <code class="docutils literal notranslate"><span class="pre">TextureAssociationUtils::loadAssociatedTextureImage</span></code>, as
+<em>Sample Texels</em> does, and a layer with several textures is handled per texture.</p></li>
+</ul>
+</section>
+</section>
+<section id="verification">
+<h2>Verification<a class="headerlink" href="#verification" title="Link to this heading">¶</a></h2>
+<p>Follows the three tiers of the testing plan.</p>
+<ol class="arabic simple">
+<li><p><strong>Descriptor conformance</strong>: one row per new filter, in <code class="docutils literal notranslate"><span class="pre">test_filter_descriptors.cpp</span></code>;
+the new category is added to <code class="docutils literal notranslate"><span class="pre">filtercategories.{h,cpp}</span></code> and to the vocabulary table
+together.</p></li>
+<li><p><strong>Smoke</strong>: rows for the Information filters on the existing ladder. The texel and
+seam filters need texture images, so they are driven on the <code class="docutils literal notranslate"><span class="pre">textured</span></code> rung and
+recorded in <code class="docutils literal notranslate"><span class="pre">expectedRefusals()</span></code> for the rungs without one.</p></li>
+<li><p><strong>Behaviour</strong>, with exact expected values:</p>
+<ul class="simple">
+<li><p>an isometric mapping has QCD = 1 and UV scaling = 1 on every face;</p></li>
+<li><p>a uniform scale of the UVs leaves QCD unchanged and <code class="docutils literal notranslate"><span class="pre">sf</span></code> unchanged;</p></li>
+<li><p>one UV triangle of known area covers a known texel count; two coincident triangles
+give <code class="docutils literal notranslate"><span class="pre">overwritten</span> <span class="pre">=</span> <span class="pre">n</span></code>, <code class="docutils literal notranslate"><span class="pre">lost</span> <span class="pre">=</span> <span class="pre">n</span></code>; a triangle flipped against its chart is counted
+once in <code class="docutils literal notranslate"><span class="pre">nfolds</span></code>;</p></li>
+<li><p>two triangles sharing an edge cover every texel on it exactly once (the top-left
+rule), at every <code class="docutils literal notranslate"><span class="pre">S</span></code> from 4 to 16;</p></li>
+<li><p>QCD agrees with an independent computation to 10⁻⁹;</p></li>
+<li><p>two runs on the same input give identical output.</p></li>
+</ul>
+</li>
+<li><p><strong>Datasets</strong>: if the two gargoyle atlases can be published they become a dataset
+(<code class="docutils literal notranslate"><span class="pre">tests/datasets/datasets.json</span></code>, with a licence, per <a class="reference internal" href="../test_data.html"><span class="std std-doc">Test Data</span></a>).
+Otherwise a small synthetic atlas with a known answer is committed.</p></li>
+</ol>
+</section>
+<section id="staging">
+<h2>Staging<a class="headerlink" href="#staging" title="Link to this heading">¶</a></h2>
+<p>Stages 1 to 4 each end in one vcglib bump, with the MeshLab code that uses it.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Stage</p></th>
+<th class="head"><p>vcglib (four-part landing)</p></th>
+<th class="head"><p>MeshLab</p></th>
+<th class="head"><p>Needs</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>0</strong></p></td>
+<td><p>none</p></td>
+<td><p><strong>Reference values.</strong> Build TexMetro on Linux or Windows; run it on the two gargoyle atlases and on benchmark models; keep the JSON. Decide the tolerance between our rare counters and the GL ones (the measured 8-bit-vs-4-bit spread, about 0.1 % to 1 %, is the floor) and which quirks to keep. Settle the <a class="reference internal" href="#open-questions"><span class="xref myst">open questions</span></a> with the authors.</p></td>
+<td><p>no code</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>1</strong></p></td>
+<td><p>V1 (<code class="docutils literal notranslate"><span class="pre">QuasiConformalDistortion</span></code>, <code class="docutils literal notranslate"><span class="pre">UVScaling</span></code>); V2 (the counting flag)</p></td>
+<td><p>QCD and UV scaling in <em>Compute UV Distortion</em>; the six missing mesh keys; the recursive Python conversion</p></td>
+<td><p>nothing; it ships alone. <strong>Implemented 2026-10-23</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>2</strong></p></td>
+<td><p>V3 (charts, signed chart area, folds)</p></td>
+<td><p><em>Measure UV Mapping</em> (charts, folds, QCD percentiles through <code class="docutils literal notranslate"><span class="pre">vcg::Histogram</span></code>), and <em>Select Folded UV Faces</em>. <code class="docutils literal notranslate"><span class="pre">sf</span></code> and <code class="docutils literal notranslate"><span class="pre">occupancy</span></code> wait for the raster</p></td>
+<td><p>Stage 1</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>3</strong></p></td>
+<td><p>V4 (the rasterizer, banding)</p></td>
+<td><p><em>Measure Texel Coverage</em>, the full pyramid; <code class="docutils literal notranslate"><span class="pre">occupancy</span></code> and <code class="docutils literal notranslate"><span class="pre">sf</span></code> added to <em>Measure UV Mapping</em></p></td>
+<td><p>Stage 2, and Stage 0 for the <code class="docutils literal notranslate"><span class="pre">sf</span></code> outlier rule</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>4</strong></p></td>
+<td><p>V5 (seam discrepancy, templated on a texel functor)</p></td>
+<td><p><em>Measure Texture Seam Color Discrepancy</em>; optionally the seam polyline with per-edge values</p></td>
+<td><p>Stage 2, edge support</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>5</strong> <em>(optional)</em></p></td>
+<td><p>none</p></td>
+<td><p>An overdraw and clash overlay in the UV view, on QRhi (B1), as a diagnostic that reports no numbers</p></td>
+<td><p>Stage 3</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">Compute</span> <span class="pre">UV</span> <span class="pre">Distortion</span></code> change (Stage 1) is the cheapest slice of the proposal and
+ships alone; it needs no raster. The line counts in the table of V1 to V5, about 230 in
+vcglib, and a few hundred more for the adapters, descriptors and tests, are estimates. No
+new plugin or dependency is needed.</p>
+</section>
+<section id="open-questions">
+<h2>Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
+<p>For the authors of TexMetro, since several of its choices are undocumented
+(see <a class="reference internal" href="#quirks-found-in-texmetros-code"><span class="xref myst">Quirks</span></a>; the numbers are those measured above):</p>
+<ol class="arabic simple">
+<li><p><strong>The clash rule (quirk 1).</strong> Is checking only the diagonal neighbours intended?
+Bilinear sampling at a texel touches its four edge neighbours first. Checking all eight
+changes the published <code class="docutils literal notranslate"><span class="pre">texelClashes</span></code> by +3 to +4 %. Reproduce it (the default
+proposed), or fix it?</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">totalTexels_bilinear</span></code>.</strong> It counts a 3 × 3 footprint, where bilinear sampling reads
+2 × 2. A deliberately conservative bound, or an approximation?</p></li>
+<li><p><strong>Overwritten texels’ chart id (quirk 3).</strong> The CPU rasterizer must choose one. The
+last triangle in face order is proposed; any other choice changes which chart a
+clash is attributed to.</p></li>
+<li><p><strong>UV recentring and wrapping (quirk 9).</strong> Why a 10⁻³ UV-unit shift, and should UVs
+outside [0,1] be wrapped (as the sampler does) or clipped (as the raster does)? Models
+with a tiled texture are the case.</p></li>
+<li><p><strong>Outlier rule (quirk 4).</strong> Is it intended that <code class="docutils literal notranslate"><span class="pre">sf</span></code> depends on <code class="docutils literal notranslate"><span class="pre">occupancy</span></code>, and so on
+the texture resolution? Two textures of different size would give slightly different
+<code class="docutils literal notranslate"><span class="pre">sf</span></code> for the same UVs.</p></li>
+<li><p><strong>Texel units (quirk 8).</strong> QCD in texel space includes a non-square texture’s
+anisotropy; in normalized UV space it does not. <em>Compute UV Distortion</em> works in
+normalized UVs today. Which should the new metric use, or both as an option?</p></li>
+<li><p><strong>Oversized textures (quirk 10).</strong> Return zeros silently, as now, or the real values?
+The CPU rasterizer has no such limit, so the latter would be a visible difference.</p></li>
+<li><p><strong>TexMetro’s own future.</strong> Once V1 to V5 are in vcglib, should TexMetro be moved onto
+them? Its OpenGL, GLEW and its <code class="docutils literal notranslate"><span class="pre">-lGL</span></code> build would go, and it would run on a Mac.</p></li>
+</ol>
+<p>For this repository:</p>
+<ol class="arabic simple" start="9">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Select</span> <span class="pre">Folded</span> <span class="pre">UV</span> <span class="pre">Faces</span></code>.</strong> Does it belong under <code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code> and
+<code class="docutils literal notranslate"><span class="pre">Parametrization</span></code>, like <em>Select Vertex Texture Seams</em>? (The category
+<code class="docutils literal notranslate"><span class="pre">Measurement/UV</span> <span class="pre">Mapping</span></code> itself is settled.)</p></li>
+<li><p><strong>Key names.</strong> For the mesh keys added to the existing measure filters, Stage 1
+used MeshLab-style names (<code class="docutils literal notranslate"><span class="pre">duplicate_faces</span></code>, <code class="docutils literal notranslate"><span class="pre">zero_area_faces</span></code>, <code class="docutils literal notranslate"><span class="pre">degenerate_faces</span></code>,
+<code class="docutils literal notranslate"><span class="pre">is_mesh_oriented</span></code>, <code class="docutils literal notranslate"><span class="pre">boundary_length</span></code>, <code class="docutils literal notranslate"><span class="pre">normalized_surface_area</span></code>,
+<code class="docutils literal notranslate"><span class="pre">normalized_boundary_length</span></code>), since they sit beside <code class="docutils literal notranslate"><span class="pre">faces_number</span></code> and
+<code class="docutils literal notranslate"><span class="pre">unreferenced_vertices</span></code> and TexMetro’s <code class="docutils literal notranslate"><span class="pre">fndup</span></code> or <code class="docutils literal notranslate"><span class="pre">fnzero</span></code> would not. For the new UV and
+raster reports, TexMetro’s names (<code class="docutils literal notranslate"><span class="pre">qcd_perc50</span></code>, <code class="docutils literal notranslate"><span class="pre">seam_discrepancy_avg</span></code>, …) or
+MeshLab-style (<code class="docutils literal notranslate"><span class="pre">charts_number</span></code>, <code class="docutils literal notranslate"><span class="pre">folded_faces_number</span></code>, …)? The first preserves the
+benchmark’s JSON; the second matches the neighbours. Open.</p></li>
+<li><p><strong>The gargoyle atlases</strong> can be published as a test dataset?</p></li>
+</ol>
+</section>
+<section id="non-goals">
+<h2>Non-goals<a class="headerlink" href="#non-goals" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Porting the TexMetro command line, or its OBJ, PLY and FBX importers; MeshLab’s
+readers feed the filters.</p></li>
+<li><p>Any use of OpenGL or QRhi to compute a reported number. B1 is for drawing, in Stage 5.</p></li>
+<li><p>Algorithm code in the MeshLab plugin. The filters stay adapters; anything that needs no
+document, Qt or GPU is written into vcglib.</p></li>
+<li><p>Changing the meaning of the five existing <em>Compute UV Distortion</em> metrics. Expressing
+<em>Area distortion</em> as <code class="docutils literal notranslate"><span class="pre">|UVScaling</span> <span class="pre">−</span> <span class="pre">1|</span></code> inside vcglib is a refactor that keeps its values.</p></li>
+<li><p>Metrics of the texture’s <em>content</em> (sharpness, blur, exposure) or of the benchmark’s
+other tools.</p></li>
+<li><p>Reproducing a GPU’s rounding bit for bit; the target is agreement within the measured
+device spread.</p></li>
+<li><p>A benchmark site, a database, or collecting the results of a run.</p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">TexMetro: Texture and Parametrization Quality Metrics</a><ul>
+<li><a class="reference internal" href="#status-and-evidence">Status and evidence</a></li>
+<li><a class="reference internal" href="#recommendation">Recommendation</a></li>
+<li><a class="reference internal" href="#decisions-taken">Decisions taken</a></li>
+<li><a class="reference internal" href="#what-texmetro-reports-against-what-meshlab-has">What TexMetro reports, against what MeshLab has</a></li>
+<li><a class="reference internal" href="#evidence">Evidence</a><ul>
+<li><a class="reference internal" href="#texmetro-s-raster-path-cannot-run-on-a-mac">TexMetro’s raster path cannot run on a Mac</a></li>
+<li><a class="reference internal" href="#vcglib-already-computes-the-quasi-conformal-distortion">vcglib already computes the quasi-conformal distortion</a></li>
+<li><a class="reference internal" href="#vcglib-already-partitions-the-mesh-into-uv-charts">vcglib already partitions the mesh into UV charts</a></li>
+<li><a class="reference internal" href="#a-cpu-rasterizer-is-fast-and-it-is-the-more-reproducible-choice">A CPU rasterizer is fast, and it is the more reproducible choice</a></li>
+<li><a class="reference internal" href="#the-published-counters-depend-on-the-rasterizer-s-sub-pixel-precision">The published counters depend on the rasterizer’s sub-pixel precision</a></li>
+<li><a class="reference internal" href="#what-qrhi-offers">What QRhi offers</a></li>
+<li><a class="reference internal" href="#quirks-found-in-texmetro-s-code">Quirks found in TexMetro’s code</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#options">Options</a><ul>
+<li><a class="reference internal" href="#a-vendor-texmetro-subrepo-or-external-tool">A. Vendor TexMetro (subrepo or external tool)</a></li>
+<li><a class="reference internal" href="#b-reimplement-the-raster-on-qrhi">B. Reimplement the raster on QRhi</a></li>
+<li><a class="reference internal" href="#c-cpu-algorithms-in-vcglib-thin-filters-in-meshlab-recommended">C. CPU algorithms in vcglib, thin filters in MeshLab (recommended)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#proposed-design-option-c">Proposed design (Option C)</a><ul>
+<li><a class="reference internal" href="#where-the-code-lives">Where the code lives</a></li>
+<li><a class="reference internal" href="#filters">Filters</a></li>
+<li><a class="reference internal" href="#engine">Engine</a></li>
+<li><a class="reference internal" href="#where-it-connects-to-the-rest-of-meshlab">Where it connects to the rest of MeshLab</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#verification">Verification</a></li>
+<li><a class="reference internal" href="#staging">Staging</a></li>
+<li><a class="reference internal" href="#open-questions">Open questions</a></li>
+<li><a class="reference internal" href="#non-goals">Non-goals</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

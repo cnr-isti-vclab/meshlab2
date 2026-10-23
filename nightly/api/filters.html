@@ -1755,7 +1755,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <span id="filter-compute-uv-distortion"></span><h2>Compute UV Distortion<a class="headerlink" href="#compute-uv-distortion" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.colorproc</p>
-<p>Measure angular, area, edge-length, or directional stretch distortion in a UV mapping.</p>
+<p>Measure angular, area, edge-length, stretch, quasi-conformal or texel-density distortion in a UV mapping.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_uv_distortion">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_uv_distortion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_uv_distortion" title="Link to this definition">¶</a></dt>
@@ -1800,7 +1800,23 @@ The saturation is done in a conservative way (quality is always decreased and ne
 \[L_\infty=\sqrt{\frac{a+c+\sqrt{(a-c)^2+4b^2}}{2}},\qquad b=\frac{S_s\cdot S_t}{s_A}.\]</div>
 </div>
 <p>The ideal value is <span class="math notranslate nohighlight">\(1\)</span>. It highlights the worst local undersampling direction and is therefore more conservative than L2 stretch.</p>
-<p>The global normalization makes every metric invariant to uniform resizing of the complete UV map. UV area is oriented, matching VCGLib’s distortion implementation. A zero total oriented UV area makes area normalization undefined; stretch additionally requires that total to be positive. For L2 and L-infinity stretch, folded or degenerate individual UV triangles produce non-finite quality values, which are excluded from the displayed finite quality range.</p>
+<ul class="simple">
+<li><p><strong>Quasi-conformal distortion</strong>: the ratio between the largest and the smallest stretch of the locally linear map, that is of the two singular values of its Jacobian,</p></li>
+</ul>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[Q=\frac{\sigma_{\max}}{\sigma_{\min}}.\]</div>
+</div>
+<p>The ideal value is <span class="math notranslate nohighlight">\(1\)</span>, reached by every angle-preserving (conformal) map whatever its scale, so it needs no global normalization. It does not see orientation: a folded triangle counts as its mirror image (UV scaling is negative there, which is how to find those), and a UV triangle of zero area gives an infinite value. Studies of texture quality commonly discard values above 100.</p>
+<ul class="simple">
+<li><p><strong>UV scaling</strong>: the area of each face in UV space over its area in 3D, after the global area scale <span class="math notranslate nohighlight">\(s_A\)</span>,</p></li>
+</ul>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[S=\frac{s_A A_{UV}}{A_{3D}}.\]</div>
+</div>
+<p>The ideal value is <span class="math notranslate nohighlight">\(1\)</span>, the texel density of the mesh as a whole. Above <span class="math notranslate nohighlight">\(1\)</span> the face is magnified in texture space, below <span class="math notranslate nohighlight">\(1\)</span> it is compressed, and it is negative for a folded face. <em>Area distortion</em> is <span class="math notranslate nohighlight">\(|S-1|\)</span>, so it cannot tell the two directions apart.</p>
+<p>The global normalization makes every metric invariant to uniform resizing of the complete UV map. UV area is oriented, matching VCGLib’s distortion implementation. A zero total oriented UV area makes area normalization undefined, for area distortion and UV scaling; stretch additionally requires that total to be positive. For L2 and L-infinity stretch, folded or degenerate individual UV triangles produce non-finite quality values, which are excluded from the displayed finite quality range.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>metric</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">angle</span></code>) — Choose the UV distortion measure stored in face quality.</p></li>
@@ -5177,7 +5193,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.measure_geometric_properties">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">measure_geometric_properties</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.measure_geometric_properties" title="Link to this definition">¶</a></dt>
-<dd><p>Compute a set of geometric measures of a mesh/pointcloud. Bounding box extents and diagonal, principal axis, thin shell barycenter (mesh only), vertex barycenter and quality-weighted barycenter (pointcloud only), surface area (mesh only), volume (closed mesh) and inertia tensor matrix (closed mesh).</p>
+<dd><p>Compute a set of geometric measures of a mesh/pointcloud. Bounding box extents and diagonal, principal axis, thin shell barycenter (mesh only), vertex barycenter and quality-weighted barycenter (pointcloud only), surface area and boundary length (mesh only), the same two scaled so that the longest side of the bounding box is 1 (<code class="docutils literal notranslate"><span class="pre">normalized_surface_area</span></code>, <code class="docutils literal notranslate"><span class="pre">normalized_boundary_length</span></code>, which makes meshes of different size comparable), volume (closed mesh) and inertia tensor matrix (closed mesh).</p>
 <p>For a <strong>polyline</strong> (the real edges of a layer) it reports the total length, the shortest, longest and average edge, and the barycenter and principal axes of the wire, every point of every edge weighing alike, so a densely sampled stretch does not pull them towards itself. A layer with both faces and edges gets both. Measures are taken in world space, through the layer matrix.</p>
 <p>This filter has no parameters.</p>
 </dd></dl>
@@ -5428,7 +5444,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.measure_topological_properties">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">measure_topological_properties</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.measure_topological_properties" title="Link to this definition">¶</a></dt>
-<dd><p>Compute a set of topological measures over a mesh: vertex, edge and face counts, connected components, manifoldness, holes and genus.</p>
+<dd><p>Compute a set of topological measures over a mesh: vertex, edge and face counts, connected components, manifoldness, holes and genus, and the faces that are duplicated (same three vertices), have zero area or are degenerate (repeat a vertex; they are zero-area too). It also tells whether the faces are consistently oriented, which is only defined when no edge is non-manifold: with such edges the <code class="docutils literal notranslate"><span class="pre">is_mesh_oriented</span></code> output is absent.</p>
 <p>For a <strong>polyline</strong> (the real edges of a layer, as made by the <em>Create Polyline</em> filters) it reports instead its connected pieces; its <strong>ends</strong> (vertices with one edge) and <strong>junctions</strong> (three or more); the <strong>strands</strong>, the chains running between ends and junctions, a closed loop with neither counting as one strand; the closed loops; and the independent cycles, <span class="math notranslate nohighlight">\(E - V + C\)</span>. A tree has none; the cut graph of a closed surface of genus <span class="math notranslate nohighlight">\(g\)</span> has <span class="math notranslate nohighlight">\(2g\)</span>. A layer with both faces and edges gets both reports. A point cloud has no topology to measure.</p>
 <p>This filter has no parameters.</p>
 </dd></dl>

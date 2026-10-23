@@ -503,6 +503,12 @@ and choose either the full or compact format.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">new_mesh_indices</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">output_values</span></code></p></li>
 </ul>
+<p><code class="docutils literal notranslate"><span class="pre">output_values</span></code> is a dict of what the filter measured. Its values are numbers, booleans,
+strings and 3-tuples for points, and a filter that reports a table returns lists and
+dicts of those, nested as deep as the table needs. A key that does not apply to the
+layer is absent, not set to a placeholder: <code class="docutils literal notranslate"><span class="pre">is_mesh_oriented</span></code> is missing from <em>Measure
+Topological Properties</em> when the mesh has non-manifold edges. Since the values are plain Python, <code class="docutils literal notranslate"><span class="pre">json.dumps(result.output_values)</span></code>
+writes them to a file.</p>
 </section>
 <section id="snapshot-examples">
 <h2>Snapshot Examples<a class="headerlink" href="#snapshot-examples" title="Link to this heading">¶</a></h2>
