@@ -14,6 +14,49 @@
 
 namespace nb = nanobind;
 
+namespace {
+
+// A filter's output value as a Python object. Numbers, strings and points are plain values;
+// lists and maps convert recursively, so a filter can report a table (the texel counters of
+// each MIP level of each texture, say) and not only a flat set of numbers. Anything else is None.
+nb::object variantToPython(const QVariant &v)
+{
+    switch (v.typeId()) {
+    case QMetaType::Int:
+    case QMetaType::LongLong:
+        return nb::cast(v.toLongLong());
+    case QMetaType::Double:
+        return nb::cast(v.toDouble());
+    case QMetaType::Float:
+        return nb::cast(v.toFloat());
+    case QMetaType::Bool:
+        return nb::cast(v.toBool());
+    case QMetaType::QString:
+        return nb::str(v.toString().toStdString().c_str());
+    case QMetaType::QVariantList: {
+        nb::list list;
+        for (const QVariant &item : v.toList())
+            list.append(variantToPython(item));
+        return std::move(list);
+    }
+    case QMetaType::QVariantMap: {
+        nb::dict dict;
+        const QVariantMap map = v.toMap();
+        for (auto it = map.cbegin(); it != map.cend(); ++it)
+            dict[nb::str(it.key().toStdString().c_str())] = variantToPython(it.value());
+        return std::move(dict);
+    }
+    default:
+        if (v.canConvert<QVector3D>()) {
+            const QVector3D p = v.value<QVector3D>();
+            return nb::make_tuple(p.x(), p.y(), p.z());
+        }
+        return nb::none();
+    }
+}
+
+} // namespace
+
 NB_MODULE(_meshlab, m)
 {
     m.doc() = "MeshLab Python bindings — MeshSet wraps the MeshLab Document.";
@@ -40,37 +83,7 @@ NB_MODULE(_meshlab, m)
         .def_ro("info_messages",     &FilterRunRecord::info_messages)
         .def_ro("new_mesh_indices",  &FilterRunRecord::new_mesh_indices)
         .def_prop_ro("output_values", [](const FilterRunRecord &r) {
-            nb::dict d;
-            for (auto it = r.output_values.cbegin(); it != r.output_values.cend(); ++it) {
-                const QVariant &v = it.value();
-                switch (v.typeId()) {
-                case QMetaType::Int:
-                case QMetaType::LongLong:
-                    d[nb::str(it.key().toStdString().c_str())] = v.toLongLong();
-                    break;
-                case QMetaType::Double:
-                    d[nb::str(it.key().toStdString().c_str())] = v.toDouble();
-                    break;
-                case QMetaType::Bool:
-                    d[nb::str(it.key().toStdString().c_str())] = v.toBool();
-                    break;
-                case QMetaType::QString:
-                    d[nb::str(it.key().toStdString().c_str())] = nb::str(v.toString().toStdString().c_str());
-                    break;
-                case QMetaType::Float:
-                    d[nb::str(it.key().toStdString().c_str())] = v.toFloat();
-                    break;
-                default:
-                    if (v.canConvert<QVector3D>()) {
-                        QVector3D p = v.value<QVector3D>();
-                        d[nb::str(it.key().toStdString().c_str())] = nb::make_tuple(p.x(), p.y(), p.z());
-                    } else {
-                        d[nb::str(it.key().toStdString().c_str())] = nb::none();
-                    }
-                    break;
-                }
-            }
-            return d;
+            return variantToPython(r.output_values);
         });
 
     registerPyMesh(m);

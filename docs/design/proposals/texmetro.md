@@ -4,8 +4,8 @@ This document evaluates bringing [TexMetro](https://github.com/cnr-isti-vclab/te
 metrics into MeshLab, either by vendoring the tool as a subrepo or by reimplementing
 it on QRhi, and recommends a third route: **reimplement the metrics on the CPU, with a
 deterministic texel rasterizer, as algorithms in vcglib and thin `Measurement` filters in
-MeshLab**. **Not implemented.** The recommendation rests on measurements made for this
-proposal, listed under [Evidence](#evidence).
+MeshLab**. **Stage 1 is implemented (2026-10-23); the rest is not.** The recommendation
+rests on measurements made for this proposal, listed under [Evidence](#evidence).
 
 See also: [Edge Support](edge_support.md), [Adding a Filter](../adding_a_filter.md),
 [Filter Organization](../filter_organization.md), [Vocabulary](../vocabulary.md),
@@ -45,9 +45,22 @@ operating systems were not measured either.
 | **C** | CPU metrics and a deterministic CPU texel rasterizer, written **into vcglib**; thin `Measurement` filters in MeshLab | **Recommended.** No new dependency or plugin; runs on every platform, in `ctest`, in `pymeshlab` without a GPU; 0.9 s for a full 13-level pyramid on a 3 M-face atlas. The same vcglib code can serve TexMetro itself, which would then no longer need OpenGL. |
 
 Of TexMetro's 68 top-level report keys, 14 need nothing built (MeshLab already reports
-them, or the document already knows them), 1 is derivable, and **53 are new**. 35 of the
-53 need no rasterization at all. They are plain mesh and UV arithmetic, and vcglib
+them, or the document already knows them), 1 is derivable, 1 (`orientable`) is dropped by
+decision, and **52 are new**. 34 of the 52 need no rasterization at all. They are plain mesh and UV arithmetic, and vcglib
 already holds most of the pieces (see [Where the code lives](#where-the-code-lives)).
+
+## Decisions taken
+
+Settled by the maintainer on **2026-10-23**, after the first version of this proposal:
+
+- **Option C, with the algorithms in vcglib** and thin filters in `filter_measure`
+  ([Where the code lives](#where-the-code-lives)).
+- **`orientable` is dropped** from the report. `oriented` stays, as it needs nothing new.
+- **The category `Measurement/UV Mapping` is approved.** The vocabulary table and
+  `src/plugins/filtercategories.{h,cpp}` change together, in the stage whose first filter
+  uses it (Stage 2), not before: an approved term with no filter would be dead code.
+- **Percentiles use `vcg::Histogram`** at TexMetro's own bin counts, which reproduces the
+  published values; the sorted-pairs alternative is not built.
 
 ## What TexMetro reports, against what MeshLab has
 
@@ -61,13 +74,14 @@ depends on the texel raster, the one part TexMetro does with OpenGL.
 | `fn` `vn` `en` `en_b` | `faces_number` `vertices_number` `edges_number` `boundary_edges` (*Measure Topological Properties*) | none |
 | `area` | `surface_area` (*Measure Geometric Properties*) | none |
 | `boundary_loops` `nonmanif_edge` `nonmanif_vert` `connected_components` `genus` `vnunref` | `number_holes` `non_two_manifold_edges` `non_two_manifold_vertices` `connected_components_number` `genus` `unreferenced_vertices` | none |
-| `area_normalized` | derivable from `surface_area` and `bbox_dim_*` | one output |
-| `boundary_len`, `boundary_len_normalized` | **missing.** The only `perimeter` output belongs to the *selection* measure, not the whole mesh | add to *Measure Geometric Properties* |
-| `fndup` `fnzero` `fndegen` | **missing from the filters.** vcglib counts two of them already: `Clean::RemoveZeroAreaFace(m, false)` and `RemoveDegenerateFace(m, false)` count without deleting (TexMetro's `CountDegenerateFace` is the same test); `RemoveDuplicateFace` has no counting mode | outputs of *Measure Topological Properties*; give `RemoveDuplicateFace` the flag its siblings have |
-| `oriented` `orientable` | **missing** (`is_mesh_two_manifold` is a different property). vcglib's `IsCoherentlyOrientedMesh` gives `oriented` without touching the mesh; `orientable` exists only inside `OrientCoherentlyMesh`, which flips faces | `oriented` is free; `orientable` needs a non-mutating variant, or is dropped (open question) |
+| `area_normalized` | derivable from `surface_area` and `bbox_dim_*` | `normalized_surface_area` (**Stage 1, done**) |
+| `boundary_len`, `boundary_len_normalized` | **missing.** The only `perimeter` output belongs to the *selection* measure, not the whole mesh | `boundary_length`, `normalized_boundary_length` in *Measure Geometric Properties* (**Stage 1, done**) |
+| `fndup` `fnzero` `fndegen` | **missing from the filters.** vcglib counts two of them already: `Clean::RemoveZeroAreaFace(m, false)` and `RemoveDegenerateFace(m, false)` count without deleting (TexMetro's `CountDegenerateFace` is the same test); `RemoveDuplicateFace` has no counting mode | `duplicate_faces`, `zero_area_faces`, `degenerate_faces` in *Measure Topological Properties*, with the flag on `RemoveDuplicateFace` (**Stage 1, done**) |
+| `oriented` | **missing** (`is_mesh_two_manifold` is a different property). vcglib's `IsCoherentlyOrientedMesh` gives it without touching the mesh | `is_mesh_oriented` in *Measure Topological Properties* (**Stage 1, done**); it is absent when the mesh has non-manifold edges, where an orientation means nothing |
+| `orientable` | exists in vcglib only inside `OrientCoherentlyMesh`, which flips faces, so a report cannot use it | **dropped** (decision) |
 | `mesh` | a file name, not a metric | none |
 
-Totals: 11 covered + 1 derivable + 7 missing + 1 not a metric = 20.
+Totals: 11 covered + 1 derivable + 6 missing + 1 dropped + 1 not a metric = 20.
 
 **UV and texture metrics (48 keys).**
 
@@ -323,8 +337,8 @@ are no duplication and less code):
 
 | # | vcglib file | Addition | What it reuses, and why nothing existing will do | Lines (estimate) |
 |---|---|---|---|---|
-| V1 | `parametrization/distortion.h` | `QuasiConformal(f)`, `σmax/σmin` of the face's Jacobian; `UVScaling(f, scale)`, the *signed* area ratio | `mappingTransform2D` and `svd2x2`, already there and measured above to agree with TexMetro to 10⁻¹¹. `AreaDistortion` becomes `\|UVScaling − 1\|`, so it is not duplicated | ~15 |
-| V2 | `clean.h` | a `DeleteFacesFlag` on `RemoveDuplicateFace`, as `RemoveZeroAreaFace` and `RemoveDegenerateFace` already have. Optionally a non-mutating orientability test | the counting modes that exist; `OrientCoherentlyMesh` flips faces and cannot be used by a report | ~5 (+~25) |
+| V1 | `parametrization/distortion.h` | `QuasiConformalDistortion(f)`, `σmax/σmin` of the face's Jacobian; `UVScaling(f, scale)`, the *signed* area ratio | `mappingTransform2D` and `svd2x2`, already there and measured above to agree with TexMetro to 10⁻¹¹. `AreaDistortion` becomes `\|UVScaling − 1\|`, so it is not duplicated | ~15 |
+| V2 | `clean.h` | a `DeleteFacesFlag` on `RemoveDuplicateFace`, as `RemoveZeroAreaFace` and `RemoveDegenerateFace` already have | the counting modes that exist | ~5 |
 | V3 | `parametrization/uv_utils.h` | UV charts: a per-face chart id and the chart count; a chart's signed area; the chart-relative fold test behind `nfolds` | `UpdateTopology::FaceFaceFromTexCoord` and the connected-component iterator do the partition (measured above). `Distortion::IsFolded` tests the sign against zero, not against the chart | ~30 |
 | V4 | `parametrization/texel_coverage.h` (new) | a scan converter on a fixed-point grid with the top-left fill rule, and TexMetro's counters for one MIP level; banding for large textures | `SurfaceSampler::Texture` / `SingleFaceRaster` is a *sampler*: it tests edges inclusively, so a texel centre exactly on a shared edge is produced by both triangles, which a coverage count would report as overwritten, and it adds border samples. Different job | ~120 (the prototype is ~55) |
 | V5 | `parametrization/texel_coverage.h` or a sibling | seam colour discrepancy, **templated on a texel-fetch functor** so vcglib keeps no image library | the seam edges are those the geometric `FaceFace` joins and `FaceFaceFromTexCoord` detaches | ~60 |
@@ -346,19 +360,19 @@ bump), so [Staging](#staging) is organised around that.
 
 Naming follows [Vocabulary](../vocabulary.md): `Measure` reports without modifying,
 `Compute` stores an attribute, `Select` changes selection. **The category
-`Measurement/UV Mapping` is proposed and needs approval:** it extends the closed
-ontology (the current subcategories are Geometric, Topological, Statistics), and
-`Measurement/Texture` is excluded by form rule 4, which forbids a subcategory that
-repeats another root's name.
+`Measurement/UV Mapping` is approved (2026-10-23):** it extends the closed ontology (the
+current subcategories are Geometric, Topological, Statistics), and `Measurement/Texture`
+was excluded by form rule 4, which forbids a subcategory that repeats another root's
+name.
 
 | Filter (display name) | Id | Kind | Reports or writes |
 |---|---|---|---|
 | **Measure UV Mapping** | `measure_uv_mapping` | Information | `num_charts`, `en_uv`, `en_uv_b`, `area_uv`, `boundary_len_uv`, `num_null_charts`, `mapped_fraction`, `nfolds`, the 16 `qcd_*` and the 16 `sf_*` keys, `occupancy` |
 | **Measure Texel Coverage** | `measure_texel_coverage` | Information | per texture and MIP level: `rw`, `rh`, `totalTexels`, `totalTexels_bilinear`, `overwrittenTexels`, `lostTexels`, `texelClashes`, `boundaryTexels` |
 | **Measure Texture Seam Color Discrepancy** | `measure_texture_seam_discrepancy` | Information | `seam_discrepancy_avg`, `_min`, `_max`, `_stddev` |
-| **Compute UV Distortion** (existing) | `compute_uv_distortion` | writes face quality | two new metrics: **Quasi-conformal** (`σmax/σmin`) and **UV scaling** (signed `sf`) |
+| **Compute UV Distortion** (existing) | `compute_uv_distortion` | writes face quality | two new metrics, **Quasi-conformal distortion** (`σmax/σmin`) and **UV scaling** (signed `sf`) — done in Stage 1 |
 | **Select Folded UV Faces** | `select_folded_uv_faces` | selection | faces whose UV orientation disagrees with their chart's |
-| *Measure Topological Properties*, *Measure Geometric Properties* (existing) | | Information | the 7 missing mesh keys of the first table |
+| *Measure Topological Properties*, *Measure Geometric Properties* (existing) | | Information | the 6 missing mesh keys of the first table |
 
 `Compute UV Distortion` is the cheapest slice of the whole proposal: two enumerators and
 about thirty lines, with a visualization (a face-quality map of where the distortion is)
@@ -406,7 +420,8 @@ Three pieces, the first two in vcglib (V3 and V4 above).
    about 320 MB transient for `sf`. The alternative, exact percentiles from a sorted array
    of (value, weight) pairs, is 48 MB for 3 M faces and not binned, but it is new code and
    it differs from the published values by up to a bin (5 × 10⁻⁶ for `sf`, 2 × 10⁻⁴ for
-   QCD), so it stays in reserve for the day the memory matters (open question).
+   QCD). The histogram was chosen (2026-10-23); the alternative is not built, and stays in
+   reserve for the day the memory matters.
 
 Concurrency: none to begin with; a full pyramid is under a second. Charts, bands and
 textures are independent if that ever changes.
@@ -455,8 +470,8 @@ Stages 1 to 4 each end in one vcglib bump, with the MeshLab code that uses it.
 | Stage | vcglib (four-part landing) | MeshLab | Needs |
 |---|---|---|---|
 | **0** | none | **Reference values.** Build TexMetro on Linux or Windows; run it on the two gargoyle atlases and on benchmark models; keep the JSON. Decide the tolerance between our rare counters and the GL ones (the measured 8-bit-vs-4-bit spread, about 0.1 % to 1 %, is the floor) and which quirks to keep. Settle the [open questions](#open-questions) with the authors. | no code |
-| **1** | V1 (`QuasiConformal`, `UVScaling`); V2 (the counting flag, and the orientability decision) | QCD and UV scaling in *Compute UV Distortion*; the seven missing mesh keys; the recursive Python conversion | nothing; it ships alone |
-| **2** | V3 (charts, signed chart area, folds) | *Measure UV Mapping* (charts, folds, QCD percentiles through `vcg::Histogram`), and *Select Folded UV Faces*. `sf` and `occupancy` wait for the raster | Stage 1, and approval of the category |
+| **1** | V1 (`QuasiConformalDistortion`, `UVScaling`); V2 (the counting flag) | QCD and UV scaling in *Compute UV Distortion*; the six missing mesh keys; the recursive Python conversion | nothing; it ships alone. **Implemented 2026-10-23** |
+| **2** | V3 (charts, signed chart area, folds) | *Measure UV Mapping* (charts, folds, QCD percentiles through `vcg::Histogram`), and *Select Folded UV Faces*. `sf` and `occupancy` wait for the raster | Stage 1 |
 | **3** | V4 (the rasterizer, banding) | *Measure Texel Coverage*, the full pyramid; `occupancy` and `sf` added to *Measure UV Mapping* | Stage 2, and Stage 0 for the `sf` outlier rule |
 | **4** | V5 (seam discrepancy, templated on a texel functor) | *Measure Texture Seam Color Discrepancy*; optionally the seam polyline with per-edge values | Stage 2, edge support |
 | **5** *(optional)* | none | An overdraw and clash overlay in the UV view, on QRhi (B1), as a diagnostic that reports no numbers | Stage 3 |
@@ -496,20 +511,18 @@ For the authors of TexMetro, since several of its choices are undocumented
 
 For this repository:
 
-9. **The category.** `Measurement/UV Mapping`, or another name; and whether
-   `Select Folded UV Faces` belongs under `Selection/by Topology` and `Parametrization`
-   like *Select Vertex Texture Seams*.
-10. **Key names.** TexMetro's, as proposed, or MeshLab-style (`charts_number`,
-    `folded_faces_number`, …). The first preserves the benchmark's JSON; the second
-    matches `faces_number` and `vertices_number`.
-11. **`orientable`.** `oriented` is free (`IsCoherentlyOrientedMesh`). `orientable` exists
-    only inside `OrientCoherentlyMesh`, which flips faces. Is it worth a non-mutating
-    variant in vcglib (about 25 lines, a parity flood fill), or are the two booleans
-    dropped from the report?
-12. **Percentiles.** `vcg::Histogram` at TexMetro's bin counts (exact reproduction, about
-    320 MB for `sf`), or sorted pairs (exact values, 48 MB, new code)? Proposed:
-    the histogram, until the memory is a problem.
-13. **The gargoyle atlases** can be published as a test dataset?
+9. **`Select Folded UV Faces`.** Does it belong under `Selection/by Topology` and
+   `Parametrization`, like *Select Vertex Texture Seams*? (The category
+   `Measurement/UV Mapping` itself is settled.)
+10. **Key names.** For the mesh keys added to the existing measure filters, Stage 1
+    used MeshLab-style names (`duplicate_faces`, `zero_area_faces`, `degenerate_faces`,
+    `is_mesh_oriented`, `boundary_length`, `normalized_surface_area`,
+    `normalized_boundary_length`), since they sit beside `faces_number` and
+    `unreferenced_vertices` and TexMetro's `fndup` or `fnzero` would not. For the new UV and
+    raster reports, TexMetro's names (`qcd_perc50`, `seam_discrepancy_avg`, …) or
+    MeshLab-style (`charts_number`, `folded_faces_number`, …)? The first preserves the
+    benchmark's JSON; the second matches the neighbours. Open.
+11. **The gargoyle atlases** can be published as a test dataset?
 
 ## Non-goals
 

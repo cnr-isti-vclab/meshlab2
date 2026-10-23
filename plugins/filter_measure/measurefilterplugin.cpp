@@ -307,11 +307,22 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         const int unrefVertNum = vcg::tri::Clean<VCGMesh>::CountUnreferencedVertex(mesh);
         const int connectedComponentsNum = vcg::tri::Clean<VCGMesh>::CountConnectedComponents(mesh);
         const bool isTwoManifold = edgeNonManifFFNum == 0 && vertManifNum == 0;
+        // The Remove* counters only count when told not to delete.
+        const int duplicateFaceNum = vcg::tri::Clean<VCGMesh>::RemoveDuplicateFace(mesh, false);
+        const int zeroAreaFaceNum = vcg::tri::Clean<VCGMesh>::RemoveZeroAreaFace(mesh, false);
+        const int degenerateFaceNum = vcg::tri::Clean<VCGMesh>::RemoveDegenerateFace(mesh, false);
+        // Orientation only means something across two-manifold edges, as in the filters that check it.
+        const bool orientationDefined = edgeNonManifFFNum == 0;
+        const bool isOriented = orientationDefined && vcg::tri::Clean<VCGMesh>::IsCoherentlyOrientedMesh(mesh);
 
         QStringList info;
         info << QObject::tr("Mesh: %1").arg(meshName);
         info << QObject::tr("V: %1  E: %2  F: %3").arg(mesh.VN()).arg(edgeNum).arg(mesh.FN());
         info << QObject::tr("Unreferenced vertices: %1").arg(unrefVertNum);
+        info << QObject::tr("Duplicate faces: %1").arg(duplicateFaceNum);
+        info << QObject::tr("Zero-area faces: %1 (of which degenerate, repeating a vertex: %2)")
+                    .arg(zeroAreaFaceNum)
+                    .arg(degenerateFaceNum);
         info << QObject::tr("Boundary edges: %1").arg(edgeBorderNum);
         info << QObject::tr("Connected components: %1").arg(connectedComponentsNum);
         info << QObject::tr("Two-manifold: %1").arg(isTwoManifold ? QObject::tr("yes") : QObject::tr("no"));
@@ -337,6 +348,9 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
             info << QObject::tr("Holes: undefined (non 2-manifold mesh)");
             info << QObject::tr("Genus: undefined (non 2-manifold mesh)");
         }
+        info << (orientationDefined
+                     ? QObject::tr("Consistently oriented: %1").arg(isOriented ? QObject::tr("yes") : QObject::tr("no"))
+                     : QObject::tr("Consistently oriented: undefined (non 2-manifold edges)"));
         if (edgeNonManifFFNum != edgeNonManifNum) {
             info << QObject::tr("Warning: non-manifold edge counters disagreed (%1 vs %2).")
                         .arg(edgeNonManifFFNum)
@@ -347,6 +361,11 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         result.outputValues["edges_number"] = edgeNum;
         result.outputValues["faces_number"] = mesh.FN();
         result.outputValues["unreferenced_vertices"] = unrefVertNum;
+        result.outputValues["duplicate_faces"] = duplicateFaceNum;
+        result.outputValues["zero_area_faces"] = zeroAreaFaceNum;
+        result.outputValues["degenerate_faces"] = degenerateFaceNum;
+        if (orientationDefined)
+            result.outputValues["is_mesh_oriented"] = isOriented;
         result.outputValues["boundary_edges"] = edgeBorderNum;
         result.outputValues["connected_components_number"] = connectedComponentsNum;
         result.outputValues["is_mesh_two_manifold"] = isTwoManifold;
@@ -502,6 +521,21 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         const float area = vcg::tri::Stat<VCGMesh>::ComputeMeshArea(*measureMesh);
         info << QObject::tr("Surface area: %1").arg(formatFloat(area));
 
+        // Area and length of the mesh scaled so that its longest bounding box side is 1,
+        // which makes meshes of different size comparable.
+        const float longestSide = std::max({ bbox.DimX(), bbox.DimY(), bbox.DimZ() });
+        float boundaryLength = 0;
+        if (!pointcloud) {
+            // The copy is ours, so building its face-face adjacency leaves the layer untouched.
+            measureMesh->face.EnableFFAdjacency();
+            boundaryLength = vcg::tri::Stat<VCGMesh>::ComputeBorderLength(*measureMesh);
+            info << QObject::tr("Boundary length: %1").arg(formatFloat(boundaryLength));
+            if (longestSide > 0)
+                info << QObject::tr("Normalized (longest bounding box side = 1) surface area: %1, boundary length: %2")
+                            .arg(formatFloat(area / (longestSide * longestSide)))
+                            .arg(formatFloat(boundaryLength / longestSide));
+        }
+
         Distributionf eDist;
         vcg::tri::Stat<VCGMesh>::ComputeFaceEdgeLengthDistribution(*measureMesh, eDist, false);
         info << QObject::tr("Total edge length: %1 over %2 edges (avg %3)")
@@ -553,6 +587,11 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         result.outputValues["is_pointcloud"] = pointcloud;
         if (!pointcloud) {
             result.outputValues["surface_area"] = area;
+            result.outputValues["boundary_length"] = boundaryLength;
+            if (longestSide > 0) {
+                result.outputValues["normalized_surface_area"] = area / (longestSide * longestSide);
+                result.outputValues["normalized_boundary_length"] = boundaryLength / longestSide;
+            }
             result.outputValues["is_watertight"] = watertight;
         }
         if (measureMesh->EN() > 0)

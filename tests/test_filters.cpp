@@ -522,6 +522,8 @@ private slots:
     void packTextureImagesCreatesGutteredAtlas();
     void setTextureUvGridTellsUAndVApart();
     void faceQualityFiltersAreSplit();
+    void quasiConformalAndUvScalingTellShapeFromDensity();
+    void measureReportsFaceDefectsOrientationAndBoundaryLength();
     void libiglParametrizationFiltersRunWhenAvailable();
     void libiglQuantityFiltersRunWhenAvailable();
     void meshBooleanFiltersRunWhenAvailable();
@@ -8553,6 +8555,197 @@ void FilterTests::faceQualityFiltersAreSplit()
         for (const VCGFace &face : doc.mesh(0).mesh.face)
             QVERIFY(std::abs(face.cQ() - expected) < 1e-5f);
     }
+}
+
+// Quasi-conformal distortion (the ratio of the Jacobian's singular values) tells a change of
+// shape from a change of size, and UV scaling (the signed area ratio against the mesh-wide
+// average) the other way round. The unit square in four triangles starts with UV = x, y, so
+// each expected value follows from what the metric means rather than from the library.
+void FilterTests::quasiConformalAndUvScalingTellShapeFromDensity()
+{
+    Document doc;
+    VCGMesh mesh;
+    makeOpenDiskMesh(mesh);
+    mesh.face.EnableWedgeTexCoord();
+    auto resetUvs = [](VCGMesh &m) {
+        for (VCGFace &face : m.face) {
+            for (int corner = 0; corner < 3; ++corner) {
+                face.WT(corner).U() = face.cP(corner).X();
+                face.WT(corner).V() = face.cP(corner).Y();
+                face.WT(corner).N() = 0;
+            }
+        }
+    };
+    resetUvs(mesh);
+    QCOMPARE(
+        doc.addMesh(
+            mesh,
+            QStringLiteral("Parameterized disk"),
+            vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD),
+        0);
+    const QString key = filterKeyForId(doc, QStringLiteral("compute_uv_distortion"));
+    QVERIFY(!key.isEmpty());
+
+    auto run = [&](const QString &metric, std::vector<float> &quality) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("metric"), metric);
+        const MeshFilterRunResult result = doc.runFilter(key, params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        quality.clear();
+        for (const VCGFace &face : doc.mesh(0).mesh.face)
+            quality.push_back(face.cQ());
+    };
+    auto expectAll = [&](const QString &metric, float expected) {
+        std::vector<float> quality;
+        run(metric, quality);
+        for (const float q : quality)
+            QVERIFY2(std::abs(q - expected) < 1e-4f, qPrintable(metric));
+    };
+
+    // An isometry is conformal and has the average density, and a uniform scale of the whole
+    // layout changes neither: both metrics are blind to it.
+    expectAll(QStringLiteral("quasi_conformal"), 1.0f);
+    expectAll(QStringLiteral("uv_scaling"), 1.0f);
+    for (VCGFace &face : doc.mesh(0).mesh.face)
+        for (int corner = 0; corner < 3; ++corner)
+            face.WT(corner).P() *= 7.0f;
+    expectAll(QStringLiteral("quasi_conformal"), 1.0f);
+    expectAll(QStringLiteral("uv_scaling"), 1.0f);
+
+    // Stretching U alone is a change of shape (2 : 1) at the same average density.
+    resetUvs(doc.mesh(0).mesh);
+    for (VCGFace &face : doc.mesh(0).mesh.face)
+        for (int corner = 0; corner < 3; ++corner)
+            face.WT(corner).U() *= 2.0f;
+    expectAll(QStringLiteral("quasi_conformal"), 2.0f);
+    expectAll(QStringLiteral("uv_scaling"), 1.0f);
+
+    // Magnifying two faces about their own centres by 2 keeps them conformal and quadruples
+    // their UV area: the layout holds 2.5 where the surface has 1, so the scale is 0.4, the
+    // magnified faces read 1.6 and the others 0.4. Area distortion reads 0.6 on all four,
+    // which cannot say which are the magnified ones.
+    resetUvs(doc.mesh(0).mesh);
+    for (int f = 0; f < 2; ++f) {
+        VCGFace &face = doc.mesh(0).mesh.face[std::size_t(f)];
+        const vcg::Point2f centre = (face.WT(0).P() + face.WT(1).P() + face.WT(2).P()) / 3.0f;
+        for (int corner = 0; corner < 3; ++corner)
+            face.WT(corner).P() = centre + (face.WT(corner).P() - centre) * 2.0f;
+    }
+    std::vector<float> scaling, area, conformal;
+    run(QStringLiteral("uv_scaling"), scaling);
+    run(QStringLiteral("area"), area);
+    run(QStringLiteral("quasi_conformal"), conformal);
+    for (std::size_t f = 0; f < 4; ++f) {
+        QVERIFY(std::abs(scaling[f] - (f < 2 ? 1.6f : 0.4f)) < 1e-4f);
+        QVERIFY(std::abs(area[f] - std::abs(scaling[f] - 1.0f)) < 1e-4f);
+        QVERIFY(std::abs(area[f] - 0.6f) < 1e-4f);
+        QVERIFY(std::abs(conformal[f] - 1.0f) < 1e-4f);
+    }
+
+    // A mirrored face is a fold. Quasi-conformal distortion does not see orientation, so it
+    // still reads 1, while UV scaling goes negative: the oriented UV area is 0.5, the scale 2,
+    // and the folded face reads -2 against +2 for the others.
+    resetUvs(doc.mesh(0).mesh);
+    for (int corner = 0; corner < 3; ++corner)
+        doc.mesh(0).mesh.face[0].WT(corner).V() *= -1.0f;
+    run(QStringLiteral("quasi_conformal"), conformal);
+    run(QStringLiteral("uv_scaling"), scaling);
+    for (std::size_t f = 0; f < 4; ++f) {
+        QVERIFY(std::abs(conformal[f] - 1.0f) < 1e-4f);
+        QVERIFY(std::abs(scaling[f] - (f == 0 ? -2.0f : 2.0f)) < 1e-4f);
+    }
+
+    // A face whose UVs collapse onto a line is infinitely distorted, and has no area at all;
+    // it does not disturb the others.
+    resetUvs(doc.mesh(0).mesh);
+    for (int corner = 0; corner < 3; ++corner)
+        doc.mesh(0).mesh.face[0].WT(corner).V() = 0.0f;
+    run(QStringLiteral("quasi_conformal"), conformal);
+    run(QStringLiteral("uv_scaling"), scaling);
+    QVERIFY(!std::isfinite(conformal[0]));
+    QCOMPARE(scaling[0], 0.0f);
+    for (std::size_t f = 1; f < 4; ++f) {
+        QVERIFY(std::abs(conformal[f] - 1.0f) < 1e-4f);
+        QVERIFY(std::abs(scaling[f] - 4.0f / 3.0f) < 1e-4f);
+    }
+}
+
+// The counters TexMetro reports that Measure Topological and Geometric Properties lacked.
+// Boundary length and the normalized pair are checked on a layer three times the unit
+// square, and again through a layer matrix, which must not change the normalized values.
+void FilterTests::measureReportsFaceDefectsOrientationAndBoundaryLength()
+{
+    Document doc;
+    const auto topology = [&](const MeshFilterParameterValues &p = {}) {
+        return doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_topological_properties")), p);
+    };
+    const auto geometry = [&]() {
+        return doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_geometric_properties")), {});
+    };
+    const auto number = [](const MeshFilterRunResult &r, const char *key) {
+        return r.outputValues.value(QString::fromLatin1(key)).toDouble();
+    };
+
+    VCGMesh disk;
+    makeOpenDiskMesh(disk);
+    for (VCGVertex &v : disk.vert)
+        v.P() *= 3.0f;
+    vcg::tri::UpdateBounding<VCGMesh>::Box(disk);
+    const int clean = doc.addMesh(disk, QStringLiteral("clean"));
+    doc.setCurrentMeshIndex(clean);
+
+    MeshFilterRunResult r = topology();
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.outputValues.value(QStringLiteral("duplicate_faces")).toInt(), 0);
+    QCOMPARE(r.outputValues.value(QStringLiteral("zero_area_faces")).toInt(), 0);
+    QCOMPARE(r.outputValues.value(QStringLiteral("degenerate_faces")).toInt(), 0);
+    QVERIFY(r.outputValues.value(QStringLiteral("is_mesh_oriented")).toBool());
+
+    r = geometry();
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(std::abs(number(r, "surface_area") - 9.0) < 1e-4);
+    QVERIFY(std::abs(number(r, "boundary_length") - 12.0) < 1e-4);
+    QVERIFY(std::abs(number(r, "normalized_surface_area") - 1.0) < 1e-5);
+    QVERIFY(std::abs(number(r, "normalized_boundary_length") - 4.0) < 1e-5);
+
+    QMatrix4x4 twice;
+    twice.scale(2.0f);
+    doc.setMeshTransform(clean, twice);
+    r = geometry();
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(std::abs(number(r, "boundary_length") - 24.0) < 1e-3);
+    QVERIFY(std::abs(number(r, "normalized_surface_area") - 1.0) < 1e-5);
+    QVERIFY(std::abs(number(r, "normalized_boundary_length") - 4.0) < 1e-5);
+
+    // The same face twice: three faces meet on two edges, so the mesh is non-manifold and has
+    // no orientation to speak of, but the duplicate is counted.
+    VCGMesh duplicated;
+    makeOpenDiskMesh(duplicated);
+    vcg::tri::Allocator<VCGMesh>::AddFace(duplicated, 0, 1, 4);
+    doc.setCurrentMeshIndex(doc.addMesh(duplicated, QStringLiteral("duplicated")));
+    r = topology();
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.outputValues.value(QStringLiteral("duplicate_faces")).toInt(), 1);
+    QVERIFY(!r.outputValues.contains(QStringLiteral("is_mesh_oriented")));
+
+    // A sliver with a vertex on the line of an edge has no area and is not degenerate, and it
+    // runs along that edge the same way the neighbouring face does: the pair is inconsistent.
+    VCGMesh sliver;
+    makeOpenDiskMesh(sliver);
+    vcg::tri::Allocator<VCGMesh>::AddVertices(sliver, 1);
+    sliver.vert[5].P() = vcg::Point3f(0.5f, 0.0f, 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddFace(sliver, 0, 1, 5);
+    doc.setCurrentMeshIndex(doc.addMesh(sliver, QStringLiteral("sliver")));
+    r = topology();
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.outputValues.value(QStringLiteral("zero_area_faces")).toInt(), 1);
+    QCOMPARE(r.outputValues.value(QStringLiteral("degenerate_faces")).toInt(), 0);
+    QVERIFY(r.outputValues.contains(QStringLiteral("is_mesh_oriented")));
+    QVERIFY(!r.outputValues.value(QStringLiteral("is_mesh_oriented")).toBool());
+
+    // A face repeating a vertex is counted by the same call as the zero-area ones, but it is not
+    // built here: the face-face adjacency every topological measure is prepared with asserts on
+    // such a face in a debug build.
 }
 
 void FilterTests::libiglParametrizationFiltersRunWhenAvailable()

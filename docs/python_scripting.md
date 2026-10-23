@@ -285,6 +285,13 @@ Fields:
 - `new_mesh_indices`
 - `output_values`
 
+`output_values` is a dict of what the filter measured. Its values are numbers, booleans,
+strings and 3-tuples for points, and a filter that reports a table returns lists and
+dicts of those, nested as deep as the table needs. A key that does not apply to the
+layer is absent, not set to a placeholder: `is_mesh_oriented` is missing from *Measure
+Topological Properties* when the mesh has non-manifold edges. Since the values are plain Python, `json.dumps(result.output_values)`
+writes them to a file.
+
 ## Snapshot Examples
 
 Save the current view to a PNG:

@@ -78,7 +78,9 @@ enum class TextureDistortionMetric {
     Area,
     Edge,
     L2Stretch,
-    LInfStretch
+    LInfStretch,
+    QuasiConformal,
+    UVScaling
 };
 
 TextureDistortionMetric textureDistortionMetric(const QString &id)
@@ -87,6 +89,8 @@ TextureDistortionMetric textureDistortionMetric(const QString &id)
     if (id == QStringLiteral("edge")) return TextureDistortionMetric::Edge;
     if (id == QStringLiteral("l2_stretch")) return TextureDistortionMetric::L2Stretch;
     if (id == QStringLiteral("linf_stretch")) return TextureDistortionMetric::LInfStretch;
+    if (id == QStringLiteral("quasi_conformal")) return TextureDistortionMetric::QuasiConformal;
+    if (id == QStringLiteral("uv_scaling")) return TextureDistortionMetric::UVScaling;
     return TextureDistortionMetric::Angle;
 }
 
@@ -110,6 +114,10 @@ Scalar faceTextureDistortion(
         return std::sqrt(Distortion::L2StretchEnergySquared(&face, areaScale));
     case TextureDistortionMetric::LInfStretch:
         return Distortion::LInfStretchEnergy(&face, areaScale);
+    case TextureDistortionMetric::QuasiConformal:
+        return Distortion::QuasiConformalDistortion(&face);
+    case TextureDistortionMetric::UVScaling:
+        return Distortion::UVScaling(&face, areaScale);
     case TextureDistortionMetric::Angle:
         return Distortion::AngleDistortion(&face);
     }
@@ -689,7 +697,9 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
 
         Scalar areaScaleVal = 0;
         Scalar edgeScaleVal = 0;
-        if (textureDistortion && textureMetric != TextureDistortionMetric::Angle) {
+        if (textureDistortion
+            && textureMetric != TextureDistortionMetric::Angle
+            && textureMetric != TextureDistortionMetric::QuasiConformal) {
             if (useWedgeTex)
                 vcg::tri::Distortion<VCGMesh, true>::MeshScalingFactor(
                     mesh, areaScaleVal, edgeScaleVal);
@@ -700,10 +710,11 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
                 && (!std::isfinite(edgeScaleVal) || edgeScaleVal <= 0))
                 return fail(QObject::tr(
                     "Texture edge distortion is undefined because the total edge length is zero."));
-            if (textureMetric == TextureDistortionMetric::Area
+            if ((textureMetric == TextureDistortionMetric::Area
+                    || textureMetric == TextureDistortionMetric::UVScaling)
                 && (!std::isfinite(areaScaleVal) || areaScaleVal == 0))
                 return fail(QObject::tr(
-                    "Texture area distortion is undefined because the total oriented UV area is zero."));
+                    "Texture area distortion and UV scaling are undefined because the total oriented UV area is zero."));
             if ((textureMetric == TextureDistortionMetric::L2Stretch
                     || textureMetric == TextureDistortionMetric::LInfStretch)
                 && (!std::isfinite(areaScaleVal) || areaScaleVal <= 0))
