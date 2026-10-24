@@ -31,6 +31,7 @@
 #include "clipplane.h"
 
 #include <vcg/complex/algorithms/create/platonic.h>
+#include <vcg/complex/algorithms/parametrization/texel_coverage.h>
 #include <vcg/complex/algorithms/update/quality.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
@@ -528,6 +529,10 @@ private slots:
     void foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds();
     void aThinFoldedUvTriangleIsFoundWhereFloatArithmeticMissesIt();
     void measureUvMappingAgreesWithTexMetroOnARealAtlas();
+    void measureTexelCoverageCountsAKnownLayoutExactly();
+    void texelCoverageInBandsGivesTheCountsOfOnePass();
+    void measureUvMappingReportsOccupancyAndUvScaling();
+    void measureTexelCoverageAgreesWithTheRasterPrototypeOnARealAtlas();
     void libiglParametrizationFiltersRunWhenAvailable();
     void libiglQuantityFiltersRunWhenAvailable();
     void meshBooleanFiltersRunWhenAvailable();
@@ -8986,6 +8991,265 @@ void FilterTests::measureUvMappingAgreesWithTexMetroOnARealAtlas()
         const double areaUv = r.outputValues.value(QStringLiteral("area_uv")).toDouble();
         QVERIFY(areaUv > 0.2 * 4096.0 * 4096.0 && areaUv < 4096.0 * 4096.0);
     }
+}
+
+namespace {
+
+// UV squares laid on a texture, as faces of a mesh with per-wedge UV. Each is given as its
+// corners in texels (x0, y0, x1, y1); every square is two triangles that share a diagonal and
+// one UV island, and is a unit square on the surface unless `surfaceSide` says otherwise. The
+// squares do not touch one another on the surface, so they are different islands.
+std::unique_ptr<VCGMesh> makeUvSquares(const std::vector<std::array<float, 4>> &squares, float texture, float surfaceSide = 1.0f)
+{
+    auto result = std::make_unique<VCGMesh>();
+    VCGMesh &mesh = *result;
+    mesh.face.EnableWedgeTexCoord();
+    for (std::size_t s = 0; s < squares.size(); ++s) {
+        const auto &q = squares[s];
+        const float ox = 3.0f * float(s);
+        const vcg::Point3f corners3D[4] = {
+            { ox, 0, 0 }, { ox + surfaceSide, 0, 0 }, { ox + surfaceSide, surfaceSide, 0 }, { ox, surfaceSide, 0 } };
+        const vcg::Point2f corners2D[4] = {
+            { q[0] / texture, q[1] / texture }, { q[2] / texture, q[1] / texture },
+            { q[2] / texture, q[3] / texture }, { q[0] / texture, q[3] / texture } };
+        const std::size_t first = std::size_t(mesh.vert.size());
+        vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 4);
+        for (int c = 0; c < 4; ++c)
+            mesh.vert[first + std::size_t(c)].P() = corners3D[c];
+        vcg::tri::Allocator<VCGMesh>::AddFace(mesh, int(first), int(first) + 1, int(first) + 2);
+        vcg::tri::Allocator<VCGMesh>::AddFace(mesh, int(first), int(first) + 2, int(first) + 3);
+        const int corner[2][3] = { { 0, 1, 2 }, { 0, 2, 3 } };
+        for (int f = 0; f < 2; ++f) {
+            VCGFace &face = mesh.face[mesh.face.size() - 2 + std::size_t(f)];
+            for (int c = 0; c < 3; ++c) {
+                face.WT(c).P() = corners2D[corner[f][c]];
+                face.WT(c).N() = 0;
+            }
+        }
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    return result;
+}
+
+int64_t coverageLevel(const MeshFilterRunResult &r, int texture, int levelIndex, const char *key)
+{
+    const QVariantList levels = r.outputValues.value(QStringLiteral("texture_%1").arg(texture)).toList();
+    return levels.at(levelIndex).toMap().value(QString::fromLatin1(key)).toLongLong();
+}
+
+} // namespace
+
+// The texels a layout covers, counted on layouts small enough to work out by hand. One square over
+// all of an 8 x 8 texture covers every texel once, whatever the diagonal's texels do; a copy of one
+// of its triangles overwrites exactly what that triangle covers; and two islands side by side
+// clash where a texel of one touches a texel of the other, which the four diagonal neighbours of
+// TexMetro's rule see less of than all eight.
+void FilterTests::measureTexelCoverageCountsAKnownLayoutExactly()
+{
+    const auto run = [](const VCGMesh &mesh, const MeshFilterParameterValues &extra, MeshFilterRunResult &result, int texture = 8) {
+        Document doc;
+        const int index = doc.addMesh(
+            mesh, QStringLiteral("Layout"),
+            vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+        doc.setCurrentMeshIndex(index);
+        MeshFilterParameterValues params = extra;
+        params.insert(QStringLiteral("textureWidth"), texture);
+        params.insert(QStringLiteral("textureHeight"), texture);
+        result = doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_texel_coverage")), params);
+    };
+
+    // One square over the whole texture: 64 texels, once each, 28 of them on the border of the
+    // texture, and the mipmap of 8, 4, 2 and 1 texels a side.
+    MeshFilterRunResult r;
+    run(*makeUvSquares({ { 0, 0, 8, 8 } }, 8.0f), {}, r);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.outputValues.value(QStringLiteral("ntex")).toInt(), 1);
+    QCOMPARE(r.outputValues.value(QStringLiteral("texture_0")).toList().size(), 4);
+    QCOMPARE(coverageLevel(r, 0, 0, "rw"), 8);
+    QCOMPARE(coverageLevel(r, 0, 0, "totalTexels"), 64);
+    QCOMPARE(coverageLevel(r, 0, 0, "totalTexels_bilinear"), 64);
+    QCOMPARE(coverageLevel(r, 0, 0, "overwrittenTexels"), 0);
+    QCOMPARE(coverageLevel(r, 0, 0, "lostTexels"), 0);
+    QCOMPARE(coverageLevel(r, 0, 0, "texelClashes"), 0);
+    QCOMPARE(coverageLevel(r, 0, 0, "boundaryTexels"), 28);
+    QCOMPARE(coverageLevel(r, 0, 1, "rw"), 4);
+    QCOMPARE(coverageLevel(r, 0, 1, "totalTexels"), 16);
+    QCOMPARE(coverageLevel(r, 0, 2, "totalTexels"), 4);
+    QCOMPARE(coverageLevel(r, 0, 3, "rh"), 1);
+    QCOMPARE(coverageLevel(r, 0, 3, "totalTexels"), 1);
+
+    // Only the texture itself, when asked.
+    MeshFilterParameterValues base;
+    base.insert(QStringLiteral("mipLevels"), QStringLiteral("base"));
+    run(*makeUvSquares({ { 0, 0, 8, 8 } }, 8.0f), base, r);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.outputValues.value(QStringLiteral("texture_0")).toList().size(), 1);
+
+    // The first triangle alone covers either 28 texels or 36: the 28 inside it, and the 8 whose
+    // centres are on the diagonal if the rule gives it those. The second covers the rest.
+    const auto oneTriangle = makeUvSquares({ { 0, 0, 8, 8 } }, 8.0f);
+    vcg::tri::Allocator<VCGMesh>::DeleteFace(*oneTriangle, oneTriangle->face[1]);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(*oneTriangle);
+    MeshFilterParameterValues baseOnly;
+    baseOnly.insert(QStringLiteral("mipLevels"), QStringLiteral("base"));
+    run(*oneTriangle, baseOnly, r);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const int64_t first = coverageLevel(r, 0, 0, "totalTexels");
+    QVERIFY2(first == 28 || first == 36, qPrintable(QString::number(first)));
+
+    // The same triangle twice over the square: it overwrites exactly its own texels.
+    const auto doubled = makeUvSquares({ { 0, 0, 8, 8 } }, 8.0f);
+    vcg::tri::Allocator<VCGMesh>::AddFace(*doubled, 0, 1, 2);
+    for (int c = 0; c < 3; ++c) {
+        doubled->face.back().WT(c).P() = doubled->face[0].WT(c).P();
+        doubled->face.back().WT(c).N() = 0;
+    }
+    run(*doubled, baseOnly, r);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(coverageLevel(r, 0, 0, "totalTexels"), 64 + first);
+    QCOMPARE(coverageLevel(r, 0, 0, "overwrittenTexels"), first);
+    QCOMPARE(coverageLevel(r, 0, 0, "lostTexels"), first);
+
+    // A 4 x 4 square, and a 4 x 1 strip against its right side one texel up from its bottom:
+    // (3,0) and (3,2) are on a diagonal of the strip's first texel, (3,1) only beside it, and
+    // that texel's own diagonal is (3,0) and (3,2). So three clash, and four with all neighbours.
+    const auto sideBySide = makeUvSquares({ { 0, 0, 4, 4 }, { 4, 1, 8, 2 } }, 8.0f);
+    run(*sideBySide, baseOnly, r);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(coverageLevel(r, 0, 0, "totalTexels"), 16 + 4);
+    QCOMPARE(coverageLevel(r, 0, 0, "texelClashes"), 3);
+    MeshFilterParameterValues allNeighbours = baseOnly;
+    allNeighbours.insert(QStringLiteral("clashNeighbours"), QStringLiteral("all"));
+    run(*sideBySide, allNeighbours, r);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(coverageLevel(r, 0, 0, "texelClashes"), 4);
+
+    // With no texture image and no size there is nothing to count the texels of.
+    Document doc;
+    doc.setCurrentMeshIndex(doc.addMesh(
+        *makeUvSquares({ { 0, 0, 8, 8 } }, 8.0f), QStringLiteral("No texture"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD));
+    QVERIFY(!doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_texel_coverage")), {}).success);
+}
+
+// The same counts whether a texture is counted in one pass or in bands of a few rows: 150 random
+// triangles on a 64 x 64 texture, each its own island, so they overlap, clash and touch the border.
+void FilterTests::texelCoverageInBandsGivesTheCountsOfOnePass()
+{
+    VCGMesh mesh;
+    mesh.face.EnableWedgeTexCoord();
+    std::mt19937 random(12345);
+    std::uniform_real_distribution<float> position(-0.1f, 1.1f);
+    const int faces = 150;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, size_t(faces) * 3);
+    for (int f = 0; f < faces; ++f)
+        vcg::tri::Allocator<VCGMesh>::AddFace(mesh, f * 3, f * 3 + 1, f * 3 + 2);
+    std::vector<int> faceChart;
+    for (int f = 0; f < faces; ++f) {
+        faceChart.push_back(f);
+        for (int c = 0; c < 3; ++c) {
+            mesh.vert[std::size_t(f * 3 + c)].P() = vcg::Point3f(float(c), float(f), 0);
+            mesh.face[std::size_t(f)].WT(c).P() = vcg::Point2f(position(random), position(random));
+            mesh.face[std::size_t(f)].WT(c).N() = 0;
+        }
+    }
+    using Coverage = vcg::tri::TexelCoverage<VCGMesh>;
+    Coverage::Options options;
+    const Coverage::Counters whole = Coverage::Compute(mesh, faceChart, 0, 64, 64, 64.0, 64.0, options);
+    QVERIFY(whole.totalTexels > 0 && whole.overwrittenTexels > 0 && whole.texelClashes > 0
+            && whole.boundaryTexels > 0);
+    // 64 texels of two words a row: 512 bytes. These budgets give bands of 32, 6, 2 and 1 rows.
+    for (const std::size_t budget : { std::size_t(512 * 34), std::size_t(512 * 8), std::size_t(512 * 4), std::size_t(1) }) {
+        options.maxBufferBytes = budget;
+        const Coverage::Counters banded = Coverage::Compute(mesh, faceChart, 0, 64, 64, 64.0, 64.0, options);
+        QCOMPARE(banded.totalTexels, whole.totalTexels);
+        QCOMPARE(banded.totalTexelsBilinear, whole.totalTexelsBilinear);
+        QCOMPARE(banded.overwrittenTexels, whole.overwrittenTexels);
+        QCOMPARE(banded.lostTexels, whole.lostTexels);
+        QCOMPARE(banded.texelClashes, whole.texelClashes);
+        QCOMPARE(banded.boundaryTexels, whole.boundaryTexels);
+    }
+}
+
+// Occupancy is the share of the texels a layout holds; the UV scaling of a face is its UV area
+// over its surface area, over the same for the whole mesh. A 4 x 4 square and a 2 x 2 one on
+// an 8 x 8 texture, both unit squares on the surface, hold 20 texels of 64, and are magnified
+// by 1.6 and 0.4 against their average density; the UV scaling averages to 1 by construction.
+void FilterTests::measureUvMappingReportsOccupancyAndUvScaling()
+{
+    Document doc;
+    doc.setCurrentMeshIndex(doc.addMesh(
+        *makeUvSquares({ { 0, 0, 4, 4 }, { 5, 5, 7, 7 } }, 8.0f), QStringLiteral("Two densities"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD));
+    const QString key = filterKeyForId(doc, QStringLiteral("measure_uv_mapping"));
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("textureWidth"), 8);
+    params.insert(QStringLiteral("textureHeight"), 8);
+    MeshFilterRunResult r = doc.runFilter(key, params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const auto number = [&r](const char *name) { return r.outputValues.value(QString::fromLatin1(name)).toDouble(); };
+    QVERIFY(std::abs(number("occupancy") - 20.0 / 64.0) < 1e-12);
+    QVERIFY(std::abs(number("sf_min") - 0.4) < 1e-9);
+    QVERIFY(std::abs(number("sf_max") - 1.6) < 1e-9);
+    QVERIFY(std::abs(number("sf_avg") - 1.0) < 1e-9);
+    QVERIFY(std::abs(number("sf_perc10") - 0.4) < 1e-4);   // half the surface is at 0.4
+    QVERIFY(std::abs(number("sf_perc90") - 1.6) < 1e-4);   // and the other half at 1.6
+    QCOMPARE(number("sf_discardedArea"), 0.0);
+
+    // A threshold under 1.6 makes the magnified faces outliers (their UV area is more than 1.5 times
+    // their share of the 20 texels): the others are all that is left, and all at the mean density.
+    params.insert(QStringLiteral("scalingThreshold"), 1.5);
+    r = doc.runFilter(key, params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(std::abs(number("sf_discardedArea") - 1.0) < 1e-9);
+    QVERIFY(std::abs(number("sf_min") - 1.0) < 1e-6);
+    QVERIFY(std::abs(number("sf_max") - 1.0) < 1e-6);
+
+    // Without a texture size there are no texels to be occupied: the other measures stay.
+    Document bare;
+    bare.setCurrentMeshIndex(bare.addMesh(
+        *makeUvSquares({ { 0, 0, 4, 4 } }, 8.0f), QStringLiteral("No size"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD));
+    r = bare.runFilter(filterKeyForId(bare, QStringLiteral("measure_uv_mapping")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(!r.outputValues.contains(QStringLiteral("occupancy")));
+    QVERIFY(!r.outputValues.contains(QStringLiteral("sf_avg")));
+    QVERIFY(r.outputValues.contains(QStringLiteral("qcd_avg")));
+}
+
+// The counts of the TexMetro proposal's prototype rasterizer on the good gargoyle atlas, at the
+// 4096 x 4096 texture and two mipmap levels, rounded to 8 bits. They come from a separate
+// implementation that shares no code with the one under test.
+void FilterTests::measureTexelCoverageAgreesWithTheRasterPrototypeOnARealAtlas()
+{
+    MESHLAB2_REQUIRE_DATASET(path, "COLOR_gargoyle/gargo3M_good.ply");
+    Document doc;
+    QCOMPARE(doc.loadMesh(path), 0);
+    doc.setCurrentMeshIndex(0);
+    MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_texel_coverage")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.outputValues.value(QStringLiteral("ntex")).toInt(), 1);
+    QCOMPARE(r.outputValues.value(QStringLiteral("texture_0")).toList().size(), 13);
+    struct Expected { int level; int side; int64_t total, bilinear, overwritten, lost, clash, boundary; };
+    for (const Expected &e : { Expected{ 0, 4096, 6380479, 6787360, 8087, 8666, 9097, 425171 },
+                               Expected{ 3, 512, 99673, 136996, 118, 123, 2618, 33759 },
+                               Expected{ 6, 64, 1536, 3205, 5, 5, 349, 1114 } }) {
+        QCOMPARE(coverageLevel(r, 0, e.level, "rw"), int64_t(e.side));
+        QCOMPARE(coverageLevel(r, 0, e.level, "totalTexels"), e.total);
+        QCOMPARE(coverageLevel(r, 0, e.level, "totalTexels_bilinear"), e.bilinear);
+        QCOMPARE(coverageLevel(r, 0, e.level, "overwrittenTexels"), e.overwritten);
+        QCOMPARE(coverageLevel(r, 0, e.level, "lostTexels"), e.lost);
+        QCOMPARE(coverageLevel(r, 0, e.level, "texelClashes"), e.clash);
+        QCOMPARE(coverageLevel(r, 0, e.level, "boundaryTexels"), e.boundary);
+    }
+
+    // Occupancy follows from the base level, and the UV scaling averages to 1.
+    r = doc.runFilter(filterKeyForId(doc, QStringLiteral("measure_uv_mapping")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(std::abs(r.outputValues.value(QStringLiteral("occupancy")).toDouble()
+                     - double(6380479 - 8666) / (4096.0 * 4096.0)) < 1e-12);
+    QVERIFY(std::abs(r.outputValues.value(QStringLiteral("sf_avg")).toDouble() - 1.0) < 1e-9);
+    QVERIFY(r.outputValues.value(QStringLiteral("sf_perc50")).toDouble() > 0.0);
 }
 
 void FilterTests::libiglParametrizationFiltersRunWhenAvailable()

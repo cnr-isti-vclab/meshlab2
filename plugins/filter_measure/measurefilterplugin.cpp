@@ -9,6 +9,7 @@
 #include <vcg/complex/algorithms/inertia.h>
 #include <vcg/complex/algorithms/mesh_to_matrix.h>
 #include <vcg/complex/algorithms/parametrization/distortion.h>
+#include <vcg/complex/algorithms/parametrization/texel_coverage.h>
 #include <vcg/complex/algorithms/parametrization/uv_utils.h>
 #include <vcg/complex/algorithms/stat.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -29,6 +30,7 @@ constexpr QLatin1StringView kFilterTopo("measure_topological_properties");
 constexpr QLatin1StringView kFilterTopoQuad("measure_topological_properties_for_quad_mesh");
 constexpr QLatin1StringView kFilterGeom("measure_geometric_properties");
 constexpr QLatin1StringView kFilterUvMapping("measure_uv_mapping");
+constexpr QLatin1StringView kFilterTexelCoverage("measure_texel_coverage");
 constexpr QLatin1StringView kFilterSelectionArea("measure_selection_area_and_perimeter");
 constexpr QLatin1StringView kFilterVertStat("measure_vertex_scalar_statistics");
 constexpr QLatin1StringView kFilterFaceStat("measure_face_scalar_statistics");
@@ -280,64 +282,63 @@ QString histogramCountString(double value, bool areaWeighted)
     return areaWeighted ? formatFloat(value, 7) : QString::number(std::llround(value));
 }
 
-// Measure UV Mapping: the UV islands, folds and quasi-conformal distortion of a layer's
-// texture coordinates, in texels. The metrics themselves are vcglib's (UV_Utils and Distortion).
-MeshFilterRunResult measureUvMapping(const Document::MeshEntry &entry, const FilterParams &params)
+// A layer's UV as the UV measures take them: its faces as a UVMesh, and the size in texels of
+// each texture those faces use.
+struct UvLayer
+{
+    UVMesh mesh;
+    std::vector<QSizeF> sizes;
+    bool texelsKnown = false; // the sizes are real ones, from the images or asked for, not the unit square
+    QString units;            // how the UV were taken, for the report
+};
+
+// Fill `layer` from a layer of the document. Returns why that cannot be done, or an empty string.
+QString buildUvLayer(const Document::MeshEntry &entry, const FilterParams &params, UvLayer &layer)
 {
     using Mask = vcg::tri::io::Mask;
-    using Distortion = vcg::tri::Distortion<UVMesh, true>;
-    using UV = vcg::tri::UV_Utils<UVMesh>;
     const VCGMesh &mesh = entry.mesh;
     if (mesh.FN() == 0)
-        return fail(QObject::tr("'%1' has no faces: a UV mapping needs triangles.").arg(entry.name));
+        return QObject::tr("'%1' has no faces: a UV mapping needs triangles.").arg(entry.name);
     const bool wedgeUV = (entry.ioMask & Mask::IOM_WEDGTEXCOORD) && mesh.face.IsWedgeTexCoordEnabled();
     const bool vertexUV = (entry.ioMask & Mask::IOM_VERTTEXCOORD) && mesh.vert.IsTexCoordEnabled();
     if (!wedgeUV && !vertexUV)
-        return fail(QObject::tr("'%1' has no texture coordinates.").arg(entry.name));
+        return QObject::tr("'%1' has no texture coordinates.").arg(entry.name);
 
     // The texel size of each texture: the one asked for, or that of the images, or, with neither,
     // the unit square (in which case the UV are left as they are).
     const int askedWidth = params.getInt(QStringLiteral("textureWidth"));
     const int askedHeight = params.getInt(QStringLiteral("textureHeight"));
     if ((askedWidth > 0) != (askedHeight > 0))
-        return fail(QObject::tr("Give both Texture Width and Texture Height, or neither."));
+        return QObject::tr("Give both Texture Width and Texture Height, or neither.");
     const int textureCount = Document::meshTextureAssociationCount(entry);
-    std::vector<QSizeF> sizes;
-    QString units;
+    std::vector<QSizeF> &sizes = layer.sizes;
+    layer.texelsKnown = true;
     if (askedWidth > 0) {
         sizes.assign(size_t(std::max(textureCount, 1)), QSizeF(askedWidth, askedHeight));
-        units = QObject::tr("texels of a %1 x %2 texture").arg(askedWidth).arg(askedHeight);
+        layer.units = QObject::tr("texels of a %1 x %2 texture").arg(askedWidth).arg(askedHeight);
     } else if (textureCount > 0) {
         QStringList described;
         for (int i = 0; i < textureCount; ++i) {
             const QSize size = Tex::associatedTextureSize(entry, i);
             if (!size.isValid())
-                return fail(QObject::tr(
+                return QObject::tr(
                     "The size of texture %1 is unknown: it has no image data and no readable file. "
                     "Give Texture Width and Texture Height to measure without it.")
-                        .arg(Document::meshTextureDisplayName(entry, i)));
+                        .arg(Document::meshTextureDisplayName(entry, i));
             sizes.push_back(QSizeF(size));
             described << QObject::tr("%1 x %2").arg(size.width()).arg(size.height());
         }
-        units = QObject::tr("texels (texture sizes: %1)").arg(described.join(QStringLiteral(", ")));
+        layer.units = QObject::tr("texels (texture sizes: %1)").arg(described.join(QStringLiteral(", ")));
     } else {
         sizes.push_back(QSizeF(1, 1));
-        units = QObject::tr("the unit square: the layer has no texture image, so give Texture Width and "
-                            "Texture Height to measure in texels");
+        layer.texelsKnown = false;
+        layer.units = QObject::tr("the unit square: the layer has no texture image, so give Texture Width and "
+                                  "Texture Height to measure in texels");
     }
-    // A single size serves every face; with several textures a face must name one that exists.
-    int badTexture = -1;
-    auto sizeOf = [&](int texture) -> const QSizeF * {
-        if (sizes.size() == 1)
-            return &sizes.front();
-        if (texture < 0 || texture >= int(sizes.size())) {
-            badTexture = texture;
-            return nullptr;
-        }
-        return &sizes[size_t(texture)];
-    };
 
-    UVMesh um;
+    // A single size serves every face (and they all count as texture 0); with several textures a
+    // face must name one that exists.
+    UVMesh &um = layer.mesh;
     vcg::tri::Allocator<UVMesh>::AddVertices(um, mesh.vert.size());
     const bool identity = isIdentityTransform(entry.transform);
     for (size_t i = 0; i < mesh.vert.size(); ++i) {
@@ -350,18 +351,84 @@ MeshFilterRunResult measureUvMapping(const Document::MeshEntry &entry, const Fil
         if (face.IsD())
             continue;
         UVMeshFace &f = um.face[next++];
-        const int texture = wedgeUV ? face.cWT(0).N() : face.cV(0)->cT().N();
-        const QSizeF *size = sizeOf(texture);
-        if (!size)
-            return fail(QObject::tr("A face uses texture %1, but the layer has %2 texture(s).")
-                            .arg(badTexture).arg(textureCount));
+        int texture = wedgeUV ? face.cWT(0).N() : face.cV(0)->cT().N();
+        if (sizes.size() == 1)
+            texture = 0;
+        else if (texture < 0 || texture >= int(sizes.size()))
+            return QObject::tr("A face uses texture %1, but the layer has %2 texture(s).")
+                .arg(texture).arg(textureCount);
+        const QSizeF &size = sizes[size_t(texture)];
         for (int c = 0; c < 3; ++c) {
             f.V(c) = &um.vert[vcg::tri::Index(mesh, face.cV(c))];
             const auto &uv = wedgeUV ? face.cWT(c).P() : face.cV(c)->cT().P();
-            f.WT(c).P() = vcg::Point2d(double(uv[0]) * size->width(), double(uv[1]) * size->height());
+            f.WT(c).P() = vcg::Point2d(double(uv[0]) * size.width(), double(uv[1]) * size.height());
             f.WT(c).N() = short(texture);
         }
     }
+    return {};
+}
+
+using Coverage = vcg::tri::TexelCoverage<UVMesh>;
+
+Coverage::Options coverageOptions(const FilterParams &params)
+{
+    Coverage::Options options;
+    options.subpixelBits = params.getInt(QStringLiteral("subpixelBits"));
+    if (params.getEnum(QStringLiteral("clashNeighbours")) == QStringLiteral("all"))
+        options.clashRule = Coverage::ClashOnAllNeighbours;
+    return options;
+}
+
+// The resolutions TexMetro counts a texture at: the texture itself, then each level a mipmap
+// would hold, which halves both sides rounding down, until one side is gone.
+std::vector<QSize> mipLevels(const QSizeF &size, bool allLevels)
+{
+    std::vector<QSize> levels;
+    for (int w = int(size.width()), h = int(size.height()); std::min(w, h) >= 1; w /= 2, h /= 2) {
+        levels.push_back(QSize(w, h));
+        if (!allLevels)
+            break;
+    }
+    return levels;
+}
+
+// The counters of one resolution of one texture of the layer.
+Coverage::Counters countTexels(
+    const UvLayer &layer, const std::vector<int> &faceChart, int texture, const QSize &level,
+    const Coverage::Options &options, vcg::CallBackPos *cb)
+{
+    const QSizeF &size = layer.sizes[size_t(texture)];
+    return Coverage::Compute(
+        layer.mesh, faceChart, texture, level.width(), level.height(),
+        level.width() / size.width(), level.height() / size.height(), options, cb);
+}
+
+QVariantMap levelToMap(const Coverage::Counters &c)
+{
+    return {
+        { "rw", c.width },
+        { "rh", c.height },
+        { "totalTexels", qlonglong(c.totalTexels) },
+        { "totalTexels_bilinear", qlonglong(c.totalTexelsBilinear) },
+        { "overwrittenTexels", qlonglong(c.overwrittenTexels) },
+        { "lostTexels", qlonglong(c.lostTexels) },
+        { "texelClashes", qlonglong(c.texelClashes) },
+        { "boundaryTexels", qlonglong(c.boundaryTexels) }
+    };
+}
+
+// Measure UV Mapping: the UV islands, folds, quasi-conformal distortion, and once the texture
+// size is known the texel occupancy and the UV scaling, of a layer's texture coordinates, in
+// texels. The metrics themselves are vcglib's (UV_Utils, Distortion and TexelCoverage).
+MeshFilterRunResult measureUvMapping(const Document::MeshEntry &entry, const FilterParams &params, vcg::CallBackPos *cb)
+{
+    using Distortion = vcg::tri::Distortion<UVMesh, true>;
+    using UV = vcg::tri::UV_Utils<UVMesh>;
+    UvLayer layer;
+    const QString error = buildUvLayer(entry, params, layer);
+    if (!error.isEmpty())
+        return fail(error);
+    UVMesh &um = layer.mesh;
 
     std::vector<int> faceChart;
     const int chartNum = UV::PerWedgeCharts(um, faceChart);
@@ -369,9 +436,10 @@ MeshFilterRunResult measureUvMapping(const Document::MeshEntry &entry, const Fil
     UV::CountUVEdgeNum(um, uvEdges, uvBorderEdges);
     const int folds = Distortion::FoldedNum(um, faceChart);
 
-    // TexMetro's constants: the bins of the quasi-conformal histogram, which fix how finely its
-    // percentiles read.
+    // TexMetro's constants: the bins of the histograms, which fix how finely their percentiles
+    // read. The one of the UV scaling has twenty million, two arrays of them: a few hundred MB.
     constexpr int kQcdBins = 500000;
+    constexpr int kSfBins = 20000000;
     const double qcdThreshold = params.getDouble(QStringLiteral("qcdThreshold"));
     vcg::Histogram<double> qcd;
     qcd.SetRange(0.0, qcdThreshold, kQcdBins);
@@ -404,7 +472,7 @@ MeshFilterRunResult measureUvMapping(const Document::MeshEntry &entry, const Fil
 
     QStringList info;
     info << QObject::tr("Mesh: %1").arg(entry.name);
-    info << QObject::tr("UV measured in %1").arg(units);
+    info << QObject::tr("UV measured in %1").arg(layer.units);
     info << QObject::tr("UV islands: %1 (%2 with no UV area)").arg(chartNum).arg(nullCharts);
     info << QObject::tr("Folded faces: %1").arg(folds);
     info << QObject::tr("Edges of the UV layout: %1 (on its boundary: %2)").arg(uvEdges).arg(uvBorderEdges);
@@ -421,20 +489,22 @@ MeshFilterRunResult measureUvMapping(const Document::MeshEntry &entry, const Fil
     result.outputValues["boundary_len_uv"] = boundaryLengthUV;
     result.outputValues["mapped_fraction"] = mappedFraction;
     result.outputValues["qcd_discardedArea"] = discardedArea;
+
+    // The statistics of a histogram, under TexMetro's keys: the percentiles it reports, then the moments.
+    auto addStatistics = [&result](const char *prefix, vcg::Histogram<double> &h) {
+        const QString p = QString::fromLatin1(prefix);
+        for (const double fraction : { 0.01, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.99 })
+            result.outputValues[p + QStringLiteral("_perc") + QString::number(int(std::lround(fraction * 100)))] =
+                h.Percentile(fraction);
+        result.outputValues[p + QStringLiteral("_min")] = h.MinElem();
+        result.outputValues[p + QStringLiteral("_max")] = h.MaxElem();
+        result.outputValues[p + QStringLiteral("_avg")] = h.Avg();
+        result.outputValues[p + QStringLiteral("_rms")] = h.RMS();
+        result.outputValues[p + QStringLiteral("_var")] = h.Variance();
+        result.outputValues[p + QStringLiteral("_stddev")] = h.StandardDeviation();
+    };
     if (qcd.Cnt() > 0) {
-        // TexMetro's keys: the percentiles it reports, then the moments of the histogram.
-        const struct { const char *key; double fraction; } percentiles[] = {
-            { "qcd_perc1", 0.01 }, { "qcd_perc10", 0.10 }, { "qcd_perc20", 0.20 }, { "qcd_perc30", 0.30 },
-            { "qcd_perc40", 0.40 }, { "qcd_perc50", 0.50 }, { "qcd_perc60", 0.60 }, { "qcd_perc70", 0.70 },
-            { "qcd_perc80", 0.80 }, { "qcd_perc90", 0.90 }, { "qcd_perc99", 0.99 } };
-        for (const auto &p : percentiles)
-            result.outputValues[QString::fromLatin1(p.key)] = qcd.Percentile(p.fraction);
-        result.outputValues["qcd_min"] = qcd.MinElem();
-        result.outputValues["qcd_max"] = qcd.MaxElem();
-        result.outputValues["qcd_avg"] = qcd.Avg();
-        result.outputValues["qcd_rms"] = qcd.RMS();
-        result.outputValues["qcd_var"] = qcd.Variance();
-        result.outputValues["qcd_stddev"] = qcd.StandardDeviation();
+        addStatistics("qcd", qcd);
         info << QObject::tr("Quasi-conformal distortion: min %1, median %2, 90th percentile %3, max %4; "
                             "outliers (at or above %5) cover an area of %6")
                     .arg(formatFloat(qcd.MinElem(), 4))
@@ -446,6 +516,131 @@ MeshFilterRunResult measureUvMapping(const Document::MeshEntry &entry, const Fil
     } else {
         info << QObject::tr("No face has a finite quasi-conformal distortion below %1; the qcd_* statistics are absent.")
                     .arg(formatFloat(qcdThreshold, 3));
+    }
+
+    // Occupancy and UV scaling need to know what the texels are. A texture counts at the first
+    // resolution at which a triangle covers any of it, which is its own size unless nothing does.
+    if (!layer.texelsKnown) {
+        info << QObject::tr("Occupancy and UV scaling are absent: they need a texture size.");
+    } else {
+        const Coverage::Options options = coverageOptions(params);
+        int64_t usedTexels = 0, availableTexels = 0;
+        double textureTexels = 0;
+        for (size_t t = 0; t < layer.sizes.size(); ++t) {
+            textureTexels += layer.sizes[t].width() * layer.sizes[t].height();
+            for (const QSize &level : mipLevels(layer.sizes[t], true)) {
+                const Coverage::Counters c = countTexels(layer, faceChart, int(t), level, options, cb);
+                if (c.totalTexels > 0) {
+                    availableTexels += int64_t(c.width) * c.height;
+                    usedTexels += c.totalTexels - c.lostTexels;
+                    break;
+                }
+            }
+        }
+        if (availableTexels == 0) {
+            info << QObject::tr("Occupancy and UV scaling are absent: no triangle covers a texel.");
+        } else {
+            const double occupancy = double(usedTexels) / double(availableTexels);
+            result.outputValues["occupancy"] = occupancy;
+            info << QObject::tr("Occupancy: %1 of the texels hold a triangle").arg(formatFloat(occupancy));
+
+            // The UV scaling of a face is its area in the layout over its area on the surface,
+            // over the same ratio for the whole mesh. A face is an outlier when its UV area is
+            // more than the threshold times its share of the texels the layout really uses.
+            const double scalingThreshold = params.getDouble(QStringLiteral("scalingThreshold"));
+            const double realTextureArea = occupancy * textureTexels;
+            double included3D = 0, includedUV = 0, scalingDiscardedArea = 0;
+            auto facePieces = [&](const UVMeshFace &f, double &a3, double &au, bool &outlier) {
+                a3 = Distortion::Area3D(&f);
+                au = std::abs(Distortion::AreaUV(&f));
+                if (!(a3 > 0 && au > 0))
+                    return false;
+                outlier = au > (a3 / mappedArea3D) * realTextureArea * scalingThreshold;
+                return true;
+            };
+            for (const UVMeshFace &f : um.face) {
+                double a3, au;
+                bool outlier = false;
+                if (!facePieces(f, a3, au, outlier))
+                    continue;
+                if (outlier) {
+                    scalingDiscardedArea += a3;
+                } else {
+                    included3D += a3;
+                    includedUV += au;
+                }
+            }
+            result.outputValues["sf_discardedArea"] = scalingDiscardedArea;
+            if (included3D > 0) {
+                const double meanScaling = includedUV / included3D;
+                vcg::Histogram<double> sf;
+                sf.SetRange(0.0, scalingThreshold, kSfBins);
+                for (const UVMeshFace &f : um.face) {
+                    double a3, au;
+                    bool outlier = false;
+                    if (facePieces(f, a3, au, outlier) && !outlier)
+                        sf.Add(au / a3 / meanScaling, a3);
+                }
+                addStatistics("sf", sf);
+                info << QObject::tr("UV scaling: min %1, median %2, 90th percentile %3, max %4; "
+                                    "outliers cover an area of %5")
+                            .arg(formatFloat(sf.MinElem(), 4))
+                            .arg(formatFloat(sf.Percentile(0.5), 4))
+                            .arg(formatFloat(sf.Percentile(0.9), 4))
+                            .arg(formatFloat(sf.MaxElem(), 4))
+                            .arg(formatFloat(scalingDiscardedArea));
+            }
+        }
+    }
+    result.infoMessages = info;
+    return result;
+}
+
+// Measure Texel Coverage: how the triangles of the layout cover the texels of each texture, at the
+// texture's own resolution and at each mipmap level, the way TexMetro counts them.
+MeshFilterRunResult measureTexelCoverage(const Document::MeshEntry &entry, const FilterParams &params, vcg::CallBackPos *cb)
+{
+    using UV = vcg::tri::UV_Utils<UVMesh>;
+    UvLayer layer;
+    const QString error = buildUvLayer(entry, params, layer);
+    if (!error.isEmpty())
+        return fail(error);
+    if (!layer.texelsKnown)
+        return fail(QObject::tr(
+            "Counting texels needs a texture size, and '%1' has no texture image: give Texture Width and "
+            "Texture Height.").arg(entry.name));
+
+    std::vector<int> faceChart;
+    UV::PerWedgeCharts(layer.mesh, faceChart);
+    const Coverage::Options options = coverageOptions(params);
+    const bool allLevels = params.getEnum(QStringLiteral("mipLevels")) != QStringLiteral("base");
+
+    QStringList info;
+    info << QObject::tr("Mesh: %1").arg(entry.name);
+    info << QObject::tr("UV measured in %1").arg(layer.units);
+    MeshFilterRunResult result = successInfo(info);
+    result.outputValues["ntex"] = int(layer.sizes.size());
+    for (size_t t = 0; t < layer.sizes.size(); ++t) {
+        QVariantList levels;
+        for (const QSize &level : mipLevels(layer.sizes[t], allLevels)) {
+            const Coverage::Counters c = countTexels(layer, faceChart, int(t), level, options, cb);
+            levels << levelToMap(c);
+            if (levels.size() == 1) {
+                info << QObject::tr("Texture %1, %2 x %3: %4 texels covered by %5 fragments; %6 overwritten, "
+                                    "%7 lost; %8 with a neighbour of another chart; %9 on the boundary")
+                            .arg(int(t))
+                            .arg(c.width).arg(c.height)
+                            .arg(qlonglong(c.totalTexels - c.lostTexels))
+                            .arg(qlonglong(c.totalTexels))
+                            .arg(qlonglong(c.overwrittenTexels))
+                            .arg(qlonglong(c.lostTexels))
+                            .arg(qlonglong(c.texelClashes))
+                            .arg(qlonglong(c.boundaryTexels));
+            }
+        }
+        result.outputValues[QStringLiteral("texture_%1").arg(t)] = levels;
+        info << QObject::tr("  %1 level(s) counted, from %2 x %3").arg(levels.size())
+                    .arg(layer.sizes[t].width()).arg(layer.sizes[t].height());
     }
     result.infoMessages = info;
     return result;
@@ -663,7 +858,9 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterUvMapping))
-        return measureUvMapping(entry, params);
+        return measureUvMapping(entry, params, doc.progressCallback());
+    if (filterId == QString::fromLatin1(kFilterTexelCoverage))
+        return measureTexelCoverage(entry, params, doc.progressCallback());
 
     if (filterId == QString::fromLatin1(kFilterGeom)) {
         std::unique_ptr<VCGMesh> measureMesh = transformedCopy(entry);
