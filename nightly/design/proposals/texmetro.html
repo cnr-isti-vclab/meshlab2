@@ -249,7 +249,7 @@
 metrics into MeshLab, either by vendoring the tool as a subrepo or by reimplementing
 it on QRhi, and recommends a third route: <strong>reimplement the metrics on the CPU, with a
 deterministic texel rasterizer, as algorithms in vcglib and thin <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> filters in
-MeshLab</strong>. <strong>Stages 1 to 3 are implemented (2026-10-23); the rest is not.</strong> The recommendation
+MeshLab</strong>. <strong>Stages 1 to 4 are implemented (2026-10-24), but for the optional seam polyline.</strong> The recommendation
 rests on measurements made for this proposal, listed under <a class="reference internal" href="#evidence"><span class="xref myst">Evidence</span></a>.</p>
 <p>See also: <a class="reference internal" href="edge_support.html"><span class="std std-doc">Edge Support</span></a>, <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>,
 <a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a>, <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>,
@@ -417,7 +417,7 @@ depends on the texel raster, the one part TexMetro does with OpenGL.</p>
 <td><p>4</p></td>
 <td><p>none</p></td>
 <td><p>no (needs the texture images)</p></td>
-<td><p>new report</p></td>
+<td><p><em>Measure Texture Seam Color Discrepancy</em> (<strong>Stage 4, done</strong>), with <code class="docutils literal notranslate"><span class="pre">_rms</span></code> and <code class="docutils literal notranslate"><span class="pre">_var</span></code>, which the JSON carries and the README omits, and a count, <code class="docutils literal notranslate"><span class="pre">seam_edges_number</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">occupancy</span></code>, <code class="docutils literal notranslate"><span class="pre">texture_N</span></code></p></td>
 <td><p>2</p></td>
@@ -714,6 +714,14 @@ are collected in <a class="reference internal" href="#open-questions"><span clas
 <td><p>seams</p></td>
 <td><p>Every seam edge is visited from both sides, so each is counted twice; the average is unaffected. Sampling is 5 samples per texel of UV length, bilinear, with <code class="docutils literal notranslate"><span class="pre">%</span></code> wraparound, and the discrepancy is the Euclidean distance of two 8-bit sRGB triples (0 – 441.7), unweighted by perception, weighted in the histogram by 3D edge length.</p></td>
 </tr>
+<tr class="row-even"><td><p>14</p></td>
+<td><p>seams</p></td>
+<td><p><strong>The two sides’ samples are paired from opposite ends.</strong> The i-th sample of a face’s edge is compared with the i-th sample of its neighbour’s edge, each taken from the vertex its own face lists first. Two consistently oriented faces list a shared edge in opposite directions, so a point is compared with the <em>mirrored</em> point of the other side. It holds for every seam of both atlases (192,582 and 153,018 seam sides, each with the neighbour running the other way). Comparing the same point instead lowers the mean from 12.31 to 10.63 on the good atlas and from 12.12 to 10.48 on the bad one: TexMetro reads about 16 % high, and the two atlases stay as close to each other as before.</p></td>
+</tr>
+<tr class="row-odd"><td><p>15</p></td>
+<td><p>seams</p></td>
+<td><p>The bilinear sampler takes the fractional part with <code class="docutils literal notranslate"><span class="pre">modf</span></code>, which is negative for a negative coordinate while its texel is the floor, so the weights are wrong within half a texel of the left or bottom of the texture. The mean is the same to six decimals with the right fraction.</p></td>
+</tr>
 <tr class="row-even"><td><p>13</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">nfolds</span></code></p></td>
 <td><p>A face is a fold when <code class="docutils literal notranslate"><span class="pre">signbit(its</span> <span class="pre">UV</span> <span class="pre">area)</span> <span class="pre">!=</span> <span class="pre">signbit(its</span> <span class="pre">chart's</span> <span class="pre">net</span> <span class="pre">area)</span></code>. A face with <strong>no</strong> UV area has a zero of either sign, so it counts as a fold or not by the sign of that zero. The native count does not count a zero-area face as a fold: on the two atlases that is <strong>20</strong> faces fewer of 1,231 (good) and <strong>22</strong> of 1,475 (bad), measured by running both rules on the same files.</p></td>
@@ -840,9 +848,9 @@ are no duplication and less code):</p>
 </tr>
 <tr class="row-even"><td><p>V5</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">parametrization/texel_coverage.h</span></code> or a sibling</p></td>
-<td><p>seam colour discrepancy, <strong>templated on a texel-fetch functor</strong> so vcglib keeps no image library</p></td>
-<td><p>the seam edges are those the geometric <code class="docutils literal notranslate"><span class="pre">FaceFace</span></code> joins and <code class="docutils literal notranslate"><span class="pre">FaceFaceFromTexCoord</span></code> detaches</p></td>
-<td><p>~60</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SeamDiscrepancy</span></code> in <code class="docutils literal notranslate"><span class="pre">seam_discrepancy.h</span></code>: finds the seams and measures one, <strong>templated on a texture object</strong> (its size and the color of a texel) so vcglib keeps no image library. <strong>Landed in Stage 4</strong>, with <code class="docutils literal notranslate"><span class="pre">UpdateTopology::IsTexCoordSeam</span></code> extracted from <code class="docutils literal notranslate"><span class="pre">FaceFaceFromTexCoord</span></code> so they share one test</p></td>
+<td><p>the seam edges are those the geometric <code class="docutils literal notranslate"><span class="pre">FaceFace</span></code> joins and the texture coordinates cut</p></td>
+<td><p>190 with its comments</p></td>
 </tr>
 </tbody>
 </table>
@@ -889,7 +897,7 @@ name.</p>
 <tr class="row-even"><td><p><strong>Measure Texture Seam Color Discrepancy</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">measure_texture_seam_discrepancy</span></code></p></td>
 <td><p>Information</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_avg</span></code>, <code class="docutils literal notranslate"><span class="pre">_min</span></code>, <code class="docutils literal notranslate"><span class="pre">_max</span></code>, <code class="docutils literal notranslate"><span class="pre">_stddev</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_avg</span></code>, <code class="docutils literal notranslate"><span class="pre">_min</span></code>, <code class="docutils literal notranslate"><span class="pre">_max</span></code>, <code class="docutils literal notranslate"><span class="pre">_rms</span></code>, <code class="docutils literal notranslate"><span class="pre">_var</span></code>, <code class="docutils literal notranslate"><span class="pre">_stddev</span></code>, <code class="docutils literal notranslate"><span class="pre">seam_edges_number</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>Compute UV Distortion</strong> (existing)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">compute_uv_distortion</span></code></p></td>
@@ -991,8 +999,10 @@ textures are independent if that ever changes.</p>
 <li><p><strong>Seams as polylines, with a value per edge.</strong> Edges now carry colour and a scalar
 (<a class="reference internal" href="edge_support.html"><span class="std std-doc">Edge Support</span></a>, <code class="docutils literal notranslate"><span class="pre">IOM_EDGEQUALITY</span></code>). The seam discrepancy is a value
 per seam edge, so a later filter can create the UV-seam polyline and store each edge’s
-discrepancy in it, to be coloured by the existing edge colorizers. Not in the first
-stages; the report comes first.</p></li>
+discrepancy in it, to be coloured by the existing edge colorizers. Stage 4 did not build it: it
+is a <em>Create</em> filter, so it belongs in <code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> beside <em>Create Polyline from Selection
+Perimeter</em>, and it needs the UV layer builder and the texture reader that now sit in
+<code class="docutils literal notranslate"><span class="pre">filter_measure</span></code> (about 120 lines, to be moved into core, not written again). It is offered, not built.</p></li>
 <li><p><strong>The UV view</strong> already fills triangles by quality, with the same colour map and range
 controls as the 3D view (<a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a>, <em>UV fill</em>), so the face quality
 that <em>Compute UV Distortion</em> writes is visible on the UV layout without further work.</p></li>
@@ -1065,7 +1075,7 @@ Otherwise a small synthetic atlas with a known answer is committed.</p></li>
 <tr class="row-even"><td><p><strong>4</strong></p></td>
 <td><p>V5 (seam discrepancy, templated on a texel functor)</p></td>
 <td><p><em>Measure Texture Seam Color Discrepancy</em>; optionally the seam polyline with per-edge values</p></td>
-<td><p>Stage 2, edge support</p></td>
+<td><p>Stage 2, edge support. <strong>Implemented 2026-10-24</strong>; the polyline is not (see below)</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>5</strong> <em>(optional)</em></p></td>
 <td><p>none</p></td>
@@ -1105,11 +1115,15 @@ anisotropy; in normalized UV space it does not. <em>Compute UV Distortion</em> w
 normalized UVs today. Which should the new metric use, or both as an option?</p></li>
 <li><p><strong>Oversized textures (quirk 10).</strong> Return zeros silently, as now, or the real values?
 The CPU rasterizer has no such limit, so the latter would be a visible difference.</p></li>
+<li><p><strong>The seam pairing (quirk 14).</strong> Is comparing the i-th sample of each side’s own edge
+intended? It pairs mirrored points and reads about 16 % high on both atlases. Stage 4
+keeps it as the default so that the numbers can be checked against the benchmark’s, and
+offers <em>Same point</em> as an option. Which should be the default?</p></li>
 <li><p><strong>TexMetro’s own future.</strong> Once V1 to V5 are in vcglib, should TexMetro be moved onto
 them? Its OpenGL, GLEW and its <code class="docutils literal notranslate"><span class="pre">-lGL</span></code> build would go, and it would run on a Mac.</p></li>
 </ol>
 <p>For this repository:</p>
-<ol class="arabic simple" start="9">
+<ol class="arabic simple" start="10">
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">Select</span> <span class="pre">Folded</span> <span class="pre">UV</span> <span class="pre">Faces</span></code>.</strong> Stage 2 gave it <code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code> and
 <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code>, as <em>Select Vertex Texture Seams</em> has. Say if it should be otherwise.</p></li>
 <li><p><strong>Key names.</strong> For the mesh keys added to the existing measure filters, Stage 1
@@ -1120,8 +1134,8 @@ used MeshLab-style names (<code class="docutils literal notranslate"><span class
 reports Stage 2 kept TexMetro’s names (<code class="docutils literal notranslate"><span class="pre">num_charts</span></code>, <code class="docutils literal notranslate"><span class="pre">qcd_perc50</span></code>, …), as the
 proposal said: they preserve the benchmark’s JSON, and they fit the existing suffixes
 (<code class="docutils literal notranslate"><span class="pre">_min</span></code>, <code class="docutils literal notranslate"><span class="pre">_avg</span></code>, <code class="docutils literal notranslate"><span class="pre">_stddev</span></code>, <code class="docutils literal notranslate"><span class="pre">_perc95</span></code>). The vocabulary’s word for a chart is <em>UV island</em>,
-which the descriptors say next to the key. Open for a veto, before the raster and seam
-keys follow.</p></li>
+which the descriptors say next to the key. The raster and seam reports kept TexMetro’s
+names too, with <code class="docutils literal notranslate"><span class="pre">seam_edges_number</span></code> added. Open for a veto.</p></li>
 <li><p><strong>The gargoyle atlases</strong> can be published as a test dataset?</p></li>
 </ol>
 </section>

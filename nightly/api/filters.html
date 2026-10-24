@@ -245,7 +245,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 391 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 392 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -5497,6 +5497,27 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
+<section id="measure-texture-seam-color-discrepancy">
+<span id="filter-measure-texture-seam-discrepancy"></span><h2>Measure Texture Seam Color Discrepancy<a class="headerlink" href="#measure-texture-seam-color-discrepancy" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/UV</span> <span class="pre">Mapping</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.measure</p>
+<p>Report how much the colors of the texture differ across its seams.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.measure_texture_seam_discrepancy">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">measure_texture_seam_discrepancy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.measure_texture_seam_discrepancy" title="Link to this definition">¶</a></dt>
+<dd><p>A texture seam is an edge that two faces share on the surface and place apart in the texture: the surface is continuous there, but its two sides are read from different places of the image, so any difference between those places shows as a line. This measures that difference, as the TexMetro tool of the <em>Real-World Textured Things</em> benchmark does (the output keys are its own).</p>
+<p>Along each seam the colors that the two sides give to the same points are compared: <em>Samples per Texel</em> samples for each texel of its length, bilinear, with the texture repeating, and the distance between the two RGB colors (0 to 442, on the 8-bit values) is averaged. The report is the minimum, maximum, mean, root mean square, variance and standard deviation of that over all seams, weighted by the length of each seam on the surface (<code class="docutils literal notranslate"><span class="pre">seam_discrepancy_*</span></code>), with the number of seams measured (<code class="docutils literal notranslate"><span class="pre">seam_edges_number</span></code>). Seams between islands with no UV area are left out, and a layer with no seam reports zero.</p>
+<p>The layer needs its texture images. Coincident vertices are merged first, so a layer exported with one vertex per corner still has its seams. Each seam is measured from both of its sides, as TexMetro does.</p>
+<p><strong>Pairing.</strong> The sample points of a side are taken along its edge from the vertex its face lists first, and two consistently oriented faces list a shared edge in opposite directions. <em>Edge order</em>, which is what TexMetro does, compares the i-th sample of each, so it compares a point of one side with the mirrored point of the other, and reads high wherever the texture varies along the seam (about 16 percent on the two atlases it was compared on). <em>Same point</em> compares the colors the two sides give to the same point of the seam, which is what the measure is meant to say. Measures are taken in world space, through the layer matrix, and both per-wedge and per-vertex texture coordinates are supported.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>pairing</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">edge_order</span></code>) — Which samples of the two sides of a seam are compared: the i-th of each along its own edge, as TexMetro does (which pairs a point with the mirrored point of the other side), or the two sides’ colors at the same point of the seam.</p></li>
+<li><p><strong>samplesPerTexel</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">5.0</span></code>) — How many samples to take along a seam for each texel of its length. TexMetro takes 5.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="measure-uv-mapping">
 <span id="filter-measure-uv-mapping"></span><h2>Measure UV Mapping<a class="headerlink" href="#measure-uv-mapping" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/UV</span> <span class="pre">Mapping</span></code></p>
@@ -9957,6 +9978,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#measure-texel-coverage">Measure Texel Coverage</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.measure_texel_coverage"><code class="docutils literal notranslate"><span class="pre">ms.measure_texel_coverage()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#measure-texture-seam-color-discrepancy">Measure Texture Seam Color Discrepancy</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.measure_texture_seam_discrepancy"><code class="docutils literal notranslate"><span class="pre">ms.measure_texture_seam_discrepancy()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#measure-uv-mapping">Measure UV Mapping</a><ul>

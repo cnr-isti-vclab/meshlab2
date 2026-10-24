@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 391 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 392 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -6626,6 +6626,35 @@ The texture size is that of the layer's images, or *Texture Width* and *Texture 
 - **mipLevels** (*enum*, default: `all`) — Count the texture itself and every mipmap level below it, or the texture itself only.
 - **subpixelBits** (*int*, default: `8`) — Bits of position inside a texel to which the triangles' vertices are rounded: 4 is the least OpenGL guarantees, 8 the usual hardware. It changes the rare counts by up to about one percent.
 - **clashNeighbours** (*enum*, default: `diagonals`) — Which neighbours of a texel are compared for a clash with another UV island: the four diagonal ones, as TexMetro does, or all eight.
+```
+
+---
+
+(filter-measure-texture-seam-discrepancy)=
+
+## Measure Texture Seam Color Discrepancy
+
+**Categories:** `Measurement/UV Mapping`
+
+**Plugin:** meshlab2.filter.measure
+
+Report how much the colors of the texture differ across its seams.
+
+```{py:function} ms.measure_texture_seam_discrepancy(**params)
+:module: _meshlab
+
+A texture seam is an edge that two faces share on the surface and place apart in the texture: the surface is continuous there, but its two sides are read from different places of the image, so any difference between those places shows as a line. This measures that difference, as the TexMetro tool of the *Real-World Textured Things* benchmark does (the output keys are its own).
+
+Along each seam the colors that the two sides give to the same points are compared: *Samples per Texel* samples for each texel of its length, bilinear, with the texture repeating, and the distance between the two RGB colors (0 to 442, on the 8-bit values) is averaged. The report is the minimum, maximum, mean, root mean square, variance and standard deviation of that over all seams, weighted by the length of each seam on the surface (`seam_discrepancy_*`), with the number of seams measured (`seam_edges_number`). Seams between islands with no UV area are left out, and a layer with no seam reports zero.
+
+The layer needs its texture images. Coincident vertices are merged first, so a layer exported with one vertex per corner still has its seams. Each seam is measured from both of its sides, as TexMetro does.
+
+**Pairing.** The sample points of a side are taken along its edge from the vertex its face lists first, and two consistently oriented faces list a shared edge in opposite directions. *Edge order*, which is what TexMetro does, compares the i-th sample of each, so it compares a point of one side with the mirrored point of the other, and reads high wherever the texture varies along the seam (about 16 percent on the two atlases it was compared on). *Same point* compares the colors the two sides give to the same point of the seam, which is what the measure is meant to say. Measures are taken in world space, through the layer matrix, and both per-wedge and per-vertex texture coordinates are supported.
+
+**Parameters:**
+
+- **pairing** (*enum*, default: `edge_order`) — Which samples of the two sides of a seam are compared: the i-th of each along its own edge, as TexMetro does (which pairs a point with the mirrored point of the other side), or the two sides' colors at the same point of the seam.
+- **samplesPerTexel** (*double*, default: `5.0`) — How many samples to take along a seam for each texel of its length. TexMetro takes 5.
 ```
 
 ---
