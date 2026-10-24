@@ -189,6 +189,43 @@
       ]
     },
     {
+      "id": "measure_texture_seam_discrepancy",
+      "categories": ["Measurement/UV Mapping"],
+      "name": "Measure Texture Seam Color Discrepancy",
+      "pythonName": "measure_texture_seam_discrepancy",
+      "shortDescription": "Report how much the colors of the texture differ across its seams.",
+      "longDescriptionMarkdown": "A texture seam is an edge that two faces share on the surface and place apart in the texture: the surface is continuous there, but its two sides are read from different places of the image, so any difference between those places shows as a line. This measures that difference, as the TexMetro tool of the *Real-World Textured Things* benchmark does (the output keys are its own).\n\nAlong each seam the colors that the two sides give to the same points are compared: *Samples per Texel* samples for each texel of its length, bilinear, with the texture repeating, and the distance between the two RGB colors (0 to 442, on the 8-bit values) is averaged. The report is the minimum, maximum, mean, root mean square, variance and standard deviation of that over all seams, weighted by the length of each seam on the surface (`seam_discrepancy_*`), with the number of seams measured (`seam_edges_number`). Seams between islands with no UV area are left out, and a layer with no seam reports zero.\n\nThe layer needs its texture images. Coincident vertices are merged first, so a layer exported with one vertex per corner still has its seams. Each seam is measured from both of its sides, as TexMetro does.\n\n**Pairing.** The sample points of a side are taken along its edge from the vertex its face lists first, and two consistently oriented faces list a shared edge in opposite directions. *Edge order*, which is what TexMetro does, compares the i-th sample of each, so it compares a point of one side with the mirrored point of the other, and reads high wherever the texture varies along the seam (about 16 percent on the two atlases it was compared on). *Same point* compares the colors the two sides give to the same point of the seam, which is what the measure is meant to say. Measures are taken in world space, through the layer matrix, and both per-wedge and per-vertex texture coordinates are supported.",
+      "tags": ["measure", "uv", "texture", "seam", "color", "info"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "inputRequirements": { "requireFaces": true, "requireTextureCoordinates": true },
+      "parameters": [
+        {
+          "id": "pairing",
+          "label": "Pairing",
+          "help": "Which samples of the two sides of a seam are compared: the i-th of each along its own edge, as TexMetro does (which pairs a point with the mirrored point of the other side), or the two sides' colors at the same point of the seam.",
+          "group": "main",
+          "type": "enum",
+          "default": "edge_order",
+          "enumOptions": [
+            { "id": "edge_order", "label": "Edge order (TexMetro)" },
+            { "id": "position", "label": "Same point" }
+          ]
+        },
+        {
+          "id": "samplesPerTexel",
+          "label": "Samples per Texel",
+          "help": "How many samples to take along a seam for each texel of its length. TexMetro takes 5.",
+          "group": "advanced",
+          "type": "double",
+          "default": 5.0,
+          "min": 0.1,
+          "max": 100.0,
+          "decimals": 2
+        }
+      ]
+    },
+    {
       "id": "measure_selection_area_and_perimeter",
       "categories": ["Measurement/Geometric"],
       "name": "Measure Selection Area and Perimeter",
