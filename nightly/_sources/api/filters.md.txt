@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 388 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 391 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -6589,6 +6589,91 @@ This filter has no parameters.
 
 ---
 
+(filter-measure-texel-coverage)=
+
+## Measure Texel Coverage
+
+**Categories:** `Measurement/UV Mapping`
+
+**Plugin:** meshlab2.filter.measure
+
+Count how the UV triangles cover the texels of each texture, at each mipmap level.
+
+```{py:function} ms.measure_texel_coverage(**params)
+:module: _meshlab
+
+Rasterizes the UV triangles of the current layer on each of its textures and counts the texels, as the TexMetro tool of the *Real-World Textured Things* benchmark does (the output keys are its own). It is done on the CPU, so it gives the same numbers on every machine; TexMetro did it on a GPU.
+
+For every texture, `texture_N` is a list with one entry for the texture itself and one for each level a mipmap of it would hold (each halves both sides, rounding down, until one is gone; *Mip Levels* can limit it to the first), with:
+
+- `rw`, `rh`: the size of the level;
+- `totalTexels`: the fragments, a texel covered by $n$ triangles counting $n$;
+- `totalTexels_bilinear`: the covered texels and the uncovered ones next to a covered one, which a bilinear lookup near the layout may read;
+- `overwrittenTexels`: the texels covered by more than one triangle, and `lostTexels` the fragments that overwrite another ($n-1$ for such a texel);
+- `texelClashes`: the covered texels with a neighbour of another UV island, where a bilinear lookup blends two islands;
+- `boundaryTexels`: the covered texels on the border of the texture or next to an uncovered one.
+
+`ntex` is the number of textures.
+
+A texel is covered by a triangle when its centre is inside it, and a centre exactly on an edge shared by two triangles goes to one of them only. The vertices are first rounded to *Subpixel Bits* of position inside a texel, as a rasterizer does, and that choice moves the rare counts by up to about one percent. *Clash Neighbours* keeps TexMetro's rule, which looks at the four diagonal neighbours only. Where several triangles cover a texel, the last in face order is the one its neighbours are compared with.
+
+The texture size is that of the layer's images, or *Texture Width* and *Texture Height*; the layer must have one of the two. Textures larger than a gigabyte of counters are counted in bands of rows, with the same result. Measures are taken in world space, through the layer matrix, and both per-wedge and per-vertex texture coordinates are supported.
+
+**Parameters:**
+
+- **textureWidth** (*int*, default: `0`) — Width in texels in which to count, for every texture. With 0 each texture takes the width of its own image. Set Texture Height with it.
+- **textureHeight** (*int*, default: `0`) — Height in texels in which to count, for every texture. With 0 each texture takes the height of its own image. Set Texture Width with it.
+- **mipLevels** (*enum*, default: `all`) — Count the texture itself and every mipmap level below it, or the texture itself only.
+- **subpixelBits** (*int*, default: `8`) — Bits of position inside a texel to which the triangles' vertices are rounded: 4 is the least OpenGL guarantees, 8 the usual hardware. It changes the rare counts by up to about one percent.
+- **clashNeighbours** (*enum*, default: `diagonals`) — Which neighbours of a texel are compared for a clash with another UV island: the four diagonal ones, as TexMetro does, or all eight.
+```
+
+---
+
+(filter-measure-uv-mapping)=
+
+## Measure UV Mapping
+
+**Categories:** `Measurement/UV Mapping`
+
+**Plugin:** meshlab2.filter.measure
+
+Report the UV islands, folds and quasi-conformal distortion of a UV mapping, in texels.
+
+```{py:function} ms.measure_uv_mapping(**params)
+:module: _meshlab
+
+Reports how the texture coordinates of the current layer lay its surface out, with the measures of the TexMetro tool behind the *Real-World Textured Things* benchmark (the output keys are its own). Both per-wedge and per-vertex coordinates are measured.
+
+UV coordinates are taken **in texels**: those of each face are scaled by the size of its texture image, so the stretch of a non-square texture counts, or by the size given in *Texture Width* and *Texture Height*. A layer with no texture image and no size is measured in its own unit square, and says so. Measures are taken in world space, through the layer matrix.
+
+- **UV islands** (`num_charts`, what TexMetro calls charts): the maximal sets of faces connected across edges whose UV agree on both sides. `num_null_charts` counts those with no UV area. `en_uv` and `en_uv_b` are the edges of the layout and those on its boundary, where a seam is two edges, one for each side; `area_uv` and `boundary_len_uv` are its area and boundary length, in texels.
+
+- **Folds** (`nfolds`): the faces whose UV orientation is opposite to that of their island. A face with no UV area is not a fold. (TexMetro counts it as one when the sign of its zero differs from the island's.)
+
+- **Mapped fraction** (`mapped_fraction`): the share of the surface whose faces have both surface area and UV area.
+
+- **Quasi-conformal distortion** (`qcd_*`): the ratio between the largest and the smallest stretch of the map from a face to its UV triangle,
+
+$$Q=\frac{\sigma_{\max}}{\sigma_{\min}},$$
+
+which is $1$ for a map that preserves angles whatever its scale. It does not see orientation, so a fold counts as its mirror image. Percentiles (`qcd_perc1` to `qcd_perc99`), minimum, maximum, mean, root mean square, variance and standard deviation are weighted by the surface area of each face. Faces with $Q$ at or above the threshold are outliers: they are left out, and their area is reported in `qcd_discardedArea`. Faces with no surface or UV area, and infinite values, are not counted at all.
+
+- **Occupancy** (`occupancy`): the share of the texels that hold a triangle, once the overwritten ones are counted once. It needs the texture size, as does the next measure; without it they are left out.
+
+- **UV scaling** (`sf_*`): the area of a face in the layout over its area on the surface, divided by the same ratio for the whole mesh, so $1$ is the texel density of the mesh as a whole. Its percentiles and moments are weighted by surface area like the distortion's, and a face whose UV area is more than the threshold times its share of the texels the layout really uses (occupancy times the texture area) is an outlier, reported in `sf_discardedArea`. The texels are counted as *Measure Texel Coverage* does.
+
+**Parameters:**
+
+- **textureWidth** (*int*, default: `0`) — Width in texels in which to measure the UV, for every texture. With 0 each face takes the width of its own texture image, and a layer with no image is measured in its unit square. Set Texture Height with it.
+- **textureHeight** (*int*, default: `0`) — Height in texels in which to measure the UV, for every texture. With 0 each face takes the height of its own texture image. Set Texture Width with it.
+- **scalingThreshold** (*double*, default: `100.0`) — A face is an outlier of the UV scaling when its UV area is more than this many times its share of the texels the layout covers: it is left out of the statistics and its area is reported apart. TexMetro uses 100.
+- **subpixelBits** (*int*, default: `8`) — Bits of position inside a texel to which the triangles' vertices are rounded when texels are counted, as a GPU rasterizer does: 4 is the least OpenGL guarantees, 8 the usual hardware. It changes the rare counts by up to about one percent.
+- **qcdThreshold** (*double*, default: `100.0`) — Faces whose quasi-conformal distortion is at or above this value are outliers: they are left out of its statistics and their area is reported apart. TexMetro uses 100.
+```
+
+---
+
 (filter-mesh-csg-expression-trueform)=
 
 ## Mesh CSG Expression (TrueForm)
@@ -10207,6 +10292,30 @@ Select faces from selected vertices.
 **Parameters:**
 
 - **Inclusive** (*bool*, default: `True`) — If true only faces with all selected vertices are selected. Otherwise any face with at least one selected vertex is selected.
+```
+
+---
+
+(filter-select-folded-uv-faces)=
+
+## Select Folded UV Faces
+
+**Categories:** `Selection/by Topology`, `Parametrization`
+
+**Plugin:** meshlab2.filter.select
+
+Select the faces whose UV triangle is flipped against the rest of its UV island.
+
+```{py:function} ms.select_folded_uv_faces(**params)
+:module: _meshlab
+
+Selects the faces that are **folded**: those whose texture coordinates lay the triangle out the other way round from its UV island, so that the image is mirrored on them. The face selection is replaced by the result.
+
+The UV islands are the maximal sets of faces connected across edges whose UV agree on both sides. A face is folded when the sign of its UV area is opposite to that of the net UV area of its island, so an island laid out mirrored as a whole has no folds. A face with no UV area is not folded. Both per-wedge and per-vertex texture coordinates are supported.
+
+*Measure UV Mapping* reports how many faces this selects, as `nfolds`.
+
+This filter has no parameters.
 ```
 
 ---

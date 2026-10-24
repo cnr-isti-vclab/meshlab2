@@ -384,7 +384,7 @@ validates against; this table mirrors it and must be updated together with it.</
 <td><p>Moves an attribute to another element, layer or raster. The subcategory names what supplies the correspondence: a mesh’s own incidence, a computed match between two layers, or a raster’s camera</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Measurement</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Geometric</span></code> · <code class="docutils literal notranslate"><span class="pre">Topological</span></code> · <code class="docutils literal notranslate"><span class="pre">Statistics</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometric</span></code> · <code class="docutils literal notranslate"><span class="pre">Topological</span></code> · <code class="docutils literal notranslate"><span class="pre">Statistics</span></code> · <code class="docutils literal notranslate"><span class="pre">UV</span> <span class="pre">Mapping</span></code></p></td>
 <td><p>Reports values; does <strong>not</strong> modify the document</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Document</span></code></p></td>
@@ -463,6 +463,12 @@ the qualifier disambiguates it.</p></li>
 <ul>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">Attribute</span></code> vs <code class="docutils literal notranslate"><span class="pre">Measurement</span></code></strong> — <code class="docutils literal notranslate"><span class="pre">Attribute</span></code> <em>stores</em> data on the mesh;
 <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> only <em>reports</em>. If nothing is stored, it is <code class="docutils literal notranslate"><span class="pre">Measurement</span></code>.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Measurement/UV</span> <span class="pre">Mapping</span></code></strong> (approved 2026-10-23) — reports about a UV layout and the
+texture it addresses: its islands, folds, distortion and texel coverage. The name avoids
+<code class="docutils literal notranslate"><span class="pre">Measurement/Texture</span></code>, which form rule 4 forbids since it would repeat the root <code class="docutils literal notranslate"><span class="pre">Texture</span></code>.
+A filter that <em>stores</em> a per-face distortion as quality is <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code>, as
+<em>Compute UV Distortion</em> is; one that selects faces by a UV property is
+<code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code> with <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code>, as <em>Select Vertex Texture Seams</em> is.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> vs <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></strong> — the compute-vs-colorize rule: a
 filter computing a scalar field must not bake color. It returns a visualization hint
 instead. A filter that genuinely does both carries both categories.</p></li>

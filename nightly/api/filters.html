@@ -245,7 +245,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 388 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 391 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -5464,6 +5464,76 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
+<section id="measure-texel-coverage">
+<span id="filter-measure-texel-coverage"></span><h2>Measure Texel Coverage<a class="headerlink" href="#measure-texel-coverage" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/UV</span> <span class="pre">Mapping</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.measure</p>
+<p>Count how the UV triangles cover the texels of each texture, at each mipmap level.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.measure_texel_coverage">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">measure_texel_coverage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.measure_texel_coverage" title="Link to this definition">¶</a></dt>
+<dd><p>Rasterizes the UV triangles of the current layer on each of its textures and counts the texels, as the TexMetro tool of the <em>Real-World Textured Things</em> benchmark does (the output keys are its own). It is done on the CPU, so it gives the same numbers on every machine; TexMetro did it on a GPU.</p>
+<p>For every texture, <code class="docutils literal notranslate"><span class="pre">texture_N</span></code> is a list with one entry for the texture itself and one for each level a mipmap of it would hold (each halves both sides, rounding down, until one is gone; <em>Mip Levels</em> can limit it to the first), with:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">rw</span></code>, <code class="docutils literal notranslate"><span class="pre">rh</span></code>: the size of the level;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">totalTexels</span></code>: the fragments, a texel covered by <span class="math notranslate nohighlight">\(n\)</span> triangles counting <span class="math notranslate nohighlight">\(n\)</span>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">totalTexels_bilinear</span></code>: the covered texels and the uncovered ones next to a covered one, which a bilinear lookup near the layout may read;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">overwrittenTexels</span></code>: the texels covered by more than one triangle, and <code class="docutils literal notranslate"><span class="pre">lostTexels</span></code> the fragments that overwrite another (<span class="math notranslate nohighlight">\(n-1\)</span> for such a texel);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">texelClashes</span></code>: the covered texels with a neighbour of another UV island, where a bilinear lookup blends two islands;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">boundaryTexels</span></code>: the covered texels on the border of the texture or next to an uncovered one.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">ntex</span></code> is the number of textures.</p>
+<p>A texel is covered by a triangle when its centre is inside it, and a centre exactly on an edge shared by two triangles goes to one of them only. The vertices are first rounded to <em>Subpixel Bits</em> of position inside a texel, as a rasterizer does, and that choice moves the rare counts by up to about one percent. <em>Clash Neighbours</em> keeps TexMetro’s rule, which looks at the four diagonal neighbours only. Where several triangles cover a texel, the last in face order is the one its neighbours are compared with.</p>
+<p>The texture size is that of the layer’s images, or <em>Texture Width</em> and <em>Texture Height</em>; the layer must have one of the two. Textures larger than a gigabyte of counters are counted in bands of rows, with the same result. Measures are taken in world space, through the layer matrix, and both per-wedge and per-vertex texture coordinates are supported.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>textureWidth</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Width in texels in which to count, for every texture. With 0 each texture takes the width of its own image. Set Texture Height with it.</p></li>
+<li><p><strong>textureHeight</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Height in texels in which to count, for every texture. With 0 each texture takes the height of its own image. Set Texture Width with it.</p></li>
+<li><p><strong>mipLevels</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">all</span></code>) — Count the texture itself and every mipmap level below it, or the texture itself only.</p></li>
+<li><p><strong>subpixelBits</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — Bits of position inside a texel to which the triangles’ vertices are rounded: 4 is the least OpenGL guarantees, 8 the usual hardware. It changes the rare counts by up to about one percent.</p></li>
+<li><p><strong>clashNeighbours</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">diagonals</span></code>) — Which neighbours of a texel are compared for a clash with another UV island: the four diagonal ones, as TexMetro does, or all eight.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="measure-uv-mapping">
+<span id="filter-measure-uv-mapping"></span><h2>Measure UV Mapping<a class="headerlink" href="#measure-uv-mapping" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/UV</span> <span class="pre">Mapping</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.measure</p>
+<p>Report the UV islands, folds and quasi-conformal distortion of a UV mapping, in texels.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.measure_uv_mapping">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">measure_uv_mapping</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.measure_uv_mapping" title="Link to this definition">¶</a></dt>
+<dd><p>Reports how the texture coordinates of the current layer lay its surface out, with the measures of the TexMetro tool behind the <em>Real-World Textured Things</em> benchmark (the output keys are its own). Both per-wedge and per-vertex coordinates are measured.</p>
+<p>UV coordinates are taken <strong>in texels</strong>: those of each face are scaled by the size of its texture image, so the stretch of a non-square texture counts, or by the size given in <em>Texture Width</em> and <em>Texture Height</em>. A layer with no texture image and no size is measured in its own unit square, and says so. Measures are taken in world space, through the layer matrix.</p>
+<ul class="simple">
+<li><p><strong>UV islands</strong> (<code class="docutils literal notranslate"><span class="pre">num_charts</span></code>, what TexMetro calls charts): the maximal sets of faces connected across edges whose UV agree on both sides. <code class="docutils literal notranslate"><span class="pre">num_null_charts</span></code> counts those with no UV area. <code class="docutils literal notranslate"><span class="pre">en_uv</span></code> and <code class="docutils literal notranslate"><span class="pre">en_uv_b</span></code> are the edges of the layout and those on its boundary, where a seam is two edges, one for each side; <code class="docutils literal notranslate"><span class="pre">area_uv</span></code> and <code class="docutils literal notranslate"><span class="pre">boundary_len_uv</span></code> are its area and boundary length, in texels.</p></li>
+<li><p><strong>Folds</strong> (<code class="docutils literal notranslate"><span class="pre">nfolds</span></code>): the faces whose UV orientation is opposite to that of their island. A face with no UV area is not a fold. (TexMetro counts it as one when the sign of its zero differs from the island’s.)</p></li>
+<li><p><strong>Mapped fraction</strong> (<code class="docutils literal notranslate"><span class="pre">mapped_fraction</span></code>): the share of the surface whose faces have both surface area and UV area.</p></li>
+<li><p><strong>Quasi-conformal distortion</strong> (<code class="docutils literal notranslate"><span class="pre">qcd_*</span></code>): the ratio between the largest and the smallest stretch of the map from a face to its UV triangle,</p></li>
+</ul>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[Q=\frac{\sigma_{\max}}{\sigma_{\min}},\]</div>
+</div>
+<p>which is <span class="math notranslate nohighlight">\(1\)</span> for a map that preserves angles whatever its scale. It does not see orientation, so a fold counts as its mirror image. Percentiles (<code class="docutils literal notranslate"><span class="pre">qcd_perc1</span></code> to <code class="docutils literal notranslate"><span class="pre">qcd_perc99</span></code>), minimum, maximum, mean, root mean square, variance and standard deviation are weighted by the surface area of each face. Faces with <span class="math notranslate nohighlight">\(Q\)</span> at or above the threshold are outliers: they are left out, and their area is reported in <code class="docutils literal notranslate"><span class="pre">qcd_discardedArea</span></code>. Faces with no surface or UV area, and infinite values, are not counted at all.</p>
+<ul class="simple">
+<li><p><strong>Occupancy</strong> (<code class="docutils literal notranslate"><span class="pre">occupancy</span></code>): the share of the texels that hold a triangle, once the overwritten ones are counted once. It needs the texture size, as does the next measure; without it they are left out.</p></li>
+<li><p><strong>UV scaling</strong> (<code class="docutils literal notranslate"><span class="pre">sf_*</span></code>): the area of a face in the layout over its area on the surface, divided by the same ratio for the whole mesh, so <span class="math notranslate nohighlight">\(1\)</span> is the texel density of the mesh as a whole. Its percentiles and moments are weighted by surface area like the distortion’s, and a face whose UV area is more than the threshold times its share of the texels the layout really uses (occupancy times the texture area) is an outlier, reported in <code class="docutils literal notranslate"><span class="pre">sf_discardedArea</span></code>. The texels are counted as <em>Measure Texel Coverage</em> does.</p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>textureWidth</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Width in texels in which to measure the UV, for every texture. With 0 each face takes the width of its own texture image, and a layer with no image is measured in its unit square. Set Texture Height with it.</p></li>
+<li><p><strong>textureHeight</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Height in texels in which to measure the UV, for every texture. With 0 each face takes the height of its own texture image. Set Texture Width with it.</p></li>
+<li><p><strong>scalingThreshold</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">100.0</span></code>) — A face is an outlier of the UV scaling when its UV area is more than this many times its share of the texels the layout covers: it is left out of the statistics and its area is reported apart. TexMetro uses 100.</p></li>
+<li><p><strong>subpixelBits</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — Bits of position inside a texel to which the triangles’ vertices are rounded when texels are counted, as a GPU rasterizer does: 4 is the least OpenGL guarantees, 8 the usual hardware. It changes the rare counts by up to about one percent.</p></li>
+<li><p><strong>qcdThreshold</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">100.0</span></code>) — Faces whose quasi-conformal distortion is at or above this value are outliers: they are left out of its statistics and their area is reported apart. TexMetro uses 100.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="mesh-csg-expression-trueform">
 <span id="filter-mesh-csg-expression-trueform"></span><h2>Mesh CSG Expression (TrueForm)<a class="headerlink" href="#mesh-csg-expression-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p>
@@ -8298,6 +8368,22 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
+<section id="select-folded-uv-faces">
+<span id="filter-select-folded-uv-faces"></span><h2>Select Folded UV Faces<a class="headerlink" href="#select-folded-uv-faces" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code>, <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.select</p>
+<p>Select the faces whose UV triangle is flipped against the rest of its UV island.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.select_folded_uv_faces">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_folded_uv_faces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_folded_uv_faces" title="Link to this definition">¶</a></dt>
+<dd><p>Selects the faces that are <strong>folded</strong>: those whose texture coordinates lay the triangle out the other way round from its UV island, so that the image is mirrored on them. The face selection is replaced by the result.</p>
+<p>The UV islands are the maximal sets of faces connected across edges whose UV agree on both sides. A face is folded when the sign of its UV area is opposite to that of the net UV area of its island, so an island laid out mirrored as a whole has no folds. A face with no UV area is not folded. Both per-wedge and per-vertex texture coordinates are supported.</p>
+<p><em>Measure UV Mapping</em> reports how many faces this selects, as <code class="docutils literal notranslate"><span class="pre">nfolds</span></code>.</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="select-ill-shaped-faces">
 <span id="filter-select-ill-shaped-faces"></span><h2>Select Ill-Shaped Faces<a class="headerlink" href="#select-ill-shaped-faces" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code></p>
@@ -9869,6 +9955,14 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#meshlab.ms.measure_topological_properties_for_quad_mesh"><code class="docutils literal notranslate"><span class="pre">ms.measure_topological_properties_for_quad_mesh()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#measure-texel-coverage">Measure Texel Coverage</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.measure_texel_coverage"><code class="docutils literal notranslate"><span class="pre">ms.measure_texel_coverage()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#measure-uv-mapping">Measure UV Mapping</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.measure_uv_mapping"><code class="docutils literal notranslate"><span class="pre">ms.measure_uv_mapping()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#mesh-csg-expression-trueform">Mesh CSG Expression (TrueForm)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.mesh_csg_expression_trueform"><code class="docutils literal notranslate"><span class="pre">ms.mesh_csg_expression_trueform()</span></code></a></li>
 </ul>
@@ -10379,6 +10473,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#select-faces-from-vertices">Select Faces from Vertices</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.select_faces_from_vertices"><code class="docutils literal notranslate"><span class="pre">ms.select_faces_from_vertices()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#select-folded-uv-faces">Select Folded UV Faces</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.select_folded_uv_faces"><code class="docutils literal notranslate"><span class="pre">ms.select_folded_uv_faces()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#select-ill-shaped-faces">Select Ill-Shaped Faces</a><ul>

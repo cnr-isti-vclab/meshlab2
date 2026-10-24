@@ -249,7 +249,7 @@
 metrics into MeshLab, either by vendoring the tool as a subrepo or by reimplementing
 it on QRhi, and recommends a third route: <strong>reimplement the metrics on the CPU, with a
 deterministic texel rasterizer, as algorithms in vcglib and thin <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> filters in
-MeshLab</strong>. <strong>Stage 1 is implemented (2026-10-23); the rest is not.</strong> The recommendation
+MeshLab</strong>. <strong>Stages 1 to 3 are implemented (2026-10-23); the rest is not.</strong> The recommendation
 rests on measurements made for this proposal, listed under <a class="reference internal" href="#evidence"><span class="xref myst">Evidence</span></a>.</p>
 <p>See also: <a class="reference internal" href="edge_support.html"><span class="std std-doc">Edge Support</span></a>, <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>,
 <a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a>, <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>,
@@ -393,7 +393,7 @@ depends on the texel raster, the one part TexMetro does with OpenGL.</p>
 <td><p>8</p></td>
 <td><p>none reported (charts exist inside the defragmentation code, not as a report)</p></td>
 <td><p>no</p></td>
-<td><p>new report</p></td>
+<td><p><em>Measure UV Mapping</em> (<strong>Stage 2, done</strong>)</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ntex</span></code> <code class="docutils literal notranslate"><span class="pre">textures</span></code></p></td>
 <td><p>2</p></td>
@@ -405,13 +405,13 @@ depends on the texel raster, the one part TexMetro does with OpenGL.</p>
 <td><p>16</p></td>
 <td><p><strong>none.</strong> <em>Compute UV Distortion</em> has angle, area, edge, L2 and L∞ stretch, not σmax/σmin</p></td>
 <td><p>no</p></td>
-<td><p>new metric, new report</p></td>
+<td><p>metric in <em>Compute UV Distortion</em> (<strong>Stage 1, done</strong>); statistics in <em>Measure UV Mapping</em> (<strong>Stage 2, done</strong>). TexMetro’s JSON also carries <code class="docutils literal notranslate"><span class="pre">qcd_rms</span></code> and <code class="docutils literal notranslate"><span class="pre">qcd_var</span></code>, which its README omits; both are reported</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sf_perc1</span></code> … <code class="docutils literal notranslate"><span class="pre">sf_perc99</span></code> (11), <code class="docutils literal notranslate"><span class="pre">sf_min</span></code> <code class="docutils literal notranslate"><span class="pre">sf_max</span></code> <code class="docutils literal notranslate"><span class="pre">sf_avg</span></code> <code class="docutils literal notranslate"><span class="pre">sf_stddev</span></code> <code class="docutils literal notranslate"><span class="pre">sf_discardedArea</span></code></p></td>
 <td><p>16</p></td>
 <td><p><strong>close.</strong> <em>Compute UV Distortion → Area distortion</em> is <code class="docutils literal notranslate"><span class="pre">|sf</span> <span class="pre">−</span> <span class="pre">1|</span></code> (shown below), minus the sign and TexMetro’s outlier rule</p></td>
 <td><p><strong>yes</strong>, for the outlier cutoff</p></td>
-<td><p>new metric, new report</p></td>
+<td><p><em>Measure UV Mapping</em> (<strong>Stage 3, done</strong>). The JSON also carries <code class="docutils literal notranslate"><span class="pre">sf_rms</span></code> and <code class="docutils literal notranslate"><span class="pre">sf_var</span></code>; both are reported</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_avg</span></code> <code class="docutils literal notranslate"><span class="pre">_min</span></code> <code class="docutils literal notranslate"><span class="pre">_max</span></code> <code class="docutils literal notranslate"><span class="pre">_stddev</span></code></p></td>
 <td><p>4</p></td>
@@ -423,7 +423,7 @@ depends on the texel raster, the one part TexMetro does with OpenGL.</p>
 <td><p>2</p></td>
 <td><p>none</p></td>
 <td><p><strong>yes</strong></p></td>
-<td><p>new report</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">occupancy</span></code> in <em>Measure UV Mapping</em>, <code class="docutils literal notranslate"><span class="pre">texture_N</span></code> (and <code class="docutils literal notranslate"><span class="pre">ntex</span></code>) in <em>Measure Texel Coverage</em> (<strong>Stage 3, done</strong>)</p></td>
 </tr>
 </tbody>
 </table>
@@ -548,10 +548,14 @@ last-writer chart id per texel. It then runs TexMetro’s counting passes verbat
 which also loads the mesh, labels the charts and computes QCD, and holds three full
 pyramids, one per sub-pixel precision. Coarser levels cost less (0.06 s at 512²). Only
 the first row is something a GPU could do, and it is half of a step that already takes a
-third of a second. The buffers need
-<strong>6 bytes per texel</strong> (a 16-bit count and a 32-bit id), 100 MB at 4096² and 1.6 GB at
-16384². TexMetro keeps two 32-bit GPU textures and two 32-bit CPU copies, 16 bytes per
-texel, 4.3 GB at 16384².</p>
+third of a second. The prototype’s buffers needed 6 bytes per texel (a 16-bit count and a
+32-bit id). The implementation that landed counts in 32 bits too, so that a texel covered
+by more than 65,535 triangles (a small virtual texture under a dense mesh) is exact: <strong>8
+bytes per texel</strong>, 134 MB at 4096² and 2.1 GB at 16384², which the bands of Stage 3 keep
+under a gigabyte. TexMetro keeps two 32-bit GPU textures and two 32-bit CPU copies, 16
+bytes per texel, 4.3 GB at 16384². The landed version reproduces the prototype’s counts
+to the texel at levels 0, 3, 6 and 9, gives the same counts in bands of any height, and
+counts the whole 13-level pyramid in 1.09 s.</p>
 </section>
 <section id="the-published-counters-depend-on-the-rasterizer-s-sub-pixel-precision">
 <h3>The published counters depend on the rasterizer’s sub-pixel precision<a class="headerlink" href="#the-published-counters-depend-on-the-rasterizer-s-sub-pixel-precision" title="Link to this heading">¶</a></h3>
@@ -710,9 +714,18 @@ are collected in <a class="reference internal" href="#open-questions"><span clas
 <td><p>seams</p></td>
 <td><p>Every seam edge is visited from both sides, so each is counted twice; the average is unaffected. Sampling is 5 samples per texel of UV length, bilinear, with <code class="docutils literal notranslate"><span class="pre">%</span></code> wraparound, and the discrepancy is the Euclidean distance of two 8-bit sRGB triples (0 – 441.7), unweighted by perception, weighted in the histogram by 3D edge length.</p></td>
 </tr>
+<tr class="row-even"><td><p>13</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">nfolds</span></code></p></td>
+<td><p>A face is a fold when <code class="docutils literal notranslate"><span class="pre">signbit(its</span> <span class="pre">UV</span> <span class="pre">area)</span> <span class="pre">!=</span> <span class="pre">signbit(its</span> <span class="pre">chart's</span> <span class="pre">net</span> <span class="pre">area)</span></code>. A face with <strong>no</strong> UV area has a zero of either sign, so it counts as a fold or not by the sign of that zero. The native count does not count a zero-area face as a fold: on the two atlases that is <strong>20</strong> faces fewer of 1,231 (good) and <strong>22</strong> of 1,475 (bad), measured by running both rules on the same files.</p></td>
+</tr>
 </tbody>
 </table>
 </div>
+<p>Stage 3 reproduces quirks 4 to 7 as they are (the <code class="docutils literal notranslate"><span class="pre">sf</span></code> cutoff from the occupancy, the occupancy
+from the first level with texels, <code class="docutils literal notranslate"><span class="pre">totalTexels</span></code> as fragments, and each level rasterized again),
+and makes quirk 1 an option, <strong>Clash Neighbours</strong>, defaulting to TexMetro’s diagonals. Quirk 3
+is settled as the last face in face order. Quirk 10 is gone: nothing is too large for the CPU
+rasterizer, which counts in bands.</p>
 </section>
 </section>
 <section id="options">
@@ -767,7 +780,7 @@ the reported ones.</p>
 atlas rasterizer was replaced by a QImage CPU renderer behind the same API
 (<code class="docutils literal notranslate"><span class="pre">plugins/filter_texture_defragmentation/UPSTREAM.md</span></code>). TexMetro’s raster is the same
 kind of problem, by overlapping authors. The measurements above are what make C safe:
-0.35 s a level, deterministic, six bytes a texel.</p>
+0.35 s a level, deterministic, eight bytes a texel.</p>
 <p>What this proposal adds is <em>where</em> the code goes. Nothing here is MeshLab-specific: UV
 charts, distortion and texel coverage are mesh and UV processing, with no document, GUI
 or Qt in them. The repository’s rule is that such code is <strong>written into vcglib</strong> when
@@ -815,15 +828,15 @@ are no duplication and less code):</p>
 </tr>
 <tr class="row-even"><td><p>V3</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">parametrization/uv_utils.h</span></code></p></td>
-<td><p>UV charts: a per-face chart id and the chart count; a chart’s signed area; the chart-relative fold test behind <code class="docutils literal notranslate"><span class="pre">nfolds</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">UpdateTopology::FaceFaceFromTexCoord</span></code> and the connected-component iterator do the partition (measured above). <code class="docutils literal notranslate"><span class="pre">Distortion::IsFolded</span></code> tests the sign against zero, not against the chart</p></td>
-<td><p>~30</p></td>
+<td><p>UV charts: <code class="docutils literal notranslate"><span class="pre">PerWedgeCharts</span></code> (a per-face chart id and the chart count), <code class="docutils literal notranslate"><span class="pre">CountUVEdgeNum</span></code>, and the chart-relative <code class="docutils literal notranslate"><span class="pre">Distortion::FoldedNum(m,</span> <span class="pre">faceChart)</span></code> behind <code class="docutils literal notranslate"><span class="pre">nfolds</span></code>. <strong>Landed in Stage 2</strong>, with an optional per-face label on <code class="docutils literal notranslate"><span class="pre">Clean::ConnectedComponents</span></code> and <code class="docutils literal notranslate"><span class="pre">AreaUV</span></code> taken in double</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UpdateTopology::FaceFaceFromTexCoord</span></code> and <code class="docutils literal notranslate"><span class="pre">ConnectedComponents</span></code> do the partition (measured above). <code class="docutils literal notranslate"><span class="pre">Distortion::IsFolded</span></code> tests the sign against zero, not against the chart</p></td>
+<td><p>~110</p></td>
 </tr>
 <tr class="row-odd"><td><p>V4</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">parametrization/texel_coverage.h</span></code> (new)</p></td>
-<td><p>a scan converter on a fixed-point grid with the top-left fill rule, and TexMetro’s counters for one MIP level; banding for large textures</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TexelCoverage</span></code>: a scan converter on a fixed-point grid with the top-left fill rule, and TexMetro’s counters for one MIP level, in bands for large textures. <strong>Landed in Stage 3</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">SurfaceSampler::Texture</span></code> / <code class="docutils literal notranslate"><span class="pre">SingleFaceRaster</span></code> is a <em>sampler</em>: it tests edges inclusively, so a texel centre exactly on a shared edge is produced by both triangles, which a coverage count would report as overwritten, and it adds border samples. Different job</p></td>
-<td><p>~120 (the prototype is ~55)</p></td>
+<td><p>262 with its comments (the prototype is ~55)</p></td>
 </tr>
 <tr class="row-even"><td><p>V5</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">parametrization/texel_coverage.h</span></code> or a sibling</p></td>
@@ -955,9 +968,11 @@ test needs to tell a UV seam (joined in 3D, detached in UV) from a real border. 
 non-manifold edge, shared by more than two faces, is never joined across.</p></li>
 <li><p><strong>Texel raster (V4).</strong> The prototype above, grouped by texture index (<code class="docutils literal notranslate"><span class="pre">WT(i).N()</span></code>),
 with the chart id as the last-writer value so the clash count is defined. Memory is
-six bytes a texel. A texture whose buffers exceed a limit (default one gigabyte) is
-rasterized in horizontal bands, one texel of overlap each side, each band holding only
-the triangles that touch it, with the triangles bucketed by band once.</p></li>
+eight bytes a texel. A texture whose buffers exceed a limit (default one gigabyte) is
+rasterized in horizontal bands, one row of overlap each side, each band taking the
+triangles that touch it. Bucketing the triangles by band is not done: a band scans every
+face, which costs a few hundred milliseconds a band at 3 M faces and is nothing at the
+two or three bands a 16 K texture needs.</p></li>
 <li><p><strong>Statistics.</strong> <code class="docutils literal notranslate"><span class="pre">vcg::Histogram</span></code> as it is, with TexMetro’s bin counts (500,000 for QCD,
 20,000,000 for <code class="docutils literal notranslate"><span class="pre">sf</span></code>). That is no new code and it <strong>reproduces the published
 percentiles exactly</strong>, at the cost TexMetro already pays: two arrays of that length, so
@@ -1040,12 +1055,12 @@ Otherwise a small synthetic atlas with a known answer is committed.</p></li>
 <tr class="row-even"><td><p><strong>2</strong></p></td>
 <td><p>V3 (charts, signed chart area, folds)</p></td>
 <td><p><em>Measure UV Mapping</em> (charts, folds, QCD percentiles through <code class="docutils literal notranslate"><span class="pre">vcg::Histogram</span></code>), and <em>Select Folded UV Faces</em>. <code class="docutils literal notranslate"><span class="pre">sf</span></code> and <code class="docutils literal notranslate"><span class="pre">occupancy</span></code> wait for the raster</p></td>
-<td><p>Stage 1</p></td>
+<td><p>Stage 1, and approval of the category. <strong>Implemented 2026-10-23</strong> (<code class="docutils literal notranslate"><span class="pre">sf</span></code> and <code class="docutils literal notranslate"><span class="pre">occupancy</span></code> still wait for the raster)</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>3</strong></p></td>
 <td><p>V4 (the rasterizer, banding)</p></td>
 <td><p><em>Measure Texel Coverage</em>, the full pyramid; <code class="docutils literal notranslate"><span class="pre">occupancy</span></code> and <code class="docutils literal notranslate"><span class="pre">sf</span></code> added to <em>Measure UV Mapping</em></p></td>
-<td><p>Stage 2, and Stage 0 for the <code class="docutils literal notranslate"><span class="pre">sf</span></code> outlier rule</p></td>
+<td><p>Stage 2, and Stage 0 for the <code class="docutils literal notranslate"><span class="pre">sf</span></code> outlier rule. <strong>Implemented 2026-10-23</strong>, the rule as TexMetro has it</p></td>
 </tr>
 <tr class="row-even"><td><p><strong>4</strong></p></td>
 <td><p>V5 (seam discrepancy, templated on a texel functor)</p></td>
@@ -1095,17 +1110,18 @@ them? Its OpenGL, GLEW and its <code class="docutils literal notranslate"><span 
 </ol>
 <p>For this repository:</p>
 <ol class="arabic simple" start="9">
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">Select</span> <span class="pre">Folded</span> <span class="pre">UV</span> <span class="pre">Faces</span></code>.</strong> Does it belong under <code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code> and
-<code class="docutils literal notranslate"><span class="pre">Parametrization</span></code>, like <em>Select Vertex Texture Seams</em>? (The category
-<code class="docutils literal notranslate"><span class="pre">Measurement/UV</span> <span class="pre">Mapping</span></code> itself is settled.)</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Select</span> <span class="pre">Folded</span> <span class="pre">UV</span> <span class="pre">Faces</span></code>.</strong> Stage 2 gave it <code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code> and
+<code class="docutils literal notranslate"><span class="pre">Parametrization</span></code>, as <em>Select Vertex Texture Seams</em> has. Say if it should be otherwise.</p></li>
 <li><p><strong>Key names.</strong> For the mesh keys added to the existing measure filters, Stage 1
 used MeshLab-style names (<code class="docutils literal notranslate"><span class="pre">duplicate_faces</span></code>, <code class="docutils literal notranslate"><span class="pre">zero_area_faces</span></code>, <code class="docutils literal notranslate"><span class="pre">degenerate_faces</span></code>,
 <code class="docutils literal notranslate"><span class="pre">is_mesh_oriented</span></code>, <code class="docutils literal notranslate"><span class="pre">boundary_length</span></code>, <code class="docutils literal notranslate"><span class="pre">normalized_surface_area</span></code>,
 <code class="docutils literal notranslate"><span class="pre">normalized_boundary_length</span></code>), since they sit beside <code class="docutils literal notranslate"><span class="pre">faces_number</span></code> and
-<code class="docutils literal notranslate"><span class="pre">unreferenced_vertices</span></code> and TexMetro’s <code class="docutils literal notranslate"><span class="pre">fndup</span></code> or <code class="docutils literal notranslate"><span class="pre">fnzero</span></code> would not. For the new UV and
-raster reports, TexMetro’s names (<code class="docutils literal notranslate"><span class="pre">qcd_perc50</span></code>, <code class="docutils literal notranslate"><span class="pre">seam_discrepancy_avg</span></code>, …) or
-MeshLab-style (<code class="docutils literal notranslate"><span class="pre">charts_number</span></code>, <code class="docutils literal notranslate"><span class="pre">folded_faces_number</span></code>, …)? The first preserves the
-benchmark’s JSON; the second matches the neighbours. Open.</p></li>
+<code class="docutils literal notranslate"><span class="pre">unreferenced_vertices</span></code> and TexMetro’s <code class="docutils literal notranslate"><span class="pre">fndup</span></code> or <code class="docutils literal notranslate"><span class="pre">fnzero</span></code> would not. For the UV
+reports Stage 2 kept TexMetro’s names (<code class="docutils literal notranslate"><span class="pre">num_charts</span></code>, <code class="docutils literal notranslate"><span class="pre">qcd_perc50</span></code>, …), as the
+proposal said: they preserve the benchmark’s JSON, and they fit the existing suffixes
+(<code class="docutils literal notranslate"><span class="pre">_min</span></code>, <code class="docutils literal notranslate"><span class="pre">_avg</span></code>, <code class="docutils literal notranslate"><span class="pre">_stddev</span></code>, <code class="docutils literal notranslate"><span class="pre">_perc95</span></code>). The vocabulary’s word for a chart is <em>UV island</em>,
+which the descriptors say next to the key. Open for a veto, before the raster and seam
+keys follow.</p></li>
 <li><p><strong>The gargoyle atlases</strong> can be published as a test dataset?</p></li>
 </ol>
 </section>
