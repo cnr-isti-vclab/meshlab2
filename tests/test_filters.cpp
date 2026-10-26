@@ -535,6 +535,9 @@ private slots:
     void measureTexelCoverageAgreesWithTheRasterPrototypeOnARealAtlas();
     void measureSeamDiscrepancyComparesTheColorsAcrossASeam();
     void measureSeamDiscrepancyAgreesWithTexMetroOnARealAtlas();
+    void selectOverlappingUvFacesFindsTheFacesOnSharedTexels();
+    void selectOverlappingUvFacesFindsTheFacesAtIslandClashes();
+    void selectOverlappingUvFacesLeavesNothingOverwrittenOnceRemoved();
     void libiglParametrizationFiltersRunWhenAvailable();
     void libiglQuantityFiltersRunWhenAvailable();
     void meshBooleanFiltersRunWhenAvailable();
@@ -9157,13 +9160,18 @@ void FilterTests::texelCoverageInBandsGivesTheCountsOfOnePass()
     }
     using Coverage = vcg::tri::TexelCoverage<VCGMesh>;
     Coverage::Options options;
-    const Coverage::Counters whole = Coverage::Compute(mesh, faceChart, 0, 64, 64, 64.0, 64.0, options);
+    std::vector<uint8_t> wholeFlags;
+    const Coverage::Counters whole = Coverage::Compute(mesh, faceChart, 0, 64, 64, 64.0, 64.0, options, nullptr, &wholeFlags);
     QVERIFY(whole.totalTexels > 0 && whole.overwrittenTexels > 0 && whole.texelClashes > 0
             && whole.boundaryTexels > 0);
+    QVERIFY(std::count_if(wholeFlags.begin(), wholeFlags.end(), [](uint8_t f) { return (f & 1) != 0; }) > 0);   // faces on a shared texel
+    QVERIFY(std::count_if(wholeFlags.begin(), wholeFlags.end(), [](uint8_t f) { return (f & 2) != 0; }) > 0);   // and faces at a clash
     // 64 texels of two words a row: 512 bytes. These budgets give bands of 32, 6, 2 and 1 rows.
     for (const std::size_t budget : { std::size_t(512 * 34), std::size_t(512 * 8), std::size_t(512 * 4), std::size_t(1) }) {
         options.maxBufferBytes = budget;
-        const Coverage::Counters banded = Coverage::Compute(mesh, faceChart, 0, 64, 64, 64.0, 64.0, options);
+        std::vector<uint8_t> bandedFlags;
+        const Coverage::Counters banded = Coverage::Compute(mesh, faceChart, 0, 64, 64, 64.0, 64.0, options, nullptr, &bandedFlags);
+        QVERIFY(bandedFlags == wholeFlags);
         QCOMPARE(banded.totalTexels, whole.totalTexels);
         QCOMPARE(banded.totalTexelsBilinear, whole.totalTexelsBilinear);
         QCOMPARE(banded.overwrittenTexels, whole.overwrittenTexels);
@@ -9376,6 +9384,150 @@ void FilterTests::measureSeamDiscrepancyAgreesWithTexMetroOnARealAtlas()
     r = doc.runFilter(key, aligned);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
     QVERIFY(std::abs(number(r, "seam_discrepancy_avg") - 10.626951) < 1e-4);
+}
+
+namespace {
+
+// The faces of the layer that are selected, as the sorted list of their indices.
+std::vector<int> selectedFaceIndices(const Document &doc, int index)
+{
+    std::vector<int> selected;
+    const VCGMesh &mesh = doc.mesh(index).mesh;
+    for (std::size_t f = 0; f < mesh.face.size(); ++f)
+        if (!mesh.face[f].IsD() && mesh.face[f].IsS())
+            selected.push_back(int(f));
+    return selected;
+}
+
+} // namespace
+
+// Three squares on an 8 x 8 texture, two triangles each (faces 0 and 1, 2 and 3, 4 and 5): the first
+// at [0,4]^2, the second at [2,6]^2 so that they share the four texels of [2,4]^2, and the third
+// apart at [6,8]^2. The faces on the shared texels are the four of the first two squares, whichever of
+// them owns the texels on the diagonals; the third square's are not. At mipmap level 1 the squares are
+// [0,2]^2, [1,3]^2 and [3,4]^2 on a 4 x 4 texture, and share only the texel whose centre is (1.5, 1.5),
+// which lies on the diagonal of both and goes to one triangle of each: two faces. The same with the
+// texture coordinates on the vertices, which the squares own alone.
+void FilterTests::selectOverlappingUvFacesFindsTheFacesOnSharedTexels()
+{
+    const auto layout = [] { return makeUvSquares({ { 0, 0, 4, 4 }, { 2, 2, 6, 6 }, { 6, 6, 8, 8 } }, 8.0f); };
+    for (const bool perVertex : { false, true }) {
+        const auto mesh = layout();
+        int mask = vcg::tri::io::Mask::IOM_VERTCOORD;
+        if (perVertex) {
+            mesh->vert.EnableTexCoord();
+            for (VCGFace &face : mesh->face) {
+                for (int c = 0; c < 3; ++c) {
+                    face.V(c)->T().P() = face.WT(c).P();
+                    face.V(c)->T().N() = 0;
+                }
+            }
+            mesh->face.DisableWedgeTexCoord();
+            mask |= vcg::tri::io::Mask::IOM_VERTTEXCOORD;
+        } else {
+            mask |= vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
+        }
+        Document doc;
+        const int index = doc.addMesh(*mesh, QStringLiteral("Overlap"), mask);
+        doc.setCurrentMeshIndex(index);
+        const QString key = filterKeyForId(doc, QStringLiteral("select_overlapping_uv_faces"));
+        QVERIFY(!key.isEmpty());
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("textureWidth"), 8);
+        params.insert(QStringLiteral("textureHeight"), 8);
+
+        MeshFilterRunResult r = doc.runFilter(key, params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QCOMPARE(selectedFaceIndices(doc, index), (std::vector<int>{ 0, 1, 2, 3 }));
+
+        params.insert(QStringLiteral("mipLevel"), 1);
+        r = doc.runFilter(key, params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        const std::vector<int> atLevelOne = selectedFaceIndices(doc, index);
+        QCOMPARE(atLevelOne.size(), std::size_t(2));
+        QVERIFY(atLevelOne[0] < 2 && atLevelOne[1] >= 2 && atLevelOne[1] < 4);
+
+        // The 8 x 8 texture has no level 4: it would be a texture of no texel.
+        params.insert(QStringLiteral("mipLevel"), 4);
+        QVERIFY(!doc.runFilter(key, params).success);
+    }
+
+    // A texture size must be had, whole.
+    Document doc;
+    const auto mesh = layout();
+    doc.setCurrentMeshIndex(doc.addMesh(
+        *mesh, QStringLiteral("No size"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD));
+    const QString key = filterKeyForId(doc, QStringLiteral("select_overlapping_uv_faces"));
+    QVERIFY(!doc.runFilter(key, MeshFilterParameterValues()).success);
+    MeshFilterParameterValues half;
+    half.insert(QStringLiteral("textureWidth"), 8);
+    QVERIFY(!doc.runFilter(key, half).success);
+}
+
+// A 4 x 4 square and a strip one texel high against its right side (the layout of the clash test of
+// Measure Texel Coverage). Its clash texels are (3,0) and (3,2) of the square, both on its lower
+// triangle, face 0, and (4,1) of the strip, on the strip's upper triangle, face 3; with all eight
+// neighbours the square's (3,1) joins them, on face 0 again. Nothing overlaps.
+void FilterTests::selectOverlappingUvFacesFindsTheFacesAtIslandClashes()
+{
+    const auto mesh = makeUvSquares({ { 0, 0, 4, 4 }, { 4, 1, 8, 2 } }, 8.0f);
+    Document doc;
+    const int index = doc.addMesh(
+        *mesh, QStringLiteral("Side by side"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    doc.setCurrentMeshIndex(index);
+    const QString key = filterKeyForId(doc, QStringLiteral("select_overlapping_uv_faces"));
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("textureWidth"), 8);
+    params.insert(QStringLiteral("textureHeight"), 8);
+
+    MeshFilterRunResult r = doc.runFilter(key, params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(selectedFaceIndices(doc, index).empty());
+
+    params.insert(QStringLiteral("conflict"), QStringLiteral("clash"));
+    r = doc.runFilter(key, params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(selectedFaceIndices(doc, index), (std::vector<int>{ 0, 3 }));
+
+    // Adding to the selection keeps what was there.
+    doc.mesh(index).mesh.face[2].SetS();
+    params.insert(QStringLiteral("incremental_selection"), true);
+    r = doc.runFilter(key, params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(selectedFaceIndices(doc, index), (std::vector<int>{ 0, 2, 3 }));
+}
+
+// What the selection means, without a number to check it against: every face that covers a texel
+// shared with another face is selected, so once those faces are removed no texel of what is left is
+// shared, and Measure Texel Coverage finds nothing overwritten.
+void FilterTests::selectOverlappingUvFacesLeavesNothingOverwrittenOnceRemoved()
+{
+    MESHLAB2_REQUIRE_DATASET(path, "COLOR_gargoyle/gargo3M_good.ply");
+    Document doc;
+    QCOMPARE(doc.loadMesh(path), 0);
+    doc.setCurrentMeshIndex(0);
+    const QString coverage = filterKeyForId(doc, QStringLiteral("measure_texel_coverage"));
+    MeshFilterParameterValues baseOnly;
+    baseOnly.insert(QStringLiteral("mipLevels"), QStringLiteral("base"));
+
+    MeshFilterRunResult r = doc.runFilter(coverage, baseOnly);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(coverageLevel(r, 0, 0, "overwrittenTexels"), int64_t(8087));
+
+    r = doc.runFilter(filterKeyForId(doc, QStringLiteral("select_overlapping_uv_faces")), MeshFilterParameterValues());
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const std::size_t overlapping = selectedFaceIndices(doc, 0).size();
+    // 8,087 texels are covered twice or more, each by at least two faces.
+    QVERIFY(overlapping >= 2 && overlapping < 8087 * 20);
+    r = doc.runFilter(filterKeyForId(doc, QStringLiteral("remove_selected_faces")), MeshFilterParameterValues());
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+    r = doc.runFilter(coverage, baseOnly);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(coverageLevel(r, 0, 0, "overwrittenTexels"), int64_t(0));
+    QCOMPARE(coverageLevel(r, 0, 0, "lostTexels"), int64_t(0));
 }
 
 void FilterTests::libiglParametrizationFiltersRunWhenAvailable()

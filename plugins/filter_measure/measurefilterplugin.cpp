@@ -310,35 +310,15 @@ QString buildUvLayer(const Document::MeshEntry &entry, const FilterParams &param
 
     // The texel size of each texture: the one asked for, or that of the images, or, with neither,
     // the unit square (in which case the UV are left as they are).
-    const int askedWidth = params.getInt(QStringLiteral("textureWidth"));
-    const int askedHeight = params.getInt(QStringLiteral("textureHeight"));
-    if ((askedWidth > 0) != (askedHeight > 0))
-        return QObject::tr("Give both Texture Width and Texture Height, or neither.");
+    Tex::TextureSizes textureSizes = Tex::resolveTextureSizes(
+        entry, params.getInt(QStringLiteral("textureWidth")), params.getInt(QStringLiteral("textureHeight")));
+    if (!textureSizes.error.isEmpty())
+        return textureSizes.error;
     const int textureCount = Document::meshTextureAssociationCount(entry);
+    layer.sizes = std::move(textureSizes.sizes);
+    layer.texelsKnown = textureSizes.known;
+    layer.units = textureSizes.units;
     std::vector<QSizeF> &sizes = layer.sizes;
-    layer.texelsKnown = true;
-    if (askedWidth > 0) {
-        sizes.assign(size_t(std::max(textureCount, 1)), QSizeF(askedWidth, askedHeight));
-        layer.units = QObject::tr("texels of a %1 x %2 texture").arg(askedWidth).arg(askedHeight);
-    } else if (textureCount > 0) {
-        QStringList described;
-        for (int i = 0; i < textureCount; ++i) {
-            const QSize size = Tex::associatedTextureSize(entry, i);
-            if (!size.isValid())
-                return QObject::tr(
-                    "The size of texture %1 is unknown: it has no image data and no readable file. "
-                    "Give Texture Width and Texture Height to measure without it.")
-                        .arg(Document::meshTextureDisplayName(entry, i));
-            sizes.push_back(QSizeF(size));
-            described << QObject::tr("%1 x %2").arg(size.width()).arg(size.height());
-        }
-        layer.units = QObject::tr("texels (texture sizes: %1)").arg(described.join(QStringLiteral(", ")));
-    } else {
-        sizes.push_back(QSizeF(1, 1));
-        layer.texelsKnown = false;
-        layer.units = QObject::tr("the unit square: the layer has no texture image, so give Texture Width and "
-                                  "Texture Height to measure in texels");
-    }
 
     // A single size serves every face (and they all count as texture 0); with several textures a
     // face must name one that exists.

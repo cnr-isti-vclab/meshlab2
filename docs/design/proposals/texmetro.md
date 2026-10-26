@@ -4,7 +4,7 @@ This document evaluates bringing [TexMetro](https://github.com/cnr-isti-vclab/te
 metrics into MeshLab, either by vendoring the tool as a subrepo or by reimplementing
 it on QRhi, and recommends a third route: **reimplement the metrics on the CPU, with a
 deterministic texel rasterizer, as algorithms in vcglib and thin `Measurement` filters in
-MeshLab**. **Stages 1 to 4 are implemented (2026-10-24), but for the optional seam polyline.** The recommendation
+MeshLab**. **All five stages are implemented (2026-10-26), except the optional seam polyline; Stage 5 became a selection filter.** The recommendation
 rests on measurements made for this proposal, listed under [Evidence](#evidence).
 
 See also: [Edge Support](edge_support.md), [Adding a Filter](../adding_a_filter.md),
@@ -311,11 +311,16 @@ default), a compute shader baked for GLSL 430 (the project bakes 150 today), and
 first compute use in the project. It removes the readback of the counters but not that of
 the buffers the CPU passes use.
 
-Both give a number that changes with the machine, in a path no test can reach. B is
-worth building **for what only a GPU does well**: drawing the overdraw count and the
-clash texels live in the UV view (`renderwidget_uv.cpp` already exists), as a diagnostic.
-That is a separate, optional stage ([Stage 5](#staging)) and its numbers would not be
-the reported ones.
+Both give a number that changes with the machine, in a path no test can reach. B was
+kept for what only a GPU does well, drawing the overdraw count and the clash texels live in
+the UV view, as a diagnostic: the optional [Stage 5](#staging). When Stage 5 came to be built
+that overlay was sized at 400 to 600 lines (an offscreen target at texture resolution, a
+pipeline with custom blending, two shaders baked for every backend, new render settings with
+their JSON, panel and snapshot plumbing, and a render probe that only runs by hand), and its
+numbers would not have been the reported ones. A selection filter on the CPU rasterizer was
+about 150 lines, shows the same texels through the UV view's selection overlay, on the surface
+and in scripts, and matches the reported counts exactly, so it was built instead (the
+maintainer's choice, 2026-10-26). The GPU overlay is still possible, and not built.
 
 ### C. CPU algorithms in vcglib, thin filters in MeshLab (recommended)
 
@@ -353,7 +358,7 @@ are no duplication and less code):
 | V1 | `parametrization/distortion.h` | `QuasiConformalDistortion(f)`, `σmax/σmin` of the face's Jacobian; `UVScaling(f, scale)`, the *signed* area ratio | `mappingTransform2D` and `svd2x2`, already there and measured above to agree with TexMetro to 10⁻¹¹. `AreaDistortion` becomes `\|UVScaling − 1\|`, so it is not duplicated | ~15 |
 | V2 | `clean.h` | a `DeleteFacesFlag` on `RemoveDuplicateFace`, as `RemoveZeroAreaFace` and `RemoveDegenerateFace` already have | the counting modes that exist | ~5 |
 | V3 | `parametrization/uv_utils.h` | UV charts: `PerWedgeCharts` (a per-face chart id and the chart count), `CountUVEdgeNum`, and the chart-relative `Distortion::FoldedNum(m, faceChart)` behind `nfolds`. **Landed in Stage 2**, with an optional per-face label on `Clean::ConnectedComponents` and `AreaUV` taken in double | `UpdateTopology::FaceFaceFromTexCoord` and `ConnectedComponents` do the partition (measured above). `Distortion::IsFolded` tests the sign against zero, not against the chart | ~110 |
-| V4 | `parametrization/texel_coverage.h` (new) | `TexelCoverage`: a scan converter on a fixed-point grid with the top-left fill rule, and TexMetro's counters for one MIP level, in bands for large textures. **Landed in Stage 3** | `SurfaceSampler::Texture` / `SingleFaceRaster` is a *sampler*: it tests edges inclusively, so a texel centre exactly on a shared edge is produced by both triangles, which a coverage count would report as overwritten, and it adds border samples. Different job | 262 with its comments (the prototype is ~55) |
+| V4 | `parametrization/texel_coverage.h` (new) | `TexelCoverage`: a scan converter on a fixed-point grid with the top-left fill rule, and TexMetro's counters for one MIP level, in bands for large textures. **Landed in Stage 3, and in Stage 5 gained a per-face flag for the shared and the clash texels, and per-vertex UV** | `SurfaceSampler::Texture` / `SingleFaceRaster` is a *sampler*: it tests edges inclusively, so a texel centre exactly on a shared edge is produced by both triangles, which a coverage count would report as overwritten, and it adds border samples. Different job | 262 with its comments (the prototype is ~55) |
 | V5 | `parametrization/texel_coverage.h` or a sibling | `SeamDiscrepancy` in `seam_discrepancy.h`: finds the seams and measures one, **templated on a texture object** (its size and the color of a texel) so vcglib keeps no image library. **Landed in Stage 4**, with `UpdateTopology::IsTexCoordSeam` extracted from `FaceFaceFromTexCoord` so they share one test | the seam edges are those the geometric `FaceFace` joins and the texture coordinates cut | 190 with its comments |
 
 Statistics need no addition: area-weighted percentiles use `vcg::Histogram` as it is (see
@@ -385,6 +390,7 @@ name.
 | **Measure Texture Seam Color Discrepancy** | `measure_texture_seam_discrepancy` | Information | `seam_discrepancy_avg`, `_min`, `_max`, `_rms`, `_var`, `_stddev`, `seam_edges_number` |
 | **Compute UV Distortion** (existing) | `compute_uv_distortion` | writes face quality | two new metrics, **Quasi-conformal distortion** (`σmax/σmin`) and **UV scaling** (signed `sf`) — done in Stage 1 |
 | **Select Folded UV Faces** | `select_folded_uv_faces` | selection | faces whose UV orientation disagrees with their chart's |
+| **Select Overlapping UV Faces** | `select_overlapping_uv_faces` | selection | **Stage 5.** The faces on texels shared with another face (`overwrittenTexels`), or touching another island's (`texelClashes`), at a chosen mipmap level |
 | *Measure Topological Properties*, *Measure Geometric Properties* (existing) | | Information | the 6 missing mesh keys of the first table |
 
 `Compute UV Distortion` is the cheapest slice of the whole proposal: two enumerators and
@@ -491,7 +497,7 @@ Stages 1 to 4 each end in one vcglib bump, with the MeshLab code that uses it.
 | **2** | V3 (charts, signed chart area, folds) | *Measure UV Mapping* (charts, folds, QCD percentiles through `vcg::Histogram`), and *Select Folded UV Faces*. `sf` and `occupancy` wait for the raster | Stage 1, and approval of the category. **Implemented 2026-10-23** (`sf` and `occupancy` still wait for the raster) |
 | **3** | V4 (the rasterizer, banding) | *Measure Texel Coverage*, the full pyramid; `occupancy` and `sf` added to *Measure UV Mapping* | Stage 2, and Stage 0 for the `sf` outlier rule. **Implemented 2026-10-23**, the rule as TexMetro has it |
 | **4** | V5 (seam discrepancy, templated on a texel functor) | *Measure Texture Seam Color Discrepancy*; optionally the seam polyline with per-edge values | Stage 2, edge support. **Implemented 2026-10-24**; the polyline is not (see below) |
-| **5** *(optional)* | none | An overdraw and clash overlay in the UV view, on QRhi (B1), as a diagnostic that reports no numbers | Stage 3 |
+| **5** *(optional)* | `TexelCoverage` flags the faces on shared and clash texels; per-vertex UV | *Select Overlapping UV Faces*, a CPU selection filter, in place of the QRhi overlay (see below) | Stage 3. **Implemented 2026-10-26** |
 
 The `Compute UV Distortion` change (Stage 1) is the cheapest slice of the proposal and
 ships alone; it needs no raster. The line counts in the table of V1 to V5, about 230 in
@@ -550,7 +556,7 @@ For this repository:
 
 - Porting the TexMetro command line, or its OBJ, PLY and FBX importers; MeshLab's
   readers feed the filters.
-- Any use of OpenGL or QRhi to compute a reported number. B1 is for drawing, in Stage 5.
+- Any use of OpenGL or QRhi to compute a reported number, or, as built, to draw one: Stage 5 is a CPU selection filter.
 - Algorithm code in the MeshLab plugin. The filters stay adapters; anything that needs no
   document, Qt or GPU is written into vcglib.
 - Changing the meaning of the five existing *Compute UV Distortion* metrics. Expressing

@@ -2,6 +2,7 @@
 
 #include "document.h"
 #include "meshfilterpluginmanager.h"
+#include "textureassociationutils.h"
 #include "viewpointoccluder.h"
 #include "viewtrackball.h"
 #include <QColor>
@@ -19,6 +20,7 @@
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/convex_hull.h>
 #include <vcg/complex/algorithms/parametrization/distortion.h>
+#include <vcg/complex/algorithms/parametrization/texel_coverage.h>
 #include <vcg/complex/algorithms/parametrization/uv_utils.h>
 #include <vcg/complex/algorithms/point_outlier.h>
 #include <vcg/complex/algorithms/stat.h>
@@ -38,6 +40,8 @@
 #include <memory>
 #include <thread>
 #include <vector>
+
+namespace Tex = TextureAssociationUtils;
 
 namespace {
 constexpr QLatin1StringView kFilterSelectAll("select_all");
@@ -62,6 +66,7 @@ constexpr QLatin1StringView kFilterSelectByColor("select_faces_by_color");
 constexpr QLatin1StringView kFilterSelectSelfIntersect("select_self_intersecting_faces");
 constexpr QLatin1StringView kFilterSelectTexBorder("select_vertex_texture_seams");
 constexpr QLatin1StringView kFilterSelectFoldedUv("select_folded_uv_faces");
+constexpr QLatin1StringView kFilterSelectOverlappingUv("select_overlapping_uv_faces");
 constexpr QLatin1StringView kFilterSelectNonManifoldFace("select_non_manifold_edges_vcglib");
 constexpr QLatin1StringView kFilterSelectNonManifoldVertex("select_non_manifold_vertices");
 constexpr QLatin1StringView kFilterSelectFacesByEdge("select_faces_by_edge_length");
@@ -70,6 +75,32 @@ constexpr QLatin1StringView kFilterSelectOutlier("select_outliers");
 constexpr QLatin1StringView kFilterSelectByRectangle("select_by_screen_rectangle");
 constexpr QLatin1StringView kFilterSelectByPolygon("select_by_screen_polygon");
 
+
+// Flag the faces of `mesh` that sit on a texel of an unwanted kind (the TexelCoverage::FaceFlag
+// bits in faceFlags), counting each texture at the given mipmap level. Returns why that cannot be
+// done, or an empty string.
+template <bool PerWedge>
+QString flagFacesOnTexels(const VCGMesh &mesh, const std::vector<int> &faceChart,
+                          const std::vector<QSizeF> &sizes, int level, int subpixelBits,
+                          bool allNeighbours, vcg::CallBackPos *cb, std::vector<uint8_t> &faceFlags)
+{
+    using Coverage = vcg::tri::TexelCoverage<VCGMesh, PerWedge>;
+    typename Coverage::Options options;
+    options.subpixelBits = subpixelBits;
+    if (allNeighbours)
+        options.clashRule = Coverage::ClashOnAllNeighbours;
+    for (size_t t = 0; t < sizes.size(); ++t) {
+        const int width = int(sizes[t].width()) >> level;
+        const int height = int(sizes[t].height()) >> level;
+        if (width < 1 || height < 1)
+            return QObject::tr("Texture %1 is %2 x %3 and has no mipmap level %4.")
+                .arg(int(t)).arg(sizes[t].width()).arg(sizes[t].height()).arg(level);
+        // A single texture takes every face, whatever texture index they carry.
+        Coverage::Compute(mesh, faceChart, sizes.size() == 1 ? -1 : int(t), width, height,
+                          width, height, options, cb, &faceFlags);
+    }
+    return {};
+}
 
 // The polygon of select_by_screen_polygon: a JSON array of [x, y] points in normalized screen
 // coordinates (origin bottom-left, y up), at least three, implicitly closed.
@@ -1166,6 +1197,62 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             entry,
             QObject::tr("Selected folded UV faces on '%1'").arg(entry.name),
             { QObject::tr("Folded faces found: %1").arg(folded) });
+    }
+
+    if (filterId == QString::fromLatin1(kFilterSelectOverlappingUv)) {
+        const bool wedgeUV = (entry.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD)
+            && mesh.face.IsWedgeTexCoordEnabled();
+        const bool vertexUV = (entry.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD)
+            && mesh.vert.IsTexCoordEnabled();
+        if (!wedgeUV && !vertexUV)
+            return fail(QObject::tr("'%1' has no texture coordinates.").arg(entry.name));
+        const Tex::TextureSizes textures = Tex::resolveTextureSizes(
+            entry, params.getInt(QStringLiteral("textureWidth")), params.getInt(QStringLiteral("textureHeight")));
+        if (!textures.error.isEmpty())
+            return fail(textures.error);
+        if (!textures.known)
+            return fail(QObject::tr("Texels need a texture size, and '%1' has no texture image: give "
+                                    "Texture Width and Texture Height.").arg(entry.name));
+
+        // The islands, as for the folds, since a texel is a clash only against another island.
+        std::vector<int> faceChart;
+        {
+            VCGMeshFFAdjScope _ffAdj(mesh);
+            if (wedgeUV) {
+                vcg::tri::UV_Utils<VCGMesh>::PerWedgeCharts(mesh, faceChart);
+            } else {
+                vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+                std::vector<std::pair<int, VCGMesh::FacePointer>> islands;
+                vcg::tri::Clean<VCGMesh>::ConnectedComponents(mesh, islands, &faceChart);
+            }
+        }
+        std::vector<uint8_t> faceFlags;
+        const int level = params.getInt(QStringLiteral("mipLevel"));
+        const int subpixelBits = params.getInt(QStringLiteral("subpixelBits"));
+        const bool allNeighbours = params.getEnum(QStringLiteral("clashNeighbours")) == QStringLiteral("all");
+        const QString error = wedgeUV
+            ? flagFacesOnTexels<true>(mesh, faceChart, textures.sizes, level, subpixelBits, allNeighbours, cb, faceFlags)
+            : flagFacesOnTexels<false>(mesh, faceChart, textures.sizes, level, subpixelBits, allNeighbours, cb, faceFlags);
+        if (!error.isEmpty())
+            return fail(error);
+
+        const bool clash = params.getEnum(QStringLiteral("conflict")) == QStringLiteral("clash");
+        const uint8_t wanted = clash ? vcg::tri::TexelCoverage<VCGMesh>::FaceOnClashTexel
+                                     : vcg::tri::TexelCoverage<VCGMesh>::FaceOnOverwrittenTexel;
+        Sel::FaceClear(mesh);
+        int selected = 0;
+        for (size_t i = 0; i < mesh.face.size(); ++i) {
+            if (!mesh.face[i].IsD() && (faceFlags[i] & wanted)) {
+                mesh.face[i].SetS();
+                ++selected;
+            }
+        }
+        return selectionResult(
+            meshIndex,
+            entry,
+            clash ? QObject::tr("Selected UV faces on texels that touch another island on '%1'").arg(entry.name)
+                  : QObject::tr("Selected UV faces that share texels with another face on '%1'").arg(entry.name),
+            { QObject::tr("Faces found: %1 (texture measured in %2, mipmap level %3)").arg(selected).arg(textures.units).arg(level) });
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectNonManifoldFace)) {

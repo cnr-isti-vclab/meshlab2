@@ -847,6 +847,101 @@
       ]
     },
     {
+      "id": "select_overlapping_uv_faces",
+      "categories": [
+        "Selection/by Topology",
+        "Parametrization"
+      ],
+      "name": "Select Overlapping UV Faces",
+      "pythonName": "select_overlapping_uv_faces",
+      "shortDescription": "Select the faces whose UV triangles share texels with another face, or touch another island's.",
+      "longDescriptionMarkdown": "Rasterizes the UV triangles on the texture, as *Measure Texel Coverage* does, and selects the faces that sit on a texel of the kind chosen in *Faces*. The face selection is replaced by the result. It shows where the counts of that measure come from: in the UV view through its selection overlay, on the surface, and in scripts.\n\n- **Share texels with another face**: a texel is covered by more than one triangle (`overwrittenTexels`). Whatever the second face paints there overwrites the first, so these are the overlaps of the layout, between islands or inside one.\n- **Touch another island's texels**: a covered texel has a neighbour of another UV island (`texelClashes`), where a bilinear lookup blends two islands.\n\nA texel is covered by a triangle when its centre is inside it; a centre exactly on an edge shared by two triangles goes to one of them. The texture size is that of the layer's images, or *Texture Width* and *Texture Height*, and *Mip Level* counts at a smaller level, each side halved that many times (clashes grow with the level). Both per-wedge and per-vertex texture coordinates are supported.",
+      "tags": [
+        "selection",
+        "texture",
+        "uv",
+        "texel",
+        "overlap",
+        "parametrization"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireTextureCoordinates": true
+      },
+      "parameters": [
+        {
+          "id": "conflict",
+          "label": "Faces",
+          "help": "Select the faces that share texels with another face, or those whose texels touch another UV island's.",
+          "group": "main",
+          "type": "enum",
+          "default": "overwritten",
+          "enumOptions": [
+            { "id": "overwritten", "label": "Share texels with another face" },
+            { "id": "clash", "label": "Touch another island's texels" }
+          ]
+        },
+        {
+          "id": "mipLevel",
+          "label": "Mip Level",
+          "help": "Count the texels at this mipmap level: 0 is the texture itself, each level halves both sides.",
+          "group": "main",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 16
+        },
+        {
+          "id": "textureWidth",
+          "label": "Texture Width",
+          "help": "Width in texels in which to count, for every texture. With 0 each texture takes the width of its own image. Set Texture Height with it.",
+          "group": "main",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 65536
+        },
+        {
+          "id": "textureHeight",
+          "label": "Texture Height",
+          "help": "Height in texels in which to count, for every texture. With 0 each texture takes the height of its own image. Set Texture Width with it.",
+          "group": "main",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 65536
+        },
+        {
+          "id": "subpixelBits",
+          "label": "Subpixel Bits",
+          "help": "Bits of position inside a texel to which the triangles' vertices are rounded: 4 is the least OpenGL guarantees, 8 the usual hardware. It changes the rare counts by up to about one percent.",
+          "group": "advanced",
+          "type": "int",
+          "default": 8,
+          "min": 1,
+          "max": 8
+        },
+        {
+          "id": "clashNeighbours",
+          "label": "Clash Neighbours",
+          "help": "Which neighbours of a texel are compared for a clash with another UV island: the four diagonal ones, as TexMetro does, or all eight.",
+          "group": "advanced",
+          "type": "enum",
+          "default": "diagonals",
+          "enumOptions": [
+            { "id": "diagonals", "label": "Diagonal neighbours (TexMetro)" },
+            { "id": "all", "label": "All neighbours" }
+          ]
+        }
+      ],
+      "outputModifies": [
+        "FS"
+      ]
+    },
+    {
       "id": "select_non_manifold_edges_vcglib",
       "categories": [
         "Selection/by Topology"

@@ -6,6 +6,7 @@
 #include <QImageReader>
 #include <QObject>
 
+#include <algorithm>
 #include <limits>
 
 #if defined(MESHLAB2_HAS_STB_IMAGE)
@@ -281,6 +282,41 @@ QSize associatedTextureSize(const Document::MeshEntry &entry, int textureIndex)
     QImage image;
     QString error;
     return readImageFile(sourcePath, image, error) ? image.size() : QSize();
+}
+
+TextureSizes resolveTextureSizes(const Document::MeshEntry &entry, int askedWidth, int askedHeight)
+{
+    TextureSizes result;
+    if ((askedWidth > 0) != (askedHeight > 0)) {
+        result.error = QObject::tr("Give both Texture Width and Texture Height, or neither.");
+        return result;
+    }
+    const int textureCount = Document::meshTextureAssociationCount(entry);
+    if (askedWidth > 0) {
+        result.sizes.assign(size_t(std::max(textureCount, 1)), QSizeF(askedWidth, askedHeight));
+        result.units = QObject::tr("texels of a %1 x %2 texture").arg(askedWidth).arg(askedHeight);
+    } else if (textureCount > 0) {
+        QStringList described;
+        for (int i = 0; i < textureCount; ++i) {
+            const QSize size = associatedTextureSize(entry, i);
+            if (!size.isValid()) {
+                result.error = QObject::tr(
+                    "The size of texture %1 is unknown: it has no image data and no readable file. "
+                    "Give Texture Width and Texture Height to measure without it.")
+                        .arg(Document::meshTextureDisplayName(entry, i));
+                return result;
+            }
+            result.sizes.push_back(QSizeF(size));
+            described << QObject::tr("%1 x %2").arg(size.width()).arg(size.height());
+        }
+        result.units = QObject::tr("texels (texture sizes: %1)").arg(described.join(QStringLiteral(", ")));
+    } else {
+        result.sizes.push_back(QSizeF(1, 1));
+        result.known = false;
+        result.units = QObject::tr("the unit square: the layer has no texture image, so give Texture Width and "
+                                   "Texture Height to measure in texels");
+    }
+    return result;
 }
 
 bool saveImages(const QStringList &paths, const std::vector<QImage> &images, QString &error)
