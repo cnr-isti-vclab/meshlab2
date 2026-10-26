@@ -537,6 +537,7 @@ private slots:
     void measureSeamDiscrepancyAgreesWithTexMetroOnARealAtlas();
     void seamPolylineCarriesTheDiscrepancyOfEachSeam();
     void seamPolylineAgreesWithTheMeasureOnARealAtlas();
+    void texmetroReportScriptNamesKeysThatTheFiltersReturn();
     void selectOverlappingUvFacesFindsTheFacesOnSharedTexels();
     void selectOverlappingUvFacesFindsTheFacesAtIslandClashes();
     void selectOverlappingUvFacesLeavesNothingOverwrittenOnceRemoved();
@@ -9643,6 +9644,56 @@ void FilterTests::seamPolylineAgreesWithTheMeasureOnARealAtlas()
         }
         QVERIFY2(std::abs(weighted / length - measure.outputValues.value(QStringLiteral("seam_discrepancy_avg")).toDouble()) < 1e-5,
                  pairing);
+    }
+}
+
+// docs/examples/texmetro_report.py maps each key of TexMetro's JSON to the filter and the output value that
+// give it, and docs/texture_metrics.md prints that map. So that a renamed output value cannot leave them
+// behind, every pair in the script's list is looked for in what the filter really returns, on a layer with
+// islands that overlap, a texture image, and so a value for every measure.
+void FilterTests::texmetroReportScriptNamesKeysThatTheFiltersReturn()
+{
+    QFile script(QStringLiteral(TEST_SOURCE_DIR "/docs/examples/texmetro_report.py"));
+    QVERIFY2(script.open(QIODevice::ReadOnly | QIODevice::Text), "cannot read texmetro_report.py");
+    const QString text = QString::fromUtf8(script.readAll());
+    const int begin = text.indexOf(QStringLiteral("KEY_MAP = ["));
+    const int end = text.indexOf(QStringLiteral("\n]\n"), begin);
+    QVERIFY(begin >= 0 && end > begin);
+    // One entry to a line: ("fn", "measure_topological_properties", "faces_number"),
+    QRegularExpression entry(QStringLiteral(R"re(^\s*\("([^"]+)",\s*"([^"]+)",\s*"([^"]+)"\),\s*$)re"),
+                             QRegularExpression::MultilineOption);
+    std::vector<std::array<QString, 3>> map;
+    for (auto it = entry.globalMatch(text.mid(begin, end - begin)); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        map.push_back({ m.captured(1), m.captured(2), m.captured(3) });
+    }
+    // 18 keys of the mesh, 9 of the UV layout, 6 of the seams and 18 each of the distortion and the scaling.
+    QCOMPARE(map.size(), std::size_t(69));
+
+    Document doc;
+    const auto mesh = makeUvSquares({ { 0, 0, 4, 4 }, { 2, 2, 6, 6 }, { 6, 6, 8, 8 } }, 8.0f);
+    const int index = doc.addMesh(
+        *mesh, QStringLiteral("Overlapping squares"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    QImage image(8, 8, QImage::Format_ARGB32);
+    image.fill(qRgba(120, 80, 40, 255));
+    TextureAssociationUtils::replaceTextureAssociations(
+        doc.mesh(index), { TextureAssociationUtils::makeTextureAssetFromImage(image, QStringLiteral("flat.png")) });
+    doc.setCurrentMeshIndex(index);
+
+    std::map<QString, QVariantMap> outputs;
+    for (const auto &[texmetroKey, filter, key] : map) {
+        if (outputs.find(filter) == outputs.end()) {
+            const QString filterKey = filterKeyForId(doc, filter);
+            QVERIFY2(!filterKey.isEmpty(), qPrintable(QStringLiteral("no filter %1 for the key %2").arg(filter, texmetroKey)));
+            doc.setCurrentMeshIndex(index);
+            const MeshFilterRunResult r = doc.runFilter(filterKey, MeshFilterParameterValues());
+            QVERIFY2(r.success, qPrintable(filter + QStringLiteral(": ") + r.errorMessage));
+            outputs[filter] = r.outputValues;
+        }
+        QVERIFY2(outputs[filter].contains(key),
+                 qPrintable(QStringLiteral("%1 does not return %2, which texmetro_report.py gives as TexMetro's %3")
+                                .arg(filter, key, texmetroKey)));
     }
 }
 

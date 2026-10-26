@@ -408,7 +408,7 @@ level). `FilterRunRecord.output_values` in the Python binding converts only scal
 conversion of `QVariantList` and `QVariantMap` (about fifteen lines in
 `src/python/bindings/module.cpp`, useful to any filter), and then
 `json.dumps(result.output_values)` writes a TexMetro-compatible file with no file output
-in the filter. A table of old key to new key goes in the filter documentation.
+in the filter. The table of TexMetro key to MeshLab filter and output value is in `docs/texture_metrics.md`, generated from the script.
 
 **Parameters** (advanced, with these defaults):
 
@@ -497,7 +497,7 @@ Stages 1 to 4 each end in one vcglib bump, with the MeshLab code that uses it.
 
 | Stage | vcglib (four-part landing) | MeshLab | Needs |
 |---|---|---|---|
-| **0** | none | **Reference values.** Build TexMetro on Linux or Windows; run it on the two gargoyle atlases and on benchmark models; keep the JSON. Decide the tolerance between our rare counters and the GL ones (the measured 8-bit-vs-4-bit spread, about 0.1 % to 1 %, is the floor) and which quirks to keep. Settle the [open questions](#open-questions) with the authors. | no code |
+| **0** | none | **Reference values.** Build TexMetro on Linux or Windows; run it on the two gargoyle atlases and on benchmark models; keep the JSON. Decide the tolerance between our rare counters and the GL ones (the measured 8-bit-vs-4-bit spread, about 0.1 % to 1 %, is the floor) and which quirks to keep. Settle the [open questions](#open-questions) with the authors. The tooling is ready (2026-10-26): `docs/examples/texmetro_report.py` writes our results in TexMetro's JSON, and `--compare reference.json` lists the keys that differ by more than a tolerance (the starting tolerances are in the script, to be set from the real comparison). What is missing is the reference JSON itself, from a machine that can run TexMetro. | no code |
 | **1** | V1 (`QuasiConformalDistortion`, `UVScaling`); V2 (the counting flag) | QCD and UV scaling in *Compute UV Distortion*; the six missing mesh keys; the recursive Python conversion | nothing; it ships alone. **Implemented 2026-10-23** |
 | **2** | V3 (charts, signed chart area, folds) | *Measure UV Mapping* (charts, folds, QCD percentiles through `vcg::Histogram`), and *Select Folded UV Faces*. `sf` and `occupancy` wait for the raster | Stage 1, and approval of the category. **Implemented 2026-10-23** (`sf` and `occupancy` still wait for the raster) |
 | **3** | V4 (the rasterizer, banding) | *Measure Texel Coverage*, the full pyramid; `occupancy` and `sf` added to *Measure UV Mapping* | Stage 2, and Stage 0 for the `sf` outlier rule. **Implemented 2026-10-23**, the rule as TexMetro has it |
