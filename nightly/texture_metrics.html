@@ -1,0 +1,718 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Supporting Types" href="api/types.html"><link rel="prev" title="Expressions" href="expressions.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>Texture and UV measures - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="expressions.html">Expressions</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Texture and UV measures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="_sources/texture_metrics.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="texture-and-uv-measures">
+<h1>Texture and UV measures<a class="headerlink" href="#texture-and-uv-measures" title="Link to this heading">¶</a></h1>
+<p>MeshLab reports the statistics of <a class="reference external" href="https://github.com/cnr-isti-vclab/texmetro">TexMetro</a>, the tool
+behind the benchmark <em>Real-World Textured Things</em>, as filters, with TexMetro’s own output keys. They run
+on the CPU, so they give the same numbers on every machine and need no graphics context, and they work
+on a layer in the document, in the GUI and in scripts.</p>
+<section id="the-filters">
+<h2>The filters<a class="headerlink" href="#the-filters" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>What it does</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><em>Measure UV Mapping</em></p></td>
+<td><p>UV islands, their edges and boundary, folds, mapped fraction, occupancy, and the statistics of the quasi-conformal distortion and of the UV scaling (<code class="docutils literal notranslate"><span class="pre">qcd_*</span></code>, <code class="docutils literal notranslate"><span class="pre">sf_*</span></code>), with the UV taken in texels.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Measure Texel Coverage</em></p></td>
+<td><p>How the UV triangles cover the texels of each texture, at its size and at every mipmap level (<code class="docutils literal notranslate"><span class="pre">texture_N</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Measure Texture Seam Color Discrepancy</em></p></td>
+<td><p>How much the colors of the texture differ across its seams (<code class="docutils literal notranslate"><span class="pre">seam_discrepancy_*</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Measure Topological Properties</em>, <em>Measure Geometric Properties</em></p></td>
+<td><p>The mesh keys: counts, boundary, genus, duplicate, zero-area and degenerate faces, orientation, normalized area and boundary length.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Compute UV Distortion</em></p></td>
+<td><p>Quasi-conformal distortion and UV scaling per face, as face quality, to look at.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Select Folded UV Faces</em>, <em>Select Overlapping UV Faces</em></p></td>
+<td><p>The faces behind <code class="docutils literal notranslate"><span class="pre">nfolds</span></code>, and the faces on the texels that <code class="docutils literal notranslate"><span class="pre">overwrittenTexels</span></code> and <code class="docutils literal notranslate"><span class="pre">texelClashes</span></code> count.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Create Polyline from UV Seams</em></p></td>
+<td><p>The seams as a polyline, each edge carrying the discrepancy of its seam as its scalar.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="texmetro-s-report-from-a-script">
+<h2>TexMetro’s report from a script<a class="headerlink" href="#texmetro-s-report-from-a-script" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">docs/examples/texmetro_report.py</span></code> in the repository runs the filters on a model and writes TexMetro’s JSON
+file, key for key and in TexMetro’s order, so that scripts written for its output keep working and the two
+tools can be compared. It needs <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code>, or MeshLab’s own Python console, and the model’s texture images
+next to the model:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">texmetro_report</span><span class="o">.</span><span class="n">py</span> <span class="n">model</span><span class="o">.</span><span class="n">obj</span>                          <span class="c1"># writes texmetro.json</span>
+<span class="n">python</span> <span class="n">texmetro_report</span><span class="o">.</span><span class="n">py</span> <span class="n">model</span><span class="o">.</span><span class="n">obj</span> <span class="o">-</span><span class="n">t</span> <span class="mi">2048</span><span class="n">x1024</span>             <span class="c1"># a model with no image, as TexMetro's -t</span>
+<span class="n">python</span> <span class="n">texmetro_report</span><span class="o">.</span><span class="n">py</span> <span class="n">model</span><span class="o">.</span><span class="n">obj</span> <span class="o">--</span><span class="n">compare</span> <span class="n">reference</span><span class="o">.</span><span class="n">json</span> <span class="c1"># and compare with a file TexMetro wrote</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">--compare</span></code> lists the keys that differ by more than a tolerance and exits with 1 if there are any. The
+tolerances are exact for the counts of the mesh and of the UV layout, a few parts in ten thousand for the common
+texel counters, a few percent for the rare ones (overwritten, lost, clash), and the six significant digits that
+TexMetro writes for everything else. They are a starting point, from what is known of where the two differ, and
+are meant to be set from real comparisons.</p>
+</section>
+<section id="the-keys">
+<h2>The keys<a class="headerlink" href="#the-keys" title="Link to this heading">¶</a></h2>
+<p>Each key of TexMetro’s JSON, and the filter that reports it. Most UV keys keep their names; the mesh keys, which
+sit beside MeshLab’s own, have MeshLab’s. The table is printed by <code class="docutils literal notranslate"><span class="pre">texmetro_report.py</span> <span class="pre">--key-table</span></code>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>TexMetro key</p></th>
+<th class="head"><p>MeshLab filter</p></th>
+<th class="head"><p>Output value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">fn</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">faces_number</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">vn</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vertices_number</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">en</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">edges_number</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">en_b</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">boundary_edges</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">area</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_geometric_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">surface_area</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">boundary_len</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_geometric_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">boundary_length</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">area_normalized</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_geometric_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normalized_surface_area</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">boundary_len_normalized</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_geometric_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normalized_boundary_length</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">boundary_loops</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">number_holes</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nonmanif_edge</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">non_two_manifold_edges</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nonmanif_vert</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">non_two_manifold_vertices</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">connected_components</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">connected_components_number</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">genus</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">genus</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">fndup</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">duplicate_faces</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">fnzero</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">zero_area_faces</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">fndegen</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">degenerate_faces</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">vnunref</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">unreferenced_vertices</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">oriented</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">is_mesh_oriented</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">en_uv</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">en_uv</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">en_uv_b</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">en_uv_b</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">area_uv</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">area_uv</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">boundary_len_uv</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">boundary_len_uv</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">num_charts</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">num_charts</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">num_null_charts</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">num_null_charts</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mapped_fraction</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mapped_fraction</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nfolds</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">nfolds</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">occupancy</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">occupancy</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_avg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_texture_seam_discrepancy</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_avg</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_min</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_texture_seam_discrepancy</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_min</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_max</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_texture_seam_discrepancy</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_max</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_rms</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_texture_seam_discrepancy</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_rms</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_var</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_texture_seam_discrepancy</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_var</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_stddev</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_texture_seam_discrepancy</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_stddev</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc1</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc1</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc10</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc10</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc20</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc20</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc30</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc30</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc40</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc40</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc50</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc50</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc60</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc60</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc70</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc70</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc80</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc80</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc90</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc90</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc99</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_perc99</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_min</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_min</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_max</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_max</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_avg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_avg</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_rms</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_rms</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_var</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_var</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_stddev</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_stddev</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">qcd_discardedArea</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qcd_discardedArea</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sf_perc1</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_perc1</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sf_perc10</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_perc10</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sf_perc20</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_perc20</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sf_perc30</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_perc30</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sf_perc40</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_perc40</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sf_perc50</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_perc50</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sf_perc60</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_perc60</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sf_perc70</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_perc70</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sf_perc80</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_perc80</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sf_perc90</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_perc90</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sf_perc99</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_perc99</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sf_min</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_min</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sf_max</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_max</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sf_avg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_avg</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sf_rms</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_rms</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sf_var</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_var</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sf_stddev</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_stddev</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sf_discardedArea</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_uv_mapping</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sf_discardedArea</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">mesh</span></code></p></td>
+<td><p>the file name of the model</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ntex</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_texel_coverage</span></code></p></td>
+<td><p>ntex</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">texture_N</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_texel_coverage</span></code></p></td>
+<td><p>texture_N: a list with an entry per mipmap level, with TexMetro’s keys</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">orientable</span></code></p></td>
+<td><p>not reported</p></td>
+<td><p>OrientCoherentlyMesh flips faces, so no report can use it</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">textures</span></code></p></td>
+<td><p>not reported</p></td>
+<td><p>the layer knows its textures; ntex is their number</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="where-the-numbers-differ-from-texmetro-s">
+<h2>Where the numbers differ from TexMetro’s<a class="headerlink" href="#where-the-numbers-differ-from-texmetro-s" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><strong>Texels are counted on the CPU.</strong> TexMetro renders on a GPU, whose rounding of the triangles’ vertices
+(its subpixel precision: 4 bits on some drivers, 8 on most hardware) moves the rare counters, the
+overwritten, lost and clash texels, by about 0.1 % to 1 %. MeshLab rounds to 8 bits by default, as most
+hardware does, and <em>Subpixel Bits</em> changes it. A texel centre exactly on an edge shared by two triangles
+goes to one of them only.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">nfolds</span></code></strong> does not count a face with no UV area as a fold. TexMetro counts it when the sign of its zero
+differs from its island’s: 20 faces of 1,231 on one real atlas.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">texelClashes</span></code></strong> looks at the four diagonal neighbours of a texel, as TexMetro’s code does, whichever
+was meant; <em>Clash Neighbours</em> offers all eight.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_*</span></code></strong> compares, as TexMetro does, the i-th sample of each side’s own edge. The two faces
+list a shared edge in opposite directions, so this compares a point with the mirrored point of the other side,
+and reads about 16 % higher than comparing the same point, which <em>Pairing</em> offers.</p></li>
+<li><p><strong>Not reproduced:</strong> TexMetro’s recentring of UVs whose box lies outside the unit square, and its zeros for a
+texture larger than its GPU’s limit (MeshLab counts it, in bands if it is large). <code class="docutils literal notranslate"><span class="pre">orientable</span></code> is not reported,
+and <code class="docutils literal notranslate"><span class="pre">oriented</span></code> is absent for a mesh with non-manifold edges, where an orientation means nothing.</p></li>
+<li><p><strong>Precision.</strong> The mesh areas and lengths are summed in single precision, as MeshLab stores the mesh. The
+distortion and texel measures are in double precision, on a copy of the layer in texels.</p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="api/types.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Supporting Types</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="expressions.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Expressions</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Texture and UV measures</a><ul>
+<li><a class="reference internal" href="#the-filters">The filters</a></li>
+<li><a class="reference internal" href="#texmetro-s-report-from-a-script">TexMetro’s report from a script</a></li>
+<li><a class="reference internal" href="#the-keys">The keys</a></li>
+<li><a class="reference internal" href="#where-the-numbers-differ-from-texmetro-s">Where the numbers differ from TexMetro’s</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=2709fde1"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

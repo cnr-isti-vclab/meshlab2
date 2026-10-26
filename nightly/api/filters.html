@@ -196,6 +196,7 @@
 <li class="toctree-l1"><a class="reference internal" href="mlgui.html">MlGui</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Filters</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../texture_metrics.html">Texture and UV measures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="types.html">Supporting Types</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples</span></p>
@@ -245,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 393 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 394 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -2453,6 +2454,26 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <p><em>Select Self Intersecting Faces</em> marks the faces involved; this gives the intersection itself, which is what you need to see where the problem is rather than merely that it exists — and, being exact geometry rather than a selection, it can be measured, exported, or swept into a tube.</p>
 <p>A clean mesh produces nothing, and the filter says so.</p>
 <p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="create-polyline-from-uv-seams">
+<span id="filter-create-polyline-from-uv-seams"></span><h2>Create Polyline from UV Seams<a class="headerlink" href="#create-polyline-from-uv-seams" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code>, <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.meshing</p>
+<p>Create a polyline along the texture seams, with the color discrepancy of each as its scalar.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.create_polyline_from_uv_seams">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_polyline_from_uv_seams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_polyline_from_uv_seams" title="Link to this definition">¶</a></dt>
+<dd><p>Create a new Layer with an edge mesh (polyline) along the <strong>texture seams</strong> of the current layer: the edges that two faces share on the surface and place apart in the texture. Coincident vertices are merged first, so a layer exported with a vertex per corner still has its seams, and the polyline is connected where seams meet. Seams between UV islands with no UV area are left out.</p>
+<p>If the layer has texture images, each edge carries as its <strong>scalar</strong> how much the colors of the texture differ across that seam, the measure of <em>Measure Texture Seam Color Discrepancy</em> (the RGB distance of the colors the two sides give to the same points, 0 to 442, averaged over the seam from both of its sides), so the length-weighted mean of the scalars is that filter’s <code class="docutils literal notranslate"><span class="pre">seam_discrepancy_avg</span></code>. Use <em>Colorize Edges by Scalar</em> to see where the seams show; a few percent of them account for most of what the mean hides. Without images the polyline is still made, with no scalar.</p>
+<p><em>Pairing</em> and <em>Samples per Texel</em> are those of the measure. The layer is created in the frame of the layer it comes from.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>pairing</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">edge_order</span></code>) — Which samples of the two sides of a seam are compared: the i-th of each along its own edge, as TexMetro does (which pairs a point with the mirrored point of the other side), or the two sides’ colors at the same point of the seam.</p></li>
+<li><p><strong>samplesPerTexel</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">5.0</span></code>) — How many samples to take along a seam for each texel of its length. TexMetro takes 5.</p></li>
+</ul>
 </dd></dl>
 
 <hr class="docutils" />
@@ -9501,6 +9522,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#create-polyline-from-self-intersections-trueform">Create Polyline from Self-Intersections (TrueForm)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.create_polyline_from_self_intersections_trueform"><code class="docutils literal notranslate"><span class="pre">ms.create_polyline_from_self_intersections_trueform()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-polyline-from-uv-seams">Create Polyline from UV Seams</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.create_polyline_from_uv_seams"><code class="docutils literal notranslate"><span class="pre">ms.create_polyline_from_uv_seams()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#create-reeb-graph-from-vertex-scalar">Create Reeb Graph from Vertex Scalar</a><ul>

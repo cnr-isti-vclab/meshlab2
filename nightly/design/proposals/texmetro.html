@@ -196,6 +196,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../texture_metrics.html">Texture and UV measures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples</span></p>
@@ -249,7 +250,7 @@
 metrics into MeshLab, either by vendoring the tool as a subrepo or by reimplementing
 it on QRhi, and recommends a third route: <strong>reimplement the metrics on the CPU, with a
 deterministic texel rasterizer, as algorithms in vcglib and thin <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> filters in
-MeshLab</strong>. <strong>All five stages are implemented (2026-10-26), except the optional seam polyline; Stage 5 became a selection filter.</strong> The recommendation
+MeshLab</strong>. <strong>All five stages and the optional seam polyline are implemented (2026-10-26); Stage 5 became a selection filter.</strong> The recommendation
 rests on measurements made for this proposal, listed under <a class="reference internal" href="#evidence"><span class="xref myst">Evidence</span></a>.</p>
 <p>See also: <a class="reference internal" href="edge_support.html"><span class="std std-doc">Edge Support</span></a>, <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>,
 <a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a>, <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>,
@@ -904,22 +905,27 @@ name.</p>
 <td><p>Information</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">seam_discrepancy_avg</span></code>, <code class="docutils literal notranslate"><span class="pre">_min</span></code>, <code class="docutils literal notranslate"><span class="pre">_max</span></code>, <code class="docutils literal notranslate"><span class="pre">_rms</span></code>, <code class="docutils literal notranslate"><span class="pre">_var</span></code>, <code class="docutils literal notranslate"><span class="pre">_stddev</span></code>, <code class="docutils literal notranslate"><span class="pre">seam_edges_number</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>Compute UV Distortion</strong> (existing)</p></td>
+<tr class="row-odd"><td><p><strong>Create Polyline from UV Seams</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_uv_seams</span></code></p></td>
+<td><p>new layer (edges)</p></td>
+<td><p>one edge per seam, with its discrepancy as the edge scalar</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Compute UV Distortion</strong> (existing)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">compute_uv_distortion</span></code></p></td>
 <td><p>writes face quality</p></td>
 <td><p>two new metrics, <strong>Quasi-conformal distortion</strong> (<code class="docutils literal notranslate"><span class="pre">σmax/σmin</span></code>) and <strong>UV scaling</strong> (signed <code class="docutils literal notranslate"><span class="pre">sf</span></code>) — done in Stage 1</p></td>
 </tr>
-<tr class="row-even"><td><p><strong>Select Folded UV Faces</strong></p></td>
+<tr class="row-odd"><td><p><strong>Select Folded UV Faces</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">select_folded_uv_faces</span></code></p></td>
 <td><p>selection</p></td>
 <td><p>faces whose UV orientation disagrees with their chart’s</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>Select Overlapping UV Faces</strong></p></td>
+<tr class="row-even"><td><p><strong>Select Overlapping UV Faces</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">select_overlapping_uv_faces</span></code></p></td>
 <td><p>selection</p></td>
 <td><p><strong>Stage 5.</strong> The faces on texels shared with another face (<code class="docutils literal notranslate"><span class="pre">overwrittenTexels</span></code>), or touching another island’s (<code class="docutils literal notranslate"><span class="pre">texelClashes</span></code>), at a chosen mipmap level</p></td>
 </tr>
-<tr class="row-even"><td><p><em>Measure Topological Properties</em>, <em>Measure Geometric Properties</em> (existing)</p></td>
+<tr class="row-odd"><td><p><em>Measure Topological Properties</em>, <em>Measure Geometric Properties</em> (existing)</p></td>
 <td><p></p></td>
 <td><p>Information</p></td>
 <td><p>the 6 missing mesh keys of the first table</p></td>
@@ -940,7 +946,7 @@ level). <code class="docutils literal notranslate"><span class="pre">FilterRunRe
 conversion of <code class="docutils literal notranslate"><span class="pre">QVariantList</span></code> and <code class="docutils literal notranslate"><span class="pre">QVariantMap</span></code> (about fifteen lines in
 <code class="docutils literal notranslate"><span class="pre">src/python/bindings/module.cpp</span></code>, useful to any filter), and then
 <code class="docutils literal notranslate"><span class="pre">json.dumps(result.output_values)</span></code> writes a TexMetro-compatible file with no file output
-in the filter. A table of old key to new key goes in the filter documentation.</p>
+in the filter. The table of TexMetro key to MeshLab filter and output value is in <code class="docutils literal notranslate"><span class="pre">docs/texture_metrics.md</span></code>, generated from the script.</p>
 <p><strong>Parameters</strong> (advanced, with these defaults):</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
@@ -1006,13 +1012,17 @@ textures are independent if that ever changes.</p>
 <section id="where-it-connects-to-the-rest-of-meshlab">
 <h3>Where it connects to the rest of MeshLab<a class="headerlink" href="#where-it-connects-to-the-rest-of-meshlab" title="Link to this heading">¶</a></h3>
 <ul class="simple">
-<li><p><strong>Seams as polylines, with a value per edge.</strong> Edges now carry colour and a scalar
-(<a class="reference internal" href="edge_support.html"><span class="std std-doc">Edge Support</span></a>, <code class="docutils literal notranslate"><span class="pre">IOM_EDGEQUALITY</span></code>). The seam discrepancy is a value
-per seam edge, so a later filter can create the UV-seam polyline and store each edge’s
-discrepancy in it, to be coloured by the existing edge colorizers. Stage 4 did not build it: it
-is a <em>Create</em> filter, so it belongs in <code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> beside <em>Create Polyline from Selection
-Perimeter</em>, and it needs the UV layer builder and the texture reader that now sit in
-<code class="docutils literal notranslate"><span class="pre">filter_measure</span></code> (about 120 lines, to be moved into core, not written again). It is offered, not built.</p></li>
+<li><p><strong>Seams as polylines, with a value per edge</strong> (built after Stage 4). <em>Create Polyline from UV
+Seams</em>, in <code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> beside <em>Create Polyline from Selection Perimeter</em>, makes an edge layer
+along the seams, in the frame of the layer it came from. Each edge carries as its scalar
+(<a class="reference internal" href="edge_support.html"><span class="std std-doc">Edge Support</span></a>, <code class="docutils literal notranslate"><span class="pre">IOM_EDGEQUALITY</span></code>) the discrepancy of its seam, the mean of the
+two sides, so the length-weighted mean of the scalars is <code class="docutils literal notranslate"><span class="pre">seam_discrepancy_avg</span></code> exactly; the
+existing edge colorizers show it. Without a texture image the polyline is made without a scalar.
+To serve it, the UV layer builder, the UV mesh type and the texture reader moved from
+<code class="docutils literal notranslate"><span class="pre">filter_measure</span></code> into core (<code class="docutils literal notranslate"><span class="pre">src/core/uvlayer.{h,cpp}</span></code>), with the seam loop both filters share, and
+the measure plugin lost that code. On the two atlases the per-seam values are heavy-tailed: the
+length-weighted median is 6.6 and the 99th percentile 60, and 3.4 % of the seams (3.5 % of their
+length) are above 40, which the mean of 10.6 hides.</p></li>
 <li><p><strong>The UV view</strong> already fills triangles by quality, with the same colour map and range
 controls as the 3D view (<a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a>, <em>UV fill</em>), so the face quality
 that <em>Compute UV Distortion</em> writes is visible on the UV layout without further work.</p></li>
@@ -1064,7 +1074,7 @@ Otherwise a small synthetic atlas with a known answer is committed.</p></li>
 <tbody>
 <tr class="row-even"><td><p><strong>0</strong></p></td>
 <td><p>none</p></td>
-<td><p><strong>Reference values.</strong> Build TexMetro on Linux or Windows; run it on the two gargoyle atlases and on benchmark models; keep the JSON. Decide the tolerance between our rare counters and the GL ones (the measured 8-bit-vs-4-bit spread, about 0.1 % to 1 %, is the floor) and which quirks to keep. Settle the <a class="reference internal" href="#open-questions"><span class="xref myst">open questions</span></a> with the authors.</p></td>
+<td><p><strong>Reference values.</strong> Build TexMetro on Linux or Windows; run it on the two gargoyle atlases and on benchmark models; keep the JSON. Decide the tolerance between our rare counters and the GL ones (the measured 8-bit-vs-4-bit spread, about 0.1 % to 1 %, is the floor) and which quirks to keep. Settle the <a class="reference internal" href="#open-questions"><span class="xref myst">open questions</span></a> with the authors. The tooling is ready (2026-10-26): <code class="docutils literal notranslate"><span class="pre">docs/examples/texmetro_report.py</span></code> writes our results in TexMetro’s JSON, and <code class="docutils literal notranslate"><span class="pre">--compare</span> <span class="pre">reference.json</span></code> lists the keys that differ by more than a tolerance (the starting tolerances are in the script, to be set from the real comparison). What is missing is the reference JSON itself, from a machine that can run TexMetro.</p></td>
 <td><p>no code</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>1</strong></p></td>
@@ -1085,7 +1095,7 @@ Otherwise a small synthetic atlas with a known answer is committed.</p></li>
 <tr class="row-even"><td><p><strong>4</strong></p></td>
 <td><p>V5 (seam discrepancy, templated on a texel functor)</p></td>
 <td><p><em>Measure Texture Seam Color Discrepancy</em>; optionally the seam polyline with per-edge values</p></td>
-<td><p>Stage 2, edge support. <strong>Implemented 2026-10-24</strong>; the polyline is not (see below)</p></td>
+<td><p>Stage 2, edge support. <strong>Implemented 2026-10-24</strong>; the polyline, 2026-10-26 (see below)</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>5</strong> <em>(optional)</em></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">TexelCoverage</span></code> flags the faces on shared and clash texels; per-vertex UV</p></td>

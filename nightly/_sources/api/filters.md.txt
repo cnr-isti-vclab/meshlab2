@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 393 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 394 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -2804,6 +2804,33 @@ Extracts the exact curve along which the layer intersects **itself**, as a new p
 A clean mesh produces nothing, and the filter says so.
 
 This filter has no parameters.
+```
+
+---
+
+(filter-create-polyline-from-uv-seams)=
+
+## Create Polyline from UV Seams
+
+**Categories:** `Creation/Primitives`, `Parametrization`
+
+**Plugin:** meshlab2.filter.meshing
+
+Create a polyline along the texture seams, with the color discrepancy of each as its scalar.
+
+```{py:function} ms.create_polyline_from_uv_seams(**params)
+:module: _meshlab
+
+Create a new Layer with an edge mesh (polyline) along the **texture seams** of the current layer: the edges that two faces share on the surface and place apart in the texture. Coincident vertices are merged first, so a layer exported with a vertex per corner still has its seams, and the polyline is connected where seams meet. Seams between UV islands with no UV area are left out.
+
+If the layer has texture images, each edge carries as its **scalar** how much the colors of the texture differ across that seam, the measure of *Measure Texture Seam Color Discrepancy* (the RGB distance of the colors the two sides give to the same points, 0 to 442, averaged over the seam from both of its sides), so the length-weighted mean of the scalars is that filter's `seam_discrepancy_avg`. Use *Colorize Edges by Scalar* to see where the seams show; a few percent of them account for most of what the mean hides. Without images the polyline is still made, with no scalar.
+
+*Pairing* and *Samples per Texel* are those of the measure. The layer is created in the frame of the layer it comes from.
+
+**Parameters:**
+
+- **pairing** (*enum*, default: `edge_order`) — Which samples of the two sides of a seam are compared: the i-th of each along its own edge, as TexMetro does (which pairs a point with the mirrored point of the other side), or the two sides' colors at the same point of the seam.
+- **samplesPerTexel** (*double*, default: `5.0`) — How many samples to take along a seam for each texel of its length. TexMetro takes 5.
 ```
 
 ---

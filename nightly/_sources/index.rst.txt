@@ -21,6 +21,7 @@ the ``mlgui`` helper for view snapshots and render-state access.
    api/mlgui
    api/filters
    expressions
+   texture_metrics
    api/types
 
 .. toctree::
