@@ -245,7 +245,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 392 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 393 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -8494,6 +8494,33 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
+<section id="select-overlapping-uv-faces">
+<span id="filter-select-overlapping-uv-faces"></span><h2>Select Overlapping UV Faces<a class="headerlink" href="#select-overlapping-uv-faces" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code>, <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.select</p>
+<p>Select the faces whose UV triangles share texels with another face, or touch another island’s.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.select_overlapping_uv_faces">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_overlapping_uv_faces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_overlapping_uv_faces" title="Link to this definition">¶</a></dt>
+<dd><p>Rasterizes the UV triangles on the texture, as <em>Measure Texel Coverage</em> does, and selects the faces that sit on a texel of the kind chosen in <em>Faces</em>. The face selection is replaced by the result. It shows where the counts of that measure come from: in the UV view through its selection overlay, on the surface, and in scripts.</p>
+<ul class="simple">
+<li><p><strong>Share texels with another face</strong>: a texel is covered by more than one triangle (<code class="docutils literal notranslate"><span class="pre">overwrittenTexels</span></code>). Whatever the second face paints there overwrites the first, so these are the overlaps of the layout, between islands or inside one.</p></li>
+<li><p><strong>Touch another island’s texels</strong>: a covered texel has a neighbour of another UV island (<code class="docutils literal notranslate"><span class="pre">texelClashes</span></code>), where a bilinear lookup blends two islands.</p></li>
+</ul>
+<p>A texel is covered by a triangle when its centre is inside it; a centre exactly on an edge shared by two triangles goes to one of them. The texture size is that of the layer’s images, or <em>Texture Width</em> and <em>Texture Height</em>, and <em>Mip Level</em> counts at a smaller level, each side halved that many times (clashes grow with the level). Both per-wedge and per-vertex texture coordinates are supported.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>conflict</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">overwritten</span></code>) — Select the faces that share texels with another face, or those whose texels touch another UV island’s.</p></li>
+<li><p><strong>mipLevel</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Count the texels at this mipmap level: 0 is the texture itself, each level halves both sides.</p></li>
+<li><p><strong>textureWidth</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Width in texels in which to count, for every texture. With 0 each texture takes the width of its own image. Set Texture Height with it.</p></li>
+<li><p><strong>textureHeight</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Height in texels in which to count, for every texture. With 0 each texture takes the height of its own image. Set Texture Width with it.</p></li>
+<li><p><strong>subpixelBits</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — Bits of position inside a texel to which the triangles’ vertices are rounded: 4 is the least OpenGL guarantees, 8 the usual hardware. It changes the rare counts by up to about one percent.</p></li>
+<li><p><strong>clashNeighbours</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">diagonals</span></code>) — Which neighbours of a texel are compared for a clash with another UV island: the four diagonal ones, as TexMetro does, or all eight.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="select-self-intersecting-faces">
 <span id="filter-select-self-intersecting-faces"></span><h2>Select Self-Intersecting Faces<a class="headerlink" href="#select-self-intersecting-faces" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code></p>
@@ -10522,6 +10549,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#select-non-manifold-vertices-trueform">Select Non-Manifold Vertices (TrueForm)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.select_non_manifold_vertices_trueform"><code class="docutils literal notranslate"><span class="pre">ms.select_non_manifold_vertices_trueform()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#select-overlapping-uv-faces">Select Overlapping UV Faces</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.select_overlapping_uv_faces"><code class="docutils literal notranslate"><span class="pre">ms.select_overlapping_uv_faces()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#select-self-intersecting-faces">Select Self-Intersecting Faces</a><ul>

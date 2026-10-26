@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 392 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 393 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -10466,6 +10466,38 @@ Winding is a separate fact and never enters: a vertex whose faces disagree about
 **Parameters:**
 
 - **replaceSelection** (*bool*, default: `True`) — Clear the existing vertex selection first instead of adding to it.
+```
+
+---
+
+(filter-select-overlapping-uv-faces)=
+
+## Select Overlapping UV Faces
+
+**Categories:** `Selection/by Topology`, `Parametrization`
+
+**Plugin:** meshlab2.filter.select
+
+Select the faces whose UV triangles share texels with another face, or touch another island's.
+
+```{py:function} ms.select_overlapping_uv_faces(**params)
+:module: _meshlab
+
+Rasterizes the UV triangles on the texture, as *Measure Texel Coverage* does, and selects the faces that sit on a texel of the kind chosen in *Faces*. The face selection is replaced by the result. It shows where the counts of that measure come from: in the UV view through its selection overlay, on the surface, and in scripts.
+
+- **Share texels with another face**: a texel is covered by more than one triangle (`overwrittenTexels`). Whatever the second face paints there overwrites the first, so these are the overlaps of the layout, between islands or inside one.
+- **Touch another island's texels**: a covered texel has a neighbour of another UV island (`texelClashes`), where a bilinear lookup blends two islands.
+
+A texel is covered by a triangle when its centre is inside it; a centre exactly on an edge shared by two triangles goes to one of them. The texture size is that of the layer's images, or *Texture Width* and *Texture Height*, and *Mip Level* counts at a smaller level, each side halved that many times (clashes grow with the level). Both per-wedge and per-vertex texture coordinates are supported.
+
+**Parameters:**
+
+- **conflict** (*enum*, default: `overwritten`) — Select the faces that share texels with another face, or those whose texels touch another UV island's.
+- **mipLevel** (*int*, default: `0`) — Count the texels at this mipmap level: 0 is the texture itself, each level halves both sides.
+- **textureWidth** (*int*, default: `0`) — Width in texels in which to count, for every texture. With 0 each texture takes the width of its own image. Set Texture Height with it.
+- **textureHeight** (*int*, default: `0`) — Height in texels in which to count, for every texture. With 0 each texture takes the height of its own image. Set Texture Width with it.
+- **subpixelBits** (*int*, default: `8`) — Bits of position inside a texel to which the triangles' vertices are rounded: 4 is the least OpenGL guarantees, 8 the usual hardware. It changes the rare counts by up to about one percent.
+- **clashNeighbours** (*enum*, default: `diagonals`) — Which neighbours of a texel are compared for a clash with another UV island: the four diagonal ones, as TexMetro does, or all eight.
 ```
 
 ---

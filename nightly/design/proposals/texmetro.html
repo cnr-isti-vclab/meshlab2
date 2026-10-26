@@ -249,7 +249,7 @@
 metrics into MeshLab, either by vendoring the tool as a subrepo or by reimplementing
 it on QRhi, and recommends a third route: <strong>reimplement the metrics on the CPU, with a
 deterministic texel rasterizer, as algorithms in vcglib and thin <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> filters in
-MeshLab</strong>. <strong>Stages 1 to 4 are implemented (2026-10-24), but for the optional seam polyline.</strong> The recommendation
+MeshLab</strong>. <strong>All five stages are implemented (2026-10-26), except the optional seam polyline; Stage 5 became a selection filter.</strong> The recommendation
 rests on measurements made for this proposal, listed under <a class="reference internal" href="#evidence"><span class="xref myst">Evidence</span></a>.</p>
 <p>See also: <a class="reference internal" href="edge_support.html"><span class="std std-doc">Edge Support</span></a>, <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>,
 <a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a>, <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>,
@@ -776,11 +776,16 @@ precision are the device’s, with the spread measured above; and no <code class
 default), a compute shader baked for GLSL 430 (the project bakes 150 today), and it is the
 first compute use in the project. It removes the readback of the counters but not that of
 the buffers the CPU passes use.</p>
-<p>Both give a number that changes with the machine, in a path no test can reach. B is
-worth building <strong>for what only a GPU does well</strong>: drawing the overdraw count and the
-clash texels live in the UV view (<code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp</span></code> already exists), as a diagnostic.
-That is a separate, optional stage (<a class="reference internal" href="#staging"><span class="xref myst">Stage 5</span></a>) and its numbers would not be
-the reported ones.</p>
+<p>Both give a number that changes with the machine, in a path no test can reach. B was
+kept for what only a GPU does well, drawing the overdraw count and the clash texels live in
+the UV view, as a diagnostic: the optional <a class="reference internal" href="#staging"><span class="xref myst">Stage 5</span></a>. When Stage 5 came to be built
+that overlay was sized at 400 to 600 lines (an offscreen target at texture resolution, a
+pipeline with custom blending, two shaders baked for every backend, new render settings with
+their JSON, panel and snapshot plumbing, and a render probe that only runs by hand), and its
+numbers would not have been the reported ones. A selection filter on the CPU rasterizer was
+about 150 lines, shows the same texels through the UV view’s selection overlay, on the surface
+and in scripts, and matches the reported counts exactly, so it was built instead (the
+maintainer’s choice, 2026-10-26). The GPU overlay is still possible, and not built.</p>
 </section>
 <section id="c-cpu-algorithms-in-vcglib-thin-filters-in-meshlab-recommended">
 <h3>C. CPU algorithms in vcglib, thin filters in MeshLab (recommended)<a class="headerlink" href="#c-cpu-algorithms-in-vcglib-thin-filters-in-meshlab-recommended" title="Link to this heading">¶</a></h3>
@@ -842,7 +847,7 @@ are no duplication and less code):</p>
 </tr>
 <tr class="row-odd"><td><p>V4</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">parametrization/texel_coverage.h</span></code> (new)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">TexelCoverage</span></code>: a scan converter on a fixed-point grid with the top-left fill rule, and TexMetro’s counters for one MIP level, in bands for large textures. <strong>Landed in Stage 3</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TexelCoverage</span></code>: a scan converter on a fixed-point grid with the top-left fill rule, and TexMetro’s counters for one MIP level, in bands for large textures. <strong>Landed in Stage 3, and in Stage 5 gained a per-face flag for the shared and the clash texels, and per-vertex UV</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">SurfaceSampler::Texture</span></code> / <code class="docutils literal notranslate"><span class="pre">SingleFaceRaster</span></code> is a <em>sampler</em>: it tests edges inclusively, so a texel centre exactly on a shared edge is produced by both triangles, which a coverage count would report as overwritten, and it adds border samples. Different job</p></td>
 <td><p>262 with its comments (the prototype is ~55)</p></td>
 </tr>
@@ -909,7 +914,12 @@ name.</p>
 <td><p>selection</p></td>
 <td><p>faces whose UV orientation disagrees with their chart’s</p></td>
 </tr>
-<tr class="row-odd"><td><p><em>Measure Topological Properties</em>, <em>Measure Geometric Properties</em> (existing)</p></td>
+<tr class="row-odd"><td><p><strong>Select Overlapping UV Faces</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_overlapping_uv_faces</span></code></p></td>
+<td><p>selection</p></td>
+<td><p><strong>Stage 5.</strong> The faces on texels shared with another face (<code class="docutils literal notranslate"><span class="pre">overwrittenTexels</span></code>), or touching another island’s (<code class="docutils literal notranslate"><span class="pre">texelClashes</span></code>), at a chosen mipmap level</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Measure Topological Properties</em>, <em>Measure Geometric Properties</em> (existing)</p></td>
 <td><p></p></td>
 <td><p>Information</p></td>
 <td><p>the 6 missing mesh keys of the first table</p></td>
@@ -1078,9 +1088,9 @@ Otherwise a small synthetic atlas with a known answer is committed.</p></li>
 <td><p>Stage 2, edge support. <strong>Implemented 2026-10-24</strong>; the polyline is not (see below)</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>5</strong> <em>(optional)</em></p></td>
-<td><p>none</p></td>
-<td><p>An overdraw and clash overlay in the UV view, on QRhi (B1), as a diagnostic that reports no numbers</p></td>
-<td><p>Stage 3</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TexelCoverage</span></code> flags the faces on shared and clash texels; per-vertex UV</p></td>
+<td><p><em>Select Overlapping UV Faces</em>, a CPU selection filter, in place of the QRhi overlay (see below)</p></td>
+<td><p>Stage 3. <strong>Implemented 2026-10-26</strong></p></td>
 </tr>
 </tbody>
 </table>
@@ -1144,7 +1154,7 @@ names too, with <code class="docutils literal notranslate"><span class="pre">sea
 <ul class="simple">
 <li><p>Porting the TexMetro command line, or its OBJ, PLY and FBX importers; MeshLab’s
 readers feed the filters.</p></li>
-<li><p>Any use of OpenGL or QRhi to compute a reported number. B1 is for drawing, in Stage 5.</p></li>
+<li><p>Any use of OpenGL or QRhi to compute a reported number, or, as built, to draw one: Stage 5 is a CPU selection filter.</p></li>
 <li><p>Algorithm code in the MeshLab plugin. The filters stay adapters; anything that needs no
 document, Qt or GPU is written into vcglib.</p></li>
 <li><p>Changing the meaning of the five existing <em>Compute UV Distortion</em> metrics. Expressing
