@@ -2,6 +2,7 @@
 
 #include "document.h"
 #include "meshfilterpluginmanager.h"
+#include "uvlayer.h"
 #include <QVector3D>
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/container/simple_temporary_data.h>
@@ -565,6 +566,7 @@ constexpr QLatin1StringView kIdSlicePlane("create_polyline_from_planar_section")
 constexpr QLatin1StringView kIdTrimByPlane("trim_surface_by_plane");
 constexpr QLatin1StringView kIdTrimPointCloudByPlane("trim_point_cloud_by_plane");
 constexpr QLatin1StringView kIdPerimeterPolyline("create_polyline_from_selection_perimeter");
+constexpr QLatin1StringView kIdUvSeamPolyline("create_polyline_from_uv_seams");
 constexpr QLatin1StringView kIdMidpoint("subdivide_by_midpoint");
 constexpr QLatin1StringView kIdReorient("orient_faces_consistently_vcglib");
 constexpr QLatin1StringView kIdFlipSwap("mirror_or_swap_axes");
@@ -2378,6 +2380,66 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 return fail(QObject::tr("Failed to create perimeter polyline layer."));
             doc.mesh(idx).transform = doc.mesh(ci).transform;  // in the frame of the layer it came from
             return success(true, { QObject::tr("Created perimeter polyline layer.") }, { idx });
+        }
+
+        if (filterId == QString::fromLatin1(kIdUvSeamPolyline)) {
+            using SD = vcg::tri::SeamDiscrepancy<UvLayerUtils::UVMesh>;
+            // The seams are a matter of the UV as they are, in the layer's own frame like the other
+            // polyline creators. A size of one texel is asked for only to keep the images out of it: they
+            // are read below, for the values, and only if the layer has any.
+            UvLayerUtils::UvLayer layer;
+            const QString layerError = UvLayerUtils::buildUvLayer(entry, 1, 1, layer, false, false);
+            if (!layerError.isEmpty())
+                return fail(layerError);
+            const int textureCount = Document::meshTextureAssociationCount(entry);
+            const bool withValues = textureCount > 0;
+            UvLayerUtils::SeamTextures textures;
+            if (withValues) {
+                const QString imageError = UvLayerUtils::loadSeamTextures(entry, size_t(textureCount), textures);
+                if (!imageError.isEmpty())
+                    return fail(imageError);
+            }
+            SD::Options options;
+            options.samplesPerTexel = params.getDouble(QStringLiteral("samplesPerTexel"));
+            if (params.getEnum(QStringLiteral("pairing")) == QStringLiteral("position"))
+                options.pairing = SD::PairByPosition;
+            UvLayerUtils::MeasuredSeams seams;
+            UvLayerUtils::findLayerSeams(layer, withValues ? &textures : nullptr, options, seams);
+            if (seams.seams.empty())
+                return fail(QObject::tr("'%1' has no texture seam: no edge is shared by two faces that place it "
+                                        "apart in the texture.").arg(entry.name));
+
+            // One edge for each seam. All the vertices are added at once: adding them one pair at a time
+            // would update the edges' pointers each time, which is quadratic for a hundred thousand seams.
+            VCGMesh polyline;
+            const size_t seamCount = seams.seams.size();
+            vcg::tri::Allocator<VCGMesh>::AddVertices(polyline, 2 * seamCount);
+            vcg::tri::Allocator<VCGMesh>::AddEdges(polyline, seamCount);
+            for (size_t i = 0; i < seamCount; ++i) {
+                const UvLayerUtils::MeasuredSeam &measured = seams.seams[i];
+                for (int k = 0; k < 2; ++k) {
+                    const auto &p = measured.seam.f->V((measured.seam.e + k) % 3)->P();
+                    polyline.vert[2 * i + size_t(k)].P() = vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
+                    polyline.edge[i].V(k) = &polyline.vert[2 * i + size_t(k)];
+                }
+                if (withValues)
+                    polyline.edge[i].Q() = float(measured.mean());
+            }
+            vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(polyline);
+            vcg::tri::Allocator<VCGMesh>::CompactEveryVector(polyline);
+            vcg::tri::UpdateBounding<VCGMesh>::Box(polyline);
+            const int idx = doc.addMesh(
+                polyline, {}, Mask::IOM_EDGEINDEX | (withValues ? Mask::IOM_EDGEQUALITY : 0));
+            if (idx < 0)
+                return fail(QObject::tr("Failed to create the seam polyline layer."));
+            doc.mesh(idx).transform = doc.mesh(ci).transform;  // in the frame of the layer it came from
+            QStringList info;
+            info << QObject::tr("%1 seam edge(s) of the %2 the UV cut.").arg(int(seamCount)).arg(seams.found);
+            info << (withValues
+                         ? QObject::tr("Each carries, as its scalar, how much the colors of the texture differ "
+                                       "across it (RGB distance, 0 to 442).")
+                         : QObject::tr("The layer has no texture image, so the edges carry no scalar."));
+            return success(true, info, { idx });
         }
 
         if (filterId == QString::fromLatin1(kIdTrimByPlane)) {

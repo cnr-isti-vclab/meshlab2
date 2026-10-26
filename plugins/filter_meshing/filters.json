@@ -2860,6 +2860,44 @@
       ]
     },
     {
+      "id": "create_polyline_from_uv_seams",
+      "categories": ["Creation/Primitives", "Parametrization"],
+      "name": "Create Polyline from UV Seams",
+      "pythonName": "create_polyline_from_uv_seams",
+      "shortDescription": "Create a polyline along the texture seams, with the color discrepancy of each as its scalar.",
+      "longDescriptionMarkdown": "Create a new Layer with an edge mesh (polyline) along the **texture seams** of the current layer: the edges that two faces share on the surface and place apart in the texture. Coincident vertices are merged first, so a layer exported with a vertex per corner still has its seams, and the polyline is connected where seams meet. Seams between UV islands with no UV area are left out.\n\nIf the layer has texture images, each edge carries as its **scalar** how much the colors of the texture differ across that seam, the measure of *Measure Texture Seam Color Discrepancy* (the RGB distance of the colors the two sides give to the same points, 0 to 442, averaged over the seam from both of its sides), so the length-weighted mean of the scalars is that filter's `seam_discrepancy_avg`. Use *Colorize Edges by Scalar* to see where the seams show; a few percent of them account for most of what the mean hides. Without images the polyline is still made, with no scalar.\n\n*Pairing* and *Samples per Texel* are those of the measure. The layer is created in the frame of the layer it comes from.",
+      "tags": ["polyline", "texture", "uv", "seam", "color", "meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": { "requireFaces": true, "requireTextureCoordinates": true },
+      "outputTag": "uv seams",
+      "parameters": [
+        {
+          "id": "pairing",
+          "label": "Pairing",
+          "help": "Which samples of the two sides of a seam are compared: the i-th of each along its own edge, as TexMetro does (which pairs a point with the mirrored point of the other side), or the two sides' colors at the same point of the seam.",
+          "group": "main",
+          "type": "enum",
+          "default": "edge_order",
+          "enumOptions": [
+            { "id": "edge_order", "label": "Edge order (TexMetro)" },
+            { "id": "position", "label": "Same point" }
+          ]
+        },
+        {
+          "id": "samplesPerTexel",
+          "label": "Samples per Texel",
+          "help": "How many samples to take along a seam for each texel of its length. TexMetro takes 5.",
+          "group": "advanced",
+          "type": "double",
+          "default": 5.0,
+          "min": 0.1,
+          "max": 100.0,
+          "decimals": 2
+        }
+      ]
+    },
+    {
       "id": "trim_surface_by_plane",
       "categories": ["Meshing/Remeshing"],
       "name": "Trim Surface by Plane",

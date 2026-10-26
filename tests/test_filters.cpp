@@ -535,6 +535,8 @@ private slots:
     void measureTexelCoverageAgreesWithTheRasterPrototypeOnARealAtlas();
     void measureSeamDiscrepancyComparesTheColorsAcrossASeam();
     void measureSeamDiscrepancyAgreesWithTexMetroOnARealAtlas();
+    void seamPolylineCarriesTheDiscrepancyOfEachSeam();
+    void seamPolylineAgreesWithTheMeasureOnARealAtlas();
     void selectOverlappingUvFacesFindsTheFacesOnSharedTexels();
     void selectOverlappingUvFacesFindsTheFacesAtIslandClashes();
     void selectOverlappingUvFacesLeavesNothingOverwrittenOnceRemoved();
@@ -9262,13 +9264,13 @@ void FilterTests::measureTexelCoverageAgreesWithTheRasterPrototypeOnARealAtlas()
     QVERIFY(r.outputValues.value(QStringLiteral("sf_perc50")).toDouble() > 0.0);
 }
 
-// A unit square cut along its diagonal in 3D, and laid out as two triangles far apart in an 8 x 8
-// texture whose red grows along each of the two places the seam is read from: 20 + 30 t on the left
-// and, by construction, the same 20 + 30 t on the right, with t from the vertex A. So the two sides
-// agree at every point of the seam, and the discrepancy is 0 when the same point is compared. The
-// face on the left lists the seam from the other end, so comparing the i-th sample of each pairs a
-// point with its mirror: 15 samples at |30 - 60 t|, whose mean is 226/15.
-void FilterTests::measureSeamDiscrepancyComparesTheColorsAcrossASeam()
+namespace {
+
+// The layout of the seam discrepancy test: a unit square cut along its diagonal in 3D and laid out as
+// two triangles far apart in an 8 x 8 texture whose red grows along each of the two places the seam
+// is read from. One seam, from A = (0,0,0) to C = (1,1,0). With `withTexture` false the layer has no
+// image, so only the geometry of the seam is there.
+int addSeamRampLayer(Document &doc, const QString &name, bool withTexture)
 {
     VCGMesh mesh;
     vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 4);
@@ -9290,18 +9292,33 @@ void FilterTests::measureSeamDiscrepancyComparesTheColorsAcrossASeam()
     }
     vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
 
-    QImage texture(8, 8, QImage::Format_ARGB32);
-    for (int x = 0; x < 8; ++x)
-        for (int y = 0; y < 8; ++y)
-            texture.setPixel(x, y, qRgba(x < 4 ? 20 * x : 20 * x - 70, 0, 0, 255));
-
-    Document doc;
     const int index = doc.addMesh(
-        mesh, QStringLiteral("One seam"),
-        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
-    TextureAssociationUtils::replaceTextureAssociations(
-        doc.mesh(index),
-        { TextureAssociationUtils::makeTextureAssetFromImage(texture, QStringLiteral("ramps.png")) });
+        mesh, name, vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    if (withTexture) {
+        QImage texture(8, 8, QImage::Format_ARGB32);
+        for (int x = 0; x < 8; ++x)
+            for (int y = 0; y < 8; ++y)
+                texture.setPixel(x, y, qRgba(x < 4 ? 20 * x : 20 * x - 70, 0, 0, 255));
+        TextureAssociationUtils::replaceTextureAssociations(
+            doc.mesh(index),
+            { TextureAssociationUtils::makeTextureAssetFromImage(texture, QStringLiteral("ramps.png")) });
+    }
+    return index;
+}
+
+} // namespace
+
+// A unit square cut along its diagonal in 3D, and laid out as two triangles far apart in an 8 x 8
+// texture whose red grows along each of the two places the seam is read from: 20 + 30 t on the left
+// and, by construction, the same 20 + 30 t on the right, with t from the vertex A. So the two sides
+// agree at every point of the seam, and the discrepancy is 0 when the same point is compared. The
+// face on the left lists the seam from the other end, so comparing the i-th sample of each pairs a
+// point with its mirror: 15 samples at |30 - 60 t|, whose mean is 226/15.
+void FilterTests::measureSeamDiscrepancyComparesTheColorsAcrossASeam()
+{
+    Document doc;
+    const int index = addSeamRampLayer(doc, QStringLiteral("One seam"), true);
+    const QImage texture = doc.mesh(index).textureAssets.front().image;
     doc.setCurrentMeshIndex(index);
     const QString key = filterKeyForId(doc, QStringLiteral("measure_texture_seam_discrepancy"));
     QVERIFY(!key.isEmpty());
@@ -9528,6 +9545,105 @@ void FilterTests::selectOverlappingUvFacesLeavesNothingOverwrittenOnceRemoved()
     QVERIFY2(r.success, qPrintable(r.errorMessage));
     QCOMPARE(coverageLevel(r, 0, 0, "overwrittenTexels"), int64_t(0));
     QCOMPARE(coverageLevel(r, 0, 0, "lostTexels"), int64_t(0));
+}
+
+// The layer of the seam discrepancy test, made into a polyline: one edge from A to C, in the frame of the
+// layer it came from (which here is moved, and so is the polyline), whose scalar is that seam's
+// discrepancy, 226/15 as the TexMetro pairing reads it and 0 for the same point of both sides. With no
+// image there is still an edge, and no scalar; with no seam there is nothing to make.
+void FilterTests::seamPolylineCarriesTheDiscrepancyOfEachSeam()
+{
+    using Mask = vcg::tri::io::Mask;
+    Document doc;
+    const int source = addSeamRampLayer(doc, QStringLiteral("One seam"), true);
+    QMatrix4x4 moved;
+    moved.translate(5, 6, 7);
+    doc.setMeshTransform(source, moved);
+    doc.setCurrentMeshIndex(source);
+    const QString key = filterKeyForId(doc, QStringLiteral("create_polyline_from_uv_seams"));
+    QVERIFY(!key.isEmpty());
+
+    MeshFilterRunResult r = doc.runFilter(key, MeshFilterParameterValues());
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.newMeshIndices.size(), 1);
+    const int polyline = r.newMeshIndices.front();
+    const Document::MeshEntry &entry = doc.mesh(polyline);
+    QVERIFY((entry.ioMask & Mask::IOM_EDGEINDEX) != 0);
+    QVERIFY((entry.ioMask & Mask::IOM_EDGEQUALITY) != 0);
+    QCOMPARE(entry.transform, moved);
+    QCOMPARE(entry.mesh.EN(), 1);
+    QCOMPARE(entry.mesh.VN(), 2);
+    QVERIFY(std::abs(entry.mesh.edge[0].cQ() - 226.0f / 15.0f) < 1e-4f);
+    // From A to C, in the layer's own coordinates: not through the matrix, which the layer carries.
+    const vcg::Point3f ends[2] = { entry.mesh.edge[0].cV(0)->cP(), entry.mesh.edge[0].cV(1)->cP() };
+    const bool aToC = ends[0] == vcg::Point3f(0, 0, 0) && ends[1] == vcg::Point3f(1, 1, 0);
+    const bool cToA = ends[0] == vcg::Point3f(1, 1, 0) && ends[1] == vcg::Point3f(0, 0, 0);
+    QVERIFY(aToC || cToA);
+
+    MeshFilterParameterValues samePoint;
+    samePoint.insert(QStringLiteral("pairing"), QStringLiteral("position"));
+    doc.setCurrentMeshIndex(source);
+    r = doc.runFilter(key, samePoint);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(std::abs(doc.mesh(r.newMeshIndices.front()).mesh.edge[0].cQ()) < 1e-6f);
+
+    // No image: the cut itself.
+    const int bare = addSeamRampLayer(doc, QStringLiteral("No image"), false);
+    doc.setCurrentMeshIndex(bare);
+    r = doc.runFilter(key, MeshFilterParameterValues());
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const Document::MeshEntry &cut = doc.mesh(r.newMeshIndices.front());
+    QCOMPARE(cut.mesh.EN(), 1);
+    QVERIFY((cut.ioMask & Mask::IOM_EDGEQUALITY) == 0);
+
+    // One island and no seam.
+    VCGMesh disk;
+    makeOpenDiskMesh(disk);
+    disk.face.EnableWedgeTexCoord();
+    for (VCGFace &face : disk.face) {
+        for (int c = 0; c < 3; ++c) {
+            face.WT(c).P() = vcg::Point2f(face.cP(c).X(), face.cP(c).Y());
+            face.WT(c).N() = 0;
+        }
+    }
+    doc.setCurrentMeshIndex(doc.addMesh(disk, QStringLiteral("One island"), Mask::IOM_VERTCOORD | Mask::IOM_WEDGTEXCOORD));
+    QVERIFY(!doc.runFilter(key, MeshFilterParameterValues()).success);
+}
+
+// What the polyline of a real atlas has to be: as many edges as the measure counts seams, and, since its
+// scalars are the measure's values, a length-weighted mean equal to the measure's own. Both pairings are
+// tried: with the TexMetro one the two sides of a seam give the same value, so that only the same-point
+// pairing can tell the mean of the two from either one.
+void FilterTests::seamPolylineAgreesWithTheMeasureOnARealAtlas()
+{
+    MESHLAB2_REQUIRE_DATASET(path, "COLOR_gargoyle/gargo3M_good.ply");
+    Document doc;
+    QCOMPARE(doc.loadMesh(path), 0);
+    for (const char *pairing : { "edge_order", "position" }) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("pairing"), QString::fromLatin1(pairing));
+        doc.setCurrentMeshIndex(0);
+        const MeshFilterRunResult measure = doc.runFilter(
+            filterKeyForId(doc, QStringLiteral("measure_texture_seam_discrepancy")), params);
+        QVERIFY2(measure.success, qPrintable(measure.errorMessage));
+        doc.setCurrentMeshIndex(0);
+        const MeshFilterRunResult made = doc.runFilter(
+            filterKeyForId(doc, QStringLiteral("create_polyline_from_uv_seams")), params);
+        QVERIFY2(made.success, qPrintable(made.errorMessage));
+        const VCGMesh &polyline = doc.mesh(made.newMeshIndices.front()).mesh;
+        QCOMPARE(polyline.EN(), measure.outputValues.value(QStringLiteral("seam_edges_number")).toInt());
+
+        double weighted = 0, length = 0;
+        for (const VCGEdge &edge : polyline.edge) {
+            if (edge.IsD())
+                continue;
+            const double l = vcg::edge::Length(edge);
+            weighted += l * double(edge.cQ());
+            length += l;
+        }
+        QVERIFY2(std::abs(weighted / length - measure.outputValues.value(QStringLiteral("seam_discrepancy_avg")).toDouble()) < 1e-5,
+                 pairing);
+    }
 }
 
 void FilterTests::libiglParametrizationFiltersRunWhenAvailable()

@@ -4,7 +4,7 @@ This document evaluates bringing [TexMetro](https://github.com/cnr-isti-vclab/te
 metrics into MeshLab, either by vendoring the tool as a subrepo or by reimplementing
 it on QRhi, and recommends a third route: **reimplement the metrics on the CPU, with a
 deterministic texel rasterizer, as algorithms in vcglib and thin `Measurement` filters in
-MeshLab**. **All five stages are implemented (2026-10-26), except the optional seam polyline; Stage 5 became a selection filter.** The recommendation
+MeshLab**. **All five stages and the optional seam polyline are implemented (2026-10-26); Stage 5 became a selection filter.** The recommendation
 rests on measurements made for this proposal, listed under [Evidence](#evidence).
 
 See also: [Edge Support](edge_support.md), [Adding a Filter](../adding_a_filter.md),
@@ -388,6 +388,7 @@ name.
 | **Measure UV Mapping** | `measure_uv_mapping` | Information | `num_charts`, `en_uv`, `en_uv_b`, `area_uv`, `boundary_len_uv`, `num_null_charts`, `mapped_fraction`, `nfolds`, the 16 `qcd_*` and the 16 `sf_*` keys, `occupancy` |
 | **Measure Texel Coverage** | `measure_texel_coverage` | Information | per texture and MIP level: `rw`, `rh`, `totalTexels`, `totalTexels_bilinear`, `overwrittenTexels`, `lostTexels`, `texelClashes`, `boundaryTexels` |
 | **Measure Texture Seam Color Discrepancy** | `measure_texture_seam_discrepancy` | Information | `seam_discrepancy_avg`, `_min`, `_max`, `_rms`, `_var`, `_stddev`, `seam_edges_number` |
+| **Create Polyline from UV Seams** | `create_polyline_from_uv_seams` | new layer (edges) | one edge per seam, with its discrepancy as the edge scalar |
 | **Compute UV Distortion** (existing) | `compute_uv_distortion` | writes face quality | two new metrics, **Quasi-conformal distortion** (`σmax/σmin`) and **UV scaling** (signed `sf`) — done in Stage 1 |
 | **Select Folded UV Faces** | `select_folded_uv_faces` | selection | faces whose UV orientation disagrees with their chart's |
 | **Select Overlapping UV Faces** | `select_overlapping_uv_faces` | selection | **Stage 5.** The faces on texels shared with another face (`overwrittenTexels`), or touching another island's (`texelClashes`), at a chosen mipmap level |
@@ -449,13 +450,17 @@ textures are independent if that ever changes.
 
 ### Where it connects to the rest of MeshLab
 
-- **Seams as polylines, with a value per edge.** Edges now carry colour and a scalar
-  ([Edge Support](edge_support.md), `IOM_EDGEQUALITY`). The seam discrepancy is a value
-  per seam edge, so a later filter can create the UV-seam polyline and store each edge's
-  discrepancy in it, to be coloured by the existing edge colorizers. Stage 4 did not build it: it
-  is a *Create* filter, so it belongs in `filter_meshing` beside *Create Polyline from Selection
-  Perimeter*, and it needs the UV layer builder and the texture reader that now sit in
-  `filter_measure` (about 120 lines, to be moved into core, not written again). It is offered, not built.
+- **Seams as polylines, with a value per edge** (built after Stage 4). *Create Polyline from UV
+  Seams*, in `filter_meshing` beside *Create Polyline from Selection Perimeter*, makes an edge layer
+  along the seams, in the frame of the layer it came from. Each edge carries as its scalar
+  ([Edge Support](edge_support.md), `IOM_EDGEQUALITY`) the discrepancy of its seam, the mean of the
+  two sides, so the length-weighted mean of the scalars is `seam_discrepancy_avg` exactly; the
+  existing edge colorizers show it. Without a texture image the polyline is made without a scalar.
+  To serve it, the UV layer builder, the UV mesh type and the texture reader moved from
+  `filter_measure` into core (`src/core/uvlayer.{h,cpp}`), with the seam loop both filters share, and
+  the measure plugin lost that code. On the two atlases the per-seam values are heavy-tailed: the
+  length-weighted median is 6.6 and the 99th percentile 60, and 3.4 % of the seams (3.5 % of their
+  length) are above 40, which the mean of 10.6 hides.
 - **The UV view** already fills triangles by quality, with the same colour map and range
   controls as the 3D view ([Rendering](../rendering.md), *UV fill*), so the face quality
   that *Compute UV Distortion* writes is visible on the UV layout without further work.
@@ -496,7 +501,7 @@ Stages 1 to 4 each end in one vcglib bump, with the MeshLab code that uses it.
 | **1** | V1 (`QuasiConformalDistortion`, `UVScaling`); V2 (the counting flag) | QCD and UV scaling in *Compute UV Distortion*; the six missing mesh keys; the recursive Python conversion | nothing; it ships alone. **Implemented 2026-10-23** |
 | **2** | V3 (charts, signed chart area, folds) | *Measure UV Mapping* (charts, folds, QCD percentiles through `vcg::Histogram`), and *Select Folded UV Faces*. `sf` and `occupancy` wait for the raster | Stage 1, and approval of the category. **Implemented 2026-10-23** (`sf` and `occupancy` still wait for the raster) |
 | **3** | V4 (the rasterizer, banding) | *Measure Texel Coverage*, the full pyramid; `occupancy` and `sf` added to *Measure UV Mapping* | Stage 2, and Stage 0 for the `sf` outlier rule. **Implemented 2026-10-23**, the rule as TexMetro has it |
-| **4** | V5 (seam discrepancy, templated on a texel functor) | *Measure Texture Seam Color Discrepancy*; optionally the seam polyline with per-edge values | Stage 2, edge support. **Implemented 2026-10-24**; the polyline is not (see below) |
+| **4** | V5 (seam discrepancy, templated on a texel functor) | *Measure Texture Seam Color Discrepancy*; optionally the seam polyline with per-edge values | Stage 2, edge support. **Implemented 2026-10-24**; the polyline, 2026-10-26 (see below) |
 | **5** *(optional)* | `TexelCoverage` flags the faces on shared and clash texels; per-vertex UV | *Select Overlapping UV Faces*, a CPU selection filter, in place of the QRhi overlay (see below) | Stage 3. **Implemented 2026-10-26** |
 
 The `Compute UV Distortion` change (Stage 1) is the cheapest slice of the proposal and

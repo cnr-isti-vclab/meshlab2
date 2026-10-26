@@ -3,6 +3,7 @@
 #include "document.h"
 #include "meshfilterpluginmanager.h"
 #include "textureassociationutils.h"
+#include "uvlayer.h"
 #include "vcgmesh.h"
 #include <vcg/complex/algorithms/bitquad_support.h>
 #include <vcg/complex/algorithms/clean.h>
@@ -62,22 +63,10 @@ vcg::Point3<Scalar> qMatrixMapPoint(const QMatrix4x4 &matrix, const vcg::Point3<
     return vcg::Point3<Scalar>(Scalar(mapped.x()), Scalar(mapped.y()), Scalar(mapped.z()));
 }
 
-// The faces of a layer as the UV measures see them: in double precision, in world space, and
-// with the UV in texels, so a metric computed on them is the one TexMetro computes on its own
-// mesh. Every algorithm below is a vcglib one, templated on this type.
-class UVMeshVertex;
-class UVMeshFace;
-struct UVMeshUsedTypes : vcg::UsedTypes<
-    vcg::Use<UVMeshVertex>::AsVertexType,
-    vcg::Use<UVMeshFace>::AsFaceType> {};
-class UVMeshVertex : public vcg::Vertex<UVMeshUsedTypes, vcg::vertex::Coord3d, vcg::vertex::BitFlags> {};
-class UVMeshFace : public vcg::Face<
-    UVMeshUsedTypes,
-    vcg::face::VertexRef,
-    vcg::face::FFAdj,
-    vcg::face::WedgeTexCoord2d,
-    vcg::face::BitFlags> {};
-class UVMesh : public vcg::tri::TriMesh<std::vector<UVMeshVertex>, std::vector<UVMeshFace>> {};
+using UvLayerUtils::UVMesh;
+using UvLayerUtils::UVMeshFace;
+using UvLayerUtils::UvLayer;
+using UvLayerUtils::SeamTextures;
 
 namespace Tex = TextureAssociationUtils;
 
@@ -284,72 +273,14 @@ QString histogramCountString(double value, bool areaWeighted)
     return areaWeighted ? formatFloat(value, 7) : QString::number(std::llround(value));
 }
 
-// A layer's UV as the UV measures take them: its faces as a UVMesh, and the size in texels of
-// each texture those faces use.
-struct UvLayer
-{
-    UVMesh mesh;
-    std::vector<QSizeF> sizes;
-    bool texelsKnown = false; // the sizes are real ones, from the images or asked for, not the unit square
-    QString units;            // how the UV were taken, for the report
-};
-
-// Fill `layer` from a layer of the document, with the UV in texels or, with inTexels false, as
-// they are on the layer. Returns why that cannot be done, or an empty string.
+// The UV of the current layer as the measures take them (see UvLayerUtils), with the texture size a
+// filter asks for in its parameters.
 QString buildUvLayer(const Document::MeshEntry &entry, const FilterParams &params, UvLayer &layer,
                      bool inTexels = true)
 {
-    using Mask = vcg::tri::io::Mask;
-    const VCGMesh &mesh = entry.mesh;
-    if (mesh.FN() == 0)
-        return QObject::tr("'%1' has no faces: a UV mapping needs triangles.").arg(entry.name);
-    const bool wedgeUV = (entry.ioMask & Mask::IOM_WEDGTEXCOORD) && mesh.face.IsWedgeTexCoordEnabled();
-    const bool vertexUV = (entry.ioMask & Mask::IOM_VERTTEXCOORD) && mesh.vert.IsTexCoordEnabled();
-    if (!wedgeUV && !vertexUV)
-        return QObject::tr("'%1' has no texture coordinates.").arg(entry.name);
-
-    // The texel size of each texture: the one asked for, or that of the images, or, with neither,
-    // the unit square (in which case the UV are left as they are).
-    Tex::TextureSizes textureSizes = Tex::resolveTextureSizes(
-        entry, params.getInt(QStringLiteral("textureWidth")), params.getInt(QStringLiteral("textureHeight")));
-    if (!textureSizes.error.isEmpty())
-        return textureSizes.error;
-    const int textureCount = Document::meshTextureAssociationCount(entry);
-    layer.sizes = std::move(textureSizes.sizes);
-    layer.texelsKnown = textureSizes.known;
-    layer.units = textureSizes.units;
-    std::vector<QSizeF> &sizes = layer.sizes;
-
-    // A single size serves every face (and they all count as texture 0); with several textures a
-    // face must name one that exists.
-    UVMesh &um = layer.mesh;
-    vcg::tri::Allocator<UVMesh>::AddVertices(um, mesh.vert.size());
-    const bool identity = isIdentityTransform(entry.transform);
-    for (size_t i = 0; i < mesh.vert.size(); ++i) {
-        const vcg::Point3d p(mesh.vert[i].cP()[0], mesh.vert[i].cP()[1], mesh.vert[i].cP()[2]);
-        um.vert[i].P() = identity ? p : qMatrixMapPoint<double>(entry.transform, p);
-    }
-    vcg::tri::Allocator<UVMesh>::AddFaces(um, size_t(mesh.FN()));
-    size_t next = 0;
-    for (const VCGFace &face : mesh.face) {
-        if (face.IsD())
-            continue;
-        UVMeshFace &f = um.face[next++];
-        int texture = wedgeUV ? face.cWT(0).N() : face.cV(0)->cT().N();
-        if (sizes.size() == 1)
-            texture = 0;
-        else if (texture < 0 || texture >= int(sizes.size()))
-            return QObject::tr("A face uses texture %1, but the layer has %2 texture(s).")
-                .arg(texture).arg(textureCount);
-        const QSizeF &size = inTexels ? sizes[size_t(texture)] : QSizeF(1, 1);
-        for (int c = 0; c < 3; ++c) {
-            f.V(c) = &um.vert[vcg::tri::Index(mesh, face.cV(c))];
-            const auto &uv = wedgeUV ? face.cWT(c).P() : face.cV(c)->cT().P();
-            f.WT(c).P() = vcg::Point2d(double(uv[0]) * size.width(), double(uv[1]) * size.height());
-            f.WT(c).N() = short(texture);
-        }
-    }
-    return {};
+    return UvLayerUtils::buildUvLayer(
+        entry, params.getInt(QStringLiteral("textureWidth")), params.getInt(QStringLiteral("textureHeight")),
+        layer, inTexels);
 }
 
 using Coverage = vcg::tri::TexelCoverage<UVMesh>;
@@ -580,27 +511,12 @@ MeshFilterRunResult measureUvMapping(const Document::MeshEntry &entry, const Fil
     return result;
 }
 
-// The textures of a layer as vcglib's SeamDiscrepancy reads them.
-struct SeamTextures
-{
-    std::vector<QImage> images; // ARGB32, so that a texel is a word
-    int Width(int texture) const { return images[size_t(texture)].width(); }
-    int Height(int texture) const { return images[size_t(texture)].height(); }
-    vcg::Point3d Texel(int texture, int x, int y) const
-    {
-        const QRgb c = reinterpret_cast<const QRgb *>(images[size_t(texture)].constScanLine(y))[x];
-        return vcg::Point3d(qRed(c), qGreen(c), qBlue(c));
-    }
-};
-
 // Measure Texture Seam Color Discrepancy: how far the two sides of each texture seam read different
 // colors, as TexMetro measures it. The seams, the sampling and the distance are vcglib's
-// (SeamDiscrepancy); what is here is the images, the charts that rule out empty islands, and the
-// statistics.
+// (SeamDiscrepancy), put together for a layer by UvLayerUtils; what is here is the statistics.
 MeshFilterRunResult measureSeamDiscrepancy(const Document::MeshEntry &entry, const FilterParams &params)
 {
     using SD = vcg::tri::SeamDiscrepancy<UVMesh>;
-    using UV = vcg::tri::UV_Utils<UVMesh>;
     UvLayer layer;
     const QString error = buildUvLayer(entry, params, layer, false);
     if (!error.isEmpty())
@@ -608,57 +524,32 @@ MeshFilterRunResult measureSeamDiscrepancy(const Document::MeshEntry &entry, con
     if (!layer.texelsKnown)
         return fail(QObject::tr("'%1' has no texture image to compare the colors of.").arg(entry.name));
     SeamTextures textures;
-    for (size_t t = 0; t < layer.sizes.size(); ++t) {
-        QImage image;
-        QString imageError;
-        if (!Tex::loadAssociatedTextureImage(entry, int(t), image, imageError))
-            return fail(imageError);
-        textures.images.push_back(image.convertToFormat(QImage::Format_ARGB32));
-    }
-
-    // A seam must look like one: two faces that share its vertices in 3D. A layer exported with a
-    // vertex per corner has them apart, so coincident vertices are merged first, as TexMetro does.
-    UVMesh &um = layer.mesh;
-    vcg::tri::Clean<UVMesh>::RemoveDuplicateVertex(um);
-    vcg::tri::Allocator<UVMesh>::CompactEveryVector(um);
-    std::vector<SD::Seam> seams;
-    SD::FindSeams(um, seams);
-    std::vector<int> faceChart;
-    const int chartNum = UV::PerWedgeCharts(um, faceChart);
-    // A seam between islands without UV area has no texture to compare.
-    std::vector<double> chartAreaUV(size_t(chartNum), 0.0);
-    for (size_t i = 0; i < um.face.size(); ++i)
-        chartAreaUV[size_t(faceChart[i])] += std::abs(vcg::tri::Distortion<UVMesh, true>::AreaUV(&um.face[i]));
+    const QString imageError = UvLayerUtils::loadSeamTextures(entry, layer.sizes.size(), textures);
+    if (!imageError.isEmpty())
+        return fail(imageError);
 
     SD::Options options;
     options.samplesPerTexel = params.getDouble(QStringLiteral("samplesPerTexel"));
     if (params.getEnum(QStringLiteral("pairing")) == QStringLiteral("position"))
         options.pairing = SD::PairByPosition;
+    UvLayerUtils::MeasuredSeams seams;
+    UvLayerUtils::findLayerSeams(layer, &textures, options, seams);
+
     // TexMetro's histogram: its range and bins only serve its percentiles, which it does not report.
+    // It holds each seam twice, once from each of its sides, weighted by the seam's length.
     vcg::Histogram<double> discrepancy;
     discrepancy.SetRange(0.0, 1000.0, 100000);
-    int measured = 0;
-    for (const SD::Seam &seam : seams) {
-        if (!(chartAreaUV[size_t(faceChart[vcg::tri::Index(um, seam.f)])] > 0)
-            || !(chartAreaUV[size_t(faceChart[vcg::tri::Index(um, seam.g)])] > 0))
-            continue;
-        // Each seam is measured from both of its sides, as TexMetro visits it from both faces: the
-        // sample points of a side start at the vertex its face lists first, so they differ a little.
-        const SD::Seam fromOtherSide = { seam.g, seam.ge, seam.f, seam.e };
-        const double a = SD::Discrepancy(seam, textures, options);
-        const double b = SD::Discrepancy(fromOtherSide, textures, options);
-        if (std::isnan(a) || std::isnan(b))
-            continue;
-        const double length = vcg::Distance(seam.f->cP0(seam.e), seam.f->cP1(seam.e));
-        discrepancy.Add(a, length);
-        discrepancy.Add(b, length);
-        ++measured;
+    for (const UvLayerUtils::MeasuredSeam &measured : seams.seams) {
+        const double length = vcg::Distance(measured.seam.f->cP0(measured.seam.e), measured.seam.f->cP1(measured.seam.e));
+        discrepancy.Add(measured.fromFirst, length);
+        discrepancy.Add(measured.fromSecond, length);
     }
+    const int measured = int(seams.seams.size());
 
     const bool any = discrepancy.Cnt() > 0;
     QStringList info;
     info << QObject::tr("Mesh: %1").arg(entry.name);
-    info << QObject::tr("Seams between UV islands: %1 found, %2 measured").arg(int(seams.size())).arg(measured);
+    info << QObject::tr("Seams between UV islands: %1 found, %2 measured").arg(seams.found).arg(measured);
     MeshFilterRunResult result = successInfo(info);
     result.outputValues["seam_edges_number"] = measured;
     // TexMetro reports zero for a layer with nothing to compare.

@@ -193,6 +193,7 @@ add_library(MeshLab2Core STATIC
     src/core/filedialogdirectory.h src/core/filedialogdirectory.cpp
     src/core/textureassociationutils.h src/core/textureassociationutils.cpp
     src/core/stbimageimpl.cpp
+    src/core/uvlayer.h src/core/uvlayer.cpp
     src/core/uvpacker.h src/core/uvpacker.cpp
     src/core/viewpointoccluder.h src/core/viewpointoccluder.cpp
     src/core/layerdata.h
