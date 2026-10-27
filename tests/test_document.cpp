@@ -113,6 +113,7 @@ private slots:
     void stlOpensWithDuplicateVerticesMerged();
     void polygonalOffExportKeepsEveryWellFormedQuad();
     void plyWithLongPerVertexListLoads();
+    void plyFloatVertexColorsLoad();
     void plyEdgeColorsLoadAndRoundTrip();
     void plyEdgeScalarsRoundTrip();
     void polygonalOffExportSurvivesMalformedFaces();
@@ -2983,6 +2984,48 @@ void DocumentTests::plyWithLongPerVertexListLoads()
         QCOMPARE(mesh.vert[i].cP().X(), float(i));
         QCOMPARE(mesh.vert[i].cP().Y(), float(2 * i));
         QCOMPARE(mesh.vert[i].cP().Z(), float(3 * i));
+    }
+}
+
+// RealityScan, among others, writes the vertex color as float red/green/blue in [0,1] rather
+// than uchar; the reader once matched only uchar and dropped the color without a word.
+void DocumentTests::plyFloatVertexColorsLoad()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("floatcolor.ply"));
+    {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("ply\n"
+                   "format ascii 1.0\n"
+                   "element vertex 3\n"
+                   "property float x\n"
+                   "property float y\n"
+                   "property float z\n"
+                   "property float red\n"
+                   "property float green\n"
+                   "property float blue\n"
+                   "element face 1\n"
+                   "property list uchar int vertex_indices\n"
+                   "end_header\n"
+                   "0 0 0 0 0.2 1\n"
+                   "1 0 0 0.8023533 0.5 0.99999994\n"
+                   "0 1 0 -0.1 1.5 0.0039215689\n"
+                   "3 0 1 2\n");
+    }
+
+    Document doc;
+    const int index = doc.loadMesh(path);
+    QVERIFY(index >= 0);
+    const Document::MeshEntry &entry = doc.mesh(index);
+    QVERIFY(entry.ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR);
+    // Rounded, so c/255 reads back as c; out of range is clamped; no alpha means opaque.
+    const vcg::Color4b expected[] = { vcg::Color4b(0, 51, 255, 255), vcg::Color4b(205, 128, 255, 255),
+                                      vcg::Color4b(0, 255, 1, 255) };
+    for (int i = 0; i < 3; ++i) {
+        for (int channel = 0; channel < 4; ++channel)
+            QCOMPARE(int(entry.mesh.vert[i].cC()[channel]), int(expected[i][channel]));
     }
 }
 
