@@ -117,6 +117,9 @@ const ThirdPartyEntry kFocusedPackages[] = {
       QT_TR_NOOP("Quad remeshing through a binary mixed-integer formulation.") },
     { "Texture Defragmentation", "https://github.com/maggio-a/texture-defrag",
       QT_TR_NOOP("Merging and defragmenting the charts of a texture atlas.") },
+    { "TextureConsolidation", "https://github.com/hliuw/TextureConsolidation",
+      QT_TR_NOOP("Seamless textures from photographs or generated renderings, by optical-flow "
+                 "registration on the surface and gradient-domain stitching.") },
     { "xatlas", "https://github.com/jpcy/xatlas",
       QT_TR_NOOP("Automatic UV atlas generation and packing.") },
     { "BPA", "https://github.com/bernhardmgruber/bpa",
