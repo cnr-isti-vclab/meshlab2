@@ -522,6 +522,7 @@ private slots:
     void scaleToKnownLengthReachesTheLengthInTheDocumentsUnit();
     void scaleToKnownLengthKeepsTheRastersRegistered();
     void cameraFiltersMoveTheCamerasWithTheMeshes();
+    void importImageToCurrentRasterKeepsTheCamera();
     void applyToAllVisibleLayersDoesNotConsumeItsOwnOutput();
     void applyToAllVisibleLayersReportsSkippedLayers();
     void packTextureImagesCreatesGutteredAtlas();
@@ -8497,6 +8498,102 @@ void FilterTests::cameraFiltersMoveTheCamerasWithTheMeshes()
                                           { QStringLiteral("uniformScale"), 2.0 },
                                           { QStringLiteral("toall"), true } };
     });
+}
+
+// Import Image to Current Raster changes the picture and not the camera. A replacement of the same
+// size leaves the shot as it is; one at half the resolution makes the camera see the same picture
+// in half the pixels; another shape, or another size next to a second plane, is refused. An added
+// plane becomes current and survives a project save and reload, which used to write every plane
+// with the first plane's file.
+void FilterTests::importImageToCurrentRasterKeepsTheCamera()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(
+                 QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
+    doc.setCurrentRasterIndex(0);
+    Document::ensureRasterPlaneImage(*doc.raster(0).currentPlane());
+    const QImage original = doc.raster(0).currentPlane()->image;
+    const QString originalPath = doc.raster(0).currentPlane()->sourcePath;
+    const CameraShot shot = doc.raster(0).shot;
+    QCOMPARE(original.size(), shot.viewportPx());
+
+    QImage inverted = original.convertToFormat(QImage::Format_RGB32);
+    inverted.invertPixels();
+    const QString invertedPath = dir.filePath(QStringLiteral("inverted.png"));
+    const QString halfPath = dir.filePath(QStringLiteral("half.png"));
+    const QString flatPath = dir.filePath(QStringLiteral("flat.png"));
+    QVERIFY(inverted.save(invertedPath));
+    QVERIFY(original.scaled(original.size() / 2).save(halfPath));
+    QVERIFY(original.scaled(original.width(), original.height() / 2).save(flatPath));
+
+    const QString key = filterKeyForId(doc, QStringLiteral("import_image_to_current_raster"));
+    const auto run = [&](const QString &path, const QString &mode) {
+        return doc.runFilter(key, { { QStringLiteral("image_file"), path },
+                                    { QStringLiteral("mode"), mode } });
+    };
+    const auto sameCamera = [&] {
+        const CameraShot &now = doc.raster(0).shot;
+        return now.viewportPx() == shot.viewportPx() && now.centerPx() == shot.centerPx()
+            && now.focalMm() == shot.focalMm() && now.viewPoint() == shot.viewPoint();
+    };
+    const QPoint px(100, 200);
+
+    MeshFilterRunResult r = run(invertedPath, QStringLiteral("replace"));
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(doc.raster(0).planes.size(), size_t(1));
+    QCOMPARE(doc.raster(0).currentPlane()->sourcePath, QFileInfo(invertedPath).absoluteFilePath());
+    QCOMPARE(doc.raster(0).currentPlane()->image.pixel(px), inverted.pixel(px));
+    QVERIFY(sameCamera());
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.raster(0).currentPlane()->sourcePath, originalPath);
+    QCOMPARE(doc.raster(0).currentPlane()->image.pixel(px), original.pixel(px));
+
+    QVERIFY(!run(flatPath, QStringLiteral("replace")).success);
+    QVERIFY(sameCamera());
+
+    const vcg::Point3f v = doc.mesh(0).mesh.vert[0].cP();
+    const QVector3D vertex = doc.mesh(0).transform.map(QVector3D(v[0], v[1], v[2]));
+    r = run(halfPath, QStringLiteral("replace"));
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const CameraShot &half = doc.raster(0).shot;
+    QCOMPARE(half.viewportPx(), shot.viewportPx() / 2);
+    QCOMPARE(half.focalMm(), shot.focalMm());
+    const QVector2D seen = half.project(vertex);
+    const QVector2D expected = shot.project(vertex) * 0.5f;
+    QVERIFY2((seen - expected).length() < 0.05f,
+             qPrintable(QStringLiteral("(%1, %2), not (%3, %4)")
+                            .arg(seen.x()).arg(seen.y()).arg(expected.x()).arg(expected.y())));
+    QVERIFY(doc.undo());
+    QVERIFY(sameCamera());
+
+    r = run(invertedPath, QStringLiteral("add_plane"));
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(doc.raster(0).planes.size(), size_t(2));
+    QCOMPARE(doc.raster(0).currentPlaneIndex, 1);
+    QCOMPARE(doc.raster(0).currentPlane()->image.pixel(px), inverted.pixel(px));
+    QVERIFY(sameCamera());
+    QVERIFY(!run(halfPath, QStringLiteral("add_plane")).success);
+    QVERIFY(!run(halfPath, QStringLiteral("replace")).success);
+
+    Document::MeshLabProjectSaveOptions options;
+    options.copyFiles = true;
+    const QString project = dir.filePath(QStringLiteral("planes.mlp"));
+    QString error;
+    QVERIFY2(doc.saveMeshLabProject(project, options, &error), qPrintable(error));
+    Document reloaded;
+    QCOMPARE(reloaded.loadMeshLabProject(project), 0);
+    const Document::RasterEntry &raster = reloaded.raster(0);
+    QCOMPARE(raster.planes.size(), size_t(2));
+    QCOMPARE(QFileInfo(raster.planes[0].sourcePath).canonicalFilePath(),
+             QFileInfo(originalPath).canonicalFilePath());
+    QCOMPARE(QFileInfo(raster.planes[1].sourcePath).canonicalFilePath(),
+             QFileInfo(invertedPath).canonicalFilePath());
+    QCOMPARE(raster.currentPlaneIndex, 1);
+
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.raster(0).planes.size(), size_t(1));
 }
 
 // A filter that emits new layers must not have its own output swept back into the same

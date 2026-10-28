@@ -99,7 +99,6 @@ int Document::loadMeshLabProject(const QString &filename)
         rasterEntry.name = projectRaster.label;
         rasterEntry.shot = projectRaster.shot;
         rasterEntry.visible = true;
-        rasterEntry.currentPlaneIndex = -1;
 
         for (const MeshLabProjectPlaneEntry &projectPlane : projectRaster.planes) {
             RasterPlane plane;
@@ -119,9 +118,10 @@ int Document::loadMeshLabProject(const QString &filename)
             if (!plane.size.isValid() || plane.size.width() <= 0)
                 plane.size = projectRaster.shot.viewportPx();
             rasterEntry.planes.push_back(std::move(plane));
-            if (rasterEntry.currentPlaneIndex < 0)
-                rasterEntry.currentPlaneIndex = int(rasterEntry.planes.size()) - 1;
         }
+        // The last plane is the current one, as in MeshLab, where each plane read became
+        // current: a plane added to a raster is written after the image it was added to.
+        rasterEntry.currentPlaneIndex = int(rasterEntry.planes.size()) - 1;
 
         if (rasterEntry.planes.empty()) {
             RasterPlane plane;
@@ -131,10 +131,8 @@ int Document::loadMeshLabProject(const QString &filename)
             rasterEntry.currentPlaneIndex = 0;
         }
 
-        if (rasterEntry.sourcePath.trimmed().isEmpty()) {
-            if (const RasterPlane *plane = rasterEntry.currentPlane())
-                rasterEntry.sourcePath = plane->sourcePath.trimmed();
-        }
+        if (rasterEntry.sourcePath.trimmed().isEmpty() && !rasterEntry.planes.empty())
+            rasterEntry.sourcePath = rasterEntry.planes.front().sourcePath.trimmed();
 
         if (addRaster(rasterEntry) >= 0) {
             const qint64 addMs = rt.elapsed();
@@ -216,7 +214,8 @@ bool Document::saveMeshLabProject(
         bool needsCopy = false;
     };
     QVector<EntryPath> meshSavePaths(meshCount());
-    QVector<EntryPath> rasterSavePaths(rasterCount());
+    // One per plane: the planes of a raster share its camera, not its file.
+    QVector<QVector<EntryPath>> rasterSavePaths(rasterCount());
 
     for (int mi = 0; mi < meshCount(); ++mi) {
         const MeshEntry &entry = mesh(mi);
@@ -248,20 +247,22 @@ bool Document::saveMeshLabProject(
 
     for (int ri = 0; ri < rasterCount(); ++ri) {
         const RasterEntry &re = raster(ri);
-        if (!re.planes.empty()) {
-            const RasterPlane &p = re.planes.front();
+        for (int pi = 0; pi < int(re.planes.size()); ++pi) {
+            const RasterPlane &p = re.planes[size_t(pi)];
+            EntryPath path;
             if (!p.sourcePath.isEmpty()) {
-                rasterSavePaths[ri].absPath = p.sourcePath;
-                rasterSavePaths[ri].needsCopy = false;
+                path.absPath = p.sourcePath;
             } else {
-                // Snapshot raster — save to images/
+                // Snapshot plane — save to images/
                 QString safeName = re.name.simplified();
                 safeName.replace(QRegularExpression(QStringLiteral("[^\\w.-]")), QStringLiteral("_"));
                 if (safeName.isEmpty()) safeName = QStringLiteral("raster_%1").arg(ri);
+                if (pi > 0) safeName += QStringLiteral("_%1").arg(pi);
                 safeName += QStringLiteral(".png");
-                rasterSavePaths[ri].absPath = projectDir.filePath(QStringLiteral("images") + QDir::separator() + safeName);
-                rasterSavePaths[ri].needsCopy = true;
+                path.absPath = projectDir.filePath(QStringLiteral("images") + QDir::separator() + safeName);
+                path.needsCopy = true;
             }
+            rasterSavePaths[ri].push_back(path);
         }
     }
 
@@ -276,11 +277,11 @@ bool Document::saveMeshLabProject(
             }
         }
     }
-    for (int ri = 0; ri < rasterCount(); ++ri) {
-        if (!rasterSavePaths[ri].absPath.isEmpty() && rasterSavePaths[ri].needsCopy) continue;
-        if (!rasterSavePaths[ri].absPath.isEmpty()) {
-            if (!QFileInfo(rasterSavePaths[ri].absPath).absoluteFilePath().startsWith(projectDir.absolutePath() + QDir::separator())
-                && QFileInfo(rasterSavePaths[ri].absPath).absolutePath() != projectDir.absolutePath()) {
+    for (const QVector<EntryPath> &planePaths : rasterSavePaths) {
+        for (const EntryPath &path : planePaths) {
+            if (path.needsCopy) continue;
+            if (!QFileInfo(path.absPath).absoluteFilePath().startsWith(projectDir.absolutePath() + QDir::separator())
+                && QFileInfo(path.absPath).absolutePath() != projectDir.absolutePath()) {
                 needsCopy = true;
             }
         }
@@ -315,24 +316,23 @@ bool Document::saveMeshLabProject(
 
     // Phase 4: save raster images
     for (int ri = 0; ri < rasterCount(); ++ri) {
-        const QString &destPath = rasterSavePaths[ri].absPath;
-        if (destPath.isEmpty()) continue;
-        if (rasterSavePaths[ri].needsCopy) {
-            // Save QImage
-            RasterPlane *rp = raster(ri).currentPlane();
-            if (rp) {
-                ensureRasterPlaneImage(*rp);
-                if (!rp->image.isNull()) {
-                    if (!rp->image.save(destPath))
+        for (int pi = 0; pi < rasterSavePaths[ri].size(); ++pi) {
+            const QString &destPath = rasterSavePaths[ri][pi].absPath;
+            if (rasterSavePaths[ri][pi].needsCopy) {
+                // Save QImage
+                RasterPlane &rp = raster(ri).planes[size_t(pi)];
+                ensureRasterPlaneImage(rp);
+                if (!rp.image.isNull()) {
+                    if (!rp.image.save(destPath))
                         return fail(tr("Failed to save raster image to %1").arg(destPath));
                     newImagePaths.push_back(destPath);
                 }
+            } else if (needsCopy && !destPath.startsWith(projectDir.absolutePath() + QDir::separator())) {
+                const QString dest = projectDir.filePath(QStringLiteral("images") + QDir::separator()
+                    + QFileInfo(destPath).fileName());
+                if (!QFile::copy(destPath, dest))
+                    return fail(tr("Failed to copy raster image '%1'").arg(destPath));
             }
-        } else if (needsCopy && !destPath.startsWith(projectDir.absolutePath() + QDir::separator())) {
-            const QString dest = projectDir.filePath(QStringLiteral("images") + QDir::separator()
-                + QFileInfo(destPath).fileName());
-            if (!QFile::copy(destPath, dest))
-                return fail(tr("Failed to copy raster image '%1'").arg(destPath));
         }
     }
 
@@ -381,8 +381,7 @@ bool Document::saveMeshLabProject(
     xml.writeStartElement(QStringLiteral("RasterGroup"));
     for (int ri = 0; ri < rasterCount(); ++ri) {
         const RasterEntry &re = raster(ri);
-        const QString &absPath = rasterSavePaths[ri].absPath;
-        if (absPath.isEmpty()) continue;
+        if (rasterSavePaths[ri].isEmpty()) continue;
 
         xml.writeStartElement(QStringLiteral("MLRaster"));
         xml.writeAttribute(QStringLiteral("label"), re.name);
@@ -424,10 +423,11 @@ bool Document::saveMeshLabProject(
         xml.writeAttribute(QStringLiteral("BinaryData"), QStringLiteral("0"));
         xml.writeEndElement(); // VCGCamera
 
-        // Planes
-        for (const RasterPlane &plane : re.planes) {
+        // Planes, in order: a loaded raster shows its last one, as MeshLab always has
+        for (int pi = 0; pi < int(re.planes.size()); ++pi) {
+            const RasterPlane &plane = re.planes[size_t(pi)];
             xml.writeStartElement(QStringLiteral("Plane"));
-            QString planeRelPath = projectDir.relativeFilePath(absPath);
+            QString planeRelPath = projectDir.relativeFilePath(rasterSavePaths[ri][pi].absPath);
             xml.writeAttribute(QStringLiteral("fileName"), planeRelPath);
             QString semanticStr;
             switch (plane.semantic) {

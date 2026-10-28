@@ -283,6 +283,41 @@
       ]
     },
     {
+      "id": "import_image_to_current_raster",
+      "categories": ["Document/Layer"],
+      "name": "Import Image to Current Raster",
+      "pythonName": "import_image_to_current_raster",
+      "shortDescription": "Replace the image of the current raster, or add one beside it, keeping its camera.",
+      "longDescriptionMarkdown": "Reads an image file into the current raster layer, keeping the raster's camera: a color-corrected or full-resolution version of the photo, a mask, or another band taken from the same viewpoint.\n\n**Replace the current plane** puts the new image in place of the one the raster shows. **Add as a new plane** keeps the old image as a plane of the raster and makes the new one current; *Set as Current Plane* in the layer panel switches between them. Everything that uses a raster's image, from the raster view to the color projection filters, reads its current plane.\n\nEvery plane is read at the camera's resolution. An image of another resolution with the same aspect ratio can replace a raster's only plane: the camera then takes the new resolution, with its center and pixel size rescaled and its focal length unchanged, so that it still sees the same picture. An added plane, or a replacement next to other planes, must have the resolution of the camera.",
+      "tags": ["layer", "raster", "image", "plane", "import", "replace"],
+      "inputDomain": "None",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "image_file",
+          "label": "Image File",
+          "help": "The image to read into the current raster.",
+          "group": "main",
+          "type": "file_open",
+          "default": "",
+          "fileDialogTitle": "Import Image to Raster",
+          "fileNameFilters": ["Images (*.png *.jpg *.jpeg *.tif *.tiff *.bmp)", "All files (*)"]
+        },
+        {
+          "id": "mode",
+          "label": "Mode",
+          "help": "Replace the image the raster shows, or add the new image as another plane and make it current.",
+          "group": "main",
+          "type": "enum",
+          "default": "replace",
+          "enumOptions": [
+            { "id": "replace", "label": "Replace the current plane" },
+            { "id": "add_plane", "label": "Add as a new plane" }
+          ]
+        }
+      ]
+    },
+    {
       "id": "render_from_render_state_json",
       "categories": ["Document/Render"],
       "name": "Render from Render-State JSON",

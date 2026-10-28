@@ -2712,14 +2712,14 @@ void MainWindow::saveProjectAs()
         }
     }
     if (!needsCopyCheck) {
-        for (int ri = 0; ri < m_doc->rasterCount(); ++ri) {
-            const auto &re = m_doc->raster(ri);
-            if (re.planes.empty()) continue;
-            const QString src = re.planes.front().sourcePath;
-            if (src.isEmpty()) continue;
-            if (!src.startsWith(projectDir.absolutePath() + QDir::separator())
-                && QFileInfo(src).absolutePath() != projectDir.absolutePath()) {
-                needsCopyCheck = true; break;
+        for (int ri = 0; ri < m_doc->rasterCount() && !needsCopyCheck; ++ri) {
+            for (const RasterPlane &plane : m_doc->raster(ri).planes) {
+                const QString src = plane.sourcePath;
+                if (src.isEmpty()) continue;
+                if (!src.startsWith(projectDir.absolutePath() + QDir::separator())
+                    && QFileInfo(src).absolutePath() != projectDir.absolutePath()) {
+                    needsCopyCheck = true; break;
+                }
             }
         }
     }

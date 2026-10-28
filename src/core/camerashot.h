@@ -49,6 +49,9 @@ public:
 
     QSize viewportPx() const;
     void setViewportPx(const QSize &size);
+    // The same camera for its image at another resolution (vcg::Camera::RescaleViewportPx).
+    // Both sizes must be non-empty; whether the aspect ratio still matches is the caller's to check.
+    void rescaleViewportPx(const QSize &size);
 
     QVector2D centerPx() const;
     void setCenterPx(const QVector2D &center);

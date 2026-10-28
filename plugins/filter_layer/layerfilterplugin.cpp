@@ -2,6 +2,7 @@
 
 #include "document.h"
 #include "meshfilterpluginmanager.h"
+#include "textureassociationutils.h"
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
@@ -40,6 +41,7 @@ constexpr QLatin1StringView kRenameMesh("rename_current_mesh_layer");
 constexpr QLatin1StringView kRenameRaster("rename_current_raster");
 constexpr QLatin1StringView kExportRasterCameras("export_cameras_from_visible_rasters");
 constexpr QLatin1StringView kImportRasterCameras("import_cameras_to_visible_rasters");
+constexpr QLatin1StringView kImportRasterImage("import_image_to_current_raster");
 constexpr QLatin1StringView kRenderFromRenderStateJson("render_from_render_state_json");
 constexpr QLatin1StringView kSetUnit("set_unit");
 using Mask = vcg::tri::io::Mask;
@@ -504,6 +506,71 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
                 QObject::tr("Imported raster camera for '%1'").arg(doc.raster(activeRasters[i]).name));
         }
         return successInfo(true, { QObject::tr("Imported %1 raster camera(s) from '%2'.").arg(shots.size()).arg(path) });
+    }
+
+    if (filterId == QString::fromLatin1(kImportRasterImage)) {
+        const int rasterIndex = doc.currentRasterIndex();
+        if (rasterIndex < 0 || rasterIndex >= doc.rasterCount())
+            return fail(QObject::tr("No current raster selected."));
+        const QString file = params.getFileOpen(QStringLiteral("image_file")).trimmed();
+        if (file.isEmpty())
+            return fail(QObject::tr("No image file selected."));
+        const QString path = QFileInfo(file).absoluteFilePath();
+        QImage image;
+        QString readError;
+        if (!TextureAssociationUtils::readImageFile(path, image, readError))
+            return fail(readError);
+
+        Document::RasterEntry &entry = doc.raster(rasterIndex);
+        RasterPlane *current = entry.currentPlane();
+        const bool add = params.getEnum(QStringLiteral("mode")) == QLatin1String("add_plane") || !current;
+
+        // Every plane is read at the camera's viewport. A different resolution can only be
+        // taken by the camera itself, which is possible when no other plane needs the old one.
+        CameraShot shot = entry.shot;
+        const QSize viewport = shot.isValid() ? shot.viewportPx() : QSize();
+        const bool rescale = !viewport.isEmpty() && image.size() != viewport;
+        if (rescale) {
+            if (add || entry.planes.size() > 1)
+                return fail(QObject::tr("'%1' is %2x%3 pixels, and the planes of raster '%4' are %5x%6: "
+                                        "only the image of a raster with one plane can change its resolution.")
+                                .arg(QFileInfo(path).fileName()).arg(image.width()).arg(image.height())
+                                .arg(entry.name).arg(viewport.width()).arg(viewport.height()));
+            const double height = double(viewport.height()) * image.width() / viewport.width();
+            if (std::abs(image.height() - height) > 1.0)
+                return fail(QObject::tr("'%1' is %2x%3 pixels, not the %4x%5 shape of the camera of raster '%6'.")
+                                .arg(QFileInfo(path).fileName()).arg(image.width()).arg(image.height())
+                                .arg(viewport.width()).arg(viewport.height()).arg(entry.name));
+            shot.rescaleViewportPx(image.size());
+        }
+
+        RasterPlane plane;
+        plane.name = QFileInfo(path).fileName();
+        plane.sourcePath = path;
+        plane.size = image.size();
+        plane.image = image;
+        QString message;
+        if (add) {
+            entry.planes.push_back(std::move(plane));
+            entry.currentPlaneIndex = int(entry.planes.size()) - 1;
+            message = QObject::tr("Added '%1' to raster '%2' as plane %3.")
+                          .arg(QFileInfo(path).fileName(), entry.name).arg(entry.currentPlaneIndex);
+        } else {
+            plane.semantic = current->semantic;
+            if (entry.sourcePath == current->sourcePath)
+                entry.sourcePath = path;
+            *current = std::move(plane);
+            message = QObject::tr("Replaced the image of raster '%1' with '%2'.")
+                          .arg(entry.name, QFileInfo(path).fileName());
+        }
+        QStringList info { message };
+        if (rescale) {
+            info << QObject::tr("The camera now has the image's resolution, %1x%2.")
+                        .arg(image.width()).arg(image.height());
+            doc.setRasterShot(rasterIndex, shot, info.last());
+        }
+        doc.markRasterImageChanged(rasterIndex, message);
+        return successInfo(true, info);
     }
 
     if (filterId == QString::fromLatin1(kRenderFromRenderStateJson)) {

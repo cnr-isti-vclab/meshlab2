@@ -126,6 +126,11 @@ void CameraShot::setViewportPx(const QSize &size)
         vcg::Point2i(std::max(0, size.width()), std::max(0, size.height()));
 }
 
+void CameraShot::rescaleViewportPx(const QSize &size)
+{
+    m_shot.Intrinsics.RescaleViewportPx(vcg::Point2i(size.width(), size.height()));
+}
+
 QVector2D CameraShot::centerPx() const
 {
     return QVector2D(m_shot.Intrinsics.CenterPx[0], m_shot.Intrinsics.CenterPx[1]);
