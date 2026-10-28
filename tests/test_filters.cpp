@@ -518,6 +518,7 @@ private slots:
     void icpBetweenPointCloudsUpdatesSourceTransform();
     void translateFilterMovesOnlyCurrentMesh();
     void applyToAllVisibleLayersIsASingleUndoStep();
+    void setUnitIsAScriptedUndoStep();
     void applyToAllVisibleLayersDoesNotConsumeItsOwnOutput();
     void applyToAllVisibleLayersReportsSkippedLayers();
     void packTextureImagesCreatesGutteredAtlas();
@@ -8332,6 +8333,43 @@ void FilterTests::applyToAllVisibleLayersIsASingleUndoStep()
     QCOMPARE(doc.undoCursorPosition(), undoDepthBefore);
     QVERIFY(matrixNear(doc.mesh(0).transform, identity));
     QVERIFY(matrixNear(doc.mesh(2).transform, identity));
+}
+
+// The unit is a property of the whole document, set by a filter so that it is in the history and
+// a script like any other change: it needs no layer, it is one undo step, setting the unit the
+// document already has is none, and the panel opens on the unit the document has.
+void FilterTests::setUnitIsAScriptedUndoStep()
+{
+    Document doc;
+    const QString key = filterKeyForId(doc, QStringLiteral("set_unit"));
+    QVERIFY(!key.isEmpty());
+    const auto unitDefault = [&doc, &key] {
+        return doc.filterDescriptor(key)->parameters.front().defaultValue.toString();
+    };
+    QCOMPARE(unitDefault(), QStringLiteral("not_set"));
+
+    const auto setUnit = [&doc, &key](const QString &unit) {
+        return doc.runFilter(key, { { QStringLiteral("unit"), unit } });
+    };
+    MeshFilterRunResult r = setUnit(QStringLiteral("mm"));
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(r.documentModified);
+    QCOMPARE(doc.unit(), LengthUnit::Millimeter);
+    QCOMPARE(doc.undoText(), QStringLiteral("Set Unit"));
+    QCOMPARE(doc.undoNodeAction(doc.undoCurrentNodeId())->pythonCall, QStringLiteral("ms.set_unit(unit=\"mm\")"));
+    QCOMPARE(unitDefault(), QStringLiteral("mm"));
+
+    const std::size_t historySize = doc.undoTreeInfo().size();
+    r = setUnit(QStringLiteral("mm"));
+    QVERIFY(r.success && !r.documentModified);
+    QCOMPARE(doc.undoTreeInfo().size(), historySize);
+
+    QVERIFY(setUnit(QStringLiteral("um")).success);   // the ASCII spelling of µm
+    QCOMPARE(doc.unit(), LengthUnit::Micrometer);
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.unit(), LengthUnit::Millimeter);
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.unit(), LengthUnit::Unknown);
 }
 
 // A filter that emits new layers must not have its own output swept back into the same

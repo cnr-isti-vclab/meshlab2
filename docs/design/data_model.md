@@ -92,9 +92,14 @@ Options (`MeshLabProjectSaveOptions`, offered by the Save Project dialog): `only
 
 **Unit** (`Document::unit()`, `LengthUnit` in `lengthunit.h`): what the coordinates are measured in --
 micrometers, millimeters, centimeters, meters, kilometers, inches or feet -- as far as it is known. Most
-mesh formats do not say, so it is `Unknown` until the status bar's unit menu, a project that holds one, or
-a file that states its unit sets it.
-It is a label and changes no coordinate; it names the absolute half of an abs/perc parameter and the lengths the measure tool shows and saves. It is
+mesh formats do not say, so it is `Unknown` until the user sets it, or a project that holds one or
+a file that states its unit does.
+It is a label and changes no coordinate; it names the absolute half of an abs/perc parameter and the lengths the measure tool shows and saves.
+The user sets it with the *Set Unit* filter (`set_unit`, category `Document`, in the layer plugin), which
+the status bar's unit menu runs, so a change is in the action history and a generated script like any
+other (`ms.set_unit(unit="mm")`; the parameter spells each unit as `LengthUnits::scriptId()` does, the
+symbol in ASCII, `um` for µm, and `not_set`). Its default is the `@documentUnit` token, the unit the
+document has, so the filter panel opens on it. It is
 in the undo state (`UndoState::unit`) and setting it is an undo step ("Set Unit"; the same unit again is
 no step), `File > New` (`clearAllLayers()`) forgets it, and `unitChanged()` tells the interface. In the
 project it is `<LengthUnit name="mm"/>` after the visibility sets, written only when set and read by its

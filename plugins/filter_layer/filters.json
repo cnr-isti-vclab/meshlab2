@@ -361,6 +361,37 @@
           "default": "Programmatic Render"
         }
       ]
+    },
+    {
+      "id": "set_unit",
+      "categories": ["Document"],
+      "name": "Set Unit",
+      "pythonName": "set_unit",
+      "shortDescription": "Set the unit the coordinates of the document are measured in.",
+      "longDescriptionMarkdown": "Sets the unit the coordinates of every layer are measured in, a property of the whole document. Most mesh formats do not say, so a document starts with the unit not set; opening a 3MF, glTF or E57 file, which do, into an empty document sets it from the file.\n\nThe unit is a label: no coordinate changes and no layer is scaled. Once it is set, the absolute lengths of the filter parameters and the lengths the measuring tool shows and saves are given in it, it is saved in the project, and a 3MF file records it.\n\nThe unit in the status bar changes it through this filter, so a change made there is in the action history and in a generated script.",
+      "tags": ["unit", "document", "millimeters", "meters", "inches"],
+      "inputDomain": "None",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "unit",
+          "label": "Unit",
+          "help": "The unit the coordinates are measured in. Not Set clears it.",
+          "group": "main",
+          "type": "enum",
+          "default": "@documentUnit",
+          "enumOptions": [
+            { "id": "not_set", "label": "Not Set" },
+            { "id": "um", "label": "Micrometers (µm)" },
+            { "id": "mm", "label": "Millimeters (mm)" },
+            { "id": "cm", "label": "Centimeters (cm)" },
+            { "id": "m", "label": "Meters (m)" },
+            { "id": "km", "label": "Kilometers (km)" },
+            { "id": "in", "label": "Inches (in)" },
+            { "id": "ft", "label": "Feet (ft)" }
+          ]
+        }
+      ]
     }
   ]
 }

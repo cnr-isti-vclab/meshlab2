@@ -54,6 +54,25 @@ inline QString name(LengthUnit unit)
     return {};
 }
 
+// The unit as the Set Unit filter, and so a script, spells it: the symbol in ASCII ("um" for
+// µm), and "not_set" for Unknown.
+inline QString scriptId(LengthUnit unit)
+{
+    if (unit == LengthUnit::Unknown)
+        return QStringLiteral("not_set");
+    return unit == LengthUnit::Micrometer ? QStringLiteral("um") : symbol(unit);
+}
+
+// The unit scriptId() spells this way; Unknown for "not_set" and anything else.
+inline LengthUnit fromScriptId(const QString &id)
+{
+    for (const Info &info : all()) {
+        if (scriptId(info.unit) == id)
+            return info.unit;
+    }
+    return LengthUnit::Unknown;
+}
+
 // The unit with this symbol; Unknown for anything else, so a file from a newer version that
 // names a unit this one lacks reads as not set.
 inline LengthUnit fromSymbol(const QString &symbol)

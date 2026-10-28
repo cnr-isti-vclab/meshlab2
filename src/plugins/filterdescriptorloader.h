@@ -89,6 +89,7 @@ class Document;
 //   @bboxDiagTenth         - bboxDiag * 0.1
 //   @bboxDiagHalf          - bboxDiag * 0.5
 //   @bboxDiag5x            - bboxDiag * 5.0
+//   @documentUnit          - the document's unit, as LengthUnits::scriptId() spells it
 //   @qualityVMin           - per-vertex quality minimum
 //   @qualityVMax           - per-vertex quality maximum
 //   @qualityFMin           - per-face quality minimum

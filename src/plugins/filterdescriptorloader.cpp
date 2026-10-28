@@ -630,6 +630,8 @@ void FilterDescriptorLoader::resolveSymbolicBounds(
 
     for (MeshFilterDescriptor &fd : descriptors) {
         for (MeshFilterParameterDescriptor &p : fd.parameters) {
+            if (p.defaultValue.toString() == QLatin1String("@documentUnit"))
+                p.defaultValue = LengthUnits::scriptId(doc.unit());
             p.defaultValue = resolveToken(p.defaultValue, bboxDiag,
                 qualityVMin, qualityVMax, qualityFMin, qualityFMax,
                 hasSelectedFaces, hasSelectedVerts, faceCount, selFaces, hardwareThreads,

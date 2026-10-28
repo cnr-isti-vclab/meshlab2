@@ -41,6 +41,7 @@ constexpr QLatin1StringView kRenameRaster("rename_current_raster");
 constexpr QLatin1StringView kExportRasterCameras("export_cameras_from_visible_rasters");
 constexpr QLatin1StringView kImportRasterCameras("import_cameras_to_visible_rasters");
 constexpr QLatin1StringView kRenderFromRenderStateJson("render_from_render_state_json");
+constexpr QLatin1StringView kSetUnit("set_unit");
 using Mask = vcg::tri::io::Mask;
 using Sel = vcg::tri::UpdateSelection<VCGMesh>;
 
@@ -431,6 +432,17 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
             return successInfo(false, { QObject::tr("Raster is already named '%1'.").arg(newName) });
         doc.setRasterName(rasterIndex, newName);
         return successInfo(true, { QObject::tr("Renamed current raster to '%1'.").arg(newName) });
+    }
+
+    if (filterId == QString::fromLatin1(kSetUnit)) {
+        const LengthUnit unit = LengthUnits::fromScriptId(params.getEnum(QStringLiteral("unit")));
+        const QString text = unit == LengthUnit::Unknown
+            ? QObject::tr("not set")
+            : QStringLiteral("%1 (%2)").arg(LengthUnits::name(unit), LengthUnits::symbol(unit));
+        if (unit == doc.unit())
+            return successInfo(false, { QObject::tr("The unit is already %1.").arg(text) });
+        doc.setUnit(unit);
+        return successInfo(true, { QObject::tr("The unit is now %1.").arg(text) });
     }
 
     if (filterId == QString::fromLatin1(kExportRasterCameras)) {

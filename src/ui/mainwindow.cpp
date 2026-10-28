@@ -584,7 +584,11 @@ MainWindow::MainWindow(QWidget *parent)
         action->setCheckable(true);
         action->setActionGroup(unitGroup);
         action->setData(int(unit));
-        connect(action, &QAction::triggered, this, [this, unit] { m_doc->setUnit(unit); });
+        // Through the Set Unit filter, so the change is in the action history and a script.
+        connect(action, &QAction::triggered, this, [this, unit] {
+            executeFilter(QStringLiteral("meshlab2.filter.layer::set_unit"), tr("Set Unit"),
+                          { { QStringLiteral("unit"), LengthUnits::scriptId(unit) } });
+        });
     };
     addUnitAction(LengthUnit::Unknown, tr("Not Set"));
     unitMenu->addSeparator();
