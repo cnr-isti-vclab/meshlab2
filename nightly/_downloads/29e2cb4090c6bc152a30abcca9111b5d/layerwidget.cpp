@@ -2566,6 +2566,12 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
             [this, index = ref.index]() {
                 savePlaneImage(index, m_doc->raster(index).currentPlaneIndex);
             });
+        // The filter acts on the current raster, so this one becomes current first.
+        QAction *importAction = menu.addAction(tr("Import Image to Raster..."));
+        connect(importAction, &QAction::triggered, this, [this, index = ref.index]() {
+            m_doc->setCurrentRasterIndex(index);
+            emit filterActionRequested(QStringLiteral("meshlab2.filter.layer::import_image_to_current_raster"));
+        });
         QAction *removeAction = menu.addAction(tr("Remove Raster"));
         connect(removeAction, &QAction::triggered, this, [this, index = ref.index]() {
             m_doc->removeRaster(index);

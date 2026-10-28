@@ -680,7 +680,13 @@ not change what is visible. For a filter that picks some of the layers and leave
 <em>Align Meshes Sequentially (Open3D)</em> leaves <code class="docutils literal notranslate"><span class="pre">aligned</span></code>. Names are shown as written, untranslated.</p></li>
 <li><p><strong>Suggest a view change</strong> (optional) via <code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult::visualizationHints</span></code>
 (e.g. switch to textured/quality shading) — see the visualization-hint path in
-<code class="docutils literal notranslate"><span class="pre">MainWindow::applyFilterVisualizationHints</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">MainWindow::applyFilterResultToViews</span></code>.</p></li>
+<li><p><strong>Move the 3D view</strong> (optional) via <code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult::cameraState</span></code>, a MeshLab.CameraState
+document (<code class="docutils literal notranslate"><span class="pre">ViewTrackball::cameraStateJson</span></code>): the application animates the current view there,
+turning about the eye when the camera keeps it. Nothing else reads the field, so a filter whose
+camera a script should have puts it in <code class="docutils literal notranslate"><span class="pre">outputValues</span></code> too, as the <code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code> framing
+filters do (<code class="docutils literal notranslate"><span class="pre">cameraState</span></code>). Moving the view is not a document change: leave <code class="docutils literal notranslate"><span class="pre">documentModified</span></code>
+for what the run did to the document.</p></li>
 <li><p><strong>A Compute filter never bakes color.</strong> Mapping a scalar to a color is the render
 pass’s job: it is applied at draw time from the active colormap, so writing a ramp
 into <code class="docutils literal notranslate"><span class="pre">VC</span></code>/<code class="docutils literal notranslate"><span class="pre">FC</span></code> is both redundant and destructive — it overwrites whatever color the

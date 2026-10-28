@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 394 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 399 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -2701,7 +2701,7 @@ Compute the polyline representing a planar section (a slice) of a mesh; if the r
 - **planeOffset** (*double*, default: `0.0`) — Offset from reference point.
 - **relativeTo** (*enum*, default: `origin`) — Reference frame for plane offset.
 - **createSectionSurface** (*bool*, default: `False`) — Create triangulated sections from closed contours, including holes and disconnected regions.
-- **refineCap** (*bool*, default: `False`) — Add points inside the section surface, so its faces are well-shaped triangles rather than the long thin ones that reach across a surface whose outline is as fine as the mesh. Off, it is a plain constrained Delaunay triangulation of the outline, with no new vertices.
+- **refineCap** (*bool*, default: `True`) — Add points inside the section surface, so its faces are well-shaped triangles rather than the long thin ones that reach across a surface whose outline is as fine as the mesh. Off, it is a plain constrained Delaunay triangulation of the outline, with no new vertices.
 - **capMinAngle** (*double*, default: `20.0`) — Used when the section surface is refined. Points are added inside the cap until no triangle has an angle below this many degrees (Delaunay refinement), except where the outline itself has a sharper corner. A cap's outline is as fine as the mesh while its inside is empty, so without them it is all long thin triangles reaching across. Above about 30 degrees the number of added points grows quickly; 34 is the most allowed.
 - **capRefineBoundary** (*bool*, default: `False`) — Also add points on the outline of the section surface, which brings the triangles next to it to the minimum angle as well. The outline then has points the section polyline does not. Off, the outline is exactly the polyline's.
 - **splitSurfaceWithSection** (*bool*, default: `False`) — Create under/over split layers (requires manifold mesh).
@@ -4052,6 +4052,32 @@ Compute a volumetric Monte Carlo sampling of a watertight mesh and add diagnosti
 
 ---
 
+(filter-set-unit)=
+
+## Set Unit
+
+**Categories:** `Document`
+
+**Plugin:** meshlab2.filter.layer
+
+Set the unit the coordinates of the document are measured in.
+
+```{py:function} ms.set_unit(**params)
+:module: _meshlab
+
+Sets the unit the coordinates of every layer are measured in, a property of the whole document. Most mesh formats do not say, so a document starts with the unit not set; opening a 3MF, glTF or E57 file, which do, into an empty document sets it from the file.
+
+The unit is a label: no coordinate changes and no layer is scaled. Once it is set, the absolute lengths of the filter parameters and the lengths the measuring tool shows and saves are given in it, it is saved in the project, and a 3MF file records it.
+
+The unit in the status bar changes it through this filter, so a change made there is in the action history and in a generated script.
+
+**Parameters:**
+
+- **unit** (*enum*, default: `@documentUnit`) — The unit the coordinates are measured in. Not Set clears it.
+```
+
+---
+
 (filter-export-cameras-from-visible-rasters)=
 
 ## Export Cameras from Visible Rasters
@@ -4163,7 +4189,7 @@ Position the camera looking toward a target from an explicit direction.
 ```{py:function} ms.set_camera_from_direction(**params)
 :module: _meshlab
 
-Compute a camera that looks toward a target (mesh bounding box center or current raster) from an explicit world-space direction. The camera is positioned so that the target fills the viewport. The resulting camera state JSON is written to the log and applied to the current raster if one is active.
+Compute a camera that looks toward a target (mesh bounding box center or current raster) from an explicit world-space direction. The camera is as far as a sphere around the target needs to fill the field of view. The 3D view moves to the camera, the camera state JSON is written to the log and returned as `cameraState`, and the current raster, if there is one, gets the camera for its own image size.
 
 **Parameters:**
 
@@ -4176,6 +4202,34 @@ Compute a camera that looks toward a target (mesh bounding box center or current
 
 ---
 
+(filter-set-camera-to-frame-from-viewpoint)=
+
+## Set Camera to Frame from Viewpoint
+
+**Categories:** `Document/Camera`
+
+**Plugin:** meshlab2.filter.camera
+
+Turn and zoom a camera, without moving it, so that the scene, a layer or the selection fills its image exactly.
+
+```{py:function} ms.set_camera_to_frame_from_viewpoint(**params)
+:module: _meshlab
+
+Keeps the viewpoint of a camera -- by default the current 3D view's -- and changes only where it looks and its field of view, so that the target fills the image exactly: centred, and touching its top and bottom or its sides, whichever is the tighter. This is View > Frame Scene from Here as a filter. The camera keeps its up direction, so it does not roll.
+
+**Image shape** *Camera's own* frames for the image the camera was for, the width over height that the camera state records (`viewport_px`, which the 3D view writes). *Fit to the target* lets the target choose it too, so that it touches all four sides: the image a snapshot of exactly the target's shape would have, which is returned as `aspect`.
+
+The 3D view moves to the camera, which is also returned as `cameraState`, a MeshLab.CameraState document, with the field of view as `fovYDeg`. Nothing is changed when the target cannot be framed from the viewpoint: a perspective camera is needed, no part of the target may be behind the viewpoint or nearer than the near plane would be, and the field of view has to stay between 10 and 120 degrees.
+
+**Parameters:**
+
+- **camera** (*camerastate*) — The camera whose viewpoint is kept (MeshLab.CameraState JSON).
+- **target** (*enum*, default: `visible`) — What fills the image: the vertices of the visible layers, of the current layer, or of its selection.
+- **imageShape** (*enum*, default: `camera`) — Frame for the camera's own image, or let the target choose the image's width over height too.
+```
+
+---
+
 (filter-set-camera-to-view-selection)=
 
 ## Set Camera to View Selection
@@ -4184,12 +4238,12 @@ Compute a camera that looks toward a target (mesh bounding box center or current
 
 **Plugin:** meshlab2.filter.camera
 
-Position the camera to frame the current selection, looking along the average selected normal direction.
+Position the camera in front of the current selection, facing it, so that the selection fills the view.
 
 ```{py:function} ms.set_camera_to_view_selection(**params)
 :module: _meshlab
 
-Compute a camera that frames the current selection in the viewport. The camera is positioned so that the selected faces/vertices fill the viewport, looking along the average face/vertex normal direction of the selection. The resulting camera state JSON is written to the log and applied to the current raster if one is active.
+Compute a camera that frames the current selection. The camera stands in front of the selection, on the side its normals point to, and looks back at it along the average of the face (or vertex) normals; it is as far as a sphere around the selected vertices needs to fill the field of view. The 3D view moves to the camera, the camera state JSON is written to the log and returned as `cameraState`, and the current raster, if there is one, gets the camera for its own image size.
 
 **Parameters:**
 
@@ -4364,6 +4418,33 @@ Selected vertices are moved (or duplicated) in a new layer. Warning! per-vertex 
 **Parameters:**
 
 - **DeleteOriginal** (*bool*, default: `True`) — Deletes the original selected vertices, thus splitting the mesh among layers. If false, the selected vertices are duplicated in the new layer.
+```
+
+---
+
+(filter-import-image-to-current-raster)=
+
+## Import Image to Current Raster
+
+**Categories:** `Document/Layer`
+
+**Plugin:** meshlab2.filter.layer
+
+Replace the image of the current raster, or add one beside it, keeping its camera.
+
+```{py:function} ms.import_image_to_current_raster(**params)
+:module: _meshlab
+
+Reads an image file into the current raster layer, keeping the raster's camera: a color-corrected or full-resolution version of the photo, a mask, or another band taken from the same viewpoint.
+
+**Replace the current plane** puts the new image in place of the one the raster shows. **Add as a new plane** keeps the old image as a plane of the raster and makes the new one current; *Set as Current Plane* in the layer panel switches between them. Everything that uses a raster's image, from the raster view to the color projection filters, reads its current plane.
+
+Every plane is read at the camera's resolution. An image of another resolution with the same aspect ratio can replace a raster's only plane: the camera then takes the new resolution, with its center and pixel size rescaled and its focal length unchanged, so that it still sees the same picture. An added plane, or a replacement next to other planes, must have the resolution of the camera.
+
+**Parameters:**
+
+- **image_file** (*file_open*, default: ``) — The image to read into the current raster.
+- **mode** (*enum*, default: `replace`) — Replace the image the raster shows, or add the new image as another plane and make it current.
 ```
 
 ---
@@ -6101,6 +6182,40 @@ Generate a matrix transformation that scale the mesh. The mesh can be also autom
 - **uniformFlag** (*bool*, default: `True`) — Use same scale for all axes (axisX value).
 - **scaleCenter** (*enum*, default: `origin`) — Scaling center.
 - **customCenter** (*point3f*, default: `[0.0, 0.0, 0.0]`) — Custom scaling center point.
+```
+
+---
+
+(filter-scale-to-known-length)=
+
+## Scale to Known Length
+
+**Categories:** `Geometry/Transform`
+
+**Plugin:** meshlab2.filter.meshing
+
+Scale the layer so that a segment on it has the real length you know.
+
+```{py:function} ms.scale_to_known_length(**params)
+:module: _meshlab
+
+Scales the current layer uniformly, so that the segment between the two points becomes as long as the length you give: the way to bring a scan or a photogrammetric model, whose size is arbitrary, to its real size from one distance known on the object. The measuring tool runs it on its last measurement.
+
+The points are in world coordinates, the layer's matrix applied, as the measuring tool picks them. The length is converted into the document's unit when the two differ; when the document has no unit yet, the unit of the length becomes the document's.
+
+By default the scale is left in the layer's matrix, so that it can be copied to other layers or undone by itself; choose *Bake positions* to write it into the vertices.
+
+Scaling every layer about the same center keeps layers aligned with each other aligned. The cameras of the rasters can be moved with them: a camera moved by a uniform scale sees the same image, so only where it stands changes, not its intrinsics.
+
+**Parameters:**
+
+- **pointA** (*point3f*, default: `[0.0, 0.0, 0.0]`) — One end of the segment whose real length is known, in world coordinates.
+- **pointB** (*point3f*, default: `[1.0, 0.0, 0.0]`) — The other end of the segment, in world coordinates.
+- **length** (*double*, default: `1.0`) — The real length of the segment, in the unit below.
+- **unit** (*enum*, default: `@documentUnit`) — The unit the known length is in. When the document has a different one, the length is converted into it; when the document has none, this becomes the document's unit. Not Set takes the length as a plain number in the coordinates of the document, and leaves its unit as it is.
+- **scaleCenter** (*enum*, default: `midpoint`) — The point that stays where it is: the midpoint of the segment, which keeps the layer in place on screen, or the origin, which keeps the coordinates measured from it in proportion.
+- **allLayers** (*bool*, default: `False`) — Scale every mesh layer, not only the current one, about the same center, so that layers aligned with each other stay aligned.
+- **scaleRasters** (*bool*, default: `False`) — Move the camera of every raster with the scaling, so that photos registered to the scene stay registered. The images and the cameras' intrinsics are not changed.
 ```
 
 ---
@@ -7876,7 +7991,7 @@ Unless the cut is closed the result is a surface with a new boundary, not a soli
 - **closeCut** (*bool*, default: `False`) — If enabled, the boundary opened by the plane is filled with new faces, so a closed mesh stays closed. All the loops on the plane are filled together with an even-odd rule, so a cut that leaves concentric outlines is capped as a ring rather than as overlapping discs. Only those loops are filled; holes the mesh already had are left alone. Parts of the layer that pass through each other are closed one by one.
 
 An outline that crosses or touches itself, as the section of a self-intersecting scan can, is still closed, though a few of its new faces may fold over others where it crosses. The log says how many edges of the cut, if any, could not be closed.
-- **refineCap** (*bool*, default: `False`) — Add points inside the faces that close the cut, so they are well-shaped triangles rather than the long thin ones that reach across a cap whose outline is as fine as the mesh. Off, the cap is a plain constrained Delaunay triangulation of the outline, with no new vertices.
+- **refineCap** (*bool*, default: `True`) — Add points inside the faces that close the cut, so they are well-shaped triangles rather than the long thin ones that reach across a cap whose outline is as fine as the mesh. Off, the cap is a plain constrained Delaunay triangulation of the outline, with no new vertices.
 - **capMinAngle** (*double*, default: `20.0`) — Used when the cap is refined. Points are added inside the cap until no triangle has an angle below this many degrees (Delaunay refinement), except where the outline itself has a sharper corner. A cap's outline is as fine as the mesh while its inside is empty, so without them it is all long thin triangles reaching across. Above about 30 degrees the number of added points grows quickly; 34 is the most allowed.
 - **capRefineBoundary** (*bool*, default: `False`) — Also add points on the outline of the cap, which brings the triangles next to it to the minimum angle as well. The mesh faces along the cut are split at the same points, so the mesh stays watertight, but they get thinner. Off, the outline and the mesh around it are left exactly as the cut made them.
 ```
@@ -10992,6 +11107,59 @@ Projects color information from all visible and valid rasters onto a new texture
 - **useborders** (*bool*, default: `True`) — If true, color contribution is weighted by the pixel distance from the image boundaries.
 - **usesilhouettes** (*bool*, default: `True`) — If true, color contribution is weighted by the pixel distance from depth discontinuities (silhouettes).
 - **usealpha** (*bool*, default: `False`) — If true, the alpha channel of the raster image is used as an additional weight.
+```
+
+---
+
+(filter-transfer-color-from-visible-rasters-to-texture-texture-consolidation)=
+
+## Transfer Color from Visible Rasters to Texture (Texture Consolidation)
+
+**Categories:** `Transfer/From Rasters`, `Texture`
+
+**Plugin:** meshlab2.filter.texture_consolidation
+
+Build one seamless texture from the visible rasters by registering them with optical flow on the surface and stitching in the gradient domain.
+
+```{py:function} ms.transfer_color_from_visible_rasters_to_texture_texture_consolidation(**params)
+:module: _meshlab
+
+Builds one seamless texture for the current mesh from the **visible rasters**, by the method of Liu, Wang, Kim and Kazhdan (2026). It needs a mesh that already has a texture atlas and at least two rasters with known cameras: photographs, or renderings from a generative model.
+
+Three steps run as bundled helper programs:
+
+1. **Back-projection with confidence.** Each raster is projected into texture space. Texels seen at a grazing angle, or near a depth discontinuity of the mesh as seen from that camera, get low confidence, since that is where an image and the geometry disagree most. Colors are then normalized by a local mean and scale.
+2. **Registration by optical flow on the surface.** Each view's colors are moved along the surface, coarse to fine, onto a target built from the views already registered. This is what removes ghosting.
+3. **Gradient-domain stitching** in texture space, weighted by confidence, which removes the remaining seams and color steps.
+
+**How it differs from *Transfer Color from Visible Rasters to Texture*.** That filter blends the projected rasters with angle, distance, border and silhouette weights and moves no color. This one registers the views before blending and stitches afterwards, so it removes ghosting and seams that blending keeps, at the cost of runtime: about 30 s for nine 1-megapixel photographs at 1024 x 1024 on a laptop. It can fail where views barely overlap (colors drift jointly) and on repeated patterns whose count differs between views.
+
+**What it needs.** Rasters must be perspective with no lens distortion, since the helpers take pinhole cameras. The mesh is scaled internally to a surface area of 5, the scale the method's defaults were tuned at, so the flow parameters do not depend on the mesh's units. Only the texture image changes: the UVs and the geometry are not touched.
+
+The defaults are those of the released code; the paper reports somewhat different values (four levels, source smoothing 0.002, flow smoothness 0.2 for generated renderings and 0.1 for real scans, cutoff 0.15).
+
+**Upstream:** [TextureConsolidation](https://github.com/hliuw/TextureConsolidation)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Hongyi Liu, Yifan Wang, Vladimir G. Kim, Misha Kazhdan. **Texture Consolidation of Generated Multi-View Renderings**. *arXiv:2610.36098* (2026). [Web](https://arxiv.org/abs/2610.36098)
+- Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. **Gradient-domain Processing within a Texture Atlas**. *ACM Transactions on Graphics* (2018).
+
+**Parameters:**
+
+- **textureFile** (*filesave*, default: `consolidated_texture.png`) — Where the new texture image is written. It replaces the mesh's texture.
+- **textureSize** (*int*, default: `1024`) — Width and height of the texture image produced.
+- **depthRadius** (*int*, default: `20`) — Distance from a depth discontinuity, in raster pixels, over which confidence rises from zero to one.
+- **confidenceCutoff** (*double*, default: `0.05`) — Back-projected confidences below this are set to zero.
+- **levels** (*int*, default: `6`) — Number of coarse-to-fine passes of the optical flow. More levels register finer detail and allow more oscillation in the deformation.
+- **sourceSmoothing** (*double*, default: `0.0003`) — Smoothing of the colors the flow compares at the first level, reduced at each later level by the per-level factor.
+- **flowSmoothness** (*double*, default: `0.5`) — Weight of the smoothness term of the flow at the first level, reduced at each later level by the per-level factor.
+- **levelFactor** (*double*, default: `0.5`) — Factor applied to the source smoothing and the flow smoothness from one level to the next.
+- **normalizationExtent** (*double*, default: `0.001`) — Extent of the local mean and scale used to normalize each view's colors before the flow.
+- **subdivisions** (*int*, default: `1`) — One-to-four subdivisions applied to the mesh for the flow computation only; the output keeps the original mesh.
+- **gradientWeight** (*double*, default: `0.01`) — Weight of the gradient-fitting term in the stitching. Larger values follow the registered colors' detail more closely and remove less of their discontinuities.
 ```
 
 ---

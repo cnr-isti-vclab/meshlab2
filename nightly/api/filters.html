@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 394 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 399 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -2380,7 +2380,7 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <li><p><strong>planeOffset</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Offset from reference point.</p></li>
 <li><p><strong>relativeTo</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">origin</span></code>) — Reference frame for plane offset.</p></li>
 <li><p><strong>createSectionSurface</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Create triangulated sections from closed contours, including holes and disconnected regions.</p></li>
-<li><p><strong>refineCap</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Add points inside the section surface, so its faces are well-shaped triangles rather than the long thin ones that reach across a surface whose outline is as fine as the mesh. Off, it is a plain constrained Delaunay triangulation of the outline, with no new vertices.</p></li>
+<li><p><strong>refineCap</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Add points inside the section surface, so its faces are well-shaped triangles rather than the long thin ones that reach across a surface whose outline is as fine as the mesh. Off, it is a plain constrained Delaunay triangulation of the outline, with no new vertices.</p></li>
 <li><p><strong>capMinAngle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">20.0</span></code>) — Used when the section surface is refined. Points are added inside the cap until no triangle has an angle below this many degrees (Delaunay refinement), except where the outline itself has a sharper corner. A cap’s outline is as fine as the mesh while its inside is empty, so without them it is all long thin triangles reaching across. Above about 30 degrees the number of added points grows quickly; 34 is the most allowed.</p></li>
 <li><p><strong>capRefineBoundary</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also add points on the outline of the section surface, which brings the triangles next to it to the minimum angle as well. The outline then has points the section polyline does not. Off, the outline is exactly the polyline’s.</p></li>
 <li><p><strong>splitSurfaceWithSection</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Create under/over split layers (requires manifold mesh).</p></li>
@@ -3449,6 +3449,25 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
+<section id="set-unit">
+<span id="filter-set-unit"></span><h2>Set Unit<a class="headerlink" href="#set-unit" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Document</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.layer</p>
+<p>Set the unit the coordinates of the document are measured in.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.set_unit">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">set_unit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.set_unit" title="Link to this definition">¶</a></dt>
+<dd><p>Sets the unit the coordinates of every layer are measured in, a property of the whole document. Most mesh formats do not say, so a document starts with the unit not set; opening a 3MF, glTF or E57 file, which do, into an empty document sets it from the file.</p>
+<p>The unit is a label: no coordinate changes and no layer is scaled. Once it is set, the absolute lengths of the filter parameters and the lengths the measuring tool shows and saves are given in it, it is saved in the project, and a 3MF file records it.</p>
+<p>The unit in the status bar changes it through this filter, so a change made there is in the action history and in a generated script.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>unit</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;documentUnit</span></code>) — The unit the coordinates are measured in. Not Set clears it.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="export-cameras-from-visible-rasters">
 <span id="filter-export-cameras-from-visible-rasters"></span><h2>Export Cameras from Visible Rasters<a class="headerlink" href="#export-cameras-from-visible-rasters" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p>
@@ -3536,7 +3555,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.set_camera_from_direction">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">set_camera_from_direction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.set_camera_from_direction" title="Link to this definition">¶</a></dt>
-<dd><p>Compute a camera that looks toward a target (mesh bounding box center or current raster) from an explicit world-space direction. The camera is positioned so that the target fills the viewport. The resulting camera state JSON is written to the log and applied to the current raster if one is active.</p>
+<dd><p>Compute a camera that looks toward a target (mesh bounding box center or current raster) from an explicit world-space direction. The camera is as far as a sphere around the target needs to fill the field of view. The 3D view moves to the camera, the camera state JSON is written to the log and returned as <code class="docutils literal notranslate"><span class="pre">cameraState</span></code>, and the current raster, if there is one, gets the camera for its own image size.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">-1.0]</span></code>) — World-space direction from camera to target.</p></li>
@@ -3549,15 +3568,36 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
+<section id="set-camera-to-frame-from-viewpoint">
+<span id="filter-set-camera-to-frame-from-viewpoint"></span><h2>Set Camera to Frame from Viewpoint<a class="headerlink" href="#set-camera-to-frame-from-viewpoint" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.camera</p>
+<p>Turn and zoom a camera, without moving it, so that the scene, a layer or the selection fills its image exactly.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.set_camera_to_frame_from_viewpoint">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">set_camera_to_frame_from_viewpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.set_camera_to_frame_from_viewpoint" title="Link to this definition">¶</a></dt>
+<dd><p>Keeps the viewpoint of a camera – by default the current 3D view’s – and changes only where it looks and its field of view, so that the target fills the image exactly: centred, and touching its top and bottom or its sides, whichever is the tighter. This is View &gt; Frame Scene from Here as a filter. The camera keeps its up direction, so it does not roll.</p>
+<p><strong>Image shape</strong> <em>Camera’s own</em> frames for the image the camera was for, the width over height that the camera state records (<code class="docutils literal notranslate"><span class="pre">viewport_px</span></code>, which the 3D view writes). <em>Fit to the target</em> lets the target choose it too, so that it touches all four sides: the image a snapshot of exactly the target’s shape would have, which is returned as <code class="docutils literal notranslate"><span class="pre">aspect</span></code>.</p>
+<p>The 3D view moves to the camera, which is also returned as <code class="docutils literal notranslate"><span class="pre">cameraState</span></code>, a MeshLab.CameraState document, with the field of view as <code class="docutils literal notranslate"><span class="pre">fovYDeg</span></code>. Nothing is changed when the target cannot be framed from the viewpoint: a perspective camera is needed, no part of the target may be behind the viewpoint or nearer than the near plane would be, and the field of view has to stay between 10 and 120 degrees.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>camera</strong> (<em>camerastate</em>) — The camera whose viewpoint is kept (MeshLab.CameraState JSON).</p></li>
+<li><p><strong>target</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">visible</span></code>) — What fills the image: the vertices of the visible layers, of the current layer, or of its selection.</p></li>
+<li><p><strong>imageShape</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">camera</span></code>) — Frame for the camera’s own image, or let the target choose the image’s width over height too.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="set-camera-to-view-selection">
 <span id="filter-set-camera-to-view-selection"></span><h2>Set Camera to View Selection<a class="headerlink" href="#set-camera-to-view-selection" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.camera</p>
-<p>Position the camera to frame the current selection, looking along the average selected normal direction.</p>
+<p>Position the camera in front of the current selection, facing it, so that the selection fills the view.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.set_camera_to_view_selection">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">set_camera_to_view_selection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.set_camera_to_view_selection" title="Link to this definition">¶</a></dt>
-<dd><p>Compute a camera that frames the current selection in the viewport. The camera is positioned so that the selected faces/vertices fill the viewport, looking along the average face/vertex normal direction of the selection. The resulting camera state JSON is written to the log and applied to the current raster if one is active.</p>
+<dd><p>Compute a camera that frames the current selection. The camera stands in front of the selection, on the side its normals point to, and looks back at it along the average of the face (or vertex) normals; it is as far as a sphere around the selected vertices needs to fill the field of view. The 3D view moves to the camera, the camera state JSON is written to the log and returned as <code class="docutils literal notranslate"><span class="pre">cameraState</span></code>, and the current raster, if there is one, gets the camera for its own image size.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>marginFactor</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Viewport margin multiplier. 1.0 = tight fit, 1.5 = some padding.</p></li>
@@ -3697,6 +3737,26 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>DeleteOriginal</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Deletes the original selected vertices, thus splitting the mesh among layers. If false, the selected vertices are duplicated in the new layer.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="import-image-to-current-raster">
+<span id="filter-import-image-to-current-raster"></span><h2>Import Image to Current Raster<a class="headerlink" href="#import-image-to-current-raster" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.layer</p>
+<p>Replace the image of the current raster, or add one beside it, keeping its camera.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.import_image_to_current_raster">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">import_image_to_current_raster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.import_image_to_current_raster" title="Link to this definition">¶</a></dt>
+<dd><p>Reads an image file into the current raster layer, keeping the raster’s camera: a color-corrected or full-resolution version of the photo, a mask, or another band taken from the same viewpoint.</p>
+<p><strong>Replace the current plane</strong> puts the new image in place of the one the raster shows. <strong>Add as a new plane</strong> keeps the old image as a plane of the raster and makes the new one current; <em>Set as Current Plane</em> in the layer panel switches between them. Everything that uses a raster’s image, from the raster view to the color projection filters, reads its current plane.</p>
+<p>Every plane is read at the camera’s resolution. An image of another resolution with the same aspect ratio can replace a raster’s only plane: the camera then takes the new resolution, with its center and pixel size rescaled and its focal length unchanged, so that it still sees the same picture. An added plane, or a replacement next to other planes, must have the resolution of the camera.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>image_file</strong> (<em>file_open</em>, default: ``) — The image to read into the current raster.</p></li>
+<li><p><strong>mode</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">replace</span></code>) — Replace the image the raster shows, or add the new image as another plane and make it current.</p></li>
 </ul>
 </dd></dl>
 
@@ -5065,6 +5125,32 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>uniformFlag</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Use same scale for all axes (axisX value).</p></li>
 <li><p><strong>scaleCenter</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">origin</span></code>) — Scaling center.</p></li>
 <li><p><strong>customCenter</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Custom scaling center point.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="scale-to-known-length">
+<span id="filter-scale-to-known-length"></span><h2>Scale to Known Length<a class="headerlink" href="#scale-to-known-length" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.meshing</p>
+<p>Scale the layer so that a segment on it has the real length you know.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.scale_to_known_length">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">scale_to_known_length</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.scale_to_known_length" title="Link to this definition">¶</a></dt>
+<dd><p>Scales the current layer uniformly, so that the segment between the two points becomes as long as the length you give: the way to bring a scan or a photogrammetric model, whose size is arbitrary, to its real size from one distance known on the object. The measuring tool runs it on its last measurement.</p>
+<p>The points are in world coordinates, the layer’s matrix applied, as the measuring tool picks them. The length is converted into the document’s unit when the two differ; when the document has no unit yet, the unit of the length becomes the document’s.</p>
+<p>By default the scale is left in the layer’s matrix, so that it can be copied to other layers or undone by itself; choose <em>Bake positions</em> to write it into the vertices.</p>
+<p>Scaling every layer about the same center keeps layers aligned with each other aligned. The cameras of the rasters can be moved with them: a camera moved by a uniform scale sees the same image, so only where it stands changes, not its intrinsics.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>pointA</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — One end of the segment whose real length is known, in world coordinates.</p></li>
+<li><p><strong>pointB</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[1.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — The other end of the segment, in world coordinates.</p></li>
+<li><p><strong>length</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — The real length of the segment, in the unit below.</p></li>
+<li><p><strong>unit</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;documentUnit</span></code>) — The unit the known length is in. When the document has a different one, the length is converted into it; when the document has none, this becomes the document’s unit. Not Set takes the length as a plain number in the coordinates of the document, and leaves its unit as it is.</p></li>
+<li><p><strong>scaleCenter</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">midpoint</span></code>) — The point that stays where it is: the midpoint of the segment, which keeps the layer in place on screen, or the origin, which keeps the coordinates measured from it in proportion.</p></li>
+<li><p><strong>allLayers</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Scale every mesh layer, not only the current one, about the same center, so that layers aligned with each other stay aligned.</p></li>
+<li><p><strong>scaleRasters</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Move the camera of every raster with the scaling, so that photos registered to the scene stay registered. The images and the cameras’ intrinsics are not changed.</p></li>
 </ul>
 </dd></dl>
 
@@ -6479,7 +6565,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 </ul>
 <p>An outline that crosses or touches itself, as the section of a self-intersecting scan can, is still closed, though a few of its new faces may fold over others where it crosses. The log says how many edges of the cut, if any, could not be closed.</p>
 <ul class="simple">
-<li><p><strong>refineCap</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Add points inside the faces that close the cut, so they are well-shaped triangles rather than the long thin ones that reach across a cap whose outline is as fine as the mesh. Off, the cap is a plain constrained Delaunay triangulation of the outline, with no new vertices.</p></li>
+<li><p><strong>refineCap</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Add points inside the faces that close the cut, so they are well-shaped triangles rather than the long thin ones that reach across a cap whose outline is as fine as the mesh. Off, the cap is a plain constrained Delaunay triangulation of the outline, with no new vertices.</p></li>
 <li><p><strong>capMinAngle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">20.0</span></code>) — Used when the cap is refined. Points are added inside the cap until no triangle has an angle below this many degrees (Delaunay refinement), except where the outline itself has a sharper corner. A cap’s outline is as fine as the mesh while its inside is empty, so without them it is all long thin triangles reaching across. Above about 30 degrees the number of added points grows quickly; 34 is the most allowed.</p></li>
 <li><p><strong>capRefineBoundary</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also add points on the outline of the cap, which brings the triangles next to it to the minimum angle as well. The mesh faces along the cut are split at the same points, so the mesh stays watertight, but they get thinner. Off, the outline and the mesh around it are left exactly as the cut made them.</p></li>
 </ul>
@@ -8912,6 +8998,49 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 
 <hr class="docutils" />
 </section>
+<section id="transfer-color-from-visible-rasters-to-texture-texture-consolidation">
+<span id="filter-transfer-color-from-visible-rasters-to-texture-texture-consolidation"></span><h2>Transfer Color from Visible Rasters to Texture (Texture Consolidation)<a class="headerlink" href="#transfer-color-from-visible-rasters-to-texture-texture-consolidation" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.texture_consolidation</p>
+<p>Build one seamless texture from the visible rasters by registering them with optical flow on the surface and stitching in the gradient domain.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.transfer_color_from_visible_rasters_to_texture_texture_consolidation">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_color_from_visible_rasters_to_texture_texture_consolidation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.transfer_color_from_visible_rasters_to_texture_texture_consolidation" title="Link to this definition">¶</a></dt>
+<dd><p>Builds one seamless texture for the current mesh from the <strong>visible rasters</strong>, by the method of Liu, Wang, Kim and Kazhdan (2026). It needs a mesh that already has a texture atlas and at least two rasters with known cameras: photographs, or renderings from a generative model.</p>
+<p>Three steps run as bundled helper programs:</p>
+<ol class="arabic simple">
+<li><p><strong>Back-projection with confidence.</strong> Each raster is projected into texture space. Texels seen at a grazing angle, or near a depth discontinuity of the mesh as seen from that camera, get low confidence, since that is where an image and the geometry disagree most. Colors are then normalized by a local mean and scale.</p></li>
+<li><p><strong>Registration by optical flow on the surface.</strong> Each view’s colors are moved along the surface, coarse to fine, onto a target built from the views already registered. This is what removes ghosting.</p></li>
+<li><p><strong>Gradient-domain stitching</strong> in texture space, weighted by confidence, which removes the remaining seams and color steps.</p></li>
+</ol>
+<p><strong>How it differs from <em>Transfer Color from Visible Rasters to Texture</em>.</strong> That filter blends the projected rasters with angle, distance, border and silhouette weights and moves no color. This one registers the views before blending and stitches afterwards, so it removes ghosting and seams that blending keeps, at the cost of runtime: about 30 s for nine 1-megapixel photographs at 1024 x 1024 on a laptop. It can fail where views barely overlap (colors drift jointly) and on repeated patterns whose count differs between views.</p>
+<p><strong>What it needs.</strong> Rasters must be perspective with no lens distortion, since the helpers take pinhole cameras. The mesh is scaled internally to a surface area of 5, the scale the method’s defaults were tuned at, so the flow parameters do not depend on the mesh’s units. Only the texture image changes: the UVs and the geometry are not touched.</p>
+<p>The defaults are those of the released code; the paper reports somewhat different values (four levels, source smoothing 0.002, flow smoothness 0.2 for generated renderings and 0.1 for real scans, cutoff 0.15).</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/hliuw/TextureConsolidation">TextureConsolidation</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Hongyi Liu, Yifan Wang, Vladimir G. Kim, Misha Kazhdan. <strong>Texture Consolidation of Generated Multi-View Renderings</strong>. <em>arXiv:2610.36098</em> (2026). <a class="reference external" href="https://arxiv.org/abs/2610.36098">Web</a></p></li>
+<li><p>Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. <strong>Gradient-domain Processing within a Texture Atlas</strong>. <em>ACM Transactions on Graphics</em> (2018).</p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>textureFile</strong> (<em>filesave</em>, default: <code class="docutils literal notranslate"><span class="pre">consolidated_texture.png</span></code>) — Where the new texture image is written. It replaces the mesh’s texture.</p></li>
+<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — Width and height of the texture image produced.</p></li>
+<li><p><strong>depthRadius</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">20</span></code>) — Distance from a depth discontinuity, in raster pixels, over which confidence rises from zero to one.</p></li>
+<li><p><strong>confidenceCutoff</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.05</span></code>) — Back-projected confidences below this are set to zero.</p></li>
+<li><p><strong>levels</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">6</span></code>) — Number of coarse-to-fine passes of the optical flow. More levels register finer detail and allow more oscillation in the deformation.</p></li>
+<li><p><strong>sourceSmoothing</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0003</span></code>) — Smoothing of the colors the flow compares at the first level, reduced at each later level by the per-level factor.</p></li>
+<li><p><strong>flowSmoothness</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Weight of the smoothness term of the flow at the first level, reduced at each later level by the per-level factor.</p></li>
+<li><p><strong>levelFactor</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Factor applied to the source smoothing and the flow smoothness from one level to the next.</p></li>
+<li><p><strong>normalizationExtent</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.001</span></code>) — Extent of the local mean and scale used to normalize each view’s colors before the flow.</p></li>
+<li><p><strong>subdivisions</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — One-to-four subdivisions applied to the mesh for the flow computation only; the output keeps the original mesh.</p></li>
+<li><p><strong>gradientWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.01</span></code>) — Weight of the gradient-fitting term in the stitching. Larger values follow the registered colors’ detail more closely and remove less of their discontinuities.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="transfer-color-from-visible-rasters-to-vertex">
 <span id="filter-transfer-color-from-visible-rasters-to-vertex"></span><h2>Transfer Color from Visible Rasters to Vertex<a class="headerlink" href="#transfer-color-from-visible-rasters-to-vertex" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
@@ -9684,6 +9813,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#meshlab.ms.sample_volume"><code class="docutils literal notranslate"><span class="pre">ms.sample_volume()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#set-unit">Set Unit</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.set_unit"><code class="docutils literal notranslate"><span class="pre">ms.set_unit()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#export-cameras-from-visible-rasters">Export Cameras from Visible Rasters</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.export_cameras_from_visible_rasters"><code class="docutils literal notranslate"><span class="pre">ms.export_cameras_from_visible_rasters()</span></code></a></li>
 </ul>
@@ -9702,6 +9835,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#set-camera-from-direction">Set Camera from Direction</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.set_camera_from_direction"><code class="docutils literal notranslate"><span class="pre">ms.set_camera_from_direction()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#set-camera-to-frame-from-viewpoint">Set Camera to Frame from Viewpoint</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.set_camera_to_frame_from_viewpoint"><code class="docutils literal notranslate"><span class="pre">ms.set_camera_to_frame_from_viewpoint()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#set-camera-to-view-selection">Set Camera to View Selection</a><ul>
@@ -9734,6 +9871,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#extract-selected-vertices">Extract Selected Vertices</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.extract_selected_vertices"><code class="docutils literal notranslate"><span class="pre">ms.extract_selected_vertices()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#import-image-to-current-raster">Import Image to Current Raster</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.import_image_to_current_raster"><code class="docutils literal notranslate"><span class="pre">ms.import_image_to_current_raster()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#merge-visible-layers">Merge Visible Layers</a><ul>
@@ -9946,6 +10087,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#scale">Scale</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.scale"><code class="docutils literal notranslate"><span class="pre">ms.scale()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#scale-to-known-length">Scale to Known Length</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.scale_to_known_length"><code class="docutils literal notranslate"><span class="pre">ms.scale_to_known_length()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#set-matrix-from-translation-rotation-scale">Set Matrix from Translation/Rotation/Scale</a><ul>
@@ -10646,6 +10791,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#transfer-color-from-visible-rasters-to-texture">Transfer Color from Visible Rasters to Texture</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.transfer_color_from_visible_rasters_to_texture"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_from_visible_rasters_to_texture()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#transfer-color-from-visible-rasters-to-texture-texture-consolidation">Transfer Color from Visible Rasters to Texture (Texture Consolidation)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.transfer_color_from_visible_rasters_to_texture_texture_consolidation"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_from_visible_rasters_to_texture_texture_consolidation()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#transfer-color-from-visible-rasters-to-vertex">Transfer Color from Visible Rasters to Vertex</a><ul>

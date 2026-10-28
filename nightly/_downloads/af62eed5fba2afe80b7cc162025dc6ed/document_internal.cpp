@@ -50,7 +50,10 @@ QString resolveProjectEntryPath(const QString &projectFilePath, const QString &e
     const QFileInfo info(normalized);
     if (info.isAbsolute())
         return info.absoluteFilePath();
-    return QFileInfo(projectFilePath).dir().filePath(normalized);
+    // The writer makes the path relative as text (QDir::relativeFilePath), so it is undone as
+    // text: left to the file system, the ".." would climb from wherever a symlinked folder
+    // really is -- /var is /private/var on macOS -- and miss the file.
+    return QDir::cleanPath(QFileInfo(projectFilePath).dir().filePath(normalized));
 }
 
 bool parseFloatList(const QString &text, int expectedCount, std::vector<float> &values)
