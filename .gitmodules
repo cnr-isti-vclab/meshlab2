@@ -18,3 +18,6 @@
 [submodule "external/trueform"]
 	path = external/trueform
 	url = https://github.com/polydera/trueform.git
+[submodule "external/texture-consolidation"]
+	path = external/texture-consolidation
+	url = https://github.com/cignoni/TextureConsolidation.git
