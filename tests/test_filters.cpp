@@ -13944,7 +13944,7 @@ void FilterTests::embeddingStraightCurvesWithAllVerticesLeavesNoInvertedFace()
     }
 }
 
-// On request, the caps of Trim Surface by Plane and the section surface are refined with
+// By default the caps of Trim Surface by Plane and the section surface are refined with
 // added points: inside only, the cut outline left as it was; with the outline too,
 // every cap triangle reaches the minimum angle and the trimmed mesh stays watertight. A
 // scalar that is linear in space survives on the added vertices, which is what
@@ -13979,8 +13979,8 @@ void FilterTests::planeCapsAreRefinedToTheMinimumAngle()
         p.insert(QStringLiteral("planeNormal"), QVector3D(normal[0], normal[1], normal[2]));
         p.insert(QStringLiteral("relativeTo"), QStringLiteral("origin"));
         p.insert(QStringLiteral("closeCut"), true);
-        if (mode.minAngle > 0) {   // off by default: plain constrained Delaunay
-            p.insert(QStringLiteral("refineCap"), true);
+        p.insert(QStringLiteral("refineCap"), mode.minAngle > 0);   // off: plain constrained Delaunay
+        if (mode.minAngle > 0) {
             p.insert(QStringLiteral("capMinAngle"), mode.minAngle);
             p.insert(QStringLiteral("capRefineBoundary"), mode.boundary);
         }

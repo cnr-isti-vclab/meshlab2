@@ -2985,7 +2985,7 @@
           "help": "Add points inside the faces that close the cut, so they are well-shaped triangles rather than the long thin ones that reach across a cap whose outline is as fine as the mesh. Off, the cap is a plain constrained Delaunay triangulation of the outline, with no new vertices.",
           "group": "advanced",
           "type": "bool",
-          "default": false,
+          "default": true,
           "enabledWhen": "closeCut"
         },
         {
@@ -3182,7 +3182,7 @@
           "help": "Add points inside the section surface, so its faces are well-shaped triangles rather than the long thin ones that reach across a surface whose outline is as fine as the mesh. Off, it is a plain constrained Delaunay triangulation of the outline, with no new vertices.",
           "group": "advanced",
           "type": "bool",
-          "default": false,
+          "default": true,
           "enabledWhen": "createSectionSurface"
         },
         {
