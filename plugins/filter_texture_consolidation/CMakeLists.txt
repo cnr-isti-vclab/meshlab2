@@ -19,14 +19,32 @@ endif()
 # Built as a separate project, like QuadWild: its C++20, its compile flags and any exit()
 # or assertion stay in helper processes rather than in the application.
 #
-# Without OpenMP: the code parallelises through Misha's ThreadPool, which falls back to
-# std::thread, and an OpenMP build would make the helpers depend on a runtime the bundle
-# would then have to ship. Measured on the authors' vase example: 28 s without OpenMP
-# against 27.5 s with it.
+# With OpenMP, as upstream builds it: the application already links and ships libomp for
+# Screened Poisson, so the helpers add no runtime of their own.
 #
 # libpng and libjpeg come from MeshLab's own vcpkg tree, passed as a prefix path rather
 # than as a toolchain so that the helper build does not run a vcpkg install of its own.
 include(ExternalProject)
+
+# Upstream's CMake requires OpenMP, and on Apple clang FindOpenMP finds a runtime only when
+# pointed at one. So the helper build gets the root Screened Poisson's lookup also uses --
+# an explicit OpenMP_ROOT, then Homebrew's libomp -- and without one the plugin is skipped
+# rather than letting the helper build fail the whole build.
+set(_texture_consolidation_openmp_root "")
+if(APPLE)
+    foreach(_candidate "${OpenMP_ROOT}" "$ENV{OpenMP_ROOT}" /opt/homebrew/opt/libomp /usr/local/opt/libomp)
+        if(_candidate AND EXISTS "${_candidate}/include/omp.h")
+            set(_texture_consolidation_openmp_root "${_candidate}")
+            break()
+        endif()
+    endforeach()
+    if(NOT _texture_consolidation_openmp_root)
+        message(STATUS
+            "Skipping filter_texture_consolidation - no OpenMP runtime found; install libomp "
+            "or set OpenMP_ROOT")
+        return()
+    endif()
+endif()
 
 set(TEXTURE_CONSOLIDATION_BUILD_DIR "${PROJECT_BINARY_DIR}/texture-consolidation")
 if(CMAKE_CONFIGURATION_TYPES)
@@ -41,9 +59,11 @@ set(TEXTURE_CONSOLIDATION_EXECUTABLES
     CACHE INTERNAL "TextureConsolidation helper programs")
 
 set(_texture_consolidation_cmake_args
-    "-DTEXTURE_CONSOLIDATION_USE_OPENMP=OFF"
     "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
 )
+if(_texture_consolidation_openmp_root)
+    list(APPEND _texture_consolidation_cmake_args "-DOpenMP_ROOT=${_texture_consolidation_openmp_root}")
+endif()
 if(CMAKE_BUILD_TYPE)
     list(APPEND _texture_consolidation_cmake_args "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 endif()

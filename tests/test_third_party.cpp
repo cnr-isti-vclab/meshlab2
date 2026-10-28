@@ -45,6 +45,7 @@ const QHash<QString, QString> &aboutName()
         { QStringLiteral("external/meshfix"),             QStringLiteral("MeshFix") },
         { QStringLiteral("external/qslim"),               QStringLiteral("QSlim") },
         { QStringLiteral("external/quadwild-bimdf"),      QStringLiteral("QuadWild-BiMDF") },
+        { QStringLiteral("external/texture-consolidation"), QStringLiteral("TextureConsolidation") },
         // vcpkg dependencies (vcpkg.json)
         { QStringLiteral("cgal"),                         QStringLiteral("CGAL") },
         { QStringLiteral("libigl"),                       QStringLiteral("libigl") },
