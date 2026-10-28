@@ -288,10 +288,11 @@ void CameraShot::applyRigidTransformation(const QMatrix4x4 &m)
     m_shot.ApplyRigidTransformation(toVcgMatrix(m));
 }
 
-void CameraShot::rescalingWorld(float scale)
-{
-    m_shot.RescalingWorld(scale, true);
-}
+// Unused; see the header.
+// void CameraShot::rescalingWorld(float scale)
+// {
+//     m_shot.RescalingWorld(scale, true);
+// }
 
 void CameraShot::applySimilarity(const QMatrix4x4 &m)
 {

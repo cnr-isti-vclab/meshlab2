@@ -90,7 +90,9 @@ public:
 
     // Transform the shot's extrinsic parameters
     void applyRigidTransformation(const QMatrix4x4 &m);
-    void rescalingWorld(float scale);
+    // Unused: it also scaled the intrinsics, and the camera filters moved a camera by a different
+    // transform than the meshes with it. Use applySimilarity, which moves only where it stands.
+    // void rescalingWorld(float scale);
     void applySimilarity(const QMatrix4x4 &m);
 
 private:
