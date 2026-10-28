@@ -1337,6 +1337,107 @@
       ]
     },
     {
+      "id": "scale_to_known_length",
+      "categories": ["Geometry/Transform"],
+      "name": "Scale to Known Length",
+      "pythonName": "scale_to_known_length",
+      "shortDescription": "Scale the layer so that a segment on it has the real length you know.",
+      "longDescriptionMarkdown": "Scales the current layer uniformly, so that the segment between the two points becomes as long as the length you give: the way to bring a scan or a photogrammetric model, whose size is arbitrary, to its real size from one distance known on the object. The measuring tool runs it on its last measurement.\n\nThe points are in world coordinates, the layer's matrix applied, as the measuring tool picks them. The length is converted into the document's unit when the two differ; when the document has no unit yet, the unit of the length becomes the document's.\n\nBy default the scale is left in the layer's matrix, so that it can be copied to other layers or undone by itself; choose *Bake positions* to write it into the vertices.\n\nScaling every layer about the same center keeps layers aligned with each other aligned. The cameras of the rasters can be moved with them: a camera moved by a uniform scale sees the same image, so only where it stands changes, not its intrinsics.",
+      "tags": [
+        "scale",
+        "measure",
+        "unit",
+        "real size",
+        "photogrammetry"
+      ],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "ModifyCurrentMesh",
+      "transformResult": "assign_matrix",
+      "parameters": [
+        {
+          "id": "pointA",
+          "label": "First point",
+          "help": "One end of the segment whose real length is known, in world coordinates.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "point",
+          "default": [0.0, 0.0, 0.0]
+        },
+        {
+          "id": "pointB",
+          "label": "Second point",
+          "help": "The other end of the segment, in world coordinates.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "point",
+          "default": [1.0, 0.0, 0.0]
+        },
+        {
+          "id": "length",
+          "label": "Known length",
+          "help": "The real length of the segment, in the unit below.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1000000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "unit",
+          "label": "Unit",
+          "help": "The unit the known length is in. When the document has a different one, the length is converted into it; when the document has none, this becomes the document's unit. Not Set takes the length as a plain number in the coordinates of the document, and leaves its unit as it is.",
+          "group": "main",
+          "type": "enum",
+          "default": "@documentUnit",
+          "enumOptions": [
+            { "id": "not_set", "label": "Not Set" },
+            { "id": "um", "label": "Micrometers (\u00b5m)" },
+            { "id": "mm", "label": "Millimeters (mm)" },
+            { "id": "cm", "label": "Centimeters (cm)" },
+            { "id": "m", "label": "Meters (m)" },
+            { "id": "km", "label": "Kilometers (km)" },
+            { "id": "in", "label": "Inches (in)" },
+            { "id": "ft", "label": "Feet (ft)" }
+          ]
+        },
+        {
+          "id": "scaleCenter",
+          "label": "Center of scaling",
+          "help": "The point that stays where it is: the midpoint of the segment, which keeps the layer in place on screen, or the origin, which keeps the coordinates measured from it in proportion.",
+          "group": "main",
+          "type": "enum",
+          "default": "midpoint",
+          "enumOptions": [
+            { "id": "midpoint", "label": "Segment midpoint" },
+            { "id": "origin", "label": "Origin" }
+          ]
+        },
+        {
+          "id": "allLayers",
+          "label": "Scale all layers",
+          "help": "Scale every mesh layer, not only the current one, about the same center, so that layers aligned with each other stay aligned.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "scaleRasters",
+          "label": "Move the raster cameras too",
+          "help": "Move the camera of every raster with the scaling, so that photos registered to the scene stay registered. The images and the cameras' intrinsics are not changed.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": [
+        "TM",
+        "VG",
+        "VN",
+        "FN"
+      ]
+    },
+    {
       "id": "translate",
       "categories": ["Geometry/Transform"],
       "name": "Translate",

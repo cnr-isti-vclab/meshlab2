@@ -2,6 +2,7 @@
 #include "measuretool.h"
 
 #include "document.h"
+#include "parameterformbuilder.h"
 #include "renderwidget.h"
 
 #include <vcg/space/distance3.h>
@@ -10,14 +11,29 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QApplication>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QFormLayout>
+#include <QLabel>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPixmap>
 #include <QSaveFile>
 #include <QTextStream>
+#include <QVBoxLayout>
 
 #include <algorithm>
 #include <cmath>
+
+namespace {
+constexpr const char *kScaleToLengthKey = "meshlab2.filter.meshing::scale_to_known_length";
+
+// The id of the layer a pick landed on; 0, which names no layer, when it is not one.
+std::uint64_t pickedLayerId(const Document &doc, const SurfacePick &pick)
+{
+    return pick.meshIndex >= 0 && pick.meshIndex < doc.meshCount() ? doc.mesh(pick.meshIndex).meshId : 0;
+}
+}
 
 QString MeasureTool::id() const
 {
@@ -60,6 +76,9 @@ std::vector<ToolControl> MeasureTool::controls() const
         { QStringLiteral("export"), Kind::Action, QObject::tr("Export Layer"),
           QObject::tr("Add the measurements to the document as a layer of segments"),
           { Qt::Key_X }, QStringLiteral("out") },
+        { QStringLiteral("scale"), Kind::Action, QObject::tr("Scale to Length"),
+          QObject::tr("Scale the layer so that the last measurement has the real length you give"),
+          { Qt::Key_L }, QStringLiteral("scale") },
     };
 }
 
@@ -88,6 +107,8 @@ void MeasureTool::triggerControl(const QString &id, Qt::KeyboardModifiers modifi
         saveMeasurements();
     } else if (id == QLatin1String("export")) {
         exportMeasurements();
+    } else if (id == QLatin1String("scale")) {
+        scaleToKnownLength();
     }
 }
 
@@ -110,6 +131,7 @@ void MeasureTool::activate(RenderWidget &view)
 void MeasureTool::resetSession()
 {
     m_points.clear();
+    m_pointLayers.clear();
     m_measurements.clear();
     m_pendingPoint = -1;
     m_pendingPointIsNew = false;
@@ -209,6 +231,7 @@ void MeasureTool::onSurfacePicked(const SurfacePick &result)
     if (m_pickAction == PickAction::DragPoint) {
         if (m_dragPoint >= 0 && std::size_t(m_dragPoint) < m_points.size()) {
             m_points[std::size_t(m_dragPoint)] = result.worldPos;
+            m_pointLayers[std::size_t(m_dragPoint)] = pickedLayerId(*m_view->document(), result);
         }
         m_pickAction = PickAction::None;
         return;
@@ -225,6 +248,7 @@ void MeasureTool::onSurfacePicked(const SurfacePick &result)
     m_pickAction = PickAction::None;
 
     m_points.push_back(result.worldPos);
+    m_pointLayers.push_back(pickedLayerId(*m_view->document(), result));
     const std::size_t point = m_points.size() - 1;
     if (m_pendingPoint < 0) {
         m_pendingPoint = int(point);
@@ -310,6 +334,7 @@ void MeasureTool::trimUnusedPoints()
         if (referenced || m_pendingPoint == int(last))
             break;
         m_points.pop_back();
+        m_pointLayers.pop_back();
     }
 }
 
@@ -317,8 +342,10 @@ void MeasureTool::clearPendingPoint()
 {
     // A point created by a surface click is unreferenced until its segment is
     // completed, so it is safe to remove. Existing endpoints are merely deselected.
-    if (m_pendingPointIsNew && m_pendingPoint == int(m_points.size()) - 1)
+    if (m_pendingPointIsNew && m_pendingPoint == int(m_points.size()) - 1) {
         m_points.pop_back();
+        m_pointLayers.pop_back();
+    }
     m_pendingPoint = -1;
     m_pendingPointIsNew = false;
     m_hasPreviewPoint = false;
@@ -357,6 +384,83 @@ void MeasureTool::exportMeasurements()
     doc->beginUndoStep(QObject::tr("Export Measurements"));
     doc->addMesh(mesh, QObject::tr("Measurements"), vcg::tri::io::Mask::IOM_EDGEINDEX);
     doc->endUndoStep(true);
+}
+
+void MeasureTool::scaleToKnownLength()
+{
+    Document *doc = m_view ? m_view->document() : nullptr;
+    if (!doc || m_measurements.empty())
+        return;
+    const QString key = QString::fromLatin1(kScaleToLengthKey);
+    const std::optional<MeshFilterDescriptor> descriptor = doc->filterDescriptor(key);
+    if (!descriptor)
+        return;
+
+    // The layer to scale is the one the measurement was taken on; a segment from one layer to
+    // another can only mean scaling them all.
+    const Measurement m = m_measurements.back();
+    const int layer = doc->indexOfMeshId(m_pointLayers[m.a]);
+    const bool oneLayer = layer >= 0 && layer == doc->indexOfMeshId(m_pointLayers[m.b]);
+    const double measured = measurementLength(m);
+
+    // The filter's own form, less the two points, which are the measurement's.
+    QDialog dialog(m_view);
+    dialog.setWindowTitle(descriptor->name);
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *intro = new QLabel(
+        oneLayer ? QObject::tr("M%1 measures %2 on '%3'. Give its real length, and the layer is "
+                               "scaled to it.")
+                       .arg(m_measurements.size() - 1).arg(lengthText(measured, 8), doc->mesh(layer).name)
+                 : QObject::tr("M%1 measures %2 from one layer to another. Give its real length, and "
+                               "every layer is scaled to it.")
+                       .arg(m_measurements.size() - 1).arg(lengthText(measured, 8)),
+        &dialog);
+    intro->setWordWrap(true);
+    layout->addWidget(intro);
+    auto *form = new QFormLayout;
+    layout->addLayout(form);
+    std::vector<MeshFilterParameterDescriptor> shown;
+    for (const MeshFilterParameterDescriptor &parameter : descriptor->parameters) {
+        if (parameter.id != QLatin1String("pointA") && parameter.id != QLatin1String("pointB"))
+            shown.push_back(parameter);
+    }
+    ParameterFormBuilder builder(form, &dialog);
+    builder.setContext({ doc });
+    builder.build(shown, { { QStringLiteral("length"), measured },
+                           { QStringLiteral("allLayers"), !oneLayer } });
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    MeshFilterParameterValues values = builder.values();
+    values.insert(QStringLiteral("pointA"), m_points[m.a]);
+    values.insert(QStringLiteral("pointB"), m_points[m.b]);
+    // The filter scales the current layer, so the measured one is made current for the run.
+    const int previousCurrent = doc->currentMeshIndex();
+    if (oneLayer)
+        doc->setCurrentMeshIndex(layer);
+    const int scaledLayer = doc->currentMeshIndex();
+    const MeshFilterRunResult result = doc->runFilter(key, values);
+    if (doc->currentMeshIndex() != previousCurrent)
+        doc->setCurrentMeshIndex(previousCurrent);
+    if (!result.success) {
+        doc->writeLog(QObject::tr("Scale to Known Length failed: %1").arg(result.errorMessage),
+                      Document::LogSource::Application, Document::LogLevel::Error);
+        return;
+    }
+
+    // The points on the layers that were scaled move with them, so the labels show the lengths
+    // as they are now: the one just given, first of all.
+    const float factor = result.outputValues.value(QStringLiteral("scaleFactor")).toFloat();
+    const QVector3D center = result.outputValues.value(QStringLiteral("center")).value<QVector3D>();
+    const bool allLayers = values.value(QStringLiteral("allLayers")).toBool();
+    for (std::size_t i = 0; i < m_points.size(); ++i) {
+        if (allLayers || doc->indexOfMeshId(m_pointLayers[i]) == scaledLayer)
+            m_points[i] = center + factor * (m_points[i] - center);
+    }
 }
 
 void MeasureTool::printMeasurements() const

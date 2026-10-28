@@ -16,6 +16,7 @@ struct Info {
     LengthUnit unit;
     const char *symbol;   // what the interface shows and a project file stores
     const char *name;
+    double meters;        // how many meters one of it is
 };
 
 // The units that can be chosen, smallest first; Unknown is the absence of a choice. The
@@ -23,13 +24,13 @@ struct Info {
 inline const std::array<Info, 7> &all()
 {
     static const std::array<Info, 7> table{ {
-        { LengthUnit::Micrometer, "\xC2\xB5m", QT_TRANSLATE_NOOP("LengthUnit", "Micrometers") },
-        { LengthUnit::Millimeter, "mm", QT_TRANSLATE_NOOP("LengthUnit", "Millimeters") },
-        { LengthUnit::Centimeter, "cm", QT_TRANSLATE_NOOP("LengthUnit", "Centimeters") },
-        { LengthUnit::Meter, "m", QT_TRANSLATE_NOOP("LengthUnit", "Meters") },
-        { LengthUnit::Kilometer, "km", QT_TRANSLATE_NOOP("LengthUnit", "Kilometers") },
-        { LengthUnit::Inch, "in", QT_TRANSLATE_NOOP("LengthUnit", "Inches") },
-        { LengthUnit::Foot, "ft", QT_TRANSLATE_NOOP("LengthUnit", "Feet") },
+        { LengthUnit::Micrometer, "\xC2\xB5m", QT_TRANSLATE_NOOP("LengthUnit", "Micrometers"), 1e-6 },
+        { LengthUnit::Millimeter, "mm", QT_TRANSLATE_NOOP("LengthUnit", "Millimeters"), 1e-3 },
+        { LengthUnit::Centimeter, "cm", QT_TRANSLATE_NOOP("LengthUnit", "Centimeters"), 1e-2 },
+        { LengthUnit::Meter, "m", QT_TRANSLATE_NOOP("LengthUnit", "Meters"), 1.0 },
+        { LengthUnit::Kilometer, "km", QT_TRANSLATE_NOOP("LengthUnit", "Kilometers"), 1e3 },
+        { LengthUnit::Inch, "in", QT_TRANSLATE_NOOP("LengthUnit", "Inches"), 0.0254 },
+        { LengthUnit::Foot, "ft", QT_TRANSLATE_NOOP("LengthUnit", "Feet"), 0.3048 },
     } };
     return table;
 }
@@ -52,6 +53,16 @@ inline QString name(LengthUnit unit)
             return QCoreApplication::translate("LengthUnit", info.name);
     }
     return {};
+}
+
+// How many meters one of the unit is; 0 for Unknown, which converts to nothing.
+inline double metersPer(LengthUnit unit)
+{
+    for (const Info &info : all()) {
+        if (info.unit == unit)
+            return info.meters;
+    }
+    return 0.0;
 }
 
 // The unit as the Set Unit filter, and so a script, spells it: the symbol in ASCII ("um" for

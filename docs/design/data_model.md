@@ -99,7 +99,9 @@ The user sets it with the *Set Unit* filter (`set_unit`, category `Document`, in
 the status bar's unit menu runs, so a change is in the action history and a generated script like any
 other (`ms.set_unit(unit="mm")`; the parameter spells each unit as `LengthUnits::scriptId()` does, the
 symbol in ASCII, `um` for µm, and `not_set`). Its default is the `@documentUnit` token, the unit the
-document has, so the filter panel opens on it. It is
+document has, so the filter panel opens on it. *Scale to Known Length* sets it too, when the document has
+none, to the unit of the length it is given; when the document has one, it converts the length into it
+(`LengthUnits::metersPer`) and leaves the unit alone. It is
 in the undo state (`UndoState::unit`) and setting it is an undo step ("Set Unit"; the same unit again is
 no step), `File > New` (`clearAllLayers()`) forgets it, and `unitChanged()` tells the interface. In the
 project it is `<LengthUnit name="mm"/>` after the visibility sets, written only when set and read by its

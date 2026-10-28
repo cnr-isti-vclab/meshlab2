@@ -5,6 +5,7 @@
 #include <QVector3D>
 #include <QPoint>
 
+#include <cstdint>
 #include <vector>
 
 class MeasureTool final : public InteractiveTool
@@ -49,8 +50,11 @@ private:
     void exportMeasurements();
     void printMeasurements() const;
     void saveMeasurements() const;
+    // Asks for the real length of the last measurement and runs Scale to Known Length with it.
+    void scaleToKnownLength();
 
     std::vector<QVector3D> m_points;
+    std::vector<std::uint64_t> m_pointLayers;   // the id of the layer each point was picked on
     std::vector<Measurement> m_measurements;
     int m_pendingPoint = -1;
     bool m_pendingPointIsNew = false;

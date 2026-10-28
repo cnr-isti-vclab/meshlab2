@@ -519,6 +519,9 @@ private slots:
     void translateFilterMovesOnlyCurrentMesh();
     void applyToAllVisibleLayersIsASingleUndoStep();
     void setUnitIsAScriptedUndoStep();
+    void scaleToKnownLengthReachesTheLengthInTheDocumentsUnit();
+    void scaleToKnownLengthKeepsTheRastersRegistered();
+    void cameraFiltersMoveTheCamerasWithTheMeshes();
     void applyToAllVisibleLayersDoesNotConsumeItsOwnOutput();
     void applyToAllVisibleLayersReportsSkippedLayers();
     void packTextureImagesCreatesGutteredAtlas();
@@ -8370,6 +8373,130 @@ void FilterTests::setUnitIsAScriptedUndoStep()
     QCOMPARE(doc.unit(), LengthUnit::Millimeter);
     QVERIFY(doc.undo());
     QCOMPARE(doc.unit(), LengthUnit::Unknown);
+}
+
+// The segment, as measured in world coordinates, comes out as long as the length given, converted
+// into the document's unit; a document without a unit takes the length's. The scale goes into the
+// current layer's matrix, about the segment's midpoint, and nowhere else.
+void FilterTests::scaleToKnownLengthReachesTheLengthInTheDocumentsUnit()
+{
+    Document doc;
+    QCOMPARE(addCubeLayer(doc, QStringLiteral("Measured")), 0);
+    QCOMPARE(addCubeLayer(doc, QStringLiteral("Other")), 1);
+    doc.setCurrentMeshIndex(0);
+    const QString key = filterKeyForId(doc, QStringLiteral("scale_to_known_length"));
+    QVERIFY(!key.isEmpty());
+    const vcg::Point3f firstVertex = doc.mesh(0).mesh.vert[0].cP();
+    const QVector3D a(0, 0, 0), b(2, 0, 0);
+    const auto run = [&](double length, const QString &unit) {
+        return doc.runFilter(key, { { QStringLiteral("pointA"), a }, { QStringLiteral("pointB"), b },
+                                    { QStringLiteral("length"), length }, { QStringLiteral("unit"), unit } });
+    };
+    const auto scaledLength = [&doc, a, b] {
+        const QMatrix4x4 &m = doc.mesh(0).transform;
+        return double((m.map(b) - m.map(a)).length());
+    };
+
+    const MeshFilterRunResult r = run(25, QStringLiteral("cm"));
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(doc.unit(), LengthUnit::Centimeter);
+    QCOMPARE(r.outputValues.value(QStringLiteral("scaleFactor")).toDouble(), 12.5);
+    QVERIFY2(std::abs(scaledLength() - 25.0) < 1e-4, qPrintable(QString::number(scaledLength())));
+    QVERIFY((doc.mesh(0).transform.map(QVector3D(1, 0, 0)) - QVector3D(1, 0, 0)).length() < 1e-5f);
+    QVERIFY(doc.mesh(1).transform.isIdentity());
+    QCOMPARE(doc.mesh(0).mesh.vert[0].cP(), firstVertex);   // the matrix, not the vertices
+    QCOMPARE(doc.undoText(), QStringLiteral("Scale to Known Length"));
+    QVERIFY(doc.undo());   // one step: the scale and the unit together
+    QVERIFY(doc.mesh(0).transform.isIdentity());
+    QCOMPARE(doc.unit(), LengthUnit::Unknown);
+
+    doc.setUnit(LengthUnit::Millimeter);
+    QVERIFY(run(1, QStringLiteral("in")).success);   // 25.4 mm, and the document stays in mm
+    QCOMPARE(doc.unit(), LengthUnit::Millimeter);
+    QVERIFY2(std::abs(scaledLength() - 25.4) < 1e-4, qPrintable(QString::number(scaledLength())));
+}
+
+// Scaling every layer with the cameras of the rasters: a camera moved with the scene sees each
+// scaled point on the pixel it saw it on before, and keeps its intrinsics.
+void FilterTests::scaleToKnownLengthKeepsTheRastersRegistered()
+{
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(
+                 QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
+    QVERIFY(doc.meshCount() > 0 && doc.rasterCount() > 0);
+    doc.setCurrentMeshIndex(0);
+    const CameraShot before = doc.raster(0).shot;
+    QVERIFY(before.isValid());
+    const vcg::Point3f v = doc.mesh(0).mesh.vert[0].cP();
+    const QVector3D local(v[0], v[1], v[2]);
+    const QVector3D p = doc.mesh(0).transform.map(local);
+    const QVector2D pixel = before.project(p);
+
+    const vcg::Box3f box = doc.mesh(0).mesh.bbox;
+    const QVector3D a = doc.mesh(0).transform.map(QVector3D(box.min[0], box.min[1], box.min[2]));
+    const QVector3D b = doc.mesh(0).transform.map(QVector3D(box.max[0], box.max[1], box.max[2]));
+    const MeshFilterRunResult r = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("scale_to_known_length")),
+        { { QStringLiteral("pointA"), a }, { QStringLiteral("pointB"), b },
+          { QStringLiteral("length"), 3.0 * double(a.distanceToPoint(b)) },
+          { QStringLiteral("unit"), QStringLiteral("not_set") },
+          { QStringLiteral("allLayers"), true }, { QStringLiteral("scaleRasters"), true } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(doc.unit(), LengthUnit::Unknown);
+
+    const CameraShot &after = doc.raster(0).shot;
+    QVERIFY((after.viewPoint() - before.viewPoint()).length() > 0);
+    QCOMPARE(after.focalMm(), before.focalMm());
+    const QVector2D seen = after.project(doc.mesh(0).transform.map(local));
+    QVERIFY2((seen - pixel).length() < 0.05f,
+             qPrintable(QStringLiteral("(%1, %2) became (%3, %4)")
+                            .arg(pixel.x()).arg(pixel.y()).arg(seen.x()).arg(seen.y())));
+}
+
+// Scale Cameras and Transform Cameras applied to everything (toall) keep the cameras registered to
+// the meshes they move with: a vertex, moved with its mesh, is seen on the pixel it was seen on
+// before, and the intrinsics stay. A scale about a center other than the origin, and a scale with a
+// translation, used to put the cameras somewhere else than the meshes.
+void FilterTests::cameraFiltersMoveTheCamerasWithTheMeshes()
+{
+    const auto check = [](const QString &filterId, const auto &parameters) {
+        Document doc;
+        QCOMPARE(doc.loadMeshLabProject(
+                     QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
+        doc.setCurrentMeshIndex(0);
+        doc.setCurrentRasterIndex(0);
+        const auto vertex = [&doc] {
+            const vcg::Point3f v = doc.mesh(0).mesh.vert[0].cP();
+            return doc.mesh(0).transform.map(QVector3D(v[0], v[1], v[2]));
+        };
+        const CameraShot before = doc.raster(0).shot;
+        QVERIFY(before.isValid());
+        const QVector2D pixel = before.project(vertex());
+
+        const vcg::Point3f c = doc.mesh(0).mesh.bbox.Center();
+        const MeshFilterRunResult r = doc.runFilter(
+            filterKeyForId(doc, filterId), parameters(doc.mesh(0).transform.map(QVector3D(c[0], c[1], c[2]))));
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        const CameraShot &after = doc.raster(0).shot;
+        QVERIFY((after.viewPoint() - before.viewPoint()).length() > 0);
+        const QVector2D seen = after.project(vertex());
+        QVERIFY2((seen - pixel).length() < 0.05f,
+                 qPrintable(QStringLiteral("%1: (%2, %3) became (%4, %5)").arg(filterId)
+                                .arg(pixel.x()).arg(pixel.y()).arg(seen.x()).arg(seen.y())));
+        QCOMPARE(after.focalMm(), before.focalMm());
+    };
+    check(QStringLiteral("scale_cameras"), [](const QVector3D &center) {
+        return MeshFilterParameterValues{ { QStringLiteral("scaleCenter"), QStringLiteral("custom") },
+                                          { QStringLiteral("customCenter"), center },
+                                          { QStringLiteral("scale"), 2.0 },
+                                          { QStringLiteral("toall"), true } };
+    });
+    check(QStringLiteral("transform_camera_extrinsics"), [](const QVector3D &center) {
+        return MeshFilterParameterValues{ { QStringLiteral("rotationDeg"), QVector3D(10, 20, 30) },
+                                          { QStringLiteral("translation"), center },
+                                          { QStringLiteral("uniformScale"), 2.0 },
+                                          { QStringLiteral("toall"), true } };
+    });
 }
 
 // A filter that emits new layers must not have its own output swept back into the same

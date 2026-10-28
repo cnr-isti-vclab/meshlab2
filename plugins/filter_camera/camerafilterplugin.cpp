@@ -77,26 +77,6 @@ QMatrix4x4 scaleMatrix(float s)
     return m;
 }
 
-// Apply a similarity transformation to a CameraShot (rotate + translate + scale)
-void applySimilarityToShot(CameraShot &shot, const QVector3D &rotDeg,
-                            const QVector3D &transl, float scale)
-{
-    QMatrix4x4 r = rotationMatrix({1,0,0}, rotDeg.x()) *
-                   rotationMatrix({0,1,0}, rotDeg.y()) *
-                   rotationMatrix({0,0,1}, rotDeg.z());
-    r(0,3) = transl.x();
-    r(1,3) = transl.y();
-    r(2,3) = transl.z();
-    if (scale != 1.0f) {
-        // Apply scale via rescalingWorld
-        // Apply rotation+translation first, then scale centered on viewpoint
-        shot.applyRigidTransformation(r);
-        shot.rescalingWorld(scale);
-    } else {
-        shot.applyRigidTransformation(r);
-    }
-}
-
 // Build a viewpoint vector from camera parameters
 QVector3D viewDirection(const QVector3D &dir, const QVector3D &up = QVector3D(0,1,0))
 {
@@ -435,35 +415,27 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
 
         QMatrix4x4 trTran = translateMatrix(center.x(), center.y(), center.z());
         QMatrix4x4 trTranInv = translateMatrix(-center.x(), -center.y(), -center.z());
+        // The cameras get the transform the meshes get. A camera moved by a uniform scale sees
+        // the same image, so only its viewpoint moves and its intrinsics stay as they are.
         QMatrix4x4 transf = trTran * scaleMatrix(scale) * trTranInv;
-
-        auto scaleShot = [&](CameraShot &shot) {
-            QMatrix4x4 tr;
-            tr(0,0) = 1.0f; tr(1,1) = 1.0f; tr(2,2) = 1.0f;
-            tr(0,3) = (1.0f - scale) * center.x();
-            tr(1,3) = (1.0f - scale) * center.y();
-            tr(2,3) = (1.0f - scale) * center.z();
-            shot.applyRigidTransformation(tr);
-            shot.rescalingWorld(scale);
-        };
 
         if (toall) {
             applyTransformToVisibleMeshes(doc, transf);
             for (int ri = 0; ri < doc.rasterCount(); ++ri) {
                 auto &re = doc.raster(ri);
                 if (re.visible && re.shot.isValid())
-                    scaleShot(doc.raster(ri).shot);
+                    doc.raster(ri).shot.applySimilarity(transf);
             }
         } else if (toallRaster) {
             for (int ri = 0; ri < doc.rasterCount(); ++ri) {
                 auto &re = doc.raster(ri);
                 if (re.visible && re.shot.isValid())
-                    scaleShot(doc.raster(ri).shot);
+                    doc.raster(ri).shot.applySimilarity(transf);
             }
         } else if (camEnum == QStringLiteral("raster") || camEnum == QStringLiteral("mesh")) {
             int ri = doc.currentRasterIndex();
             if (ri < 0) return fail(QObject::tr("No current raster."));
-            scaleShot(doc.raster(ri).shot);
+            doc.raster(ri).shot.applySimilarity(transf);
         }
         return ok({QObject::tr("Scaling applied (factor=%1).").arg(scale)});
     }
@@ -525,30 +497,28 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
         QVector3D transl = p.getPoint3f(QStringLiteral("translation"));
         float scale = float(p.getDouble(QStringLiteral("uniformScale")));
 
+        // Rotation, then scale, then translation: one similarity, the same for the meshes and the
+        // cameras, so that the cameras stay registered to the meshes they move with.
+        const QMatrix4x4 transf = translateMatrix(transl.x(), transl.y(), transl.z()) * scaleMatrix(scale)
+            * rotationMatrix({1,0,0}, rotDeg.x()) * rotationMatrix({0,1,0}, rotDeg.y())
+            * rotationMatrix({0,0,1}, rotDeg.z());
         if (toall) {
-            QMatrix4x4 r = rotationMatrix({1,0,0}, rotDeg.x()) *
-                           rotationMatrix({0,1,0}, rotDeg.y()) *
-                           rotationMatrix({0,0,1}, rotDeg.z());
-            QMatrix4x4 trTran = translateMatrix(transl.x(), transl.y(), transl.z());
-            QMatrix4x4 transf = trTran * r;
-            if (scale != 1.0f) transf = trTran * scaleMatrix(scale) * rotationMatrix({1,0,0}, rotDeg.x())
-                                        * rotationMatrix({0,1,0}, rotDeg.y()) * rotationMatrix({0,0,1}, rotDeg.z());
             applyTransformToVisibleMeshes(doc, transf);
             for (int ri = 0; ri < doc.rasterCount(); ++ri) {
                 auto &re = doc.raster(ri);
                 if (re.visible && re.shot.isValid())
-                    applySimilarityToShot(doc.raster(ri).shot, rotDeg, transl, scale);
+                    doc.raster(ri).shot.applySimilarity(transf);
             }
         } else if (toallRaster) {
             for (int ri = 0; ri < doc.rasterCount(); ++ri) {
                 auto &re = doc.raster(ri);
                 if (re.visible && re.shot.isValid())
-                    applySimilarityToShot(doc.raster(ri).shot, rotDeg, transl, scale);
+                    doc.raster(ri).shot.applySimilarity(transf);
             }
         } else if (camEnum == QStringLiteral("raster") || camEnum == QStringLiteral("mesh")) {
             int ri = doc.currentRasterIndex();
             if (ri < 0) return fail(QObject::tr("No current raster."));
-            applySimilarityToShot(doc.raster(ri).shot, rotDeg, transl, scale);
+            doc.raster(ri).shot.applySimilarity(transf);
         }
         return ok({QObject::tr("Transformation applied.")});
     }

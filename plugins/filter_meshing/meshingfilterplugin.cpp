@@ -573,6 +573,7 @@ constexpr QLatin1StringView kIdFlipSwap("mirror_or_swap_axes");
 constexpr QLatin1StringView kIdRotate("rotate");
 constexpr QLatin1StringView kIdRotateFit("rotate_to_fitted_plane");
 constexpr QLatin1StringView kIdScale("scale");
+constexpr QLatin1StringView kIdScaleToLength("scale_to_known_length");
 constexpr QLatin1StringView kIdCenter("translate");
 constexpr QLatin1StringView kIdNormalizeFrame("normalize_reference_frame");
 constexpr QLatin1StringView kIdInvertFaces("invert_face_orientation");
@@ -1630,6 +1631,67 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             it.SetTranslate(-c);
             vcg::Matrix44f tr = t * s * it;
             return applyTransformAndReport(tr, QObject::tr("Scale"));
+        }
+
+        if (filterId == QString::fromLatin1(kIdScaleToLength)) {
+            const QVector3D a = params.getPoint3f(QStringLiteral("pointA"));
+            const QVector3D b = params.getPoint3f(QStringLiteral("pointB"));
+            const double measured = double(a.distanceToPoint(b));
+            const double length = params.getDouble(QStringLiteral("length"));
+            if (!(measured > 0.0))
+                return fail(QObject::tr("The two points coincide, so there is no length to scale."));
+            if (!(length > 0.0))
+                return fail(QObject::tr("The known length must be greater than zero."));
+
+            // The length is converted into the document's unit; a document without one takes
+            // the length's. A length with no unit is a plain number in the document's coordinates.
+            const LengthUnit unit = LengthUnits::fromScriptId(params.getEnum(QStringLiteral("unit")));
+            double factor = length / measured;
+            if (unit != LengthUnit::Unknown) {
+                if (doc.unit() == LengthUnit::Unknown)
+                    doc.setUnit(unit);
+                factor *= LengthUnits::metersPer(unit) / LengthUnits::metersPer(doc.unit());
+            }
+
+            // In world space, onto each layer's matrix, so the segment as measured scales by it.
+            const QVector3D center = params.getEnum(QStringLiteral("scaleCenter")) == QLatin1String("origin")
+                ? QVector3D() : (a + b) * 0.5f;
+            QMatrix4x4 similarity;
+            similarity.translate(center);
+            similarity.scale(float(factor));
+            similarity.translate(-center);
+            const bool allLayers = params.getBool(QStringLiteral("allLayers"));
+            for (int i = 0; i < doc.meshCount(); ++i) {
+                if (allLayers || i == ci)
+                    doc.setMeshTransform(i, similarity * doc.mesh(i).transform,
+                                         QObject::tr("Scale to known length"));
+            }
+            // A camera moved by a uniform scale sees the same image: only its viewpoint moves.
+            int cameras = 0;
+            if (params.getBool(QStringLiteral("scaleRasters"))) {
+                for (int i = 0; i < doc.rasterCount(); ++i) {
+                    if (!doc.raster(i).shot.isValid())
+                        continue;
+                    CameraShot shot = doc.raster(i).shot;
+                    shot.applySimilarity(similarity);
+                    doc.setRasterShot(i, shot);
+                    ++cameras;
+                }
+            }
+
+            const QString symbol = LengthUnits::symbol(doc.unit());
+            QStringList info{ QObject::tr("Scaled %1 by %2: the segment is now %3%4 long.")
+                                  .arg(allLayers ? QObject::tr("%n layer(s)", nullptr, doc.meshCount())
+                                                 : QStringLiteral("'%1'").arg(entry.name))
+                                  .arg(factor, 0, 'g', 10)
+                                  .arg(measured * factor, 0, 'g', 10)
+                                  .arg(symbol.isEmpty() ? QString() : QLatin1Char(' ') + symbol) };
+            if (cameras > 0)
+                info << QObject::tr("Moved the cameras of %n raster(s) with it.", nullptr, cameras);
+            MeshFilterRunResult result = success(true, info);
+            result.outputValues[QStringLiteral("scaleFactor")] = factor;
+            result.outputValues[QStringLiteral("center")] = center;
+            return result;
         }
 
         if (filterId == QString::fromLatin1(kIdReset)) {
