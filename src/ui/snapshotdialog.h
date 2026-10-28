@@ -1,5 +1,7 @@
 #pragma once
 
+#include "viewtrackball.h"
+
 #include <QDialog>
 #include <QImage>
 #include <QSize>
@@ -11,6 +13,7 @@ class QLabel;
 class QLineEdit;
 class QResizeEvent;
 class QSpinBox;
+class CameraShot;
 class RenderWidget;
 
 // Everything about a snapshot in one dialog: where it goes, how big, what is behind it and
@@ -39,10 +42,15 @@ public:
     Background background() const;
     bool includeGizmos() const;
     bool addAsRaster() const;
+    // Whether the image is framed on the scene, as View > Frame Scene from Here does, and
+    // given its shape.
+    bool fitToScene() const;
 
     // Renders through the same path the preview uses, so the file matches what was shown.
-    // Returns a null image and sets errorMessage on failure.
-    QImage capture(const QSize &size, QString *errorMessage) const;
+    // Returns a null image and sets errorMessage on failure. `shot` and `cameraJson` get the
+    // camera the image was taken with, which is not the view's when it is fitted to the scene.
+    QImage capture(const QSize &size, QString *errorMessage, CameraShot *shot = nullptr,
+                   QString *cameraJson = nullptr) const;
 
 protected:
     void resizeEvent(QResizeEvent *e) override;
@@ -67,10 +75,16 @@ private:
     QComboBox *m_backgroundCombo = nullptr;
     QCheckBox *m_gizmosCheck = nullptr;
     QCheckBox *m_rasterCheck = nullptr;
+    QCheckBox *m_fitCheck = nullptr;
     QComboBox *m_gridTileShapeCombo = nullptr;
     QCheckBox *m_gridCaptionsCheck = nullptr;
     QLabel *m_previewLabel = nullptr;
     double m_aspect = 1.0;
+    // The camera and the image shape that fit the scene, worked out once when first asked for.
+    ViewTrackball::State m_fittedCamera;
+    double m_fittedAspect = 1.0;
+    bool m_fitted = false;
+    double m_aspectBeforeFit = 1.0;
     bool m_resizingFromLock = false;
     bool m_previewPending = false;
     // renderOffscreenToImage spins an event loop, so a queued preview can fire while a

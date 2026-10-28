@@ -416,6 +416,10 @@ struct MeshFilterRunResult
     // untranslated, like layer names.
     QVector<MeshFilterVisibilitySet> visibilitySets;
     QVariantMap outputValues;
+    // A camera for the 3D view (a MeshLab.CameraState document, ViewTrackball::cameraStateJson):
+    // the application moves the current view there, animated. Nothing else reads it, so a
+    // filter that wants a script to have the camera puts it in outputValues as well.
+    QString cameraState;
 };
 
 class MeshFilterPlugin

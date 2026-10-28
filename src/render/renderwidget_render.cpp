@@ -289,7 +289,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (!rasterMode) {
         advanceCenterAnimation();
         // After the center: it reads the animated center back out of the state.
-        advanceRotationAnimation();
+        advanceCameraAnimation();
         emitCameraStateChangedIfNeeded();
         // Every camera change funnels through a frame, so this is the one place
         // that keeps the gizmo in sync without touching each navigation path.

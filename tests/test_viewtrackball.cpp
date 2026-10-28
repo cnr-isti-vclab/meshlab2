@@ -36,6 +36,10 @@ private slots:
     void aBadProjectionNamesTheKey();
     void shiftDragRollsTheViewAboutItsOwnAxis();
     void rollingNearTheCentreDoesNothing();
+    void framingFromTheEyeFillsTheViewWithoutMovingIt();
+    void framingFromTheEyeRefusesWhatItCannotDo();
+    void framingFromTheEyeCanChooseTheAspect();
+    void theCameraStateDocumentRoundTripsWithItsViewport();
 };
 
 namespace {
@@ -433,6 +437,141 @@ void ViewTrackballTests::rollingNearTheCentreDoesNothing()
     const QMouseEvent move = mouseEvent(QEvent::MouseMove, c + QPointF(0, -20), Qt::LeftButton, Qt::ShiftModifier);
     QVERIFY(!tb.mouseMove(&move, size));
     QVERIFY((tb.cameraUp() - up).length() < 1e-6f);
+}
+
+// An irregular cloud off the view axis ends up centred and touching two opposite edges of the
+// view, with the eye where it was, no roll about the new axis, and the trackball gizmo the size
+// on screen it was, as through a zoom: one far away and narrow, and
+// one close and wide, where aiming at the middle of the image-plane extent overshoots by more
+// than twice the error and diverges.
+void ViewTrackballTests::framingFromTheEyeFillsTheViewWithoutMovingIt()
+{
+    const std::vector<QVector3D> offsets = { QVector3D(0, 0, 0), QVector3D(2.0f, 0.3f, -1.0f),
+                                             QVector3D(-1.5f, 1.2f, 0.4f), QVector3D(0.2f, -2.1f, 1.8f),
+                                             QVector3D(1.1f, 1.7f, 2.3f), QVector3D(-0.8f, -0.9f, -2.2f) };
+    for (const float depth : { 12.0f, 1.5f }) {
+        ViewTrackball tb = makeTrackball(Projection::Perspective);
+        const QVector3D eye = tb.cameraEyePosition();
+        const QVector3D oldUp = tb.cameraUp();
+        const QVector3D away = tb.cameraViewDirection() * depth + tb.cameraRight() * 2.0f - oldUp * 1.0f;
+        std::vector<QVector3D> points;
+        for (const QVector3D &offset : offsets)
+            points.push_back(eye + away + offset);
+        // The trackball gizmo, as a fraction of the view's height.
+        const auto gizmoOnScreen = [&tb] { return tb.gizmoWorldRadius() / visibleHeight(tb); };
+        const float gizmoBefore = gizmoOnScreen();
+
+        float aspect = kAspect;
+        QVERIFY(tb.frameFromEye(points, aspect) == ViewTrackball::EyeFraming::Framed);
+        QVERIFY((tb.cameraEyePosition() - eye).length() < 1e-4f);
+        QVERIFY2(near(gizmoOnScreen(), gizmoBefore),
+                 qPrintable(QStringLiteral("%1 became %2").arg(gizmoBefore).arg(gizmoOnScreen())));
+        QVERIFY(std::abs(QVector3D::dotProduct(tb.cameraRight(), oldUp)) < 1e-4f);
+        float xMin = 1e9f, xMax = -1e9f, yMin = 1e9f, yMax = -1e9f;
+        for (const QVector3D &p : points) {
+            const QVector3D q = ndc(tb, kAspect, p);
+            xMin = std::min(xMin, q.x());
+            xMax = std::max(xMax, q.x());
+            yMin = std::min(yMin, q.y());
+            yMax = std::max(yMax, q.y());
+        }
+        const QString extent = QStringLiteral("depth %1, fov %2: x %3..%4, y %5..%6")
+                                   .arg(depth).arg(tb.fovYDegrees()).arg(xMin).arg(xMax).arg(yMin).arg(yMax);
+        QVERIFY2(near(xMin + xMax, 0.0f, 1e-3f) && near(yMin + yMax, 0.0f, 1e-3f), qPrintable(extent));
+        QVERIFY2(near(std::max(xMax, yMax), 1.0f, 1e-3f) && std::min(xMax, yMax) <= 1.0f + 1e-3f,
+                 qPrintable(extent));
+        QVERIFY2(depth > 10.0f || tb.fovYDegrees() > 60.0f, qPrintable(extent));
+    }
+}
+
+// Each case it cannot frame leaves the camera exactly as it was.
+void ViewTrackballTests::framingFromTheEyeRefusesWhatItCannotDo()
+{
+    using EyeFraming = ViewTrackball::EyeFraming;
+    const ViewTrackball reference = makeTrackball(Projection::Perspective);
+    const QVector3D eye = reference.cameraEyePosition();
+    const QVector3D look = reference.cameraViewDirection();
+    const QVector3D side = reference.cameraRight();
+    const QVector3D up = reference.cameraUp();
+    const auto check = [](Projection projection, const std::vector<QVector3D> &points, EyeFraming expected,
+                          const char *what) {
+        ViewTrackball tb = makeTrackball(projection);
+        float aspect = kAspect;
+        QVERIFY2(tb.frameFromEye(points, aspect) == expected, what);
+        const ViewTrackball::State s = tb.state();
+        const ViewTrackball::State t = makeTrackball(projection).state();
+        QVERIFY2(s.center == t.center && s.rotation == t.rotation && s.distance == t.distance
+                     && s.fovYDeg == t.fovYDeg && s.radius == t.radius,
+                 what);
+    };
+    check(Projection::Perspective, {}, EyeFraming::NoPoints, "nothing");
+    check(Projection::Orthographic, { eye + look * 10 + side, eye + look * 10 - side }, EyeFraming::Orthographic,
+          "orthographic");
+    // From inside the scene no direction has all of it in front.
+    check(Projection::Perspective, { eye + look * 5, eye - look * 5, eye + side * 5 }, EyeFraming::BehindEye,
+          "inside");
+    // Well framed by its far part, but one point is nearer than the near plane would be.
+    check(Projection::Perspective,
+          { eye + look * 0.001f, eye + look * 10 + side * 4 + up * 2, eye + look * 10 - side * 4 - up * 2 },
+          EyeFraming::TooClose, "close");
+    check(Projection::Perspective, { eye + look + side * 10, eye + look - side * 10 }, EyeFraming::TooWide, "wide");
+    check(Projection::Perspective, { eye + look * 1000 + side, eye + look * 1000 - side }, EyeFraming::TooNarrow,
+          "far");
+}
+
+// Asked to choose the aspect too, as a snapshot fitted to the scene does, the points touch all
+// four sides of a view of that aspect.
+void ViewTrackballTests::framingFromTheEyeCanChooseTheAspect()
+{
+    ViewTrackball tb = makeTrackball(Projection::Perspective);
+    const QVector3D eye = tb.cameraEyePosition();
+    const QVector3D look = tb.cameraViewDirection();
+    const QVector3D side = tb.cameraRight();
+    const QVector3D up = tb.cameraUp();
+    // Three times as wide as it is tall, off the axis, and not square to the view.
+    std::vector<QVector3D> points;
+    for (const QVector3D &corner : { QVector3D(-3, -1, 0), QVector3D(3, -1, 1), QVector3D(-3, 1, -1), QVector3D(3, 1, 0) })
+        points.push_back(eye + look * (9.0f + corner.z()) + side * (2.0f + corner.x()) + up * (1.0f + corner.y()));
+
+    float aspect = 0.0f;
+    QVERIFY(tb.frameFromEye(points, aspect, true) == ViewTrackball::EyeFraming::Framed);
+    QVERIFY2(aspect > 2.0f && aspect < 4.0f, qPrintable(QString::number(aspect)));
+    QVERIFY((tb.cameraEyePosition() - eye).length() < 1e-4f);
+    float xMin = 1e9f, xMax = -1e9f, yMin = 1e9f, yMax = -1e9f;
+    for (const QVector3D &p : points) {
+        const QVector3D q = ndc(tb, aspect, p);
+        xMin = std::min(xMin, q.x());
+        xMax = std::max(xMax, q.x());
+        yMin = std::min(yMin, q.y());
+        yMax = std::max(yMax, q.y());
+    }
+    const QString extent = QStringLiteral("x %1..%2, y %3..%4").arg(xMin).arg(xMax).arg(yMin).arg(yMax);
+    QVERIFY2(near(xMin, -1.0f, 1e-3f) && near(xMax, 1.0f, 1e-3f) && near(yMin, -1.0f, 1e-3f)
+                 && near(yMax, 1.0f, 1e-3f),
+             qPrintable(extent));
+}
+
+// What a filter or the view writes as a camera, read back: the trackball, and the size of the
+// image it was for, which frames a width as well as a height.
+void ViewTrackballTests::theCameraStateDocumentRoundTripsWithItsViewport()
+{
+    const ViewTrackball::State written = sampleState(Projection::Orthographic);
+    ViewTrackball::State read;
+    QSize viewport;
+    QString error;
+    QVERIFY2(ViewTrackball::stateFromCameraStateJson(ViewTrackball::cameraStateJson(written, QSize(640, 480)),
+                                                     read, &error, &viewport),
+             qPrintable(error));
+    QCOMPARE(viewport, QSize(640, 480));
+    QVERIFY((read.center - written.center).length() < 1e-5f);
+    QVERIFY(qFuzzyCompare(read.rotation, written.rotation));
+    QCOMPARE(read.distance, written.distance);
+    QCOMPARE(read.fovYDeg, written.fovYDeg);
+    QCOMPARE(read.projection, Projection::Orthographic);
+
+    QVERIFY(ViewTrackball::stateFromCameraStateJson(ViewTrackball::cameraStateJson(written), read, &error, &viewport));
+    QVERIFY(!viewport.isValid());
+    QVERIFY(!ViewTrackball::stateFromCameraStateJson(QStringLiteral("{\"kind\": \"MeshLab.RenderState\"}"), read, &error));
 }
 
 QTEST_APPLESS_MAIN(ViewTrackballTests)

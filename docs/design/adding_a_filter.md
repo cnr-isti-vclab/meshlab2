@@ -417,7 +417,13 @@ up front, or with a `success = false` result that says why.
   *Align Meshes Sequentially (Open3D)* leaves `aligned`. Names are shown as written, untranslated.
 - **Suggest a view change** (optional) via `MeshFilterRunResult::visualizationHints`
   (e.g. switch to textured/quality shading) — see the visualization-hint path in
-  `MainWindow::applyFilterVisualizationHints`.
+  `MainWindow::applyFilterResultToViews`.
+- **Move the 3D view** (optional) via `MeshFilterRunResult::cameraState`, a MeshLab.CameraState
+  document (`ViewTrackball::cameraStateJson`): the application animates the current view there,
+  turning about the eye when the camera keeps it. Nothing else reads the field, so a filter whose
+  camera a script should have puts it in `outputValues` too, as the `Document/Camera` framing
+  filters do (`cameraState`). Moving the view is not a document change: leave `documentModified`
+  for what the run did to the document.
 - **A Compute filter never bakes color.** Mapping a scalar to a color is the render
   pass's job: it is applied at draw time from the active colormap, so writing a ramp
   into `VC`/`FC` is both redundant and destructive — it overwrites whatever color the

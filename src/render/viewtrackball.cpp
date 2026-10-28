@@ -1,8 +1,11 @@
 #include "viewtrackball.h"
 
 #include "preferences.h"
+#include "rendersettingsjson.h"
 
+#include <QCoreApplication>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QMouseEvent>
@@ -83,6 +86,84 @@ bool ViewTrackball::stateFromJson(const QJsonObject &obj, State &outState, QStri
         || !readFloat("gizmo_reference_fov_y_degrees", outState.gizmoReferenceFovYDeg))
         return fail(QStringLiteral("a trackball numeric field is not a number."));
     return true;
+}
+
+QJsonObject ViewTrackball::stateToJson(const State &state, const State *defaults)
+{
+    using RenderSettingsJson::fuzzyFloatEqual;
+    QJsonObject trackball;
+    const State def = defaults ? *defaults : State{};
+    auto putFloat = [&](const QString &key, float value, float defValue) {
+        if (!defaults || !fuzzyFloatEqual(value, defValue))
+            trackball.insert(key, value);
+    };
+    if (!defaults || !fuzzyFloatEqual(state.center.x(), def.center.x())
+        || !fuzzyFloatEqual(state.center.y(), def.center.y())
+        || !fuzzyFloatEqual(state.center.z(), def.center.z()))
+        trackball.insert(QStringLiteral("center"), QJsonArray{state.center.x(), state.center.y(), state.center.z()});
+    const QQuaternion &q = state.rotation;
+    if (!defaults || !fuzzyFloatEqual(q.x(), def.rotation.x()) || !fuzzyFloatEqual(q.y(), def.rotation.y())
+        || !fuzzyFloatEqual(q.z(), def.rotation.z()) || !fuzzyFloatEqual(q.scalar(), def.rotation.scalar()))
+        trackball.insert(QStringLiteral("rotation_xyzw"), QJsonArray{q.x(), q.y(), q.z(), q.scalar()});
+    putFloat(QStringLiteral("distance"), state.distance, def.distance);
+    putFloat(QStringLiteral("radius"), state.radius, def.radius);
+    putFloat(QStringLiteral("fov_y_degrees"), state.fovYDeg, def.fovYDeg);
+    if (!defaults || state.projection != def.projection)
+        trackball.insert(QStringLiteral("projection"), projectionJsonName(state.projection));
+    putFloat(QStringLiteral("near_clip_ratio"), state.nearClipRatio, def.nearClipRatio);
+    putFloat(QStringLiteral("gizmo_base_radius"), state.gizmoBaseRadius, def.gizmoBaseRadius);
+    putFloat(QStringLiteral("gizmo_reference_distance"), state.gizmoReferenceDistance,
+             def.gizmoReferenceDistance);
+    putFloat(QStringLiteral("gizmo_reference_fov_y_degrees"), state.gizmoReferenceFovYDeg,
+             def.gizmoReferenceFovYDeg);
+    return trackball;
+}
+
+QString ViewTrackball::cameraStateJson(const State &state, const QSize &viewportPx)
+{
+    const State defaults;
+    const QJsonObject trackball = stateToJson(state, &defaults);
+    QJsonObject root;
+    root.insert(QStringLiteral("kind"), QStringLiteral("MeshLab.CameraState"));
+    root.insert(QStringLiteral("version"), 1);
+    if (!trackball.isEmpty())
+        root.insert(QStringLiteral("trackball"), trackball);
+    if (!viewportPx.isEmpty())
+        root.insert(QStringLiteral("viewport_px"), QJsonArray{viewportPx.width(), viewportPx.height()});
+    return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Indented));
+}
+
+bool ViewTrackball::stateFromCameraStateJson(const QString &json, State &outState, QString *error,
+                                             QSize *viewportPx)
+{
+    auto fail = [&](const QString &msg) {
+        if (error)
+            *error = msg;
+        return false;
+    };
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(json.trimmed().toUtf8(), &parseError);
+    if (parseError.error != QJsonParseError::NoError)
+        return fail(QStringLiteral("Invalid JSON: %1").arg(parseError.errorString()));
+    if (!doc.isObject())
+        return fail(QStringLiteral("Invalid camera JSON: root must be an object."));
+    const QJsonObject root = doc.object();
+    const QString kind = root.value(QStringLiteral("kind")).toString();
+    // Both kinds: state written before the 2026-09 rename says CameraTrackballState.
+    if (!kind.isEmpty() && kind != QStringLiteral("MeshLab.CameraState")
+        && kind != QStringLiteral("MeshLab.CameraTrackballState"))
+        return fail(QStringLiteral("Unsupported camera JSON kind: %1").arg(kind));
+    QJsonObject trackball = root;
+    if (root.contains(QStringLiteral("trackball"))) {
+        if (!root.value(QStringLiteral("trackball")).isObject())
+            return fail(QStringLiteral("Invalid camera JSON: 'trackball' must be an object."));
+        trackball = root.value(QStringLiteral("trackball")).toObject();
+    }
+    if (viewportPx) {
+        const QJsonArray size = root.value(QStringLiteral("viewport_px")).toArray();
+        *viewportPx = size.size() == 2 ? QSize(size[0].toInt(), size[1].toInt()) : QSize();
+    }
+    return stateFromJson(trackball, outState, error);
 }
 
 namespace {
@@ -200,6 +281,112 @@ void ViewTrackball::setFromLookAt(
     m_gizmoBaseRadius = m_radius * 1.02f;
     m_gizmoReferenceDistance = m_distance;
     m_gizmoReferenceFovYDeg = m_fovYDeg;
+}
+
+QString ViewTrackball::eyeFramingText(EyeFraming result)
+{
+    const auto tr = [](const char *text) { return QCoreApplication::translate("ViewTrackball", text); };
+    switch (result) {
+    case EyeFraming::Framed: return tr("Framed from the current viewpoint");
+    case EyeFraming::Orthographic: return tr("Framing from a viewpoint needs a perspective camera");
+    case EyeFraming::NoPoints: return tr("Nothing to frame");
+    case EyeFraming::BehindEye: return tr("Cannot frame from this viewpoint: part of the scene is behind it");
+    case EyeFraming::TooClose: return tr("Cannot frame from this viewpoint: part of the scene is too close to it");
+    case EyeFraming::TooWide: return tr("Cannot frame from this viewpoint: the scene needs a wider field of view than the camera allows");
+    case EyeFraming::TooNarrow: return tr("Cannot frame from this viewpoint: the scene is too far for the narrowest field of view");
+    }
+    return {};
+}
+
+ViewTrackball::EyeFraming ViewTrackball::frameFromEye(const std::vector<QVector3D> &points, float &aspect,
+                                                      bool fitAspect)
+{
+    if (m_projection == Projection::Orthographic)
+        return EyeFraming::Orthographic;
+    if (points.empty() || !(fitAspect || aspect > 0.0f))
+        return EyeFraming::NoPoints;
+
+    QVector3D boxMin = points.front(), boxMax = points.front();
+    for (const QVector3D &p : points) {
+        boxMin = QVector3D(std::min(boxMin.x(), p.x()), std::min(boxMin.y(), p.y()), std::min(boxMin.z(), p.z()));
+        boxMax = QVector3D(std::max(boxMax.x(), p.x()), std::max(boxMax.y(), p.y()), std::max(boxMax.z(), p.z()));
+    }
+    const QVector3D middle = 0.5f * (boxMin + boxMax);
+    const float radius = qMax(1e-4f, 0.5f * (boxMax - boxMin).length());
+
+    const QVector3D eye = cameraEyePosition();
+    const QVector3D oldUp = cameraUp();
+    const QVector3D oldRight = cameraRight();
+    QVector3D dir = (middle - eye).normalized();
+    QVector3D right, up;
+    float xMin = 0.0f, xMax = 0.0f, yMin = 0.0f, yMax = 0.0f, minDepth = 0.0f;
+    // Aim, measure where the points fall on the image plane at unit depth, and turn the axis
+    // until that extent is centred. The turn is half the angle by which the extent is off
+    // centre, sideways and then up: turning about the up axis shifts the angle of every point
+    // in the horizontal plane by just that much, where aiming at the middle of the extent on
+    // the image plane would overshoot by 1 + x^2 far off the axis, and diverge in a wide view.
+    // Turning up changes the horizontal angles a little, so a handful of rounds settle both.
+    for (int round = 0;; ++round) {
+        if (dir.isNull())
+            return EyeFraming::BehindEye;
+        right = QVector3D::crossProduct(dir, oldUp);
+        if (right.lengthSquared() < 1e-8f) // looking along the old up: keep the old right
+            right = oldRight - QVector3D::dotProduct(oldRight, dir) * dir;
+        right.normalize();
+        up = QVector3D::crossProduct(right, dir);
+
+        xMin = yMin = minDepth = std::numeric_limits<float>::max();
+        xMax = yMax = std::numeric_limits<float>::lowest();
+        for (const QVector3D &p : points) {
+            const QVector3D d = p - eye;
+            const float depth = QVector3D::dotProduct(d, dir);
+            if (!(depth > 0.0f))
+                return EyeFraming::BehindEye;
+            minDepth = std::min(minDepth, depth);
+            const float x = QVector3D::dotProduct(d, right) / depth;
+            const float y = QVector3D::dotProduct(d, up) / depth;
+            xMin = std::min(xMin, x);
+            xMax = std::max(xMax, x);
+            yMin = std::min(yMin, y);
+            yMax = std::max(yMax, y);
+        }
+        const float yaw = 0.5f * (std::atan(xMin) + std::atan(xMax));
+        const float pitch = 0.5f * (std::atan(yMin) + std::atan(yMax));
+        if ((std::abs(yaw) < 1e-6f && std::abs(pitch) < 1e-6f) || round == 32)
+            break;
+        const QVector3D turned = std::cos(yaw) * dir + std::sin(yaw) * right;
+        dir = (std::cos(pitch) * turned + std::sin(pitch) * up).normalized();
+    }
+
+    const float halfWidth = std::max(xMax, -xMin);
+    const float halfHeight = std::max(yMax, -yMin);
+    const float tanHalfFov = fitAspect ? halfHeight : std::max(halfHeight, halfWidth / aspect);
+    const float fovYDeg = qRadiansToDegrees(2.0f * std::atan(tanHalfFov));
+    if (fovYDeg > kMaxTrackballFovYDeg)
+        return EyeFraming::TooWide;
+    if (fovYDeg < kMinTrackballFovYDeg)
+        return EyeFraming::TooNarrow;
+    // The near plane as nearClipPlaneDistance() will put it for the new distance and radius.
+    const float distance = std::max(QVector3D::dotProduct(middle - eye, dir), minDepth);
+    const float nearPlane = std::clamp(distance * m_nearClipRatio, 1e-5f * radius, 1000.0f * radius);
+    if (distance < 0.01f * radius || minDepth < nearPlane)
+        return EyeFraming::TooClose;
+
+    // Rows are the camera axes in world space, as in setFromLookAt; the camera looks down -z.
+    QMatrix3x3 rotMat;
+    rotMat(0, 0) = right.x(); rotMat(0, 1) = right.y(); rotMat(0, 2) = right.z();
+    rotMat(1, 0) = up.x(); rotMat(1, 1) = up.y(); rotMat(1, 2) = up.z();
+    rotMat(2, 0) = -dir.x(); rotMat(2, 1) = -dir.y(); rotMat(2, 2) = -dir.z();
+    m_rotation = QQuaternion::fromRotationMatrix(rotMat);
+    if (fitAspect)
+        aspect = halfWidth / halfHeight;
+    m_fovYDeg = fovYDeg;
+    // Not setFrame, which would size the gizmo to `radius`: a sphere of the points' half-diagonal
+    // does not fit a view framed this tightly. The gizmo keeps its size on screen, as in a zoom.
+    m_center = eye + distance * dir;
+    m_radius = radius;
+    m_distance = distance;
+    return EyeFraming::Framed;
 }
 
 void ViewTrackball::resetToFrame(const QVector3D &center, float radius, float distance)

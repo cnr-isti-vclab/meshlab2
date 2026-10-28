@@ -343,18 +343,10 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                             -float(params.getDouble(QStringLiteral("uv_pan_y"))), 0.0f);
             mvp = proj * model;
         } else {
-            const QString camJson = params.getCameraState(QStringLiteral("camera_state"));
-            QJsonParseError pe;
-            const QJsonDocument jd = QJsonDocument::fromJson(camJson.toUtf8(), &pe);
-            if (pe.error != QJsonParseError::NoError || !jd.isObject())
-                return fail(QObject::tr("select_by_rectangle: invalid camera_state JSON."));
-            const QJsonObject root = jd.object();
-            const QJsonObject tbObj = root.contains(QStringLiteral("trackball"))
-                ? root.value(QStringLiteral("trackball")).toObject()
-                : root;
             ViewTrackball::State st;
             QString stErr;
-            if (!ViewTrackball::stateFromJson(tbObj, st, &stErr))
+            if (!ViewTrackball::stateFromCameraStateJson(
+                    params.getCameraState(QStringLiteral("camera_state")), st, &stErr))
                 return fail(QObject::tr("select_by_rectangle: %1").arg(stErr));
             ViewTrackball cam;
             cam.setState(st);

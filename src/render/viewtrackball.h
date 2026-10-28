@@ -7,6 +7,7 @@
 #include <QVector3D>
 #include <QVector4D>
 #include <limits>
+#include <vector>
 
 class QMouseEvent;
 class QWheelEvent;
@@ -60,6 +61,17 @@ public:
     // fields keep their default; malformed present fields fail. Lives here (in
     // MeshLab2Core) so filters can reconstruct a camera from a CameraState param.
     static bool stateFromJson(const QJsonObject &obj, State &outState, QString *error = nullptr);
+    // The inverse: the "trackball" object. With `defaults`, a field equal to its default is
+    // left out, which keeps stored states small.
+    static QJsonObject stateToJson(const State &state, const State *defaults = nullptr);
+    // A whole MeshLab.CameraState document, as View > Copy Camera writes it. `viewportPx`,
+    // when given, is the size of the image the camera is for: the trackball fixes the height
+    // it sees, and only this says how wide that image is.
+    static QString cameraStateJson(const State &state, const QSize &viewportPx = QSize());
+    // Reads one back -- also the pre-2026-09 kind MeshLab.CameraTrackballState, or a bare
+    // trackball object. `viewportPx` gets the recorded size, or an invalid one.
+    static bool stateFromCameraStateJson(const QString &json, State &outState, QString *error = nullptr,
+                                         QSize *viewportPx = nullptr);
 
     void setFrame(const QVector3D &center, float radius, float distance);
     void resetToFrame(const QVector3D &center, float radius, float distance);
@@ -69,6 +81,26 @@ public:
         const QVector3D &eye,
         const QVector3D &center,
         float fovYDeg = 45.0f);
+    // What frameFromEye did; anything but Framed means the camera was left as it was.
+    enum class EyeFraming {
+        Framed,
+        Orthographic,   // parallel rays have no field of view to set
+        NoPoints,
+        BehindEye,      // some point is behind the eye, or level with it
+        TooClose,       // some point would be nearer than the near clipping plane
+        TooWide,        // it would take a wider field of view than the view allows
+        TooNarrow       // or a narrower one
+    };
+    // Turns the camera about its eye and sets its field of view so that `points` fill a view
+    // `aspect` times as wide as it is tall exactly: centred, and touching its top and bottom or
+    // its sides, whichever is the tighter. With `fitAspect` the points choose the aspect
+    // instead, touching all four sides, and it is written back. The eye stays where it is.
+    // The view keeps its up direction as far as the new axis allows, the orbit centre goes on
+    // that axis at the depth of the middle of the points, and the gizmo keeps its size on
+    // screen.
+    EyeFraming frameFromEye(const std::vector<QVector3D> &points, float &aspect, bool fitAspect = false);
+    // What a framing result means, for the status bar and for a filter's message.
+    static QString eyeFramingText(EyeFraming result);
     State state() const;
     void setState(const State &state);
     void setCenter(const QVector3D &center) { m_center = center; }

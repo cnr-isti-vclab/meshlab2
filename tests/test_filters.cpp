@@ -15,6 +15,7 @@
 
 #include "camerashot.h"
 #include "document.h"
+#include "viewtrackball.h"
 #include "tools/selectionshortcuts.h"
 #include "testdatasets.h"
 #include <QDir>
@@ -424,6 +425,8 @@ private slots:
     void trimByPlaneReproducesTheViewportClippingPlane();
     void trimByPlaneClosesObliqueCutsToo();
     void cameraFramingFiltersMakeAndKeepOrthographicShots();
+    void setCameraToViewSelectionFacesTheSelection();
+    void setCameraToFrameFromViewpointKeepsTheEye();
     void visibleOnlySelectionCastsParallelRaysInAnOrthographicView();
     void screenSelectionFollowsTheLayerMatrix();
     void visibleOnlySelectionLooksThroughTheLayerMatrix();
@@ -1820,10 +1823,12 @@ void FilterTests::cameraFramingFiltersMakeAndKeepOrthographicShots()
 
     run(QStringLiteral("orthographic"));
     QVERIFY(doc.raster(0).shot.isOrthographic());
+    // The raster's own image, not a made-up 800 x 600 one, with the target at its middle.
+    QCOMPARE(doc.raster(0).shot.viewportPx(), QSize(32, 24));
     const QVector3D centre(0.5f, 0.5f, 0.5f);
     const QVector2D pixel = doc.raster(0).shot.project(centre);
-    QVERIFY(std::abs(pixel.x() - 400.0f) < 1e-2f);
-    QVERIFY(std::abs(pixel.y() - 300.0f) < 1e-2f);
+    QVERIFY(std::abs(pixel.x() - 16.0f) < 1e-2f);
+    QVERIFY(std::abs(pixel.y() - 12.0f) < 1e-2f);
     // Parallel rays: every ray runs along the view direction, whichever pixel it goes through.
     QVector3D origin, direction;
     QVERIFY(doc.raster(0).shot.viewRayThrough(QVector2D(10.0f, 20.0f), origin, direction));
@@ -1834,6 +1839,95 @@ void FilterTests::cameraFramingFiltersMakeAndKeepOrthographicShots()
 
     run(QStringLiteral("perspective"));
     QVERIFY(!doc.raster(0).shot.isOrthographic());
+}
+
+// The camera stands where the selected faces point and looks back at them: it used to stand on
+// the other side, inside the cube. Without a raster, the camera only goes to the view and the
+// script, and the document is not modified.
+void FilterTests::setCameraToViewSelectionFacesTheSelection()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    QVERIFY(doc.addMesh(cube, QStringLiteral("cube")) >= 0);
+    for (auto &f : doc.mesh(0).mesh.face) {
+        const bool top = f.cP(0)[2] > 0.99f && f.cP(1)[2] > 0.99f && f.cP(2)[2] > 0.99f;
+        if (top) f.SetS(); else f.ClearS();
+    }
+    const MeshFilterRunResult r =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("set_camera_to_view_selection")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(!r.documentModified);
+    QCOMPARE(r.outputValues.value(QStringLiteral("cameraState")).toString(), r.cameraState);
+    ViewTrackball::State state;
+    QVERIFY(ViewTrackball::stateFromCameraStateJson(r.cameraState, state));
+    ViewTrackball camera;
+    camera.setState(state);
+    QVERIFY2(camera.cameraEyePosition().z() > 1.0f, qPrintable(QString::number(camera.cameraEyePosition().z())));
+    QVERIFY(camera.cameraViewDirection().z() < -0.99f);
+}
+
+// Set Camera to Frame from Viewpoint is Frame Scene from Here as a filter: the eye stays, and the
+// cube fills the image recorded in the camera, or one of its own shape. From inside the cube, or
+// without an image size to frame for, nothing comes out.
+void FilterTests::setCameraToFrameFromViewpointKeepsTheEye()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    QVERIFY(doc.addMesh(cube, QStringLiteral("cube")) >= 0);
+    const QString key = filterKeyForId(doc, QStringLiteral("set_camera_to_frame_from_viewpoint"));
+    QVERIFY(!key.isEmpty());
+
+    ViewTrackball view;
+    view.setFromLookAt(QVector3D(4.0f, 3.0f, 6.0f), QVector3D(2.0f, -1.0f, 0.0f), 40.0f);
+    const QVector3D eye = view.cameraEyePosition();
+    const auto frame = [&](const QString &camera, const QString &shape, ViewTrackball &framed,
+                           MeshFilterRunResult &r) {
+        r = doc.runFilter(key, { { QStringLiteral("camera"), camera }, { QStringLiteral("imageShape"), shape } });
+        ViewTrackball::State state;
+        if (r.success && ViewTrackball::stateFromCameraStateJson(r.cameraState, state))
+            framed.setState(state);
+    };
+    // The extent of the cube's corners in normalized device coordinates.
+    const auto extent = [](const ViewTrackball &camera, float aspect) {
+        double x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+        for (int i = 0; i < 8; ++i) {
+            const QVector4D clip = camera.projectionMatrix(aspect) * camera.viewMatrix()
+                * QVector4D(float(i & 1), float((i >> 1) & 1), float((i >> 2) & 1), 1.0f);
+            x0 = std::min(x0, double(clip.x() / clip.w()));
+            x1 = std::max(x1, double(clip.x() / clip.w()));
+            y0 = std::min(y0, double(clip.y() / clip.w()));
+            y1 = std::max(y1, double(clip.y() / clip.w()));
+        }
+        return QRectF(QPointF(x0, y0), QPointF(x1, y1));
+    };
+
+    ViewTrackball framed;
+    MeshFilterRunResult r;
+    frame(ViewTrackball::cameraStateJson(view.state(), QSize(300, 200)), QStringLiteral("camera"), framed, r);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(!r.documentModified);
+    QVERIFY((framed.cameraEyePosition() - eye).length() < 1e-4f);
+    QCOMPARE(r.outputValues.value(QStringLiteral("aspect")).toDouble(), 1.5);
+    QRectF box = extent(framed, 1.5f);
+    QVERIFY2(std::abs(box.center().x()) < 1e-3 && std::abs(box.center().y()) < 1e-3
+                 && std::abs(std::max(box.width(), box.height()) - 2.0) < 2e-3,
+             qPrintable(QStringLiteral("%1 %2 %3 %4").arg(box.left()).arg(box.right()).arg(box.top()).arg(box.bottom())));
+
+    frame(ViewTrackball::cameraStateJson(view.state()), QStringLiteral("fit"), framed, r);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    box = extent(framed, float(r.outputValues.value(QStringLiteral("aspect")).toDouble()));
+    QVERIFY2(std::abs(box.width() - 2.0) < 2e-3 && std::abs(box.height() - 2.0) < 2e-3,
+             qPrintable(QStringLiteral("%1 x %2").arg(box.width()).arg(box.height())));
+
+    frame(ViewTrackball::cameraStateJson(view.state()), QStringLiteral("camera"), framed, r);
+    QVERIFY(!r.success); // no viewport_px to frame for
+    ViewTrackball inside;
+    inside.setFromLookAt(QVector3D(0.5f, 0.5f, 0.5f), QVector3D(0.5f, 0.5f, 0.0f), 40.0f);
+    frame(ViewTrackball::cameraStateJson(inside.state(), QSize(300, 200)), QStringLiteral("camera"), framed, r);
+    QVERIFY(!r.success);
+    QVERIFY(r.cameraState.isEmpty());
 }
 
 // Visible-only rectangle selection in an orthographic view casts rays along the view

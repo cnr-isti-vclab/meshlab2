@@ -538,8 +538,8 @@
       "categories": ["Document/Camera"],
       "name": "Set Camera to View Selection",
       "pythonName": "set_camera_to_view_selection",
-      "shortDescription": "Position the camera to frame the current selection, looking along the average selected normal direction.",
-      "longDescriptionMarkdown": "Compute a camera that frames the current selection in the viewport. The camera is positioned so that the selected faces/vertices fill the viewport, looking along the average face/vertex normal direction of the selection. The resulting camera state JSON is written to the log and applied to the current raster if one is active.",
+      "shortDescription": "Position the camera in front of the current selection, facing it, so that the selection fills the view.",
+      "longDescriptionMarkdown": "Compute a camera that frames the current selection. The camera stands in front of the selection, on the side its normals point to, and looks back at it along the average of the face (or vertex) normals; it is as far as a sphere around the selected vertices needs to fill the field of view. The 3D view moves to the camera, the camera state JSON is written to the log and returned as `cameraState`, and the current raster, if there is one, gets the camera for its own image size.",
       "tags": ["camera", "selection"],
       "inputDomain": "SingleMesh",
       "outputDomain": "Information",
@@ -595,7 +595,7 @@
       "name": "Set Camera from Direction",
       "pythonName": "set_camera_from_direction",
       "shortDescription": "Position the camera looking toward a target from an explicit direction.",
-      "longDescriptionMarkdown": "Compute a camera that looks toward a target (mesh bounding box center or current raster) from an explicit world-space direction. The camera is positioned so that the target fills the viewport. The resulting camera state JSON is written to the log and applied to the current raster if one is active.",
+      "longDescriptionMarkdown": "Compute a camera that looks toward a target (mesh bounding box center or current raster) from an explicit world-space direction. The camera is as far as a sphere around the target needs to fill the field of view. The 3D view moves to the camera, the camera state JSON is written to the log and returned as `cameraState`, and the current raster, if there is one, gets the camera for its own image size.",
       "tags": ["camera"],
       "inputDomain": "SingleMesh",
       "outputDomain": "Information",
@@ -654,6 +654,51 @@
             { "id": "current", "label": "Keep current" },
             { "id": "perspective", "label": "Perspective" },
             { "id": "orthographic", "label": "Orthographic" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "set_camera_to_frame_from_viewpoint",
+      "categories": ["Document/Camera"],
+      "name": "Set Camera to Frame from Viewpoint",
+      "pythonName": "set_camera_to_frame_from_viewpoint",
+      "shortDescription": "Turn and zoom a camera, without moving it, so that the scene, a layer or the selection fills its image exactly.",
+      "longDescriptionMarkdown": "Keeps the viewpoint of a camera -- by default the current 3D view's -- and changes only where it looks and its field of view, so that the target fills the image exactly: centred, and touching its top and bottom or its sides, whichever is the tighter. This is View > Frame Scene from Here as a filter. The camera keeps its up direction, so it does not roll.\n\n**Image shape** *Camera's own* frames for the image the camera was for, the width over height that the camera state records (`viewport_px`, which the 3D view writes). *Fit to the target* lets the target choose it too, so that it touches all four sides: the image a snapshot of exactly the target's shape would have, which is returned as `aspect`.\n\nThe 3D view moves to the camera, which is also returned as `cameraState`, a MeshLab.CameraState document, with the field of view as `fovYDeg`. Nothing is changed when the target cannot be framed from the viewpoint: a perspective camera is needed, no part of the target may be behind the viewpoint or nearer than the near plane would be, and the field of view has to stay between 10 and 120 degrees.",
+      "tags": ["camera", "frame", "fit", "viewpoint", "zoom"],
+      "inputDomain": "None",
+      "outputDomain": "Information",
+      "parameters": [
+        {
+          "id": "camera",
+          "label": "Camera",
+          "help": "The camera whose viewpoint is kept (MeshLab.CameraState JSON).",
+          "group": "main",
+          "type": "camerastate"
+        },
+        {
+          "id": "target",
+          "label": "Target",
+          "help": "What fills the image: the vertices of the visible layers, of the current layer, or of its selection.",
+          "group": "main",
+          "type": "enum",
+          "default": "visible",
+          "enumOptions": [
+            { "id": "visible", "label": "Visible layers" },
+            { "id": "current", "label": "Current layer" },
+            { "id": "selection", "label": "Selection of the current layer" }
+          ]
+        },
+        {
+          "id": "imageShape",
+          "label": "Image shape",
+          "help": "Frame for the camera's own image, or let the target choose the image's width over height too.",
+          "group": "main",
+          "type": "enum",
+          "default": "camera",
+          "enumOptions": [
+            { "id": "camera", "label": "Camera's own" },
+            { "id": "fit", "label": "Fit to the target" }
           ]
         }
       ]

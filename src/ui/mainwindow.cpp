@@ -716,10 +716,9 @@ MainWindow::MainWindow(QWidget *parent)
         RenderWidget *v = m_renderWidgets.constFirst();
         return { v->trackballCenter(), v->cameraEyePosition(), v->cameraViewDirection() };
     });
+    // The current view's camera, the view a filter's camera result goes back to.
     m_filterPanel->setCameraStateProvider([this]() -> QString {
-        if (m_renderWidgets.isEmpty())
-            return QString();
-        RenderWidget *v = m_renderWidgets.constFirst();
+        RenderWidget *v = currentRenderWidget();
         return v ? v->cameraStateJson() : QString();
     });
     m_filterPanel->setRenderStateProvider([this]() -> QString {
@@ -1471,6 +1470,11 @@ MainWindow::MainWindow(QWidget *parent)
         QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_J),
         this,
         &MainWindow::centerCameraOnSelection);
+    viewMenu->addAction(
+        tr("Frame Scene from Here"),
+        RenderWidget::frameSceneFromEyeShortcut(),
+        this,
+        &MainWindow::frameSceneFromEye);
     viewMenu->addSeparator();
     // The 5 key, as in Blender. A bare digit has to belong to a 3D view only, or typing one
     // into a spin box or the console would flip the projection: the binding follows focus in
@@ -2537,7 +2541,7 @@ void MainWindow::executeFilter(
         return;
     }
 
-    applyFilterVisualizationHints(result);
+    applyFilterResultToViews(result);
 
     QString status = tr("%1 executed").arg(label);
     if (!result.infoMessages.isEmpty())
@@ -2545,8 +2549,18 @@ void MainWindow::executeFilter(
     m_doc->finishFilterProgress(true, status);
 }
 
-void MainWindow::applyFilterVisualizationHints(const MeshFilterRunResult &result)
+void MainWindow::applyFilterResultToViews(const MeshFilterRunResult &result)
 {
+    if (!result.cameraState.isEmpty()) {
+        ViewTrackball::State camera;
+        QString error;
+        RenderWidget *view = currentRenderWidget();
+        if (view && ViewTrackball::stateFromCameraStateJson(result.cameraState, camera, &error))
+            view->animateCameraTo(camera);
+        else if (view)
+            m_doc->writeLog(tr("The filter's camera could not be read: %1").arg(error),
+                            Document::LogSource::Application, Document::LogLevel::Warning);
+    }
     if (!m_doc || result.visualizationHints.isEmpty())
         return;
 
@@ -2782,7 +2796,9 @@ void MainWindow::saveSnapshotPng()
         FileDialogDirectory::remember(QStringLiteral("snapshot"), targetPath);
 
     QString captureError;
-    const QImage snapshot = dialog.capture(dialog.snapshotSize(), &captureError);
+    CameraShot shot;
+    QString cameraJson;
+    const QImage snapshot = dialog.capture(dialog.snapshotSize(), &captureError, &shot, &cameraJson);
     if (snapshot.isNull()) {
         const QString msg = tr("Failed to capture snapshot: %1").arg(captureError);
         statusBar()->showMessage(msg, 3500);
@@ -2791,7 +2807,7 @@ void MainWindow::saveSnapshotPng()
     }
 
     QImage outImage = snapshot.convertToFormat(QImage::Format_RGBA8888);
-    outImage.setText(QStringLiteral("MeshLab.CameraTrackballState"), view->cameraStateJson());
+    outImage.setText(QStringLiteral("MeshLab.CameraTrackballState"), cameraJson);
 
     if (!targetPath.isEmpty()) {
         QImageWriter writer(targetPath, "png");
@@ -2808,7 +2824,6 @@ void MainWindow::saveSnapshotPng()
 
     if (dialog.addAsRaster()) {
         // The same capture as the file, with the camera that produced it.
-        const CameraShot shot = view->cameraShotForViewport(outImage.size());
         const QString name = tr("Snapshot %1").arg(m_doc->rasterCount() + 1);
         const int index = m_doc->addRasterImage(outImage, name, QString(), shot);
         if (index < 0) {
@@ -3517,6 +3532,12 @@ void MainWindow::centerCameraOnSelection()
         statusBar()->showMessage(tr("Centered on selection"), 1500);
     else
         statusBar()->showMessage(tr("No selection to center on"), 2000);
+}
+
+void MainWindow::frameSceneFromEye()
+{
+    if (RenderWidget *view = currentRenderWidget())
+        statusBar()->showMessage(ViewTrackball::eyeFramingText(view->frameSceneFromEye()), 3000);
 }
 
 void MainWindow::setCurrentViewSceneMode()

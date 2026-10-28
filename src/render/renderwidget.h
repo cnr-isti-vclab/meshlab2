@@ -77,6 +77,16 @@ public:
     // Recenters the trackball on the current mesh's selection barycenter and
     // zooms to frame it. Returns false if there is no selection (Scene3D only).
     bool centerCameraOnSelection();
+    // Turns the camera about its eye and sets its field of view so that the visible layers
+    // fill the view exactly, without moving the eye (ViewTrackball::frameFromEye), animated.
+    ViewTrackball::EyeFraming frameSceneFromEye();
+    // The camera that framing would arrive at, without going there. With `fitAspect` the
+    // scene also chooses the aspect (width over height), touching all four sides, and
+    // `aspect` returns it; otherwise it is the view's.
+    ViewTrackball::EyeFraming fitSceneFromEye(ViewTrackball::State &camera, float &aspect, bool fitAspect) const;
+    // Moves the camera to `target`, animated: about the eye when it keeps the eye, orbiting
+    // otherwise. How a filter's camera reaches the view (MeshFilterRunResult::cameraState).
+    void animateCameraTo(const ViewTrackball::State &target);
     const RenderSettings &renderSettings() const { return m_renderSettings; }
     void setRenderSettings(const RenderSettings &settings);
     QString cameraStateJson() const;
@@ -118,6 +128,8 @@ public:
     // Cmd, and Cmd+H hides the application, so it takes Shift as well. One place, so the menu
     // and the quick help say the same thing.
     static QKeySequence resetCameraShortcut();
+    // The key of Frame Scene from Here (frameSceneFromEye), for the menu and the quick help.
+    static QKeySequence frameSceneFromEyeShortcut();
     Projection projection() const { return m_trackball.projection(); }
     // Switches this view between perspective and orthographic (3D mode only), with a status
     // line saying which it is now. The view keeps framing the same height at its orbit centre.
@@ -608,8 +620,12 @@ struct SceneRasterProjectedDrawItem {
     void startCenterAnimation(const QVector3D &targetCenter);
     void cancelCenterAnimation();
     void advanceCenterAnimation();
-    void advanceRotationAnimation();
-    void cancelRotationAnimation();
+    // Moves the camera to `target`: orbiting about the centre, as an axis snap does, or with
+    // `aboutEye` turning about the eye, which stays where it is throughout. The field of view
+    // changes by equal ratios, as a zoom does.
+    void startCameraAnimation(const ViewTrackball::State &target, bool aboutEye, int durationMs);
+    void advanceCameraAnimation();
+    void cancelCameraAnimation();
     void updateCameraFrameIfNeeded();
     void ensureVisibilitySize();
     int fillGpuVariantIndexForSettings(const PerMeshRenderSettings &settings) const;
@@ -756,14 +772,15 @@ struct SceneRasterProjectedDrawItem {
     QVector3D m_centerAnimTarget;
     QElapsedTimer m_centerAnimTimer;
     int m_centerAnimDurationMs = 200;
-    bool m_rotationAnimActive = false;
-    QQuaternion m_rotationAnimStart;
-    QQuaternion m_rotationAnimTarget;
-    // Last rotation the animation itself wrote, so it can tell whether anything
+    bool m_cameraAnimActive = false;
+    bool m_cameraAnimAboutEye = false;
+    ViewTrackball::State m_cameraAnimStart;
+    ViewTrackball::State m_cameraAnimTarget;
+    // Last state the animation itself wrote, so it can tell whether anything
     // else has since taken the camera over.
-    QQuaternion m_rotationAnimLastApplied;
-    QElapsedTimer m_rotationAnimTimer;
-    int m_rotationAnimDurationMs = 220;
+    ViewTrackball::State m_cameraAnimLastApplied;
+    QElapsedTimer m_cameraAnimTimer;
+    int m_cameraAnimDurationMs = 220;
 
     std::unique_ptr<QRhiBuffer> m_ubuf;
     std::unique_ptr<QRhiSampler> m_textureSampler;

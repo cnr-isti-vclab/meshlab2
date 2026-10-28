@@ -82,6 +82,7 @@ private slots:
     void showMemoryInfo();
     void resetCamera();
     void centerCameraOnSelection();
+    void frameSceneFromEye();
     void copyCameraState();
     void pasteCameraState();
     void setCurrentViewSceneMode();
@@ -127,7 +128,8 @@ private:
         const QString &filterKey,
         const QString &fallbackLabel,
         const QVariantMap &parameters = {});
-    void applyFilterVisualizationHints(const MeshFilterRunResult &result);
+    // What a run suggests to the views: a camera to move to, render modes to show.
+    void applyFilterResultToViews(const MeshFilterRunResult &result);
     void updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
     void refreshUndoHistoryPanel();
     // The row thumbnail and hover snapshot of a history state, taken from the current view.

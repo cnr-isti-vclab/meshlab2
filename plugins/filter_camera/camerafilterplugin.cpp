@@ -41,6 +41,7 @@ constexpr QLatin1StringView kCameraTransform("transform_camera_extrinsics");
 constexpr QLatin1StringView kOrientNormals("orient_vertex_normals_by_cameras");
 constexpr QLatin1StringView kCameraViewSelection("set_camera_to_view_selection");
 constexpr QLatin1StringView kCameraFromDirection("set_camera_from_direction");
+constexpr QLatin1StringView kCameraFrameFromViewpoint("set_camera_to_frame_from_viewpoint");
 
 MeshFilterRunResult fail(const QString &m) { return {false, false, m}; }
 MeshFilterRunResult ok(const QStringList &info = {}) {
@@ -153,63 +154,68 @@ bool framingIsOrthographic(const FilterParams &p, Document &doc)
     return ri >= 0 && doc.raster(ri).shot.isOrthographic();
 }
 
-// A camera at `eye` looking at `center` that frames a sphere of radius `halfDiag` (scaled by
-// `margin`): writes it to the log as a CameraState and puts it on the current raster, if any.
-// The visible height at `center` is the same in both projections, H = 2 * distance *
-// tan(fovY / 2), so the distance is the one a perspective camera would need either way.
-QString frameWithCamera(Document &doc, const QVector3D &eye, const QVector3D &center,
-                        float halfDiag, float fovYDeg, bool orthographic)
+// A camera at `eye` looking at `center` that frames a sphere of radius `radius` about it. It
+// goes to the log, to the view (MeshFilterRunResult::cameraState) and to a script
+// (outputValues), and onto the current raster, if any, for that raster's own image: the shot
+// takes the raster's size, so the image and its camera stay registered. The visible height at
+// `center` is the same in both projections, H = 2 * distance * tan(fovY / 2).
+MeshFilterRunResult framedCamera(Document &doc, const QVector3D &eye, const QVector3D &center,
+                                 float radius, float fovYDeg, bool orthographic, const QString &what)
 {
     ViewTrackball tb;
     tb.setFromLookAt(eye, center, fovYDeg);
-    auto state = tb.state();
-    state.radius = qMax(halfDiag, 1e-4f);
+    // The gizmo, sized to what is framed rather than to the unit sphere of a fresh trackball.
+    tb.setFrame(center, qMax(radius, 1e-4f), (center - eye).length());
     if (orthographic)
-        state.projection = Projection::Orthographic;
-
-    QJsonObject trackball;
-    trackball.insert(QStringLiteral("center"), QJsonArray{state.center.x(), state.center.y(), state.center.z()});
-    QJsonArray rot{state.rotation.x(), state.rotation.y(), state.rotation.z(), state.rotation.scalar()};
-    trackball.insert(QStringLiteral("rotation_xyzw"), rot);
-    trackball.insert(QStringLiteral("distance"), state.distance);
-    trackball.insert(QStringLiteral("radius"), state.radius);
-    trackball.insert(QStringLiteral("fov_y_degrees"), state.fovYDeg);
-    if (orthographic)
-        trackball.insert(QStringLiteral("projection"),
-                         ViewTrackball::projectionJsonName(state.projection));
-
-    QJsonObject root;
-    root.insert(QStringLiteral("kind"), QStringLiteral("MeshLab.CameraState"));
-    root.insert(QStringLiteral("version"), 1);
-    root.insert(QStringLiteral("trackball"), trackball);
-
-    const QString json = QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Indented));
+        tb.setProjection(Projection::Orthographic);
+    const ViewTrackball::State state = tb.state();
+    const QString json = ViewTrackball::cameraStateJson(state);
     doc.writeLog(json, Document::LogSource::Application);
+
+    MeshFilterRunResult result = ok({QObject::tr("Camera state (%1):\n%2").arg(what, json)});
+    result.documentModified = false;
+    result.cameraState = json;
+    result.outputValues.insert(QStringLiteral("cameraState"), json);
 
     const int ri = doc.currentRasterIndex();
     if (ri >= 0) {
-        const float fovYRad = float(qDegreesToRadians(fovYDeg));
-        const float tanHalfFov = std::tan(fovYRad * 0.5f);
-        const QVector3D viewDir = (center - eye).normalized();
-        CameraShot shot;
-        auto vcgShot = shot.toVcgShot();
-        vcgShot.Intrinsics.cameraType =
-            orthographic ? vcg::Camera<float>::ORTHO : vcg::Camera<float>::PERSPECTIVE;
-        vcgShot.Intrinsics.ViewportPx = vcg::Point2i(800, 600);
-        vcgShot.Intrinsics.CenterPx = vcg::Point2f(400, 300);
-        // Orthographic: world units per pixel, so that 600 pixels span H. Perspective: the
-        // fictitious unit pixel, with the focal length that gives the field of view.
-        const float pixel = orthographic ? 2.0f * state.distance * tanHalfFov / 600.0f : 1.0f;
-        vcgShot.Intrinsics.PixelSizeMm = vcg::Point2f(pixel, pixel);
-        vcgShot.Intrinsics.FocalMm = 600.0f / (2.0f * tanHalfFov);
-        QVector3D up(0, 1, 0);
-        if (std::abs(QVector3D::dotProduct(viewDir, up)) > 0.99f) up = QVector3D(1, 0, 0);
-        vcgShot.LookAt(eye.x(), eye.y(), eye.z(),
-                       center.x(), center.y(), center.z(),
-                       up.x(), up.y(), up.z());
-        doc.raster(ri).shot = CameraShot::fromVcgShot(vcgShot);
+        const Document::RasterEntry &raster = doc.raster(ri);
+        const RasterPlane *plane = raster.currentPlane();
+        const QSize size = plane && !plane->size.isEmpty() ? plane->size : raster.shot.viewportPx();
+        if (!size.isEmpty()) {
+            const float tanHalfFov = std::tan(0.5f * qDegreesToRadians(fovYDeg));
+            const QVector3D viewDir = (center - eye).normalized();
+            CameraShot shot;
+            auto vcgShot = shot.toVcgShot();
+            vcgShot.Intrinsics.cameraType =
+                orthographic ? vcg::Camera<float>::ORTHO : vcg::Camera<float>::PERSPECTIVE;
+            vcgShot.Intrinsics.ViewportPx = vcg::Point2i(size.width(), size.height());
+            vcgShot.Intrinsics.CenterPx = vcg::Point2f(0.5f * size.width(), 0.5f * size.height());
+            vcgShot.Intrinsics.DistorCenterPx = vcgShot.Intrinsics.CenterPx;
+            // Orthographic: world units per pixel, so that the image's height spans H.
+            // Perspective: the fictitious unit pixel, with the focal length that gives the field
+            // of view.
+            const float pixel = orthographic ? 2.0f * state.distance * tanHalfFov / float(size.height()) : 1.0f;
+            vcgShot.Intrinsics.PixelSizeMm = vcg::Point2f(pixel, pixel);
+            vcgShot.Intrinsics.FocalMm = float(size.height()) / (2.0f * tanHalfFov);
+            QVector3D up(0, 1, 0);
+            if (std::abs(QVector3D::dotProduct(viewDir, up)) > 0.99f) up = QVector3D(1, 0, 0);
+            vcgShot.LookAt(eye.x(), eye.y(), eye.z(),
+                           center.x(), center.y(), center.z(),
+                           up.x(), up.y(), up.z());
+            doc.setRasterShot(ri, CameraShot::fromVcgShot(vcgShot),
+                              QObject::tr("Raster camera set (%1): '%2'").arg(what, raster.name));
+            result.documentModified = true;
+        }
     }
-    return json;
+    return result;
+}
+
+// The distance from which a sphere of `radius` just fills a field of view of `fovYDeg`: its
+// outline, not its middle section, touches the edges.
+float sphereFramingDistance(float radius, float fovYDeg)
+{
+    return radius / std::sin(0.5f * qDegreesToRadians(fovYDeg));
 }
 
 } // anonymous namespace
@@ -591,64 +597,56 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
     if (fid == QString::fromLatin1(kCameraViewSelection)) {
         int mi = doc.currentMeshIndex();
         if (mi < 0) return fail(QObject::tr("No current mesh."));
-        VCGMesh &m = doc.mesh(mi).mesh;
-        auto &ent = doc.mesh(mi);
+        const auto &ent = doc.mesh(mi);
+        const VCGMesh &m = ent.mesh;
 
         float margin = float(p.getDouble(QStringLiteral("marginFactor"), 1.0));
         float fovYDeg = float(p.getDouble(QStringLiteral("fovYDeg"), 45.0));
         bool useFaceNormals = p.getBool(QStringLiteral("useFaceNormals"), true);
 
-        // Collect selected faces
-        std::vector<const VCGVertex *> selVerts;
-        QVector3D centroid(0, 0, 0);
-        QVector3D avgNormal(0, 0, 0);
-        int selCount = 0;
+        // What is framed is the vertices of the selected faces, or the selected vertices when
+        // no face is; the way it faces is the average of the normals, all in world space. Face
+        // normals come from the world-space corners, area-weighted; vertex normals go through
+        // the layer matrix's normal transform.
+        const QMatrix4x4 normalTransform = ent.transform.inverted().transposed();
         vcg::Box3f selBbox;
         selBbox.SetNull();
-
+        QVector3D faceNormal(0, 0, 0), vertexNormal(0, 0, 0);
+        bool anyFace = false;
         for (const auto &f : m.face) {
             if (!f.IsS() || f.IsD()) continue;
-            QVector3D fc = (transformPoint(ent.transform, f.cP(0))
-                          + transformPoint(ent.transform, f.cP(1))
-                          + transformPoint(ent.transform, f.cP(2))) / 3.0f;
-            centroid += fc;
-            vcg::Point3f fn = ((f.cP(1) - f.cP(0)) ^ (f.cP(2) - f.cP(0))).Normalize();
-            avgNormal += QVector3D(fn[0], fn[1], fn[2]);
-            selBbox.Add(vcg::Point3f(fc.x(), fc.y(), fc.z()));
-            selCount++;
+            QVector3D w[3];
+            for (int k = 0; k < 3; ++k) {
+                w[k] = transformPoint(ent.transform, f.cP(k));
+                selBbox.Add(vcg::Point3f(w[k].x(), w[k].y(), w[k].z()));
+                const vcg::Point3f n = f.cV(k)->cN();
+                vertexNormal += normalTransform.mapVector(QVector3D(n[0], n[1], n[2])).normalized();
+            }
+            faceNormal += QVector3D::crossProduct(w[1] - w[0], w[2] - w[0]);
+            anyFace = true;
         }
-
-        if (selCount == 0) {
-            // Fall back to selected vertices
+        if (!anyFace) {
             for (const auto &v : m.vert) {
                 if (!v.IsS() || v.IsD()) continue;
-                QVector3D wv = transformPoint(ent.transform, v.cP());
-                centroid += wv;
-                vcg::Point3f vn(v.cN()[0], v.cN()[1], v.cN()[2]);
-                avgNormal += QVector3D(vn[0], vn[1], vn[2]);
+                const QVector3D wv = transformPoint(ent.transform, v.cP());
                 selBbox.Add(vcg::Point3f(wv.x(), wv.y(), wv.z()));
-                selCount++;
-                selVerts.push_back(&v);
+                vertexNormal += normalTransform.mapVector(QVector3D(v.cN()[0], v.cN()[1], v.cN()[2])).normalized();
             }
-            if (selCount == 0)
-                return fail(QObject::tr("No faces or vertices selected."));
         }
+        if (selBbox.IsNull())
+            return fail(QObject::tr("No faces or vertices selected."));
 
-        centroid /= float(selCount);
-        QVector3D viewDir = avgNormal.normalized();
+        const QVector3D viewDir = (anyFace && useFaceNormals ? faceNormal : vertexNormal).normalized();
         if (viewDir.lengthSquared() < 0.01f) return fail(QObject::tr("Selection normal is zero."));
 
-        // Distance to fit selection in viewport
-        float halfDiag = selBbox.Diag() * 0.5f;
-        float fovYRad = float(qDegreesToRadians(fovYDeg));
-        float distance = (halfDiag / std::tan(fovYRad * 0.5f)) * margin;
+        const QVector3D center(selBbox.Center()[0], selBbox.Center()[1], selBbox.Center()[2]);
+        const float radius = selBbox.Diag() * 0.5f;
+        const float distance = sphereFramingDistance(radius, fovYDeg) * margin;
+        // In front of the selection, where its normals point, looking back at it.
+        const QVector3D eye = center + viewDir * distance;
 
-        QVector3D eye = centroid - viewDir * distance;
-
-        const QString json = frameWithCamera(doc, eye, centroid, halfDiag, fovYDeg,
-                                             framingIsOrthographic(p, doc));
-
-        return ok({QObject::tr("Camera state (selection view):\n%1").arg(json)});
+        return framedCamera(doc, eye, center, radius, fovYDeg, framingIsOrthographic(p, doc),
+                            QObject::tr("selection view"));
     }
 
     // --- Set Camera from Direction ---
@@ -687,14 +685,78 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
             halfDiag = 1.0f;
         }
 
-        float fovYRad = float(qDegreesToRadians(fovYDeg));
-        float distance = (halfDiag / std::tan(fovYRad * 0.5f)) * margin;
+        const float distance = sphereFramingDistance(halfDiag, fovYDeg) * margin;
         QVector3D eye = center - direction * distance;
 
-        const QString json = frameWithCamera(doc, eye, center, halfDiag, fovYDeg,
-                                             framingIsOrthographic(p, doc));
+        return framedCamera(doc, eye, center, halfDiag, fovYDeg, framingIsOrthographic(p, doc),
+                            QObject::tr("direction"));
+    }
 
-        return ok({QObject::tr("Camera state (direction):\n%1").arg(json)});
+    // --- Set Camera to Frame from Viewpoint ---
+    if (fid == QString::fromLatin1(kCameraFrameFromViewpoint)) {
+        ViewTrackball::State state;
+        QString error;
+        QSize viewport;
+        if (!ViewTrackball::stateFromCameraStateJson(p.getCameraState(QStringLiteral("camera")), state,
+                                                     &error, &viewport))
+            return fail(QObject::tr("Invalid camera: %1").arg(error));
+
+        // The world-space vertices to frame: of the visible layers, of the current one, or of
+        // its selection (the selected vertices and those of the selected faces).
+        const QString target = p.getEnum(QStringLiteral("target"));
+        std::vector<QVector3D> points;
+        const auto addLayer = [&](int mi, bool selectedOnly) {
+            const auto &ent = doc.mesh(mi);
+            std::vector<bool> inSelectedFace;
+            if (selectedOnly) {
+                inSelectedFace.assign(ent.mesh.vert.size(), false);
+                for (const auto &f : ent.mesh.face)
+                    if (!f.IsD() && f.IsS())
+                        for (int k = 0; k < 3; ++k)
+                            inSelectedFace[size_t(vcg::tri::Index(ent.mesh, f.cV(k)))] = true;
+            }
+            for (size_t i = 0; i < ent.mesh.vert.size(); ++i) {
+                const auto &v = ent.mesh.vert[i];
+                if (!v.IsD() && (!selectedOnly || v.IsS() || inSelectedFace[i]))
+                    points.push_back(transformPoint(ent.transform, v.cP()));
+            }
+        };
+        if (target == QStringLiteral("visible")) {
+            for (int mi = 0; mi < doc.meshCount(); ++mi)
+                if (doc.mesh(mi).visible)
+                    addLayer(mi, false);
+        } else {
+            const int mi = doc.currentMeshIndex();
+            if (mi < 0) return fail(QObject::tr("No current mesh."));
+            addLayer(mi, target == QStringLiteral("selection"));
+        }
+
+        const bool fitAspect = p.getEnum(QStringLiteral("imageShape")) == QStringLiteral("fit");
+        float aspect = 0.0f;
+        if (!fitAspect) {
+            if (viewport.isEmpty())
+                return fail(QObject::tr("The camera does not say how wide its image is (it has no viewport_px); "
+                                        "fit the image to the target instead."));
+            aspect = float(viewport.width()) / float(viewport.height());
+        }
+        ViewTrackball camera;
+        camera.setState(state);
+        const ViewTrackball::EyeFraming framing = camera.frameFromEye(points, aspect, fitAspect);
+        if (framing != ViewTrackball::EyeFraming::Framed)
+            return fail(ViewTrackball::eyeFramingText(framing));
+
+        const QString json = ViewTrackball::cameraStateJson(camera.state(), fitAspect ? QSize() : viewport);
+        MeshFilterRunResult result = ok({QObject::tr("Framed %1 vertices from the viewpoint: a field of view of "
+                                                     "%2 degrees, %3 times as wide as it is tall.")
+                                             .arg(points.size())
+                                             .arg(double(camera.fovYDegrees()), 0, 'f', 2)
+                                             .arg(double(aspect), 0, 'f', 4)});
+        result.documentModified = false;
+        result.cameraState = json;
+        result.outputValues.insert(QStringLiteral("cameraState"), json);
+        result.outputValues.insert(QStringLiteral("aspect"), double(aspect));
+        result.outputValues.insert(QStringLiteral("fovYDeg"), double(camera.fovYDegrees()));
+        return result;
     }
 
     return fail(QObject::tr("Unknown filter: %1").arg(fid));

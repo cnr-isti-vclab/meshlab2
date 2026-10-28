@@ -1,5 +1,6 @@
 #include "snapshotdialog.h"
 
+#include "camerashot.h"
 #include "filedialogdirectory.h"
 #include "renderwidget.h"
 
@@ -21,8 +22,10 @@
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QSpinBox>
+#include <QSignalBlocker>
 #include <QTimer>
 #include <QToolButton>
+#include <QToolTip>
 #include <QVBoxLayout>
 
 #include <cmath>
@@ -132,6 +135,18 @@ SnapshotDialog::SnapshotDialog(RenderWidget *view, const QString &suggestedPath,
     }
     form->addRow(tr("Presets"), presetGrid);
 
+    // Frame Scene from Here for the image alone, which can also take the scene's shape: the
+    // camera turns about its viewpoint and zooms, so that the scene touches all four sides.
+    m_fitCheck = new QCheckBox(tr("Fit the image to the scene"), this);
+    const bool grid = view && view->renderSettings().layerArrangement == LayerArrangement::Grid;
+    m_fitCheck->setEnabled(view && !grid);
+    m_fitCheck->setToolTip(
+        grid ? tr("Not with the layers arranged in a grid.")
+             : tr("Turns the camera about its viewpoint and zooms, as View > Frame Scene from Here "
+                  "does, so that the visible layers fill the image exactly, and gives the image "
+                  "their shape. The view's own camera does not move."));
+    form->addRow(tr("Framing"), m_fitCheck);
+
     // --- background
     m_backgroundCombo = new QComboBox(this);
     m_backgroundCombo->addItem(tr("Transparent"), int(Background::Transparent));
@@ -229,6 +244,38 @@ SnapshotDialog::SnapshotDialog(RenderWidget *view, const QString &suggestedPath,
     connect(m_backgroundCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
             [this](int) { schedulePreview(); });
     connect(m_gizmosCheck, &QCheckBox::toggled, this, [this](bool) { schedulePreview(); });
+    // Fitted, the image has the scene's shape: the aspect is locked to it, and the size so far
+    // becomes the box the image fits in.
+    connect(m_fitCheck, &QCheckBox::toggled, this, [this](bool on) {
+        // Worked out the first time it is asked for, not when the dialog opens: it reads every
+        // visible vertex, and the view cannot move while the dialog is open.
+        if (on && !m_fitted) {
+            float aspect = 0.0f;
+            const ViewTrackball::EyeFraming fit = m_view->fitSceneFromEye(m_fittedCamera, aspect, true);
+            if (fit != ViewTrackball::EyeFraming::Framed) {
+                const QSignalBlocker block(m_fitCheck);
+                m_fitCheck->setChecked(false);
+                m_fitCheck->setEnabled(false);
+                m_fitCheck->setToolTip(ViewTrackball::eyeFramingText(fit));
+                QToolTip::showText(m_fitCheck->mapToGlobal(m_fitCheck->rect().bottomLeft()),
+                                   m_fitCheck->toolTip(), m_fitCheck);
+                return;
+            }
+            m_fittedAspect = aspect;
+            m_fitted = true;
+        }
+        m_lockAspect->setEnabled(!on);
+        if (on) {
+            m_aspectBeforeFit = m_aspect;
+            m_aspect = m_fittedAspect;
+            m_lockAspect->setChecked(true);
+            applySizePreset(m_widthSpin->value(), m_heightSpin->value());
+        } else {
+            applySizePreset(m_widthSpin->value(),
+                            qMax(64, int(std::lround(double(m_widthSpin->value()) / m_aspectBeforeFit))));
+        }
+        schedulePreview();
+    });
     connect(m_gridTileShapeCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
             [this](int) { schedulePreview(); });
     connect(m_gridCaptionsCheck, &QCheckBox::toggled, this, [this](bool) { schedulePreview(); });
@@ -238,14 +285,21 @@ SnapshotDialog::SnapshotDialog(RenderWidget *view, const QString &suggestedPath,
 
 void SnapshotDialog::applySizePreset(int width, int height)
 {
+    if (fitToScene()) {
+        // The image has the scene's shape, so the preset is the box it has to fit in. The
+        // height is rounded down, so that rounding never cuts into the scene at the sides.
+        width = qMax(64, std::min(width, int(double(height) * m_aspect)));
+        height = qMax(64, int(double(width) / m_aspect));
+    } else {
+        // The lock keeps the preset's ratio, which is what "lock" means once you have chosen one.
+        m_aspect = double(width) / double(height);
+    }
     // Set both fields directly: with the lock on, going through the spin boxes' own
-    // handlers would make the second value overwrite the first. The lock then keeps the
-    // preset's ratio, which is what "lock" means once you have chosen one.
+    // handlers would make the second value overwrite the first.
     m_resizingFromLock = true;
     m_widthSpin->setValue(width);
     m_heightSpin->setValue(height);
     m_resizingFromLock = false;
-    m_aspect = double(width) / double(height);
 }
 
 QString SnapshotDialog::targetPath() const
@@ -276,7 +330,13 @@ bool SnapshotDialog::addAsRaster() const
     return m_rasterCheck->isChecked();
 }
 
-QImage SnapshotDialog::capture(const QSize &size, QString *errorMessage) const
+bool SnapshotDialog::fitToScene() const
+{
+    return m_fitCheck->isChecked();
+}
+
+QImage SnapshotDialog::capture(const QSize &size, QString *errorMessage, CameraShot *shot,
+                               QString *cameraJson) const
 {
     if (!m_view) {
         if (errorMessage)
@@ -316,10 +376,21 @@ QImage SnapshotDialog::capture(const QSize &size, QString *errorMessage) const
         capture.showViewCameras = false;
     }
 
+    // The fitted camera is lent to the view for the capture, as the settings are, without
+    // telling the views that follow this one's camera.
+    const ViewTrackball::State savedCamera = m_view->trackballState();
+    if (fitToScene())
+        m_view->applySynchronizedTrackballState(m_fittedCamera);
     m_view->setRenderSettings(capture);
     const QImage image =
         m_view->renderOffscreenToImage(size, mode == Background::Transparent, errorMessage);
+    if (shot && !image.isNull())
+        *shot = m_view->cameraShotForViewport(image.size());
+    if (cameraJson)
+        *cameraJson = ViewTrackball::cameraStateJson(m_view->trackballState(), image.size());
     m_view->setRenderSettings(saved);
+    if (fitToScene())
+        m_view->applySynchronizedTrackballState(savedCamera);
     return image;
 }
 

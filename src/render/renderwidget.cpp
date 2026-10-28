@@ -216,9 +216,12 @@ QString quickHelpOverlayHtml()
     QFile file(QStringLiteral(":/resources/quick_help_overlay.html"));
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         cached = QString::fromUtf8(file.readAll());
-        // The reset-camera key differs by platform, so the page names it by a placeholder.
+        // The camera keys read differently by platform, so the page names them by placeholders.
         cached.replace(QStringLiteral("%RESET_CAMERA_SHORTCUT%"),
                        RenderWidget::resetCameraShortcut().toString(QKeySequence::NativeText)
+                           .toHtmlEscaped());
+        cached.replace(QStringLiteral("%FRAME_SCENE_FROM_EYE_SHORTCUT%"),
+                       RenderWidget::frameSceneFromEyeShortcut().toString(QKeySequence::NativeText)
                            .toHtmlEscaped());
     }
 
@@ -304,16 +307,6 @@ QString qualityBakeFilterEnumColorMap(const QString &mapId)
         QStringLiteral("constant")
     };
     return knownIds.contains(id) ? id : QStringLiteral("rainbow");
-}
-
-QJsonArray vec3ToJsonArray(const QVector3D &v)
-{
-    return QJsonArray{v.x(), v.y(), v.z()};
-}
-
-QJsonArray quatToJsonArray(const QQuaternion &q)
-{
-    return QJsonArray{q.x(), q.y(), q.z(), q.scalar()};
 }
 
 
@@ -419,47 +412,6 @@ bool parseLayerKind(const QJsonValue &value, CurrentLayerKind &outKind)
         return true;
     }
     return false;
-}
-
-QJsonObject trackballStateToJsonObject(
-    const ViewTrackball::State &state,
-    const ViewTrackball::State *defaults = nullptr)
-{
-    QJsonObject trackball;
-    auto putVec3 = [&](const QString &key, const QVector3D &value, const QVector3D &def) {
-        if (!defaults || !fuzzyVec3Equal(value, def))
-            trackball.insert(key, vec3ToJsonArray(value));
-    };
-    auto putQuat = [&](const QString &key, const QQuaternion &value, const QQuaternion &def) {
-        if (!defaults || !fuzzyQuatEqual(value, def))
-            trackball.insert(key, quatToJsonArray(value));
-    };
-    auto putFloat = [&](const QString &key, float value, float def) {
-        if (!defaults || !fuzzyFloatEqual(value, def))
-            trackball.insert(key, value);
-    };
-
-    const ViewTrackball::State def = defaults ? *defaults : ViewTrackball::State{};
-    putVec3(QStringLiteral("center"), state.center, def.center);
-    putQuat(QStringLiteral("rotation_xyzw"), state.rotation, def.rotation);
-    putFloat(QStringLiteral("distance"), state.distance, def.distance);
-    putFloat(QStringLiteral("radius"), state.radius, def.radius);
-    putFloat(QStringLiteral("fov_y_degrees"), state.fovYDeg, def.fovYDeg);
-    if (!defaults || state.projection != def.projection) {
-        trackball.insert(
-            QStringLiteral("projection"), ViewTrackball::projectionJsonName(state.projection));
-    }
-    putFloat(QStringLiteral("near_clip_ratio"), state.nearClipRatio, def.nearClipRatio);
-    putFloat(QStringLiteral("gizmo_base_radius"), state.gizmoBaseRadius, def.gizmoBaseRadius);
-    putFloat(
-        QStringLiteral("gizmo_reference_distance"),
-        state.gizmoReferenceDistance,
-        def.gizmoReferenceDistance);
-    putFloat(
-        QStringLiteral("gizmo_reference_fov_y_degrees"),
-        state.gizmoReferenceFovYDeg,
-        def.gizmoReferenceFovYDeg);
-    return trackball;
 }
 
 bool parseTrackballStateObject(const QJsonObject &obj, ViewTrackball::State &outState, QString *error)
@@ -584,6 +536,11 @@ QKeySequence RenderWidget::resetCameraShortcut()
 #else
     return QKeySequence(Qt::CTRL | Qt::Key_H);
 #endif
+}
+
+QKeySequence RenderWidget::frameSceneFromEyeShortcut()
+{
+    return QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F);
 }
 
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
@@ -1149,7 +1106,7 @@ void RenderWidget::restoreViewState(const ViewState &vs, bool restoreCamera)
 void RenderWidget::resetToDefaults()
 {
     cancelCenterAnimation();
-    m_rotationAnimActive = false;
+    m_cameraAnimActive = false;
     invalidateToolPick();
     if (m_activeTool)
         m_activeTool->cancelGesture();
@@ -1198,17 +1155,8 @@ void RenderWidget::resetCameraToScene()
 
 QString RenderWidget::cameraStateJson() const
 {
-    const ViewTrackball::State state = m_trackball.state();
-    const ViewTrackball::State defaultState;
-    const QJsonObject trackball = trackballStateToJsonObject(state, &defaultState);
-
-    QJsonObject root;
-    root.insert(QStringLiteral("kind"), QStringLiteral("MeshLab.CameraState"));
-    root.insert(QStringLiteral("version"), 1);
-    if (!trackball.isEmpty())
-        root.insert(QStringLiteral("trackball"), trackball);
-
-    return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Indented));
+    // The scene's tile, which is the whole view unless the layers are in a grid.
+    return ViewTrackball::cameraStateJson(m_trackball.state(), viewTiles(size()).front().rect.size());
 }
 
 bool RenderWidget::applyCameraStateJson(const QString &jsonText, QString *errorMessage)
@@ -1223,39 +1171,9 @@ bool RenderWidget::applyCameraStateJson(const QString &jsonText, QString *errorM
     if (trimmed.isEmpty())
         return fail(tr("Clipboard is empty."));
 
-    QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(trimmed.toUtf8(), &parseError);
-    if (parseError.error != QJsonParseError::NoError) {
-        return fail(tr("Invalid JSON: %1").arg(parseError.errorString()));
-    }
-    if (!doc.isObject())
-        return fail(tr("Invalid camera JSON: root must be an object."));
-
-    const QJsonObject root = doc.object();
-    if (root.contains(QStringLiteral("kind"))) {
-        const QString kind = root.value(QStringLiteral("kind")).toString();
-        // Both spellings: state written before the 2026-09 rename says "MeshLab.".
-        if (!kind.isEmpty()
-            && kind != QStringLiteral("MeshLab.CameraState")
-            && kind != QStringLiteral("MeshLab.CameraTrackballState")
-            && kind != QStringLiteral("MeshLab.CameraState")
-            && kind != QStringLiteral("MeshLab.CameraTrackballState")) {
-            return fail(tr("Unsupported camera JSON kind: %1").arg(kind));
-        }
-    }
-
-    QJsonObject trackballObj = root;
-    if (root.contains(QStringLiteral("trackball"))) {
-        const QJsonValue trackballValue = root.value(QStringLiteral("trackball"));
-        if (!trackballValue.isObject()) {
-            return fail(tr("Invalid camera JSON: 'trackball' must be an object."));
-        }
-        trackballObj = trackballValue.toObject();
-    }
-
     ViewTrackball::State state;
     QString parseErrorMsg;
-    if (!parseTrackballStateObject(trackballObj, state, &parseErrorMsg))
+    if (!ViewTrackball::stateFromCameraStateJson(trimmed, state, &parseErrorMsg))
         return fail(parseErrorMsg);
 
     m_trackball.setState(state);
@@ -1287,7 +1205,7 @@ QString RenderWidget::renderStateJson() const
     if (!fuzzyFloatEqual(rasterOpacity, 1.0f))
         root.insert(QStringLiteral("raster_opacity"), rasterOpacity);
 
-    const QJsonObject trackball = trackballStateToJsonObject(m_trackball.state(), &defaultTrackball);
+    const QJsonObject trackball = ViewTrackball::stateToJson(m_trackball.state(), &defaultTrackball);
     if (!trackball.isEmpty())
         root.insert(QStringLiteral("trackball"), trackball);
 
@@ -1798,6 +1716,44 @@ bool RenderWidget::centerCameraOnSelection()
     return true;
 }
 
+ViewTrackball::EyeFraming RenderWidget::frameSceneFromEye()
+{
+    ViewTrackball::State target;
+    float aspect = 0.0f;
+    const ViewTrackball::EyeFraming result = fitSceneFromEye(target, aspect, false);
+    if (result == ViewTrackball::EyeFraming::Framed) {
+        cancelCenterAnimation();
+        startCameraAnimation(target, true, 450);
+    }
+    return result;
+}
+
+ViewTrackball::EyeFraming RenderWidget::fitSceneFromEye(ViewTrackball::State &camera, float &aspect,
+                                                        bool fitAspect) const
+{
+    if (m_viewMode != ViewMode::Scene3D || !m_doc)
+        return ViewTrackball::EyeFraming::NoPoints;
+    std::vector<QVector3D> points;
+    for (int i = 0; i < m_doc->meshCount(); ++i) {
+        if (!meshVisible(i))
+            continue;
+        const Document::MeshEntry &entry = m_doc->mesh(i);
+        points.reserve(points.size() + size_t(entry.mesh.vn));
+        for (const VCGVertex &v : entry.mesh.vert)
+            if (!v.IsD())
+                points.push_back(entry.transform.map(QVector3D(v.cP()[0], v.cP()[1], v.cP()[2])));
+    }
+    const QRect tile = viewTiles(size()).front().rect;
+    if (!fitAspect)
+        aspect = float(tile.width()) / float(std::max(1, tile.height()));
+    // Fitted on a copy, from where the camera is now.
+    ViewTrackball fitted = m_trackball;
+    const ViewTrackball::EyeFraming result = fitted.frameFromEye(points, aspect, fitAspect);
+    if (result == ViewTrackball::EyeFraming::Framed)
+        camera = fitted.state();
+    return result;
+}
+
 void RenderWidget::startCenterAnimation(const QVector3D &targetCenter)
 {
     const QVector3D currentCenter = m_trackball.center();
@@ -1848,46 +1804,88 @@ void RenderWidget::advanceCenterAnimation()
 // down before the drag begins rather than self-cancelling a frame later: one
 // animated frame in between would leave that recorded start stale and the view
 // would jump on the first movement.
-void RenderWidget::cancelRotationAnimation()
+void RenderWidget::cancelCameraAnimation()
 {
-    m_rotationAnimActive = false;
+    m_cameraAnimActive = false;
 }
 
-void RenderWidget::advanceRotationAnimation()
+void RenderWidget::animateCameraTo(const ViewTrackball::State &target)
 {
-    if (!m_rotationAnimActive)
+    if (m_viewMode != ViewMode::Scene3D)
+        return;
+    cancelCenterAnimation();
+    // A camera that keeps the eye turns about it, as Frame Scene from Here does; any other
+    // orbits towards the new one.
+    const auto eyeOf = [](const ViewTrackball::State &s) {
+        return s.center + s.rotation.conjugated().rotatedVector(QVector3D(0.0f, 0.0f, s.distance));
+    };
+    const ViewTrackball::State current = m_trackball.state();
+    const bool aboutEye =
+        (eyeOf(target) - eyeOf(current)).length() <= 1e-5f * std::max(current.radius, target.radius);
+    startCameraAnimation(target, aboutEye, 450);
+}
+
+void RenderWidget::startCameraAnimation(const ViewTrackball::State &target, bool aboutEye, int durationMs)
+{
+    m_cameraAnimStart = m_trackball.state();
+    m_cameraAnimTarget = target;
+    m_cameraAnimLastApplied = m_cameraAnimStart;
+    m_cameraAnimAboutEye = aboutEye;
+    m_cameraAnimDurationMs = durationMs;
+    m_cameraAnimTimer.restart();
+    m_cameraAnimActive = true;
+    update();
+}
+
+void RenderWidget::advanceCameraAnimation()
+{
+    if (!m_cameraAnimActive)
         return;
 
-    ViewTrackball::State st = m_trackball.state();
-    // Whatever else moves the camera wins: if the rotation is no longer the one
+    // Whatever else moves the camera wins: if the camera is no longer the one
     // written last frame, a drag or a restored view has overtaken the animation
     // and it should drop out rather than fight for the trackball. Cheaper and
     // harder to get wrong than cancelling from every navigation path.
-    if (!qFuzzyCompare(st.rotation, m_rotationAnimLastApplied)) {
-        m_rotationAnimActive = false;
+    if (!fuzzyStateEqual(m_trackball.state(), m_cameraAnimLastApplied)) {
+        m_cameraAnimActive = false;
         return;
     }
 
-    if (!m_rotationAnimTimer.isValid())
-        m_rotationAnimTimer.start();
+    if (!m_cameraAnimTimer.isValid())
+        m_cameraAnimTimer.start();
 
     const float t = std::clamp(
-        float(m_rotationAnimTimer.elapsed()) / float(qMax(1, m_rotationAnimDurationMs)),
+        float(m_cameraAnimTimer.elapsed()) / float(qMax(1, m_cameraAnimDurationMs)),
         0.0f,
         1.0f);
     const float eased = (t < 0.5f)
         ? (4.0f * t * t * t)
         : (1.0f - std::pow(-2.0f * t + 2.0f, 3.0f) / 2.0f);
 
-    st.rotation = (t >= 1.0f)
-        ? m_rotationAnimTarget
-        : QQuaternion::slerp(m_rotationAnimStart, m_rotationAnimTarget, eased);
+    ViewTrackball::State st = m_cameraAnimTarget;
+    if (t < 1.0f) {
+        const ViewTrackball::State &a = m_cameraAnimStart;
+        const ViewTrackball::State &b = m_cameraAnimTarget;
+        const auto lerp = [eased](auto x, auto y) { return x + (y - x) * eased; };
+        st.rotation = QQuaternion::slerp(a.rotation, b.rotation, eased);
+        st.distance = lerp(a.distance, b.distance);
+        st.radius = lerp(a.radius, b.radius);
+        const float tanA = std::tan(0.5f * qDegreesToRadians(a.fovYDeg));
+        const float tanB = std::tan(0.5f * qDegreesToRadians(b.fovYDeg));
+        st.fovYDeg = qRadiansToDegrees(2.0f * std::atan(tanA * std::pow(tanB / tanA, eased)));
+        // About the eye, the centre follows the axis as it turns; lerping it would let the eye
+        // wander off and come back.
+        const QVector3D eye = a.center + a.rotation.conjugated().rotatedVector(QVector3D(0.0f, 0.0f, a.distance));
+        st.center = m_cameraAnimAboutEye
+            ? eye + st.rotation.conjugated().rotatedVector(QVector3D(0.0f, 0.0f, -st.distance))
+            : lerp(a.center, b.center);
+    }
     m_trackball.setState(st);
     // Read back: setState normalizes, and the comparison above must match it.
-    m_rotationAnimLastApplied = m_trackball.state().rotation;
+    m_cameraAnimLastApplied = m_trackball.state();
 
     if (t >= 1.0f)
-        m_rotationAnimActive = false;
+        m_cameraAnimActive = false;
     else
         update();
 }
@@ -2545,7 +2543,7 @@ void RenderWidget::beginGizmoOrbit(const QPointF &pos)
         return;
     emit viewActivated(this);
     cancelCenterAnimation();
-    cancelRotationAnimation();
+    cancelCameraAnimation();
     const QMouseEvent ev(
         QEvent::MouseButtonPress, pos, pos, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
     m_trackball.mousePress(&ev, m_axisGizmo->size());
@@ -2591,13 +2589,10 @@ void RenderWidget::snapCameraToAxis(const QVector3D &axis)
     if (qFuzzyCompare(st.rotation, targetRotation))
         return;
 
-    m_rotationAnimStart = st.rotation;
-    m_rotationAnimTarget = targetRotation;
-    m_rotationAnimLastApplied = st.rotation;
-    m_rotationAnimTimer.restart();
-    m_rotationAnimActive = true;
+    ViewTrackball::State targetState = st;
+    targetState.rotation = targetRotation;
+    startCameraAnimation(targetState, false, 220);
     updateBoundingBoxCornersOverlay();
-    update();
 }
 
 void RenderWidget::setHelpOverlayVisible(bool visible)
@@ -3819,9 +3814,9 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
         return;
     }
     // A press that stops the camera moving was meant to stop it, not to pick a layer.
-    const bool cameraWasMoving = m_centerAnimActive || m_rotationAnimActive;
+    const bool cameraWasMoving = m_centerAnimActive || m_cameraAnimActive;
     cancelCenterAnimation();
-    cancelRotationAnimation();
+    cancelCameraAnimation();
     // Alt+Left → tip the clipping plane. Alt rather than Ctrl because macOS turns a
     // Ctrl+click into a right-click before Qt ever sees it, so Ctrl+drag is not a chord
     // this application can rely on; Ctrl+wheel, which macOS leaves alone, keeps the
