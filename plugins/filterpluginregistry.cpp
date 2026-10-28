@@ -44,6 +44,9 @@
 #if MESHLAB2_PLUGIN_FILTER_OPEN3D_ENABLED
 #include "plugins/filter_open3d/open3dfilterplugin.h"
 #endif
+#if MESHLAB2_PLUGIN_FILTER_TEXTURE_CONSOLIDATION_ENABLED
+#include "plugins/filter_texture_consolidation/textureconsolidationfilterplugin.h"
+#endif
 #if MESHLAB2_PLUGIN_FILTER_IGL_ENABLED
 #include "plugins/filter_igl/iglfilterplugin.h"
 #endif
@@ -157,6 +160,9 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if MESHLAB2_PLUGIN_FILTER_OPEN3D_ENABLED
     registerOpen3DFilterPlugin(pluginManager);
+#endif
+#if MESHLAB2_PLUGIN_FILTER_TEXTURE_CONSOLIDATION_ENABLED
+    registerTextureConsolidationFilterPlugin(pluginManager);
 #endif
 #if MESHLAB2_PLUGIN_FILTER_IGL_ENABLED
     registerIglFilterPlugin(pluginManager);

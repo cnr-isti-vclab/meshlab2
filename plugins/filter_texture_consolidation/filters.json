@@ -1,0 +1,229 @@
+{
+  "pluginId": "meshlab2.filter.texture_consolidation",
+  "provenance": {
+    "project": "TextureConsolidation",
+    "repository": "https://github.com/hliuw/TextureConsolidation",
+    "license": "BSD-3-Clause",
+    "integration": "external/texture-consolidation"
+  },
+  "references": [
+    {
+      "id": "liu2026texture",
+      "type": "article",
+      "title": "Texture Consolidation of Generated Multi-View Renderings",
+      "author": [
+        {
+          "family": "Liu",
+          "given": "Hongyi"
+        },
+        {
+          "family": "Wang",
+          "given": "Yifan"
+        },
+        {
+          "family": "Kim",
+          "given": "Vladimir G."
+        },
+        {
+          "family": "Kazhdan",
+          "given": "Misha"
+        }
+      ],
+      "container-title": "arXiv:2610.36098",
+      "issued": {
+        "date-parts": [
+          [
+            2026
+          ]
+        ]
+      },
+      "URL": "https://arxiv.org/abs/2610.36098"
+    },
+    {
+      "id": "prada2018gradient",
+      "type": "article-journal",
+      "title": "Gradient-domain Processing within a Texture Atlas",
+      "author": [
+        {
+          "family": "Prada",
+          "given": "Fabián"
+        },
+        {
+          "family": "Kazhdan",
+          "given": "Misha"
+        },
+        {
+          "family": "Chuang",
+          "given": "Ming"
+        },
+        {
+          "family": "Hoppe",
+          "given": "Hugues"
+        }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "37",
+      "issue": "4",
+      "issued": {
+        "date-parts": [
+          [
+            2018
+          ]
+        ]
+      }
+    }
+  ],
+  "filters": [
+    {
+      "id": "transfer_color_from_visible_rasters_to_texture_texture_consolidation",
+      "categories": [
+        "Transfer/From Rasters",
+        "Texture"
+      ],
+      "name": "Transfer Color from Visible Rasters to Texture (Texture Consolidation)",
+      "pythonName": "transfer_color_from_visible_rasters_to_texture_texture_consolidation",
+      "referenceIds": [
+        "liu2026texture",
+        "prada2018gradient"
+      ],
+      "shortDescription": "Build one seamless texture from the visible rasters by registering them with optical flow on the surface and stitching in the gradient domain.",
+      "longDescriptionMarkdown": "Builds one seamless texture for the current mesh from the **visible rasters**, by the method of Liu, Wang, Kim and Kazhdan (2026). It needs a mesh that already has a texture atlas and at least two rasters with known cameras: photographs, or renderings from a generative model.\n\nThree steps run as bundled helper programs:\n\n1. **Back-projection with confidence.** Each raster is projected into texture space. Texels seen at a grazing angle, or near a depth discontinuity of the mesh as seen from that camera, get low confidence, since that is where an image and the geometry disagree most. Colors are then normalized by a local mean and scale.\n2. **Registration by optical flow on the surface.** Each view's colors are moved along the surface, coarse to fine, onto a target built from the views already registered. This is what removes ghosting.\n3. **Gradient-domain stitching** in texture space, weighted by confidence, which removes the remaining seams and color steps.\n\n**How it differs from *Transfer Color from Visible Rasters to Texture*.** That filter blends the projected rasters with angle, distance, border and silhouette weights and moves no color. This one registers the views before blending and stitches afterwards, so it removes ghosting and seams that blending keeps, at the cost of runtime: about 30 s for nine 1-megapixel photographs at 1024 x 1024 on a laptop. It can fail where views barely overlap (colors drift jointly) and on repeated patterns whose count differs between views.\n\n**What it needs.** Rasters must be perspective with no lens distortion, since the helpers take pinhole cameras. The mesh is scaled internally to a surface area of 5, the scale the method's defaults were tuned at, so the flow parameters do not depend on the mesh's units. Only the texture image changes: the UVs and the geometry are not touched.\n\nThe defaults are those of the released code; the paper reports somewhat different values (four levels, source smoothing 0.002, flow smoothness 0.2 for generated renderings and 0.1 for real scans, cutoff 0.15).",
+      "tags": [
+        "texture",
+        "rasters",
+        "projection",
+        "registration",
+        "optical flow",
+        "stitching",
+        "photographs",
+        "generated renderings"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requirePerWedgeTexCoords": true
+      },
+      "outputModifies": [
+        "TX"
+      ],
+      "parameters": [
+        {
+          "id": "textureFile",
+          "label": "Texture file",
+          "help": "Where the new texture image is written. It replaces the mesh's texture.",
+          "group": "main",
+          "type": "filesave",
+          "default": "consolidated_texture.png"
+        },
+        {
+          "id": "textureSize",
+          "label": "Texture Size (px)",
+          "help": "Width and height of the texture image produced.",
+          "group": "main",
+          "type": "int",
+          "default": 1024,
+          "min": 64,
+          "max": 8192
+        },
+        {
+          "id": "depthRadius",
+          "label": "Silhouette Falloff (px)",
+          "help": "Distance from a depth discontinuity, in raster pixels, over which confidence rises from zero to one.",
+          "group": "advanced",
+          "type": "int",
+          "default": 20,
+          "min": 0,
+          "max": 1000
+        },
+        {
+          "id": "confidenceCutoff",
+          "label": "Confidence Cutoff",
+          "help": "Back-projected confidences below this are set to zero.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.05,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 3
+        },
+        {
+          "id": "levels",
+          "label": "Hierarchy Levels",
+          "help": "Number of coarse-to-fine passes of the optical flow. More levels register finer detail and allow more oscillation in the deformation.",
+          "group": "advanced",
+          "type": "int",
+          "default": 6,
+          "min": 1,
+          "max": 16
+        },
+        {
+          "id": "sourceSmoothing",
+          "label": "Source Smoothing",
+          "help": "Smoothing of the colors the flow compares at the first level, reduced at each later level by the per-level factor.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0003,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 6
+        },
+        {
+          "id": "flowSmoothness",
+          "label": "Flow Smoothness",
+          "help": "Weight of the smoothness term of the flow at the first level, reduced at each later level by the per-level factor.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 100.0,
+          "decimals": 4
+        },
+        {
+          "id": "levelFactor",
+          "label": "Per-level Factor",
+          "help": "Factor applied to the source smoothing and the flow smoothness from one level to the next.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.01,
+          "max": 1.0,
+          "decimals": 3
+        },
+        {
+          "id": "normalizationExtent",
+          "label": "Normalization Extent",
+          "help": "Extent of the local mean and scale used to normalize each view's colors before the flow.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.001,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 6
+        },
+        {
+          "id": "subdivisions",
+          "label": "Subdivisions",
+          "help": "One-to-four subdivisions applied to the mesh for the flow computation only; the output keeps the original mesh.",
+          "group": "advanced",
+          "type": "int",
+          "default": 1,
+          "min": 0,
+          "max": 4
+        },
+        {
+          "id": "gradientWeight",
+          "label": "Gradient Weight",
+          "help": "Weight of the gradient-fitting term in the stitching. Larger values follow the registered colors' detail more closely and remove less of their discontinuities.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.01,
+          "min": 0.0,
+          "max": 10.0,
+          "decimals": 4
+        }
+      ]
+    }
+  ]
+}

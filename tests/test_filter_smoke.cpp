@@ -339,6 +339,10 @@ const QHash<QString, QString> &expectedRefusals()
         {QStringLiteral("create_handle_and_tunnel_loops"),                 QStringLiteral("needs a surface of nonzero genus; every rung has genus 0 (FilterTests::torusHasOneHandleAndOneTunnelLoop drives it)")},
 
         // Needs a mesh shape the ladder does not build: every rung has faces.
+        // Needs a chart-based atlas and rasters together. The raster rung has the rasters,
+        // but its UVs are one triangle per chart, which the filter refuses up front: the
+        // stitcher took minutes and over 10 GB on exactly that layout.
+        {QStringLiteral("transfer_color_from_visible_rasters_to_texture_texture_consolidation"), QStringLiteral("needs rasters and a chart-based atlas; the raster rung's per-triangle UVs are refused (FilterTests::textureConsolidationBuildsTextureFromRasters drives it)")},
         {QStringLiteral("trim_point_cloud_by_plane"),                      QStringLiteral("needs a point cloud; every rung has faces (FilterTests::trimPointCloudByPlaneDropsThePointsBehindIt drives it)")},
 
         // Needs a selection the ladder does not build: its rungs select everything or nothing.

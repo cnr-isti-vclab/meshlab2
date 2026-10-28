@@ -42,6 +42,8 @@
 #include <memory>
 #include <cmath>
 
+#include "plugins/filter_texture_consolidation/pinholecamera.h"
+
 namespace {
 
 void makeCubeMesh(VCGMesh &mesh, float offsetX, float offsetY, float offsetZ)
@@ -483,6 +485,8 @@ private slots:
     void open3dSequentialInitialRegistrationFromRawScans();
     void open3dAlignMeshesSequentiallyRegistersRawRangeMaps();
     void open3dVoxelDownsamplingKeepsNormalsUnitLength();
+    void textureConsolidationCameraMatchesShotProjection();
+    void textureConsolidationBuildsTextureFromRasters();
     void open3dFeatureMatchingCanUseAllVisibleLayersAsReference();
     void open3dFeatureMatchingCanEstimateItsQualityWithIcp();
     void open3dFastGlobalRegistrationCanUseAllVisibleLayersAsReference();
@@ -6264,6 +6268,138 @@ void FilterTests::open3dVoxelDownsamplingKeepsNormalsUnitLength()
         shortest = std::min(shortest, v.cN().Norm());
     QVERIFY2(shortest > 0.999f,
              qPrintable(QStringLiteral("shortest normal after downsampling is %1").arg(shortest)));
+}
+
+// TextureConsolidation reads OpenCV pinhole cameras; MeshLab's rasters carry vcg::Shot.
+// The conversion differs in axes, image row direction and pixel-centre convention, and
+// any of the three wrong still gives a texture that looks plausible -- which is why it is
+// checked here against the projection MeshLab itself uses, on every vertex of a real
+// photogrammetry fixture that each of its four cameras sees.
+void FilterTests::textureConsolidationCameraMatchesShotProjection()
+{
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
+    QVERIFY(doc.rasterCount() == 4 && doc.meshCount() >= 1);
+    const Document::MeshEntry &entry = doc.mesh(0);
+
+    const auto project = [](const texture_consolidation::PinholeCamera &cam, const vcg::Point3d &p) {
+        double x[3];
+        for (int r = 0; r < 3; ++r)
+            x[r] = cam.w2c[size_t(r)][0] * p[0] + cam.w2c[size_t(r)][1] * p[1] + cam.w2c[size_t(r)][2] * p[2]
+                 + cam.w2c[size_t(r)][3];
+        return std::array<double, 3>{cam.fx * x[0] / x[2] + cam.cx, cam.fy * x[1] / x[2] + cam.cy, x[2]};
+    };
+
+    constexpr double kWorldScale = 3.7;
+    int checked = 0, indexChecked = 0;
+    double worst = 0.0, worstScaled = 0.0;
+    for (int ri = 0; ri < doc.rasterCount(); ++ri) {
+        const CameraShot::VcgShot shot = doc.raster(ri).shot.toVcgShot();
+        const int w = shot.Intrinsics.ViewportPx[0], h = shot.Intrinsics.ViewportPx[1];
+        const auto cam = texture_consolidation::toPinholeCamera(shot, 1.0, w, h);
+        const auto scaled = texture_consolidation::toPinholeCamera(shot, kWorldScale, w, h);
+        for (const auto &v : entry.mesh.vert) {
+            const QVector3D q = entry.transform.map(QVector3D(v.cP()[0], v.cP()[1], v.cP()[2]));
+            const vcg::Point3f world(q.x(), q.y(), q.z());
+            if (shot.ConvertWorldToCameraCoordinates(world).Z() <= 0.0f)
+                continue;
+            const vcg::Point2f px = shot.Project(world);
+            if (px[0] < 0 || px[1] < 0 || px[0] >= w || px[1] >= h)
+                continue;
+            const auto cv = project(cam, vcg::Point3d(world[0], world[1], world[2]));
+            QVERIFY(cv[2] > 0.0);
+            // Continuous coordinates: OpenCV's column is vcg's minus half a pixel, and its
+            // row counts from the top.
+            worst = std::max({worst, std::abs(cv[0] - (double(px[0]) - 0.5)),
+                              std::abs(cv[1] - (double(h) - double(px[1]) - 0.5))});
+            // A world scaled by kWorldScale, with the camera converted at that scale,
+            // projects to the same pixels.
+            const auto cs = project(scaled, vcg::Point3d(world[0], world[1], world[2]) * kWorldScale);
+            worstScaled = std::max({worstScaled, std::abs(cs[0] - cv[0]), std::abs(cs[1] - cv[1])});
+            ++checked;
+            // And the pixel picked is the one MeshLab's own raster sampling picks,
+            // rimg.pixel(int(x), ih - 1 - int(y)), away from pixel boundaries.
+            const double fx = double(px[0]) - std::floor(px[0]), fy = double(px[1]) - std::floor(px[1]);
+            if (fx > 0.05 && fx < 0.95 && fy > 0.05 && fy < 0.95) {
+                QCOMPARE(int(std::floor(cv[0] + 0.5)), int(px[0]));
+                QCOMPARE(int(std::floor(cv[1] + 0.5)), h - 1 - int(px[1]));
+                ++indexChecked;
+            }
+        }
+    }
+    QVERIFY2(checked > 5000, qPrintable(QStringLiteral("only %1 projections compared").arg(checked)));
+    QVERIFY2(indexChecked > 3000, qPrintable(QStringLiteral("only %1 pixel indices compared").arg(indexChecked)));
+    // vcg::Shot is single precision on coordinates of a few hundred units.
+    QVERIFY2(worst < 0.05, qPrintable(QStringLiteral("worst disagreement %1 px").arg(worst)));
+    QVERIFY2(worstScaled < 1e-6, qPrintable(QStringLiteral("scaling moved a projection by %1 px").arg(worstScaled)));
+}
+
+// End to end on the same fixture: four photographs and a mesh with no atlas, given one by
+// xatlas. A texture of the requested size is attached and covers a fair part of the
+// atlas. Three flow levels instead of six keep it to about 20 s.
+//
+// The texture size is not arbitrary: the stitcher solves at texel resolution, and on this
+// atlas (20,000 faces) 256 x 256 usually leaves it a singular system -- "Failed to
+// factorize matrix" -- while 512 succeeds with warnings and 1024 is clean (measured
+// 2026-10-28). "Usually": the helpers are not deterministic, so the coarse case failed in
+// five of seven runs on identical inputs, and it cannot be asserted either way.
+void FilterTests::textureConsolidationBuildsTextureFromRasters()
+{
+    Document probe;
+    const QString key = filterKeyForId(
+        probe, QStringLiteral("transfer_color_from_visible_rasters_to_texture_texture_consolidation"));
+    if (key.isEmpty())
+        QSKIP("TextureConsolidation plugin is not available in this build.");
+    const QString xatlasKey = filterKeyForId(probe, QStringLiteral("parametrize_by_atlas_xatlas"));
+    QVERIFY(!xatlasKey.isEmpty());
+
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
+    doc.setCurrentMeshIndex(0);
+
+    // Without an atlas the filter refuses, naming what to run.
+    {
+        const MeshFilterRunResult refused = doc.runFilter(key, {});
+        QVERIFY(!refused.success);
+    }
+    const MeshFilterRunResult atlas = doc.runFilter(xatlasKey, {});
+    QVERIFY2(atlas.success, qPrintable(atlas.errorMessage));
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString texturePath = dir.filePath(QStringLiteral("consolidated.png"));
+    MeshFilterParameterValues values;
+    values.insert(QStringLiteral("textureFile"), texturePath);
+    values.insert(QStringLiteral("levels"), 3);
+    values.insert(QStringLiteral("textureSize"), 1024);
+    const MeshFilterRunResult result = doc.runFilter(key, values);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    const Document::MeshEntry &entry = doc.mesh(0);
+    QCOMPARE(int(entry.textureAssets.size()), 1);
+    const QImage &texture = entry.textureAssets.front().image;
+    QCOMPARE(texture.size(), QSize(1024, 1024));
+    QVERIFY(QFileInfo::exists(texturePath));
+
+    int colored = 0;
+    for (int y = 0; y < texture.height(); ++y) {
+        for (int x = 0; x < texture.width(); ++x) {
+            const QRgb c = texture.pixel(x, y);
+            if (qRed(c) + qGreen(c) + qBlue(c) > 30)
+                ++colored;
+        }
+    }
+    const double coverage = double(colored) / double(texture.width() * texture.height());
+    qDebug("texture consolidation on the gargoyle: %.1f%% of texels colored | %s", 100.0 * coverage,
+           qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
+    QVERIFY2(coverage > 0.2, qPrintable(QStringLiteral("only %1% of the texture is colored").arg(100.0 * coverage)));
+
+    // With one raster hidden of the four it still runs; with three hidden it refuses.
+    for (int ri = 1; ri < doc.rasterCount(); ++ri)
+        doc.raster(ri).visible = false;
+    const MeshFilterRunResult tooFew = doc.runFilter(key, values);
+    QVERIFY(!tooFew.success);
+    QVERIFY2(tooFew.errorMessage.contains(QStringLiteral("at least two")), qPrintable(tooFew.errorMessage));
 }
 
 // The CSG evaluator and the pairwise booleans must agree where they overlap, and the

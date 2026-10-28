@@ -86,6 +86,10 @@ const QHash<QString, QString> &notGeometry()
         // in MeshLab calls it -- Open3D's ComputeConvexHull is linked and dormant, and
         // the alpha-shape filter that would use it is deliberately not vendored. List
         // it in the About dialog if a filter ever exposes it.
+        // Read and write the PNG and JPEG files that TextureConsolidation's helper programs
+        // exchange; only those helpers link them, the application does not.
+        { QStringLiteral("libpng"),         QStringLiteral("image files of the TextureConsolidation helpers") },
+        { QStringLiteral("libjpeg-turbo"),  QStringLiteral("image files of the TextureConsolidation helpers") },
         { QStringLiteral("nanoflann"),      QStringLiteral("KD-tree searches inside Open3D") },
         { QStringLiteral("fmt"),            QStringLiteral("string formatting inside Open3D") },
         { QStringLiteral("jsoncpp"),        QStringLiteral("JSON, required by Open3D's camera intrinsics") },

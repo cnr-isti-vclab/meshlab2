@@ -31,6 +31,8 @@
     "fmt",
     "qhull",
     "jsoncpp",
+    "libpng",
+    "libjpeg-turbo",
     {
       "name": "libigl",
       "default-features": false,

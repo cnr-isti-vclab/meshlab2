@@ -27,6 +27,20 @@
       "licenseNote": "Verified 2026-10-14, quoting the page: 'The entire dataset, including both RGB-D scans and reconstructed models, is in the public domain. Any part of the dataset can be used for any purpose with proper attribution.' Open3D's own source does not state which Redwood dataset the five-frame sample is drawn from, so the attribution below follows the maintainer's determination.",
       "citation": "Jaesik Park, Qian-Yi Zhou and Vladlen Koltun, \"Colored Point Cloud Registration Revisited\", ICCV 2017.",
       "ciEligible": true
+    },
+    {
+      "name": "texture_consolidation_vase",
+      "description": "TextureConsolidation's example data: a texture-atlased vase mesh (5,067 vertices, 9,998 faces, binary PLY with per-face texcoords), nine photographs at 1002 x 1336 and their pinhole cameras (cameras.json, OpenCV convention). Prepared by the authors: photos downsampled by 2, atlas regenerated with xatlas, mesh and cameras scaled to surface area 5. The end-to-end fixture for Transfer Color from Visible Rasters to Texture (Texture Consolidation).",
+      "urls": [
+        "https://github.com/hliuw/TextureConsolidation/releases/download/example-data/vase.zip"
+      ],
+      "sha256": "8e91db6c50563954799dbe5ddd0d053423716d31bf547da6f5a636c473aee477",
+      "bytes": 9222776,
+      "archive": "zip",
+      "license": "UNRESOLVED",
+      "licenseNote": "The archive's README says the vase model and photographs are courtesy of Paolo Cignoni and Marco Callieri, Visual Computing Laboratory, ISTI-CNR, and states no licence. Recorded 2026-10-28; the owners are to state the terms, which decide ciEligible.",
+      "citation": "Hongyi Liu, Yifan Wang, Vladimir G. Kim and Misha Kazhdan, \"Texture Consolidation of Generated Multi-View Renderings\", arXiv 2610.36098, 2026.",
+      "ciEligible": false
     }
   ]
 }
