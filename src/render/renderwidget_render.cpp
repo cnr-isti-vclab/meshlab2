@@ -290,17 +290,19 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         advanceCenterAnimation();
         // After the center: it reads the animated center back out of the state.
         advanceCameraAnimation();
-        emitCameraStateChangedIfNeeded();
-        // Every camera change funnels through a frame, so this is the one place
-        // that keeps the gizmo in sync without touching each navigation path.
-        if (m_axisGizmo)
-            m_axisGizmo->setOrientation(m_trackball.state().rotation);
     } else {
         m_depthPickPending = false;
     }
     syncPerMeshRenderModesWithDocument();
     if (!rasterMode) {
         updateCameraFrameIfNeeded();
+        // Every camera change funnels through a frame, so this is the one place that tells the
+        // linked views and keeps the gizmo in sync without touching each navigation path. After
+        // the reframe, which a reset does here: before it, the gizmo kept the old orientation,
+        // as no later frame came to correct it.
+        emitCameraStateChangedIfNeeded();
+        if (m_axisGizmo)
+            m_axisGizmo->setOrientation(m_trackball.state().rotation);
         // Keep the far plane wide enough for the whole scene regardless of how
         // tightly the camera is framed (e.g. after Center on Selection).
         QVector3D sceneMin, sceneMax;
