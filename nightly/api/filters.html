@@ -6797,7 +6797,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.subdivide_by_butterfly">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">subdivide_by_butterfly</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.subdivide_by_butterfly" title="Link to this definition">¶</a></dt>
-<dd><p>Apply Butterfly Subdivision Surface algorithm. It is an interpolated refinement method, defined on arbitrary triangular meshes. The scheme is known to be C1 but not C2 on regular meshes<br></p>
+<dd><p>Apply Butterfly Subdivision Surface algorithm. It is an interpolated refinement method, defined on arbitrary triangular meshes. The scheme is known to be C1 but not C2 on regular meshes.</p>
+<p>Defined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use <em>Subdivide by Catmull-Clark</em>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>Iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of times the model is subdivided.</p></li>
@@ -6849,7 +6850,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.subdivide_by_loop">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">subdivide_by_loop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.subdivide_by_loop" title="Link to this definition">¶</a></dt>
-<dd><p>Apply Loop’s Subdivision Surface algorithm. It is an approximant refinement method and it works for every triangle and has rules for extraordinary vertices.<br></p>
+<dd><p>Apply Loop’s Subdivision Surface algorithm. It is an approximant refinement method and it works for every triangle and has rules for extraordinary vertices.</p>
+<p>Defined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use <em>Subdivide by Catmull-Clark</em>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>LoopWeight</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">loop</span></code>) — Change the weights used. Allows one to optimize some behaviors over others.</p></li>
@@ -6869,6 +6871,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dt class="sig sig-object py" id="meshlab.ms.subdivide_by_ls3_loop">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">subdivide_by_ls3_loop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.subdivide_by_ls3_loop" title="Link to this definition">¶</a></dt>
 <dd><p>Apply LS3 Subdivision Surface algorithm using Loop’s weights. This refinement method take normals into account. <br>See:<i>Boye’, S. Guennebaud, G. &amp; Schlick, C.</i> <br><b>Least squares subdivision surfaces</b><br>Computer Graphics Forum, 2010.<br/><br/>Alternatives weighting schemes are based on the paper: <i>Barthe, L. &amp; Kobbelt, L.</i><br><b>Subdivision scheme tuning around extraordinary vertices</b><br>Computer Aided Geometric Design, 2004, 21, 561-583.<br/>The current implementation of these schemes don’t handle vertices of valence &gt; 12</p>
+<p>Defined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use <em>Subdivide by Catmull-Clark</em>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>LoopWeight</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">loop</span></code>) — Change the weights used.</p></li>
@@ -6888,6 +6891,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dt class="sig sig-object py" id="meshlab.ms.subdivide_by_midpoint">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">subdivide_by_midpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.subdivide_by_midpoint" title="Link to this definition">¶</a></dt>
 <dd><p>Apply a plain subdivision scheme where every edge is split on its midpoint. Useful to uniformly refine a mesh substituting each triangle with four smaller triangles.</p>
+<p>Defined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use <em>Subdivide by Catmull-Clark</em>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>Iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of times the model is subdivided.</p></li>

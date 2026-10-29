@@ -296,6 +296,11 @@ third field (<code class="docutils literal notranslate"><span class="pre">2026.1
 (<code class="docutils literal notranslate"><span class="pre">2026,11,1,0</span></code>).</p>
 <p><code class="docutils literal notranslate"><span class="pre">release.yml</span></code> runs on such a tag and refuses to continue unless the tag equals
 <code class="docutils literal notranslate"><span class="pre">MESHLAB2_VERSION</span></code> and the tagged commit is an ancestor of <code class="docutils literal notranslate"><span class="pre">origin/main</span></code>.</p>
+<p>The title bar and the About box name the build as the original MeshLab did: a release by
+its version (<code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">2026.11</span></code>), any other build – a nightly, a local one – by the day it
+was configured (<code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">2026.10.29</span></code>, UTC, like the artifact names). The packaging
+workflows pass <code class="docutils literal notranslate"><span class="pre">-DMESHLAB2_RELEASE_BUILD=ON</span></code> only when <code class="docutils literal notranslate"><span class="pre">release.yml</span></code> calls them with a
+version; the date is otherwise refreshed at every configure, which a commit triggers.</p>
 </section>
 <section id="releasing">
 <h2>Releasing<a class="headerlink" href="#releasing" title="Link to this heading">¶</a></h2>
