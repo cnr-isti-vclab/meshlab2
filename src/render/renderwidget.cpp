@@ -120,8 +120,9 @@ protected:
 
         // The frame: milky fog fading inward from every edge, with puffs along it so it reads
         // as cloud rather than as a vignette. The puffs vary by a fixed pattern, so the frame
-        // stays put as it repaints.
-        const int band = std::max(28, std::min(width(), height()) / 9);
+        // stays put as it repaints. Their size and spacing follow the band, kept narrow so the
+        // frame takes little of the snapshot.
+        const int band = std::max(14, std::min(width(), height()) / 18);
         const QColor fog(240, 242, 246, 235);
         const QColor clear(240, 242, 246, 0);
         const auto fade = [&](const QRect &r, QPointF from, QPointF to) {
