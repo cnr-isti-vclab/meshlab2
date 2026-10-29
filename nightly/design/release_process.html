@@ -381,9 +381,13 @@ first release, for the cache reason above; branch protection comes after.</p></l
 <li><p>Linux: <code class="docutils literal notranslate"><span class="pre">linux-appimage.yml</span></code> builds, tests and packages an AppImage on <code class="docutils literal notranslate"><span class="pre">devel</span></code> pushes,
 and <code class="docutils literal notranslate"><span class="pre">release.yml</span></code> attaches it to a release. It packages and passes a headless smoke test
 (no unresolved libraries; the bundled interpreter and <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> start); it has not yet
-been tried on a real desktop. It is built on <code class="docutils literal notranslate"><span class="pre">ubuntu-22.04</span></code>, so it needs a glibc and
-libstdc++ at least that new, and the file has to be made executable after download
-(<code class="docutils literal notranslate"><span class="pre">chmod</span> <span class="pre">+x</span></code>). Flatpak later for discoverability.</p></li>
+been tried on a real desktop. It is built on <code class="docutils literal notranslate"><span class="pre">ubuntu-24.04</span></code>, so it needs a glibc (2.39)
+and libstdc++ at least that new: Ubuntu 22.04 and its derivatives (Mint 21, Pop!_OS
+22.04) and Debian 12 cannot run it, and RHEL 9 and its rebuilds never could. It moved
+from 22.04 in 2026-10: 24.04’s GCC 13 is what TextureConsolidation’s helpers are tested
+with, where 22.04 would have needed a second compiler from a PPA, and 22.04 leaves
+standard support in April 2027. The file has to be made executable after download
+(<code class="docutils literal notranslate"><span class="pre">chmod</span> <span class="pre">+x</span></code>). Flatpak later for discoverability, and for the older systems.</p></li>
 <li><p>Nightly and beta channels as public GitHub pre-releases: designed, not built. Actions
 artifacts need a GitHub login, so testers cannot use them.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">tests.yml</span></code> is manual on purpose: it restores the packaging job’s vcpkg cache and the

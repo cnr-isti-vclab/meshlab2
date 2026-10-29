@@ -102,9 +102,13 @@ default branch. Otherwise every release starts from a cold cache.
 - Linux: `linux-appimage.yml` builds, tests and packages an AppImage on `devel` pushes,
   and `release.yml` attaches it to a release. It packages and passes a headless smoke test
   (no unresolved libraries; the bundled interpreter and `_meshlab` start); it has not yet
-  been tried on a real desktop. It is built on `ubuntu-22.04`, so it needs a glibc and
-  libstdc++ at least that new, and the file has to be made executable after download
-  (`chmod +x`). Flatpak later for discoverability.
+  been tried on a real desktop. It is built on `ubuntu-24.04`, so it needs a glibc (2.39)
+  and libstdc++ at least that new: Ubuntu 22.04 and its derivatives (Mint 21, Pop!_OS
+  22.04) and Debian 12 cannot run it, and RHEL 9 and its rebuilds never could. It moved
+  from 22.04 in 2026-10: 24.04's GCC 13 is what TextureConsolidation's helpers are tested
+  with, where 22.04 would have needed a second compiler from a PPA, and 22.04 leaves
+  standard support in April 2027. The file has to be made executable after download
+  (`chmod +x`). Flatpak later for discoverability, and for the older systems.
 - Nightly and beta channels as public GitHub pre-releases: designed, not built. Actions
   artifacts need a GitHub login, so testers cannot use them.
 - `tests.yml` is manual on purpose: it restores the packaging job's vcpkg cache and the
