@@ -60,8 +60,10 @@ set(TEXTURE_CONSOLIDATION_EXECUTABLES
 
 # The helpers' compiler: MeshLab's own unless set separately, for where that one is too old
 # for upstream's C++20 -- upstream builds with GCC 13, and the Linux release runner's
-# default (Ubuntu 22.04) is GCC 11.
-set(MESHLAB2_TEXTURE_CONSOLIDATION_CXX_COMPILER "${CMAKE_CXX_COMPILER}" CACHE FILEPATH
+# default (Ubuntu 22.04) is GCC 11. A STRING, not a FILEPATH: CMake turns a bare name
+# such as g++-13 given to a FILEPATH entry into a path under the build's working directory,
+# where a name is meant to be looked up on PATH.
+set(MESHLAB2_TEXTURE_CONSOLIDATION_CXX_COMPILER "${CMAKE_CXX_COMPILER}" CACHE STRING
     "C++ compiler for the TextureConsolidation helper programs")
 
 set(_texture_consolidation_cmake_args
