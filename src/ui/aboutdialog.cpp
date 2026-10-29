@@ -53,7 +53,7 @@ QString buildId()
 QString buildInformation()
 {
     return QObject::tr(
-        "MeshLab build: %1\n"
+        "MeshLab %9, build %1\n"
         "Built: %2\n"
         "Configuration: %3\n"
         "Qt: %4 (built with %5)\n"
@@ -67,7 +67,8 @@ QString buildInformation()
              QStringLiteral(QT_VERSION_STR),
              compilerName(),
              QSysInfo::prettyProductName(),
-             QSysInfo::currentCpuArchitecture());
+             QSysInfo::currentCpuArchitecture(),
+             QStringLiteral(MESHLAB2_DISPLAY_VERSION));
 }
 
 // The geometry code MeshLab is built on, split by how much of it there is: a general
@@ -185,8 +186,8 @@ AboutDialog::AboutDialog(const QString &systemReport, const QStringList &warning
     identity->setText(tr(
         "<div style='font-size:28pt; font-weight:600'>MeshLab</div>"
         "<div style='font-size:13pt'>The MeshLab rewrite for Qt 6</div>"
-        "<div style='margin-top:8px; color:gray'>Build %1</div>")
-        .arg(buildId().toHtmlEscaped()));
+        "<div style='margin-top:8px; color:gray'>%1 &middot; build %2</div>")
+        .arg(QStringLiteral(MESHLAB2_DISPLAY_VERSION), buildId().toHtmlEscaped()));
     identity->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
     header->addWidget(identity, 1);
     root->addLayout(header);

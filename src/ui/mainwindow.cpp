@@ -397,7 +397,7 @@ MainWindow::~MainWindow() = default;
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    setWindowTitle(QStringLiteral("MeshLab"));
+    setWindowTitle(QStringLiteral("MeshLab " MESHLAB2_DISPLAY_VERSION));
     setAcceptDrops(true);
     if (QScreen *screen = QGuiApplication::primaryScreen()) {
         const QRect avail = screen->availableGeometry();

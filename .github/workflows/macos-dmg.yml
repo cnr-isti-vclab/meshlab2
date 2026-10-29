@@ -219,6 +219,7 @@ jobs:
         run: |
           cmake --preset vcpkg-manifest \
             -DMESHLAB2_PLUGIN_FILTER_TEXTURE_CONSOLIDATION=OFF \
+            -DMESHLAB2_RELEASE_BUILD=${{ inputs.release_version && 'ON' || 'OFF' }} \
             -B "$BUILD_DIR" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \

@@ -30,6 +30,12 @@ third field (`2026.11.1`); the Windows version resource pads to four numbers
 `release.yml` runs on such a tag and refuses to continue unless the tag equals
 `MESHLAB2_VERSION` and the tagged commit is an ancestor of `origin/main`.
 
+The title bar and the About box name the build as the original MeshLab did: a release by
+its version (`MeshLab 2026.11`), any other build -- a nightly, a local one -- by the day it
+was configured (`MeshLab 2026.10.29`, UTC, like the artifact names). The packaging
+workflows pass `-DMESHLAB2_RELEASE_BUILD=ON` only when `release.yml` calls them with a
+version; the date is otherwise refreshed at every configure, which a commit triggers.
+
 ## Releasing
 
 A release is started by **pushing a tag**, not by running a workflow by hand. The tag

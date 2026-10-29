@@ -271,7 +271,7 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
-          cmake --preset vcpkg-manifest -B $env:BUILD_DIR -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$env:CMAKE_PREFIX_PATH" -DQt6_DIR="$env:Qt6_DIR" -DVCPKG_TARGET_TRIPLET="$env:VCPKG_TARGET_TRIPLET" -DVCPKG_OVERLAY_TRIPLETS="$env:VCPKG_OVERLAY_TRIPLETS" -DVCPKG_INSTALLED_DIR="$env:GITHUB_WORKSPACE\$env:BUILD_DIR\vcpkg_installed" -DVCPKG_MANIFEST_INSTALL=OFF
+          cmake --preset vcpkg-manifest -B $env:BUILD_DIR -DMESHLAB2_RELEASE_BUILD=${{ inputs.release_version && 'ON' || 'OFF' }} -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$env:CMAKE_PREFIX_PATH" -DQt6_DIR="$env:Qt6_DIR" -DVCPKG_TARGET_TRIPLET="$env:VCPKG_TARGET_TRIPLET" -DVCPKG_OVERLAY_TRIPLETS="$env:VCPKG_OVERLAY_TRIPLETS" -DVCPKG_INSTALLED_DIR="$env:GITHUB_WORKSPACE\$env:BUILD_DIR\vcpkg_installed" -DVCPKG_MANIFEST_INSTALL=OFF
 
       - name: Build
         shell: pwsh

@@ -427,7 +427,20 @@ execute_process(
 if(NOT MESHLAB2_BUILD_ID)
     set(MESHLAB2_BUILD_ID "unversioned")
 endif()
-target_compile_definitions(MeshLab2 PRIVATE MESHLAB2_BUILD_ID="${MESHLAB2_BUILD_ID}")
+# The name the build goes by in the title bar and the About box, as in the original MeshLab:
+# a release by its version (YYYY.MM, YYYY.MM.N for a hotfix), any other build -- a nightly, a
+# local one -- by the day it was configured (YYYY.MM.DD, UTC like the artifact names), which
+# the git dependency above refreshes at every commit. The packaging workflows turn the option
+# on when release.yml calls them with a version.
+option(MESHLAB2_RELEASE_BUILD "Name the build by MESHLAB2_VERSION rather than by its date" OFF)
+if(MESHLAB2_RELEASE_BUILD)
+    set(MESHLAB2_DISPLAY_VERSION "${MESHLAB2_VERSION}")
+else()
+    string(TIMESTAMP MESHLAB2_DISPLAY_VERSION "%Y.%m.%d" UTC)
+endif()
+target_compile_definitions(MeshLab2 PRIVATE
+    MESHLAB2_BUILD_ID="${MESHLAB2_BUILD_ID}"
+    MESHLAB2_DISPLAY_VERSION="${MESHLAB2_DISPLAY_VERSION}")
 
 target_link_libraries(MeshLab2 PRIVATE
     MeshLab2Plugins

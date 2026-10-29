@@ -165,6 +165,7 @@ jobs:
         run: |
           cmake --preset vcpkg-manifest \
             -B "$BUILD_DIR" \
+            -DMESHLAB2_RELEASE_BUILD=${{ inputs.release_version && 'ON' || 'OFF' }} \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
             -DVCPKG_TARGET_TRIPLET="$VCPKG_TARGET_TRIPLET" \
