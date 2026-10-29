@@ -173,7 +173,17 @@ jobs:
             -DVCPKG_MANIFEST_INSTALL=OFF
 
       - name: Build
-        run: cmake --build "$BUILD_DIR" -j"$(nproc)"
+        run: |
+          # Temporary: memory, disk and the largest processes once a minute, printed
+          # outside Ninja, which holds back its own output while the TextureConsolidation
+          # helper build runs. Two runs were cancelled mid-build with no error; remove this
+          # once the cause is known.
+          ( while sleep 60; do
+              free -m | awk -v t="$(date -u +%H:%M)" '/Mem:/{m=$3"/"$2" MB used, "$7" available"} /Swap:/{s=$3" MB swap"} END{print "[mem] " t " " m ", " s}'
+              df -h / | awk 'NR==2{print "[mem]   disk " $3 " used, " $4 " free"}'
+              ps -eo rss=,etime=,args= --sort=-rss | head -3 | awk '{f=$3; for(i=4;i<=NF;i++) if($i ~ /\.(c|cpp|cc)$/) f=$i; printf "[mem]   %6d MB %10s %s\n", $1/1024, $2, f}'
+            done ) &
+          cmake --build "$BUILD_DIR" -j"$(nproc)"
 
       - name: Run ctest
         run: |

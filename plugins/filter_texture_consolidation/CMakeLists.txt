@@ -105,7 +105,11 @@ add_library(MeshLab2PluginFilterTextureConsolidation STATIC
     textureconsolidationfilterplugin.h
     textureconsolidationfilterplugin.cpp
 )
-add_dependencies(MeshLab2PluginFilterTextureConsolidation MeshLab2TextureConsolidationHelpers)
+# No add_dependencies on the helpers: Ninja would pass it on to every target that links
+# the plugin, holding back the plugin registry's and all the tests' compiles behind the
+# stitcher (minutes, under GCC). The helpers are part of `all`, which every build and
+# ctest run goes through; a single-target build that skips them makes the filter report
+# that its programs are missing.
 target_include_directories(MeshLab2PluginFilterTextureConsolidation PUBLIC
     ${MESHLAB2_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
