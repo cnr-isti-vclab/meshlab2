@@ -27,9 +27,12 @@ concurrency:
 jobs:
   build-test:
     name: Build and test (Linux x86_64)
-    # The oldest runner image we can use, because an AppImage runs on anything with
-    # a glibc at least as new as the one it was built against.
-    runs-on: ubuntu-22.04
+    # An AppImage runs on anything with a glibc and libstdc++ at least as new as the
+    # ones it was built against, so this image sets the oldest Linux it supports. 24.04,
+    # not 22.04: its GCC 13 is what TextureConsolidation's helpers are tested with, and
+    # 22.04 leaves standard support in April 2027. See docs/design/release_process.md.
+    # The image is also in the vcpkg cache key below; change both together.
+    runs-on: ubuntu-24.04
     timeout-minutes: 150
     env:
       BUILD_DIR: build-release
@@ -60,13 +63,8 @@ jobs:
           # The autotools are for ports vcpkg builds with configure (GMP, Python).
           # The GL/xkb/fontconfig/dbus headers are what Qt's CMake config looks for
           # when it is linked into a program.
-          # g++-16 is for TextureConsolidation's helper programs only: upstream's C++20
-          # needs at least GCC 13, and Ubuntu 22.04 stops at GCC 12. The application
-          # itself stays on the system compiler, so the AppImage keeps its 22.04 baseline.
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            g++-16 \
             ninja-build \
             autoconf autoconf-archive automake libtool \
             libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev \
@@ -111,10 +109,10 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/vcpkg/archives
-          key: linux-vcpkg-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
+          key: linux-vcpkg-ubuntu24-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
           restore-keys: |
-            linux-vcpkg-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-
-            linux-vcpkg-${{ runner.arch }}-
+            linux-vcpkg-ubuntu24-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-
+            linux-vcpkg-ubuntu24-${{ runner.arch }}-
 
       - name: Install vcpkg dependencies
         id: vcpkg-install
@@ -149,7 +147,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ~/.cache/vcpkg/archives
-          key: linux-vcpkg-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
+          key: linux-vcpkg-ubuntu24-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
 
       - name: Upload vcpkg failure logs
         if: failure()
@@ -172,8 +170,7 @@ jobs:
             -DVCPKG_TARGET_TRIPLET="$VCPKG_TARGET_TRIPLET" \
             -DVCPKG_OVERLAY_TRIPLETS="$VCPKG_OVERLAY_TRIPLETS" \
             -DVCPKG_INSTALLED_DIR="$GITHUB_WORKSPACE/$BUILD_DIR/vcpkg_installed" \
-            -DVCPKG_MANIFEST_INSTALL=OFF \
-            -DMESHLAB2_TEXTURE_CONSOLIDATION_CXX_COMPILER=g++-16
+            -DVCPKG_MANIFEST_INSTALL=OFF
 
       - name: Build
         run: cmake --build "$BUILD_DIR" -j"$(nproc)"

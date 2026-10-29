@@ -58,23 +58,9 @@ set(TEXTURE_CONSOLIDATION_EXECUTABLES
     "${TEXTURE_CONSOLIDATION_BIN_DIR}/TextureDomainStitching${CMAKE_EXECUTABLE_SUFFIX}"
     CACHE INTERNAL "TextureConsolidation helper programs")
 
-# The helpers' compiler: MeshLab's own unless set separately, for where that one is too old
-# for upstream's C++20 -- upstream builds with GCC 13, and the Linux release runner's
-# default (Ubuntu 22.04) is GCC 11. A STRING, not a FILEPATH: CMake turns a bare name
-# such as g++-16 given to a FILEPATH entry into a path under the build's working directory,
-# where a name is meant to be looked up on PATH.
-set(MESHLAB2_TEXTURE_CONSOLIDATION_CXX_COMPILER "${CMAKE_CXX_COMPILER}" CACHE STRING
-    "C++ compiler for the TextureConsolidation helper programs")
-
-set(_texture_consolidation_cmake_args
-    "-DCMAKE_CXX_COMPILER=${MESHLAB2_TEXTURE_CONSOLIDATION_CXX_COMPILER}"
-)
-# A newer GCC than the system's brings a newer libstdc++, which the machines an AppImage
-# runs on may not have. The helpers are programs of their own, so they carry theirs.
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    list(APPEND _texture_consolidation_cmake_args
-        "-DCMAKE_EXE_LINKER_FLAGS=-static-libstdc++ -static-libgcc")
-endif()
+# The helpers use MeshLab's own compiler. Upstream is C++20 and tested with GCC 13.3, which
+# is why the Linux release builds on Ubuntu 24.04 (GCC 13) rather than 22.04 (GCC 11).
+set(_texture_consolidation_cmake_args "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
 if(_texture_consolidation_openmp_root)
     list(APPEND _texture_consolidation_cmake_args "-DOpenMP_ROOT=${_texture_consolidation_openmp_root}")
 endif()
