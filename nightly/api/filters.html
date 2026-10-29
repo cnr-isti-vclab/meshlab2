@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 399 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 400 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -6563,7 +6563,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>snapTolerance</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — How close to an existing vertex, as a fraction of the edge, the cut may fall before that vertex is moved onto the plane instead of the edge being split. Zero, the default, splits every crossing edge exactly; a vertex lying on the plane to within rounding is put on it regardless. Raising it leaves fewer thin triangles along the cut, but moves vertices by up to that fraction of an edge, which on long edges, such as the cap of an earlier cut, is enough to see.</p></li>
 <li><p><strong>closeCut</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the boundary opened by the plane is filled with new faces, so a closed mesh stays closed. All the loops on the plane are filled together with an even-odd rule, so a cut that leaves concentric outlines is capped as a ring rather than as overlapping discs. Only those loops are filled; holes the mesh already had are left alone. Parts of the layer that pass through each other are closed one by one.</p></li>
 </ul>
-<p>An outline that crosses or touches itself, as the section of a self-intersecting scan can, is still closed, though a few of its new faces may fold over others where it crosses. The log says how many edges of the cut, if any, could not be closed.</p>
+<p>An outline that crosses or touches itself, as the section of a self-intersecting scan can, is still closed, though a few of its new faces may fold over others where it crosses. The log says how many edges of the cut, if any, could not be closed, and why: an outline that runs into a hole the mesh already had or breaks at a non-manifold edge, outlines that cross where the surface intersects itself, or the folds of one closed anyway – with the repair to try first.</p>
 <ul class="simple">
 <li><p><strong>refineCap</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Add points inside the faces that close the cut, so they are well-shaped triangles rather than the long thin ones that reach across a cap whose outline is as fine as the mesh. Off, the cap is a plain constrained Delaunay triangulation of the outline, with no new vertices.</p></li>
 <li><p><strong>capMinAngle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">20.0</span></code>) — Used when the cap is refined. Points are added inside the cap until no triangle has an angle below this many degrees (Delaunay refinement), except where the outline itself has a sharper corner. A cap’s outline is as fine as the mesh while its inside is empty, so without them it is all long thin triangles reaching across. Above about 30 degrees the number of added points grows quickly; 34 is the most allowed.</p></li>
@@ -8793,6 +8793,23 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 
 <hr class="docutils" />
 </section>
+<section id="remove-textures">
+<span id="filter-remove-textures"></span><h2>Remove Textures<a class="headerlink" href="#remove-textures" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.texture</p>
+<p>Detach every texture from the current mesh, keeping its texture coordinates unless asked not to.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.remove_textures">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remove_textures</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.remove_textures" title="Link to this definition">¶</a></dt>
+<dd><p>Detaches all the textures of the current mesh – the images, and the materials that refer to them – so that it is drawn and saved untextured. The image files on disk are left alone. The texture coordinates stay, so that <em>Set Texture</em> can give the mesh another texture; <strong>Remove texture coordinates</strong> drops them as well, per wedge and per vertex, when the parametrization itself is not wanted any more.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>removeTexCoords</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also drop the per-wedge and per-vertex texture coordinates.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="set-texture">
 <span id="filter-set-texture"></span><h2>Set Texture<a class="headerlink" href="#set-texture" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code></p>
@@ -10759,6 +10776,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#select-visible-vertices">Select Visible Vertices</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.select_visible_vertices"><code class="docutils literal notranslate"><span class="pre">ms.select_visible_vertices()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#remove-textures">Remove Textures</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.remove_textures"><code class="docutils literal notranslate"><span class="pre">ms.remove_textures()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#set-texture">Set Texture</a><ul>

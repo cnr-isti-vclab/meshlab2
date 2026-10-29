@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 399 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 400 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -7990,7 +7990,7 @@ Unless the cut is closed the result is a surface with a new boundary, not a soli
 - **snapTolerance** (*double*, default: `0.0`) — How close to an existing vertex, as a fraction of the edge, the cut may fall before that vertex is moved onto the plane instead of the edge being split. Zero, the default, splits every crossing edge exactly; a vertex lying on the plane to within rounding is put on it regardless. Raising it leaves fewer thin triangles along the cut, but moves vertices by up to that fraction of an edge, which on long edges, such as the cap of an earlier cut, is enough to see.
 - **closeCut** (*bool*, default: `False`) — If enabled, the boundary opened by the plane is filled with new faces, so a closed mesh stays closed. All the loops on the plane are filled together with an even-odd rule, so a cut that leaves concentric outlines is capped as a ring rather than as overlapping discs. Only those loops are filled; holes the mesh already had are left alone. Parts of the layer that pass through each other are closed one by one.
 
-An outline that crosses or touches itself, as the section of a self-intersecting scan can, is still closed, though a few of its new faces may fold over others where it crosses. The log says how many edges of the cut, if any, could not be closed.
+An outline that crosses or touches itself, as the section of a self-intersecting scan can, is still closed, though a few of its new faces may fold over others where it crosses. The log says how many edges of the cut, if any, could not be closed, and why: an outline that runs into a hole the mesh already had or breaks at a non-manifold edge, outlines that cross where the surface intersects itself, or the folds of one closed anyway -- with the repair to try first.
 - **refineCap** (*bool*, default: `True`) — Add points inside the faces that close the cut, so they are well-shaped triangles rather than the long thin ones that reach across a cap whose outline is as fine as the mesh. Off, the cap is a plain constrained Delaunay triangulation of the outline, with no new vertices.
 - **capMinAngle** (*double*, default: `20.0`) — Used when the cap is refined. Points are added inside the cap until no triangle has an angle below this many degrees (Delaunay refinement), except where the outline itself has a sharper corner. A cap's outline is as fine as the mesh while its inside is empty, so without them it is all long thin triangles reaching across. Above about 30 degrees the number of added points grows quickly; 34 is the most allowed.
 - **capRefineBoundary** (*bool*, default: `False`) — Also add points on the outline of the cap, which brings the triangles next to it to the minimum angle as well. The mesh faces along the cut are split at the same points, so the mesh stays watertight, but they get thinner. Off, the outline and the mesh around it are left exactly as the cut made them.
@@ -10855,6 +10855,28 @@ Sagi Katz, Ayellet Tal, Ronen Basri, **Direct Visibility of Point Sets**, ACM Tr
 - **radiusThreshold** (*double*, default: `0.0`) — Exponent of the inversion sphere radius (radius * 10^threshold). Larger values mark more points as visible; use a large value for dense clouds, a small one for sparse clouds.
 - **usecamera** (*bool*, default: `False`) — Uses the ViewPoint from the camera associated to the current mesh. If there is no camera, an error occurs.
 - **viewpoint** (*point3f*, default: `[0.0, 0.0, 0.0]`) — Viewpoint position (ignored when UseCamera is true).
+```
+
+---
+
+(filter-remove-textures)=
+
+## Remove Textures
+
+**Categories:** `Texture/Assignment`
+
+**Plugin:** meshlab2.filter.texture
+
+Detach every texture from the current mesh, keeping its texture coordinates unless asked not to.
+
+```{py:function} ms.remove_textures(**params)
+:module: _meshlab
+
+Detaches all the textures of the current mesh -- the images, and the materials that refer to them -- so that it is drawn and saved untextured. The image files on disk are left alone. The texture coordinates stay, so that *Set Texture* can give the mesh another texture; **Remove texture coordinates** drops them as well, per wedge and per vertex, when the parametrization itself is not wanted any more.
+
+**Parameters:**
+
+- **removeTexCoords** (*bool*, default: `False`) — Also drop the per-wedge and per-vertex texture coordinates.
 ```
 
 ---
