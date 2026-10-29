@@ -2536,13 +2536,14 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             const float snap = float(std::clamp(
                 params.getDouble(QStringLiteral("snapTolerance")), 0.0, 0.45));
             bool clipped = false;
+            vcg::tri::PlanarCapReport cap;
             {
                 VCGMeshFFAdjScope _clipFFAdj(mesh);
                 vcg::PlanarRefinement refinement;   // with refineCap off, a minimum angle of 0 adds no points
                 refinement.minAngle = params.getBool(QStringLiteral("refineCap"))
                     ? params.getDouble(QStringLiteral("capMinAngle")) : 0.0;
                 refinement.splitBoundary = params.getBool(QStringLiteral("capRefineBoundary"));
-                clipped = vcg::tri::ClipMeshWithPlane(mesh, plane, closeCut, snap, refinement);
+                clipped = vcg::tri::ClipMeshWithPlane(mesh, plane, closeCut, snap, refinement, &cap);
             }
             if (!clipped)
                 return fail(QObject::tr("%1 left the mesh unchanged: the plane does not cut it.").arg(filterName));
@@ -2579,6 +2580,29 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 info << (open == 0
                              ? QObject::tr("Closed the cut.")
                              : QObject::tr("Could not close %1 edge(s) of the cut; they were left open.").arg(open));
+                // Why, outline by outline, as the cap reports it. Most reasons are a defect the
+                // mesh had before the cut, so each says what to repair before cutting again.
+                if (cap.notClosed > 0)
+                    info << QObject::tr("%n outline(s) of the cut are not closed on the plane: they run into a hole "
+                                        "the mesh already had, or break where the plane meets a non-manifold edge. "
+                                        "Close Holes, or Repair Non-Manifold Edges, before trimming.",
+                                        nullptr, cap.notClosed);
+                if (cap.holesRejected > 0)
+                    info << QObject::tr("%n outline(s) -- an outer one and the holes inside it -- could not be "
+                                        "triangulated together, typically because they cross where the surface "
+                                        "intersects itself (Select Self-Intersecting Faces shows where).",
+                                        nullptr, cap.holesRejected);
+                if (cap.nonManifold > 0)
+                    info << QObject::tr("%n outline(s) cross themselves and need ear cutting, which cannot pass "
+                                        "the non-manifold edges they touch. Repair Non-Manifold Edges first.",
+                                        nullptr, cap.nonManifold);
+                if (cap.noNormals > 0)
+                    info << QObject::tr("%n outline(s) need ear cutting, which needs vertex and face normals.",
+                                        nullptr, cap.noNormals);
+                if (cap.earCut > 0)
+                    info << QObject::tr("%n outline(s) cross themselves, where the surface intersects itself, and "
+                                        "were closed by ear cutting: a few cap triangles there may overlap.",
+                                        nullptr, cap.earCut);
             }
             return success(true, info);
         }

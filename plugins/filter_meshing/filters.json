@@ -3079,7 +3079,7 @@
         {
           "id": "closeCut",
           "label": "Close the cut",
-          "help": "If enabled, the boundary opened by the plane is filled with new faces, so a closed mesh stays closed. All the loops on the plane are filled together with an even-odd rule, so a cut that leaves concentric outlines is capped as a ring rather than as overlapping discs. Only those loops are filled; holes the mesh already had are left alone. Parts of the layer that pass through each other are closed one by one.\n\nAn outline that crosses or touches itself, as the section of a self-intersecting scan can, is still closed, though a few of its new faces may fold over others where it crosses. The log says how many edges of the cut, if any, could not be closed.",
+          "help": "If enabled, the boundary opened by the plane is filled with new faces, so a closed mesh stays closed. All the loops on the plane are filled together with an even-odd rule, so a cut that leaves concentric outlines is capped as a ring rather than as overlapping discs. Only those loops are filled; holes the mesh already had are left alone. Parts of the layer that pass through each other are closed one by one.\n\nAn outline that crosses or touches itself, as the section of a self-intersecting scan can, is still closed, though a few of its new faces may fold over others where it crosses. The log says how many edges of the cut, if any, could not be closed, and why: an outline that runs into a hole the mesh already had or breaks at a non-manifold edge, outlines that cross where the surface intersects itself, or the folds of one closed anyway -- with the repair to try first.",
           "group": "main",
           "type": "bool",
           "default": false

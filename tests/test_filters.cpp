@@ -432,6 +432,7 @@ private slots:
     void trimByPlaneOnAMovedLayerReproducesTheViewportClippingPlane();
     void trimByPlaneRefusesRatherThanEmptyTheLayer();
     void trimByPlaneClosesTheCutOnRequest();
+    void trimByPlaneSaysWhyACutStaysOpen();
     void trimByPlaneClosesAConcentricCutAsAnAnnulus();
     void trimByPlaneClosesTwoDisjointCutsSeparately();
     void trimByPlaneClosesShellsThatPassThroughEachOther();
@@ -1177,6 +1178,34 @@ void FilterTests::trimByPlaneClosesTheCutOnRequest()
         }
     }
     QVERIFY2(remaining > 0, "a hole the mesh already had must survive the cut being closed");
+}
+
+// A cut that cannot be closed says why. Through a cube missing its top, the outline on the
+// plane runs into that hole, so it is not closed on the plane, and the log says so and what to
+// repair, rather than only how many edges were left open.
+void FilterTests::trimByPlaneSaysWhyACutStaysOpen()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    for (VCGFace &f : cube.face)
+        if (vcg::Barycenter(f).Y() > 0.99f)
+            vcg::tri::Allocator<VCGMesh>::DeleteFace(cube, f);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(cube);
+    QVERIFY(doc.addMesh(cube, QStringLiteral("open-top cube")) >= 0);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("planeNormal"), QVector3D(1.0f, 0.0f, 0.0f));
+    params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
+    params.insert(QStringLiteral("planeOffset"), 0.0);
+    params.insert(QStringLiteral("closeCut"), true);
+    const MeshFilterRunResult r =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("trim_surface_by_plane")), params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const QString log = r.infoMessages.join(QStringLiteral(" | "));
+    QVERIFY2(log.contains(QStringLiteral("Could not close")), qPrintable(log));
+    QVERIFY2(log.contains(QStringLiteral("1 outline(s) of the cut are not closed on the plane")), qPrintable(log));
+    QVERIFY2(log.contains(QStringLiteral("Close Holes")), qPrintable(log));
 }
 
 void FilterTests::trimByPlaneClosesAConcentricCutAsAnAnnulus()
