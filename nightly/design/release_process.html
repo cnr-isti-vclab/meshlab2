@@ -303,7 +303,7 @@ third field (<code class="docutils literal notranslate"><span class="pre">2026.1
 name is the version, and <code class="docutils literal notranslate"><span class="pre">release.yml</span></code> takes it from there.</p>
 <ol class="arabic">
 <li><p>On <code class="docutils literal notranslate"><span class="pre">devel</span></code>: bump <code class="docutils literal notranslate"><span class="pre">MESHLAB2_VERSION</span></code> in <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code>; make sure <code class="docutils literal notranslate"><span class="pre">vcglib/</span></code> is
-clean, pushed to <code class="docutils literal notranslate"><span class="pre">origin/devel</span></code> and its gitlink bumped (see CLAUDE.md); make sure the
+clean, pushed to <code class="docutils literal notranslate"><span class="pre">origin/devel</span></code> and its gitlink bumped (see <code class="docutils literal notranslate"><span class="pre">AGENTS.md</span></code>); make sure the
 tests pass.</p></li>
 <li><p>Fast-forward <code class="docutils literal notranslate"><span class="pre">main</span></code> to that commit and push it. This deploys the release docs.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>switch<span class="w"> </span>main<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>merge<span class="w"> </span>--ff-only<span class="w"> </span>devel<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>main

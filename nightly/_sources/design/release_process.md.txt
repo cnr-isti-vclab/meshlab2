@@ -36,7 +36,7 @@ A release is started by **pushing a tag**, not by running a workflow by hand. Th
 name is the version, and `release.yml` takes it from there.
 
 1. On `devel`: bump `MESHLAB2_VERSION` in `CMakeLists.txt`; make sure `vcglib/` is
-   clean, pushed to `origin/devel` and its gitlink bumped (see CLAUDE.md); make sure the
+   clean, pushed to `origin/devel` and its gitlink bumped (see `AGENTS.md`); make sure the
    tests pass.
 2. Fast-forward `main` to that commit and push it. This deploys the release docs.
 

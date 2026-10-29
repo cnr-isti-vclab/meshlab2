@@ -189,7 +189,7 @@ bottom, while OpenCV looks down +z with y pointing down and the origin top-left.
 test, not by derivation**. Project every vertex of a mesh through `vcg::Shot` and
 through the converted pinhole model, and require the two to agree to well under a pixel.
 A wrong sign here does not crash anything. It shifts every projection, as a wrong
-intrinsic did on the raster fixture before (see `CLAUDE.md`).
+intrinsic did on the raster fixture before (see `AGENTS.md`).
 
 ## Tests
 
@@ -211,22 +211,23 @@ intrinsic did on the raster fixture before (see `CLAUDE.md`).
     (App. C), so the assertion should not use them.
   - Failure path: a disconnected mesh is refused before any helper runs.
 - **Dataset:** the vase from the upstream release (`example-data/vase.zip`) — your and
-  Callieri's data, by the README — would make a real-photograph fixture. Adding it to
-  `tests/datasets/datasets.json` needs its sha256, size and a licence entry, which only
-  you can give.
+  Callieri's data, by the README — is `texture_consolidation_vase` in
+  `tests/datasets/datasets.json`, with its sha256 and size. Its licence is `UNRESOLVED`
+  and it is not CI-eligible until you settle that; no test uses it yet.
 
 ## Packaging
 
 - **Submodule** `external/texture-consolidation`, recursive (its three submodules come
-  with it). Adding it is a git action for you; the command is in Phase 0.
+  with it), registered and pointing at the fork while its changes are proposed upstream.
 - **Helper build** through `ExternalProject_Add`, as QuadWild does, targeting the three
   programs and passing our toolchain, so that its `find_package` calls find vcpkg's
   libraries.
 - **vcpkg** gains `libpng` and `libjpeg-turbo`; `zlib` is already installed.
-- **OpenMP** is `REQUIRED` upstream (change 2 below would remove that), and a missing
-  OpenMP inside an `ExternalProject` fails the whole build at build time. So the plugin checks for OpenMP at configure
-  time with the same Apple hints `filter_screened_poisson` uses, and disables itself
-  with a message when it is absent. On macOS the helpers then need a `libomp` at run
+- **OpenMP** is `REQUIRED` upstream and stays so (change 2 below was not pursued). A
+  missing OpenMP inside an `ExternalProject` fails the whole build at build time, so on
+  macOS the plugin looks for a runtime at configure time with the hints
+  `filter_screened_poisson` uses (`OpenMP_ROOT`, then Homebrew's `libomp`) and skips
+  itself with a message when there is none; GCC and MSVC bring their own. On macOS the helpers then need a `libomp` at run
   time: whether the one the application already ships is reachable from
   `Contents/Helpers` is to be verified.
 - **Bundling:** `meshlab2_bundle_quadwild` is QuadWild-specific, and the three release
@@ -245,7 +246,7 @@ TextureSignalProcessing**: all three live in TextureConsolidation's own reposito
 | # | Change | Size | What it saves MeshLab |
 |---|---|---|---|
 | 1 | Build the stitcher from a two-line wrapper, `src/TextureDomainStitching/TextureDomainStitching.cpp`, that defines `MK_ERROR_OUT(...)` to `MK_THROW(__VA_ARGS__)` and then includes TextureSignalProcessing's `TextureStitching.cpp`, exactly as their other two programs already do. | one new file, one CMake line | Every failure then exits non-zero, so the exit code can be trusted. |
-| 2 | `find_package(OpenMP)` without `REQUIRED`; link it if found. The code already falls back to Misha's `std::thread` pool. | two CMake lines | No `libomp` to build, bundle and sign on macOS, and no configure-time check to disable the plugin. To be measured in Phase 0: the speed with and without OpenMP. |
+| 2 | `find_package(OpenMP)` without `REQUIRED`; link it if found. The code already falls back to Misha's `std::thread` pool. | two CMake lines | No `libomp` to build, bundle and sign on macOS, and no configure-time check to disable the plugin. Measured in Phase 0: 27.5 s with OpenMP, 28.4 s without, on the vase. **Not pursued**: MeshLab already ships `libomp`, and the no-OpenMP build crashed in Misha (see the status below). |
 | 3 | Make `TextureFlow`'s parameters independent of the mesh's scale, for example by normalizing internally to a unit bounding-box diagonal or area, *or* write down the scale the defaults assume. | small, but it changes their results | The adapter's normalization, and open question 1. It is the change most useful to other users too, since their README already warns about it. |
 | 4 | A version tag once the interface settles. | none | A release to pin, not a daily commit. |
 
@@ -254,37 +255,35 @@ Not needed, because the code already does it: error exit codes in `BackProjectio
 in Misha would also help a packager, since GitHub reports its licence as unknown even
 though every header is BSD-3-Clause. That is the authors' own call.
 
-**Status, 2026-10-28.** The fork is [cignoni/TextureConsolidation](https://github.com/cignoni/TextureConsolidation),
-cloned with its submodules into `external/texture-consolidation` (not yet registered as a
-submodule of MeshLab). **Upstream does not build on macOS**, which its README does not
-claim (Ubuntu with GCC 13, and MSVC). Two errors stop it with Apple clang 21:
+**Status, 2026-10-29.** The fork is [cignoni/TextureConsolidation](https://github.com/cignoni/TextureConsolidation),
+registered as the MeshLab submodule `external/texture-consolidation`. **Upstream does not
+build on macOS**, which its README does not claim (Ubuntu with GCC 13, and MSVC). Two
+errors stop it with Apple clang 21:
 
 - the vendored Eigen 3.3.7 uses `std::result_of`, which C++20 removed and libc++ enforces;
 - `Misha/Polynomial.h:105`, `static const unsigned int NumCoefficients =
   NumCoefficients< Dim , Degree >();`, where clang resolves the right-hand name to the member
   being declared and GCC to the function template. Every other Misha error cascades from it.
 
-With both fixed, all three programs build (about 140 s; 116 s without OpenMP). Three
-commits sit on branch `meshlab-integration` of the fork, one per pull request:
+Everything is on the fork's `main`, three commits on top of upstream `557829d`:
 
 | Commit | Change |
 |---|---|
-| `a3b189f` | `EIGEN_HAS_STD_RESULT_OF=0`, Eigen's own `#ifndef`-guarded switch to its fallback |
-| `f14ed95` | OpenMP optional, behind `TEXTURE_CONSOLIDATION_USE_OPENMP` |
-| `80e83e8` | the stitcher built through the `MK_ERROR_OUT`-to-throw wrapper (change 1). Measured with `nm`: 48 instantiations of `MishaK::ErrorOut` before, none after |
+| `f42e50f` | integration-only: `extern/Misha` pointed at [cignoni/Misha](https://github.com/cignoni/Misha) |
+| `3598fe7` | integration-only: `extern/Misha` bumped to the Misha fix, `bcc2065` |
+| `4efb2e6` | the pull-request candidate: `EIGEN_HAS_STD_RESULT_OF=0`, Eigen's own `#ifndef`-guarded switch to its fallback; the stitcher built through the `MK_ERROR_OUT`-to-throw wrapper (change 1; measured with `nm`, 48 instantiations of `MishaK::ErrorOut` before, none after); and the guard against an all-NaN overlap in `TextureRegistration.inl` (finding 2 below) |
 
 The Misha fix is a one-line qualification, `MishaK::Polynomial::NumCoefficients<…>`, and
-belongs in **Misha**, which TextureConsolidation pulls in as a submodule. It is `7708267`
-on branch `fix-clang-numcoefficients` of [cignoni/Misha](https://github.com/cignoni/Misha),
-one commit on top of `mkazhdan/Misha` `main` (`ee14cb8`). Misha's open PR #7 (Hongyi Liu,
-2026-10-06) does not contain it: that PR's other fixes were already folded into `main` by
-`ee14cb8`, and no branch of `mkazhdan/Misha` has this line fixed.
+belongs in **Misha**, which TextureConsolidation pulls in as a submodule. It is `bcc2065`
+on `main` of cignoni/Misha, one commit on top of `mkazhdan/Misha` `main` (`ee14cb8`).
+Misha's open PR #7 (Hongyi Liu, 2026-10-06) does not contain it: that PR's other fixes
+were already folded into `main` by `ee14cb8`, and no branch of `mkazhdan/Misha` has this
+line fixed.
 
-A fourth commit on `meshlab-integration`, `6e778eb`, marked integration-only, points
-`extern/Misha` at that fork commit. **A fresh recursive clone of `meshlab-integration`
-builds on macOS with no local edits** (116 s, without OpenMP). The pull requests to
-`hliuw/TextureConsolidation` are the three commits below it. Once the Misha fix lands
-upstream, `6e778eb` is replaced by a plain gitlink bump with the original URL restored.
+Change 2 was not pursued: OpenMP stays `REQUIRED`, as upstream has it, since MeshLab
+already links and ships `libomp` for Screened Poisson, and building without it exposed a
+crash in Misha (Phase 0 below). Once `4efb2e6` and the Misha fix land upstream, the two
+integration-only commits are dropped and the submodule returns to `hliuw/TextureConsolidation`.
 
 **How this fits the third-party rule.** The submodule would point at the fork while the
 pull requests are open, and back at upstream once they merge; that is a URL change in
@@ -295,14 +294,8 @@ that stops being proposed upstream would become a vendored tree in all but name.
 
 ## Phases
 
-**Phase 0 — feasibility, no MeshLab code** (about a day). Add the submodule, pointing at
-the fork instead if it exists by then:
-
-```bash
-git submodule add https://github.com/hliuw/TextureConsolidation.git external/texture-consolidation && git submodule update --init --recursive external/texture-consolidation
-```
-
-Then build the three programs with our vcpkg on macOS. Run the upstream vase example and
+**Phase 0 — feasibility, no MeshLab code** (about a day). Add the submodule (done: it
+points at the fork). Then build the three programs with our vcpkg on macOS. Run the upstream vase example and
 time it. Hand-export the gargoyle, atlased by xatlas, to their format with a throwaway
 script, and run it end to end. Read the helpers' output to find stage markers for the
 progress bar, and confirm that nothing in the pipeline is random. *Exit:* both datasets
@@ -320,36 +313,70 @@ paragraph saying why it is a submodule and not a port.
 texture, Fig. 15b), if the programs expose it — the README lists no such option; and lens
 undistortion, so that distorted rasters can be used instead of refused.
 
-## Status, 2026-10-28 (Phase 0 done, Phase 1 in progress)
+## Status, 2026-10-29 (Phase 1 done; Phase 2 not started)
 
 **Phase 0.** The authors' vase example (`texture_consolidation_vase` in
-`tests/datasets/datasets.json`, licence unresolved) runs end to end from a fresh clone of
-the fork without OpenMP: 28.4 s against 27.5 s with OpenMP, and no `libomp`. Building
-without OpenMP exposed a crash in Misha's `std::thread` `ParallelFor`, whose futures were
-a `static` local shared between concurrent calls. That is fixed on
-`cignoni/Misha` `fix-async-parallelfor`.
+`tests/datasets/datasets.json`, licence unresolved, not used in CI) runs end to end
+through the three programs: 27.5 s with OpenMP, 28.4 s without. Building without OpenMP
+exposed a crash in Misha's `std::thread` `ParallelFor`, whose futures were a `static`
+local shared between concurrent calls. A fix was written but is not committed anywhere:
+the helpers build with OpenMP, which does not reach that code.
 
-**Phase 1.** `plugins/filter_texture_consolidation` exists and runs: *Transfer Color from
-Visible Rasters to Texture (Texture Consolidation)*. It builds the three helpers through
-`ExternalProject` with vcpkg's `libpng` and `libjpeg-turbo` and finds them in the build
-tree. It skips cleanly while the submodule is unregistered. What it does:
+**Phase 1.** `plugins/filter_texture_consolidation` provides *Transfer Color from Visible
+Rasters to Texture (Texture Consolidation)*. It builds the three helpers through
+`ExternalProject` with vcpkg's `libpng` and `libjpeg-turbo`, and finds them in the build
+tree. What it does:
 
 - refuses: no atlas; fewer than two visible rasters; non-perspective or distorted cameras;
   an atlas of about one chart per face (`facesPerChart < 2`). The last was found by the
   smoke tier's raster rung, whose 20,000 one-triangle charts held the stitcher for minutes
   at 9–12 GB. A real xatlas atlas of the same mesh has 300 charts, and the vase 65;
 - scales the mesh and cameras to surface area 5, the scale the vase data was prepared at,
-  and converts each `vcg::Shot` to an OpenCV pinhole camera (`pinholecamera.h`). The
-  conversion is checked against `Shot::Project` on every visible gargoyle vertex: within
-  0.05 px, the same pixel index as MeshLab's raster sampling, and unchanged by world
-  scale;
+  and converts each `vcg::Shot` to an OpenCV pinhole camera (`pinholecamera.h`);
 - checks every helper's outputs, keeps the intermediate files on failure (and on request
   with `MESHLAB2_TEXTURE_CONSOLIDATION_KEEP`), and turns the stitcher's "Failed to
   factorize matrix" into advice to raise the texture size: on the gargoyle, 256² usually
   fails, 512² works with warnings, and 1024² is clean.
 
-Not done: bundling into the application and the release workflows; the About entry and
-`UPSTREAM.md` (after the submodule is registered); Windows and Linux.
+Tests, all on the gargoyle raster fixture:
+
+- `textureConsolidationCameraMatchesShotProjection`: the conversion agrees with
+  `Shot::Project` on every visible vertex within 0.05 px, gives the same pixel index as
+  MeshLab's raster sampling, and is unchanged by world scale;
+- `textureConsolidationBuildsTextureFromRasters`: xatlas atlas, then 1024² at 3 levels; a
+  1024×1024 texture is attached and covers more than 20% of it (29.4% is typical). The
+  helpers are not deterministic (finding 1), so nothing is compared against a reference
+  image. Also asserts the refusals for no atlas and for fewer than two rasters;
+- the smoke tier lists the filter in `expectedRefusals()`: no rung has both a real atlas
+  and rasters.
+
+The About box and the third-party test list TextureConsolidation, and the third-party
+test classifies `libpng` and `libjpeg-turbo`.
+
+**Builds.** On macOS the plugin needs an OpenMP runtime (`OpenMP_ROOT`, or Homebrew's
+`libomp`) and skips itself without one. Windows (MSVC) builds all three helpers in CI, but
+that workflow does not run ctest. On Linux the helpers need GCC 13, so the AppImage moved
+from Ubuntu 22.04 to 24.04 (see [release_process.md](../release_process.md)); the first
+24.04 run is in progress at the time of writing.
+
+**Compile cost.** The stitcher is one translation unit and dominates the build: 2.5 min
+and 4.4 GB with Apple clang, 7.4 min and 4.7 GB with GCC 16 on the same machine, about
+8 min with MSVC in CI, against seconds for the other two programs. It is not the source
+size: all three preprocess to 205,000–240,000 lines, but the stitcher's object file is
+32.7 MB against 0.8 and 2.1 MB. `-O0` takes 17.5 s, so nearly all of it is optimization of
+template copies. Precision (2 values, `TextureStitching.cpp:1518`) and texture bit depth
+(4 values, `:1437`) are run-time options dispatched to template parameters, so the whole
+`Stitching` class is compiled 8 times; inside each copy, the operator assembly is built
+for 6 quadrature values (`Operators.inl:1376`), 2 sanity-check settings and 4 call sites
+with their own lambda types (`TextureStitching.cpp:777–786`). About 384 copies, of which a
+MeshLab run (float, 8-bit, quadrature 6) executes one.
+
+**Not done:**
+
+- bundling the helpers into the three packages (Phase 2), with `libomp` on macOS;
+- `UPSTREAM.md` for the plugin and the `external/README.md` paragraph;
+- the pull requests to `hliuw/TextureConsolidation` and `mkazhdan/Misha`;
+- running the vase through the filter itself, and the seam-discrepancy comparison test.
 
 **Found in upstream behaviour, for the authors:**
 
@@ -360,13 +387,17 @@ Not done: bundling into the application and the release workflows; the About ent
 2. **`TextureFlow` could loop forever.** When every remaining overlap is NaN, the
    source-selection `if( overlap>maxOverlap )` never fires and `while( true )` re-solves
    one view indefinitely. It hung in about 1 run in 8 on the gargoyle. Now a reported
-   error: commit `8f226a5`, a pull-request candidate.
+   error, in fork commit `4efb2e6`.
 3. **The advection produces non-finite values** in roughly 1 run in 5 or 6 on the gargoyle
    (15 of 80, then 13 of 80 with the advection loop made serial), anywhere from 1 to
    2,765 texels. It is not a race in that loop. Most such runs used to finish
    "successfully", carrying NaN-derived texels, which is the likely cause of one run's
    95.8% coverage against the usual 29.4%. Whether a non-finite advected sample should be
    treated as zero confidence, or reported, is the authors' call.
+4. **The stitcher's compile cost** (above). The bit depth looks to matter only for
+   reading and writing images, though that is not verified; if so, making it a plain
+   run-time value would cut the stitcher's compile time about fourfold. That would be a
+   pull request to TextureSignalProcessing, not to TextureConsolidation.
 
 ## Open questions
 

@@ -572,7 +572,7 @@ bottom, while OpenCV looks down +z with y pointing down and the origin top-left.
 test, not by derivation</strong>. Project every vertex of a mesh through <code class="docutils literal notranslate"><span class="pre">vcg::Shot</span></code> and
 through the converted pinhole model, and require the two to agree to well under a pixel.
 A wrong sign here does not crash anything. It shifts every projection, as a wrong
-intrinsic did on the raster fixture before (see <code class="docutils literal notranslate"><span class="pre">CLAUDE.md</span></code>).</p>
+intrinsic did on the raster fixture before (see <code class="docutils literal notranslate"><span class="pre">AGENTS.md</span></code>).</p>
 </section>
 </section>
 <section id="tests">
@@ -599,24 +599,25 @@ own image metrics (LPIPS, SSIM, ECD) do not all favour it, and it says why
 </ul>
 </li>
 <li><p><strong>Dataset:</strong> the vase from the upstream release (<code class="docutils literal notranslate"><span class="pre">example-data/vase.zip</span></code>) — your and
-Callieri’s data, by the README — would make a real-photograph fixture. Adding it to
-<code class="docutils literal notranslate"><span class="pre">tests/datasets/datasets.json</span></code> needs its sha256, size and a licence entry, which only
-you can give.</p></li>
+Callieri’s data, by the README — is <code class="docutils literal notranslate"><span class="pre">texture_consolidation_vase</span></code> in
+<code class="docutils literal notranslate"><span class="pre">tests/datasets/datasets.json</span></code>, with its sha256 and size. Its licence is <code class="docutils literal notranslate"><span class="pre">UNRESOLVED</span></code>
+and it is not CI-eligible until you settle that; no test uses it yet.</p></li>
 </ul>
 </section>
 <section id="packaging">
 <h2>Packaging<a class="headerlink" href="#packaging" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p><strong>Submodule</strong> <code class="docutils literal notranslate"><span class="pre">external/texture-consolidation</span></code>, recursive (its three submodules come
-with it). Adding it is a git action for you; the command is in Phase 0.</p></li>
+with it), registered and pointing at the fork while its changes are proposed upstream.</p></li>
 <li><p><strong>Helper build</strong> through <code class="docutils literal notranslate"><span class="pre">ExternalProject_Add</span></code>, as QuadWild does, targeting the three
 programs and passing our toolchain, so that its <code class="docutils literal notranslate"><span class="pre">find_package</span></code> calls find vcpkg’s
 libraries.</p></li>
 <li><p><strong>vcpkg</strong> gains <code class="docutils literal notranslate"><span class="pre">libpng</span></code> and <code class="docutils literal notranslate"><span class="pre">libjpeg-turbo</span></code>; <code class="docutils literal notranslate"><span class="pre">zlib</span></code> is already installed.</p></li>
-<li><p><strong>OpenMP</strong> is <code class="docutils literal notranslate"><span class="pre">REQUIRED</span></code> upstream (change 2 below would remove that), and a missing
-OpenMP inside an <code class="docutils literal notranslate"><span class="pre">ExternalProject</span></code> fails the whole build at build time. So the plugin checks for OpenMP at configure
-time with the same Apple hints <code class="docutils literal notranslate"><span class="pre">filter_screened_poisson</span></code> uses, and disables itself
-with a message when it is absent. On macOS the helpers then need a <code class="docutils literal notranslate"><span class="pre">libomp</span></code> at run
+<li><p><strong>OpenMP</strong> is <code class="docutils literal notranslate"><span class="pre">REQUIRED</span></code> upstream and stays so (change 2 below was not pursued). A
+missing OpenMP inside an <code class="docutils literal notranslate"><span class="pre">ExternalProject</span></code> fails the whole build at build time, so on
+macOS the plugin looks for a runtime at configure time with the hints
+<code class="docutils literal notranslate"><span class="pre">filter_screened_poisson</span></code> uses (<code class="docutils literal notranslate"><span class="pre">OpenMP_ROOT</span></code>, then Homebrew’s <code class="docutils literal notranslate"><span class="pre">libomp</span></code>) and skips
+itself with a message when there is none; GCC and MSVC bring their own. On macOS the helpers then need a <code class="docutils literal notranslate"><span class="pre">libomp</span></code> at run
 time: whether the one the application already ships is reachable from
 <code class="docutils literal notranslate"><span class="pre">Contents/Helpers</span></code> is to be verified.</p></li>
 <li><p><strong>Bundling:</strong> <code class="docutils literal notranslate"><span class="pre">meshlab2_bundle_quadwild</span></code> is QuadWild-specific, and the three release
@@ -650,7 +651,7 @@ TextureSignalProcessing</strong>: all three live in TextureConsolidation’s own
 <tr class="row-odd"><td><p>2</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">find_package(OpenMP)</span></code> without <code class="docutils literal notranslate"><span class="pre">REQUIRED</span></code>; link it if found. The code already falls back to Misha’s <code class="docutils literal notranslate"><span class="pre">std::thread</span></code> pool.</p></td>
 <td><p>two CMake lines</p></td>
-<td><p>No <code class="docutils literal notranslate"><span class="pre">libomp</span></code> to build, bundle and sign on macOS, and no configure-time check to disable the plugin. To be measured in Phase 0: the speed with and without OpenMP.</p></td>
+<td><p>No <code class="docutils literal notranslate"><span class="pre">libomp</span></code> to build, bundle and sign on macOS, and no configure-time check to disable the plugin. Measured in Phase 0: 27.5 s with OpenMP, 28.4 s without, on the vase. <strong>Not pursued</strong>: MeshLab already ships <code class="docutils literal notranslate"><span class="pre">libomp</span></code>, and the no-OpenMP build crashed in Misha (see the status below).</p></td>
 </tr>
 <tr class="row-even"><td><p>3</p></td>
 <td><p>Make <code class="docutils literal notranslate"><span class="pre">TextureFlow</span></code>’s parameters independent of the mesh’s scale, for example by normalizing internally to a unit bounding-box diagonal or area, <em>or</em> write down the scale the defaults assume.</p></td>
@@ -669,17 +670,16 @@ TextureSignalProcessing</strong>: all three live in TextureConsolidation’s own
 <code class="docutils literal notranslate"><span class="pre">TextureFlow</span></code>, progress output (<code class="docutils literal notranslate"><span class="pre">--verbose</span></code>), and any GPU dependency. A one-file <code class="docutils literal notranslate"><span class="pre">LICENSE</span></code>
 in Misha would also help a packager, since GitHub reports its licence as unknown even
 though every header is BSD-3-Clause. That is the authors’ own call.</p>
-<p><strong>Status, 2026-10-28.</strong> The fork is <a class="reference external" href="https://github.com/cignoni/TextureConsolidation">cignoni/TextureConsolidation</a>,
-cloned with its submodules into <code class="docutils literal notranslate"><span class="pre">external/texture-consolidation</span></code> (not yet registered as a
-submodule of MeshLab). <strong>Upstream does not build on macOS</strong>, which its README does not
-claim (Ubuntu with GCC 13, and MSVC). Two errors stop it with Apple clang 21:</p>
+<p><strong>Status, 2026-10-29.</strong> The fork is <a class="reference external" href="https://github.com/cignoni/TextureConsolidation">cignoni/TextureConsolidation</a>,
+registered as the MeshLab submodule <code class="docutils literal notranslate"><span class="pre">external/texture-consolidation</span></code>. <strong>Upstream does not
+build on macOS</strong>, which its README does not claim (Ubuntu with GCC 13, and MSVC). Two
+errors stop it with Apple clang 21:</p>
 <ul class="simple">
 <li><p>the vendored Eigen 3.3.7 uses <code class="docutils literal notranslate"><span class="pre">std::result_of</span></code>, which C++20 removed and libc++ enforces;</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">Misha/Polynomial.h:105</span></code>, <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">const</span> <span class="pre">unsigned</span> <span class="pre">int</span> <span class="pre">NumCoefficients</span> <span class="pre">=</span> <span class="pre">NumCoefficients&lt;</span> <span class="pre">Dim</span> <span class="pre">,</span> <span class="pre">Degree</span> <span class="pre">&gt;();</span></code>, where clang resolves the right-hand name to the member
 being declared and GCC to the function template. Every other Misha error cascades from it.</p></li>
 </ul>
-<p>With both fixed, all three programs build (about 140 s; 116 s without OpenMP). Three
-commits sit on branch <code class="docutils literal notranslate"><span class="pre">meshlab-integration</span></code> of the fork, one per pull request:</p>
+<p>Everything is on the fork’s <code class="docutils literal notranslate"><span class="pre">main</span></code>, three commits on top of upstream <code class="docutils literal notranslate"><span class="pre">557829d</span></code>:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -688,29 +688,28 @@ commits sit on branch <code class="docutils literal notranslate"><span class="pr
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">a3b189f</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">EIGEN_HAS_STD_RESULT_OF=0</span></code>, Eigen’s own <code class="docutils literal notranslate"><span class="pre">#ifndef</span></code>-guarded switch to its fallback</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">f42e50f</span></code></p></td>
+<td><p>integration-only: <code class="docutils literal notranslate"><span class="pre">extern/Misha</span></code> pointed at <a class="reference external" href="https://github.com/cignoni/Misha">cignoni/Misha</a></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">f14ed95</span></code></p></td>
-<td><p>OpenMP optional, behind <code class="docutils literal notranslate"><span class="pre">TEXTURE_CONSOLIDATION_USE_OPENMP</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3598fe7</span></code></p></td>
+<td><p>integration-only: <code class="docutils literal notranslate"><span class="pre">extern/Misha</span></code> bumped to the Misha fix, <code class="docutils literal notranslate"><span class="pre">bcc2065</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">80e83e8</span></code></p></td>
-<td><p>the stitcher built through the <code class="docutils literal notranslate"><span class="pre">MK_ERROR_OUT</span></code>-to-throw wrapper (change 1). Measured with <code class="docutils literal notranslate"><span class="pre">nm</span></code>: 48 instantiations of <code class="docutils literal notranslate"><span class="pre">MishaK::ErrorOut</span></code> before, none after</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">4efb2e6</span></code></p></td>
+<td><p>the pull-request candidate: <code class="docutils literal notranslate"><span class="pre">EIGEN_HAS_STD_RESULT_OF=0</span></code>, Eigen’s own <code class="docutils literal notranslate"><span class="pre">#ifndef</span></code>-guarded switch to its fallback; the stitcher built through the <code class="docutils literal notranslate"><span class="pre">MK_ERROR_OUT</span></code>-to-throw wrapper (change 1; measured with <code class="docutils literal notranslate"><span class="pre">nm</span></code>, 48 instantiations of <code class="docutils literal notranslate"><span class="pre">MishaK::ErrorOut</span></code> before, none after); and the guard against an all-NaN overlap in <code class="docutils literal notranslate"><span class="pre">TextureRegistration.inl</span></code> (finding 2 below)</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <p>The Misha fix is a one-line qualification, <code class="docutils literal notranslate"><span class="pre">MishaK::Polynomial::NumCoefficients&lt;…&gt;</span></code>, and
-belongs in <strong>Misha</strong>, which TextureConsolidation pulls in as a submodule. It is <code class="docutils literal notranslate"><span class="pre">7708267</span></code>
-on branch <code class="docutils literal notranslate"><span class="pre">fix-clang-numcoefficients</span></code> of <a class="reference external" href="https://github.com/cignoni/Misha">cignoni/Misha</a>,
-one commit on top of <code class="docutils literal notranslate"><span class="pre">mkazhdan/Misha</span></code> <code class="docutils literal notranslate"><span class="pre">main</span></code> (<code class="docutils literal notranslate"><span class="pre">ee14cb8</span></code>). Misha’s open PR #7 (Hongyi Liu,
-2026-10-06) does not contain it: that PR’s other fixes were already folded into <code class="docutils literal notranslate"><span class="pre">main</span></code> by
-<code class="docutils literal notranslate"><span class="pre">ee14cb8</span></code>, and no branch of <code class="docutils literal notranslate"><span class="pre">mkazhdan/Misha</span></code> has this line fixed.</p>
-<p>A fourth commit on <code class="docutils literal notranslate"><span class="pre">meshlab-integration</span></code>, <code class="docutils literal notranslate"><span class="pre">6e778eb</span></code>, marked integration-only, points
-<code class="docutils literal notranslate"><span class="pre">extern/Misha</span></code> at that fork commit. <strong>A fresh recursive clone of <code class="docutils literal notranslate"><span class="pre">meshlab-integration</span></code>
-builds on macOS with no local edits</strong> (116 s, without OpenMP). The pull requests to
-<code class="docutils literal notranslate"><span class="pre">hliuw/TextureConsolidation</span></code> are the three commits below it. Once the Misha fix lands
-upstream, <code class="docutils literal notranslate"><span class="pre">6e778eb</span></code> is replaced by a plain gitlink bump with the original URL restored.</p>
+belongs in <strong>Misha</strong>, which TextureConsolidation pulls in as a submodule. It is <code class="docutils literal notranslate"><span class="pre">bcc2065</span></code>
+on <code class="docutils literal notranslate"><span class="pre">main</span></code> of cignoni/Misha, one commit on top of <code class="docutils literal notranslate"><span class="pre">mkazhdan/Misha</span></code> <code class="docutils literal notranslate"><span class="pre">main</span></code> (<code class="docutils literal notranslate"><span class="pre">ee14cb8</span></code>).
+Misha’s open PR #7 (Hongyi Liu, 2026-10-06) does not contain it: that PR’s other fixes
+were already folded into <code class="docutils literal notranslate"><span class="pre">main</span></code> by <code class="docutils literal notranslate"><span class="pre">ee14cb8</span></code>, and no branch of <code class="docutils literal notranslate"><span class="pre">mkazhdan/Misha</span></code> has this
+line fixed.</p>
+<p>Change 2 was not pursued: OpenMP stays <code class="docutils literal notranslate"><span class="pre">REQUIRED</span></code>, as upstream has it, since MeshLab
+already links and ships <code class="docutils literal notranslate"><span class="pre">libomp</span></code> for Screened Poisson, and building without it exposed a
+crash in Misha (Phase 0 below). Once <code class="docutils literal notranslate"><span class="pre">4efb2e6</span></code> and the Misha fix land upstream, the two
+integration-only commits are dropped and the submodule returns to <code class="docutils literal notranslate"><span class="pre">hliuw/TextureConsolidation</span></code>.</p>
 <p><strong>How this fits the third-party rule.</strong> The submodule would point at the fork while the
 pull requests are open, and back at upstream once they merge; that is a URL change in
 <code class="docutils literal notranslate"><span class="pre">.gitmodules</span></code>. MeshLab’s tree still carries no patch, so it is still the “pinned,
@@ -720,12 +719,8 @@ that stops being proposed upstream would become a vendored tree in all but name.
 </section>
 <section id="phases">
 <h2>Phases<a class="headerlink" href="#phases" title="Link to this heading">¶</a></h2>
-<p><strong>Phase 0 — feasibility, no MeshLab code</strong> (about a day). Add the submodule, pointing at
-the fork instead if it exists by then:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>submodule<span class="w"> </span>add<span class="w"> </span>https://github.com/hliuw/TextureConsolidation.git<span class="w"> </span>external/texture-consolidation<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>--init<span class="w"> </span>--recursive<span class="w"> </span>external/texture-consolidation
-</pre></div>
-</div>
-<p>Then build the three programs with our vcpkg on macOS. Run the upstream vase example and
+<p><strong>Phase 0 — feasibility, no MeshLab code</strong> (about a day). Add the submodule (done: it
+points at the fork). Then build the three programs with our vcpkg on macOS. Run the upstream vase example and
 time it. Hand-export the gargoyle, atlased by xatlas, to their format with a throwaway
 script, and run it end to end. Read the helpers’ output to find stage markers for the
 progress bar, and confirm that nothing in the pipeline is random. <em>Exit:</em> both datasets
@@ -740,35 +735,67 @@ paragraph saying why it is a submodule and not a port.</p>
 texture, Fig. 15b), if the programs expose it — the README lists no such option; and lens
 undistortion, so that distorted rasters can be used instead of refused.</p>
 </section>
-<section id="status-2026-10-28-phase-0-done-phase-1-in-progress">
-<h2>Status, 2026-10-28 (Phase 0 done, Phase 1 in progress)<a class="headerlink" href="#status-2026-10-28-phase-0-done-phase-1-in-progress" title="Link to this heading">¶</a></h2>
+<section id="status-2026-10-29-phase-1-done-phase-2-not-started">
+<h2>Status, 2026-10-29 (Phase 1 done; Phase 2 not started)<a class="headerlink" href="#status-2026-10-29-phase-1-done-phase-2-not-started" title="Link to this heading">¶</a></h2>
 <p><strong>Phase 0.</strong> The authors’ vase example (<code class="docutils literal notranslate"><span class="pre">texture_consolidation_vase</span></code> in
-<code class="docutils literal notranslate"><span class="pre">tests/datasets/datasets.json</span></code>, licence unresolved) runs end to end from a fresh clone of
-the fork without OpenMP: 28.4 s against 27.5 s with OpenMP, and no <code class="docutils literal notranslate"><span class="pre">libomp</span></code>. Building
-without OpenMP exposed a crash in Misha’s <code class="docutils literal notranslate"><span class="pre">std::thread</span></code> <code class="docutils literal notranslate"><span class="pre">ParallelFor</span></code>, whose futures were
-a <code class="docutils literal notranslate"><span class="pre">static</span></code> local shared between concurrent calls. That is fixed on
-<code class="docutils literal notranslate"><span class="pre">cignoni/Misha</span></code> <code class="docutils literal notranslate"><span class="pre">fix-async-parallelfor</span></code>.</p>
-<p><strong>Phase 1.</strong> <code class="docutils literal notranslate"><span class="pre">plugins/filter_texture_consolidation</span></code> exists and runs: <em>Transfer Color from
-Visible Rasters to Texture (Texture Consolidation)</em>. It builds the three helpers through
-<code class="docutils literal notranslate"><span class="pre">ExternalProject</span></code> with vcpkg’s <code class="docutils literal notranslate"><span class="pre">libpng</span></code> and <code class="docutils literal notranslate"><span class="pre">libjpeg-turbo</span></code> and finds them in the build
-tree. It skips cleanly while the submodule is unregistered. What it does:</p>
+<code class="docutils literal notranslate"><span class="pre">tests/datasets/datasets.json</span></code>, licence unresolved, not used in CI) runs end to end
+through the three programs: 27.5 s with OpenMP, 28.4 s without. Building without OpenMP
+exposed a crash in Misha’s <code class="docutils literal notranslate"><span class="pre">std::thread</span></code> <code class="docutils literal notranslate"><span class="pre">ParallelFor</span></code>, whose futures were a <code class="docutils literal notranslate"><span class="pre">static</span></code>
+local shared between concurrent calls. A fix was written but is not committed anywhere:
+the helpers build with OpenMP, which does not reach that code.</p>
+<p><strong>Phase 1.</strong> <code class="docutils literal notranslate"><span class="pre">plugins/filter_texture_consolidation</span></code> provides <em>Transfer Color from Visible
+Rasters to Texture (Texture Consolidation)</em>. It builds the three helpers through
+<code class="docutils literal notranslate"><span class="pre">ExternalProject</span></code> with vcpkg’s <code class="docutils literal notranslate"><span class="pre">libpng</span></code> and <code class="docutils literal notranslate"><span class="pre">libjpeg-turbo</span></code>, and finds them in the build
+tree. What it does:</p>
 <ul class="simple">
 <li><p>refuses: no atlas; fewer than two visible rasters; non-perspective or distorted cameras;
 an atlas of about one chart per face (<code class="docutils literal notranslate"><span class="pre">facesPerChart</span> <span class="pre">&lt;</span> <span class="pre">2</span></code>). The last was found by the
 smoke tier’s raster rung, whose 20,000 one-triangle charts held the stitcher for minutes
 at 9–12 GB. A real xatlas atlas of the same mesh has 300 charts, and the vase 65;</p></li>
 <li><p>scales the mesh and cameras to surface area 5, the scale the vase data was prepared at,
-and converts each <code class="docutils literal notranslate"><span class="pre">vcg::Shot</span></code> to an OpenCV pinhole camera (<code class="docutils literal notranslate"><span class="pre">pinholecamera.h</span></code>). The
-conversion is checked against <code class="docutils literal notranslate"><span class="pre">Shot::Project</span></code> on every visible gargoyle vertex: within
-0.05 px, the same pixel index as MeshLab’s raster sampling, and unchanged by world
-scale;</p></li>
+and converts each <code class="docutils literal notranslate"><span class="pre">vcg::Shot</span></code> to an OpenCV pinhole camera (<code class="docutils literal notranslate"><span class="pre">pinholecamera.h</span></code>);</p></li>
 <li><p>checks every helper’s outputs, keeps the intermediate files on failure (and on request
 with <code class="docutils literal notranslate"><span class="pre">MESHLAB2_TEXTURE_CONSOLIDATION_KEEP</span></code>), and turns the stitcher’s “Failed to
 factorize matrix” into advice to raise the texture size: on the gargoyle, 256² usually
 fails, 512² works with warnings, and 1024² is clean.</p></li>
 </ul>
-<p>Not done: bundling into the application and the release workflows; the About entry and
-<code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code> (after the submodule is registered); Windows and Linux.</p>
+<p>Tests, all on the gargoyle raster fixture:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">textureConsolidationCameraMatchesShotProjection</span></code>: the conversion agrees with
+<code class="docutils literal notranslate"><span class="pre">Shot::Project</span></code> on every visible vertex within 0.05 px, gives the same pixel index as
+MeshLab’s raster sampling, and is unchanged by world scale;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">textureConsolidationBuildsTextureFromRasters</span></code>: xatlas atlas, then 1024² at 3 levels; a
+1024×1024 texture is attached and covers more than 20% of it (29.4% is typical). The
+helpers are not deterministic (finding 1), so nothing is compared against a reference
+image. Also asserts the refusals for no atlas and for fewer than two rasters;</p></li>
+<li><p>the smoke tier lists the filter in <code class="docutils literal notranslate"><span class="pre">expectedRefusals()</span></code>: no rung has both a real atlas
+and rasters.</p></li>
+</ul>
+<p>The About box and the third-party test list TextureConsolidation, and the third-party
+test classifies <code class="docutils literal notranslate"><span class="pre">libpng</span></code> and <code class="docutils literal notranslate"><span class="pre">libjpeg-turbo</span></code>.</p>
+<p><strong>Builds.</strong> On macOS the plugin needs an OpenMP runtime (<code class="docutils literal notranslate"><span class="pre">OpenMP_ROOT</span></code>, or Homebrew’s
+<code class="docutils literal notranslate"><span class="pre">libomp</span></code>) and skips itself without one. Windows (MSVC) builds all three helpers in CI, but
+that workflow does not run ctest. On Linux the helpers need GCC 13, so the AppImage moved
+from Ubuntu 22.04 to 24.04 (see <a class="reference internal" href="../release_process.html"><span class="std std-doc">release_process.md</span></a>); the first
+24.04 run is in progress at the time of writing.</p>
+<p><strong>Compile cost.</strong> The stitcher is one translation unit and dominates the build: 2.5 min
+and 4.4 GB with Apple clang, 7.4 min and 4.7 GB with GCC 16 on the same machine, about
+8 min with MSVC in CI, against seconds for the other two programs. It is not the source
+size: all three preprocess to 205,000–240,000 lines, but the stitcher’s object file is
+32.7 MB against 0.8 and 2.1 MB. <code class="docutils literal notranslate"><span class="pre">-O0</span></code> takes 17.5 s, so nearly all of it is optimization of
+template copies. Precision (2 values, <code class="docutils literal notranslate"><span class="pre">TextureStitching.cpp:1518</span></code>) and texture bit depth
+(4 values, <code class="docutils literal notranslate"><span class="pre">:1437</span></code>) are run-time options dispatched to template parameters, so the whole
+<code class="docutils literal notranslate"><span class="pre">Stitching</span></code> class is compiled 8 times; inside each copy, the operator assembly is built
+for 6 quadrature values (<code class="docutils literal notranslate"><span class="pre">Operators.inl:1376</span></code>), 2 sanity-check settings and 4 call sites
+with their own lambda types (<code class="docutils literal notranslate"><span class="pre">TextureStitching.cpp:777–786</span></code>). About 384 copies, of which a
+MeshLab run (float, 8-bit, quadrature 6) executes one.</p>
+<p><strong>Not done:</strong></p>
+<ul class="simple">
+<li><p>bundling the helpers into the three packages (Phase 2), with <code class="docutils literal notranslate"><span class="pre">libomp</span></code> on macOS;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code> for the plugin and the <code class="docutils literal notranslate"><span class="pre">external/README.md</span></code> paragraph;</p></li>
+<li><p>the pull requests to <code class="docutils literal notranslate"><span class="pre">hliuw/TextureConsolidation</span></code> and <code class="docutils literal notranslate"><span class="pre">mkazhdan/Misha</span></code>;</p></li>
+<li><p>running the vase through the filter itself, and the seam-discrepancy comparison test.</p></li>
+</ul>
 <p><strong>Found in upstream behaviour, for the authors:</strong></p>
 <ol class="arabic simple">
 <li><p><strong>Not deterministic, under OpenMP too.</strong> On identical inputs, <code class="docutils literal notranslate"><span class="pre">BackProjection</span></code> differs
@@ -778,13 +805,17 @@ deterministic.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">TextureFlow</span></code> could loop forever.</strong> When every remaining overlap is NaN, the
 source-selection <code class="docutils literal notranslate"><span class="pre">if(</span> <span class="pre">overlap&gt;maxOverlap</span> <span class="pre">)</span></code> never fires and <code class="docutils literal notranslate"><span class="pre">while(</span> <span class="pre">true</span> <span class="pre">)</span></code> re-solves
 one view indefinitely. It hung in about 1 run in 8 on the gargoyle. Now a reported
-error: commit <code class="docutils literal notranslate"><span class="pre">8f226a5</span></code>, a pull-request candidate.</p></li>
+error, in fork commit <code class="docutils literal notranslate"><span class="pre">4efb2e6</span></code>.</p></li>
 <li><p><strong>The advection produces non-finite values</strong> in roughly 1 run in 5 or 6 on the gargoyle
 (15 of 80, then 13 of 80 with the advection loop made serial), anywhere from 1 to
 2,765 texels. It is not a race in that loop. Most such runs used to finish
 “successfully”, carrying NaN-derived texels, which is the likely cause of one run’s
 95.8% coverage against the usual 29.4%. Whether a non-finite advected sample should be
 treated as zero confidence, or reported, is the authors’ call.</p></li>
+<li><p><strong>The stitcher’s compile cost</strong> (above). The bit depth looks to matter only for
+reading and writing images, though that is not verified; if so, making it a plain
+run-time value would cut the stitcher’s compile time about fourfold. That would be a
+pull request to TextureSignalProcessing, not to TextureConsolidation.</p></li>
 </ol>
 </section>
 <section id="open-questions">
@@ -862,7 +893,7 @@ paper’s RGB-D values, be offered for photographs rather than generated renderi
 <li><a class="reference internal" href="#packaging">Packaging</a></li>
 <li><a class="reference internal" href="#a-fork-with-changes-proposed-upstream">A fork with changes proposed upstream</a></li>
 <li><a class="reference internal" href="#phases">Phases</a></li>
-<li><a class="reference internal" href="#status-2026-10-28-phase-0-done-phase-1-in-progress">Status, 2026-10-28 (Phase 0 done, Phase 1 in progress)</a></li>
+<li><a class="reference internal" href="#status-2026-10-29-phase-1-done-phase-2-not-started">Status, 2026-10-29 (Phase 1 done; Phase 2 not started)</a></li>
 <li><a class="reference internal" href="#open-questions">Open questions</a></li>
 </ul>
 </li>
