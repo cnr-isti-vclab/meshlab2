@@ -79,6 +79,13 @@ visibilityset
 
 (`file_open` and `file_save` are accepted as alternates.)
 
+A relative `filesave` value, and the path of a new texture in a `textureoutputref`, reach
+the filter already anchored: next to the current layer's file, or failing that next to
+the project (`Document::projectFilePath()`). Only a layer with neither, in a document never
+saved as a project, keeps the bare name, which then resolves against the working
+directory. So a default such as `"texture.png"` is fine, and a filter must not anchor it
+again. History and scripts keep the name as given.
+
 An `absperc` is a **length**, as an absolute value or as a percentage of its range
 (`@bboxDiag` and the other bound tokens). Its absolute half is labelled with the
 document's unit (`Document::unit()`, "mm", "m", ...) once the user has set one, and

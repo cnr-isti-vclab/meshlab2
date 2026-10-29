@@ -39,6 +39,11 @@
 
 namespace {
 
+// The raster rung's project. initTestCase points it at a copy in a scratch directory: the
+// sweep runs every filter with its defaults, and default output files go next to the layer
+// they were made from, which for the original would be the source tree.
+QString g_rasterProject = QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp");
+
 // Ordered poorest to richest. Not a chain of supersets -- Open swaps the closed
 // sphere for a bounded grid -- but a search order.
 enum class Fixture {
@@ -278,9 +283,7 @@ std::unique_ptr<Document> buildDocument(Fixture f)
         // cannot stand in here -- the shots are calibrated against this mesh in this
         // coordinate frame, and the filters that need them project through them for
         // real.
-        const QString project =
-            QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp");
-        if (doc->loadMeshLabProject(project) != 0 || doc->meshCount() == 0)
+        if (doc->loadMeshLabProject(g_rasterProject) != 0 || doc->meshCount() == 0)
             return doc;
         // Dressed like the richest generated rung, so a filter reaching this rung
         // wanted the rasters and not some attribute the earlier rungs carry.
@@ -405,10 +408,22 @@ private:
     QStringList m_ladderReport;
     int m_ran = 0;
     int m_refused = 0;
+    // Where the filters' default output files land: the working directory, for the
+    // generated rungs, and the raster rung's copied project.
+    QTemporaryDir m_scratch;
+    QString m_startDirectory;
 };
 
 void FilterSmokeTests::initTestCase()
 {
+    QVERIFY(m_scratch.isValid());
+    const QDir fixture(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small"));
+    for (const QString &name : fixture.entryList(QDir::Files))
+        QVERIFY(QFile::copy(fixture.filePath(name), m_scratch.filePath(name)));
+    g_rasterProject = m_scratch.filePath(QStringLiteral("gargoyle.mlp"));
+    m_startDirectory = QDir::currentPath();
+    QVERIFY(QDir::setCurrent(m_scratch.path()));
+
     Document probe;
     const std::vector<Document::FilterInfo> infos = probe.filterInfos();
     QVERIFY2(!infos.empty(), "filter registry is empty");
@@ -540,6 +555,8 @@ void FilterSmokeTests::runsOrRefuses()
 // requirement in the manifest, so it is printed rather than thrown away.
 void FilterSmokeTests::cleanupTestCase()
 {
+    // Out of the scratch directory before it is removed; Windows cannot delete a working directory.
+    QDir::setCurrent(m_startDirectory);
     std::sort(m_ladderReport.begin(), m_ladderReport.end());
     // Written straight to stdout rather than through qInfo(): some of the filters
     // this sweep runs reconfigure Qt logging on the way past, and the report is the

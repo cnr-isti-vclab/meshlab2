@@ -371,6 +371,7 @@ void Document::clearAllLayers()
     emit rasterRemoved(-1);
     if (hadSets)
         emit visibilitySetsChanged();
+    m_projectFilePath.clear();
     // And the unit is what was said of those layers.
     if (m_unit != LengthUnit::Unknown) {
         m_unit = LengthUnit::Unknown;

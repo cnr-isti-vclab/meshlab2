@@ -291,6 +291,10 @@ public:
     bool saveMeshLabProject(const QString &filename,
                             const MeshLabProjectSaveOptions &options,
                             QString *error = nullptr);
+    // The project last loaded or saved, as an absolute path; empty for a document that has
+    // never been one, and again after clearAllLayers(). Filters write relative output names
+    // next to it when their layer has no file of its own.
+    QString projectFilePath() const { return m_projectFilePath; }
     int addRaster(const RasterEntry &raster);
     int addRasterImage(
         const QImage &image,
@@ -614,6 +618,7 @@ private:
     std::vector<std::unique_ptr<MeshEntry>> m_meshes;
     std::vector<VisibilitySet> m_visibilitySets;
     LengthUnit m_unit = LengthUnit::Unknown;
+    QString m_projectFilePath;
     std::vector<std::unique_ptr<RasterEntry>> m_rasters;
     std::uint64_t m_nextMeshId = 1;
     std::uint64_t m_nextRasterId = 1;

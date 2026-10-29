@@ -408,7 +408,21 @@ class FilterTests : public QObject
 {
     Q_OBJECT
 
+    // Filters write default output files (texture.png...) next to the layer's file, or into
+    // the working directory for a generated layer: the latter is this scratch directory.
+    QTemporaryDir m_scratch;
+    QString m_startDirectory;
+
 private slots:
+    void initTestCase()
+    {
+        QVERIFY(m_scratch.isValid());
+        m_startDirectory = QDir::currentPath();
+        QVERIFY(QDir::setCurrent(m_scratch.path()));
+    }
+    // Out of the scratch directory before it is removed; Windows cannot delete a working directory.
+    void cleanupTestCase() { QDir::setCurrent(m_startDirectory); }
+
     void filterRegistryExposesBuiltins();
     void filterApplicabilityReflectsDocumentState();
     void basicFiltersRunOnLoadedMesh();
@@ -539,6 +553,7 @@ private slots:
     void measureReportsFaceDefectsOrientationAndBoundaryLength();
     void measureUvMappingCountsIslandsEdgesAndDistortionInTexels();
     void foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds();
+    void relativeOutputNamesGoNextToTheLayerThenTheProject();
     void aThinFoldedUvTriangleIsFoundWhereFloatArithmeticMissesIt();
     void measureUvMappingAgreesWithTexMetroOnARealAtlas();
     void measureTexelCoverageCountsAKnownLayoutExactly();
@@ -9352,6 +9367,51 @@ void FilterTests::measureUvMappingCountsIslandsEdgesAndDistortionInTexels()
 // fold -- while the other three keep their orientation. Run with the UV on the corners and on
 // the vertices, since a seam is held differently by each. Then the same square with the second
 // face mirrored in its own island, which is not a fold at all.
+// A filter's default output name ("texture.png") is relative. It goes next to the layer's
+// file, then next to the project, never into the working directory of whoever runs it.
+void FilterTests::relativeOutputNamesGoNextToTheLayerThenTheProject()
+{
+    VCGMesh mesh;
+    makeOpenDiskMesh(mesh);
+    mesh.face.EnableWedgeTexCoord();
+    for (VCGFace &face : mesh.face) {
+        for (int corner = 0; corner < 3; ++corner) {
+            face.WT(corner).P() = vcg::Point2f(face.cP(corner).X(), face.cP(corner).Y());
+            face.WT(corner).N() = 0;
+        }
+    }
+    const int mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTCOLOR
+                     | vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
+    QTemporaryDir layerDir, projectDir;
+    QVERIFY(layerDir.isValid() && projectDir.isValid());
+
+    Document doc;
+    const int index = doc.addMesh(mesh, QStringLiteral("disk"), mask);
+    doc.setCurrentMeshIndex(index);
+    const QString key = filterKeyForId(doc, QStringLiteral("transfer_color_from_vertex_to_texture"));
+    QVERIFY(!key.isEmpty());
+    MeshFilterParameterValues small;
+    small.insert(QStringLiteral("textW"), 16);
+    small.insert(QStringLiteral("textH"), 16);
+
+    // A layer without a file of its own, in a saved project: next to the project.
+    QString error;
+    QVERIFY2(doc.saveMeshLabProject(projectDir.filePath(QStringLiteral("p.mlp")), {}, &error), qPrintable(error));
+    doc.mesh(index).sourcePath.clear();
+    MeshFilterRunResult r = doc.runFilter(key, small);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(QFileInfo::exists(projectDir.filePath(QStringLiteral("texture.png"))));
+    QVERIFY(!QFileInfo::exists(QDir::current().filePath(QStringLiteral("texture.png"))));
+
+    // A layer with one: next to that file.
+    doc.mesh(index).sourcePath = layerDir.filePath(QStringLiteral("disk.ply"));
+    small.insert(QStringLiteral("textName"), QStringLiteral("again.png"));
+    r = doc.runFilter(key, small);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(QFileInfo::exists(layerDir.filePath(QStringLiteral("again.png"))));
+    QVERIFY(!QFileInfo::exists(QDir::current().filePath(QStringLiteral("again.png"))));
+}
+
 void FilterTests::foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds()
 {
     for (const bool perWedge : { true, false }) {

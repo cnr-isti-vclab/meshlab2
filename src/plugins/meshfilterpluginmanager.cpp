@@ -12,6 +12,7 @@
 #include <vcg/complex/algorithms/update/selection.h>
 #include <vcg/complex/algorithms/update/topology.h>
 #include <QColor>
+#include <QDir>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -802,6 +803,23 @@ QString appendSuffixIfMissing(const QString &path, const QString &suffix)
     return QStringLiteral("%1.%2").arg(path, suffix);
 }
 
+// A relative output name, such as a filter's default "texture.png", goes next to the
+// current layer's file, or failing that next to the project. Left alone it would resolve
+// against the process's working directory -- wherever the application or a test happened
+// to start -- and turned up as stray files there. With neither it is left as given.
+QString anchorOutputPath(const QString &path, const Document &doc)
+{
+    if (path.isEmpty() || QDir::isAbsolutePath(path))
+        return path;
+    const int meshIndex = doc.currentMeshIndex();
+    QString base;
+    if (meshIndex >= 0 && meshIndex < doc.meshCount() && !doc.mesh(meshIndex).sourcePath.isEmpty())
+        base = QFileInfo(doc.mesh(meshIndex).sourcePath).absolutePath();
+    else if (!doc.projectFilePath().isEmpty())
+        base = QFileInfo(doc.projectFilePath()).absolutePath();
+    return base.isEmpty() ? path : QDir::cleanPath(QDir(base).filePath(path));
+}
+
 // A visibility-set parameter names a set that has to be there and to hold a layer that is.
 bool validateVisibilitySetParameters(
     const MeshFilterDescriptor &descriptor,
@@ -1426,6 +1444,17 @@ bool MeshFilterPluginManager::normalizeAndValidateParameters(
         QVariant convertedValue;
         if (!convertParameterValue(parameter, rawValue, convertedValue, errorMessage))
             return false;
+
+        // Only the filter sees the anchored path; history and scripts keep the name as given.
+        if (parameter.type == MeshFilterParameterType::FileSave) {
+            convertedValue = anchorOutputPath(convertedValue.toString(), doc);
+        } else if (parameter.type == MeshFilterParameterType::TextureOutputRef) {
+            QVariantMap map = convertedValue.toMap();
+            if (map.value(QStringLiteral("mode")).toString() == QStringLiteral("new")) {
+                map.insert(QStringLiteral("path"), anchorOutputPath(map.value(QStringLiteral("path")).toString(), doc));
+                convertedValue = map;
+            }
+        }
 
         normalizedParameters.insert(parameterId, convertedValue);
     }
