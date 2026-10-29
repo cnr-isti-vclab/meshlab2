@@ -189,7 +189,7 @@ bottom, while OpenCV looks down +z with y pointing down and the origin top-left.
 test, not by derivation**. Project every vertex of a mesh through `vcg::Shot` and
 through the converted pinhole model, and require the two to agree to well under a pixel.
 A wrong sign here does not crash anything. It shifts every projection, as a wrong
-intrinsic did on the raster fixture before (see `CLAUDE.md`).
+intrinsic did on the raster fixture before (see `AGENTS.md`).
 
 ## Tests
 

@@ -82,9 +82,10 @@ require: what you are about to write is often already there.
 **Read `vcglib/AGENTS.md` before touching anything under `vcglib/`.** Its rules govern
 there and are not repeated here: the library idioms (`Allocator`, `MeshAssert`, throw
 rather than assert, report through `CallBackPos`), no duplication inside the library, and
-samples that are short documentation rather than tests. It is not loaded automatically —
-only `CLAUDE.md` files are — so it has to be opened by hand; a session that skipped it
-once wrote a regression suite with a `CHECK` macro as a sample.
+samples that are short documentation rather than tests. Claude Code (v2.1.277 or later)
+loads it on its own once it reads a file under `vcglib/`; anything else, or anything that
+edits there without reading first, has to open it by hand. A session that skipped it once
+wrote a regression suite with a `CHECK` macro as a sample.
 
 **Every vcglib change must be documented and motivated.** Say in the commit message what
 it changes and why, and comment the code itself: the change lands for every other vcglib

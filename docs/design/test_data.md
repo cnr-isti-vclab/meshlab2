@@ -3,7 +3,7 @@
 Where the test suite's inputs live, and what a test does when they are missing.
 
 See also: [Adding a Filter](adding_a_filter.md) (the three filter-testing tiers),
-`CLAUDE.md` (the tier rules and the gargoyle intrinsics warning).
+`AGENTS.md` (the tier rules and the gargoyle intrinsics warning).
 
 ## Three places, by size
 
