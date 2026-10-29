@@ -439,7 +439,7 @@ struct SceneRasterProjectedDrawItem {
         const QMatrix4x4 &view,
         const QRect &viewportRect);
     void updateQualityHistogramOverlay();
-    // Whether the quality histogram claims real space on the left of the view (rather than
+    // Whether the quality histogram claims real space on the right of the view (rather than
     // floating over it): only in Scene3D, and only once there is a current mesh for it to
     // describe -- matching updateQualityHistogramOverlay()'s own conditions for showing
     // something at all, short of the "not enough height" corner case, which just reserves a

@@ -1,4 +1,4 @@
-# The quality histogram claims a strip on the left of the on-screen view instead of
+# The quality histogram claims a strip on the right of the on-screen view instead of
 # floating over the mesh, but an offscreen capture must not: the histogram is a native
 # QLabel that no capture ever contains, and cameraShotForViewport() describes a capture as
 # one full-frame camera, so a reserved strip would come out as an unexplained blank band --

@@ -918,7 +918,7 @@ int RenderWidget::qualityHistogramPanelWidth() const
 }
 
 // The rectangle the 3D content actually renders into: the full view, less a strip on the
-// left when the quality histogram wants dedicated space there instead of floating over
+// right when the quality histogram wants dedicated space there instead of floating over
 // whatever would otherwise be drawn under it. Everything below -- tiles in both layer
 // arrangements, and through them the camera aspect ratio, mouse hit-testing and the
 // overlay widgets that follow a tile's rect -- is written against this instead of the raw
@@ -933,7 +933,7 @@ QRect RenderWidget::sceneContentRect(const QSize &viewportSize) const
     // strip at 300 under a panel 250 logical -- 500 device -- pixels wide on a Retina screen.
     const int strip = qRound(
         double(qualityHistogramPanelWidth()) * viewportSize.width() / double(width()));
-    rect.setLeft(qMin(strip, viewportSize.width() - 1));
+    rect.setWidth(qMax(1, viewportSize.width() - strip));
     return rect;
 }
 
@@ -2450,24 +2450,27 @@ void RenderWidget::paintTileCaptions(QImage &image) const
 void RenderWidget::layoutOverlayButtons()
 {
     constexpr int kOverlayMargin = 8;
-    // The histogram gets a dedicated strip on the left instead of floating, so everything
-    // that anchors to the left edge of the 3D content -- not of the widget -- starts this
-    // many pixels further right. Nothing here changes for the histogram label itself: it
-    // owns that strip.
-    const int leftInset = wantsQualityHistogramPanel() ? qualityHistogramPanelWidth() : 0;
-    const int maxOverlayWidth = qMax(120, width() - leftInset - 2 * kOverlayMargin);
+    // The histogram gets a dedicated strip on the right instead of floating -- the right, so
+    // that opening it leaves the pass bar's buttons where they are -- and what anchors to
+    // the right edge of the 3D content, not of the widget, ends this many pixels further left;
+    // what is centred is centred on the content.
+    const int contentRight = width() - (wantsQualityHistogramPanel() ? qualityHistogramPanelWidth() : 0);
+    const int maxOverlayWidth = qMax(120, contentRight - 2 * kOverlayMargin);
 
     if (m_overlayPanel) {
         m_overlayPanel->setMaximumWidth(maxOverlayWidth);
         m_overlayPanel->adjustSize();
-        m_overlayPanel->move(leftInset + kOverlayMargin, kOverlayMargin);
+        m_overlayPanel->move(kOverlayMargin, kOverlayMargin);
         m_overlayPanel->raise();
     }
 
+    // At the widget's right edge, which is the strip's when it has one; in the UV and raster
+    // views, which keep no strip, it floats there.
     if (m_qualityHistogramOverlayLabel) {
         if (m_qualityHistogramOverlayLabel->isVisible()) {
             m_qualityHistogramOverlayLabel->adjustSize();
-            m_qualityHistogramOverlayLabel->move(kOverlayMargin, kOverlayMargin);
+            m_qualityHistogramOverlayLabel->move(
+                width() - m_qualityHistogramOverlayLabel->width() - kOverlayMargin, kOverlayMargin);
             m_qualityHistogramOverlayLabel->raise();
         }
     }
@@ -2486,7 +2489,7 @@ void RenderWidget::layoutOverlayButtons()
 
     if (m_interactionStatusOverlayLabel && m_interactionStatusOverlayLabel->isVisible()) {
         m_interactionStatusOverlayLabel->adjustSize();
-        const int x = (width() - m_interactionStatusOverlayLabel->width()) / 2;
+        const int x = (contentRight - m_interactionStatusOverlayLabel->width()) / 2;
         const int y = kOverlayMargin + 8;
         m_interactionStatusOverlayLabel->move(x, y);
         m_interactionStatusOverlayLabel->raise();
@@ -2499,8 +2502,8 @@ void RenderWidget::layoutOverlayButtons()
         int bottom = height() - kOverlayMargin;
         if (m_uvTextureGroupList && m_uvTextureGroupList->isVisible())
             bottom -= m_uvTextureGroupList->height() + kOverlayMargin;
-        const int x = leftInset + (width() - leftInset - m_toolStrip->width()) / 2;
-        m_toolStrip->move(std::max(leftInset + kOverlayMargin, x), bottom - m_toolStrip->height());
+        const int x = (contentRight - m_toolStrip->width()) / 2;
+        m_toolStrip->move(std::max(kOverlayMargin, x), bottom - m_toolStrip->height());
         m_toolStrip->raise();
     }
 
@@ -2515,7 +2518,7 @@ void RenderWidget::layoutOverlayButtons()
             (m_viewMode == ViewMode::Scene3D) && m_renderSettings.showAxisGizmo;
         m_axisGizmo->setVisible(gizmoVisible);
         if (gizmoVisible) {
-            const int x = width() - m_axisGizmo->width() - kOverlayMargin;
+            const int x = contentRight - m_axisGizmo->width() - kOverlayMargin;
             m_axisGizmo->move(qMax(kOverlayMargin, x), kOverlayMargin);
             m_axisGizmo->raise();
             rightColumnTop = m_axisGizmo->y() + m_axisGizmo->height() + kOverlayMargin;
@@ -2524,7 +2527,7 @@ void RenderWidget::layoutOverlayButtons()
 
     if (m_decoratorInfoOverlayLabel && m_decoratorInfoOverlayLabel->isVisible()) {
         m_decoratorInfoOverlayLabel->adjustSize();
-        const int x = width() - m_decoratorInfoOverlayLabel->width() - kOverlayMargin;
+        const int x = contentRight - m_decoratorInfoOverlayLabel->width() - kOverlayMargin;
         m_decoratorInfoOverlayLabel->move(qMax(kOverlayMargin, x), rightColumnTop);
         m_decoratorInfoOverlayLabel->raise();
     }
