@@ -1,6 +1,6 @@
 # Texture Consolidation
 
-**Status: proposal, not implemented (2026-10-28).** Integrating Liu, Wang, Kim and
+**Status: Phase 1 implemented, not yet packaged (2026-10-29).** Integrating Liu, Wang, Kim and
 Kazhdan, *Texture Consolidation of Generated Multi-View Renderings* (arXiv 2610.36098,
 2026) — code at [hliuw/TextureConsolidation](https://github.com/hliuw/TextureConsolidation)
 — as a second implementation of *Transfer Color from Visible Rasters to Texture*.
@@ -255,35 +255,30 @@ Not needed, because the code already does it: error exit codes in `BackProjectio
 in Misha would also help a packager, since GitHub reports its licence as unknown even
 though every header is BSD-3-Clause. That is the authors' own call.
 
-**Status, 2026-10-29.** The fork is [cignoni/TextureConsolidation](https://github.com/cignoni/TextureConsolidation),
-registered as the MeshLab submodule `external/texture-consolidation`. **Upstream does not
-build on macOS**, which its README does not claim (Ubuntu with GCC 13, and MSVC). Two
-errors stop it with Apple clang 21:
+**Status, 2026-10-29.** Four forks carry the changes, each on its default branch, and
+TextureConsolidation's `.gitmodules` points at the other three:
 
-- the vendored Eigen 3.3.7 uses `std::result_of`, which C++20 removed and libc++ enforces;
-- `Misha/Polynomial.h:105`, `static const unsigned int NumCoefficients =
-  NumCoefficients< Dim , Degree >();`, where clang resolves the right-hand name to the member
-  being declared and GCC to the function template. Every other Misha error cascades from it.
+| Fork | Commits beyond upstream | What they contain |
+|---|---|---|
+| [cignoni/TextureConsolidation](https://github.com/cignoni/TextureConsolidation) (on upstream `557829d`) | `f42e50f`, `3598fe7`, `d52ce2a`, `7ff6379` | integration-only: submodule URLs and gitlinks |
+| | `4efb2e6` | `EIGEN_HAS_STD_RESULT_OF=0` (Eigen 3.3.7 under C++20 and libc++); the stitcher built through the `MK_ERROR_OUT`-to-throw wrapper (change 1: 48 instantiations of `MishaK::ErrorOut` before, none after); the guard against an all-NaN overlap in `TextureRegistration.inl` |
+| | `e5104a9` | advected confidence zeroed outside the atlas; `BackProjection` variance summed in order |
+| [cignoni/Misha](https://github.com/cignoni/Misha) (on `ee14cb8`) | `bcc2065` | `MishaK::Polynomial::NumCoefficients<…>` qualified, which Apple clang 21 needs. Misha PR #7 does not contain it |
+| | `b8199a8` | nearest-simplex ties broken by index (`Texels.inl`) |
+| [cignoni/TextureSignalProcessing](https://github.com/cignoni/TextureSignalProcessing) (on `daa6f7b`) | `b7d2d65` | the clipping guard (`PolygonClipping.h`) |
+| | `8c6f35a` | scheduling-independent hierarchy, operators, quadrature and components. *Its message says "bit depth"; the content is this* |
+| | `baa775b` | `TextureStitching.cpp` and `ImageIO.h`: the bit-depth refactor, the cell-confidence padding fix and the ordered scatter, together |
+| [cignoni/PhongRodriguesVF](https://github.com/cignoni/PhongRodriguesVF) (on `fa305af`) | `2b96675` | deterministic system assembly and tangent frames. The block-bounded assembly is not committed yet |
 
-Everything is on the fork's `main`, three commits on top of upstream `557829d`:
+**Upstream does not build on macOS** without the first two fixes (its README claims Ubuntu
+with GCC 13, and MSVC): Eigen's `std::result_of`, and Misha's `Polynomial.h:105`, where
+clang resolves `NumCoefficients< Dim , Degree >()` to the member being declared.
 
-| Commit | Change |
-|---|---|
-| `f42e50f` | integration-only: `extern/Misha` pointed at [cignoni/Misha](https://github.com/cignoni/Misha) |
-| `3598fe7` | integration-only: `extern/Misha` bumped to the Misha fix, `bcc2065` |
-| `4efb2e6` | the pull-request candidate: `EIGEN_HAS_STD_RESULT_OF=0`, Eigen's own `#ifndef`-guarded switch to its fallback; the stitcher built through the `MK_ERROR_OUT`-to-throw wrapper (change 1; measured with `nm`, 48 instantiations of `MishaK::ErrorOut` before, none after); and the guard against an all-NaN overlap in `TextureRegistration.inl` (finding 2 below) |
-
-The Misha fix is a one-line qualification, `MishaK::Polynomial::NumCoefficients<…>`, and
-belongs in **Misha**, which TextureConsolidation pulls in as a submodule. It is `bcc2065`
-on `main` of cignoni/Misha, one commit on top of `mkazhdan/Misha` `main` (`ee14cb8`).
-Misha's open PR #7 (Hongyi Liu, 2026-10-06) does not contain it: that PR's other fixes
-were already folded into `main` by `ee14cb8`, and no branch of `mkazhdan/Misha` has this
-line fixed.
-
-Change 2 was not pursued: OpenMP stays `REQUIRED`, as upstream has it, since MeshLab
-already links and ships `libomp` for Screened Poisson, and building without it exposed a
-crash in Misha (Phase 0 below). Once `4efb2e6` and the Misha fix land upstream, the two
-integration-only commits are dropped and the submodule returns to `hliuw/TextureConsolidation`.
+For pull requests, TextureSignalProcessing's commits mix three proposals (`baa775b` holds
+a memory fix, a determinism fix and the refactor), so they want splitting first. Change 2
+was not pursued: OpenMP stays `REQUIRED`, as upstream has it, since MeshLab already ships
+`libomp`. Once everything lands upstream, the integration-only commits are dropped and the
+submodule returns to `hliuw/TextureConsolidation`.
 
 **How this fits the third-party rule.** The submodule would point at the fork while the
 pull requests are open, and back at upstream once they merge; that is a URL change in
@@ -338,131 +333,114 @@ tree. What it does:
   factorize matrix" into advice to raise the texture size: on the gargoyle, 256² usually
   fails, 512² works with warnings, and 1024² is clean.
 
+**Every texture produced before 2026-10-29 was corrupt.** Two out-of-bounds reads in
+TextureSignalProcessing gave whole charts arbitrary weights, so the same inputs came out
+with all charts black, all charts red, or, occasionally, right. The test missed it: it
+counted non-black texels, and the grey padding between charts alone came to 29.4%. The
+"95.8% coverage" run once blamed on NaN was probably a correct one.
+
 Tests, all on the gargoyle raster fixture:
 
 - `textureConsolidationCameraMatchesShotProjection`: the conversion agrees with
   `Shot::Project` on every visible vertex within 0.05 px, gives the same pixel index as
   MeshLab's raster sampling, and is unchanged by world scale;
 - `textureConsolidationBuildsTextureFromRasters`: xatlas atlas, then 1024² at 3 levels; a
-  1024×1024 texture is attached and covers more than 20% of it (29.4% is typical). The
-  helpers are not deterministic (finding 1), so nothing is compared against a reference
-  image. Also asserts the refusals for no atlas and for fewer than two rasters;
+  1024×1024 texture is attached and covers more than 20% of it (99.8% since the fixes).
+  The whole filter then runs again and must give the same pixels. Also asserts the
+  refusals for no atlas and for fewer than two rasters. The 20% threshold no longer
+  separates a good texture from a black one, and should be raised;
 - the smoke tier lists the filter in `expectedRefusals()`: no rung has both a real atlas
   and rasters.
 
 The About box and the third-party test list TextureConsolidation, and the third-party
-test classifies `libpng` and `libjpeg-turbo`.
+test classifies `libpng` and `libjpeg-turbo`. The vase opens in MeshLab through a project
+written from its `cameras.json` (the inverse of `pinholecamera.h`; the round trip
+reproduces every camera to float precision), but has not yet been run through the filter.
 
 **Builds.** On macOS the plugin needs an OpenMP runtime (`OpenMP_ROOT`, or Homebrew's
-`libomp`) and skips itself without one. Windows (MSVC) builds all three helpers in CI, but
-that workflow does not run ctest. On Linux the helpers need GCC 13, so the AppImage moved
-from Ubuntu 22.04 to 24.04 (see [release_process.md](../release_process.md)); the first
-24.04 run is in progress at the time of writing.
+`libomp`) and skips itself without one. The macOS DMG workflow turns it off: there the
+stitcher took an hour on a 7 GB runner, and the DMG cannot bundle the helpers yet. Windows
+(MSVC) builds all three helpers, without running ctest. The Linux AppImage moved from
+Ubuntu 22.04 to 24.04, whose GCC 13 the helpers need (see
+[release_process.md](../release_process.md)); there the helpers build and both tests
+pass. The plugin no longer declares a dependency on the helper build, which had held every
+target linking it, all the tests included, behind the stitcher.
 
-**Compile cost.** The stitcher is one translation unit and dominates the build: 2.5 min
-and 4.4 GB with Apple clang, 7.4 min and 4.7 GB with GCC 16 on the same machine, about
-8 min with MSVC in CI, against seconds for the other two programs. It is not the source
-size: all three preprocess to 205,000–240,000 lines, but the stitcher's object file is
-32.7 MB against 0.8 and 2.1 MB. `-O0` takes 17.5 s, so nearly all of it is optimization of
-template copies. Precision (2 values, `TextureStitching.cpp:1518`) and texture bit depth
-(4 values, `:1437`) are run-time options dispatched to template parameters, so the whole
-`Stitching` class is compiled 8 times; inside each copy, the operator assembly is built
-for 6 quadrature values (`Operators.inl:1376`), 2 sanity-check settings and 4 call sites
-with their own lambda types (`TextureStitching.cpp:777–786`). About 384 copies, of which a
-MeshLab run (float, 8-bit, quadrature 6) executes one.
+**Compile cost.** The stitcher is one translation unit and dominated the build: precision
+(2 values) and bit depth (4) were run-time options dispatched to template parameters, so
+the whole `Stitching` class was compiled 8 times, and the operator assembly inside each
+copy for 6 quadrature values, 2 sanity-check settings and 4 call sites, about 384 copies
+of which a MeshLab run executes one. The bit depth reaches only image reading and writing,
+and is now a run-time value. With Apple clang at `-O3`:
+
+| | Time | Peak memory | Object file |
+|---|---|---|---|
+| Before | 151 s | 4.4 GB | 32.7 MB |
+| After | 57 s | 2.6 GB | 14.9 MB |
+
+The refactor alone changes no output: a serial run is byte-identical to the original
+source with only the memory fixes, on the gargoyle and on the vase. Dropping double
+precision would halve it again (32 s, 1.7 GB), but `--double` is a user option, so that is
+the authors' call. GCC takes about three times as long as clang on this file.
+
+**Memory errors fixed.** Found with AddressSanitizer and UBSan; all three programs now
+run clean on both datasets, except a harmless conversion in Misha's PLY reader, which
+eagerly casts every float it reads to the integer types:
+
+- **Cell confidences not padded** (`TextureStitching.cpp`, `Init()`). When UVs come
+  within half a texel of the border, the textures and per-texel confidences are padded and
+  the system built at the padded size, but the per-cell confidences were not, and were
+  read past their end. Needs UVs near the border, which xatlas produces.
+- **Clipping an emptied polygon** (`PolygonClipping.h`). The integration clips a polygon
+  against a triangle's three edges in turn; once one edge leaves nothing, the next read
+  the vertex before index 0. Fails on the authors' vase too.
+- **Uninitialized advected confidence** (`TextureAdvection.inl`). Only texels supported by
+  the atlas were written; interpolation and erosion then read the rest. The likely cause
+  of the NaN in about one `TextureFlow` run in five or six, and of the infinite loop
+  `4efb2e6` guards against.
+
+**Repeatability.** With those fixed, the schedule-dependent paths were made ordered. The
+target is identical inputs, binaries and thread count on one platform, not bitwise
+equality across compilers or architectures:
+
+- `BackProjection.inl`: depth-Laplacian variance summed in pixel order, rather than by
+  atomic floating-point addition, whose rounding depends on the schedule;
+- Misha `Texels.inl`: equal-distance candidate simplices resolved to the lowest index;
+- PhongRodriguesVF `SimplicialMeshProcessing.phong.inl`: tangent frames from the
+  coordinate axis with the largest residual, instead of `RandomSpherePoint`, whose shared
+  `rand()` ran inside a parallel loop;
+- PhongRodriguesVF `SimplicialMeshProcessing.integration.inl`: element matrices evaluated
+  in parallel and added in simplex order, in blocks of 65,536 simplices so that memory
+  stays bounded (about 42 MB) whatever the mesh size; the result is the same for any
+  block size (checked at 1,024);
+- TextureSignalProcessing: components numbered in triangle order
+  (`SimpleTriangleMesh.inl`); supporting and covering triangles assigned in triangle order
+  (`HierarchyConstruction.inl`); boundary coefficients collected by chart, not worker
+  (`Operators.inl`); integration samples statically scheduled before their merge
+  (`QuadratureIntegration.h`, so repeatable for a given thread count only); solved colors
+  scattered in node order (`TextureStitching.cpp`).
+
+Serial stitcher runs are now byte-identical; parallel ones differ by at most 2/255 in a few
+thousand texels, from floating-point reduction order. The stitcher's optional `--jitter`
+stays off: `--jitter 0` seeds from the clock.
 
 **Not done:**
 
-- bundling the helpers into the three packages (Phase 2), with `libomp` on macOS;
+- committing the block-bounded assembly in PhongRodriguesVF;
+- splitting TextureSignalProcessing's commits into separable pull requests, and the pull
+  requests themselves, to `hliuw/TextureConsolidation`, `mkazhdan/Misha`,
+  `mkazhdan/TextureSignalProcessing` and `mkazhdan/PhongRodriguesVF`;
+- bundling the helpers into the three packages (Phase 2), with `libomp` on macOS, and the
+  plugin back on in the DMG;
 - `UPSTREAM.md` for the plugin and the `external/README.md` paragraph;
-- the pull requests to `hliuw/TextureConsolidation` and `mkazhdan/Misha`;
+- a coverage test that measures the charts rather than the whole image;
 - running the vase through the filter itself, and the seam-discrepancy comparison test.
 
-**Found in upstream behaviour, for the authors:**
-
-1. **Not deterministic, under OpenMP too.** On identical inputs, `BackProjection` differs
-   from run to run in about 10 texels per megapixel, by up to 158/255. `TextureFlow`
-   differs in up to 4% of texels, about 0.1% by more than 10/255. The stitcher alone is
-   deterministic.
-2. **`TextureFlow` could loop forever.** When every remaining overlap is NaN, the
-   source-selection `if( overlap>maxOverlap )` never fires and `while( true )` re-solves
-   one view indefinitely. It hung in about 1 run in 8 on the gargoyle. Now a reported
-   error, in fork commit `4efb2e6`.
-3. **The advection produces non-finite values** in roughly 1 run in 5 or 6 on the gargoyle
-   (15 of 80, then 13 of 80 with the advection loop made serial), anywhere from 1 to
-   2,765 texels. It is not a race in that loop. Most such runs used to finish
-   "successfully", carrying NaN-derived texels, which is the likely cause of one run's
-   95.8% coverage against the usual 29.4%. Whether a non-finite advected sample should be
-   treated as zero confidence, or reported, is the authors' call.
-4. **The stitcher's compile cost** (above). The bit depth looks to matter only for
-   reading and writing images, though that is not verified; if so, making it a plain
-   run-time value would cut the stitcher's compile time about fourfold. That would be a
-   pull request to TextureSignalProcessing, not to TextureConsolidation.
-
-## Repeatability fixes, 2026-10-29
-
-The nondeterminism reported above was reproduced on the vase with the Release build,
-512² textures and three flow levels. Two parallel runs differed already in every
-back-projected image; one flow run failed with non-finite overlap. Limiting OpenMP to
-one thread made back-projection repeatable, but the flow still differed. Initializing
-the advection output alone made two serial pipelines byte-identical, including all
-intermediate PNGs. This distinguishes an uninitialized-read bug from scheduling effects.
-
-The fixes belong to the helpers and their upstream libraries, not to MeshLab's adapter:
-
-- **TextureConsolidation, `TextureAdvection.inl`:** zero-initialize the output before
-  writing supported atlas texels. `RegularGrid<double>` allocates uninitialized scalar
-  storage; confidence outside the atlas was subsequently read by interpolation and
-  erosion. Point-valued color grids already default to zero.
-- **TextureConsolidation, `BackProjection.inl`:** sum depth-Laplacian variance in pixel
-  order. Atomic floating-point addition prevented data races but did not fix rounding
-  order. Computing the Laplacian and confidence remains parallel.
-- **Misha, `Texels.inl`:** when candidate simplices have exactly equal squared distance,
-  choose the lowest simplex index. Candidate lists are assembled by worker, so their
-  order is not stable. This matches the first candidate of a serial simplex traversal.
-- **PhongRodriguesVF, `SimplicialMeshProcessing.phong.inl`:** build tangent frames by
-  projecting coordinate axes and choosing the largest residual, breaking ties in axis
-  order. The previous random tangent basis consumed shared `rand()` calls inside a
-  parallel loop. The new basis spans the same tangent plane without random sampling.
-- **PhongRodriguesVF, `SimplicialMeshProcessing.integration.inl`:** evaluate element
-  matrices in parallel, then accumulate them in simplex order, following the existing
-  vector-assembly pattern. This replaces schedule-dependent atomic additions. It adds
-  temporary storage of `numS * NumElementsPerSimplex² * sizeof(double)` bytes (648 bytes
-  per triangle for the flow's nine-element system).
-- **TextureSignalProcessing, `SimpleTriangleMesh.inl`:** number connected-component
-  roots in triangle order, then propagate labels in parallel. Atomic root numbering
-  changed chart order, including the association of boundary perturbations with charts.
-- **TextureSignalProcessing, `TextureStitching.cpp`:** scatter the solved colors to the
-  texture in node order. Different chart nodes can occupy the same pixel; parallel
-  writes raced, whereas ordered writes consistently preserve the last node's color.
-- **TextureSignalProcessing, `HierarchyConstruction.inl`:** assign supporting and
-  covering triangles in triangle order. Last-writer atomic assignments otherwise chose
-  different triangles and barycentric coordinates for the same atlas node.
-- **TextureSignalProcessing, `Operators.inl`:** collect boundary coefficients by chart
-  instead of worker, so merging fixes the order of additions to shared matrix entries.
-- **TextureSignalProcessing, `QuadratureIntegration.h`:** statically schedule triangles
-  whose integration sample lists are subsequently merged in worker order. This fixes
-  accumulation order for a given worker count while preserving parallel integration.
-
-These changes retain parallel geometry, element integration and solving. They do not
-enable the stitcher's optional `--jitter` argument: `--jitter 0` explicitly seeds from
-wall-clock time, and a fixed nonzero jitter seed would not repair the other causes.
-The stitcher's internal degeneracy perturbations still use its process-local default
-random sequence. The repeatability target is identical inputs, helper binaries and
-thread configuration on the same platform, not bitwise equality across compilers or
-floating-point architectures.
-
-`textureConsolidationBuildsTextureFromRasters` now runs the complete filter twice on the
-same gargoyle atlas and compares every output pixel. The existing camera, coverage and
-refusal checks remain in place.
-
-**Landing:** these are working-tree changes in TextureConsolidation and its nested
-Misha, PhongRodriguesVF and TextureSignalProcessing submodules. Publish the dependency
-fixes first, then update their gitlinks in TextureConsolidation, publish that revision,
-and finally update MeshLab's TextureConsolidation gitlink together with the regression
-check. No commits, pushes or gitlink changes are made by this investigation. The
-TextureSignalProcessing checkout also contains separate ongoing compile-time changes;
-review its combined diff before staging.
+**For the authors:** the three memory errors and the scheduling-dependent paths above,
+each with its fix on the forks; the compile cost and the bit-depth refactor; and, from
+before, that `TextureFlow` looped forever on an all-NaN overlap (now an error in
+`4efb2e6`). Whether a non-finite advected sample should count as zero confidence is
+theirs to say, though with the advection output initialized none has been seen since.
 
 ## Open questions
 
