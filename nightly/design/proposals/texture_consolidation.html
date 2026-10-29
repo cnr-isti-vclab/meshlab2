@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="texture-consolidation">
 <h1>Texture Consolidation<a class="headerlink" href="#texture-consolidation" title="Link to this heading">¶</a></h1>
-<p><strong>Status: proposal, not implemented (2026-10-28).</strong> Integrating Liu, Wang, Kim and
+<p><strong>Status: Phase 1 implemented, not yet packaged (2026-10-29).</strong> Integrating Liu, Wang, Kim and
 Kazhdan, <em>Texture Consolidation of Generated Multi-View Renderings</em> (arXiv 2610.36098,
 2026) — code at <a class="reference external" href="https://github.com/hliuw/TextureConsolidation">hliuw/TextureConsolidation</a>
 — as a second implementation of <em>Transfer Color from Visible Rasters to Texture</em>.</p>
@@ -670,46 +670,64 @@ TextureSignalProcessing</strong>: all three live in TextureConsolidation’s own
 <code class="docutils literal notranslate"><span class="pre">TextureFlow</span></code>, progress output (<code class="docutils literal notranslate"><span class="pre">--verbose</span></code>), and any GPU dependency. A one-file <code class="docutils literal notranslate"><span class="pre">LICENSE</span></code>
 in Misha would also help a packager, since GitHub reports its licence as unknown even
 though every header is BSD-3-Clause. That is the authors’ own call.</p>
-<p><strong>Status, 2026-10-29.</strong> The fork is <a class="reference external" href="https://github.com/cignoni/TextureConsolidation">cignoni/TextureConsolidation</a>,
-registered as the MeshLab submodule <code class="docutils literal notranslate"><span class="pre">external/texture-consolidation</span></code>. <strong>Upstream does not
-build on macOS</strong>, which its README does not claim (Ubuntu with GCC 13, and MSVC). Two
-errors stop it with Apple clang 21:</p>
-<ul class="simple">
-<li><p>the vendored Eigen 3.3.7 uses <code class="docutils literal notranslate"><span class="pre">std::result_of</span></code>, which C++20 removed and libc++ enforces;</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Misha/Polynomial.h:105</span></code>, <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">const</span> <span class="pre">unsigned</span> <span class="pre">int</span> <span class="pre">NumCoefficients</span> <span class="pre">=</span> <span class="pre">NumCoefficients&lt;</span> <span class="pre">Dim</span> <span class="pre">,</span> <span class="pre">Degree</span> <span class="pre">&gt;();</span></code>, where clang resolves the right-hand name to the member
-being declared and GCC to the function template. Every other Misha error cascades from it.</p></li>
-</ul>
-<p>Everything is on the fork’s <code class="docutils literal notranslate"><span class="pre">main</span></code>, three commits on top of upstream <code class="docutils literal notranslate"><span class="pre">557829d</span></code>:</p>
+<p><strong>Status, 2026-10-29.</strong> Four forks carry the changes, each on its default branch, and
+TextureConsolidation’s <code class="docutils literal notranslate"><span class="pre">.gitmodules</span></code> points at the other three:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
-<tr class="row-odd"><th class="head"><p>Commit</p></th>
-<th class="head"><p>Change</p></th>
+<tr class="row-odd"><th class="head"><p>Fork</p></th>
+<th class="head"><p>Commits beyond upstream</p></th>
+<th class="head"><p>What they contain</p></th>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">f42e50f</span></code></p></td>
-<td><p>integration-only: <code class="docutils literal notranslate"><span class="pre">extern/Misha</span></code> pointed at <a class="reference external" href="https://github.com/cignoni/Misha">cignoni/Misha</a></p></td>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/cignoni/TextureConsolidation">cignoni/TextureConsolidation</a> (on upstream <code class="docutils literal notranslate"><span class="pre">557829d</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">f42e50f</span></code>, <code class="docutils literal notranslate"><span class="pre">3598fe7</span></code>, <code class="docutils literal notranslate"><span class="pre">d52ce2a</span></code>, <code class="docutils literal notranslate"><span class="pre">7ff6379</span></code></p></td>
+<td><p>integration-only: submodule URLs and gitlinks</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3598fe7</span></code></p></td>
-<td><p>integration-only: <code class="docutils literal notranslate"><span class="pre">extern/Misha</span></code> bumped to the Misha fix, <code class="docutils literal notranslate"><span class="pre">bcc2065</span></code></p></td>
+<tr class="row-odd"><td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">4efb2e6</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">EIGEN_HAS_STD_RESULT_OF=0</span></code> (Eigen 3.3.7 under C++20 and libc++); the stitcher built through the <code class="docutils literal notranslate"><span class="pre">MK_ERROR_OUT</span></code>-to-throw wrapper (change 1: 48 instantiations of <code class="docutils literal notranslate"><span class="pre">MishaK::ErrorOut</span></code> before, none after); the guard against an all-NaN overlap in <code class="docutils literal notranslate"><span class="pre">TextureRegistration.inl</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">4efb2e6</span></code></p></td>
-<td><p>the pull-request candidate: <code class="docutils literal notranslate"><span class="pre">EIGEN_HAS_STD_RESULT_OF=0</span></code>, Eigen’s own <code class="docutils literal notranslate"><span class="pre">#ifndef</span></code>-guarded switch to its fallback; the stitcher built through the <code class="docutils literal notranslate"><span class="pre">MK_ERROR_OUT</span></code>-to-throw wrapper (change 1; measured with <code class="docutils literal notranslate"><span class="pre">nm</span></code>, 48 instantiations of <code class="docutils literal notranslate"><span class="pre">MishaK::ErrorOut</span></code> before, none after); and the guard against an all-NaN overlap in <code class="docutils literal notranslate"><span class="pre">TextureRegistration.inl</span></code> (finding 2 below)</p></td>
+<tr class="row-even"><td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">e5104a9</span></code></p></td>
+<td><p>advected confidence zeroed outside the atlas; <code class="docutils literal notranslate"><span class="pre">BackProjection</span></code> variance summed in order</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/cignoni/Misha">cignoni/Misha</a> (on <code class="docutils literal notranslate"><span class="pre">ee14cb8</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">bcc2065</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MishaK::Polynomial::NumCoefficients&lt;…&gt;</span></code> qualified, which Apple clang 21 needs. Misha PR #7 does not contain it</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">b8199a8</span></code></p></td>
+<td><p>nearest-simplex ties broken by index (<code class="docutils literal notranslate"><span class="pre">Texels.inl</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/cignoni/TextureSignalProcessing">cignoni/TextureSignalProcessing</a> (on <code class="docutils literal notranslate"><span class="pre">daa6f7b</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">b7d2d65</span></code></p></td>
+<td><p>the clipping guard (<code class="docutils literal notranslate"><span class="pre">PolygonClipping.h</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">8c6f35a</span></code></p></td>
+<td><p>scheduling-independent hierarchy, operators, quadrature and components. <em>Its message says “bit depth”; the content is this</em></p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">baa775b</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TextureStitching.cpp</span></code> and <code class="docutils literal notranslate"><span class="pre">ImageIO.h</span></code>: the bit-depth refactor, the cell-confidence padding fix and the ordered scatter, together</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/cignoni/PhongRodriguesVF">cignoni/PhongRodriguesVF</a> (on <code class="docutils literal notranslate"><span class="pre">fa305af</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">2b96675</span></code></p></td>
+<td><p>deterministic system assembly and tangent frames. The block-bounded assembly is not committed yet</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The Misha fix is a one-line qualification, <code class="docutils literal notranslate"><span class="pre">MishaK::Polynomial::NumCoefficients&lt;…&gt;</span></code>, and
-belongs in <strong>Misha</strong>, which TextureConsolidation pulls in as a submodule. It is <code class="docutils literal notranslate"><span class="pre">bcc2065</span></code>
-on <code class="docutils literal notranslate"><span class="pre">main</span></code> of cignoni/Misha, one commit on top of <code class="docutils literal notranslate"><span class="pre">mkazhdan/Misha</span></code> <code class="docutils literal notranslate"><span class="pre">main</span></code> (<code class="docutils literal notranslate"><span class="pre">ee14cb8</span></code>).
-Misha’s open PR #7 (Hongyi Liu, 2026-10-06) does not contain it: that PR’s other fixes
-were already folded into <code class="docutils literal notranslate"><span class="pre">main</span></code> by <code class="docutils literal notranslate"><span class="pre">ee14cb8</span></code>, and no branch of <code class="docutils literal notranslate"><span class="pre">mkazhdan/Misha</span></code> has this
-line fixed.</p>
-<p>Change 2 was not pursued: OpenMP stays <code class="docutils literal notranslate"><span class="pre">REQUIRED</span></code>, as upstream has it, since MeshLab
-already links and ships <code class="docutils literal notranslate"><span class="pre">libomp</span></code> for Screened Poisson, and building without it exposed a
-crash in Misha (Phase 0 below). Once <code class="docutils literal notranslate"><span class="pre">4efb2e6</span></code> and the Misha fix land upstream, the two
-integration-only commits are dropped and the submodule returns to <code class="docutils literal notranslate"><span class="pre">hliuw/TextureConsolidation</span></code>.</p>
+<p><strong>Upstream does not build on macOS</strong> without the first two fixes (its README claims Ubuntu
+with GCC 13, and MSVC): Eigen’s <code class="docutils literal notranslate"><span class="pre">std::result_of</span></code>, and Misha’s <code class="docutils literal notranslate"><span class="pre">Polynomial.h:105</span></code>, where
+clang resolves <code class="docutils literal notranslate"><span class="pre">NumCoefficients&lt;</span> <span class="pre">Dim</span> <span class="pre">,</span> <span class="pre">Degree</span> <span class="pre">&gt;()</span></code> to the member being declared.</p>
+<p>For pull requests, TextureSignalProcessing’s commits mix three proposals (<code class="docutils literal notranslate"><span class="pre">baa775b</span></code> holds
+a memory fix, a determinism fix and the refactor), so they want splitting first. Change 2
+was not pursued: OpenMP stays <code class="docutils literal notranslate"><span class="pre">REQUIRED</span></code>, as upstream has it, since MeshLab already ships
+<code class="docutils literal notranslate"><span class="pre">libomp</span></code>. Once everything lands upstream, the integration-only commits are dropped and the
+submodule returns to <code class="docutils literal notranslate"><span class="pre">hliuw/TextureConsolidation</span></code>.</p>
 <p><strong>How this fits the third-party rule.</strong> The submodule would point at the fork while the
 pull requests are open, and back at upstream once they merge; that is a URL change in
 <code class="docutils literal notranslate"><span class="pre">.gitmodules</span></code>. MeshLab’s tree still carries no patch, so it is still the “pinned,
@@ -759,126 +777,126 @@ with <code class="docutils literal notranslate"><span class="pre">MESHLAB2_TEXTU
 factorize matrix” into advice to raise the texture size: on the gargoyle, 256² usually
 fails, 512² works with warnings, and 1024² is clean.</p></li>
 </ul>
+<p><strong>Every texture produced before 2026-10-29 was corrupt.</strong> Two out-of-bounds reads in
+TextureSignalProcessing gave whole charts arbitrary weights, so the same inputs came out
+with all charts black, all charts red, or, occasionally, right. The test missed it: it
+counted non-black texels, and the grey padding between charts alone came to 29.4%. The
+“95.8% coverage” run once blamed on NaN was probably a correct one.</p>
 <p>Tests, all on the gargoyle raster fixture:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">textureConsolidationCameraMatchesShotProjection</span></code>: the conversion agrees with
 <code class="docutils literal notranslate"><span class="pre">Shot::Project</span></code> on every visible vertex within 0.05 px, gives the same pixel index as
 MeshLab’s raster sampling, and is unchanged by world scale;</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">textureConsolidationBuildsTextureFromRasters</span></code>: xatlas atlas, then 1024² at 3 levels; a
-1024×1024 texture is attached and covers more than 20% of it (29.4% is typical). The
-helpers are not deterministic (finding 1), so nothing is compared against a reference
-image. Also asserts the refusals for no atlas and for fewer than two rasters;</p></li>
+1024×1024 texture is attached and covers more than 20% of it (99.8% since the fixes).
+The whole filter then runs again and must give the same pixels. Also asserts the
+refusals for no atlas and for fewer than two rasters. The 20% threshold no longer
+separates a good texture from a black one, and should be raised;</p></li>
 <li><p>the smoke tier lists the filter in <code class="docutils literal notranslate"><span class="pre">expectedRefusals()</span></code>: no rung has both a real atlas
 and rasters.</p></li>
 </ul>
 <p>The About box and the third-party test list TextureConsolidation, and the third-party
-test classifies <code class="docutils literal notranslate"><span class="pre">libpng</span></code> and <code class="docutils literal notranslate"><span class="pre">libjpeg-turbo</span></code>.</p>
+test classifies <code class="docutils literal notranslate"><span class="pre">libpng</span></code> and <code class="docutils literal notranslate"><span class="pre">libjpeg-turbo</span></code>. The vase opens in MeshLab through a project
+written from its <code class="docutils literal notranslate"><span class="pre">cameras.json</span></code> (the inverse of <code class="docutils literal notranslate"><span class="pre">pinholecamera.h</span></code>; the round trip
+reproduces every camera to float precision), but has not yet been run through the filter.</p>
 <p><strong>Builds.</strong> On macOS the plugin needs an OpenMP runtime (<code class="docutils literal notranslate"><span class="pre">OpenMP_ROOT</span></code>, or Homebrew’s
-<code class="docutils literal notranslate"><span class="pre">libomp</span></code>) and skips itself without one. Windows (MSVC) builds all three helpers in CI, but
-that workflow does not run ctest. On Linux the helpers need GCC 13, so the AppImage moved
-from Ubuntu 22.04 to 24.04 (see <a class="reference internal" href="../release_process.html"><span class="std std-doc">release_process.md</span></a>); the first
-24.04 run is in progress at the time of writing.</p>
-<p><strong>Compile cost.</strong> The stitcher is one translation unit and dominates the build: 2.5 min
-and 4.4 GB with Apple clang, 7.4 min and 4.7 GB with GCC 16 on the same machine, about
-8 min with MSVC in CI, against seconds for the other two programs. It is not the source
-size: all three preprocess to 205,000–240,000 lines, but the stitcher’s object file is
-32.7 MB against 0.8 and 2.1 MB. <code class="docutils literal notranslate"><span class="pre">-O0</span></code> takes 17.5 s, so nearly all of it is optimization of
-template copies. Precision (2 values, <code class="docutils literal notranslate"><span class="pre">TextureStitching.cpp:1518</span></code>) and texture bit depth
-(4 values, <code class="docutils literal notranslate"><span class="pre">:1437</span></code>) are run-time options dispatched to template parameters, so the whole
-<code class="docutils literal notranslate"><span class="pre">Stitching</span></code> class is compiled 8 times; inside each copy, the operator assembly is built
-for 6 quadrature values (<code class="docutils literal notranslate"><span class="pre">Operators.inl:1376</span></code>), 2 sanity-check settings and 4 call sites
-with their own lambda types (<code class="docutils literal notranslate"><span class="pre">TextureStitching.cpp:777–786</span></code>). About 384 copies, of which a
-MeshLab run (float, 8-bit, quadrature 6) executes one.</p>
+<code class="docutils literal notranslate"><span class="pre">libomp</span></code>) and skips itself without one. The macOS DMG workflow turns it off: there the
+stitcher took an hour on a 7 GB runner, and the DMG cannot bundle the helpers yet. Windows
+(MSVC) builds all three helpers, without running ctest. The Linux AppImage moved from
+Ubuntu 22.04 to 24.04, whose GCC 13 the helpers need (see
+<a class="reference internal" href="../release_process.html"><span class="std std-doc">release_process.md</span></a>); there the helpers build and both tests
+pass. The plugin no longer declares a dependency on the helper build, which had held every
+target linking it, all the tests included, behind the stitcher.</p>
+<p><strong>Compile cost.</strong> The stitcher is one translation unit and dominated the build: precision
+(2 values) and bit depth (4) were run-time options dispatched to template parameters, so
+the whole <code class="docutils literal notranslate"><span class="pre">Stitching</span></code> class was compiled 8 times, and the operator assembly inside each
+copy for 6 quadrature values, 2 sanity-check settings and 4 call sites, about 384 copies
+of which a MeshLab run executes one. The bit depth reaches only image reading and writing,
+and is now a run-time value. With Apple clang at <code class="docutils literal notranslate"><span class="pre">-O3</span></code>:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>Time</p></th>
+<th class="head"><p>Peak memory</p></th>
+<th class="head"><p>Object file</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Before</p></td>
+<td><p>151 s</p></td>
+<td><p>4.4 GB</p></td>
+<td><p>32.7 MB</p></td>
+</tr>
+<tr class="row-odd"><td><p>After</p></td>
+<td><p>57 s</p></td>
+<td><p>2.6 GB</p></td>
+<td><p>14.9 MB</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The refactor alone changes no output: a serial run is byte-identical to the original
+source with only the memory fixes, on the gargoyle and on the vase. Dropping double
+precision would halve it again (32 s, 1.7 GB), but <code class="docutils literal notranslate"><span class="pre">--double</span></code> is a user option, so that is
+the authors’ call. GCC takes about three times as long as clang on this file.</p>
+<p><strong>Memory errors fixed.</strong> Found with AddressSanitizer and UBSan; all three programs now
+run clean on both datasets, except a harmless conversion in Misha’s PLY reader, which
+eagerly casts every float it reads to the integer types:</p>
+<ul class="simple">
+<li><p><strong>Cell confidences not padded</strong> (<code class="docutils literal notranslate"><span class="pre">TextureStitching.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">Init()</span></code>). When UVs come
+within half a texel of the border, the textures and per-texel confidences are padded and
+the system built at the padded size, but the per-cell confidences were not, and were
+read past their end. Needs UVs near the border, which xatlas produces.</p></li>
+<li><p><strong>Clipping an emptied polygon</strong> (<code class="docutils literal notranslate"><span class="pre">PolygonClipping.h</span></code>). The integration clips a polygon
+against a triangle’s three edges in turn; once one edge leaves nothing, the next read
+the vertex before index 0. Fails on the authors’ vase too.</p></li>
+<li><p><strong>Uninitialized advected confidence</strong> (<code class="docutils literal notranslate"><span class="pre">TextureAdvection.inl</span></code>). Only texels supported by
+the atlas were written; interpolation and erosion then read the rest. The likely cause
+of the NaN in about one <code class="docutils literal notranslate"><span class="pre">TextureFlow</span></code> run in five or six, and of the infinite loop
+<code class="docutils literal notranslate"><span class="pre">4efb2e6</span></code> guards against.</p></li>
+</ul>
+<p><strong>Repeatability.</strong> With those fixed, the schedule-dependent paths were made ordered. The
+target is identical inputs, binaries and thread count on one platform, not bitwise
+equality across compilers or architectures:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">BackProjection.inl</span></code>: depth-Laplacian variance summed in pixel order, rather than by
+atomic floating-point addition, whose rounding depends on the schedule;</p></li>
+<li><p>Misha <code class="docutils literal notranslate"><span class="pre">Texels.inl</span></code>: equal-distance candidate simplices resolved to the lowest index;</p></li>
+<li><p>PhongRodriguesVF <code class="docutils literal notranslate"><span class="pre">SimplicialMeshProcessing.phong.inl</span></code>: tangent frames from the
+coordinate axis with the largest residual, instead of <code class="docutils literal notranslate"><span class="pre">RandomSpherePoint</span></code>, whose shared
+<code class="docutils literal notranslate"><span class="pre">rand()</span></code> ran inside a parallel loop;</p></li>
+<li><p>PhongRodriguesVF <code class="docutils literal notranslate"><span class="pre">SimplicialMeshProcessing.integration.inl</span></code>: element matrices evaluated
+in parallel and added in simplex order, in blocks of 65,536 simplices so that memory
+stays bounded (about 42 MB) whatever the mesh size; the result is the same for any
+block size (checked at 1,024);</p></li>
+<li><p>TextureSignalProcessing: components numbered in triangle order
+(<code class="docutils literal notranslate"><span class="pre">SimpleTriangleMesh.inl</span></code>); supporting and covering triangles assigned in triangle order
+(<code class="docutils literal notranslate"><span class="pre">HierarchyConstruction.inl</span></code>); boundary coefficients collected by chart, not worker
+(<code class="docutils literal notranslate"><span class="pre">Operators.inl</span></code>); integration samples statically scheduled before their merge
+(<code class="docutils literal notranslate"><span class="pre">QuadratureIntegration.h</span></code>, so repeatable for a given thread count only); solved colors
+scattered in node order (<code class="docutils literal notranslate"><span class="pre">TextureStitching.cpp</span></code>).</p></li>
+</ul>
+<p>Serial stitcher runs are now byte-identical; parallel ones differ by at most 2/255 in a few
+thousand texels, from floating-point reduction order. The stitcher’s optional <code class="docutils literal notranslate"><span class="pre">--jitter</span></code>
+stays off: <code class="docutils literal notranslate"><span class="pre">--jitter</span> <span class="pre">0</span></code> seeds from the clock.</p>
 <p><strong>Not done:</strong></p>
 <ul class="simple">
-<li><p>bundling the helpers into the three packages (Phase 2), with <code class="docutils literal notranslate"><span class="pre">libomp</span></code> on macOS;</p></li>
+<li><p>committing the block-bounded assembly in PhongRodriguesVF;</p></li>
+<li><p>splitting TextureSignalProcessing’s commits into separable pull requests, and the pull
+requests themselves, to <code class="docutils literal notranslate"><span class="pre">hliuw/TextureConsolidation</span></code>, <code class="docutils literal notranslate"><span class="pre">mkazhdan/Misha</span></code>,
+<code class="docutils literal notranslate"><span class="pre">mkazhdan/TextureSignalProcessing</span></code> and <code class="docutils literal notranslate"><span class="pre">mkazhdan/PhongRodriguesVF</span></code>;</p></li>
+<li><p>bundling the helpers into the three packages (Phase 2), with <code class="docutils literal notranslate"><span class="pre">libomp</span></code> on macOS, and the
+plugin back on in the DMG;</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code> for the plugin and the <code class="docutils literal notranslate"><span class="pre">external/README.md</span></code> paragraph;</p></li>
-<li><p>the pull requests to <code class="docutils literal notranslate"><span class="pre">hliuw/TextureConsolidation</span></code> and <code class="docutils literal notranslate"><span class="pre">mkazhdan/Misha</span></code>;</p></li>
+<li><p>a coverage test that measures the charts rather than the whole image;</p></li>
 <li><p>running the vase through the filter itself, and the seam-discrepancy comparison test.</p></li>
 </ul>
-<p><strong>Found in upstream behaviour, for the authors:</strong></p>
-<ol class="arabic simple">
-<li><p><strong>Not deterministic, under OpenMP too.</strong> On identical inputs, <code class="docutils literal notranslate"><span class="pre">BackProjection</span></code> differs
-from run to run in about 10 texels per megapixel, by up to 158/255. <code class="docutils literal notranslate"><span class="pre">TextureFlow</span></code>
-differs in up to 4% of texels, about 0.1% by more than 10/255. The stitcher alone is
-deterministic.</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">TextureFlow</span></code> could loop forever.</strong> When every remaining overlap is NaN, the
-source-selection <code class="docutils literal notranslate"><span class="pre">if(</span> <span class="pre">overlap&gt;maxOverlap</span> <span class="pre">)</span></code> never fires and <code class="docutils literal notranslate"><span class="pre">while(</span> <span class="pre">true</span> <span class="pre">)</span></code> re-solves
-one view indefinitely. It hung in about 1 run in 8 on the gargoyle. Now a reported
-error, in fork commit <code class="docutils literal notranslate"><span class="pre">4efb2e6</span></code>.</p></li>
-<li><p><strong>The advection produces non-finite values</strong> in roughly 1 run in 5 or 6 on the gargoyle
-(15 of 80, then 13 of 80 with the advection loop made serial), anywhere from 1 to
-2,765 texels. It is not a race in that loop. Most such runs used to finish
-“successfully”, carrying NaN-derived texels, which is the likely cause of one run’s
-95.8% coverage against the usual 29.4%. Whether a non-finite advected sample should be
-treated as zero confidence, or reported, is the authors’ call.</p></li>
-<li><p><strong>The stitcher’s compile cost</strong> (above). The bit depth looks to matter only for
-reading and writing images, though that is not verified; if so, making it a plain
-run-time value would cut the stitcher’s compile time about fourfold. That would be a
-pull request to TextureSignalProcessing, not to TextureConsolidation.</p></li>
-</ol>
-</section>
-<section id="repeatability-fixes-2026-10-29">
-<h2>Repeatability fixes, 2026-10-29<a class="headerlink" href="#repeatability-fixes-2026-10-29" title="Link to this heading">¶</a></h2>
-<p>The nondeterminism reported above was reproduced on the vase with the Release build,
-512² textures and three flow levels. Two parallel runs differed already in every
-back-projected image; one flow run failed with non-finite overlap. Limiting OpenMP to
-one thread made back-projection repeatable, but the flow still differed. Initializing
-the advection output alone made two serial pipelines byte-identical, including all
-intermediate PNGs. This distinguishes an uninitialized-read bug from scheduling effects.</p>
-<p>The fixes belong to the helpers and their upstream libraries, not to MeshLab’s adapter:</p>
-<ul class="simple">
-<li><p><strong>TextureConsolidation, <code class="docutils literal notranslate"><span class="pre">TextureAdvection.inl</span></code>:</strong> zero-initialize the output before
-writing supported atlas texels. <code class="docutils literal notranslate"><span class="pre">RegularGrid&lt;double&gt;</span></code> allocates uninitialized scalar
-storage; confidence outside the atlas was subsequently read by interpolation and
-erosion. Point-valued color grids already default to zero.</p></li>
-<li><p><strong>TextureConsolidation, <code class="docutils literal notranslate"><span class="pre">BackProjection.inl</span></code>:</strong> sum depth-Laplacian variance in pixel
-order. Atomic floating-point addition prevented data races but did not fix rounding
-order. Computing the Laplacian and confidence remains parallel.</p></li>
-<li><p><strong>Misha, <code class="docutils literal notranslate"><span class="pre">Texels.inl</span></code>:</strong> when candidate simplices have exactly equal squared distance,
-choose the lowest simplex index. Candidate lists are assembled by worker, so their
-order is not stable. This matches the first candidate of a serial simplex traversal.</p></li>
-<li><p><strong>PhongRodriguesVF, <code class="docutils literal notranslate"><span class="pre">SimplicialMeshProcessing.phong.inl</span></code>:</strong> build tangent frames by
-projecting coordinate axes and choosing the largest residual, breaking ties in axis
-order. The previous random tangent basis consumed shared <code class="docutils literal notranslate"><span class="pre">rand()</span></code> calls inside a
-parallel loop. The new basis spans the same tangent plane without random sampling.</p></li>
-<li><p><strong>PhongRodriguesVF, <code class="docutils literal notranslate"><span class="pre">SimplicialMeshProcessing.integration.inl</span></code>:</strong> evaluate element
-matrices in parallel, then accumulate them in simplex order, following the existing
-vector-assembly pattern. This replaces schedule-dependent atomic additions. It adds
-temporary storage of <code class="docutils literal notranslate"><span class="pre">numS</span> <span class="pre">*</span> <span class="pre">NumElementsPerSimplex²</span> <span class="pre">*</span> <span class="pre">sizeof(double)</span></code> bytes (648 bytes
-per triangle for the flow’s nine-element system).</p></li>
-<li><p><strong>TextureSignalProcessing, <code class="docutils literal notranslate"><span class="pre">SimpleTriangleMesh.inl</span></code>:</strong> number connected-component
-roots in triangle order, then propagate labels in parallel. Atomic root numbering
-changed chart order, including the association of boundary perturbations with charts.</p></li>
-<li><p><strong>TextureSignalProcessing, <code class="docutils literal notranslate"><span class="pre">TextureStitching.cpp</span></code>:</strong> scatter the solved colors to the
-texture in node order. Different chart nodes can occupy the same pixel; parallel
-writes raced, whereas ordered writes consistently preserve the last node’s color.</p></li>
-<li><p><strong>TextureSignalProcessing, <code class="docutils literal notranslate"><span class="pre">HierarchyConstruction.inl</span></code>:</strong> assign supporting and
-covering triangles in triangle order. Last-writer atomic assignments otherwise chose
-different triangles and barycentric coordinates for the same atlas node.</p></li>
-<li><p><strong>TextureSignalProcessing, <code class="docutils literal notranslate"><span class="pre">Operators.inl</span></code>:</strong> collect boundary coefficients by chart
-instead of worker, so merging fixes the order of additions to shared matrix entries.</p></li>
-<li><p><strong>TextureSignalProcessing, <code class="docutils literal notranslate"><span class="pre">QuadratureIntegration.h</span></code>:</strong> statically schedule triangles
-whose integration sample lists are subsequently merged in worker order. This fixes
-accumulation order for a given worker count while preserving parallel integration.</p></li>
-</ul>
-<p>These changes retain parallel geometry, element integration and solving. They do not
-enable the stitcher’s optional <code class="docutils literal notranslate"><span class="pre">--jitter</span></code> argument: <code class="docutils literal notranslate"><span class="pre">--jitter</span> <span class="pre">0</span></code> explicitly seeds from
-wall-clock time, and a fixed nonzero jitter seed would not repair the other causes.
-The stitcher’s internal degeneracy perturbations still use its process-local default
-random sequence. The repeatability target is identical inputs, helper binaries and
-thread configuration on the same platform, not bitwise equality across compilers or
-floating-point architectures.</p>
-<p><code class="docutils literal notranslate"><span class="pre">textureConsolidationBuildsTextureFromRasters</span></code> now runs the complete filter twice on the
-same gargoyle atlas and compares every output pixel. The existing camera, coverage and
-refusal checks remain in place.</p>
-<p><strong>Landing:</strong> these are working-tree changes in TextureConsolidation and its nested
-Misha, PhongRodriguesVF and TextureSignalProcessing submodules. Publish the dependency
-fixes first, then update their gitlinks in TextureConsolidation, publish that revision,
-and finally update MeshLab’s TextureConsolidation gitlink together with the regression
-check. No commits, pushes or gitlink changes are made by this investigation. The
-TextureSignalProcessing checkout also contains separate ongoing compile-time changes;
-review its combined diff before staging.</p>
+<p><strong>For the authors:</strong> the three memory errors and the scheduling-dependent paths above,
+each with its fix on the forks; the compile cost and the bit-depth refactor; and, from
+before, that <code class="docutils literal notranslate"><span class="pre">TextureFlow</span></code> looped forever on an all-NaN overlap (now an error in
+<code class="docutils literal notranslate"><span class="pre">4efb2e6</span></code>). Whether a non-finite advected sample should count as zero confidence is
+theirs to say, though with the advection output initialized none has been seen since.</p>
 </section>
 <section id="open-questions">
 <h2>Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
@@ -956,7 +974,6 @@ paper’s RGB-D values, be offered for photographs rather than generated renderi
 <li><a class="reference internal" href="#a-fork-with-changes-proposed-upstream">A fork with changes proposed upstream</a></li>
 <li><a class="reference internal" href="#phases">Phases</a></li>
 <li><a class="reference internal" href="#status-2026-10-29-phase-1-done-phase-2-not-started">Status, 2026-10-29 (Phase 1 done; Phase 2 not started)</a></li>
-<li><a class="reference internal" href="#repeatability-fixes-2026-10-29">Repeatability fixes, 2026-10-29</a></li>
 <li><a class="reference internal" href="#open-questions">Open questions</a></li>
 </ul>
 </li>
