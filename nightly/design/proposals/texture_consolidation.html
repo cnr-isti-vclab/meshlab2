@@ -818,6 +818,68 @@ run-time value would cut the stitcher’s compile time about fourfold. That woul
 pull request to TextureSignalProcessing, not to TextureConsolidation.</p></li>
 </ol>
 </section>
+<section id="repeatability-fixes-2026-10-29">
+<h2>Repeatability fixes, 2026-10-29<a class="headerlink" href="#repeatability-fixes-2026-10-29" title="Link to this heading">¶</a></h2>
+<p>The nondeterminism reported above was reproduced on the vase with the Release build,
+512² textures and three flow levels. Two parallel runs differed already in every
+back-projected image; one flow run failed with non-finite overlap. Limiting OpenMP to
+one thread made back-projection repeatable, but the flow still differed. Initializing
+the advection output alone made two serial pipelines byte-identical, including all
+intermediate PNGs. This distinguishes an uninitialized-read bug from scheduling effects.</p>
+<p>The fixes belong to the helpers and their upstream libraries, not to MeshLab’s adapter:</p>
+<ul class="simple">
+<li><p><strong>TextureConsolidation, <code class="docutils literal notranslate"><span class="pre">TextureAdvection.inl</span></code>:</strong> zero-initialize the output before
+writing supported atlas texels. <code class="docutils literal notranslate"><span class="pre">RegularGrid&lt;double&gt;</span></code> allocates uninitialized scalar
+storage; confidence outside the atlas was subsequently read by interpolation and
+erosion. Point-valued color grids already default to zero.</p></li>
+<li><p><strong>TextureConsolidation, <code class="docutils literal notranslate"><span class="pre">BackProjection.inl</span></code>:</strong> sum depth-Laplacian variance in pixel
+order. Atomic floating-point addition prevented data races but did not fix rounding
+order. Computing the Laplacian and confidence remains parallel.</p></li>
+<li><p><strong>Misha, <code class="docutils literal notranslate"><span class="pre">Texels.inl</span></code>:</strong> when candidate simplices have exactly equal squared distance,
+choose the lowest simplex index. Candidate lists are assembled by worker, so their
+order is not stable. This matches the first candidate of a serial simplex traversal.</p></li>
+<li><p><strong>PhongRodriguesVF, <code class="docutils literal notranslate"><span class="pre">SimplicialMeshProcessing.phong.inl</span></code>:</strong> build tangent frames by
+projecting coordinate axes and choosing the largest residual, breaking ties in axis
+order. The previous random tangent basis consumed shared <code class="docutils literal notranslate"><span class="pre">rand()</span></code> calls inside a
+parallel loop. The new basis spans the same tangent plane without random sampling.</p></li>
+<li><p><strong>PhongRodriguesVF, <code class="docutils literal notranslate"><span class="pre">SimplicialMeshProcessing.integration.inl</span></code>:</strong> evaluate element
+matrices in parallel, then accumulate them in simplex order, following the existing
+vector-assembly pattern. This replaces schedule-dependent atomic additions. It adds
+temporary storage of <code class="docutils literal notranslate"><span class="pre">numS</span> <span class="pre">*</span> <span class="pre">NumElementsPerSimplex²</span> <span class="pre">*</span> <span class="pre">sizeof(double)</span></code> bytes (648 bytes
+per triangle for the flow’s nine-element system).</p></li>
+<li><p><strong>TextureSignalProcessing, <code class="docutils literal notranslate"><span class="pre">SimpleTriangleMesh.inl</span></code>:</strong> number connected-component
+roots in triangle order, then propagate labels in parallel. Atomic root numbering
+changed chart order, including the association of boundary perturbations with charts.</p></li>
+<li><p><strong>TextureSignalProcessing, <code class="docutils literal notranslate"><span class="pre">TextureStitching.cpp</span></code>:</strong> scatter the solved colors to the
+texture in node order. Different chart nodes can occupy the same pixel; parallel
+writes raced, whereas ordered writes consistently preserve the last node’s color.</p></li>
+<li><p><strong>TextureSignalProcessing, <code class="docutils literal notranslate"><span class="pre">HierarchyConstruction.inl</span></code>:</strong> assign supporting and
+covering triangles in triangle order. Last-writer atomic assignments otherwise chose
+different triangles and barycentric coordinates for the same atlas node.</p></li>
+<li><p><strong>TextureSignalProcessing, <code class="docutils literal notranslate"><span class="pre">Operators.inl</span></code>:</strong> collect boundary coefficients by chart
+instead of worker, so merging fixes the order of additions to shared matrix entries.</p></li>
+<li><p><strong>TextureSignalProcessing, <code class="docutils literal notranslate"><span class="pre">QuadratureIntegration.h</span></code>:</strong> statically schedule triangles
+whose integration sample lists are subsequently merged in worker order. This fixes
+accumulation order for a given worker count while preserving parallel integration.</p></li>
+</ul>
+<p>These changes retain parallel geometry, element integration and solving. They do not
+enable the stitcher’s optional <code class="docutils literal notranslate"><span class="pre">--jitter</span></code> argument: <code class="docutils literal notranslate"><span class="pre">--jitter</span> <span class="pre">0</span></code> explicitly seeds from
+wall-clock time, and a fixed nonzero jitter seed would not repair the other causes.
+The stitcher’s internal degeneracy perturbations still use its process-local default
+random sequence. The repeatability target is identical inputs, helper binaries and
+thread configuration on the same platform, not bitwise equality across compilers or
+floating-point architectures.</p>
+<p><code class="docutils literal notranslate"><span class="pre">textureConsolidationBuildsTextureFromRasters</span></code> now runs the complete filter twice on the
+same gargoyle atlas and compares every output pixel. The existing camera, coverage and
+refusal checks remain in place.</p>
+<p><strong>Landing:</strong> these are working-tree changes in TextureConsolidation and its nested
+Misha, PhongRodriguesVF and TextureSignalProcessing submodules. Publish the dependency
+fixes first, then update their gitlinks in TextureConsolidation, publish that revision,
+and finally update MeshLab’s TextureConsolidation gitlink together with the regression
+check. No commits, pushes or gitlink changes are made by this investigation. The
+TextureSignalProcessing checkout also contains separate ongoing compile-time changes;
+review its combined diff before staging.</p>
+</section>
 <section id="open-questions">
 <h2>Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
 <p>These are about the algorithm’s intended conventions, so they go to you, and through you
@@ -894,6 +956,7 @@ paper’s RGB-D values, be offered for photographs rather than generated renderi
 <li><a class="reference internal" href="#a-fork-with-changes-proposed-upstream">A fork with changes proposed upstream</a></li>
 <li><a class="reference internal" href="#phases">Phases</a></li>
 <li><a class="reference internal" href="#status-2026-10-29-phase-1-done-phase-2-not-started">Status, 2026-10-29 (Phase 1 done; Phase 2 not started)</a></li>
+<li><a class="reference internal" href="#repeatability-fixes-2026-10-29">Repeatability fixes, 2026-10-29</a></li>
 <li><a class="reference internal" href="#open-questions">Open questions</a></li>
 </ul>
 </li>

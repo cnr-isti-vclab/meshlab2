@@ -399,6 +399,71 @@ MeshLab run (float, 8-bit, quadrature 6) executes one.
    run-time value would cut the stitcher's compile time about fourfold. That would be a
    pull request to TextureSignalProcessing, not to TextureConsolidation.
 
+## Repeatability fixes, 2026-10-29
+
+The nondeterminism reported above was reproduced on the vase with the Release build,
+512² textures and three flow levels. Two parallel runs differed already in every
+back-projected image; one flow run failed with non-finite overlap. Limiting OpenMP to
+one thread made back-projection repeatable, but the flow still differed. Initializing
+the advection output alone made two serial pipelines byte-identical, including all
+intermediate PNGs. This distinguishes an uninitialized-read bug from scheduling effects.
+
+The fixes belong to the helpers and their upstream libraries, not to MeshLab's adapter:
+
+- **TextureConsolidation, `TextureAdvection.inl`:** zero-initialize the output before
+  writing supported atlas texels. `RegularGrid<double>` allocates uninitialized scalar
+  storage; confidence outside the atlas was subsequently read by interpolation and
+  erosion. Point-valued color grids already default to zero.
+- **TextureConsolidation, `BackProjection.inl`:** sum depth-Laplacian variance in pixel
+  order. Atomic floating-point addition prevented data races but did not fix rounding
+  order. Computing the Laplacian and confidence remains parallel.
+- **Misha, `Texels.inl`:** when candidate simplices have exactly equal squared distance,
+  choose the lowest simplex index. Candidate lists are assembled by worker, so their
+  order is not stable. This matches the first candidate of a serial simplex traversal.
+- **PhongRodriguesVF, `SimplicialMeshProcessing.phong.inl`:** build tangent frames by
+  projecting coordinate axes and choosing the largest residual, breaking ties in axis
+  order. The previous random tangent basis consumed shared `rand()` calls inside a
+  parallel loop. The new basis spans the same tangent plane without random sampling.
+- **PhongRodriguesVF, `SimplicialMeshProcessing.integration.inl`:** evaluate element
+  matrices in parallel, then accumulate them in simplex order, following the existing
+  vector-assembly pattern. This replaces schedule-dependent atomic additions. It adds
+  temporary storage of `numS * NumElementsPerSimplex² * sizeof(double)` bytes (648 bytes
+  per triangle for the flow's nine-element system).
+- **TextureSignalProcessing, `SimpleTriangleMesh.inl`:** number connected-component
+  roots in triangle order, then propagate labels in parallel. Atomic root numbering
+  changed chart order, including the association of boundary perturbations with charts.
+- **TextureSignalProcessing, `TextureStitching.cpp`:** scatter the solved colors to the
+  texture in node order. Different chart nodes can occupy the same pixel; parallel
+  writes raced, whereas ordered writes consistently preserve the last node's color.
+- **TextureSignalProcessing, `HierarchyConstruction.inl`:** assign supporting and
+  covering triangles in triangle order. Last-writer atomic assignments otherwise chose
+  different triangles and barycentric coordinates for the same atlas node.
+- **TextureSignalProcessing, `Operators.inl`:** collect boundary coefficients by chart
+  instead of worker, so merging fixes the order of additions to shared matrix entries.
+- **TextureSignalProcessing, `QuadratureIntegration.h`:** statically schedule triangles
+  whose integration sample lists are subsequently merged in worker order. This fixes
+  accumulation order for a given worker count while preserving parallel integration.
+
+These changes retain parallel geometry, element integration and solving. They do not
+enable the stitcher's optional `--jitter` argument: `--jitter 0` explicitly seeds from
+wall-clock time, and a fixed nonzero jitter seed would not repair the other causes.
+The stitcher's internal degeneracy perturbations still use its process-local default
+random sequence. The repeatability target is identical inputs, helper binaries and
+thread configuration on the same platform, not bitwise equality across compilers or
+floating-point architectures.
+
+`textureConsolidationBuildsTextureFromRasters` now runs the complete filter twice on the
+same gargoyle atlas and compares every output pixel. The existing camera, coverage and
+refusal checks remain in place.
+
+**Landing:** these are working-tree changes in TextureConsolidation and its nested
+Misha, PhongRodriguesVF and TextureSignalProcessing submodules. Publish the dependency
+fixes first, then update their gitlinks in TextureConsolidation, publish that revision,
+and finally update MeshLab's TextureConsolidation gitlink together with the regression
+check. No commits, pushes or gitlink changes are made by this investigation. The
+TextureSignalProcessing checkout also contains separate ongoing compile-time changes;
+review its combined diff before staging.
+
 ## Open questions
 
 These are about the algorithm's intended conventions, so they go to you, and through you
