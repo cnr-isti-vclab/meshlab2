@@ -166,7 +166,7 @@
       "name": "Subdivide by Loop",
       "pythonName": "subdivide_by_loop",
       "shortDescription": "Apply Loop subdivision.",
-      "longDescriptionMarkdown": "Apply Loop's Subdivision Surface algorithm. It is an approximant refinement method and it works for every triangle and has rules for extraordinary vertices.<br>",
+      "longDescriptionMarkdown": "Apply Loop's Subdivision Surface algorithm. It is an approximant refinement method and it works for every triangle and has rules for extraordinary vertices.\n\nDefined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use *Subdivide by Catmull-Clark*.",
       "tags": [
         "meshing"
       ],
@@ -224,7 +224,8 @@
       "outputModifies": [
         "FV",
         "VG",
-        "VN"
+        "VN",
+        "FP"
       ],
       "inputPrepare": [
         "BorderFF"
@@ -236,7 +237,7 @@
       "name": "Subdivide by Butterfly",
       "pythonName": "subdivide_by_butterfly",
       "shortDescription": "Apply Butterfly subdivision.",
-      "longDescriptionMarkdown": "Apply Butterfly Subdivision Surface algorithm. It is an interpolated refinement method, defined on arbitrary triangular meshes. The scheme is known to be C1 but not C2 on regular meshes<br>",
+      "longDescriptionMarkdown": "Apply Butterfly Subdivision Surface algorithm. It is an interpolated refinement method, defined on arbitrary triangular meshes. The scheme is known to be C1 but not C2 on regular meshes.\n\nDefined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use *Subdivide by Catmull-Clark*.",
       "tags": [
         "meshing"
       ],
@@ -272,7 +273,8 @@
       "outputModifies": [
         "FV",
         "VG",
-        "VN"
+        "VN",
+        "FP"
       ],
       "inputPrepare": [
         "BorderFF"
@@ -284,7 +286,7 @@
       "name": "Subdivide by Midpoint",
       "pythonName": "subdivide_by_midpoint",
       "shortDescription": "Apply midpoint subdivision.",
-      "longDescriptionMarkdown": "Apply a plain subdivision scheme where every edge is split on its midpoint. Useful to uniformly refine a mesh substituting each triangle with four smaller triangles.",
+      "longDescriptionMarkdown": "Apply a plain subdivision scheme where every edge is split on its midpoint. Useful to uniformly refine a mesh substituting each triangle with four smaller triangles.\n\nDefined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use *Subdivide by Catmull-Clark*.",
       "tags": [
         "meshing"
       ],
@@ -320,7 +322,8 @@
       "outputModifies": [
         "FV",
         "VG",
-        "VN"
+        "VN",
+        "FP"
       ],
       "inputPrepare": [
         "BorderFF"
@@ -332,7 +335,7 @@
       "name": "Subdivide by LS3 Loop",
       "pythonName": "subdivide_by_ls3_loop",
       "shortDescription": "Apply LS3 Loop subdivision.",
-      "longDescriptionMarkdown": "Apply LS3 Subdivision Surface algorithm using Loop's weights. This refinement method take normals into account. <br>See:<i>Boye', S. Guennebaud, G. & Schlick, C.</i> <br><b>Least squares subdivision surfaces</b><br>Computer Graphics Forum, 2010.<br/><br/>Alternatives weighting schemes are based on the paper: <i>Barthe, L. & Kobbelt, L.</i><br><b>Subdivision scheme tuning around extraordinary vertices</b><br>Computer Aided Geometric Design, 2004, 21, 561-583.<br/>The current implementation of these schemes don't handle vertices of valence > 12",
+      "longDescriptionMarkdown": "Apply LS3 Subdivision Surface algorithm using Loop's weights. This refinement method take normals into account. <br>See:<i>Boye', S. Guennebaud, G. & Schlick, C.</i> <br><b>Least squares subdivision surfaces</b><br>Computer Graphics Forum, 2010.<br/><br/>Alternatives weighting schemes are based on the paper: <i>Barthe, L. & Kobbelt, L.</i><br><b>Subdivision scheme tuning around extraordinary vertices</b><br>Computer Aided Geometric Design, 2004, 21, 561-583.<br/>The current implementation of these schemes don't handle vertices of valence > 12\n\nDefined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use *Subdivide by Catmull-Clark*.",
       "tags": [
         "meshing"
       ],
@@ -390,7 +393,8 @@
       "outputModifies": [
         "FV",
         "VG",
-        "VN"
+        "VN",
+        "FP"
       ],
       "inputPrepare": [
         "BorderFF"

@@ -457,6 +457,7 @@ private slots:
     void poissonReadsTheLayerAndLeavesItAlone();
     void curvatureDirectionsRemoveUnreferencedVerticesOnlyWhenAsked();
     void polygonFaceCountCacheTracksFilterChanges();
+    void triangleSubdivisionDropsThePolygonStructure();
     void isolatedFoldRepairPreservesFlagsAndConverges();
     void isolatedFoldRepairRejectsUnsupportedMeshes();
     void vertexDisplacementFiltersRunOnCube();
@@ -2644,6 +2645,39 @@ void FilterTests::polygonFaceCountCacheTracksFilterChanges()
     QVERIFY2(doc.runFilter(toQuadsKey, {}).success, "Convert to quads failed");
     QCOMPARE(doc.mesh(meshIndex).polygonFaceCount, 1);
     QVERIFY(doc.mesh(meshIndex).ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL);
+}
+
+// The triangle subdivision schemes copy each face's flags to its children, so a polygonal mesh used
+// to come out with faux edges marking edges that bound nothing. It is now subdivided as the
+// triangles it is made of, and comes out a triangle mesh, said in the log.
+void FilterTests::triangleSubdivisionDropsThePolygonStructure()
+{
+    VCGMesh quad;
+    for (const vcg::Point3f &point : {
+             vcg::Point3f(0, 0, 0), vcg::Point3f(1, 0, 0),
+             vcg::Point3f(1, 1, 0), vcg::Point3f(0, 1, 0) })
+        vcg::tri::Allocator<VCGMesh>::AddVertex(quad, point);
+    vcg::tri::Allocator<VCGMesh>::AddFace(quad, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(quad, 0, 2, 3);
+    quad.face[0].SetF(2);
+    quad.face[1].SetF(0);
+
+    for (const char *id : { "subdivide_by_midpoint", "subdivide_by_loop" }) {
+        Document doc;
+        const int meshIndex = doc.addMesh(quad, QStringLiteral("Quad"), vcg::tri::io::Mask::IOM_BITPOLYGONAL);
+        QCOMPARE(doc.mesh(meshIndex).polygonFaceCount, 1);
+        const MeshFilterRunResult r = doc.runFilter(
+            filterKeyForId(doc, QString::fromLatin1(id)),
+            { { QStringLiteral("Iterations"), 1 }, { QStringLiteral("Threshold"), 0.0 } });
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        const VCGMesh &m = doc.mesh(meshIndex).mesh;
+        QCOMPARE(m.FN(), 8);
+        for (const auto &f : m.face)
+            QVERIFY2(!f.IsF(0) && !f.IsF(1) && !f.IsF(2), id);
+        QCOMPARE(doc.mesh(meshIndex).polygonFaceCount, -1);
+        QVERIFY(!(doc.mesh(meshIndex).ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL));
+        QVERIFY2(r.infoMessages.join(QLatin1Char(' ')).contains(QStringLiteral("polygonal")), id);
+    }
 }
 
 void FilterTests::isolatedFoldRepairPreservesFlagsAndConverges()

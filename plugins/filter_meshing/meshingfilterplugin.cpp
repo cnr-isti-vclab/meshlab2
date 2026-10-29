@@ -950,6 +950,20 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 return fail(QObject::tr("Subdivision surfaces require manifoldness."));
             }
 
+            // These schemes are defined on triangles, and every new triangle copies its parent's
+            // flags: the faux edges of a polygonal mesh would come out marking edges that mean
+            // nothing in the subdivided mesh. So a polygonal mesh is subdivided as the triangles
+            // it is stored as, and its polygon structure is dropped first, for the whole mesh.
+            // Subdivide by Catmull-Clark is the scheme that works on polygons.
+            QStringList info;
+            const int polygons = vcg::tri::Clean<VCGMesh>::CountBitPolygons(mesh);
+            if (polygons < mesh.FN()) {
+                vcg::tri::BitQuadCreation<VCGMesh>::MakeBitTriOnly(mesh);
+                info << QObject::tr("'%1' was a polygonal mesh: its %2 polygons were subdivided as the %3 "
+                                    "triangles they are made of, and the result is a triangle mesh.")
+                            .arg(entry.name).arg(polygons).arg(mesh.FN());
+            }
+
             const bool selected = params.getBool(QStringLiteral("selectedOnly"));
             const float threshold = float(params.getDouble(QStringLiteral("Threshold")));
             const int iterations = std::max(1, params.getInt(QStringLiteral("Iterations")));
@@ -1028,7 +1042,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
             markGeometry(ci, QObject::tr("Applied subdivision on '%1'").arg(entry.name));
-            return success(true);
+            return success(true, info);
         }
 
         if (filterId == QString::fromLatin1(kIdReorient)) {
