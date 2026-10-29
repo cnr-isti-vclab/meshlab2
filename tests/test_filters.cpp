@@ -549,6 +549,7 @@ private slots:
     void applyToAllVisibleLayersReportsSkippedLayers();
     void packTextureImagesCreatesGutteredAtlas();
     void setTextureUvGridTellsUAndVApart();
+    void removeTexturesKeepsTheUvsUnlessAsked();
     void faceQualityFiltersAreSplit();
     void quasiConformalAndUvScalingTellShapeFromDensity();
     void measureReportsFaceDefectsOrientationAndBoundaryLength();
@@ -9040,6 +9041,48 @@ void FilterTests::setTextureUvGridTellsUAndVApart()
     QCOMPARE(grid.pixelColor(5, 16), QColor(255, 255, 255));
     QCOMPARE(grid.pixelColor(16, 5), QColor(255, 255, 255));
     QCOMPARE(grid.pixelColor(5, 5), QColor(128, 128, 128));
+}
+
+// Remove Textures detaches the textures and the materials that refer to them, keeping the UVs,
+// so Set Texture can give the mesh another one; undo brings the texture back. Asked to, it drops
+// the texture coordinates too. A mesh with nothing to remove is refused with a reason.
+void FilterTests::removeTexturesKeepsTheUvsUnlessAsked()
+{
+    Document doc;
+    VCGMesh mesh;
+    makeTwoTextureTriangles(mesh);
+    const int meshIndex = doc.addMesh(
+        mesh,
+        QStringLiteral("uv"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    QVERIFY(meshIndex >= 0);
+    const QString setKey = filterKeyForId(doc, QStringLiteral("set_texture"));
+    const QString removeKey = filterKeyForId(doc, QStringLiteral("remove_textures"));
+    QVERIFY(!removeKey.isEmpty());
+    QVERIFY(doc.runFilter(setKey, {}).success);
+    QVERIFY(Document::hasMeshTextureAssociation(doc.mesh(meshIndex)));
+
+    MeshFilterRunResult r = doc.runFilter(removeKey, {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(!Document::hasMeshTextureAssociation(doc.mesh(meshIndex)));
+    QVERIFY(doc.mesh(meshIndex).materialSet.empty());
+    QVERIFY(doc.mesh(meshIndex).mesh.face.IsWedgeTexCoordEnabled());
+    QVERIFY(doc.mesh(meshIndex).ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    QVERIFY(!doc.runFilter(removeKey, {}).success); // nothing left to remove
+
+    QVERIFY(doc.undo());
+    QVERIFY(Document::hasMeshTextureAssociation(doc.mesh(meshIndex)));
+
+    r = doc.runFilter(removeKey, { { QStringLiteral("removeTexCoords"), true } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(!Document::hasMeshTextureAssociation(doc.mesh(meshIndex)));
+    QVERIFY(!doc.mesh(meshIndex).mesh.face.IsWedgeTexCoordEnabled());
+    QVERIFY(!(doc.mesh(meshIndex).ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD));
+    QVERIFY(!doc.runFilter(removeKey, { { QStringLiteral("removeTexCoords"), true } }).success);
+
+    QVERIFY(doc.undo());
+    QVERIFY(doc.mesh(meshIndex).mesh.face.IsWedgeTexCoordEnabled());
+    QVERIFY(Document::hasMeshTextureAssociation(doc.mesh(meshIndex)));
 }
 
 void FilterTests::faceQualityFiltersAreSplit()

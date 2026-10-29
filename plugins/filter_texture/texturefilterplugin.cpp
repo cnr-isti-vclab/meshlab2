@@ -37,6 +37,7 @@ constexpr QLatin1StringView kFilterVertexToWedge("convert_per_vertex_uv_to_per_w
 constexpr QLatin1StringView kFilterPlanarMapping("parametrize_by_flat_plane");
 constexpr QLatin1StringView kFilterTriangleMapping("parametrize_by_trivial_per_triangle_layout");
 constexpr QLatin1StringView kFilterSetTexture("set_texture");
+constexpr QLatin1StringView kFilterRemoveTextures("remove_textures");
 constexpr QLatin1StringView kFilterColorToTexture("transfer_color_from_vertex_to_texture");
 constexpr QLatin1StringView kFilterTextureToVertexColor("transfer_color_from_texture_to_vertex_by_closest_point");
 constexpr QLatin1StringView kFilterTransferToTexture("transfer_vertex_attributes_to_texture_by_closest_point");
@@ -917,6 +918,40 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         // is immediately visible.
         result.visualizationHints.push_back(
             { meshIndex, MeshFilterVisualizationAttribute::Texture });
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterRemoveTextures)) {
+        const int textures = Document::meshTextureAssociationCount(entry);
+        const bool removeTexCoords = params.getBool(QStringLiteral("removeTexCoords"));
+        const bool hasTexCoords = mesh.face.IsWedgeTexCoordEnabled() || mesh.vert.IsTexCoordEnabled();
+        if (textures == 0 && !(removeTexCoords && hasTexCoords))
+            return fail(removeTexCoords
+                            ? QObject::tr("'%1' has no textures or texture coordinates to remove.").arg(entry.name)
+                            : QObject::tr("'%1' has no textures to remove.").arg(entry.name));
+
+        // The images and the materials that refer to them, all of them: a material slot counts
+        // as a texture association, and its factors only scale its textures. Files on disk stay.
+        Tex::replaceTextureAssociations(entry, {});
+        QStringList info;
+        if (textures > 0)
+            info << QObject::tr("Removed %n texture(s) from '%1'.", nullptr, textures).arg(entry.name);
+        if (removeTexCoords && hasTexCoords) {
+            mesh.face.DisableWedgeTexCoord();
+            mesh.vert.DisableTexCoord();
+            entry.ioMask &= ~(Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTTEXCOORD);
+            info << QObject::tr("Removed the texture coordinates of '%1'.").arg(entry.name);
+        }
+        // Material for the textures the views hold; geometry as well, because the mesh's own
+        // texture list, and the texture coordinates, live in the VCG mesh, which undo keys on
+        // the geometry revision.
+        doc.markMeshMaterialChanged(meshIndex, info.join(QLatin1Char(' ')));
+        doc.markMeshGeometryChanged(meshIndex, info.join(QLatin1Char(' ')));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages = info;
         return result;
     }
 

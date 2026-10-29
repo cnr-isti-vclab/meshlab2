@@ -341,6 +341,36 @@
       ]
     },
     {
+      "id": "remove_textures",
+      "categories": ["Texture/Assignment"],
+      "name": "Remove Textures",
+      "pythonName": "remove_textures",
+      "shortDescription": "Detach every texture from the current mesh, keeping its texture coordinates unless asked not to.",
+      "longDescriptionMarkdown": "Detaches all the textures of the current mesh -- the images, and the materials that refer to them -- so that it is drawn and saved untextured. The image files on disk are left alone. The texture coordinates stay, so that *Set Texture* can give the mesh another texture; **Remove texture coordinates** drops them as well, per wedge and per vertex, when the parametrization itself is not wanted any more.",
+      "tags": [
+        "texture",
+        "uv",
+        "material"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "removeTexCoords",
+          "label": "Remove texture coordinates",
+          "help": "Also drop the per-wedge and per-vertex texture coordinates.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": [
+        "TX",
+        "WT",
+        "VT"
+      ]
+    },
+    {
       "id": "transfer_color_from_vertex_to_texture",
       "categories": ["Transfer/Within a Mesh", "Texture"],
       "name": "Transfer Color from Vertex to Texture",
