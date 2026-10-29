@@ -6341,8 +6341,9 @@ void FilterTests::textureConsolidationCameraMatchesShotProjection()
 // The texture size is not arbitrary: the stitcher solves at texel resolution, and on this
 // atlas (20,000 faces) 256 x 256 usually leaves it a singular system -- "Failed to
 // factorize matrix" -- while 512 succeeds with warnings and 1024 is clean (measured
-// 2026-10-28). "Usually": the helpers are not deterministic, so the coarse case failed in
-// five of seven runs on identical inputs, and it cannot be asserted either way.
+// 2026-10-28). The original helpers were not deterministic, so the coarse case failed in
+// five of seven runs on identical inputs. The repeatability fixes below are checked at
+// the supported 1024 resolution; they do not make coarse singular systems well posed.
 void FilterTests::textureConsolidationBuildsTextureFromRasters()
 {
     Document probe;
@@ -6377,7 +6378,7 @@ void FilterTests::textureConsolidationBuildsTextureFromRasters()
 
     const Document::MeshEntry &entry = doc.mesh(0);
     QCOMPARE(int(entry.textureAssets.size()), 1);
-    const QImage &texture = entry.textureAssets.front().image;
+    const QImage texture = entry.textureAssets.front().image;
     QCOMPARE(texture.size(), QSize(1024, 1024));
     QVERIFY(QFileInfo::exists(texturePath));
 
@@ -6393,6 +6394,14 @@ void FilterTests::textureConsolidationBuildsTextureFromRasters()
     qDebug("texture consolidation on the gargoyle: %.1f%% of texels colored | %s", 100.0 * coverage,
            qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
     QVERIFY2(coverage > 0.2, qPrintable(QStringLiteral("only %1% of the texture is colored").arg(100.0 * coverage)));
+
+    // Run the same parallel pipeline again. A fixed seed alone cannot catch
+    // schedule-dependent texel choices, reductions, or uninitialized confidence.
+    const MeshFilterRunResult repeated = doc.runFilter(key, values);
+    QVERIFY2(repeated.success, qPrintable(repeated.errorMessage));
+    QCOMPARE(int(doc.mesh(0).textureAssets.size()), 1);
+    QVERIFY2(texture == doc.mesh(0).textureAssets.front().image,
+             "Texture consolidation changed pixels on identical inputs.");
 
     // With one raster hidden of the four it still runs; with three hidden it refuses.
     for (int ri = 1; ri < doc.rasterCount(); ++ri)
