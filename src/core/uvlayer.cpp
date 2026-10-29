@@ -70,7 +70,9 @@ QString buildUvLayer(const Document::MeshEntry &entry, int askedWidth, int asked
         const QSizeF &size = inTexels ? sizes[size_t(texture)] : QSizeF(1, 1);
         for (int c = 0; c < 3; ++c) {
             f.V(c) = &um.vert[vcg::tri::Index(mesh, face.cV(c))];
-            const auto &uv = wedgeUV ? face.cWT(c).P() : face.cV(c)->cT().P();
+            // By value: the optional per-vertex cT() returns a copy, so a reference to its P()
+            // would dangle -- GCC at -O3 read zeros through it, and found no fold in a folded layout.
+            const vcg::Point2f uv = wedgeUV ? face.cWT(c).P() : face.cV(c)->cT().P();
             f.WT(c).P() = vcg::Point2d(double(uv[0]) * size.width(), double(uv[1]) * size.height());
             f.WT(c).N() = short(texture);
         }
