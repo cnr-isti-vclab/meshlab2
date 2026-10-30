@@ -417,14 +417,6 @@ from the source and are not checked mechanically.</p>
 <p><em>Runs over</em> is the kind of element the formulas are evaluated on, and so which variables
 they can read. <em>Only selected</em> says whether the filter has the <strong>Only selected …</strong> option
 (see <a class="reference internal" href="#working-on-the-selection"><span class="xref myst">Working on the selection</span></a>).</p>
-<p>Two of the fields are not what their labels suggest:</p>
-<ul class="simple">
-<li><p>In <em>Compute Vertex Color by Expression</em> the red, green and blue formulas are labeled
-<strong>X, Y and Z Function</strong> (their Python names are <code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>, <code class="docutils literal notranslate"><span class="pre">z</span></code>); the fourth is the alpha.
-<em>Compute Face Color</em> and <em>Compute Edge Color</em> label them Red, Green and Blue.</p></li>
-<li><p><em>Compute Vertex Coordinates by Expression</em> has an <strong>Alpha expression</strong> field that does
-nothing; it is ignored.</p></li>
-</ul>
 </section>
 <section id="writing-an-expression">
 <h2>Writing an expression<a class="headerlink" href="#writing-an-expression" title="Link to this heading">¶</a></h2>
@@ -721,8 +713,8 @@ channel marks the selected faces green and leaves the rest black.</p>
 <h2>Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h2>
 <p>In each, the filter is listed first and the formulas under its field labels.</p>
 <p><strong>Color the vertices by height</strong>, blue at the bottom to red at the top.
-<em>Compute Vertex Color by Expression</em>: X <code class="docutils literal notranslate"><span class="pre">255*(z-zmin)/zdim</span></code>, Y <code class="docutils literal notranslate"><span class="pre">0</span></code>,
-Z <code class="docutils literal notranslate"><span class="pre">255-255*(z-zmin)/zdim</span></code>, Alpha <code class="docutils literal notranslate"><span class="pre">255</span></code>.</p>
+<em>Compute Vertex Color by Expression</em>: Red <code class="docutils literal notranslate"><span class="pre">255*(z-zmin)/zdim</span></code>, Green <code class="docutils literal notranslate"><span class="pre">0</span></code>,
+Blue <code class="docutils literal notranslate"><span class="pre">255-255*(z-zmin)/zdim</span></code>, Alpha <code class="docutils literal notranslate"><span class="pre">255</span></code>.</p>
 <p><strong>Select the vertices above the middle.</strong> <em>Select Vertices by Expression</em>: <code class="docutils literal notranslate"><span class="pre">z</span> <span class="pre">&gt;</span> <span class="pre">zmid</span></code>.</p>
 <p><strong>Select the faces that look up.</strong> <em>Select Faces by Expression</em>: <code class="docutils literal notranslate"><span class="pre">fnz</span> <span class="pre">&gt;</span> <span class="pre">0.7</span></code>.</p>
 <p><strong>Color the faces by their normal</strong>, the usual normal-map look. <em>Compute Face Color by
@@ -730,8 +722,8 @@ Expression</em>: Red <code class="docutils literal notranslate"><span class="pre
 <p><strong>Mark the selected faces green, with the checkbox off.</strong> <em>Compute Face Color by
 Expression</em>: Red <code class="docutils literal notranslate"><span class="pre">0</span></code>, Green <code class="docutils literal notranslate"><span class="pre">fsel*255</span></code>, Blue <code class="docutils literal notranslate"><span class="pre">0</span></code>, Alpha <code class="docutils literal notranslate"><span class="pre">255</span></code>.</p>
 <p><strong>Carry a measurement into a later step.</strong> <em>Define Custom Vertex Scalar Attribute</em>: name
-<code class="docutils literal notranslate"><span class="pre">height</span></code>, formula <code class="docutils literal notranslate"><span class="pre">z-zmin</span></code>. Then <em>Compute Vertex Color by Expression</em>: X <code class="docutils literal notranslate"><span class="pre">255*height/zdim</span></code>,
-Y <code class="docutils literal notranslate"><span class="pre">0</span></code>, Z <code class="docutils literal notranslate"><span class="pre">0</span></code>, Alpha <code class="docutils literal notranslate"><span class="pre">255</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">height</span></code>, formula <code class="docutils literal notranslate"><span class="pre">z-zmin</span></code>. Then <em>Compute Vertex Color by Expression</em>: Red <code class="docutils literal notranslate"><span class="pre">255*height/zdim</span></code>,
+Green <code class="docutils literal notranslate"><span class="pre">0</span></code>, Blue <code class="docutils literal notranslate"><span class="pre">0</span></code>, Alpha <code class="docutils literal notranslate"><span class="pre">255</span></code>.</p>
 <p><strong>Ripple a surface.</strong> <em>Compute Vertex Coordinates by Expression</em>: X <code class="docutils literal notranslate"><span class="pre">x</span></code>, Y <code class="docutils literal notranslate"><span class="pre">y</span></code>,
 Z <code class="docutils literal notranslate"><span class="pre">z+0.1*sin(10*x)</span></code>.</p>
 <p><strong>Refine only the upper half.</strong> <em>Refine by User Expression</em>: edge predicate

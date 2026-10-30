@@ -304,7 +304,8 @@ Computes per-face RGBA colors from expressions.
 ```{py:function} ms.compute_face_color_by_expression(**params)
 :module: _meshlab
 
-Color function using muparser lib to generate new RGBA color for every face<br>Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.<br>
+Color function using muparser lib to generate new RGBA color for every face\
+Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.
 
 **Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -332,15 +333,16 @@ Computes per-vertex RGBA colors from expressions.
 ```{py:function} ms.compute_vertex_color_by_expression(**params)
 :module: _meshlab
 
-Color function using muparser lib to generate new RGBA color for every vertex<br>Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.<br>
+Color function using muparser lib to generate new RGBA color for every vertex\
+Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.
 
 **Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
 **Parameters:**
 
-- **x** (*string*, default: `255`) — Expression for X output.
-- **y** (*string*, default: `255`) — Expression for Y output.
-- **z** (*string*, default: `0`) — Expression for Z output.
+- **r** (*string*, default: `255`) — Expression for red output in range [0, 255].
+- **g** (*string*, default: `255`) — Expression for green output in range [0, 255].
+- **b** (*string*, default: `0`) — Expression for blue output in range [0, 255].
 - **a** (*string*, default: `255`) — Expression for alpha output in range [0, 255].
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
@@ -670,7 +672,8 @@ This is the **algebraic point set surfaces** (APSS) variant: the local approxima
 
 **Parameters:**
 
-- **CurvatureType** (*enum*, default: `mean`) — The type of the curvature to plot.<br>ApproxMean uses the radius of the fitted sphere as an approximation of the mean curvature.
+- **CurvatureType** (*enum*, default: `mean`) — The type of the curvature to plot.\
+ApproxMean uses the radius of the fitted sphere as an approximation of the mean curvature.
 - **FilterScale** (*double*, default: `2.0`) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.
 - **SphericalParameter** (*double*, default: `1.0`) — Control the curvature of the fitted spheres: 0 is equivalent to a pure plane fit, 1 to a pure spherical fit, values between 0 and 1 give intermediate results, while other real values might give interesting results, but take care with extreme settings.
 - **ProjectionAccuracy** (*double*, default: `0.0001`) — Threshold value used to stop the projections. This value is scaled by the mean point spacing to get the actual threshold.
@@ -692,7 +695,11 @@ Compute discrete curvature and store it in vertex quality.
 ```{py:function} ms.compute_curvature_discrete(**params)
 :module: _meshlab
 
-Compute discrete curvature and store it in vertex quality. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization.<br>Computed as described in:<br>'<i>Discrete Differential-Geometry Operators for Triangulated 2-Manifolds</i>' <br>M. Meyer, M. Desbrun, P. Schroder, A. H. Barr
+Compute discrete curvature and store it in vertex quality. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization. It is computed with the discrete operators of Meyer et al.
+
+**References:**
+
+- Mark Meyer, Mathieu Desbrun, Peter Schröder, Alan H. Barr. **Discrete Differential-Geometry Operators for Triangulated 2-Manifolds**. *Visualization and Mathematics III* (2003). [DOI](https://doi.org/10.1007/978-3-662-05105-4_2)
 
 **Parameters:**
 
@@ -879,7 +886,10 @@ Defines and fills a custom per-face point attribute.
 ```{py:function} ms.define_custom_face_point_attribute(**params)
 :module: _meshlab
 
-Add a new Per-Face custom point attribute to current mesh and fill it with the defined functions.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br> A point attribute called `dir` is read in later formulas as `dir_x`, `dir_y` and `dir_z`.
+Add a new Per-Face custom point attribute to current mesh and fill it with the defined functions.\
+Attribute names must contain only letters, numbers and underscores.\
+The name specified for the attribute can be used in other filter functions.\
+A point attribute called `dir` is read in later formulas as `dir_x`, `dir_y` and `dir_z`.
 
 **Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -907,7 +917,9 @@ Defines and fills a custom per-face scalar attribute.
 ```{py:function} ms.define_custom_face_scalar_attribute(**params)
 :module: _meshlab
 
-Add a new Per-Face custom scalar attribute to current mesh and fill it with the defined function.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br>
+Add a new Per-Face custom scalar attribute to current mesh and fill it with the defined function.\
+Attribute names must contain only letters, numbers and underscores.\
+The name specified for the attribute can be used in other filter functions.
 
 **Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -933,7 +945,10 @@ Defines and fills a custom per-vertex point attribute.
 ```{py:function} ms.define_custom_vertex_point_attribute(**params)
 :module: _meshlab
 
-Add a new Per-Vertex custom point attribute to current mesh and fill it with the defined functions.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br> A point attribute called `dir` is read in later formulas as `dir_x`, `dir_y` and `dir_z`.
+Add a new Per-Vertex custom point attribute to current mesh and fill it with the defined functions.\
+Attribute names must contain only letters, numbers and underscores.\
+The name specified for the attribute can be used in other filter functions.\
+A point attribute called `dir` is read in later formulas as `dir_x`, `dir_y` and `dir_z`.
 
 **Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -961,7 +976,9 @@ Defines and fills a custom per-vertex scalar attribute.
 ```{py:function} ms.define_custom_vertex_scalar_attribute(**params)
 :module: _meshlab
 
-Add a new Per-Vertex custom scalar attribute to current mesh and fill it with the defined function.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br>
+Add a new Per-Vertex custom scalar attribute to current mesh and fill it with the defined function.\
+Attribute names must contain only letters, numbers and underscores.\
+The name specified for the attribute can be used in other filter functions.
 
 **Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -987,7 +1004,8 @@ Recompute face normals from geometry.
 ```{py:function} ms.compute_face_normals(**params)
 :module: _meshlab
 
-Recompute face normals as the normal of the plane of the face.<br>See <a href='https://math.stackexchange.com/questions/305642/'>How to find surface normal of a triangle</a>
+Recompute face normals as the normal of the plane of the face.\
+See <a href='https://math.stackexchange.com/questions/305642/'>How to find surface normal of a triangle</a>
 
 This filter has no parameters.
 ```
@@ -1007,7 +1025,7 @@ Computes new per-face normals from expressions.
 ```{py:function} ms.compute_face_normals_by_expression(**params)
 :module: _meshlab
 
-Normal function using muparser to generate new Normal for every face<br>
+Normal function using muparser to generate new Normal for every face
 
 **Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -1141,7 +1159,17 @@ Recompute vertex normals using one of several weighting schemes.
 ```{py:function} ms.compute_vertex_normals(**params)
 :module: _meshlab
 
-Recompute vertex normals according to four different schemes:<br>1) Simple (no weights) average of normals of the incident faces <br>2) Area weighted average of normals of the incident faces <br>3) Angle weighted sum of normals of the incident faces according to the article <b>[1]</b>. Probably this is the best all-purpose choice. It could slightly bias the result for degenerate, fat triangles.<br>4) Weighted sum of normals of the incident faces, as defined by article <b>[2]</b>. The weight for each wedge is the cross product of the two edges over the product of the square of the two edge lengths.According to the original article it is perfect only for spherical surface, but it should perform well also in practice.<br>[1]: <b>Computing Vertex Normals from Polygonal Facet</b> by <i>G Thurmer and CA Wuthrich</i>, JGT volume3, num 1. 1998<br><a href='https://doi.org/10.1080/10867651.1998.10487487'>doi:10.1080/10867651.1998.10487487</a><br>[2]: <b>Weights for Computing Vertex Normals from Facet Normals</b> by <i>Nelson Max</i>, JGT vol4, num 2. 1999<br><a href='https://doi.org/10.1080/10867651.1999.10487501'>doi:10.1080/10867651.1999.10487501</a>
+Recompute vertex normals according to four different schemes:
+
+1) Simple (no weights) average of normals of the incident faces
+2) Area weighted average of normals of the incident faces
+3) Angle weighted sum of normals of the incident faces according to Thürmer and Wüthrich. Probably this is the best all-purpose choice. It could slightly bias the result for degenerate, fat triangles.
+4) Weighted sum of normals of the incident faces, as defined by Max. The weight for each wedge is the cross product of the two edges over the product of the square of the two edge lengths.According to the original article it is perfect only for spherical surface, but it should perform well also in practice.
+
+**References:**
+
+- Grit Thürmer, Charles A. Wüthrich. **Computing Vertex Normals from Polygonal Facets**. *Journal of Graphics Tools* (1998). [DOI](https://doi.org/10.1080/10867651.1998.10487487)
+- Nelson Max. **Weights for Computing Vertex Normals from Facet Normals**. *Journal of Graphics Tools* (1999). [DOI](https://doi.org/10.1080/10867651.1999.10487501)
 
 **Parameters:**
 
@@ -1163,7 +1191,7 @@ Computes new per-vertex normals from expressions.
 ```{py:function} ms.compute_vertex_normals_by_expression(**params)
 :module: _meshlab
 
-Normal function using muparser to generate new Normal for every vertex<br>
+Normal function using muparser to generate new Normal for every vertex
 
 **Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -1230,7 +1258,13 @@ Reorients wrongly oriented faces using Embree ray casting.
 ```{py:function} ms.orient_face_normals_by_ray_casting(**params)
 :module: _meshlab
 
-Reorient face normals by geometry.Given the input mesh, this filter uses raytracing to determine if any faces are pointing inward and corrects their orientation. The number of rays is defined by the user; the higher the number, the higher the precision, but at the cost of computation time.This filter requires two values:<ul>	<li> the number of rays to be shot from the barycenter of each face </li>	<li> Parity Sampling: If selected, the normal analysis will be performed using the Parity Sampling algorithm. It is suggested to use this algotirhm when the standard one (visibility sampling) faild to riorient all faces because it is used to reorient faces invisible from the outside</li></ul><b> For further details, see the reference paper: Kenshi Takayama, Alec Jacobson, Ladislav Kavan, Olga Sorkine-Hornung. </b><br> <b> A Simple Method for Correcting Facet Orientations in Polygon Meshes Based on Ray Casting. Journal of Computer Graphics Techniques 3(4), 2014.</b> This filter uses the Embree3 library by Intel.
+Reorient face normals by geometry.Given the input mesh, this filter uses raytracing to determine if any faces are pointing inward and corrects their orientation. The number of rays is defined by the user; the higher the number, the higher the precision, but at the cost of computation time.This filter requires two values:<ul>	<li> the number of rays to be shot from the barycenter of each face </li>	<li> Parity Sampling: If selected, the normal analysis will be performed using the Parity Sampling algorithm. It is suggested to use this algotirhm when the standard one (visibility sampling) faild to riorient all faces because it is used to reorient faces invisible from the outside</li></ul>
+
+This filter uses the Embree3 library by Intel.
+
+**References:**
+
+- Kenshi Takayama, Alec Jacobson, Ladislav Kavan, Olga Sorkine-Hornung. **A Simple Method for Correcting Facet Orientations in Polygon Meshes Based on Ray Casting**. *Journal of Computer Graphics Techniques* (2014). [Web](https://jcgt.org/published/0003/04/02/)
 
 **Parameters:**
 
@@ -1263,8 +1297,9 @@ A cloud in several disconnected pieces cannot be oriented as a whole: the normal
 
 Implemented with CGAL's Point Set Processing.
 
-Reference:
-Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, **Surface Reconstruction from Unorganized Points**, SIGGRAPH 1992.
+**References:**
+
+- Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle. **Surface reconstruction from unorganized points**. *Proceedings of the 19th annual conference on Computer graphics and interactive techniques* (1992). [DOI](https://doi.org/10.1145/133994.134011)
 
 **Parameters:**
 
@@ -1527,7 +1562,8 @@ Computes per-face scalar quality from an expression.
 ```{py:function} ms.compute_face_scalar_by_expression(**params)
 :module: _meshlab
 
-Quality function using muparser to generate new Quality for every face<br>Insert three function each one for quality of the three vertex of a face<br>
+Quality function using muparser to generate new Quality for every face\
+Insert three function each one for quality of the three vertex of a face
 
 **Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -1711,7 +1747,11 @@ Compute a harmonic scalar field over the mesh.
 ```{py:function} ms.compute_harmonic_scalar_field(**params)
 :module: _meshlab
 
-Generates a scalar harmonic field over the mesh. Input scalar values must be assigned to two vertices as Dirichlet boundary conditions. Applying the filter, a discrete Laplace operator generates the harmonic field values for all the mesh vertices, which are stored in the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex attribute</a> of the mesh.<br>For more details see:<b>Dynamic Harmonic Fields for Surface Processing</b> by <i>Kai Xua, Hao Zhang, Daniel Cohen-Or, Yueshan Xionga</i>. Computers & Graphics, 2009 <br><a href='https://doi.org/10.1016/j.cag.2009.03.022'>doi:10.1016/j.cag.2009.03.022</a>
+Generates a scalar harmonic field over the mesh. Input scalar values must be assigned to two vertices as Dirichlet boundary conditions. Applying the filter, a discrete Laplace operator generates the harmonic field values for all the mesh vertices, which are stored in the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex attribute</a> of the mesh.
+
+**References:**
+
+- Kai Xu, Hao Zhang, Daniel Cohen-Or, Yueshan Xiong. **Dynamic harmonic fields for surface processing**. *Computers & Graphics* (2009). [DOI](https://doi.org/10.1016/j.cag.2009.03.022)
 
 **Parameters:**
 
@@ -1773,6 +1813,10 @@ Approximate geodesic distance via the heat method into vertex quality.
 
 Store in the vertex quality field the approximated geodesic distance, computed via the heat method (Crane et al.), from the selected points on the mesh surface. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization. As this implementation does not use intrinsic triangulation it is very sensitive to triangulation. First run takes longer because factorization has to be built.
 
+**References:**
+
+- Keenan Crane, Clarisse Weischedel, Max Wardetzky. **Geodesics in Heat: A New Approach to Computing Distance Based on Heat Flow**. *ACM Transactions on Graphics* (2013). [DOI](https://doi.org/10.1145/2516971.2516977) [Web](https://www.cs.cmu.edu/~kmcrane/Projects/HeatMethod/paperCACM.pdf)
+
 **Parameters:**
 
 - **m** (*double*, default: `1.0`) — Multiplier applied to the squared average edge length to compute the backward-Euler timestep. Larger values give smoother but less accurate results.
@@ -1818,7 +1862,11 @@ Computes volumetric obscurance and stores it in quality.
 ```{py:function} ms.compute_obscurance(**params)
 :module: _meshlab
 
-Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>	<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;	<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved per face, and each vertex takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written. The filter does not bake colors; after it runs the view switches to showing the per-face scalar. <br /><b>For further details see the reference paper: Iones Krupkin Sbert Zhukov Fast, Realistic Lighting for Video Games IEEECG&A 2003 </b> <br />This filter uses Embree3 library by INTEL.
+Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>	<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;</li>	<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved per face, and each vertex takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written. The filter does not bake colors; after it runs the view switches to showing the per-face scalar. <br />This filter uses Embree3 library by INTEL.
+
+**References:**
+
+- A. Iones, A. Krupkin, M. Sbert, S. Zhukov. **Fast, realistic lighting for video games**. *IEEE Computer Graphics and Applications* (2003). [DOI](https://doi.org/10.1109/MCG.2003.1198263)
 
 **Parameters:**
 
@@ -1868,7 +1916,11 @@ Computes SDF and stores it in quality.
 ```{py:function} ms.compute_shape_diameter_function(**params)
 :module: _meshlab
 
-Compute Shape-Diameter Function <br />The SDF defines the distance between a point in 3D space and the nearest point on the object's surface.This filter can be used to find out the thickness of the mesh <br />Given a face, a set of rays are shot inward, and an average of the distance to hit a face is saved in the face quality. The filter does not bake colors; after it runs MeshLab switches the view to face-quality color visualization.This filter requires two values:<ul>	<li> the number of rays which will be shot from the barycenter of each face </li>	<li> the cone amplitude (in degrees) of the cone which we value as valid for the shooting angle </li></ul> <br /><b>For further details see the reference paper: Shapira Shamir Cohen-Or, Consistent Mesh Partitioning and Skeletonisation using the shaper diameter function, Visual Comput. J. (2008) </b> <br />This filter uses Embree3 library by INTEL.
+Compute Shape-Diameter Function <br />The SDF defines the distance between a point in 3D space and the nearest point on the object's surface.This filter can be used to find out the thickness of the mesh <br />Given a face, a set of rays are shot inward, and an average of the distance to hit a face is saved in the face quality. The filter does not bake colors; after it runs MeshLab switches the view to face-quality color visualization.This filter requires two values:<ul>	<li> the number of rays which will be shot from the barycenter of each face </li>	<li> the cone amplitude (in degrees) of the cone which we value as valid for the shooting angle </li></ul> <br />This filter uses Embree3 library by INTEL.
+
+**References:**
+
+- Lior Shapira, Ariel Shamir, Daniel Cohen-Or. **Consistent mesh partitioning and skeletonisation using the shape diameter function**. *The Visual Computer* (2008). [DOI](https://doi.org/10.1007/s00371-007-0197-5)
 
 **Parameters:**
 
@@ -1989,7 +2041,7 @@ Computes per-vertex scalar quality from an expression.
 ```{py:function} ms.compute_vertex_scalar_by_expression(**params)
 :module: _meshlab
 
-Quality function using muparser to generate new Quality for every vertex<br>
+Quality function using muparser to generate new Quality for every vertex
 
 **Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -2471,8 +2523,9 @@ To box the whole scene rather than one layer, use **Create Scene Bounding Box**.
 
 The oriented box is computed with CGAL's Optimal Bounding Box package.
 
-Reference:
-Konstantinos Katrioplas, Mael Rouxel-Labbé, **Optimal Bounding Box**, CGAL User and Reference Manual, CGAL Editorial Board.
+**References:**
+
+- Chia-Tche Chang, Bastien Gorissen, Samuel Melchior. **Fast Oriented Bounding Box Optimization on the Rotation Group SO(3,ℝ)**. *ACM Transactions on Graphics* (2011). [DOI](https://doi.org/10.1145/2019627.2019641)
 
 **Parameters:**
 
@@ -2777,7 +2830,8 @@ Create polyline from selection perimeter.
 ```{py:function} ms.create_polyline_from_selection_perimeter(**params)
 :module: _meshlab
 
-Create a new Layer with an edge mesh (polyline) tracing the perimeter of the **selected faces**: every edge of a selected face whose adjacent face is not selected. Selecting all the faces of the mesh therefore converts its boundary edges into a polyline.<br>To build a polyline from an *edge* selection instead, use *Build a Polyline from Selected Edges*.
+Create a new Layer with an edge mesh (polyline) tracing the perimeter of the **selected faces**: every edge of a selected face whose adjacent face is not selected. Selecting all the faces of the mesh therefore converts its boundary edges into a polyline.\
+To build a polyline from an *edge* selection instead, use *Build a Polyline from Selected Edges*.
 
 This filter has no parameters.
 ```
@@ -2889,8 +2943,9 @@ There is deliberately no *turning the scene* option: straightening is a per-laye
 
 The oriented box is computed with CGAL's Optimal Bounding Box package.
 
-Reference:
-Konstantinos Katrioplas, Mael Rouxel-Labbé, **Optimal Bounding Box**, CGAL User and Reference Manual, CGAL Editorial Board.
+**References:**
+
+- Chia-Tche Chang, Bastien Gorissen, Samuel Melchior. **Fast Oriented Bounding Box Optimization on the Rotation Group SO(3,ℝ)**. *ACM Transactions on Graphics* (2011). [DOI](https://doi.org/10.1145/2019627.2019641)
 
 **Parameters:**
 
@@ -3153,8 +3208,9 @@ At least 4 vertices are required, and they must not all be coincident, collinear
 
 Implemented with VCGLib's Quickhull.
 
-Reference:
-C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, **The Quickhull Algorithm for Convex Hulls**, ACM Transactions on Mathematical Software 22(4), 1996.
+**References:**
+
+- C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa. **The quickhull algorithm for convex hulls**. *ACM Transactions on Mathematical Software* (1996). [DOI](https://doi.org/10.1145/235815.235821)
 
 This filter has no parameters.
 ```
@@ -3222,8 +3278,9 @@ This is CGAL's counterpart to the *Reconstruct Surface by Ball Pivoting* filters
 
 Implemented with CGAL's Advancing Front Surface Reconstruction.
 
-Reference:
-David Cohen-Steiner, Frank Da, **A greedy Delaunay-based surface reconstruction algorithm**, The Visual Computer 20(1), 2004.
+**References:**
+
+- David Cohen-Steiner, Frank Da. **A greedy Delaunay-based surface reconstruction algorithm**. *The Visual Computer* (2004). [DOI](https://doi.org/10.1007/s00371-003-0217-z)
 
 **Parameters:**
 
@@ -3261,8 +3318,9 @@ Facet orientation comes from the Delaunay triangulation and is not made globally
 
 Implemented with CGAL's 3D Alpha Shapes.
 
-Reference:
-Herbert Edelsbrunner, Ernst P. Mucke, **Three-Dimensional Alpha Shapes**, ACM Transactions on Graphics 13(1), 1994.
+**References:**
+
+- Herbert Edelsbrunner, Ernst P. Mücke. **Three-dimensional alpha shapes**. *ACM Transactions on Graphics* (1994). [DOI](https://doi.org/10.1145/174462.156635)
 
 **Parameters:**
 
@@ -3298,10 +3356,11 @@ The result is an *approximating* reconstruction: the offset is strictly positive
 
 The filter uses CGAL's 3D Alpha Wrapping implementation.
 
-Reference:
-Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pierre Alliez, **Alpha Wrapping with an Offset**, 2022.
-
 Original MeshLab plugin contribution: Lex van der Sluijs, PTC.
+
+**References:**
+
+- Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pierre Alliez. **Alpha wrapping with an offset**. *ACM Transactions on Graphics* (2022). [DOI](https://doi.org/10.1145/3528223.3530152)
 
 **Parameters:**
 
@@ -3337,8 +3396,9 @@ The single seed is the difference you will notice first. On a cloud in several p
 
 Works best on uniformly sampled clouds. If the sampling is uneven, run **Sample Surface by Poisson Disk** first. The points must carry normals, and they must be oriented consistently -- the ball needs to know which side the surface is on.
 
-Reference:
-Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G., **The ball-pivoting algorithm for surface reconstruction**, IEEE TVCG 1999.
+**References:**
+
+- Fausto Bernardini, Joshua Mittleman, Holly Rushmeier, Cláudio Silva, Gabriel Taubin. **The Ball-Pivoting Algorithm for Surface Reconstruction**. *IEEE Transactions on Visualization and Computer Graphics* (1999). [DOI](https://doi.org/10.1109/2945.817351)
 
 **Parameters:**
 
@@ -3396,7 +3456,11 @@ Reconstruct a surface from oriented points using Ball Pivoting.
 ```{py:function} ms.reconstruct_surface_by_ball_pivoting_vcglib(**params)
 :module: _meshlab
 
-Given a point cloud with normals it reconstructs a surface using the <b>Ball Pivoting Algorithm</b>.Starting with a seed triangle, the BPA algorithm  pivots a ball of the given radius around the already formed edges until it touches another point, forming another triangle. The process continues until all reachable edges have been tried. This surface reconstruction algorithm uses the existing points without creating new ones. Works better with uniformly sampled point clouds. If needed first perform a poisson disk subsampling of the point cloud. <br>Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G.<br><b>The ball-pivoting algorithm for surface reconstruction.</b><br>IEEE TVCG 1999
+Given a point cloud with normals it reconstructs a surface using the <b>Ball Pivoting Algorithm</b>.Starting with a seed triangle, the BPA algorithm  pivots a ball of the given radius around the already formed edges until it touches another point, forming another triangle. The process continues until all reachable edges have been tried. This surface reconstruction algorithm uses the existing points without creating new ones. Works better with uniformly sampled point clouds. If needed first perform a poisson disk subsampling of the point cloud.
+
+**References:**
+
+- Fausto Bernardini, Joshua Mittleman, Holly Rushmeier, Cláudio Silva, Gabriel Taubin. **The Ball-Pivoting Algorithm for Surface Reconstruction**. *IEEE Transactions on Visualization and Computer Graphics* (1999). [DOI](https://doi.org/10.1109/2945.817351)
 
 **Parameters:**
 
@@ -3438,8 +3502,9 @@ The reconstruction emits convex polygons, which this filter fan-triangulates bec
 
 Implemented with CGAL's Kinetic Surface Reconstruction.
 
-Reference:
-Sven Oesau, Florent Lafarge, **Kinetic Shape Reconstruction**, ACM Transactions on Graphics 39(5), 2020.
+**References:**
+
+- Jean-Philippe Bauchet, Florent Lafarge. **Kinetic Shape Reconstruction**. *ACM Transactions on Graphics* (2020). [DOI](https://doi.org/10.1145/3376918)
 
 **Parameters:**
 
@@ -3547,8 +3612,9 @@ Triangle size and quality are controlled relative to the estimated average point
 
 Implemented with CGAL's Poisson Surface Reconstruction.
 
-Reference:
-Michael Kazhdan, Matthew Bolitho, Hugues Hoppe, **Poisson Surface Reconstruction**, Symposium on Geometry Processing 2006.
+**References:**
+
+- Michael Kazhdan, Matthew Bolitho, Hugues Hoppe. **Poisson Surface Reconstruction**. *Proceedings of the Fourth Eurographics Symposium on Geometry Processing* (2006). [DOI](https://doi.org/10.2312/SGP/SGP06/061-070)
 
 **Parameters:**
 
@@ -3589,8 +3655,9 @@ Unlike the other interpolating reconstructions here, the output vertices are the
 
 Implemented with CGAL's 3D Scale-Space Surface Reconstruction.
 
-Reference:
-Thijs van Lankveld, Marc van Kreveld, Remco Veltkamp, **Watertight Scenes from Urban LiDAR and Planar Surfaces**, Computer Graphics Forum 32(5), 2013.
+**References:**
+
+- Julie Digne, Jean-Michel Morel, Charyar-Mehdi Souzani, Claire Lartigue. **Scale Space Meshing of Raw Data Point Sets**. *Computer Graphics Forum* (2011). [DOI](https://doi.org/10.1111/j.1467-8659.2011.01848.x)
 
 **Parameters:**
 
@@ -3739,8 +3806,9 @@ This is an *interpolating* reconstruction: every output vertex is one of the inp
 
 Built on CGAL's 3D Delaunay triangulation.
 
-Reference:
-Nina Amenta, Marshall Bern, **Surface Reconstruction by Voronoi Filtering**, Discrete & Computational Geometry 22(4), 1999.
+**References:**
+
+- N. Amenta, M. Bern. **Surface Reconstruction by Voronoi Filtering**. *Discrete & Computational Geometry* (1999). [DOI](https://doi.org/10.1007/PL00009475)
 
 **Parameters:**
 
@@ -3898,7 +3966,11 @@ Generate well-spaced samples over a surface or point cloud.
 ```{py:function} ms.sample_surface_by_poisson_disk(**params)
 :module: _meshlab
 
-Create a new layer populated with a point sampling of the current mesh;samples are generated according to a Poisson-disk distribution, using the algorithm described in:<br><b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b><br> Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012
+Create a new layer populated with a point sampling of the current mesh;samples are generated according to a Poisson-disk distribution, using the algorithm of Corsini, Cignoni and Scopigno.
+
+**References:**
+
+- M. Corsini, P. Cignoni, R. Scopigno. **Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes**. *IEEE Transactions on Visualization and Computer Graphics* (2012). [DOI](https://doi.org/10.1109/TVCG.2012.34)
 
 **Parameters:**
 
@@ -4462,7 +4534,8 @@ Merge all layers, or only the visible ones, into a single new mesh. Also known a
 ```{py:function} ms.merge_visible_layers(**params)
 :module: _meshlab
 
-Merge all layers, or only the visible ones, into a single new mesh. Also known as flattening.<br>Transformations are preserved. Existing layers can be optionally deleted.
+Merge all layers, or only the visible ones, into a single new mesh. Also known as flattening.\
+Transformations are preserved. Existing layers can be optionally deleted.
 
 **Parameters:**
 
@@ -5323,7 +5396,8 @@ Computes new per-vertex coordinates from expressions.
 ```{py:function} ms.compute_vertex_coordinates_by_expression(**params)
 :module: _meshlab
 
-Geometric function using muparser lib to generate new Coord<br>You can change x,y,z for every vertex according to the function specified.<br>
+Geometric function using muparser lib to generate new Coord\
+You can change x,y,z for every vertex according to the function specified.
 
 **Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -5332,7 +5406,6 @@ Geometric function using muparser lib to generate new Coord<br>You can change x,
 - **x** (*string*, default: `x`) — Expression for X output.
 - **y** (*string*, default: `y`) — Expression for Y output.
 - **z** (*string*, default: `sin(x+y)`) — Expression for Z output.
-- **a** (*string*, default: `1`) — Expression for alpha channel (ignored for geometry).
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
@@ -7465,7 +7538,11 @@ Convert tri mesh into quad mesh by 4-8 subdivision.
 ```{py:function} ms.convert_to_quads_by_4_8_subdivision(**params)
 :module: _meshlab
 
-Convert a tri mesh into a quad mesh by applying a 4-8 subdivision scheme.It introduces less overhead than the plain Catmull-Clark Subdivision Surfaces, and applying two step of this procedure generates the same connectivity of the Catmull-Clark subdivision approach.(it adds only a single vertex for each triangle instead of four).<br> See: <br><b>4-8 Subdivision</b><br> <i>Luiz Velho, Denis Zorin </i><br>CAGD, volume 18, Issue 5, Pages 397-427.
+Convert a tri mesh into a quad mesh by applying a 4-8 subdivision scheme.It introduces less overhead than the plain Catmull-Clark Subdivision Surfaces, and applying two step of this procedure generates the same connectivity of the Catmull-Clark subdivision approach.(it adds only a single vertex for each triangle instead of four).
+
+**References:**
+
+- Luiz Velho, Denis Zorin. **4–8 Subdivision**. *Computer Aided Geometric Design* (2001). [DOI](https://doi.org/10.1016/S0167-8396(01)00039-5)
 
 This filter has no parameters.
 ```
@@ -7810,7 +7887,11 @@ Explicit isotropic remeshing by local operations.
 ```{py:function} ms.remesh_isotropically_vcglib(**params)
 :module: _meshlab
 
-Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge flip, collapse, relax and refine operations to regularize size and aspect ration of the triangular meshing. Loosely inspired to:<br>Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, and Werner Stuetzle.<br>Mesh optimization<br>(SIGGRAPH '93). ACM, New York, NY, USA, 19–26. <a href='https://doi.org/10.1145/166117.166119'>DOI</a>
+Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge flip, collapse, relax and refine operations to regularize size and aspect ration of the triangular meshing. Loosely inspired by the mesh optimization of Hoppe et al.
+
+**References:**
+
+- Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle. **Mesh optimization**. *Proceedings of the 20th annual conference on Computer graphics and interactive techniques* (1993). [DOI](https://doi.org/10.1145/166117.166119)
 
 **Parameters:**
 
@@ -7921,7 +8002,8 @@ Build an offset mesh from a signed distance field sampled on a regular grid.
 ```{py:function} ms.remesh_uniformly_by_volumetric_resampling(**params)
 :module: _meshlab
 
-Create a new mesh that is a resampled version of the current one.<br>The resampling is done by building a uniform volumetric representation where each voxel contains the signed distance from the original surface. The resampled surface is reconstructed using the <b>marching cube</b> algorithm over this volume.
+Create a new mesh that is a resampled version of the current one.\
+The resampling is done by building a uniform volumetric representation where each voxel contains the signed distance from the original surface. The resampled surface is reconstructed using the <b>marching cube</b> algorithm over this volume.
 
 **Parameters:**
 
@@ -8180,7 +8262,11 @@ Simplify mesh by clustering vertices on a grid.
 ```{py:function} ms.simplify_by_vertex_clustering(**params)
 :module: _meshlab
 
-Simplify the mesh by clustering vertices; by using a uniform grid over the mesh, the algorithm merges all the vertices in a grid cell into a single vertex. By design this approach removes all small triangles, but also create a number of non-manifold situation.<br> See: <br><br><i>Jarek Rossignac, and Paul Borrel</i>. <br><b>Multi-resolution 3D approximations for rendering complex scenes.</b><br>Modeling in computer graphics: methods and applications. Springer, 1993
+Simplify the mesh by clustering vertices; by using a uniform grid over the mesh, the algorithm merges all the vertices in a grid cell into a single vertex. By design this approach removes all small triangles, but also create a number of non-manifold situation.
+
+**References:**
+
+- Jarek Rossignac, Paul Borrel. **Multi-resolution 3D approximations for rendering complex scenes**. *Modeling in Computer Graphics* (1993). [DOI](https://doi.org/10.1007/978-3-642-78114-8_29)
 
 **Parameters:**
 
@@ -8226,7 +8312,11 @@ Simplify a point cloud with Poisson-disk pruning.
 ```{py:function} ms.simplify_point_cloud(**params)
 :module: _meshlab
 
-Create a new layer populated with a simplified version of the current point cloud. The simplification is performed by subsampling the original point cloud using a Poisson Disk strategy  using the algorithm described in:<br><b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b><br> Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012
+Create a new layer populated with a simplified version of the current point cloud. The simplification is performed by subsampling the original point cloud using a Poisson Disk strategy, using the algorithm of Corsini, Cignoni and Scopigno.
+
+**References:**
+
+- M. Corsini, P. Cignoni, R. Scopigno. **Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes**. *IEEE Transactions on Visualization and Computer Graphics* (2012). [DOI](https://doi.org/10.1109/TVCG.2012.34)
 
 **Parameters:**
 
@@ -8254,7 +8344,10 @@ Refines edges selected by an expression and places split points by expressions.
 ```{py:function} ms.refine_by_user_expression(**params)
 :module: _meshlab
 
-Refine current mesh with user defined parameters.<br>Specify a Boolean Function needed to select which edges will be cut for refinement purpose.<br>Each edge is identified with first and second vertex.<br>Arguments accepted are first and second vertex attributes:<br>
+Refine current mesh with user defined parameters.\
+Specify a Boolean Function needed to select which edges will be cut for refinement purpose.\
+Each edge is identified with first and second vertex.\
+Arguments accepted are first and second vertex attributes:
 
 **Variables.** The edge predicate sees the two endpoints (`x0 … z1`, `nx0 … nz1`, `r0 g0 b0`, `r1 g1 b1`, `q0 q1`) and is tried with them in both orders; the split-point formulas see only `x0 y0 z0 x1 y1 z1`. Functions and operators are in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -8377,9 +8470,16 @@ Apply LS3 Loop subdivision.
 ```{py:function} ms.subdivide_by_ls3_loop(**params)
 :module: _meshlab
 
-Apply LS3 Subdivision Surface algorithm using Loop's weights. This refinement method take normals into account. <br>See:<i>Boye', S. Guennebaud, G. & Schlick, C.</i> <br><b>Least squares subdivision surfaces</b><br>Computer Graphics Forum, 2010.<br/><br/>Alternatives weighting schemes are based on the paper: <i>Barthe, L. & Kobbelt, L.</i><br><b>Subdivision scheme tuning around extraordinary vertices</b><br>Computer Aided Geometric Design, 2004, 21, 561-583.<br/>The current implementation of these schemes don't handle vertices of valence > 12
+Apply LS3 Subdivision Surface algorithm using Loop's weights. This refinement method take normals into account.
+
+The alternative weighting schemes are Barthe and Kobbelt's. The current implementation of these schemes don't handle vertices of valence > 12
 
 Defined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use *Subdivide by Catmull-Clark*.
+
+**References:**
+
+- S. Boyé, G. Guennebaud, C. Schlick. **Least Squares Subdivision Surfaces**. *Computer Graphics Forum* (2010). [DOI](https://doi.org/10.1111/j.1467-8659.2010.01788.x)
+- Loïc Barthe, Leif Kobbelt. **Subdivision scheme tuning around extraordinary vertices**. *Computer Aided Geometric Design* (2004). [DOI](https://doi.org/10.1016/j.cagd.2004.04.003)
 
 **Parameters:**
 
@@ -8559,7 +8659,8 @@ Note that topologically incompatible merges are still skipped, as they cannot be
 - **targetTexCount** (*int*, default: `0`) — Specifies the maximum number of output textures that can be generated by the filter.
 If set to zero the parameter is ignored and the algorithm employs the default packing strategy.
 - **timelimit** (*double*, default: `0.0`) — Time limit for the chart merging stage. `0` means unlimited. Note that it does not bound the atlas packing that follows, which on a heavily fragmented layout can be the slower half.
-- **quickRun** (*bool*, default: `False`) — Speeds up the running time of the filter by never attempting again any rejected merge operation. <br> Although fast, it could lead to worst results.
+- **quickRun** (*bool*, default: `False`) — Speeds up the running time of the filter by never attempting again any rejected merge operation.\
+Although fast, it could lead to worst results.
 - **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas packing exactly reproducible.
 - **resampleTextures** (*bool*, default: `True`) — Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way -- the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.
 ```
@@ -8683,7 +8784,7 @@ Four packers are offered, and they trade quality against time very differently -
 
 Requires an abstract domain on the layer: run **Parametrize by Abstract Domain** first.
 
-Based on Pietroni, Tarini and Cignoni, *Almost isometric mesh parameterization through abstract domains*, IEEE TVCG 2010; the square patches and the half-star partition are theirs, the merged hexagon and star charts are not.
+The square patches and the half-star partition are the paper's; the merged hexagon and star charts are not.
 
 **References:**
 
@@ -8730,8 +8831,6 @@ What *is* written into the mesh is the mapping itself, as per-vertex UVs, and th
 The mesh must be a **single watertight two-manifold component**; the filter says which precondition failed when it is not.
 
 Counter-intuitively, a *smaller* abstract domain costs more, not less. The two size bounds are a search range, not a tolerance: decimation always runs all the way down to the smallest, scoring the domain at every step, and then back-tracks to the best size in the interval. Lowering the smallest therefore buys more work, not less. On a 40k-vertex sphere, 150-200 faces took about twice as long as 400-500.
-
-Based on Pietroni, Tarini and Cignoni, *Almost isometric mesh parameterization through abstract domains*, IEEE TVCG 2010.
 
 **References:**
 
@@ -9124,7 +9223,8 @@ Generate a triangle-by-triangle parametrization using either equal-size or space
 ```{py:function} ms.parametrize_by_trivial_per_triangle_layout(**params)
 :module: _meshlab
 
-Builds a trivial triangle-by-triangle parametrization. <br> Two methods are provided, the first maps all triangles into equal sized triangles, while the second one adapt the size of the triangles in texture space to their original size.
+Builds a trivial triangle-by-triangle parametrization.\
+Two methods are provided, the first maps all triangles into equal sized triangles, while the second one adapt the size of the triangles in texture space to their original size.
 
 **Parameters:**
 
@@ -9150,7 +9250,11 @@ Build an atlased parametrization using a geodesic Voronoi partition of the surfa
 ```{py:function} ms.parametrize_by_voronoi_atlas_vcglib(**params)
 :module: _meshlab
 
-Build an atlased parametrization based on a geodesic voronoi partitioning of the surface and parametrizing each region using Harmonic Mapping. For the parametrization of the disk like voronoi regions the used method is: <br><b>Ulrich Pinkall, Konrad Polthier</b><br><i>Computing Discrete Minimal Surfaces and Their Conjugates</i> <br>Experimental Mathematics, Vol 2 (1), 1993.
+Build an atlased parametrization based on a geodesic voronoi partitioning of the surface and parametrizing each region using Harmonic Mapping. The harmonic map of each disk-like region is that of Pinkall and Polthier.
+
+**References:**
+
+- Ulrich Pinkall, Konrad Polthier. **Computing Discrete Minimal Surfaces and Their Conjugates**. *Experimental Mathematics* (1993). [DOI](https://doi.org/10.1080/10586458.1993.10504266)
 
 **Parameters:**
 
@@ -9240,7 +9344,7 @@ Computes per-vertex texture coordinates from expressions.
 ```{py:function} ms.parametrize_per_vertex_by_expression(**params)
 :module: _meshlab
 
-Texture function using muparser to generate new texture coords for every vertex<br>
+Texture function using muparser to generate new texture coords for every vertex
 
 **Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -9266,7 +9370,8 @@ Computes per-wedge texture coordinates from expressions.
 ```{py:function} ms.parametrize_per_wedge_by_expression(**params)
 :module: _meshlab
 
-Texture function using muparser to generate new per wedge tex coords for every face<br>Insert six functions each u v for each one of the three vertex of a face<br>
+Texture function using muparser to generate new per wedge tex coords for every face\
+Insert six functions each u v for each one of the three vertex of a face
 
 **Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -9569,7 +9674,9 @@ Try to snap together slightly mismatched adjacent borders.
 ```{py:function} ms.repair_mismatched_borders(**params)
 :module: _meshlab
 
-Try to snap together adjacent borders that are slightly mismatched.<br>This situation can happen on badly triangulated adjacent patches defined by high order surfaces.<br>For each border vertex the filter snap it onto the closest boundary edge only if it is closest of <i>edge_length*threshold</i>. When vertex is snapped the corresponding face is split and a new vertex is created.
+Try to snap together adjacent borders that are slightly mismatched.\
+This situation can happen on badly triangulated adjacent patches defined by high order surfaces.\
+For each border vertex the filter snap it onto the closest boundary edge only if it is closest of <i>edge_length*threshold</i>. When vertex is snapped the corresponding face is split and a new vertex is created.
 
 **Parameters:**
 
@@ -9616,7 +9723,9 @@ Flip mesh face orientation.
 ```{py:function} ms.invert_face_orientation(**params)
 :module: _meshlab
 
-Invert faces orientation, flipping the normals of the mesh. <br>If requested, it tries to guess the right orientation; mainly it decide to flip all the faces if the minimum/maximum vertices have not outward point normals for a few directions.<br>Works well for single component watertight objects.
+Invert faces orientation, flipping the normals of the mesh.\
+If requested, it tries to guess the right orientation; mainly it decide to flip all the faces if the minimum/maximum vertices have not outward point normals for a few directions.\
+Works well for single component watertight objects.
 
 **Parameters:**
 
@@ -9666,7 +9775,8 @@ Orient faces consistently.
 ```{py:function} ms.orient_faces_consistently_vcglib(**params)
 :module: _meshlab
 
-Re-orient in a consistent way all the faces of the mesh. <br>The filter visits a mesh face to face, reorienting any unvisited face so that it is coherent to the already visited faces. If the surface is orientable it will end with a consistent orientation of all the faces. If the surface is not orientable (e.g. it is non manifold or non orientable like a moebius
+Re-orient in a consistent way all the faces of the mesh.\
+The filter visits a mesh face to face, reorienting any unvisited face so that it is coherent to the already visited faces. If the surface is orientable it will end with a consistent orientation of all the faces. If the surface is not orientable (e.g. it is non manifold or non orientable like a moebius
 
 This filter has no parameters.
 ```
@@ -10134,7 +10244,7 @@ Selects faces for which a boolean expression evaluates true.
 ```{py:function} ms.select_faces_by_expression(**params)
 :module: _meshlab
 
-Boolean function using muparser lib to perform faces selection over current mesh.<br>
+Boolean function using muparser lib to perform faces selection over current mesh.
 
 **Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -10207,7 +10317,11 @@ Select outlier vertices using LoOP.
 ```{py:function} ms.select_outliers(**params)
 :module: _meshlab
 
-Select the vertex classified as outlier using Local Outlier Propabilty measure described in:<br> <b>'LoOP: Local Outlier Probabilities'</b> Kriegel et al.<br>CIKM 2009
+Select the vertex classified as outlier using the Local Outlier Probability (LoOP) measure of Kriegel et al.
+
+**References:**
+
+- Hans-Peter Kriegel, Peer Kröger, Erich Schubert, Arthur Zimek. **LoOP: Local Outlier Probabilities**. *Proceedings of the 18th ACM conference on Information and knowledge management* (2009). [DOI](https://doi.org/10.1145/1645953.1646195)
 
 **Parameters:**
 
@@ -10296,7 +10410,7 @@ Selects vertices for which a boolean expression evaluates true.
 ```{py:function} ms.select_vertices_by_expression(**params)
 :module: _meshlab
 
-Boolean function using muparser lib to perform vertex selection over current mesh.<br>
+Boolean function using muparser lib to perform vertex selection over current mesh.
 
 **Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).
 
@@ -10443,7 +10557,8 @@ Select crease edges from dihedral angles.
 ```{py:function} ms.select_crease_edges_vcglib(**params)
 :module: _meshlab
 
-It select the crease edges of a mesh according to edge dihedral angle.<br>Angle between face normal is considered signed according to convexity/concavity.Convex angles are positive and concave are negative.
+It select the crease edges of a mesh according to edge dihedral angle.\
+Angle between face normal is considered signed according to convexity/concavity.Convex angles are positive and concave are negative.
 
 **Parameters:**
 
@@ -10847,8 +10962,9 @@ Only vertex positions are used, so this works on a raw point cloud with no faces
 
 The selection is **added** to the current one; clear it first for an exact result.
 
-Reference:
-Sagi Katz, Ayellet Tal, Ronen Basri, **Direct Visibility of Point Sets**, ACM Transactions on Graphics 26(3), 2007.
+**References:**
+
+- Sagi Katz, Ayellet Tal, Ronen Basri. **Direct visibility of point sets**. *ACM Transactions on Graphics* (2007). [DOI](https://doi.org/10.1145/1276377.1276407)
 
 **Parameters:**
 
@@ -11036,7 +11152,9 @@ Transfer attributes from one mesh to another by closest-point projection.
 ```{py:function} ms.transfer_vertex_attributes_by_closest_point(**params)
 :module: _meshlab
 
-Transfer the chosen per-vertex attributes from one layer to another. Useful to transfer attributes to different representations of a same object.<br>For each vertex of the target mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the target vertex.<br>The algorithm assumes that the two meshes are reasonably similar and aligned.
+Transfer the chosen per-vertex attributes from one layer to another. Useful to transfer attributes to different representations of a same object.\
+For each vertex of the target mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the target vertex.\
+The algorithm assumes that the two meshes are reasonably similar and aligned.
 
 **Parameters:**
 

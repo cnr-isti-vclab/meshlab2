@@ -483,7 +483,8 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_face_color_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_face_color_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_face_color_by_expression" title="Link to this definition">¶</a></dt>
-<dd><p>Color function using muparser lib to generate new RGBA color for every face<br>Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.<br></p>
+<dd><p>Color function using muparser lib to generate new RGBA color for every face<br />
+Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.</p>
 <p><strong>Variables.</strong> Evaluated once per face: the corners (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z2</span></code>, <code class="docutils literal notranslate"><span class="pre">nx0</span> <span class="pre">…</span> <span class="pre">nz2</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a2</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span> <span class="pre">q2</span></code>), the face’s own <code class="docutils literal notranslate"><span class="pre">fnx</span> <span class="pre">fny</span> <span class="pre">fnz</span></code>, <code class="docutils literal notranslate"><span class="pre">fr</span> <span class="pre">fg</span> <span class="pre">fb</span> <span class="pre">fa</span></code>, <code class="docutils literal notranslate"><span class="pre">fq</span></code>, <code class="docutils literal notranslate"><span class="pre">fi</span></code>, <code class="docutils literal notranslate"><span class="pre">fsel</span></code>, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -505,13 +506,14 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_vertex_color_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_vertex_color_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_vertex_color_by_expression" title="Link to this definition">¶</a></dt>
-<dd><p>Color function using muparser lib to generate new RGBA color for every vertex<br>Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.<br></p>
+<dd><p>Color function using muparser lib to generate new RGBA color for every vertex<br />
+Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.</p>
 <p><strong>Variables.</strong> Evaluated once per vertex: <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">y</span> <span class="pre">z</span></code>, <code class="docutils literal notranslate"><span class="pre">nx</span> <span class="pre">ny</span> <span class="pre">nz</span></code>, <code class="docutils literal notranslate"><span class="pre">r</span> <span class="pre">g</span> <span class="pre">b</span> <span class="pre">a</span></code>, <code class="docutils literal notranslate"><span class="pre">q</span></code>, <code class="docutils literal notranslate"><span class="pre">vi</span></code>, <code class="docutils literal notranslate"><span class="pre">vsel</span></code> and the bounding box (<code class="docutils literal notranslate"><span class="pre">zmin</span></code>, <code class="docutils literal notranslate"><span class="pre">zdim</span></code>, <code class="docutils literal notranslate"><span class="pre">bbdiag</span></code>, …) are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>x</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for X output.</p></li>
-<li><p><strong>y</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for Y output.</p></li>
-<li><p><strong>z</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Expression for Z output.</p></li>
+<li><p><strong>r</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for red output in range [0, 255].</p></li>
+<li><p><strong>g</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for green output in range [0, 255].</p></li>
+<li><p><strong>b</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Expression for blue output in range [0, 255].</p></li>
 <li><p><strong>a</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for alpha output in range [0, 255].</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
@@ -764,7 +766,8 @@
 </ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>CurvatureType</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">mean</span></code>) — The type of the curvature to plot.<br>ApproxMean uses the radius of the fitted sphere as an approximation of the mean curvature.</p></li>
+<li><p><strong>CurvatureType</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">mean</span></code>) — The type of the curvature to plot.<br />
+ApproxMean uses the radius of the fitted sphere as an approximation of the mean curvature.</p></li>
 <li><p><strong>FilterScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.</p></li>
 <li><p><strong>SphericalParameter</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Control the curvature of the fitted spheres: 0 is equivalent to a pure plane fit, 1 to a pure spherical fit, values between 0 and 1 give intermediate results, while other real values might give interesting results, but take care with extreme settings.</p></li>
 <li><p><strong>ProjectionAccuracy</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0001</span></code>) — Threshold value used to stop the projections. This value is scaled by the mean point spacing to get the actual threshold.</p></li>
@@ -782,7 +785,11 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_curvature_discrete">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_curvature_discrete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_curvature_discrete" title="Link to this definition">¶</a></dt>
-<dd><p>Compute discrete curvature and store it in vertex quality. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization.<br>Computed as described in:<br>’<i>Discrete Differential-Geometry Operators for Triangulated 2-Manifolds</i>’ <br>M. Meyer, M. Desbrun, P. Schroder, A. H. Barr</p>
+<dd><p>Compute discrete curvature and store it in vertex quality. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization. It is computed with the discrete operators of Meyer et al.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Mark Meyer, Mathieu Desbrun, Peter Schröder, Alan H. Barr. <strong>Discrete Differential-Geometry Operators for Triangulated 2-Manifolds</strong>. <em>Visualization and Mathematics III</em> (2003). <a class="reference external" href="https://doi.org/10.1007/978-3-662-05105-4_2">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>CurvatureType</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">mean</span></code>) — Choose the curvature value that you want transferred onto the scalar Quality.</p></li>
@@ -945,7 +952,10 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.define_custom_face_point_attribute">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">define_custom_face_point_attribute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.define_custom_face_point_attribute" title="Link to this definition">¶</a></dt>
-<dd><p>Add a new Per-Face custom point attribute to current mesh and fill it with the defined functions.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br> A point attribute called <code class="docutils literal notranslate"><span class="pre">dir</span></code> is read in later formulas as <code class="docutils literal notranslate"><span class="pre">dir_x</span></code>, <code class="docutils literal notranslate"><span class="pre">dir_y</span></code> and <code class="docutils literal notranslate"><span class="pre">dir_z</span></code>.</p>
+<dd><p>Add a new Per-Face custom point attribute to current mesh and fill it with the defined functions.<br />
+Attribute names must contain only letters, numbers and underscores.<br />
+The name specified for the attribute can be used in other filter functions.<br />
+A point attribute called <code class="docutils literal notranslate"><span class="pre">dir</span></code> is read in later formulas as <code class="docutils literal notranslate"><span class="pre">dir_x</span></code>, <code class="docutils literal notranslate"><span class="pre">dir_y</span></code> and <code class="docutils literal notranslate"><span class="pre">dir_z</span></code>.</p>
 <p><strong>Variables.</strong> Evaluated once per face: the corners (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z2</span></code>, <code class="docutils literal notranslate"><span class="pre">nx0</span> <span class="pre">…</span> <span class="pre">nz2</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a2</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span> <span class="pre">q2</span></code>), the face’s own <code class="docutils literal notranslate"><span class="pre">fnx</span> <span class="pre">fny</span> <span class="pre">fnz</span></code>, <code class="docutils literal notranslate"><span class="pre">fr</span> <span class="pre">fg</span> <span class="pre">fb</span> <span class="pre">fa</span></code>, <code class="docutils literal notranslate"><span class="pre">fq</span></code>, <code class="docutils literal notranslate"><span class="pre">fi</span></code>, <code class="docutils literal notranslate"><span class="pre">fsel</span></code>, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -967,7 +977,9 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.define_custom_face_scalar_attribute">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">define_custom_face_scalar_attribute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.define_custom_face_scalar_attribute" title="Link to this definition">¶</a></dt>
-<dd><p>Add a new Per-Face custom scalar attribute to current mesh and fill it with the defined function.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br></p>
+<dd><p>Add a new Per-Face custom scalar attribute to current mesh and fill it with the defined function.<br />
+Attribute names must contain only letters, numbers and underscores.<br />
+The name specified for the attribute can be used in other filter functions.</p>
 <p><strong>Variables.</strong> Evaluated once per face: the corners (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z2</span></code>, <code class="docutils literal notranslate"><span class="pre">nx0</span> <span class="pre">…</span> <span class="pre">nz2</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a2</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span> <span class="pre">q2</span></code>), the face’s own <code class="docutils literal notranslate"><span class="pre">fnx</span> <span class="pre">fny</span> <span class="pre">fnz</span></code>, <code class="docutils literal notranslate"><span class="pre">fr</span> <span class="pre">fg</span> <span class="pre">fb</span> <span class="pre">fa</span></code>, <code class="docutils literal notranslate"><span class="pre">fq</span></code>, <code class="docutils literal notranslate"><span class="pre">fi</span></code>, <code class="docutils literal notranslate"><span class="pre">fsel</span></code>, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -987,7 +999,10 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.define_custom_vertex_point_attribute">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">define_custom_vertex_point_attribute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.define_custom_vertex_point_attribute" title="Link to this definition">¶</a></dt>
-<dd><p>Add a new Per-Vertex custom point attribute to current mesh and fill it with the defined functions.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br> A point attribute called <code class="docutils literal notranslate"><span class="pre">dir</span></code> is read in later formulas as <code class="docutils literal notranslate"><span class="pre">dir_x</span></code>, <code class="docutils literal notranslate"><span class="pre">dir_y</span></code> and <code class="docutils literal notranslate"><span class="pre">dir_z</span></code>.</p>
+<dd><p>Add a new Per-Vertex custom point attribute to current mesh and fill it with the defined functions.<br />
+Attribute names must contain only letters, numbers and underscores.<br />
+The name specified for the attribute can be used in other filter functions.<br />
+A point attribute called <code class="docutils literal notranslate"><span class="pre">dir</span></code> is read in later formulas as <code class="docutils literal notranslate"><span class="pre">dir_x</span></code>, <code class="docutils literal notranslate"><span class="pre">dir_y</span></code> and <code class="docutils literal notranslate"><span class="pre">dir_z</span></code>.</p>
 <p><strong>Variables.</strong> Evaluated once per vertex: <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">y</span> <span class="pre">z</span></code>, <code class="docutils literal notranslate"><span class="pre">nx</span> <span class="pre">ny</span> <span class="pre">nz</span></code>, <code class="docutils literal notranslate"><span class="pre">r</span> <span class="pre">g</span> <span class="pre">b</span> <span class="pre">a</span></code>, <code class="docutils literal notranslate"><span class="pre">q</span></code>, <code class="docutils literal notranslate"><span class="pre">vi</span></code>, <code class="docutils literal notranslate"><span class="pre">vsel</span></code> and the bounding box (<code class="docutils literal notranslate"><span class="pre">zmin</span></code>, <code class="docutils literal notranslate"><span class="pre">zdim</span></code>, <code class="docutils literal notranslate"><span class="pre">bbdiag</span></code>, …) are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -1009,7 +1024,9 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.define_custom_vertex_scalar_attribute">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">define_custom_vertex_scalar_attribute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.define_custom_vertex_scalar_attribute" title="Link to this definition">¶</a></dt>
-<dd><p>Add a new Per-Vertex custom scalar attribute to current mesh and fill it with the defined function.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br></p>
+<dd><p>Add a new Per-Vertex custom scalar attribute to current mesh and fill it with the defined function.<br />
+Attribute names must contain only letters, numbers and underscores.<br />
+The name specified for the attribute can be used in other filter functions.</p>
 <p><strong>Variables.</strong> Evaluated once per vertex: <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">y</span> <span class="pre">z</span></code>, <code class="docutils literal notranslate"><span class="pre">nx</span> <span class="pre">ny</span> <span class="pre">nz</span></code>, <code class="docutils literal notranslate"><span class="pre">r</span> <span class="pre">g</span> <span class="pre">b</span> <span class="pre">a</span></code>, <code class="docutils literal notranslate"><span class="pre">q</span></code>, <code class="docutils literal notranslate"><span class="pre">vi</span></code>, <code class="docutils literal notranslate"><span class="pre">vsel</span></code> and the bounding box (<code class="docutils literal notranslate"><span class="pre">zmin</span></code>, <code class="docutils literal notranslate"><span class="pre">zdim</span></code>, <code class="docutils literal notranslate"><span class="pre">bbdiag</span></code>, …) are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -1029,7 +1046,8 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_face_normals">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_face_normals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_face_normals" title="Link to this definition">¶</a></dt>
-<dd><p>Recompute face normals as the normal of the plane of the face.<br>See <a href='https://math.stackexchange.com/questions/305642/'>How to find surface normal of a triangle</a></p>
+<dd><p>Recompute face normals as the normal of the plane of the face.<br />
+See <a href='https://math.stackexchange.com/questions/305642/'>How to find surface normal of a triangle</a></p>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -1043,7 +1061,7 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_face_normals_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_face_normals_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_face_normals_by_expression" title="Link to this definition">¶</a></dt>
-<dd><p>Normal function using muparser to generate new Normal for every face<br></p>
+<dd><p>Normal function using muparser to generate new Normal for every face</p>
 <p><strong>Variables.</strong> Evaluated once per face: the corners (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z2</span></code>, <code class="docutils literal notranslate"><span class="pre">nx0</span> <span class="pre">…</span> <span class="pre">nz2</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a2</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span> <span class="pre">q2</span></code>), the face’s own <code class="docutils literal notranslate"><span class="pre">fnx</span> <span class="pre">fny</span> <span class="pre">fnz</span></code>, <code class="docutils literal notranslate"><span class="pre">fr</span> <span class="pre">fg</span> <span class="pre">fb</span> <span class="pre">fa</span></code>, <code class="docutils literal notranslate"><span class="pre">fq</span></code>, <code class="docutils literal notranslate"><span class="pre">fi</span></code>, <code class="docutils literal notranslate"><span class="pre">fsel</span></code>, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -1145,7 +1163,18 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_vertex_normals">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_vertex_normals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_vertex_normals" title="Link to this definition">¶</a></dt>
-<dd><p>Recompute vertex normals according to four different schemes:<br>1) Simple (no weights) average of normals of the incident faces <br>2) Area weighted average of normals of the incident faces <br>3) Angle weighted sum of normals of the incident faces according to the article <b>[1]</b>. Probably this is the best all-purpose choice. It could slightly bias the result for degenerate, fat triangles.<br>4) Weighted sum of normals of the incident faces, as defined by article <b>[2]</b>. The weight for each wedge is the cross product of the two edges over the product of the square of the two edge lengths.According to the original article it is perfect only for spherical surface, but it should perform well also in practice.<br>[1]: <b>Computing Vertex Normals from Polygonal Facet</b> by <i>G Thurmer and CA Wuthrich</i>, JGT volume3, num 1. 1998<br><a href='https://doi.org/10.1080/10867651.1998.10487487'>doi:10.1080/10867651.1998.10487487</a><br>[2]: <b>Weights for Computing Vertex Normals from Facet Normals</b> by <i>Nelson Max</i>, JGT vol4, num 2. 1999<br><a href='https://doi.org/10.1080/10867651.1999.10487501'>doi:10.1080/10867651.1999.10487501</a></p>
+<dd><p>Recompute vertex normals according to four different schemes:</p>
+<ol class="arabic simple">
+<li><p>Simple (no weights) average of normals of the incident faces</p></li>
+<li><p>Area weighted average of normals of the incident faces</p></li>
+<li><p>Angle weighted sum of normals of the incident faces according to Thürmer and Wüthrich. Probably this is the best all-purpose choice. It could slightly bias the result for degenerate, fat triangles.</p></li>
+<li><p>Weighted sum of normals of the incident faces, as defined by Max. The weight for each wedge is the cross product of the two edges over the product of the square of the two edge lengths.According to the original article it is perfect only for spherical surface, but it should perform well also in practice.</p></li>
+</ol>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Grit Thürmer, Charles A. Wüthrich. <strong>Computing Vertex Normals from Polygonal Facets</strong>. <em>Journal of Graphics Tools</em> (1998). <a class="reference external" href="https://doi.org/10.1080/10867651.1998.10487487">DOI</a></p></li>
+<li><p>Nelson Max. <strong>Weights for Computing Vertex Normals from Facet Normals</strong>. <em>Journal of Graphics Tools</em> (1999). <a class="reference external" href="https://doi.org/10.1080/10867651.1999.10487501">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>weightMode</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">simple_average</span></code>) — Choose how incident face normals contribute to each vertex normal.</p></li>
@@ -1162,7 +1191,7 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_vertex_normals_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_vertex_normals_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_vertex_normals_by_expression" title="Link to this definition">¶</a></dt>
-<dd><p>Normal function using muparser to generate new Normal for every vertex<br></p>
+<dd><p>Normal function using muparser to generate new Normal for every vertex</p>
 <p><strong>Variables.</strong> Evaluated once per vertex: <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">y</span> <span class="pre">z</span></code>, <code class="docutils literal notranslate"><span class="pre">nx</span> <span class="pre">ny</span> <span class="pre">nz</span></code>, <code class="docutils literal notranslate"><span class="pre">r</span> <span class="pre">g</span> <span class="pre">b</span> <span class="pre">a</span></code>, <code class="docutils literal notranslate"><span class="pre">q</span></code>, <code class="docutils literal notranslate"><span class="pre">vi</span></code>, <code class="docutils literal notranslate"><span class="pre">vsel</span></code> and the bounding box (<code class="docutils literal notranslate"><span class="pre">zmin</span></code>, <code class="docutils literal notranslate"><span class="pre">zdim</span></code>, <code class="docutils literal notranslate"><span class="pre">bbdiag</span></code>, …) are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -1211,7 +1240,12 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.orient_face_normals_by_ray_casting">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">orient_face_normals_by_ray_casting</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.orient_face_normals_by_ray_casting" title="Link to this definition">¶</a></dt>
-<dd><p>Reorient face normals by geometry.Given the input mesh, this filter uses raytracing to determine if any faces are pointing inward and corrects their orientation. The number of rays is defined by the user; the higher the number, the higher the precision, but at the cost of computation time.This filter requires two values:<ul>	<li> the number of rays to be shot from the barycenter of each face </li>	<li> Parity Sampling: If selected, the normal analysis will be performed using the Parity Sampling algorithm. It is suggested to use this algotirhm when the standard one (visibility sampling) faild to riorient all faces because it is used to reorient faces invisible from the outside</li></ul><b> For further details, see the reference paper: Kenshi Takayama, Alec Jacobson, Ladislav Kavan, Olga Sorkine-Hornung. </b><br> <b> A Simple Method for Correcting Facet Orientations in Polygon Meshes Based on Ray Casting. Journal of Computer Graphics Techniques 3(4), 2014.</b> This filter uses the Embree3 library by Intel.</p>
+<dd><p>Reorient face normals by geometry.Given the input mesh, this filter uses raytracing to determine if any faces are pointing inward and corrects their orientation. The number of rays is defined by the user; the higher the number, the higher the precision, but at the cost of computation time.This filter requires two values:<ul>	<li> the number of rays to be shot from the barycenter of each face </li>	<li> Parity Sampling: If selected, the normal analysis will be performed using the Parity Sampling algorithm. It is suggested to use this algotirhm when the standard one (visibility sampling) faild to riorient all faces because it is used to reorient faces invisible from the outside</li></ul></p>
+<p>This filter uses the Embree3 library by Intel.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Kenshi Takayama, Alec Jacobson, Ladislav Kavan, Olga Sorkine-Hornung. <strong>A Simple Method for Correcting Facet Orientations in Polygon Meshes Based on Ray Casting</strong>. <em>Journal of Computer Graphics Techniques</em> (2014). <a class="reference external" href="https://jcgt.org/published/0003/04/02/">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of rays shot from each face barycenter.</p></li>
@@ -1234,8 +1268,10 @@
 <p><strong>Neighbors</strong> sets how many nearest neighbours are linked in the Riemannian graph. Larger values bridge gaps in sparse data but can propagate orientation across thin structures that should stay separate.</p>
 <p>A cloud in several disconnected pieces cannot be oriented as a whole: the normals of every component after the first are reported as unoriented and left untouched. Enable <strong>Remove Unoriented Vertices</strong> to delete them instead.</p>
 <p>Implemented with CGAL’s Point Set Processing.</p>
-<p>Reference:
-Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>Surface Reconstruction from Unorganized Points</strong>, SIGGRAPH 1992.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle. <strong>Surface reconstruction from unorganized points</strong>. <em>Proceedings of the 19th annual conference on Computer graphics and interactive techniques</em> (1992). <a class="reference external" href="https://doi.org/10.1145/133994.134011">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>neighbors</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">18</span></code>) — Number of nearest neighbours linked in the Riemannian graph. Larger values bridge sparse regions but risk propagating orientation across thin structures.</p></li>
@@ -1451,7 +1487,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_face_scalar_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_face_scalar_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_face_scalar_by_expression" title="Link to this definition">¶</a></dt>
-<dd><p>Quality function using muparser to generate new Quality for every face<br>Insert three function each one for quality of the three vertex of a face<br></p>
+<dd><p>Quality function using muparser to generate new Quality for every face<br />
+Insert three function each one for quality of the three vertex of a face</p>
 <p><strong>Variables.</strong> Evaluated once per face: the corners (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z2</span></code>, <code class="docutils literal notranslate"><span class="pre">nx0</span> <span class="pre">…</span> <span class="pre">nz2</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a2</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span> <span class="pre">q2</span></code>), the face’s own <code class="docutils literal notranslate"><span class="pre">fnx</span> <span class="pre">fny</span> <span class="pre">fnz</span></code>, <code class="docutils literal notranslate"><span class="pre">fr</span> <span class="pre">fg</span> <span class="pre">fb</span> <span class="pre">fa</span></code>, <code class="docutils literal notranslate"><span class="pre">fq</span></code>, <code class="docutils literal notranslate"><span class="pre">fi</span></code>, <code class="docutils literal notranslate"><span class="pre">fsel</span></code>, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -1595,7 +1632,11 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_harmonic_scalar_field">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_harmonic_scalar_field</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_harmonic_scalar_field" title="Link to this definition">¶</a></dt>
-<dd><p>Generates a scalar harmonic field over the mesh. Input scalar values must be assigned to two vertices as Dirichlet boundary conditions. Applying the filter, a discrete Laplace operator generates the harmonic field values for all the mesh vertices, which are stored in the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex attribute</a> of the mesh.<br>For more details see:<b>Dynamic Harmonic Fields for Surface Processing</b> by <i>Kai Xua, Hao Zhang, Daniel Cohen-Or, Yueshan Xionga</i>. Computers &amp; Graphics, 2009 <br><a href='https://doi.org/10.1016/j.cag.2009.03.022'>doi:10.1016/j.cag.2009.03.022</a></p>
+<dd><p>Generates a scalar harmonic field over the mesh. Input scalar values must be assigned to two vertices as Dirichlet boundary conditions. Applying the filter, a discrete Laplace operator generates the harmonic field values for all the mesh vertices, which are stored in the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex attribute</a> of the mesh.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Kai Xu, Hao Zhang, Daniel Cohen-Or, Yueshan Xiong. <strong>Dynamic harmonic fields for surface processing</strong>. <em>Computers &amp; Graphics</em> (2009). <a class="reference external" href="https://doi.org/10.1016/j.cag.2009.03.022">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>point1</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — A vertex on the mesh representing one harmonic field boundary condition.</p></li>
@@ -1643,6 +1684,10 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <dt class="sig sig-object py" id="meshlab.ms.compute_heat_geodesic_distance_from_selection_vcglib">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_heat_geodesic_distance_from_selection_vcglib</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_heat_geodesic_distance_from_selection_vcglib" title="Link to this definition">¶</a></dt>
 <dd><p>Store in the vertex quality field the approximated geodesic distance, computed via the heat method (Crane et al.), from the selected points on the mesh surface. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization. As this implementation does not use intrinsic triangulation it is very sensitive to triangulation. First run takes longer because factorization has to be built.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Keenan Crane, Clarisse Weischedel, Max Wardetzky. <strong>Geodesics in Heat: A New Approach to Computing Distance Based on Heat Flow</strong>. <em>ACM Transactions on Graphics</em> (2013). <a class="reference external" href="https://doi.org/10.1145/2516971.2516977">DOI</a> <a class="reference external" href="https://www.cs.cmu.edu/~kmcrane/Projects/HeatMethod/paperCACM.pdf">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>m</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Multiplier applied to the squared average edge length to compute the backward-Euler timestep. Larger values give smoother but less accurate results.</p></li>
@@ -1679,7 +1724,11 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_obscurance">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_obscurance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_obscurance" title="Link to this definition">¶</a></dt>
-<dd><p>Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>	<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;	<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved per face, and each vertex takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written. The filter does not bake colors; after it runs the view switches to showing the per-face scalar. <br /><b>For further details see the reference paper: Iones Krupkin Sbert Zhukov Fast, Realistic Lighting for Video Games IEEECG&amp;A 2003 </b> <br />This filter uses Embree3 library by INTEL.</p>
+<dd><p>Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>	<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;</li>	<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved per face, and each vertex takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written. The filter does not bake colors; after it runs the view switches to showing the per-face scalar. <br />This filter uses Embree3 library by INTEL.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>A. Iones, A. Krupkin, M. Sbert, S. Zhukov. <strong>Fast, realistic lighting for video games</strong>. <em>IEEE Computer Graphics and Applications</em> (2003). <a class="reference external" href="https://doi.org/10.1109/MCG.2003.1198263">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of rays shot from each face barycenter.</p></li>
@@ -1719,7 +1768,11 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_shape_diameter_function">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_shape_diameter_function</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_shape_diameter_function" title="Link to this definition">¶</a></dt>
-<dd><p>Compute Shape-Diameter Function <br />The SDF defines the distance between a point in 3D space and the nearest point on the object’s surface.This filter can be used to find out the thickness of the mesh <br />Given a face, a set of rays are shot inward, and an average of the distance to hit a face is saved in the face quality. The filter does not bake colors; after it runs MeshLab switches the view to face-quality color visualization.This filter requires two values:<ul>	<li> the number of rays which will be shot from the barycenter of each face </li>	<li> the cone amplitude (in degrees) of the cone which we value as valid for the shooting angle </li></ul> <br /><b>For further details see the reference paper: Shapira Shamir Cohen-Or, Consistent Mesh Partitioning and Skeletonisation using the shaper diameter function, Visual Comput. J. (2008) </b> <br />This filter uses Embree3 library by INTEL.</p>
+<dd><p>Compute Shape-Diameter Function <br />The SDF defines the distance between a point in 3D space and the nearest point on the object’s surface.This filter can be used to find out the thickness of the mesh <br />Given a face, a set of rays are shot inward, and an average of the distance to hit a face is saved in the face quality. The filter does not bake colors; after it runs MeshLab switches the view to face-quality color visualization.This filter requires two values:<ul>	<li> the number of rays which will be shot from the barycenter of each face </li>	<li> the cone amplitude (in degrees) of the cone which we value as valid for the shooting angle </li></ul> <br />This filter uses Embree3 library by INTEL.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Lior Shapira, Ariel Shamir, Daniel Cohen-Or. <strong>Consistent mesh partitioning and skeletonisation using the shape diameter function</strong>. <em>The Visual Computer</em> (2008). <a class="reference external" href="https://doi.org/10.1007/s00371-007-0197-5">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of rays shot from each face barycenter.</p></li>
@@ -1834,7 +1887,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_vertex_scalar_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_vertex_scalar_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_vertex_scalar_by_expression" title="Link to this definition">¶</a></dt>
-<dd><p>Quality function using muparser to generate new Quality for every vertex<br></p>
+<dd><p>Quality function using muparser to generate new Quality for every vertex</p>
 <p><strong>Variables.</strong> Evaluated once per vertex: <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">y</span> <span class="pre">z</span></code>, <code class="docutils literal notranslate"><span class="pre">nx</span> <span class="pre">ny</span> <span class="pre">nz</span></code>, <code class="docutils literal notranslate"><span class="pre">r</span> <span class="pre">g</span> <span class="pre">b</span> <span class="pre">a</span></code>, <code class="docutils literal notranslate"><span class="pre">q</span></code>, <code class="docutils literal notranslate"><span class="pre">vi</span></code>, <code class="docutils literal notranslate"><span class="pre">vsel</span></code> and the bounding box (<code class="docutils literal notranslate"><span class="pre">zmin</span></code>, <code class="docutils literal notranslate"><span class="pre">zdim</span></code>, <code class="docutils literal notranslate"><span class="pre">bbdiag</span></code>, …) are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -2206,8 +2259,10 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <p>The new layer inherits the source layer’s matrix, so the box sits on the object wherever the object has been moved to.</p>
 <p>To box the whole scene rather than one layer, use <strong>Create Scene Bounding Box</strong>.</p>
 <p>The oriented box is computed with CGAL’s Optimal Bounding Box package.</p>
-<p>Reference:
-Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</strong>, CGAL User and Reference Manual, CGAL Editorial Board.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Chia-Tche Chang, Bastien Gorissen, Samuel Melchior. <strong>Fast Oriented Bounding Box Optimization on the Rotation Group SO(3,ℝ)</strong>. <em>ACM Transactions on Graphics</em> (2011). <a class="reference external" href="https://doi.org/10.1145/2019627.2019641">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>alignment</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">axis_aligned</span></code>) — Axis aligned is the box the viewport draws, parallel to the layer’s own axes. Oriented searches for the smallest box in any orientation, which is much tighter for an object lying at an angle but costs time to find.</p></li>
@@ -2436,7 +2491,8 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.create_polyline_from_selection_perimeter">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_polyline_from_selection_perimeter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_polyline_from_selection_perimeter" title="Link to this definition">¶</a></dt>
-<dd><p>Create a new Layer with an edge mesh (polyline) tracing the perimeter of the <strong>selected faces</strong>: every edge of a selected face whose adjacent face is not selected. Selecting all the faces of the mesh therefore converts its boundary edges into a polyline.<br>To build a polyline from an <em>edge</em> selection instead, use <em>Build a Polyline from Selected Edges</em>.</p>
+<dd><p>Create a new Layer with an edge mesh (polyline) tracing the perimeter of the <strong>selected faces</strong>: every edge of a selected face whose adjacent face is not selected. Selecting all the faces of the mesh therefore converts its boundary edges into a polyline.<br />
+To build a polyline from an <em>edge</em> selection instead, use <em>Build a Polyline from Selected Edges</em>.</p>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -2515,8 +2571,10 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 </ul>
 <p>There is deliberately no <em>turning the scene</em> option: straightening is a per-layer operation, and <strong>Create Mesh Bounding Box</strong> offers it for the current layer.</p>
 <p>The oriented box is computed with CGAL’s Optimal Bounding Box package.</p>
-<p>Reference:
-Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</strong>, CGAL User and Reference Manual, CGAL Editorial Board.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Chia-Tche Chang, Bastien Gorissen, Samuel Melchior. <strong>Fast Oriented Bounding Box Optimization on the Rotation Group SO(3,ℝ)</strong>. <em>ACM Transactions on Graphics</em> (2011). <a class="reference external" href="https://doi.org/10.1145/2019627.2019641">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>alignment</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">axis_aligned</span></code>) — Axis aligned is the smallest box parallel to the world axes. Oriented searches for the smallest box in any orientation, which is much tighter for a scene laid out at an angle but costs time to find.</p></li>
@@ -2716,8 +2774,10 @@ Konstantinos Katrioplas, Mael Rouxel-Labbé, <strong>Optimal Bounding Box</stron
 <p>Only the vertex positions are used, so this works on a point cloud just as well as on a mesh; faces, if any, are ignored. Every hull vertex is one of the input points, and interior points are discarded — which is why the result is a new layer rather than a modification of the current one.</p>
 <p>At least 4 vertices are required, and they must not all be coincident, collinear, or coplanar.</p>
 <p>Implemented with VCGLib’s Quickhull.</p>
-<p>Reference:
-C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algorithm for Convex Hulls</strong>, ACM Transactions on Mathematical Software 22(4), 1996.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa. <strong>The quickhull algorithm for convex hulls</strong>. <em>ACM Transactions on Mathematical Software</em> (1996). <a class="reference external" href="https://doi.org/10.1145/235815.235821">DOI</a></p></li>
+</ul>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -2767,8 +2827,10 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 <p><strong>Beta</strong> is half the angle of the wedge in which only the triangle radius decides plausibility.</p>
 <p>This is CGAL’s counterpart to the <em>Reconstruct Surface by Ball Pivoting</em> filters: both grow a surface outward and interpolate the input points, but they are different algorithms and are worth comparing on the same cloud. CGAL has no ball-pivoting implementation of its own.</p>
 <p>Implemented with CGAL’s Advancing Front Surface Reconstruction.</p>
-<p>Reference:
-David Cohen-Steiner, Frank Da, <strong>A greedy Delaunay-based surface reconstruction algorithm</strong>, The Visual Computer 20(1), 2004.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>David Cohen-Steiner, Frank Da. <strong>A greedy Delaunay-based surface reconstruction algorithm</strong>. <em>The Visual Computer</em> (2004). <a class="reference external" href="https://doi.org/10.1007/s00371-003-0217-z">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>radiusRatioBound</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">5.0</span></code>) — Reject a candidate triangle whose circumradius exceeds this multiple of its shortest edge. Larger values close more holes; smaller values leave sparse regions open.</p></li>
@@ -2796,8 +2858,10 @@ David Cohen-Steiner, Frank Da, <strong>A greedy Delaunay-based surface reconstru
 <p>Each face carries its <strong>circumradius in face scalar</strong>, so the scalar histogram shows the alpha distribution and helps pick a better value.</p>
 <p>Facet orientation comes from the Delaunay triangulation and is not made globally coherent; run <em>Orient Faces Consistently</em> if you need it.</p>
 <p>Implemented with CGAL’s 3D Alpha Shapes.</p>
-<p>Reference:
-Herbert Edelsbrunner, Ernst P. Mucke, <strong>Three-Dimensional Alpha Shapes</strong>, ACM Transactions on Graphics 13(1), 1994.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Herbert Edelsbrunner, Ernst P. Mücke. <strong>Three-dimensional alpha shapes</strong>. <em>ACM Transactions on Graphics</em> (1994). <a class="reference external" href="https://doi.org/10.1145/174462.156635">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>alpha</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>) — Radius of the probing ball, as a percentage of the bounding box diagonal. Small values carve the shape away; large values converge to the convex hull.</p></li>
@@ -2824,9 +2888,11 @@ Herbert Edelsbrunner, Ernst P. Mucke, <strong>Three-Dimensional Alpha Shapes</st
 <p>The two paths therefore give <strong>different results on the same geometry</strong>. Where a triangle spans a wide gap, the point-set path sees only its three corners and the ball can roll into the space between them, denting or holing the wrap. Wrap a point cloud only when the sampling is dense relative to <code class="docutils literal notranslate"><span class="pre">Alpha</span></code> and <code class="docutils literal notranslate"><span class="pre">Offset</span></code>; if the layer has faces, keep them.</p>
 <p>The result is an <em>approximating</em> reconstruction: the offset is strictly positive, so the output surface never passes through the input points.</p>
 <p>The filter uses CGAL’s 3D Alpha Wrapping implementation.</p>
-<p>Reference:
-Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pierre Alliez, <strong>Alpha Wrapping with an Offset</strong>, 2022.</p>
 <p>Original MeshLab plugin contribution: Lex van der Sluijs, PTC.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pierre Alliez. <strong>Alpha wrapping with an offset</strong>. <em>ACM Transactions on Graphics</em> (2022). <a class="reference external" href="https://doi.org/10.1145/3528223.3530152">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>Alpha</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>) — Radius of the rolling ball used by CGAL alpha wrapping. Smaller values produce a tighter and more detailed wrap, but increase computation time and output mesh size. MeshLab default: 2% of the bounding-box diagonal.</p></li>
@@ -2875,8 +2941,10 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 </div>
 <p>The single seed is the difference you will notice first. On a cloud in several pieces this one reconstructs whichever piece its seed landed in and leaves the rest bare; that is the published algorithm, and the filter says so in its report when it happens. Against that, nothing is clustered away, so on a cloud you have already sampled evenly it gives you back exactly the points you put in.</p>
 <p>Works best on uniformly sampled clouds. If the sampling is uneven, run <strong>Sample Surface by Poisson Disk</strong> first. The points must carry normals, and they must be oriented consistently – the ball needs to know which side the surface is on.</p>
-<p>Reference:
-Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G., <strong>The ball-pivoting algorithm for surface reconstruction</strong>, IEEE TVCG 1999.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Fausto Bernardini, Joshua Mittleman, Holly Rushmeier, Cláudio Silva, Gabriel Taubin. <strong>The Ball-Pivoting Algorithm for Surface Reconstruction</strong>. <em>IEEE Transactions on Visualization and Computer Graphics</em> (1999). <a class="reference external" href="https://doi.org/10.1109/2945.817351">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>ballRadius</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Radius of the ball rolled over the points. Gaps wider than the ball are left open, and pits narrower than it are bridged over. There is no autoguess here, unlike the vcglib implementation: pick something close to the spacing of the cloud, and raise it until the holes close.</p></li>
@@ -2920,7 +2988,11 @@ Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G., <strong>The ball
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.reconstruct_surface_by_ball_pivoting_vcglib">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">reconstruct_surface_by_ball_pivoting_vcglib</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.reconstruct_surface_by_ball_pivoting_vcglib" title="Link to this definition">¶</a></dt>
-<dd><p>Given a point cloud with normals it reconstructs a surface using the <b>Ball Pivoting Algorithm</b>.Starting with a seed triangle, the BPA algorithm  pivots a ball of the given radius around the already formed edges until it touches another point, forming another triangle. The process continues until all reachable edges have been tried. This surface reconstruction algorithm uses the existing points without creating new ones. Works better with uniformly sampled point clouds. If needed first perform a poisson disk subsampling of the point cloud. <br>Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G.<br><b>The ball-pivoting algorithm for surface reconstruction.</b><br>IEEE TVCG 1999</p>
+<dd><p>Given a point cloud with normals it reconstructs a surface using the <b>Ball Pivoting Algorithm</b>.Starting with a seed triangle, the BPA algorithm  pivots a ball of the given radius around the already formed edges until it touches another point, forming another triangle. The process continues until all reachable edges have been tried. This surface reconstruction algorithm uses the existing points without creating new ones. Works better with uniformly sampled point clouds. If needed first perform a poisson disk subsampling of the point cloud.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Fausto Bernardini, Joshua Mittleman, Holly Rushmeier, Cláudio Silva, Gabriel Taubin. <strong>The Ball-Pivoting Algorithm for Surface Reconstruction</strong>. <em>IEEE Transactions on Visualization and Computer Graphics</em> (1999). <a class="reference external" href="https://doi.org/10.1109/2945.817351">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>ball_radius</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — The radius of the ball pivoting (rolling) over the set of points. Gaps that are larger than the ball radius will not be filled; similarly small pits smaller than the ball radius will be filled. Use <code class="docutils literal notranslate"><span class="pre">0</span></code> for autoguess.</p></li>
@@ -2952,8 +3024,10 @@ Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G., <strong>The ball
 <p><strong>Maximum Distance</strong> is the most important setting: it is how far a point may sit from a plane and still belong to it, so it must be set to the scale of the noise in the data. <strong>Lambda</strong> trades faithfulness against simplicity — higher values give fewer, larger facets.</p>
 <p>The reconstruction emits convex polygons, which this filter fan-triangulates because MeshLab stores triangle meshes.</p>
 <p>Implemented with CGAL’s Kinetic Surface Reconstruction.</p>
-<p>Reference:
-Sven Oesau, Florent Lafarge, <strong>Kinetic Shape Reconstruction</strong>, ACM Transactions on Graphics 39(5), 2020.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Jean-Philippe Bauchet, Florent Lafarge. <strong>Kinetic Shape Reconstruction</strong>. <em>ACM Transactions on Graphics</em> (2020). <a class="reference external" href="https://doi.org/10.1145/3376918">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>maximumDistance</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — How far a point may lie from a plane and still be assigned to it. Set this to the noise scale of the data; it is the setting that most affects the result.</p></li>
@@ -3040,8 +3114,10 @@ Sven Oesau, Florent Lafarge, <strong>Kinetic Shape Reconstruction</strong>, ACM 
 <li><p><strong>Approximation Error</strong> — how far the mesh may deviate from the level set, as a multiple of the spacing.</p></li>
 </ul>
 <p>Implemented with CGAL’s Poisson Surface Reconstruction.</p>
-<p>Reference:
-Michael Kazhdan, Matthew Bolitho, Hugues Hoppe, <strong>Poisson Surface Reconstruction</strong>, Symposium on Geometry Processing 2006.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Michael Kazhdan, Matthew Bolitho, Hugues Hoppe. <strong>Poisson Surface Reconstruction</strong>. <em>Proceedings of the Fourth Eurographics Symposium on Geometry Processing</em> (2006). <a class="reference external" href="https://doi.org/10.2312/SGP/SGP06/061-070">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>smAngle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">20.0</span></code>) — Lower bound on the angles of the output triangles. Lower values are easier to satisfy; CGAL’s default is 20.</p></li>
@@ -3072,8 +3148,10 @@ Michael Kazhdan, Matthew Bolitho, Hugues Hoppe, <strong>Poisson Surface Reconstr
 </ul>
 <p>Unlike the other interpolating reconstructions here, the output vertices are the <strong>smoothed</strong> positions, not the original points: this filter moves the geometry before meshing it. Keep the input layer if you need the originals.</p>
 <p>Implemented with CGAL’s 3D Scale-Space Surface Reconstruction.</p>
-<p>Reference:
-Thijs van Lankveld, Marc van Kreveld, Remco Veltkamp, <strong>Watertight Scenes from Urban LiDAR and Planar Surfaces</strong>, Computer Graphics Forum 32(5), 2013.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Julie Digne, Jean-Michel Morel, Charyar-Mehdi Souzani, Claire Lartigue. <strong>Scale Space Meshing of Raw Data Point Sets</strong>. <em>Computer Graphics Forum</em> (2011). <a class="reference external" href="https://doi.org/10.1111/j.1467-8659.2011.01848.x">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">4</span></code>) — How many times the point set is smoothed before meshing. Zero meshes the points as they are; more iterations tolerate more noise but lose detail.</p></li>
@@ -3196,8 +3274,10 @@ Thijs van Lankveld, Marc van Kreveld, Remco Veltkamp, <strong>Watertight Scenes 
 <p><strong>Limitations</strong>, inherent to the algorithm rather than this implementation: it assumes a <strong>closed, well-sampled, noise-free</strong> surface. Points lying on the convex hull have unbounded Voronoi cells and therefore no finite outer pole, so open boundaries stay ragged; noisy input scatters the poles and thins the crust. For scanned or noisy data prefer <em>Reconstruct Surface by Screened Poisson</em>.</p>
 <p><strong>Threshold</strong> discards Voronoi vertices farther from their sample than that multiple of the bounding box diagonal, keeping near-degenerate cells from throwing a pole off to infinity.</p>
 <p>Built on CGAL’s 3D Delaunay triangulation.</p>
-<p>Reference:
-Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering</strong>, Discrete &amp; Computational Geometry 22(4), 1999.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>N. Amenta, M. Bern. <strong>Surface Reconstruction by Voronoi Filtering</strong>. <em>Discrete &amp; Computational Geometry</em> (1999). <a class="reference external" href="https://doi.org/10.1007/PL00009475">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>threshold</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">10.0</span></code>) — Discard Voronoi vertices farther from their sample than this multiple of the bounding box diagonal. Guards against near-degenerate cells sending a pole to infinity.</p></li>
@@ -3320,7 +3400,11 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.sample_surface_by_poisson_disk">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">sample_surface_by_poisson_disk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.sample_surface_by_poisson_disk" title="Link to this definition">¶</a></dt>
-<dd><p>Create a new layer populated with a point sampling of the current mesh;samples are generated according to a Poisson-disk distribution, using the algorithm described in:<br><b>’Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes’</b><br> Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012</p>
+<dd><p>Create a new layer populated with a point sampling of the current mesh;samples are generated according to a Poisson-disk distribution, using the algorithm of Corsini, Cignoni and Scopigno.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>M. Corsini, P. Cignoni, R. Scopigno. <strong>Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes</strong>. <em>IEEE Transactions on Visualization and Computer Graphics</em> (2012). <a class="reference external" href="https://doi.org/10.1109/TVCG.2012.34">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>SampleNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1000</span></code>) — Desired number of samples. Ignored if an explicit radius is provided.</p></li>
@@ -3770,7 +3854,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.merge_visible_layers">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">merge_visible_layers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.merge_visible_layers" title="Link to this definition">¶</a></dt>
-<dd><p>Merge all layers, or only the visible ones, into a single new mesh. Also known as flattening.<br>Transformations are preserved. Existing layers can be optionally deleted.</p>
+<dd><p>Merge all layers, or only the visible ones, into a single new mesh. Also known as flattening.<br />
+Transformations are preserved. Existing layers can be optionally deleted.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>MergeVisible</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If true, flatten only visible layers, otherwise all layers are used.</p></li>
@@ -4444,14 +4529,14 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_vertex_coordinates_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_vertex_coordinates_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_vertex_coordinates_by_expression" title="Link to this definition">¶</a></dt>
-<dd><p>Geometric function using muparser lib to generate new Coord<br>You can change x,y,z for every vertex according to the function specified.<br></p>
+<dd><p>Geometric function using muparser lib to generate new Coord<br />
+You can change x,y,z for every vertex according to the function specified.</p>
 <p><strong>Variables.</strong> Evaluated once per vertex: <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">y</span> <span class="pre">z</span></code>, <code class="docutils literal notranslate"><span class="pre">nx</span> <span class="pre">ny</span> <span class="pre">nz</span></code>, <code class="docutils literal notranslate"><span class="pre">r</span> <span class="pre">g</span> <span class="pre">b</span> <span class="pre">a</span></code>, <code class="docutils literal notranslate"><span class="pre">q</span></code>, <code class="docutils literal notranslate"><span class="pre">vi</span></code>, <code class="docutils literal notranslate"><span class="pre">vsel</span></code> and the bounding box (<code class="docutils literal notranslate"><span class="pre">zmin</span></code>, <code class="docutils literal notranslate"><span class="pre">zdim</span></code>, <code class="docutils literal notranslate"><span class="pre">bbdiag</span></code>, …) are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>x</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">x</span></code>) — Expression for X output.</p></li>
 <li><p><strong>y</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">y</span></code>) — Expression for Y output.</p></li>
 <li><p><strong>z</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">sin(x+y)</span></code>) — Expression for Z output.</p></li>
-<li><p><strong>a</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Expression for alpha channel (ignored for geometry).</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
@@ -6150,7 +6235,11 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.convert_to_quads_by_4_8_subdivision">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">convert_to_quads_by_4_8_subdivision</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.convert_to_quads_by_4_8_subdivision" title="Link to this definition">¶</a></dt>
-<dd><p>Convert a tri mesh into a quad mesh by applying a 4-8 subdivision scheme.It introduces less overhead than the plain Catmull-Clark Subdivision Surfaces, and applying two step of this procedure generates the same connectivity of the Catmull-Clark subdivision approach.(it adds only a single vertex for each triangle instead of four).<br> See: <br><b>4-8 Subdivision</b><br> <i>Luiz Velho, Denis Zorin </i><br>CAGD, volume 18, Issue 5, Pages 397-427.</p>
+<dd><p>Convert a tri mesh into a quad mesh by applying a 4-8 subdivision scheme.It introduces less overhead than the plain Catmull-Clark Subdivision Surfaces, and applying two step of this procedure generates the same connectivity of the Catmull-Clark subdivision approach.(it adds only a single vertex for each triangle instead of four).</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Luiz Velho, Denis Zorin. <strong>4–8 Subdivision</strong>. <em>Computer Aided Geometric Design</em> (2001). <a class="reference external" href="https://doi.org/10.1016/S0167-8396(01)00039-5">DOI</a></p></li>
+</ul>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -6419,7 +6508,11 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.remesh_isotropically_vcglib">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remesh_isotropically_vcglib</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.remesh_isotropically_vcglib" title="Link to this definition">¶</a></dt>
-<dd><p>Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge flip, collapse, relax and refine operations to regularize size and aspect ration of the triangular meshing. Loosely inspired to:<br>Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, and Werner Stuetzle.<br>Mesh optimization<br>(SIGGRAPH ‘93). ACM, New York, NY, USA, 19–26. <a href='https://doi.org/10.1145/166117.166119'>DOI</a></p>
+<dd><p>Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge flip, collapse, relax and refine operations to regularize size and aspect ration of the triangular meshing. Loosely inspired by the mesh optimization of Hoppe et al.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle. <strong>Mesh optimization</strong>. <em>Proceedings of the 20th annual conference on Computer graphics and interactive techniques</em> (1993). <a class="reference external" href="https://doi.org/10.1145/166117.166119">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>Iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Number of remeshing iterations.</p></li>
@@ -6508,7 +6601,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.remesh_uniformly_by_volumetric_resampling">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remesh_uniformly_by_volumetric_resampling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.remesh_uniformly_by_volumetric_resampling" title="Link to this definition">¶</a></dt>
-<dd><p>Create a new mesh that is a resampled version of the current one.<br>The resampling is done by building a uniform volumetric representation where each voxel contains the signed distance from the original surface. The resampled surface is reconstructed using the <b>marching cube</b> algorithm over this volume.</p>
+<dd><p>Create a new mesh that is a resampled version of the current one.<br />
+The resampling is done by building a uniform volumetric representation where each voxel contains the signed distance from the original surface. The resampled surface is reconstructed using the <b>marching cube</b> algorithm over this volume.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>CellSize</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Sampling cell size. Smaller cells give more precise results at higher cost.</p></li>
@@ -6716,7 +6810,11 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.simplify_by_vertex_clustering">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">simplify_by_vertex_clustering</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.simplify_by_vertex_clustering" title="Link to this definition">¶</a></dt>
-<dd><p>Simplify the mesh by clustering vertices; by using a uniform grid over the mesh, the algorithm merges all the vertices in a grid cell into a single vertex. By design this approach removes all small triangles, but also create a number of non-manifold situation.<br> See: <br><br><i>Jarek Rossignac, and Paul Borrel</i>. <br><b>Multi-resolution 3D approximations for rendering complex scenes.</b><br>Modeling in computer graphics: methods and applications. Springer, 1993</p>
+<dd><p>Simplify the mesh by clustering vertices; by using a uniform grid over the mesh, the algorithm merges all the vertices in a grid cell into a single vertex. By design this approach removes all small triangles, but also create a number of non-manifold situation.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Jarek Rossignac, Paul Borrel. <strong>Multi-resolution 3D approximations for rendering complex scenes</strong>. <em>Modeling in Computer Graphics</em> (1993). <a class="reference external" href="https://doi.org/10.1007/978-3-642-78114-8_29">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>Threshold</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Cell size of clustering grid.</p></li>
@@ -6752,7 +6850,11 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.simplify_point_cloud">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">simplify_point_cloud</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.simplify_point_cloud" title="Link to this definition">¶</a></dt>
-<dd><p>Create a new layer populated with a simplified version of the current point cloud. The simplification is performed by subsampling the original point cloud using a Poisson Disk strategy  using the algorithm described in:<br><b>’Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes’</b><br> Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012</p>
+<dd><p>Create a new layer populated with a simplified version of the current point cloud. The simplification is performed by subsampling the original point cloud using a Poisson Disk strategy, using the algorithm of Corsini, Cignoni and Scopigno.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>M. Corsini, P. Cignoni, R. Scopigno. <strong>Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes</strong>. <em>IEEE Transactions on Visualization and Computer Graphics</em> (2012). <a class="reference external" href="https://doi.org/10.1109/TVCG.2012.34">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>SampleNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1000</span></code>) — Desired number of samples. Ignored if an explicit radius is provided.</p></li>
@@ -6775,7 +6877,10 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.refine_by_user_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">refine_by_user_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.refine_by_user_expression" title="Link to this definition">¶</a></dt>
-<dd><p>Refine current mesh with user defined parameters.<br>Specify a Boolean Function needed to select which edges will be cut for refinement purpose.<br>Each edge is identified with first and second vertex.<br>Arguments accepted are first and second vertex attributes:<br></p>
+<dd><p>Refine current mesh with user defined parameters.<br />
+Specify a Boolean Function needed to select which edges will be cut for refinement purpose.<br />
+Each edge is identified with first and second vertex.<br />
+Arguments accepted are first and second vertex attributes:</p>
 <p><strong>Variables.</strong> The edge predicate sees the two endpoints (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z1</span></code>, <code class="docutils literal notranslate"><span class="pre">nx0</span> <span class="pre">…</span> <span class="pre">nz1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">g0</span> <span class="pre">b0</span></code>, <code class="docutils literal notranslate"><span class="pre">r1</span> <span class="pre">g1</span> <span class="pre">b1</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span></code>) and is tried with them in both orders; the split-point formulas see only <code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">y0</span> <span class="pre">z0</span> <span class="pre">x1</span> <span class="pre">y1</span> <span class="pre">z1</span></code>. Functions and operators are in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -6870,8 +6975,14 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.subdivide_by_ls3_loop">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">subdivide_by_ls3_loop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.subdivide_by_ls3_loop" title="Link to this definition">¶</a></dt>
-<dd><p>Apply LS3 Subdivision Surface algorithm using Loop’s weights. This refinement method take normals into account. <br>See:<i>Boye’, S. Guennebaud, G. &amp; Schlick, C.</i> <br><b>Least squares subdivision surfaces</b><br>Computer Graphics Forum, 2010.<br/><br/>Alternatives weighting schemes are based on the paper: <i>Barthe, L. &amp; Kobbelt, L.</i><br><b>Subdivision scheme tuning around extraordinary vertices</b><br>Computer Aided Geometric Design, 2004, 21, 561-583.<br/>The current implementation of these schemes don’t handle vertices of valence &gt; 12</p>
+<dd><p>Apply LS3 Subdivision Surface algorithm using Loop’s weights. This refinement method take normals into account.</p>
+<p>The alternative weighting schemes are Barthe and Kobbelt’s. The current implementation of these schemes don’t handle vertices of valence &gt; 12</p>
 <p>Defined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use <em>Subdivide by Catmull-Clark</em>.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>S. Boyé, G. Guennebaud, C. Schlick. <strong>Least Squares Subdivision Surfaces</strong>. <em>Computer Graphics Forum</em> (2010). <a class="reference external" href="https://doi.org/10.1111/j.1467-8659.2010.01788.x">DOI</a></p></li>
+<li><p>Loïc Barthe, Leif Kobbelt. <strong>Subdivision scheme tuning around extraordinary vertices</strong>. <em>Computer Aided Geometric Design</em> (2004). <a class="reference external" href="https://doi.org/10.1016/j.cagd.2004.04.003">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>LoopWeight</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">loop</span></code>) — Change the weights used.</p></li>
@@ -7015,7 +7126,8 @@ Note that topologically incompatible merges are still skipped, as they cannot be
 <li><p><strong>targetTexCount</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Specifies the maximum number of output textures that can be generated by the filter.
 If set to zero the parameter is ignored and the algorithm employs the default packing strategy.</p></li>
 <li><p><strong>timelimit</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Time limit for the chart merging stage. <code class="docutils literal notranslate"><span class="pre">0</span></code> means unlimited. Note that it does not bound the atlas packing that follows, which on a heavily fragmented layout can be the slower half.</p></li>
-<li><p><strong>quickRun</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Speeds up the running time of the filter by never attempting again any rejected merge operation. <br> Although fast, it could lead to worst results.</p></li>
+<li><p><strong>quickRun</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Speeds up the running time of the filter by never attempting again any rejected merge operation.<br />
+Although fast, it could lead to worst results.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas packing exactly reproducible.</p></li>
 <li><p><strong>resampleTextures</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way – the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.</p></li>
 </ul>
@@ -7142,7 +7254,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <p>There is no single winner: <strong>Square</strong> buys atlas area with distortion and seams, <strong>Polygon</strong> buys the fewest seams and the truest areas with atlas area, and <strong>Hexagon</strong> sits between them. Pick by whether the atlas is going to be baked once or authored against.</p>
 <p>Four packers are offered, and they trade quality against time very differently – see <strong>Pack UV Charts</strong>, which drives the same ones – but <em>Rasterized, scaled to fit</em> is what you want here unless the chart count makes it too slow.</p>
 <p>Requires an abstract domain on the layer: run <strong>Parametrize by Abstract Domain</strong> first.</p>
-<p>Based on Pietroni, Tarini and Cignoni, <em>Almost isometric mesh parameterization through abstract domains</em>, IEEE TVCG 2010; the square patches and the half-star partition are theirs, the merged hexagon and star charts are not.</p>
+<p>The square patches and the half-star partition are the paper’s; the merged hexagon and star charts are not.</p>
 <p><strong>References:</strong></p>
 <ul class="simple">
 <li><p>Nico Pietroni, Marco Tarini, Paolo Cignoni. <strong>Almost Isometric Mesh Parameterization through Abstract Domains</strong>. <em>IEEE Transactions on Visualization and Computer Graphics</em> (2010). <a class="reference external" href="https://doi.org/10.1109/TVCG.2009.96">DOI</a></p></li>
@@ -7178,7 +7290,6 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <p>What <em>is</em> written into the mesh is the mapping itself, as per-vertex UVs, and the domain regions, as scalars: each vertex gets the region its own position falls in, and each face gets the one its centre falls in. The per-face one is the better picture – a region boundary is a path across the surface rather than a chain of mesh edges, so a face can straddle one, and deciding per face keeps the regions crisp where the per-vertex values dither along the seam. The filter asks the view to colour by it when it finishes, which is the quickest way to see what kind of domain you got. Any per-vertex or per-face scalar already on the layer is overwritten.</p>
 <p>The mesh must be a <strong>single watertight two-manifold component</strong>; the filter says which precondition failed when it is not.</p>
 <p>Counter-intuitively, a <em>smaller</em> abstract domain costs more, not less. The two size bounds are a search range, not a tolerance: decimation always runs all the way down to the smallest, scoring the domain at every step, and then back-tracks to the best size in the interval. Lowering the smallest therefore buys more work, not less. On a 40k-vertex sphere, 150-200 faces took about twice as long as 400-500.</p>
-<p>Based on Pietroni, Tarini and Cignoni, <em>Almost isometric mesh parameterization through abstract domains</em>, IEEE TVCG 2010.</p>
 <p><strong>References:</strong></p>
 <ul class="simple">
 <li><p>Nico Pietroni, Marco Tarini, Paolo Cignoni. <strong>Almost Isometric Mesh Parameterization through Abstract Domains</strong>. <em>IEEE Transactions on Visualization and Computer Graphics</em> (2010). <a class="reference external" href="https://doi.org/10.1109/TVCG.2009.96">DOI</a></p></li>
@@ -7479,7 +7590,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.parametrize_by_trivial_per_triangle_layout">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">parametrize_by_trivial_per_triangle_layout</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.parametrize_by_trivial_per_triangle_layout" title="Link to this definition">¶</a></dt>
-<dd><p>Builds a trivial triangle-by-triangle parametrization. <br> Two methods are provided, the first maps all triangles into equal sized triangles, while the second one adapt the size of the triangles in texture space to their original size.</p>
+<dd><p>Builds a trivial triangle-by-triangle parametrization.<br />
+Two methods are provided, the first maps all triangles into equal sized triangles, while the second one adapt the size of the triangles in texture space to their original size.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>sidedim</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Indicates how many triangles have to be put on each line (every quad contains two triangles)
@@ -7500,7 +7612,11 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.parametrize_by_voronoi_atlas_vcglib">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">parametrize_by_voronoi_atlas_vcglib</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.parametrize_by_voronoi_atlas_vcglib" title="Link to this definition">¶</a></dt>
-<dd><p>Build an atlased parametrization based on a geodesic voronoi partitioning of the surface and parametrizing each region using Harmonic Mapping. For the parametrization of the disk like voronoi regions the used method is: <br><b>Ulrich Pinkall, Konrad Polthier</b><br><i>Computing Discrete Minimal Surfaces and Their Conjugates</i> <br>Experimental Mathematics, Vol 2 (1), 1993.</p>
+<dd><p>Build an atlased parametrization based on a geodesic voronoi partitioning of the surface and parametrizing each region using Harmonic Mapping. The harmonic map of each disk-like region is that of Pinkall and Polthier.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Ulrich Pinkall, Konrad Polthier. <strong>Computing Discrete Minimal Surfaces and Their Conjugates</strong>. <em>Experimental Mathematics</em> (1993). <a class="reference external" href="https://doi.org/10.1080/10586458.1993.10504266">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>regionNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — An estimation of the number of regions that must be generated. Smaller regions could lead to parametrizations with smaller distortion.</p></li>
@@ -7573,7 +7689,7 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.parametrize_per_vertex_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">parametrize_per_vertex_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.parametrize_per_vertex_by_expression" title="Link to this definition">¶</a></dt>
-<dd><p>Texture function using muparser to generate new texture coords for every vertex<br></p>
+<dd><p>Texture function using muparser to generate new texture coords for every vertex</p>
 <p><strong>Variables.</strong> Evaluated once per vertex: <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">y</span> <span class="pre">z</span></code>, <code class="docutils literal notranslate"><span class="pre">nx</span> <span class="pre">ny</span> <span class="pre">nz</span></code>, <code class="docutils literal notranslate"><span class="pre">r</span> <span class="pre">g</span> <span class="pre">b</span> <span class="pre">a</span></code>, <code class="docutils literal notranslate"><span class="pre">q</span></code>, <code class="docutils literal notranslate"><span class="pre">vi</span></code>, <code class="docutils literal notranslate"><span class="pre">vsel</span></code> and the bounding box (<code class="docutils literal notranslate"><span class="pre">zmin</span></code>, <code class="docutils literal notranslate"><span class="pre">zdim</span></code>, <code class="docutils literal notranslate"><span class="pre">bbdiag</span></code>, …) are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -7593,7 +7709,8 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.parametrize_per_wedge_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">parametrize_per_wedge_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.parametrize_per_wedge_by_expression" title="Link to this definition">¶</a></dt>
-<dd><p>Texture function using muparser to generate new per wedge tex coords for every face<br>Insert six functions each u v for each one of the three vertex of a face<br></p>
+<dd><p>Texture function using muparser to generate new per wedge tex coords for every face<br />
+Insert six functions each u v for each one of the three vertex of a face</p>
 <p><strong>Variables.</strong> Evaluated once per face: the corners (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z2</span></code>, <code class="docutils literal notranslate"><span class="pre">nx0</span> <span class="pre">…</span> <span class="pre">nz2</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a2</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span> <span class="pre">q2</span></code>), the face’s own <code class="docutils literal notranslate"><span class="pre">fnx</span> <span class="pre">fny</span> <span class="pre">fnz</span></code>, <code class="docutils literal notranslate"><span class="pre">fr</span> <span class="pre">fg</span> <span class="pre">fb</span> <span class="pre">fa</span></code>, <code class="docutils literal notranslate"><span class="pre">fq</span></code>, <code class="docutils literal notranslate"><span class="pre">fi</span></code>, <code class="docutils literal notranslate"><span class="pre">fsel</span></code>, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -7822,7 +7939,9 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.repair_mismatched_borders">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">repair_mismatched_borders</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.repair_mismatched_borders" title="Link to this definition">¶</a></dt>
-<dd><p>Try to snap together adjacent borders that are slightly mismatched.<br>This situation can happen on badly triangulated adjacent patches defined by high order surfaces.<br>For each border vertex the filter snap it onto the closest boundary edge only if it is closest of <i>edge_length*threshold</i>. When vertex is snapped the corresponding face is split and a new vertex is created.</p>
+<dd><p>Try to snap together adjacent borders that are slightly mismatched.<br />
+This situation can happen on badly triangulated adjacent patches defined by high order surfaces.<br />
+For each border vertex the filter snap it onto the closest boundary edge only if it is closest of <i>edge_length*threshold</i>. When vertex is snapped the corresponding face is split and a new vertex is created.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>edge_dist_ratio</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.01</span></code>) — Collapse edge when the edge / distance ratio is greater than this value. Larger values enforce that only vertices very close to the line are removed.</p></li>
@@ -7856,7 +7975,9 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.invert_face_orientation">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">invert_face_orientation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.invert_face_orientation" title="Link to this definition">¶</a></dt>
-<dd><p>Invert faces orientation, flipping the normals of the mesh. <br>If requested, it tries to guess the right orientation; mainly it decide to flip all the faces if the minimum/maximum vertices have not outward point normals for a few directions.<br>Works well for single component watertight objects.</p>
+<dd><p>Invert faces orientation, flipping the normals of the mesh.<br />
+If requested, it tries to guess the right orientation; mainly it decide to flip all the faces if the minimum/maximum vertices have not outward point normals for a few directions.<br />
+Works well for single component watertight objects.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>forceFlip</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Always flip normals; otherwise try to set normals outside.</p></li>
@@ -7891,7 +8012,8 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.orient_faces_consistently_vcglib">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">orient_faces_consistently_vcglib</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.orient_faces_consistently_vcglib" title="Link to this definition">¶</a></dt>
-<dd><p>Re-orient in a consistent way all the faces of the mesh. <br>The filter visits a mesh face to face, reorienting any unvisited face so that it is coherent to the already visited faces. If the surface is orientable it will end with a consistent orientation of all the faces. If the surface is not orientable (e.g. it is non manifold or non orientable like a moebius</p>
+<dd><p>Re-orient in a consistent way all the faces of the mesh.<br />
+The filter visits a mesh face to face, reorienting any unvisited face so that it is coherent to the already visited faces. If the surface is orientable it will end with a consistent orientation of all the faces. If the surface is not orientable (e.g. it is non manifold or non orientable like a moebius</p>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -8239,7 +8361,7 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.select_faces_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_faces_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_faces_by_expression" title="Link to this definition">¶</a></dt>
-<dd><p>Boolean function using muparser lib to perform faces selection over current mesh.<br></p>
+<dd><p>Boolean function using muparser lib to perform faces selection over current mesh.</p>
 <p><strong>Variables.</strong> Evaluated once per face: the corners (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z2</span></code>, <code class="docutils literal notranslate"><span class="pre">nx0</span> <span class="pre">…</span> <span class="pre">nz2</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a2</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span> <span class="pre">q2</span></code>), the face’s own <code class="docutils literal notranslate"><span class="pre">fnx</span> <span class="pre">fny</span> <span class="pre">fnz</span></code>, <code class="docutils literal notranslate"><span class="pre">fr</span> <span class="pre">fg</span> <span class="pre">fb</span> <span class="pre">fa</span></code>, <code class="docutils literal notranslate"><span class="pre">fq</span></code>, <code class="docutils literal notranslate"><span class="pre">fi</span></code>, <code class="docutils literal notranslate"><span class="pre">fsel</span></code>, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -8296,7 +8418,11 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.select_outliers">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_outliers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_outliers" title="Link to this definition">¶</a></dt>
-<dd><p>Select the vertex classified as outlier using Local Outlier Propabilty measure described in:<br> <b>’LoOP: Local Outlier Probabilities’</b> Kriegel et al.<br>CIKM 2009</p>
+<dd><p>Select the vertex classified as outlier using the Local Outlier Probability (LoOP) measure of Kriegel et al.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Hans-Peter Kriegel, Peer Kröger, Erich Schubert, Arthur Zimek. <strong>LoOP: Local Outlier Probabilities</strong>. <em>Proceedings of the 18th ACM conference on Information and knowledge management</em> (2009). <a class="reference external" href="https://doi.org/10.1145/1645953.1646195">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>PropThreshold</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.8</span></code>) — Threshold to select a vertex. Vertex is selected if LoOP value is above threshold.</p></li>
@@ -8364,7 +8490,7 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.select_vertices_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_vertices_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_vertices_by_expression" title="Link to this definition">¶</a></dt>
-<dd><p>Boolean function using muparser lib to perform vertex selection over current mesh.<br></p>
+<dd><p>Boolean function using muparser lib to perform vertex selection over current mesh.</p>
 <p><strong>Variables.</strong> Evaluated once per vertex: <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">y</span> <span class="pre">z</span></code>, <code class="docutils literal notranslate"><span class="pre">nx</span> <span class="pre">ny</span> <span class="pre">nz</span></code>, <code class="docutils literal notranslate"><span class="pre">r</span> <span class="pre">g</span> <span class="pre">b</span> <span class="pre">a</span></code>, <code class="docutils literal notranslate"><span class="pre">q</span></code>, <code class="docutils literal notranslate"><span class="pre">vi</span></code>, <code class="docutils literal notranslate"><span class="pre">vsel</span></code> and the bounding box (<code class="docutils literal notranslate"><span class="pre">zmin</span></code>, <code class="docutils literal notranslate"><span class="pre">zdim</span></code>, <code class="docutils literal notranslate"><span class="pre">bbdiag</span></code>, …) are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -8473,7 +8599,8 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.select_crease_edges_vcglib">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_crease_edges_vcglib</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_crease_edges_vcglib" title="Link to this definition">¶</a></dt>
-<dd><p>It select the crease edges of a mesh according to edge dihedral angle.<br>Angle between face normal is considered signed according to convexity/concavity.Convex angles are positive and concave are negative.</p>
+<dd><p>It select the crease edges of a mesh according to edge dihedral angle.<br />
+Angle between face normal is considered signed according to convexity/concavity.Convex angles are positive and concave are negative.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>AngleDegNeg</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">-45.0</span></code>) — Concave dihedral threshold.</p></li>
@@ -8781,8 +8908,10 @@ Leave 0 for automatic calculation.</p></li>
 <p>Only vertex positions are used, so this works on a raw point cloud with no faces and no normals — which is what it is for. It is the point-cloud counterpart of <em>Select Visible Faces</em>, which needs a surface to cast rays against.</p>
 <p><strong>Radius Threshold</strong> sets the inversion sphere radius as <code class="docutils literal notranslate"><span class="pre">radius</span> <span class="pre">*</span> <span class="pre">10^threshold</span></code>. Larger values mark more points visible: use a large threshold for dense clouds and a small one for sparse clouds.</p>
 <p>The selection is <strong>added</strong> to the current one; clear it first for an exact result.</p>
-<p>Reference:
-Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</strong>, ACM Transactions on Graphics 26(3), 2007.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Sagi Katz, Ayellet Tal, Ronen Basri. <strong>Direct visibility of point sets</strong>. <em>ACM Transactions on Graphics</em> (2007). <a class="reference external" href="https://doi.org/10.1145/1276377.1276407">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>radiusThreshold</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Exponent of the inversion sphere radius (radius * 10^threshold). Larger values mark more points as visible; use a large value for dense clouds, a small one for sparse clouds.</p></li>
@@ -8929,7 +9058,9 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.transfer_vertex_attributes_by_closest_point">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_vertex_attributes_by_closest_point</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.transfer_vertex_attributes_by_closest_point" title="Link to this definition">¶</a></dt>
-<dd><p>Transfer the chosen per-vertex attributes from one layer to another. Useful to transfer attributes to different representations of a same object.<br>For each vertex of the target mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the target vertex.<br>The algorithm assumes that the two meshes are reasonably similar and aligned.</p>
+<dd><p>Transfer the chosen per-vertex attributes from one layer to another. Useful to transfer attributes to different representations of a same object.<br />
+For each vertex of the target mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the target vertex.<br />
+The algorithm assumes that the two meshes are reasonably similar and aligned.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>SourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh that provides the attributes to transfer.</p></li>
