@@ -585,6 +585,22 @@ void FilterDescriptorTests::checkHelpText(const MeshFilterDescriptor &d,
     for (const auto &p : d.parameters)
         checkHtml(p.helpMarkdown, QStringLiteral("help for parameter '%1'").arg(p.id));
 
+    // A publication belongs in the manifest's references, attached with referenceIds, which
+    // the help, the [bib]/[doi]/[web] buttons and references.bib are all generated from; a
+    // citation typed into the description reaches none of them. 31 descriptions carried one
+    // until 2026-10. Only the cheap, unmistakable half of them is caught here -- a DOI link,
+    // or a line opening with "Reference:" -- since prose such as "(Hoppe et al.)" is fine.
+    static const QRegularExpression typedCitation(
+        QStringLiteral("doi\\.org/|\\bdoi:\\s*10\\.|(^|\\n)\\s*(\\*\\*)?References?:"),
+        QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch citation = typedCitation.match(d.longDescriptionMarkdown);
+    if (citation.hasMatch()) {
+        problems << QStringLiteral("longDescriptionMarkdown cites a publication (\"%1\"); declare "
+                                   "it in the manifest's references and attach it with "
+                                   "referenceIds")
+                        .arg(citation.captured(0).trimmed());
+    }
+
     // shortDescription is the one text field that is NOT Markdown. It goes to
     // QLabel::setText in the filter panel and to the tooltips in the Filters menu and the
     // results list, so anything written for a renderer is shown to the reader as its own

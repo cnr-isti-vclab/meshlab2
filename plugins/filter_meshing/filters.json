@@ -157,6 +157,82 @@
       },
       "DOI": "10.1109/VISUAL.1998.745312",
       "URL": "https://mgarland.org/papers/quadric2.pdf"
+    },
+    {
+      "id": "boye2010ls3",
+      "type": "article-journal",
+      "title": "Least Squares Subdivision Surfaces",
+      "author": [
+        { "family": "Boyé", "given": "S." },
+        { "family": "Guennebaud", "given": "G." },
+        { "family": "Schlick", "given": "C." }
+      ],
+      "container-title": "Computer Graphics Forum",
+      "volume": "29",
+      "issue": "7",
+      "page": "2021-2028",
+      "issued": { "date-parts": [[2010]] },
+      "DOI": "10.1111/j.1467-8659.2010.01788.x"
+    },
+    {
+      "id": "barthe2004tuning",
+      "type": "article-journal",
+      "title": "Subdivision scheme tuning around extraordinary vertices",
+      "author": [
+        { "family": "Barthe", "given": "Loïc" },
+        { "family": "Kobbelt", "given": "Leif" }
+      ],
+      "container-title": "Computer Aided Geometric Design",
+      "volume": "21",
+      "issue": "6",
+      "page": "561-583",
+      "issued": { "date-parts": [[2004]] },
+      "DOI": "10.1016/j.cagd.2004.04.003"
+    },
+    {
+      "id": "rossignac1993clustering",
+      "type": "chapter",
+      "title": "Multi-resolution 3D approximations for rendering complex scenes",
+      "author": [
+        { "family": "Rossignac", "given": "Jarek" },
+        { "family": "Borrel", "given": "Paul" }
+      ],
+      "container-title": "Modeling in Computer Graphics",
+      "publisher": "Springer Berlin Heidelberg",
+      "page": "455-465",
+      "issued": { "date-parts": [[1993]] },
+      "DOI": "10.1007/978-3-642-78114-8_29"
+    },
+    {
+      "id": "hoppe1993optimization",
+      "type": "paper-conference",
+      "title": "Mesh optimization",
+      "author": [
+        { "family": "Hoppe", "given": "Hugues" },
+        { "family": "DeRose", "given": "Tony" },
+        { "family": "Duchamp", "given": "Tom" },
+        { "family": "McDonald", "given": "John" },
+        { "family": "Stuetzle", "given": "Werner" }
+      ],
+      "container-title": "Proceedings of the 20th annual conference on Computer graphics and interactive techniques",
+      "page": "19-26",
+      "issued": { "date-parts": [[1993]] },
+      "DOI": "10.1145/166117.166119"
+    },
+    {
+      "id": "velho2001quads",
+      "type": "article-journal",
+      "title": "4–8 Subdivision",
+      "author": [
+        { "family": "Velho", "given": "Luiz" },
+        { "family": "Zorin", "given": "Denis" }
+      ],
+      "container-title": "Computer Aided Geometric Design",
+      "volume": "18",
+      "issue": "5",
+      "page": "397-427",
+      "issued": { "date-parts": [[2001]] },
+      "DOI": "10.1016/S0167-8396(01)00039-5"
     }
   ],
   "filters": [
@@ -332,10 +408,11 @@
     {
       "id": "subdivide_by_ls3_loop",
       "categories": ["Meshing/Subdivision"],
+      "referenceIds": ["boye2010ls3", "barthe2004tuning"],
       "name": "Subdivide by LS3 Loop",
       "pythonName": "subdivide_by_ls3_loop",
       "shortDescription": "Apply LS3 Loop subdivision.",
-      "longDescriptionMarkdown": "Apply LS3 Subdivision Surface algorithm using Loop's weights. This refinement method take normals into account.\\\nSee:<i>Boye', S. Guennebaud, G. & Schlick, C.</i>\\\n<b>Least squares subdivision surfaces</b>\\\nComputer Graphics Forum, 2010.<br/><br/>Alternatives weighting schemes are based on the paper: <i>Barthe, L. & Kobbelt, L.</i>\\\n<b>Subdivision scheme tuning around extraordinary vertices</b>\\\nComputer Aided Geometric Design, 2004, 21, 561-583.<br/>The current implementation of these schemes don't handle vertices of valence > 12\n\nDefined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use *Subdivide by Catmull-Clark*.",
+      "longDescriptionMarkdown": "Apply LS3 Subdivision Surface algorithm using Loop's weights. This refinement method take normals into account.\n\nThe alternative weighting schemes are Barthe and Kobbelt's. The current implementation of these schemes don't handle vertices of valence > 12\n\nDefined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use *Subdivide by Catmull-Clark*.",
       "tags": [
         "meshing"
       ],
@@ -403,10 +480,11 @@
     {
       "id": "simplify_by_vertex_clustering",
       "categories": ["Meshing/Simplification"],
+      "referenceIds": ["rossignac1993clustering"],
       "name": "Simplify by Vertex Clustering",
       "pythonName": "simplify_by_vertex_clustering",
       "shortDescription": "Simplify mesh by clustering vertices on a grid.",
-      "longDescriptionMarkdown": "Simplify the mesh by clustering vertices; by using a uniform grid over the mesh, the algorithm merges all the vertices in a grid cell into a single vertex. By design this approach removes all small triangles, but also create a number of non-manifold situation.\\\nSee:\\\n\\\n<i>Jarek Rossignac, and Paul Borrel</i>.\\\n<b>Multi-resolution 3D approximations for rendering complex scenes.</b>\\\nModeling in computer graphics: methods and applications. Springer, 1993",
+      "longDescriptionMarkdown": "Simplify the mesh by clustering vertices; by using a uniform grid over the mesh, the algorithm merges all the vertices in a grid cell into a single vertex. By design this approach removes all small triangles, but also create a number of non-manifold situation.",
       "tags": [
         "meshing"
       ],
@@ -694,10 +772,11 @@
     {
       "id": "remesh_isotropically_vcglib",
       "categories": ["Meshing/Remeshing"],
+      "referenceIds": ["hoppe1993optimization"],
       "name": "Remesh Isotropically (vcglib)",
       "pythonName": "remesh_isotropically_vcglib",
       "shortDescription": "Explicit isotropic remeshing by local operations.",
-      "longDescriptionMarkdown": "Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge flip, collapse, relax and refine operations to regularize size and aspect ration of the triangular meshing. Loosely inspired to:\\\nHugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, and Werner Stuetzle.\\\nMesh optimization\\\n(SIGGRAPH '93). ACM, New York, NY, USA, 19\u201326. <a href='https://doi.org/10.1145/166117.166119'>DOI</a>",
+      "longDescriptionMarkdown": "Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge flip, collapse, relax and refine operations to regularize size and aspect ration of the triangular meshing. Loosely inspired by the mesh optimization of Hoppe et al.",
       "tags": [
         "meshing"
       ],
@@ -2304,10 +2383,11 @@
     {
       "id": "convert_to_quads_by_4_8_subdivision",
       "categories": ["Meshing/Quad"],
+      "referenceIds": ["velho2001quads"],
       "name": "Convert to Quads by 4-8 Subdivision",
       "pythonName": "convert_to_quads_by_4_8_subdivision",
       "shortDescription": "Convert tri mesh into quad mesh by 4-8 subdivision.",
-      "longDescriptionMarkdown": "Convert a tri mesh into a quad mesh by applying a 4-8 subdivision scheme.It introduces less overhead than the plain Catmull-Clark Subdivision Surfaces, and applying two step of this procedure generates the same connectivity of the Catmull-Clark subdivision approach.(it adds only a single vertex for each triangle instead of four).\\\nSee:\\\n<b>4-8 Subdivision</b>\\\n<i>Luiz Velho, Denis Zorin </i>\\\nCAGD, volume 18, Issue 5, Pages 397-427.",
+      "longDescriptionMarkdown": "Convert a tri mesh into a quad mesh by applying a 4-8 subdivision scheme.It introduces less overhead than the plain Catmull-Clark Subdivision Surfaces, and applying two step of this procedure generates the same connectivity of the Catmull-Clark subdivision approach.(it adds only a single vertex for each triangle instead of four).",
       "tags": [
         "meshing"
       ],

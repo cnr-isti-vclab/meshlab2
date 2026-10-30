@@ -1,13 +1,31 @@
 {
   "pluginId": "meshlab2.filter.texture",
+  "references": [
+    {
+      "id": "pinkall1993minimal",
+      "type": "article-journal",
+      "title": "Computing Discrete Minimal Surfaces and Their Conjugates",
+      "author": [
+        { "family": "Pinkall", "given": "Ulrich" },
+        { "family": "Polthier", "given": "Konrad" }
+      ],
+      "container-title": "Experimental Mathematics",
+      "volume": "2",
+      "issue": "1",
+      "page": "15-36",
+      "issued": { "date-parts": [[1993]] },
+      "DOI": "10.1080/10586458.1993.10504266"
+    }
+  ],
   "filters": [
     {
       "id": "parametrize_by_voronoi_atlas_vcglib",
       "categories": ["Parametrization/UV Creation"],
+      "referenceIds": ["pinkall1993minimal"],
       "name": "Parametrize by Voronoi Atlas (vcglib)",
       "pythonName": "parametrize_by_voronoi_atlas_vcglib",
       "shortDescription": "Build an atlased parametrization using a geodesic Voronoi partition of the surface.",
-      "longDescriptionMarkdown": "Build an atlased parametrization based on a geodesic voronoi partitioning of the surface and parametrizing each region using Harmonic Mapping. For the parametrization of the disk like voronoi regions the used method is:\\\n<b>Ulrich Pinkall, Konrad Polthier</b>\\\n<i>Computing Discrete Minimal Surfaces and Their Conjugates</i>\\\nExperimental Mathematics, Vol 2 (1), 1993.",
+      "longDescriptionMarkdown": "Build an atlased parametrization based on a geodesic voronoi partitioning of the surface and parametrizing each region using Harmonic Mapping. The harmonic map of each disk-like region is that of Pinkall and Polthier.",
       "tags": [
         "texture",
         "uv",

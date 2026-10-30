@@ -1,5 +1,23 @@
 {
   "pluginId": "meshlab2.filter.sampling",
+  "references": [
+    {
+      "id": "corsini2012blue",
+      "type": "article-journal",
+      "title": "Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes",
+      "author": [
+        { "family": "Corsini", "given": "M." },
+        { "family": "Cignoni", "given": "P." },
+        { "family": "Scopigno", "given": "R." }
+      ],
+      "container-title": "IEEE Transactions on Visualization and Computer Graphics",
+      "volume": "18",
+      "issue": "6",
+      "page": "914-924",
+      "issued": { "date-parts": [[2012]] },
+      "DOI": "10.1109/TVCG.2012.34"
+    }
+  ],
   "filters": [
     {
       "id": "sample_mesh_elements",
@@ -283,10 +301,11 @@
     {
       "id": "sample_surface_by_poisson_disk",
       "categories": ["Creation/Sampling"],
+      "referenceIds": ["corsini2012blue"],
       "name": "Sample Surface by Poisson Disk",
       "pythonName": "sample_surface_by_poisson_disk",
       "shortDescription": "Generate well-spaced samples over a surface or point cloud.",
-      "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh;samples are generated according to a Poisson-disk distribution, using the algorithm described in:\\\n<b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b>\\\nMassimiliano Corsini, Paolo Cignoni, Roberto Scopigno\\\nIEEE TVCG 2012",
+      "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh;samples are generated according to a Poisson-disk distribution, using the algorithm of Corsini, Cignoni and Scopigno.",
       "tags": [
         "sampling",
         "poisson disk",
@@ -1050,10 +1069,11 @@
     {
       "id": "simplify_point_cloud",
       "categories": ["Meshing/Simplification"],
+      "referenceIds": ["corsini2012blue"],
       "name": "Simplify Point Cloud",
       "pythonName": "simplify_point_cloud",
       "shortDescription": "Simplify a point cloud with Poisson-disk pruning.",
-      "longDescriptionMarkdown": "Create a new layer populated with a simplified version of the current point cloud. The simplification is performed by subsampling the original point cloud using a Poisson Disk strategy  using the algorithm described in:\\\n<b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b>\\\nMassimiliano Corsini, Paolo Cignoni, Roberto Scopigno\\\nIEEE TVCG 2012",
+      "longDescriptionMarkdown": "Create a new layer populated with a simplified version of the current point cloud. The simplification is performed by subsampling the original point cloud using a Poisson Disk strategy, using the algorithm of Corsini, Cignoni and Scopigno.",
       "tags": [
         "sampling",
         "simplification",

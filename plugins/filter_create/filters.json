@@ -1,5 +1,23 @@
 {
   "pluginId": "meshlab2.filter.create",
+  "references": [
+    {
+      "id": "barber1996quickhull",
+      "type": "article-journal",
+      "title": "The quickhull algorithm for convex hulls",
+      "author": [
+        { "family": "Barber", "given": "C. Bradford" },
+        { "family": "Dobkin", "given": "David P." },
+        { "family": "Huhdanpaa", "given": "Hannu" }
+      ],
+      "container-title": "ACM Transactions on Mathematical Software",
+      "volume": "22",
+      "issue": "4",
+      "page": "469-483",
+      "issued": { "date-parts": [[1996]] },
+      "DOI": "10.1145/235815.235821"
+    }
+  ],
   "filters": [
     {
       "id": "create_tetrahedron",
@@ -736,10 +754,11 @@
     {
       "id": "create_convex_hull",
       "categories": ["Creation/Reconstruction"],
+      "referenceIds": ["barber1996quickhull"],
       "name": "Create Convex Hull",
       "pythonName": "create_convex_hull",
       "shortDescription": "Create the convex hull of the current mesh or point cloud.",
-      "longDescriptionMarkdown": "Creates a new layer holding the **convex hull** of the current layer: the boundary of the smallest convex set containing all of its vertices.\n\nOnly the vertex positions are used, so this works on a point cloud just as well as on a mesh; faces, if any, are ignored. Every hull vertex is one of the input points, and interior points are discarded — which is why the result is a new layer rather than a modification of the current one.\n\nAt least 4 vertices are required, and they must not all be coincident, collinear, or coplanar.\n\nImplemented with VCGLib's Quickhull.\n\nReference:\nC. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, **The Quickhull Algorithm for Convex Hulls**, ACM Transactions on Mathematical Software 22(4), 1996.",
+      "longDescriptionMarkdown": "Creates a new layer holding the **convex hull** of the current layer: the boundary of the smallest convex set containing all of its vertices.\n\nOnly the vertex positions are used, so this works on a point cloud just as well as on a mesh; faces, if any, are ignored. Every hull vertex is one of the input points, and interior points are discarded — which is why the result is a new layer rather than a modification of the current one.\n\nAt least 4 vertices are required, and they must not all be coincident, collinear, or coplanar.\n\nImplemented with VCGLib's Quickhull.",
       "tags": [
         "convex hull",
         "quickhull",

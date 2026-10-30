@@ -237,7 +237,10 @@ using CSL-JSON field names, then attached to filters with `referenceIds`:
 
 The framework generates the in-app `[bib]`, `[doi]`, and `[web]` actions, help
 citations, online references, and the combined `references.bib`; do not repeat
-the citation in `longDescriptionMarkdown`.
+the citation in `longDescriptionMarkdown` (`test_filter_descriptors.cpp` rejects a DOI
+link or a "Reference:" line there). Naming the authors in prose -- "the method of Hoppe
+et al." -- is fine. A paper another manifest already declares is copied with the same id
+and identical fields: `docs/generate_api.py` refuses an id defined two ways.
 
 ### Descriptions and formulas
 

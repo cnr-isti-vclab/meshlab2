@@ -79,6 +79,52 @@
       "issued": { "date-parts": [[1995]] },
       "DOI": "10.1145/218380.218473",
       "URL": "https://doi.org/10.1145/218380.218473"
+    },
+    {
+      "id": "thurmer1998normals",
+      "type": "article-journal",
+      "title": "Computing Vertex Normals from Polygonal Facets",
+      "author": [
+        { "family": "Th\u00fcrmer", "given": "Grit" },
+        { "family": "W\u00fcthrich", "given": "Charles A." }
+      ],
+      "container-title": "Journal of Graphics Tools",
+      "volume": "3",
+      "issue": "1",
+      "page": "43-46",
+      "issued": { "date-parts": [[1998]] },
+      "DOI": "10.1080/10867651.1998.10487487"
+    },
+    {
+      "id": "max1999normals",
+      "type": "article-journal",
+      "title": "Weights for Computing Vertex Normals from Facet Normals",
+      "author": [
+        { "family": "Max", "given": "Nelson" }
+      ],
+      "container-title": "Journal of Graphics Tools",
+      "volume": "4",
+      "issue": "2",
+      "page": "1-6",
+      "issued": { "date-parts": [[1999]] },
+      "DOI": "10.1080/10867651.1999.10487501"
+    },
+    {
+      "id": "xu2009harmonic",
+      "type": "article-journal",
+      "title": "Dynamic harmonic fields for surface processing",
+      "author": [
+        { "family": "Xu", "given": "Kai" },
+        { "family": "Zhang", "given": "Hao" },
+        { "family": "Cohen-Or", "given": "Daniel" },
+        { "family": "Xiong", "given": "Yueshan" }
+      ],
+      "container-title": "Computers & Graphics",
+      "volume": "33",
+      "issue": "3",
+      "page": "391-398",
+      "issued": { "date-parts": [[2009]] },
+      "DOI": "10.1016/j.cag.2009.03.022"
     }
   ],
   "filters": [
@@ -778,10 +824,11 @@
     {
       "id": "compute_vertex_normals",
       "categories": ["Attribute/Normal"],
+      "referenceIds": ["thurmer1998normals", "max1999normals"],
       "name": "Compute Vertex Normals",
       "pythonName": "compute_vertex_normals",
       "shortDescription": "Recompute vertex normals using one of several weighting schemes.",
-      "longDescriptionMarkdown": "Recompute vertex normals according to four different schemes:\n\n1) Simple (no weights) average of normals of the incident faces\n2) Area weighted average of normals of the incident faces\n3) Angle weighted sum of normals of the incident faces according to the article <b>[1]</b>. Probably this is the best all-purpose choice. It could slightly bias the result for degenerate, fat triangles.\n4) Weighted sum of normals of the incident faces, as defined by article <b>[2]</b>. The weight for each wedge is the cross product of the two edges over the product of the square of the two edge lengths.According to the original article it is perfect only for spherical surface, but it should perform well also in practice.\n\n[1]: <b>Computing Vertex Normals from Polygonal Facet</b> by <i>G Thurmer and CA Wuthrich</i>, JGT volume3, num 1. 1998\\\n<a href='https://doi.org/10.1080/10867651.1998.10487487'>doi:10.1080/10867651.1998.10487487</a>\\\n[2]: <b>Weights for Computing Vertex Normals from Facet Normals</b> by <i>Nelson Max</i>, JGT vol4, num 2. 1999\\\n<a href='https://doi.org/10.1080/10867651.1999.10487501'>doi:10.1080/10867651.1999.10487501</a>",
+      "longDescriptionMarkdown": "Recompute vertex normals according to four different schemes:\n\n1) Simple (no weights) average of normals of the incident faces\n2) Area weighted average of normals of the incident faces\n3) Angle weighted sum of normals of the incident faces according to Th\u00fcrmer and W\u00fcthrich. Probably this is the best all-purpose choice. It could slightly bias the result for degenerate, fat triangles.\n4) Weighted sum of normals of the incident faces, as defined by Max. The weight for each wedge is the cross product of the two edges over the product of the square of the two edge lengths.According to the original article it is perfect only for spherical surface, but it should perform well also in practice.",
       "tags": [
         "normals",
         "vertex normals",
@@ -958,10 +1005,11 @@
     {
       "id": "compute_harmonic_scalar_field",
       "categories": ["Attribute/Scalar"],
+      "referenceIds": ["xu2009harmonic"],
       "name": "Compute Harmonic Scalar Field",
       "pythonName": "compute_harmonic_scalar_field",
       "shortDescription": "Compute a harmonic scalar field over the mesh.",
-      "longDescriptionMarkdown": "Generates a scalar harmonic field over the mesh. Input scalar values must be assigned to two vertices as Dirichlet boundary conditions. Applying the filter, a discrete Laplace operator generates the harmonic field values for all the mesh vertices, which are stored in the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex attribute</a> of the mesh.\\\nFor more details see:<b>Dynamic Harmonic Fields for Surface Processing</b> by <i>Kai Xua, Hao Zhang, Daniel Cohen-Or, Yueshan Xionga</i>. Computers & Graphics, 2009\\\n<a href='https://doi.org/10.1016/j.cag.2009.03.022'>doi:10.1016/j.cag.2009.03.022</a>",
+      "longDescriptionMarkdown": "Generates a scalar harmonic field over the mesh. Input scalar values must be assigned to two vertices as Dirichlet boundary conditions. Applying the filter, a discrete Laplace operator generates the harmonic field values for all the mesh vertices, which are stored in the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex attribute</a> of the mesh.",
       "tags": [
         "smoothing",
         "harmonic",

@@ -1,5 +1,38 @@
 {
   "pluginId": "meshlab2.filter.select",
+  "references": [
+    {
+      "id": "kriegel2009loop",
+      "type": "paper-conference",
+      "title": "LoOP: Local Outlier Probabilities",
+      "author": [
+        { "family": "Kriegel", "given": "Hans-Peter" },
+        { "family": "Kr\u00f6ger", "given": "Peer" },
+        { "family": "Schubert", "given": "Erich" },
+        { "family": "Zimek", "given": "Arthur" }
+      ],
+      "container-title": "Proceedings of the 18th ACM conference on Information and knowledge management",
+      "page": "1649-1652",
+      "issued": { "date-parts": [[2009]] },
+      "DOI": "10.1145/1645953.1646195"
+    },
+    {
+      "id": "katz2007hpr",
+      "type": "article-journal",
+      "title": "Direct visibility of point sets",
+      "author": [
+        { "family": "Katz", "given": "Sagi" },
+        { "family": "Tal", "given": "Ayellet" },
+        { "family": "Basri", "given": "Ronen" }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "26",
+      "issue": "3",
+      "page": "24",
+      "issued": { "date-parts": [[2007]] },
+      "DOI": "10.1145/1276377.1276407"
+    }
+  ],
   "filters": [
     {
       "id": "select_all",
@@ -1087,10 +1120,11 @@
       "categories": [
         "Selection/by Attribute"
       ],
+      "referenceIds": ["kriegel2009loop"],
       "name": "Select Outliers",
       "pythonName": "select_outliers",
       "shortDescription": "Select outlier vertices using LoOP.",
-      "longDescriptionMarkdown": "Select the vertex classified as outlier using Local Outlier Propabilty measure described in:\\\n<b>'LoOP: Local Outlier Probabilities'</b> Kriegel et al.\\\nCIKM 2009",
+      "longDescriptionMarkdown": "Select the vertex classified as outlier using the Local Outlier Probability (LoOP) measure of Kriegel et al.",
       "tags": [
         "selection",
         "outlier",
@@ -1470,10 +1504,11 @@
       "categories": [
         "Selection/by Visibility"
       ],
+      "referenceIds": ["katz2007hpr"],
       "name": "Select Visible Vertices",
       "pythonName": "select_visible_vertices",
       "shortDescription": "Select the vertices visible from a given viewpoint.",
-      "longDescriptionMarkdown": "Selects the vertices of the current layer that are **visible from a viewpoint**, using the *hidden point removal* operator: the points are inverted through a sphere centred on the viewpoint, and the ones landing on the convex hull of the inverted set are the visible ones.\n\nOnly vertex positions are used, so this works on a raw point cloud with no faces and no normals \u2014 which is what it is for. It is the point-cloud counterpart of *Select Visible Faces*, which needs a surface to cast rays against.\n\n**Radius Threshold** sets the inversion sphere radius as `radius * 10^threshold`. Larger values mark more points visible: use a large threshold for dense clouds and a small one for sparse clouds.\n\nThe selection is **added** to the current one; clear it first for an exact result.\n\nReference:\nSagi Katz, Ayellet Tal, Ronen Basri, **Direct Visibility of Point Sets**, ACM Transactions on Graphics 26(3), 2007.",
+      "longDescriptionMarkdown": "Selects the vertices of the current layer that are **visible from a viewpoint**, using the *hidden point removal* operator: the points are inverted through a sphere centred on the viewpoint, and the ones landing on the convex hull of the inverted set are the visible ones.\n\nOnly vertex positions are used, so this works on a raw point cloud with no faces and no normals \u2014 which is what it is for. It is the point-cloud counterpart of *Select Visible Faces*, which needs a surface to cast rays against.\n\n**Radius Threshold** sets the inversion sphere radius as `radius * 10^threshold`. Larger values mark more points visible: use a large threshold for dense clouds and a small one for sparse clouds.\n\nThe selection is **added** to the current one; clear it first for an exact result.",
       "tags": [
         "selection",
         "visibility",

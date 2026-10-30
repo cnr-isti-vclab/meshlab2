@@ -1,13 +1,65 @@
 {
   "pluginId": "meshlab2.filter.embree",
+  "references": [
+    {
+      "id": "iones2003obscurance",
+      "type": "article-journal",
+      "title": "Fast, realistic lighting for video games",
+      "author": [
+        { "family": "Iones", "given": "A." },
+        { "family": "Krupkin", "given": "A." },
+        { "family": "Sbert", "given": "M." },
+        { "family": "Zhukov", "given": "S." }
+      ],
+      "container-title": "IEEE Computer Graphics and Applications",
+      "volume": "23",
+      "issue": "3",
+      "page": "54-64",
+      "issued": { "date-parts": [[2003]] },
+      "DOI": "10.1109/MCG.2003.1198263"
+    },
+    {
+      "id": "shapira2008sdf",
+      "type": "article-journal",
+      "title": "Consistent mesh partitioning and skeletonisation using the shape diameter function",
+      "author": [
+        { "family": "Shapira", "given": "Lior" },
+        { "family": "Shamir", "given": "Ariel" },
+        { "family": "Cohen-Or", "given": "Daniel" }
+      ],
+      "container-title": "The Visual Computer",
+      "volume": "24",
+      "issue": "4",
+      "page": "249-259",
+      "issued": { "date-parts": [[2008]] },
+      "DOI": "10.1007/s00371-007-0197-5"
+    },
+    {
+      "id": "takayama2014orientation",
+      "type": "article-journal",
+      "title": "A Simple Method for Correcting Facet Orientations in Polygon Meshes Based on Ray Casting",
+      "author": [
+        { "family": "Takayama", "given": "Kenshi" },
+        { "family": "Jacobson", "given": "Alec" },
+        { "family": "Kavan", "given": "Ladislav" },
+        { "family": "Sorkine-Hornung", "given": "Olga" }
+      ],
+      "container-title": "Journal of Computer Graphics Techniques",
+      "volume": "3",
+      "issue": "4",
+      "issued": { "date-parts": [[2014]] },
+      "URL": "https://jcgt.org/published/0003/04/02/"
+    }
+  ],
   "filters": [
     {
       "id": "compute_obscurance",
       "categories": ["Attribute/Scalar"],
+      "referenceIds": ["iones2003obscurance"],
       "name": "Compute Obscurance",
       "pythonName": "compute_obscurance",
       "shortDescription": "Computes volumetric obscurance and stores it in quality.",
-      "longDescriptionMarkdown": "Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>\t<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;</li>\t<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved per face, and each vertex takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written. The filter does not bake colors; after it runs the view switches to showing the per-face scalar. <br /><b>For further details see the reference paper: Iones Krupkin Sbert Zhukov Fast, Realistic Lighting for Video Games IEEECG&A 2003 </b> <br />This filter uses Embree3 library by INTEL.",
+      "longDescriptionMarkdown": "Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>\t<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;</li>\t<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved per face, and each vertex takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written. The filter does not bake colors; after it runs the view switches to showing the per-face scalar. <br />This filter uses Embree3 library by INTEL.",
       "tags": [
         "quality",
         "embree",
@@ -213,10 +265,11 @@
     {
       "id": "compute_shape_diameter_function",
       "categories": ["Attribute/Scalar"],
+      "referenceIds": ["shapira2008sdf"],
       "name": "Compute Shape Diameter Function",
       "pythonName": "compute_shape_diameter_function",
       "shortDescription": "Computes SDF and stores it in quality.",
-      "longDescriptionMarkdown": "Compute Shape-Diameter Function <br />The SDF defines the distance between a point in 3D space and the nearest point on the object's surface.This filter can be used to find out the thickness of the mesh <br />Given a face, a set of rays are shot inward, and an average of the distance to hit a face is saved in the face quality. The filter does not bake colors; after it runs MeshLab switches the view to face-quality color visualization.This filter requires two values:<ul>\t<li> the number of rays which will be shot from the barycenter of each face </li>\t<li> the cone amplitude (in degrees) of the cone which we value as valid for the shooting angle </li></ul> <br /><b>For further details see the reference paper: Shapira Shamir Cohen-Or, Consistent Mesh Partitioning and Skeletonisation using the shaper diameter function, Visual Comput. J. (2008) </b> <br />This filter uses Embree3 library by INTEL.",
+      "longDescriptionMarkdown": "Compute Shape-Diameter Function <br />The SDF defines the distance between a point in 3D space and the nearest point on the object's surface.This filter can be used to find out the thickness of the mesh <br />Given a face, a set of rays are shot inward, and an average of the distance to hit a face is saved in the face quality. The filter does not bake colors; after it runs MeshLab switches the view to face-quality color visualization.This filter requires two values:<ul>\t<li> the number of rays which will be shot from the barycenter of each face </li>\t<li> the cone amplitude (in degrees) of the cone which we value as valid for the shooting angle </li></ul> <br />This filter uses Embree3 library by INTEL.",
       "tags": [
         "quality",
         "embree",
@@ -295,10 +348,11 @@
     {
       "id": "orient_face_normals_by_ray_casting",
       "categories": ["Attribute/Normal"],
+      "referenceIds": ["takayama2014orientation"],
       "name": "Orient Face Normals by Ray Casting",
       "pythonName": "orient_face_normals_by_ray_casting",
       "shortDescription": "Reorients wrongly oriented faces using Embree ray casting.",
-      "longDescriptionMarkdown": "Reorient face normals by geometry.Given the input mesh, this filter uses raytracing to determine if any faces are pointing inward and corrects their orientation. The number of rays is defined by the user; the higher the number, the higher the precision, but at the cost of computation time.This filter requires two values:<ul>\t<li> the number of rays to be shot from the barycenter of each face </li>\t<li> Parity Sampling: If selected, the normal analysis will be performed using the Parity Sampling algorithm. It is suggested to use this algotirhm when the standard one (visibility sampling) faild to riorient all faces because it is used to reorient faces invisible from the outside</li></ul><b> For further details, see the reference paper: Kenshi Takayama, Alec Jacobson, Ladislav Kavan, Olga Sorkine-Hornung. </b>\\\n<b> A Simple Method for Correcting Facet Orientations in Polygon Meshes Based on Ray Casting. Journal of Computer Graphics Techniques 3(4), 2014.</b> This filter uses the Embree3 library by Intel.",
+      "longDescriptionMarkdown": "Reorient face normals by geometry.Given the input mesh, this filter uses raytracing to determine if any faces are pointing inward and corrects their orientation. The number of rays is defined by the user; the higher the number, the higher the precision, but at the cost of computation time.This filter requires two values:<ul>\t<li> the number of rays to be shot from the barycenter of each face </li>\t<li> Parity Sampling: If selected, the normal analysis will be performed using the Parity Sampling algorithm. It is suggested to use this algotirhm when the standard one (visibility sampling) faild to riorient all faces because it is used to reorient faces invisible from the outside</li></ul>\n\nThis filter uses the Embree3 library by Intel.",
       "tags": [
         "normals",
         "embree",

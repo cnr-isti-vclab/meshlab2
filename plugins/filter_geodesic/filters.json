@@ -1,5 +1,24 @@
 {
   "pluginId": "meshlab2.filter.geodesic",
+  "references": [
+    {
+      "id": "crane2013heat",
+      "type": "article-journal",
+      "title": "Geodesics in Heat: A New Approach to Computing Distance Based on Heat Flow",
+      "author": [
+        { "family": "Crane", "given": "Keenan" },
+        { "family": "Weischedel", "given": "Clarisse" },
+        { "family": "Wardetzky", "given": "Max" }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "32",
+      "issue": "5",
+      "page": "152:1-152:11",
+      "issued": { "date-parts": [[2013]] },
+      "DOI": "10.1145/2516971.2516977",
+      "URL": "https://www.cs.cmu.edu/~kmcrane/Projects/HeatMethod/paperCACM.pdf"
+    }
+  ],
   "filters": [
     {
       "id": "compute_geodesic_distance_from_border",
@@ -156,6 +175,7 @@
     {
       "id": "compute_heat_geodesic_distance_from_selection_vcglib",
       "categories": ["Attribute/Scalar"],
+      "referenceIds": ["crane2013heat"],
       "name": "Compute Heat Geodesic Distance from Selection (vcglib)",
       "pythonName": "compute_heat_geodesic_distance_from_selection_vcglib",
       "shortDescription": "Approximate geodesic distance via the heat method into vertex quality.",

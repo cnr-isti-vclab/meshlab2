@@ -1,5 +1,23 @@
 {
   "pluginId": "meshlab2.filter.colorproc",
+  "references": [
+    {
+      "id": "meyer2003discrete",
+      "type": "chapter",
+      "title": "Discrete Differential-Geometry Operators for Triangulated 2-Manifolds",
+      "author": [
+        { "family": "Meyer", "given": "Mark" },
+        { "family": "Desbrun", "given": "Mathieu" },
+        { "family": "Schröder", "given": "Peter" },
+        { "family": "Barr", "given": "Alan H." }
+      ],
+      "container-title": "Visualization and Mathematics III",
+      "publisher": "Springer Berlin Heidelberg",
+      "page": "35-57",
+      "issued": { "date-parts": [[2003]] },
+      "DOI": "10.1007/978-3-662-05105-4_2"
+    }
+  ],
   "filters": [
     {
       "id": "set_vertex_color",
@@ -443,10 +461,11 @@
     {
       "id": "compute_curvature_discrete",
       "categories": ["Attribute/Curvature"],
+      "referenceIds": ["meyer2003discrete"],
       "name": "Compute Curvature (Discrete)",
       "pythonName": "compute_curvature_discrete",
       "shortDescription": "Compute discrete curvature and store it in vertex quality.",
-      "longDescriptionMarkdown": "Compute discrete curvature and store it in vertex quality. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization.\\\nComputed as described in:\\\n'<i>Discrete Differential-Geometry Operators for Triangulated 2-Manifolds</i>'\\\nM. Meyer, M. Desbrun, P. Schroder, A. H. Barr",
+      "longDescriptionMarkdown": "Compute discrete curvature and store it in vertex quality. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization. It is computed with the discrete operators of Meyer et al.",
       "tags": ["curvature", "quality", "vertex", "bibliography"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",

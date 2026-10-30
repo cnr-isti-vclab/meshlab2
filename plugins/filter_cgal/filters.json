@@ -1,15 +1,160 @@
 {
   "pluginId": "meshlab2.filter.cgal",
+  "references": [
+    {
+      "id": "portaneri2022alpha",
+      "type": "article-journal",
+      "title": "Alpha wrapping with an offset",
+      "author": [
+        { "family": "Portaneri", "given": "Cédric" },
+        { "family": "Rouxel-Labbé", "given": "Mael" },
+        { "family": "Hemmer", "given": "Michael" },
+        { "family": "Cohen-Steiner", "given": "David" },
+        { "family": "Alliez", "given": "Pierre" }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "41",
+      "issue": "4",
+      "page": "1-22",
+      "issued": { "date-parts": [[2022]] },
+      "DOI": "10.1145/3528223.3530152"
+    },
+    {
+      "id": "edelsbrunner1994alpha",
+      "type": "article-journal",
+      "title": "Three-dimensional alpha shapes",
+      "author": [
+        { "family": "Edelsbrunner", "given": "Herbert" },
+        { "family": "Mücke", "given": "Ernst P." }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "13",
+      "issue": "1",
+      "page": "43-72",
+      "issued": { "date-parts": [[1994]] },
+      "DOI": "10.1145/174462.156635"
+    },
+    {
+      "id": "amenta1999voronoi",
+      "type": "article-journal",
+      "title": "Surface Reconstruction by Voronoi Filtering",
+      "author": [
+        { "family": "Amenta", "given": "N." },
+        { "family": "Bern", "given": "M." }
+      ],
+      "container-title": "Discrete & Computational Geometry",
+      "volume": "22",
+      "issue": "4",
+      "page": "481-504",
+      "issued": { "date-parts": [[1999]] },
+      "DOI": "10.1007/PL00009475"
+    },
+    {
+      "id": "digne2011scale",
+      "type": "article-journal",
+      "title": "Scale Space Meshing of Raw Data Point Sets",
+      "author": [
+        { "family": "Digne", "given": "Julie" },
+        { "family": "Morel", "given": "Jean-Michel" },
+        { "family": "Souzani", "given": "Charyar-Mehdi" },
+        { "family": "Lartigue", "given": "Claire" }
+      ],
+      "container-title": "Computer Graphics Forum",
+      "volume": "30",
+      "issue": "6",
+      "page": "1630-1642",
+      "issued": { "date-parts": [[2011]] },
+      "DOI": "10.1111/j.1467-8659.2011.01848.x"
+    },
+    {
+      "id": "cohensteiner2004greedy",
+      "type": "article-journal",
+      "title": "A greedy Delaunay-based surface reconstruction algorithm",
+      "author": [
+        { "family": "Cohen-Steiner", "given": "David" },
+        { "family": "Da", "given": "Frank" }
+      ],
+      "container-title": "The Visual Computer",
+      "volume": "20",
+      "issue": "1",
+      "page": "4-16",
+      "issued": { "date-parts": [[2004]] },
+      "DOI": "10.1007/s00371-003-0217-z"
+    },
+    {
+      "id": "hoppe1992surface",
+      "type": "paper-conference",
+      "title": "Surface reconstruction from unorganized points",
+      "author": [
+        { "family": "Hoppe", "given": "Hugues" },
+        { "family": "DeRose", "given": "Tony" },
+        { "family": "Duchamp", "given": "Tom" },
+        { "family": "McDonald", "given": "John" },
+        { "family": "Stuetzle", "given": "Werner" }
+      ],
+      "container-title": "Proceedings of the 19th annual conference on Computer graphics and interactive techniques",
+      "page": "71-78",
+      "issued": { "date-parts": [[1992]] },
+      "DOI": "10.1145/133994.134011"
+    },
+    {
+      "id": "kazhdan2006poisson",
+      "type": "paper-conference",
+      "title": "Poisson Surface Reconstruction",
+      "author": [
+        { "family": "Kazhdan", "given": "Michael" },
+        { "family": "Bolitho", "given": "Matthew" },
+        { "family": "Hoppe", "given": "Hugues" }
+      ],
+      "container-title": "Proceedings of the Fourth Eurographics Symposium on Geometry Processing",
+      "publisher": "The Eurographics Association",
+      "page": "61-70",
+      "issued": { "date-parts": [[2006]] },
+      "DOI": "10.2312/SGP/SGP06/061-070"
+    },
+    {
+      "id": "bauchet2020kinetic",
+      "type": "article-journal",
+      "title": "Kinetic Shape Reconstruction",
+      "author": [
+        { "family": "Bauchet", "given": "Jean-Philippe" },
+        { "family": "Lafarge", "given": "Florent" }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "39",
+      "issue": "5",
+      "page": "1-14",
+      "issued": { "date-parts": [[2020]] },
+      "DOI": "10.1145/3376918"
+    },
+    {
+      "id": "chang2011obb",
+      "type": "article-journal",
+      "title": "Fast Oriented Bounding Box Optimization on the Rotation Group SO(3,ℝ)",
+      "author": [
+        { "family": "Chang", "given": "Chia-Tche" },
+        { "family": "Gorissen", "given": "Bastien" },
+        { "family": "Melchior", "given": "Samuel" }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "30",
+      "issue": "5",
+      "page": "1-16",
+      "issued": { "date-parts": [[2011]] },
+      "DOI": "10.1145/2019627.2019641"
+    }
+  ],
   "filters": [
     {
       "id": "reconstruct_surface_by_alpha_wrapping",
       "categories": [
         "Creation/Reconstruction"
       ],
+      "referenceIds": ["portaneri2022alpha"],
       "name": "Reconstruct Surface by Alpha Wrapping",
       "pythonName": "reconstruct_surface_by_alpha_wrapping",
       "shortDescription": "Generate a watertight alpha wrapping of the current mesh or point cloud using CGAL.",
-      "longDescriptionMarkdown": "Compute an alpha wrapping with an offset around the current mesh and add the result as a new mesh layer. Alpha wrapping is useful for producing robust watertight approximations of defective, self-intersecting, open, or highly detailed input geometry. Smaller `Alpha` values follow the input more tightly but increase output complexity and computation time. `Offset` controls the clearance added around the input surface and must be strictly positive.\n\nFaces are optional, but they are **used**, not merely a container for the vertices:\n\n- A layer **with faces** is wrapped as a *triangle soup*. Triangle interiors are part of the input, so a large flat face is solid to the rolling ball, and CGAL subdivides oversized faces so that the spatial structure resolves at the `Alpha` scale.\n- A layer with **only vertices** is wrapped as a *point set*, which makes this a point-cloud reconstruction method. Unlike Poisson-family reconstruction it needs no vertex normals, because the positive offset is what defines the envelope.\n\nThe two paths therefore give **different results on the same geometry**. Where a triangle spans a wide gap, the point-set path sees only its three corners and the ball can roll into the space between them, denting or holing the wrap. Wrap a point cloud only when the sampling is dense relative to `Alpha` and `Offset`; if the layer has faces, keep them.\n\nThe result is an *approximating* reconstruction: the offset is strictly positive, so the output surface never passes through the input points.\n\nThe filter uses CGAL's 3D Alpha Wrapping implementation.\n\nReference:\nCédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pierre Alliez, **Alpha Wrapping with an Offset**, 2022.\n\nOriginal MeshLab plugin contribution: Lex van der Sluijs, PTC.",
+      "longDescriptionMarkdown": "Compute an alpha wrapping with an offset around the current mesh and add the result as a new mesh layer. Alpha wrapping is useful for producing robust watertight approximations of defective, self-intersecting, open, or highly detailed input geometry. Smaller `Alpha` values follow the input more tightly but increase output complexity and computation time. `Offset` controls the clearance added around the input surface and must be strictly positive.\n\nFaces are optional, but they are **used**, not merely a container for the vertices:\n\n- A layer **with faces** is wrapped as a *triangle soup*. Triangle interiors are part of the input, so a large flat face is solid to the rolling ball, and CGAL subdivides oversized faces so that the spatial structure resolves at the `Alpha` scale.\n- A layer with **only vertices** is wrapped as a *point set*, which makes this a point-cloud reconstruction method. Unlike Poisson-family reconstruction it needs no vertex normals, because the positive offset is what defines the envelope.\n\nThe two paths therefore give **different results on the same geometry**. Where a triangle spans a wide gap, the point-set path sees only its three corners and the ball can roll into the space between them, denting or holing the wrap. Wrap a point cloud only when the sampling is dense relative to `Alpha` and `Offset`; if the layer has faces, keep them.\n\nThe result is an *approximating* reconstruction: the offset is strictly positive, so the output surface never passes through the input points.\n\nThe filter uses CGAL's 3D Alpha Wrapping implementation.\n\nOriginal MeshLab plugin contribution: Lex van der Sluijs, PTC.",
       "tags": [
         "cgal",
         "alpha wrap",
@@ -57,10 +202,11 @@
       "categories": [
         "Creation/Reconstruction"
       ],
+      "referenceIds": ["edelsbrunner1994alpha"],
       "name": "Reconstruct Surface by Alpha Shape",
       "pythonName": "reconstruct_surface_by_alpha_shape",
       "shortDescription": "Build the alpha complex or alpha shape of the current mesh or point cloud.",
-      "longDescriptionMarkdown": "Builds the **alpha shape** of the current layer's vertices: the subcomplex of their Delaunay triangulation kept by a ball of radius `Alpha` that can reach it without enclosing any point. Small `Alpha` values give a sparse, pitted result; as `Alpha` grows the shape fills in and converges to the convex hull.\n\nOnly vertex positions are used, so a raw point cloud with no faces and no normals works — it is an *interpolating* reconstruction, meaning every output vertex is one of the input points.\n\n**Output** selects what is written:\n\n- *Alpha Shape* — the boundary of the alpha complex (CGAL `REGULAR` facets). This is the surface.\n- *Alpha Complex* — also keeps the `SINGULAR` facets, the lower-dimensional sheets that the boundary drops. Useful for seeing what the complex contains, not for a clean surface.\n\nEach face carries its **circumradius in face scalar**, so the scalar histogram shows the alpha distribution and helps pick a better value.\n\nFacet orientation comes from the Delaunay triangulation and is not made globally coherent; run *Orient Faces Consistently* if you need it.\n\nImplemented with CGAL's 3D Alpha Shapes.\n\nReference:\nHerbert Edelsbrunner, Ernst P. Mucke, **Three-Dimensional Alpha Shapes**, ACM Transactions on Graphics 13(1), 1994.",
+      "longDescriptionMarkdown": "Builds the **alpha shape** of the current layer's vertices: the subcomplex of their Delaunay triangulation kept by a ball of radius `Alpha` that can reach it without enclosing any point. Small `Alpha` values give a sparse, pitted result; as `Alpha` grows the shape fills in and converges to the convex hull.\n\nOnly vertex positions are used, so a raw point cloud with no faces and no normals works — it is an *interpolating* reconstruction, meaning every output vertex is one of the input points.\n\n**Output** selects what is written:\n\n- *Alpha Shape* — the boundary of the alpha complex (CGAL `REGULAR` facets). This is the surface.\n- *Alpha Complex* — also keeps the `SINGULAR` facets, the lower-dimensional sheets that the boundary drops. Useful for seeing what the complex contains, not for a clean surface.\n\nEach face carries its **circumradius in face scalar**, so the scalar histogram shows the alpha distribution and helps pick a better value.\n\nFacet orientation comes from the Delaunay triangulation and is not made globally coherent; run *Orient Faces Consistently* if you need it.\n\nImplemented with CGAL's 3D Alpha Shapes.",
       "tags": [
         "cgal",
         "alpha shape",
@@ -116,10 +262,11 @@
       "categories": [
         "Creation/Reconstruction"
       ],
+      "referenceIds": ["amenta1999voronoi"],
       "name": "Reconstruct Surface by Voronoi Filtering",
       "pythonName": "reconstruct_surface_by_voronoi_filtering",
       "shortDescription": "Reconstruct a surface from an unoriented point cloud with the Amenta-Bern crust.",
-      "longDescriptionMarkdown": "Reconstructs a surface from the current layer's vertices using **Voronoi filtering**, the crust algorithm of Amenta and Bern. It needs **no vertex normals**, which is what distinguishes it from the Poisson-family filters.\n\nHow it works, in two Delaunay passes:\n\n1. Triangulate the samples. For each sample the two *poles* are found — the Voronoi vertices of its cell farthest from it, one on each side. Poles approximate the medial axis, so they lie far from the surface.\n2. Triangulate samples and poles together. A Delaunay triangle whose three corners are all samples cannot span the medial axis, so those triangles are the reconstructed surface.\n\nThis is an *interpolating* reconstruction: every output vertex is one of the input points, and no new positions are invented.\n\n**Limitations**, inherent to the algorithm rather than this implementation: it assumes a **closed, well-sampled, noise-free** surface. Points lying on the convex hull have unbounded Voronoi cells and therefore no finite outer pole, so open boundaries stay ragged; noisy input scatters the poles and thins the crust. For scanned or noisy data prefer *Reconstruct Surface by Screened Poisson*.\n\n**Threshold** discards Voronoi vertices farther from their sample than that multiple of the bounding box diagonal, keeping near-degenerate cells from throwing a pole off to infinity.\n\nBuilt on CGAL's 3D Delaunay triangulation.\n\nReference:\nNina Amenta, Marshall Bern, **Surface Reconstruction by Voronoi Filtering**, Discrete & Computational Geometry 22(4), 1999.",
+      "longDescriptionMarkdown": "Reconstructs a surface from the current layer's vertices using **Voronoi filtering**, the crust algorithm of Amenta and Bern. It needs **no vertex normals**, which is what distinguishes it from the Poisson-family filters.\n\nHow it works, in two Delaunay passes:\n\n1. Triangulate the samples. For each sample the two *poles* are found — the Voronoi vertices of its cell farthest from it, one on each side. Poles approximate the medial axis, so they lie far from the surface.\n2. Triangulate samples and poles together. A Delaunay triangle whose three corners are all samples cannot span the medial axis, so those triangles are the reconstructed surface.\n\nThis is an *interpolating* reconstruction: every output vertex is one of the input points, and no new positions are invented.\n\n**Limitations**, inherent to the algorithm rather than this implementation: it assumes a **closed, well-sampled, noise-free** surface. Points lying on the convex hull have unbounded Voronoi cells and therefore no finite outer pole, so open boundaries stay ragged; noisy input scatters the poles and thins the crust. For scanned or noisy data prefer *Reconstruct Surface by Screened Poisson*.\n\n**Threshold** discards Voronoi vertices farther from their sample than that multiple of the bounding box diagonal, keeping near-degenerate cells from throwing a pole off to infinity.\n\nBuilt on CGAL's 3D Delaunay triangulation.",
       "tags": [
         "cgal",
         "voronoi",
@@ -157,10 +304,11 @@
       "categories": [
         "Creation/Reconstruction"
       ],
+      "referenceIds": ["digne2011scale"],
       "name": "Reconstruct Surface by Scale Space",
       "pythonName": "reconstruct_surface_by_scale_space",
       "shortDescription": "Reconstruct a surface by smoothing the point set to a coarser scale, then meshing it.",
-      "longDescriptionMarkdown": "Smooths the current layer's points for a number of iterations — moving them to a coarser *scale* at which a surface is easier to extract — and then triangulates the smoothed points.\n\nOnly vertex positions are used, so a raw point cloud with no faces and no normals works.\n\n**Iterations** controls how far the point set is smoothed: more iterations tolerate more noise but lose detail. **Neighbors** and **Samples** configure the weighted-PCA smoother.\n\n**Mesher** selects how the smoothed points are triangulated:\n\n- *Alpha Shape* — uses **Alpha** as the probing radius, and can be asked to separate shells or to force a manifold result.\n- *Advancing Front* — grows a triangulation outward and needs no radius.\n\nUnlike the other interpolating reconstructions here, the output vertices are the **smoothed** positions, not the original points: this filter moves the geometry before meshing it. Keep the input layer if you need the originals.\n\nImplemented with CGAL's 3D Scale-Space Surface Reconstruction.\n\nReference:\nThijs van Lankveld, Marc van Kreveld, Remco Veltkamp, **Watertight Scenes from Urban LiDAR and Planar Surfaces**, Computer Graphics Forum 32(5), 2013.",
+      "longDescriptionMarkdown": "Smooths the current layer's points for a number of iterations — moving them to a coarser *scale* at which a surface is easier to extract — and then triangulates the smoothed points.\n\nOnly vertex positions are used, so a raw point cloud with no faces and no normals works.\n\n**Iterations** controls how far the point set is smoothed: more iterations tolerate more noise but lose detail. **Neighbors** and **Samples** configure the weighted-PCA smoother.\n\n**Mesher** selects how the smoothed points are triangulated:\n\n- *Alpha Shape* — uses **Alpha** as the probing radius, and can be asked to separate shells or to force a manifold result.\n- *Advancing Front* — grows a triangulation outward and needs no radius.\n\nUnlike the other interpolating reconstructions here, the output vertices are the **smoothed** positions, not the original points: this filter moves the geometry before meshing it. Keep the input layer if you need the originals.\n\nImplemented with CGAL's 3D Scale-Space Surface Reconstruction.",
       "tags": [
         "cgal",
         "scale space",
@@ -261,10 +409,11 @@
       "categories": [
         "Creation/Reconstruction"
       ],
+      "referenceIds": ["cohensteiner2004greedy"],
       "name": "Reconstruct Surface by Advancing Front",
       "pythonName": "reconstruct_surface_by_advancing_front",
       "shortDescription": "Reconstruct a surface from an unoriented point cloud by growing a triangulation outward.",
-      "longDescriptionMarkdown": "Grows a triangulation outward from a seed facet, repeatedly choosing the most plausible candidate triangle on the advancing boundary. It is an **interpolating** reconstruction: every output vertex is one of the input points, and no normals are required.\n\n**Radius Ratio Bound** rejects candidate triangles whose circumradius is more than this multiple of the shortest edge, which is what stops the front from bridging across gaps. Raise it on sparse or uneven sampling; lower it to keep holes open rather than filling them with sliver triangles.\n\n**Beta** is half the angle of the wedge in which only the triangle radius decides plausibility.\n\nThis is CGAL's counterpart to the *Reconstruct Surface by Ball Pivoting* filters: both grow a surface outward and interpolate the input points, but they are different algorithms and are worth comparing on the same cloud. CGAL has no ball-pivoting implementation of its own.\n\nImplemented with CGAL's Advancing Front Surface Reconstruction.\n\nReference:\nDavid Cohen-Steiner, Frank Da, **A greedy Delaunay-based surface reconstruction algorithm**, The Visual Computer 20(1), 2004.",
+      "longDescriptionMarkdown": "Grows a triangulation outward from a seed facet, repeatedly choosing the most plausible candidate triangle on the advancing boundary. It is an **interpolating** reconstruction: every output vertex is one of the input points, and no normals are required.\n\n**Radius Ratio Bound** rejects candidate triangles whose circumradius is more than this multiple of the shortest edge, which is what stops the front from bridging across gaps. Raise it on sparse or uneven sampling; lower it to keep holes open rather than filling them with sliver triangles.\n\n**Beta** is half the angle of the wedge in which only the triangle radius decides plausibility.\n\nThis is CGAL's counterpart to the *Reconstruct Surface by Ball Pivoting* filters: both grow a surface outward and interpolate the input points, but they are different algorithms and are worth comparing on the same cloud. CGAL has no ball-pivoting implementation of its own.\n\nImplemented with CGAL's Advancing Front Surface Reconstruction.",
       "tags": [
         "cgal",
         "advancing front",
@@ -312,10 +461,11 @@
       "categories": [
         "Attribute/Normal"
       ],
+      "referenceIds": ["hoppe1992surface"],
       "name": "Orient Point Cloud Normals",
       "pythonName": "orient_point_cloud_normals",
       "shortDescription": "Make an unoriented normal field consistently point outward, using a minimum spanning tree.",
-      "longDescriptionMarkdown": "Orients the vertex normals of a point cloud so that neighbouring normals agree in sign, by propagating orientation along a **minimum spanning tree of the Riemannian graph** (Hoppe et al.).\n\nThis is the missing step between normal *estimation* and surface *reconstruction*. Filters such as *Compute Point Cloud Normals* fit a local surface and give each normal an arbitrary sign; Poisson-family and kinetic reconstruction all need normals that consistently point outward, and produce unusable results otherwise.\n\n**Neighbors** sets how many nearest neighbours are linked in the Riemannian graph. Larger values bridge gaps in sparse data but can propagate orientation across thin structures that should stay separate.\n\nA cloud in several disconnected pieces cannot be oriented as a whole: the normals of every component after the first are reported as unoriented and left untouched. Enable **Remove Unoriented Vertices** to delete them instead.\n\nImplemented with CGAL's Point Set Processing.\n\nReference:\nHugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, **Surface Reconstruction from Unorganized Points**, SIGGRAPH 1992.",
+      "longDescriptionMarkdown": "Orients the vertex normals of a point cloud so that neighbouring normals agree in sign, by propagating orientation along a **minimum spanning tree of the Riemannian graph** (Hoppe et al.).\n\nThis is the missing step between normal *estimation* and surface *reconstruction*. Filters such as *Compute Point Cloud Normals* fit a local surface and give each normal an arbitrary sign; Poisson-family and kinetic reconstruction all need normals that consistently point outward, and produce unusable results otherwise.\n\n**Neighbors** sets how many nearest neighbours are linked in the Riemannian graph. Larger values bridge gaps in sparse data but can propagate orientation across thin structures that should stay separate.\n\nA cloud in several disconnected pieces cannot be oriented as a whole: the normals of every component after the first are reported as unoriented and left untouched. Enable **Remove Unoriented Vertices** to delete them instead.\n\nImplemented with CGAL's Point Set Processing.",
       "tags": [
         "cgal",
         "normal",
@@ -358,10 +508,11 @@
       "categories": [
         "Creation/Reconstruction"
       ],
+      "referenceIds": ["kazhdan2006poisson"],
       "name": "Reconstruct Surface by Poisson (CGAL)",
       "pythonName": "reconstruct_surface_by_poisson_cgal",
       "shortDescription": "Reconstruct a watertight surface from oriented points with CGAL's Poisson solver.",
-      "longDescriptionMarkdown": "Solves the Poisson equation for an implicit function whose gradient best matches the input normal field, then extracts its zero level set.\n\nIt differs from *Reconstruct Surface by Screened Poisson* in how that level set is **meshed**: CGAL uses Delaunay refinement rather than marching cubes, so the output is manifold with well-shaped triangles and a size driven by the sampling, at the cost of being slower. The two are worth comparing on the same cloud — that is why both are here.\n\n**Requires oriented normals.** If the layer has none, run *Compute Point Cloud Normals* and then *Orient Point Cloud Normals* first.\n\nTriangle size and quality are controlled relative to the estimated average point spacing:\n\n- **Minimum Angle** — the lower bound on triangle angles, in degrees.\n- **Maximum Radius** — largest triangle circumradius, as a multiple of the spacing.\n- **Approximation Error** — how far the mesh may deviate from the level set, as a multiple of the spacing.\n\nImplemented with CGAL's Poisson Surface Reconstruction.\n\nReference:\nMichael Kazhdan, Matthew Bolitho, Hugues Hoppe, **Poisson Surface Reconstruction**, Symposium on Geometry Processing 2006.",
+      "longDescriptionMarkdown": "Solves the Poisson equation for an implicit function whose gradient best matches the input normal field, then extracts its zero level set.\n\nIt differs from *Reconstruct Surface by Screened Poisson* in how that level set is **meshed**: CGAL uses Delaunay refinement rather than marching cubes, so the output is manifold with well-shaped triangles and a size driven by the sampling, at the cost of being slower. The two are worth comparing on the same cloud — that is why both are here.\n\n**Requires oriented normals.** If the layer has none, run *Compute Point Cloud Normals* and then *Orient Point Cloud Normals* first.\n\nTriangle size and quality are controlled relative to the estimated average point spacing:\n\n- **Minimum Angle** — the lower bound on triangle angles, in degrees.\n- **Maximum Radius** — largest triangle circumradius, as a multiple of the spacing.\n- **Approximation Error** — how far the mesh may deviate from the level set, as a multiple of the spacing.\n\nImplemented with CGAL's Poisson Surface Reconstruction.",
       "tags": [
         "cgal",
         "poisson",
@@ -438,10 +589,11 @@
       "categories": [
         "Creation/Reconstruction"
       ],
+      "referenceIds": ["bauchet2020kinetic"],
       "name": "Reconstruct Surface by Kinetic Partition",
       "pythonName": "reconstruct_surface_by_kinetic_partition",
       "shortDescription": "Reconstruct a piecewise-planar surface from oriented points by kinetic space partition and min-cut.",
-      "longDescriptionMarkdown": "A piecewise-planar reconstruction pipeline, run end to end by this one filter:\n\n1. **Shape detection** finds planar regions in the point cloud.\n2. **Regularization** aligns those planes where they are nearly parallel, coplanar or orthogonal.\n3. **Kinetic space partition** propagates the planes until they collide, cutting the bounding box into convex volumes.\n4. **Min-cut** labels each volume inside or outside; the surface is the boundary between the two labels.\n\nBecause the output is built from detected planes rather than fitted to the samples, it is planar **by construction** — which suits buildings, rooms and other man-made shapes far better than a smooth reconstruction, and is quite unsuitable for organic ones.\n\n**Requires oriented normals.** Run *Compute Point Cloud Normals* and then *Orient Point Cloud Normals* first if the layer has none.\n\n**Maximum Distance** is the most important setting: it is how far a point may sit from a plane and still belong to it, so it must be set to the scale of the noise in the data. **Lambda** trades faithfulness against simplicity — higher values give fewer, larger facets.\n\nThe reconstruction emits convex polygons, which this filter fan-triangulates because MeshLab stores triangle meshes.\n\nImplemented with CGAL's Kinetic Surface Reconstruction.\n\nReference:\nSven Oesau, Florent Lafarge, **Kinetic Shape Reconstruction**, ACM Transactions on Graphics 39(5), 2020.",
+      "longDescriptionMarkdown": "A piecewise-planar reconstruction pipeline, run end to end by this one filter:\n\n1. **Shape detection** finds planar regions in the point cloud.\n2. **Regularization** aligns those planes where they are nearly parallel, coplanar or orthogonal.\n3. **Kinetic space partition** propagates the planes until they collide, cutting the bounding box into convex volumes.\n4. **Min-cut** labels each volume inside or outside; the surface is the boundary between the two labels.\n\nBecause the output is built from detected planes rather than fitted to the samples, it is planar **by construction** — which suits buildings, rooms and other man-made shapes far better than a smooth reconstruction, and is quite unsuitable for organic ones.\n\n**Requires oriented normals.** Run *Compute Point Cloud Normals* and then *Orient Point Cloud Normals* first if the layer has none.\n\n**Maximum Distance** is the most important setting: it is how far a point may sit from a plane and still belong to it, so it must be set to the scale of the noise in the data. **Lambda** trades faithfulness against simplicity — higher values give fewer, larger facets.\n\nThe reconstruction emits convex polygons, which this filter fan-triangulates because MeshLab stores triangle meshes.\n\nImplemented with CGAL's Kinetic Surface Reconstruction.",
       "tags": [
         "cgal",
         "kinetic",
@@ -531,10 +683,11 @@
       "categories": [
         "Creation/Primitives"
       ],
+      "referenceIds": ["chang2011obb"],
       "name": "Create Mesh Bounding Box",
       "pythonName": "create_mesh_bounding_box",
       "shortDescription": "Turn the current layer's bounding box into a mesh of its own.",
-      "longDescriptionMarkdown": "Creates a new layer holding the bounding box of the current layer as an actual eight-vertex, twelve-triangle box, rather than as an annotation drawn over the viewport. Useful whenever the box has to be *operated on* — measured, exported, intersected, used as a crop volume or as a stand-in for the object in a larger scene.\n\n**Alignment** chooses between the three boxes worth having:\n\n- **Axis aligned** is the box the viewport draws: the smallest box whose sides are parallel to the layer's own axes. It is exact, instant, and depends on how the object happens to be oriented.\n- **Oriented** is the smallest box in *any* orientation, found by searching the space of rotations. For an object lying at an angle it is dramatically tighter than the axis-aligned one; for an object already aligned to its axes the two coincide. The search is an approximation, not a proven optimum, and it costs time on large inputs — it runs on the convex hull, so cost follows the hull rather than the vertex count.\n- **Oriented, turning the layer** finds the same box and then turns the object instead of the box: the rotation is written into the layer's transformation, so the layer comes to rest on the axes and the box is created axis-aligned alongside it. The vertices are not touched — only the matrix — which is how you straighten an object that was digitised or exported at an arbitrary angle.\n\nThe new layer inherits the source layer's matrix, so the box sits on the object wherever the object has been moved to.\n\nTo box the whole scene rather than one layer, use **Create Scene Bounding Box**.\n\nThe oriented box is computed with CGAL's Optimal Bounding Box package.\n\nReference:\nKonstantinos Katrioplas, Mael Rouxel-Labbé, **Optimal Bounding Box**, CGAL User and Reference Manual, CGAL Editorial Board.",
+      "longDescriptionMarkdown": "Creates a new layer holding the bounding box of the current layer as an actual eight-vertex, twelve-triangle box, rather than as an annotation drawn over the viewport. Useful whenever the box has to be *operated on* — measured, exported, intersected, used as a crop volume or as a stand-in for the object in a larger scene.\n\n**Alignment** chooses between the three boxes worth having:\n\n- **Axis aligned** is the box the viewport draws: the smallest box whose sides are parallel to the layer's own axes. It is exact, instant, and depends on how the object happens to be oriented.\n- **Oriented** is the smallest box in *any* orientation, found by searching the space of rotations. For an object lying at an angle it is dramatically tighter than the axis-aligned one; for an object already aligned to its axes the two coincide. The search is an approximation, not a proven optimum, and it costs time on large inputs — it runs on the convex hull, so cost follows the hull rather than the vertex count.\n- **Oriented, turning the layer** finds the same box and then turns the object instead of the box: the rotation is written into the layer's transformation, so the layer comes to rest on the axes and the box is created axis-aligned alongside it. The vertices are not touched — only the matrix — which is how you straighten an object that was digitised or exported at an arbitrary angle.\n\nThe new layer inherits the source layer's matrix, so the box sits on the object wherever the object has been moved to.\n\nTo box the whole scene rather than one layer, use **Create Scene Bounding Box**.\n\nThe oriented box is computed with CGAL's Optimal Bounding Box package.",
       "tags": [
         "cgal",
         "bounding box",
@@ -583,10 +736,11 @@
       "categories": [
         "Creation/Primitives"
       ],
+      "referenceIds": ["chang2011obb"],
       "name": "Create Scene Bounding Box",
       "pythonName": "create_scene_bounding_box",
       "shortDescription": "Turn the bounding box of every visible layer into a mesh of its own.",
-      "longDescriptionMarkdown": "Creates a new layer holding the bounding box of the **whole scene**: one box around every *visible* layer, measured in world space so each layer's own transformation is taken into account. Hidden layers are ignored, which is how you box a subset — hide what should not count and run it again.\n\nThe box is created in world space with an identity transformation, so it stays put whatever the layers it was measured from do afterwards.\n\n**Alignment** chooses between the two boxes worth having:\n\n- **Axis aligned** is the smallest box whose sides are parallel to the world axes — the extent the viewport frames to.\n- **Oriented** is the smallest box in *any* orientation. For a scene laid out at an angle it is much tighter; for one already square to the axes the two coincide. The search is an approximation, not a proven optimum, and it costs time on large scenes — it runs on the convex hull, so cost follows the hull rather than the total vertex count.\n\nThere is deliberately no *turning the scene* option: straightening is a per-layer operation, and **Create Mesh Bounding Box** offers it for the current layer.\n\nThe oriented box is computed with CGAL's Optimal Bounding Box package.\n\nReference:\nKonstantinos Katrioplas, Mael Rouxel-Labbé, **Optimal Bounding Box**, CGAL User and Reference Manual, CGAL Editorial Board.",
+      "longDescriptionMarkdown": "Creates a new layer holding the bounding box of the **whole scene**: one box around every *visible* layer, measured in world space so each layer's own transformation is taken into account. Hidden layers are ignored, which is how you box a subset — hide what should not count and run it again.\n\nThe box is created in world space with an identity transformation, so it stays put whatever the layers it was measured from do afterwards.\n\n**Alignment** chooses between the two boxes worth having:\n\n- **Axis aligned** is the smallest box whose sides are parallel to the world axes — the extent the viewport frames to.\n- **Oriented** is the smallest box in *any* orientation. For a scene laid out at an angle it is much tighter; for one already square to the axes the two coincide. The search is an approximation, not a proven optimum, and it costs time on large scenes — it runs on the convex hull, so cost follows the hull rather than the total vertex count.\n\nThere is deliberately no *turning the scene* option: straightening is a per-layer operation, and **Create Mesh Bounding Box** offers it for the current layer.\n\nThe oriented box is computed with CGAL's Optimal Bounding Box package.",
       "tags": [
         "cgal",
         "bounding box",
