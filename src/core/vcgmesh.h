@@ -75,9 +75,10 @@ class VCGMesh : public vcg::tri::TriMesh<
     vcg::face::vector_ocf<VCGFace>> {};
 
 // Texture coordinate of a face corner, honouring the mesh's ioMask (per-wedge
-// preferred, else per-vertex). Returns false if there are no usable texcoords or
-// the value is non-finite. Shared by the UV renderer and the UV-space selection
-// filter so both read parametrization coordinates the same way.
+// preferred, else per-vertex). Returns false if there are no usable texcoords, the
+// face has no texture (see vcgFaceTextureGroup), or the value is non-finite. Shared
+// by the UV renderer and the UV-space selection filter so both read parametrization
+// coordinates the same way.
 // Reading a vcg OCF texcoord (cWT/cT) is only legal when the optional component
 // is actually ENABLED on the mesh. ioMask is merely an I/O hint and can disagree
 // with the live mesh — e.g. after an undo/redo whose restored ioMask is paired
@@ -87,6 +88,8 @@ class VCGMesh : public vcg::tri::TriMesh<
 inline bool vcgFaceCornerUV(int ioMask, const VCGFace &f, int corner, float &u, float &v)
 {
     if ((ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) && f.Base().IsWedgeTexCoordEnabled()) {
+        if (f.cWT(0).N() < 0)
+            return false;
         const auto &wt = f.cWT(corner);
         u = wt.U();
         v = wt.V();
@@ -103,10 +106,15 @@ inline bool vcgFaceCornerUV(int ioMask, const VCGFace &f, int corner, float &u, 
     return std::isfinite(u) && std::isfinite(v);
 }
 
+// The texture a face reads, or -1 for a face with no texture: vcglib marks one with a
+// negative per-wedge texture index, which every face added to a mesh with optional wedge
+// texcoords starts with -- the cap Trim Surface by Plane closes a cut with is one -- and
+// its UVs mean nothing. Per-vertex texcoords carry no per-face texture, and their index
+// is not reliably set, so a negative one there still reads texture 0.
 inline int vcgFaceTextureGroup(int ioMask, const VCGFace &f)
 {
     if ((ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) && f.Base().IsWedgeTexCoordEnabled())
-        return std::max(0, int(f.cWT(0).N()));
+        return f.cWT(0).N() < 0 ? -1 : int(f.cWT(0).N());
     if ((ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) && f.cV(0) && f.cV(0)->Base().IsTexCoordEnabled())
         return std::max(0, int(f.cV(0)->cT().N()));
     return 0;

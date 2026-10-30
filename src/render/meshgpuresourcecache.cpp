@@ -712,7 +712,9 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                             const int textureIndex =
                                 useTextureColor ? vcgFaceTextureGroup(source.ioMask, f) : 0;
 
-                            if (useTextureColor) {
+                            // A face with no texture is drawn untextured, not with texture 0
+                            // read at UVs that mean nothing.
+                            if (useTextureColor && textureIndex >= 0) {
                                 if (ensureGroupPrepared(textureIndex)) {
                                     textureGroup = textureIndex;
                                     useTextureForFace = true;

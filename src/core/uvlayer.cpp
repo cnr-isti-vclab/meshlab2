@@ -42,7 +42,10 @@ QString buildUvLayer(const Document::MeshEntry &entry, int askedWidth, int asked
     std::vector<QSizeF> &sizes = layer.sizes;
 
     // A single size serves every face (and they all count as texture 0); with several textures a
-    // face must name one that exists.
+    // face must name one that exists. A face with no texture (see vcgFaceTextureGroup) is no part
+    // of the mapping, and goes in with its UVs collapsed to a point on texture 0: with no UV area
+    // it makes an island of its own that the texel, distortion and seam measures pass by, while
+    // its 3D area still counts as surface the mapping leaves uncovered.
     UVMesh &um = layer.mesh;
     vcg::tri::Allocator<UVMesh>::AddVertices(um, mesh.vert.size());
     const bool moved = worldSpace && !entry.transform.isIdentity();
@@ -61,8 +64,9 @@ QString buildUvLayer(const Document::MeshEntry &entry, int askedWidth, int asked
         if (face.IsD())
             continue;
         UVMeshFace &f = um.face[next++];
+        const bool untextured = vcgFaceTextureGroup(entry.ioMask, face) < 0;
         int texture = wedgeUV ? face.cWT(0).N() : face.cV(0)->cT().N();
-        if (sizes.size() == 1)
+        if (sizes.size() == 1 || untextured)
             texture = 0;
         else if (texture < 0 || texture >= int(sizes.size()))
             return QObject::tr("A face uses texture %1, but the layer has %2 texture(s).")
@@ -72,7 +76,9 @@ QString buildUvLayer(const Document::MeshEntry &entry, int askedWidth, int asked
             f.V(c) = &um.vert[vcg::tri::Index(mesh, face.cV(c))];
             // By value: the optional per-vertex cT() returns a copy, so a reference to its P()
             // would dangle -- GCC at -O3 read zeros through it, and found no fold in a folded layout.
-            const vcg::Point2f uv = wedgeUV ? face.cWT(c).P() : face.cV(c)->cT().P();
+            const vcg::Point2f uv = untextured ? vcg::Point2f(0, 0)
+                                  : wedgeUV    ? face.cWT(c).P()
+                                               : face.cV(c)->cT().P();
             f.WT(c).P() = vcg::Point2d(double(uv[0]) * size.width(), double(uv[1]) * size.height());
             f.WT(c).N() = short(texture);
         }

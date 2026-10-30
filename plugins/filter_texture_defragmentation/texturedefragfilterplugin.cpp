@@ -75,9 +75,24 @@ bool copyCurrentMeshForDefrag(const VCGMesh &source, VCGMesh &copy)
     return true;
 }
 
-bool buildDefragMesh(const VCGMesh &source, Mesh &defragMesh, QString &error)
+// A face whose texture index names none of the textures has no texture. vcglib marks such a
+// face with -1, and every face added to a mesh with optional wedge texture coordinates
+// starts that way, so the cap Trim Surface by Plane closes a cut with is one.
+bool hasNoTexture(const VCGFace &f, int textureCount)
+{
+    const int n = f.cWT(0).N();
+    return n < 0 || n >= textureCount;
+}
+
+// The pipeline indexes its textures with each face's WT(0).N(), bounded only from above, so a
+// face with no texture must not reach it as it is: -1 aborted it. It already has a place for a
+// face with no usable parametrization, though -- a chart of zero UV area, which it keeps out of
+// every merge and out of the packing -- and collapsing the face's UVs to a point puts it there.
+bool buildDefragMesh(const VCGMesh &source, Mesh &defragMesh, int textureCount,
+                     int &untexturedFaces, QString &error)
 {
     defragMesh.Clear();
+    untexturedFaces = 0;
     if (!vcg::tri::HasPerWedgeTexCoord(source)) {
         error = QObject::tr("The mesh has no per-wedge texture coordinates.");
         return false;
@@ -94,6 +109,9 @@ bool buildDefragMesh(const VCGMesh &source, Mesh &defragMesh, QString &error)
     auto fi = vcg::tri::Allocator<Mesh>::AddFaces(defragMesh, source.FN());
     for (int i = 0; i < source.FN(); ++i, ++fi) {
         const VCGFace &srcF = source.face[size_t(i)];
+        const bool untextured = hasNoTexture(srcF, textureCount);
+        if (untextured)
+            ++untexturedFaces;
         for (int k = 0; k < 3; ++k) {
             const int vertexIndex = vcg::tri::Index(source, srcF.cV(k));
             if (vertexIndex < 0 || vertexIndex >= source.VN()) {
@@ -101,9 +119,9 @@ bool buildDefragMesh(const VCGMesh &source, Mesh &defragMesh, QString &error)
                 return false;
             }
             fi->V(k) = &defragMesh.vert[size_t(vertexIndex)];
-            fi->WT(k).U() = srcF.cWT(k).U();
-            fi->WT(k).V() = srcF.cWT(k).V();
-            fi->WT(k).N() = srcF.cWT(k).N();
+            fi->WT(k).U() = untextured ? 0.0 : srcF.cWT(k).U();
+            fi->WT(k).V() = untextured ? 0.0 : srcF.cWT(k).V();
+            fi->WT(k).N() = untextured ? 0 : srcF.cWT(k).N();
         }
         // The face selection travels with the face rather than being matched up by index
         // later: the pipeline cleans and compacts the mesh before the chart graph is built,
@@ -116,13 +134,17 @@ bool buildDefragMesh(const VCGMesh &source, Mesh &defragMesh, QString &error)
     return true;
 }
 
-void copyDefragTexcoordsToMesh(const Mesh &defragMesh, VCGMesh &target)
+// A face that had no texture keeps the texture coordinates it came with: the pipeline only
+// parked it at a point, and the new atlas has nothing for it either.
+void copyDefragTexcoordsToMesh(const Mesh &defragMesh, VCGMesh &target, int textureCount)
 {
     target.face.EnableWedgeTexCoord();
     const int faceCount = std::min(target.FN(), defragMesh.FN());
     for (int i = 0; i < faceCount; ++i) {
         const MeshFace &srcF = defragMesh.face[size_t(i)];
         VCGFace &dstF = target.face[size_t(i)];
+        if (hasNoTexture(dstF, textureCount))
+            continue;
         for (int k = 0; k < 3; ++k) {
             dstF.WT(k).U() = float(srcF.cWT(k).U());
             dstF.WT(k).V() = float(srcF.cWT(k).V());
@@ -334,9 +356,9 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     // never empty), quite apart from files that are simply corrupt or truncated. Stand a
     // placeholder in for each unreadable slot and name it in the result instead.
     //
-    // The array has to stay index-aligned with the source: ScaleTextureCoordinatesToImage
-    // looks each face's texture up by WT(0).N() and silently scales by 1.0 past the end,
-    // which would leave those faces in [0,1] while every other face is in texel space.
+    // The array has to stay index-aligned with the source: the pipeline looks each face's
+    // texture up by WT(0).N(), and a face whose index falls past the end is taken for one
+    // with no texture.
     const int textureCount = packsWithoutTextures ? 0 : sourceTextureCount;
     std::vector<QImage> sourceImages(size_t(std::max(0, textureCount)));
     QStringList unreadableTextures;
@@ -394,9 +416,18 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     // From now on the filter will use only `defragMesh`, thus we will refer to it as the input mesh.
     Mesh defragMesh;
     QString buildError;
-    if (!buildDefragMesh(outputMesh, defragMesh, buildError)) {
+    const int pipelineTextureCount = int(textureObject->ArraySize());
+    int untexturedFaces = 0;
+    if (!buildDefragMesh(outputMesh, defragMesh, pipelineTextureCount, untexturedFaces, buildError)) {
         doc.finishFilterProgress(false, buildError);
         return fail(buildError);
+    }
+    if (untexturedFaces == defragMesh.FN()) {
+        const QString message = QObject::tr("%1 has nothing to work on: no face has a texture, "
+                                            "so the mesh has no parametrization to rearrange.")
+                                    .arg(filterLabel);
+        doc.finishFilterProgress(false, message);
+        return fail(message);
     }
 
     // For the TextureDefragmentation mesh instance, we build its FACE-FACE
@@ -739,7 +770,7 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     // The optimized Wedge UV coordinates are copied back into the MeshLab layer.
     // The texture index `N()` is also copied, since the packing step may have
     // redistributed charts across multiple textures.
-    copyDefragTexcoordsToMesh(defragMesh, outputMesh);
+    copyDefragTexcoordsToMesh(defragMesh, outputMesh, pipelineTextureCount);
 
     // If we are executing the variant `FP_SMALL_CHARTS_REMOVER` we need to guarantee
     // that the final number of output textures is minor or equal than the
@@ -828,6 +859,10 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
                     .arg(unreadableTextures.join(QStringLiteral(", ")))
                     .arg(standInSize.width())
                     .arg(standInSize.height());
+    if (untexturedFaces > 0)
+        info << QObject::tr("%1 face(s) had no texture -- the cap of a plane cut is one -- and kept "
+                            "their texture coordinates: nothing was packed or resampled for them.")
+                    .arg(untexturedFaces);
     if (removedZeroFaces > 0)
         info << QObject::tr("Removed %1 zero-area face(s) before defragmentation.").arg(removedZeroFaces);
     if (removedDuplicateVertices > 0)

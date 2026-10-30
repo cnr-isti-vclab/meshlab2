@@ -25,8 +25,10 @@ std::vector<int> usedTextureGroups(const Document::MeshEntry &entry)
 {
     std::vector<int> groups;
     for (const VCGFace &face : entry.mesh.face) {
-        if (!face.IsD())
-            groups.push_back(vcgFaceTextureGroup(entry.ioMask, face));
+        // A face with no texture has no place in any texture's UV square.
+        const int group = face.IsD() ? -1 : vcgFaceTextureGroup(entry.ioMask, face);
+        if (group >= 0)
+            groups.push_back(group);
     }
     std::sort(groups.begin(), groups.end());
     groups.erase(std::unique(groups.begin(), groups.end()), groups.end());

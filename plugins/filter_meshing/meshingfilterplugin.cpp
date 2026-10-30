@@ -1140,8 +1140,20 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdQuadricTex)) {
-            if (!vcg::tri::Clean<VCGMesh>::HasConsistentPerWedgeTexCoord(mesh))
+            // vcglib's check refuses a face with no texture (index -1) as well as one whose
+            // corners name different textures; the first is what the cap of a plane cut is
+            // made of, and "inconsistent" would not tell anyone that.
+            if (!vcg::tri::Clean<VCGMesh>::HasConsistentPerWedgeTexCoord(mesh)) {
+                int untextured = 0;
+                for (const VCGFace &f : mesh.face)
+                    if (!f.IsD() && f.cWT(0).N() < 0)
+                        ++untextured;
+                if (untextured > 0)
+                    return fail(QObject::tr("%1 face(s) have no texture -- the cap Trim Surface by "
+                                            "Plane closes a cut with is one -- and this filter needs "
+                                            "every face to have one.").arg(untextured));
                 return fail(QObject::tr("Mesh has inconsistent per-wedge texture coordinates."));
+            }
 
             // Both targets are read against what is being simplified: with selectedOnly the
             // selection, whose face count TargetFaceNum is (quadricSimplification turns it

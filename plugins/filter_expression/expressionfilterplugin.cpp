@@ -1638,6 +1638,10 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             } catch (mu::Parser::exception_type &e) {
                 return fail(parserErrorString(e));
             }
+            // A face given UVs reads a texture: one that had none (index -1) gets the first.
+            if (fi->WT(0).N() < 0)
+                for (int k = 0; k < 3; ++k)
+                    fi->WT(k).N() = 0;
             ++processed;
         }
         entry.ioMask |= Mask::IOM_WEDGTEXCOORD;

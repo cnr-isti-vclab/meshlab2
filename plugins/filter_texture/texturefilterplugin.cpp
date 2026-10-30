@@ -71,13 +71,15 @@ QString withSlotSuffix(const QString &basePath, int slotIndex, int slotCount)
     return QDir(dir).filePath(fileName);
 }
 
+// Gives every corner of a textured face the face's slot, and returns how many slots the faces
+// use. A face with no texture (index -1, as on the cap of a plane cut) is left without one.
 int ensureTextureSlotIndices(VCGMesh &mesh)
 {
     int maxSlot = -1;
     for (auto &face : mesh.face) {
-        int faceSlot = face.WT(0).N();
+        const int faceSlot = face.WT(0).N();
         if (faceSlot < 0)
-            faceSlot = 0;
+            continue;
         for (int k = 0; k < 3; ++k) {
             if (face.WT(k).N() < 0)
                 face.WT(k).N() = faceSlot;
@@ -632,9 +634,14 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             preserveAspect,
             sideGutter);
 
+        // WedgeTexFromPlane writes the UVs and leaves the texture index alone, and a face
+        // still at -1 has no texture: the UVs just made are for the first one.
         for (size_t i = 0; i < mesh.face.size() && i < worldMesh->face.size(); ++i) {
             for (int k = 0; k < 3; ++k)
                 mesh.face[i].WT(k) = worldMesh->face[i].WT(k);
+            if (mesh.face[i].WT(0).N() < 0)
+                for (int k = 0; k < 3; ++k)
+                    mesh.face[i].WT(k).N() = 0;
         }
 
         entry.ioMask |= Mask::IOM_WEDGTEXCOORD;
@@ -1377,8 +1384,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         for (VCGFace &face : workMesh.face) {
             if (face.IsD())
                 continue;
-            const int faceSlot = std::max(0, int(face.cWT(0).N()));
-            if (faceSlot != selectedSlot) {
+            if (face.cWT(0).N() != selectedSlot) {
                 face.SetD();
                 continue;
             }
@@ -1481,13 +1487,18 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         if (!vcg::tri::HasPerWedgeTexCoord(sourceMesh))
             return fail(QObject::tr("Pack Texture Images requires per-wedge texture coordinates."));
 
+        // A face with no texture (vcglib's index -1, as on the cap Trim Surface by Plane
+        // closes a cut with) uses no image and is carried over as it is.
         std::vector<int> usedGroups;
+        int untexturedFaces = 0;
         for (const VCGFace &face : sourceMesh.face) {
             if (face.IsD())
                 continue;
             const int group = face.cWT(0).N();
-            if (group < 0)
-                return fail(QObject::tr("A face references a negative texture index."));
+            if (group < 0) {
+                ++untexturedFaces;
+                continue;
+            }
             for (int corner = 1; corner < 3; ++corner) {
                 if (face.cWT(corner).N() != group)
                     return fail(QObject::tr("A face references more than one texture."));
@@ -1530,7 +1541,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         outputMesh.face.EnableWedgeTexCoord();
         vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(outputMesh, sourceMesh);
         for (VCGFace &face : outputMesh.face) {
-            if (face.IsD())
+            if (face.IsD() || face.cWT(0).N() < 0)
                 continue;
             const auto it = std::lower_bound(
                 usedGroups.begin(), usedGroups.end(), int(face.cWT(0).N()));
@@ -1582,6 +1593,9 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             QObject::tr("Packed %1 source images into %2 textures with a %3 px gutter.")
                 .arg(srcTextures.size()).arg(packedTextures.size()).arg(gutter)
         };
+        if (untexturedFaces > 0)
+            result.infoMessages << QObject::tr("%1 face(s) had no texture and were left as they were.")
+                                       .arg(untexturedFaces);
         result.newMeshIndices = { outputIndex };
         return result;
     }

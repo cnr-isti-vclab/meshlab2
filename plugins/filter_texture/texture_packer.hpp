@@ -14,7 +14,8 @@
 #include <vector>
 
 // Packs complete source images into fewer container images and updates the
-// mesh's wedge UVs and texture indices accordingly.
+// mesh's wedge UVs and texture indices accordingly. A face with no texture
+// (index -1) is left as it is.
 class TexturePacker
 {
 public:

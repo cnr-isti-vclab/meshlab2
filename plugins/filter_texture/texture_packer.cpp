@@ -83,10 +83,11 @@ bool TexturePacker::validate()
 
     for (int faceIndex = 0; faceIndex < m_mesh.FN(); ++faceIndex) {
         const VCGFace &face = m_mesh.face[size_t(faceIndex)];
-        if (face.IsD())
+        // A face with no texture (vcglib's index -1) has nothing to move: it is left alone.
+        if (face.IsD() || face.cWT(0).N() < 0)
             continue;
         const int source = face.cWT(0).N();
-        if (source < 0 || source >= int(m_sources.size()))
+        if (source >= int(m_sources.size()))
             return fail(QObject::tr("Face %1 references invalid texture %2.")
                             .arg(faceIndex).arg(source));
         for (int corner = 0; corner < 3; ++corner) {
@@ -146,7 +147,7 @@ bool TexturePacker::findPlacements()
 void TexturePacker::updateMeshUVs()
 {
     for (VCGFace &face : m_mesh.face) {
-        if (face.IsD())
+        if (face.IsD() || face.cWT(0).N() < 0)
             continue;
         const int sourceIndex = face.cWT(0).N();
         const Source &source = m_sources[size_t(sourceIndex)];

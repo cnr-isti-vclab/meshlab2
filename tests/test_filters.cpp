@@ -597,6 +597,8 @@ private slots:
     void packUvChartsRunsEveryAlgorithm();
     void packUvChartsWorksWithoutATexture();
     void packUvChartsSurvivesAnyRotationCount();
+    void atlasFiltersLeaveUntexturedFacesAlone();
+    void textureFiltersLeaveUntexturedFacesOut();
     void selfIntersectionCurvesFindTheCrossing();
     void abstractDomainIsBuiltAndAttachedToTheLayer();
     void abstractDomainRefusesAnOpenMesh();
@@ -15111,7 +15113,8 @@ void FilterTests::rubberBandExpandsToComponentsAndUvIslands()
     // share theirs, so their common edge has the same UVs on both sides and they make one
     // island; face 2's differs, so its edge with face 1 is a seam. The face rule uses the
     // centroid of the three wedges, and with pan 0, zoom 1 and aspect 1 a u of x lands at
-    // (x + 1) / 2 across the screen.
+    // (x + 1) / 2 across the screen. Each face reads texture 0, as a parametrization filter
+    // leaves it: the index a freshly enabled wedge starts with, -1, means no texture.
     const float offsetU[4] = {0.0f, 0.0f, 0.5f, -1.2f};
     const float offsetV[4] = {0.0f, 0.0f, 0.0f, -1.2f};
     for (int f = 0; f < 4; ++f)
@@ -15119,6 +15122,7 @@ void FilterTests::rubberBandExpandsToComponentsAndUvIslands()
             VCGFace &face = layerMesh.face[std::size_t(f)];
             face.WT(c).U() = 0.2f * face.V(c)->P().X() + offsetU[f];
             face.WT(c).V() = 0.2f * face.V(c)->P().Y() + offsetV[f];
+            face.WT(c).N() = 0;
         }
     const QString key = filterKeyForId(doc, QStringLiteral("select_by_screen_rectangle"));
     QVERIFY(!key.isEmpty());
@@ -15909,6 +15913,182 @@ void FilterTests::packUvChartsWorksWithoutATexture()
             QVERIFY2(r.errorMessage.contains(QStringLiteral("Resample textures")),
                      qPrintable(QStringLiteral("%1: %2").arg(id, r.errorMessage)));
         }
+    }
+}
+
+// The cap Trim Surface by Plane closes a cut with is made of faces with no texture -- vcglib's
+// index -1 -- and the defragmentation pipeline, which bounds a texture index only from above,
+// aborted on them. Here they come out as they went in, and every other face is packed into
+// the atlas, with and without a texture to resample. Defragment Texture Atlas also runs the
+// chart merges, which must leave the cap out; Merge Texture Islands runs the same merges, at
+// three times the cost.
+void FilterTests::atlasFiltersLeaveUntexturedFacesAlone()
+{
+    const std::array<std::pair<QString, bool>, 3> runs{{
+        {QStringLiteral("pack_uv_charts_vcglib"), false},
+        {QStringLiteral("pack_uv_charts_vcglib"), true},
+        {QStringLiteral("defragment_texture_atlas"), true},
+    }};
+    for (const auto &[id, textured] : runs) {
+        Document doc;
+        VCGMesh cube;
+        makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+        vcg::tri::UpdateBounding<VCGMesh>::Box(cube);
+        const int meshIndex = doc.addMesh(cube, QStringLiteral("cube"));
+        doc.setCurrentMeshIndex(meshIndex);
+        MeshFilterParameterValues uvParams;
+        uvParams.insert(QStringLiteral("textdim"), 256);
+        QVERIFY(doc.runFilter(
+            filterKeyForId(doc, QStringLiteral("parametrize_by_trivial_per_triangle_layout")),
+            uvParams).success);
+        if (textured) {
+            QImage image(256, 256, QImage::Format_RGBA8888);
+            image.fill(Qt::red);
+            TextureAssociationUtils::replaceTextureAssociations(
+                doc.mesh(meshIndex),
+                { TextureAssociationUtils::makeTextureAssetFromImage(image, QStringLiteral("red.png")) });
+        }
+
+        MeshFilterParameterValues trimParams;
+        trimParams.insert(QStringLiteral("planeNormal"), QVector3D(1.0f, 0.3f, 0.2f));
+        trimParams.insert(QStringLiteral("closeCut"), true);
+        QVERIFY(doc.runFilter(filterKeyForId(doc, QStringLiteral("trim_surface_by_plane")),
+                              trimParams).success);
+        int capFaces = 0;
+        for (const VCGFace &f : doc.mesh(meshIndex).mesh.face)
+            if (!f.IsD() && f.cWT(0).N() < 0)
+                ++capFaces;
+        QVERIFY2(capFaces > 0, "the cap should be faces with no texture");
+
+        MeshFilterParameterValues params;
+        if (id == QStringLiteral("pack_uv_charts_vcglib"))
+            params.insert(QStringLiteral("textureSize"), 256);
+        params.insert(QStringLiteral("resampleTextures"), textured);
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, id), params);
+        QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(id, r.errorMessage)));
+        QVERIFY(!r.newMeshIndices.empty());
+        QVERIFY(r.infoMessages.join(QLatin1Char('\n')).contains(
+            QStringLiteral("%1 face(s) had no texture").arg(capFaces)));
+
+        int untextured = 0;
+        for (const VCGFace &f : doc.mesh(r.newMeshIndices.front()).mesh.face) {
+            if (f.IsD())
+                continue;
+            if (f.cWT(0).N() < 0) {
+                ++untextured;
+                continue;
+            }
+            QCOMPARE(int(f.cWT(0).N()), 0);
+            for (int k = 0; k < 3; ++k) {
+                QVERIFY(f.cWT(k).U() >= 0.0f && f.cWT(k).U() <= 1.0f);
+                QVERIFY(f.cWT(k).V() >= 0.0f && f.cWT(k).V() <= 1.0f);
+            }
+        }
+        QCOMPARE(untextured, capFaces);
+    }
+}
+
+// The same cap through the filters that read a layer's texture coordinates without moving
+// charts. Once a layer had two textures they refused it, since -1 names neither, and the
+// UV view and UV-space selection placed the cap at the middle of texture 0. They now leave
+// it out of the mapping, where it still counts as surface the mapping does not cover.
+void FilterTests::textureFiltersLeaveUntexturedFacesOut()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(cube);
+    const int meshIndex = doc.addMesh(cube, QStringLiteral("cube"));
+    doc.setCurrentMeshIndex(meshIndex);
+    MeshFilterParameterValues uvParams;
+    uvParams.insert(QStringLiteral("textdim"), 256);
+    QVERIFY(doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("parametrize_by_trivial_per_triangle_layout")),
+        uvParams).success);
+    // Two textures, so that every face has to name one that exists.
+    VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+    for (std::size_t i = 0; i < mesh.face.size(); ++i)
+        for (int k = 0; k < 3; ++k)
+            mesh.face[i].WT(k).N() = short(i % 2);
+    QImage red(256, 256, QImage::Format_RGBA8888), green(256, 256, QImage::Format_RGBA8888);
+    red.fill(Qt::red);
+    green.fill(Qt::green);
+    TextureAssociationUtils::replaceTextureAssociations(
+        doc.mesh(meshIndex),
+        { TextureAssociationUtils::makeTextureAssetFromImage(red, QStringLiteral("red.png")),
+          TextureAssociationUtils::makeTextureAssetFromImage(green, QStringLiteral("green.png")) });
+
+    MeshFilterParameterValues trimParams;
+    trimParams.insert(QStringLiteral("planeNormal"), QVector3D(1.0f, 0.3f, 0.2f));
+    trimParams.insert(QStringLiteral("closeCut"), true);
+    QVERIFY(doc.runFilter(filterKeyForId(doc, QStringLiteral("trim_surface_by_plane")),
+                          trimParams).success);
+    const Document::MeshEntry &entry = doc.mesh(meshIndex);
+    int capFaces = 0;
+    for (const VCGFace &f : entry.mesh.face) {
+        if (f.IsD())
+            continue;
+        float u = 0, v = 0;
+        const bool untextured = f.cWT(0).N() < 0;
+        capFaces += untextured ? 1 : 0;
+        QCOMPARE(vcgFaceTextureGroup(entry.ioMask, f) < 0, untextured);
+        QCOMPARE(vcgFaceCornerUV(entry.ioMask, f, 0, u, v), !untextured);
+    }
+    QVERIFY2(capFaces > 0, "the cap should be faces with no texture");
+
+    for (const char *id : { "measure_uv_mapping", "measure_texel_coverage",
+                            "measure_texture_seam_discrepancy", "create_polyline_from_uv_seams" }) {
+        const MeshFilterRunResult r =
+            doc.runFilter(filterKeyForId(doc, QLatin1String(id)), MeshFilterParameterValues());
+        QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(QLatin1String(id), r.errorMessage)));
+        if (QLatin1String(id) == QLatin1String("measure_uv_mapping")) {
+            QVERIFY(r.outputValues.value(QStringLiteral("num_null_charts")).toInt() >= 1);
+            const double mapped = r.outputValues.value(QStringLiteral("mapped_fraction")).toDouble();
+            QVERIFY2(mapped > 0.0 && mapped < 1.0, qPrintable(QString::number(mapped)));
+        }
+        doc.setCurrentMeshIndex(meshIndex);
+    }
+
+    MeshFilterParameterValues packParams;
+    packParams.insert(QStringLiteral("containerNum"), 1);
+    const MeshFilterRunResult packed =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("pack_texture_images")), packParams);
+    QVERIFY2(packed.success, qPrintable(packed.errorMessage));
+    QVERIFY(!packed.newMeshIndices.empty());
+    int untexturedAfter = 0;
+    for (const VCGFace &f : doc.mesh(packed.newMeshIndices.front()).mesh.face) {
+        if (f.IsD())
+            continue;
+        if (f.cWT(0).N() < 0)
+            ++untexturedAfter;
+        else
+            QCOMPARE(int(f.cWT(0).N()), 0);
+    }
+    QCOMPARE(untexturedAfter, capFaces);
+
+    // The texture-preserving decimation does need every face textured; it says why.
+    doc.setCurrentMeshIndex(meshIndex);
+    const MeshFilterRunResult decimated = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("simplify_by_quadric_edge_collapse_with_texture_vcglib")),
+        MeshFilterParameterValues());
+    QVERIFY(!decimated.success);
+    QVERIFY2(decimated.errorMessage.contains(QStringLiteral("%1 face(s) have no texture").arg(capFaces)),
+             qPrintable(decimated.errorMessage));
+
+    // So -1 has to be left only where a face has no texture: the filters that write UVs
+    // and nothing else give the faces they map the first texture.
+    for (const char *id : { "parametrize_by_flat_plane", "parametrize_per_wedge_by_expression" }) {
+        Document plain;
+        VCGMesh box;
+        makeCubeMesh(box, 0.0f, 0.0f, 0.0f);
+        vcg::tri::UpdateBounding<VCGMesh>::Box(box);
+        plain.setCurrentMeshIndex(plain.addMesh(box, QStringLiteral("cube")));
+        const MeshFilterRunResult r =
+            plain.runFilter(filterKeyForId(plain, QLatin1String(id)), MeshFilterParameterValues());
+        QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(QLatin1String(id), r.errorMessage)));
+        const Document::MeshEntry &mapped = plain.mesh(0);
+        for (const VCGFace &f : mapped.mesh.face)
+            QVERIFY2(!f.IsD() && vcgFaceTextureGroup(mapped.ioMask, f) == 0, id);
     }
 }
 
