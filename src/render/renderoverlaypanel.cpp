@@ -111,12 +111,15 @@ QString passArrowToolTip(RenderPass pass)
     return QObject::tr("%1 settings").arg(passName(pass));
 }
 const QColor kAccentColor(36, 132, 210);
-const QColor kNeutralArrowColor(90, 90, 90, 175);
-const QColor kActiveArrowColor(36, 132, 210, 235);
+// A light arrow with a dark outline reads on any background the view can have, light, dark
+// or the mid gray where a darker arrow used to vanish.
+const QColor kNeutralArrowColor(200, 200, 200);
+const QColor kActiveArrowColor(36, 132, 210);
+const QColor kArrowOutlineColor(30, 30, 30, 220);
 constexpr int kPassButtonSize = 28;
 constexpr int kPassIconSize = 24;
 constexpr int kPassArrowWidth = 28;
-constexpr int kPassArrowHeight = 10;
+constexpr int kPassArrowHeight = 14;
 constexpr int kSettingsRowHeight = 20;
 constexpr int kColorButtonSize = 16;
 constexpr Qt::Alignment kSettingsLabelAlignment = Qt::AlignRight | Qt::AlignVCenter;
@@ -189,19 +192,23 @@ protected:
     {
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing, true);
-        p.setPen(Qt::NoPen);
+        p.setPen(QPen(kArrowOutlineColor, 1.25, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         // Blue means "this panel is open" and nothing else. It used to light up under the
         // mouse as well, which made every arrow look open while being pointed at.
         p.setBrush(isChecked() ? kActiveArrowColor : kNeutralArrowColor);
 
-        const int triW = 14;
-        const int triH = 8;
-        const int cx = width() / 2;
-        const int top = (height() - triH) / 2;
-        QPolygon poly;
-        poly << QPoint(cx - triW / 2, top)
-             << QPoint(cx + triW / 2, top)
-             << QPoint(cx, top + triH);
+        const qreal triW = 18.0;
+        const qreal triH = 11.0;
+        const qreal cx = width() / 2.0;
+        const qreal top = (height() - triH) / 2.0;
+        // Down opens the panel; once it is open the arrow points up, toward closing it.
+        const bool open = isChecked();
+        const qreal base = open ? top + triH : top;
+        const qreal tip = open ? top : top + triH;
+        QPolygonF poly;
+        poly << QPointF(cx - triW / 2, base)
+             << QPointF(cx + triW / 2, base)
+             << QPointF(cx, tip);
         p.drawPolygon(poly);
     }
 };
