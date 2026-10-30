@@ -7,6 +7,8 @@
 
 #include "open3d/pipelines/registration/Registration.h"
 
+#include <limits>
+
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_reduce.h>
 
@@ -192,23 +194,12 @@ RegistrationResult RegistrationICP(
     return result;
 }
 
-/// Atomically store `val` into `min_val` if it is smaller. Retries while the
-/// compare-exchange loses a race against another thread (which refreshes
-/// `prev_val`), and stops once another thread has already stored a value <=
-/// `val`.
-///
-/// Relaxed ordering is sufficient: `min_val` is only an optimization hint (the
-/// RANSAC iteration bound) and does not publish any other data, so no
-/// happens-before relationship with surrounding accesses is required.
-template <typename T>
-void atomic_min(std::atomic<T>& min_val, const T& val) noexcept {
-    T prev_val = min_val.load(std::memory_order_relaxed);
-    while (prev_val > val && !min_val.compare_exchange_weak(
-                                     prev_val, val, std::memory_order_relaxed,
-                                     std::memory_order_relaxed)) {
-    }
-}
-
+// MeshLab: the early exit is decided between fixed batches of iterations (see
+// RegistrationRANSACBasedOnCorrespondence) instead of by an atomic bound the
+// threads lowered as they went. With that bound, which iterations were validated
+// depended on thread timing, so a fixed seed did not give a fixed pose. Each
+// chunk now validates every iteration it is given and keeps the bound its own
+// best result asks for, `est_k`, which join() reduces by min. See UPSTREAM.md.
 struct RANSACCorrespondenceReduction {
     // Globals
     const geometry::PointCloud& source;
@@ -219,7 +210,6 @@ struct RANSACCorrespondenceReduction {
             std::vector<std::reference_wrapper<const CorrespondenceChecker>>;
     const CheckerType& checkers;
     const geometry::KDTreeFlann& kdtree;
-    std::atomic<int>& est_k_global;
     std::atomic<int>& total_validation;
     const std::vector<CorrespondenceSet>& sampled_correspondences;
     // Constants
@@ -229,6 +219,7 @@ struct RANSACCorrespondenceReduction {
     // Locals
     CorrespondenceSet ransac_corres;
     RegistrationResult best_result;
+    int est_k = std::numeric_limits<int>::max();
 
     RANSACCorrespondenceReduction(
             const geometry::PointCloud& source_,
@@ -237,7 +228,6 @@ struct RANSACCorrespondenceReduction {
             const TransformationEstimation& estimation_,
             const CheckerType& checkers_,
             const geometry::KDTreeFlann& kdtree_,
-            std::atomic<int>& est_k_global_,
             std::atomic<int>& total_validation_,
             const std::vector<CorrespondenceSet>& sampled_correspondences_,
             double max_dist_,
@@ -249,7 +239,6 @@ struct RANSACCorrespondenceReduction {
           estimation(estimation_),
           checkers(checkers_),
           kdtree(kdtree_),
-          est_k_global(est_k_global_),
           total_validation(total_validation_),
           sampled_correspondences(sampled_correspondences_),
           max_distance(max_dist_),
@@ -264,7 +253,6 @@ struct RANSACCorrespondenceReduction {
           estimation(o.estimation),
           checkers(o.checkers),
           kdtree(o.kdtree),
-          est_k_global(o.est_k_global),
           total_validation(o.total_validation),
           sampled_correspondences(o.sampled_correspondences),
           max_distance(o.max_distance),
@@ -274,9 +262,8 @@ struct RANSACCorrespondenceReduction {
           ransac_corres(o.ransac_n) {}
 
     void operator()(const tbb::blocked_range<int>& range) {
-        int est_k_local = est_k_global;
         for (int i = range.begin(); i < range.end(); ++i) {
-            if (i < est_k_global) {
+            {  // MeshLab: every iteration given; the exit is between batches
                 for (int j = 0; j < ransac_n; j++) {
                     ransac_corres[j] = sampled_correspondences[i][j];
                 }
@@ -316,11 +303,8 @@ struct RANSACCorrespondenceReduction {
                             log_confidence /
                             std::log(1.0 -
                                      std::pow(corres_inlier_ratio, ransac_n));
-                    if (est_k_local_d < 0) {
-                        est_k_local_d = est_k_local;
-                    }
-                    if (est_k_local_d < est_k_global) {
-                        est_k_local = std::ceil(est_k_local_d);
+                    if (est_k_local_d >= 0 && est_k_local_d < est_k) {
+                        est_k = int(std::ceil(est_k_local_d));
                     }
                     utility::LogDebug(
                             "Thread {:06d}: registration fitness={:.3f}, "
@@ -329,7 +313,6 @@ struct RANSACCorrespondenceReduction {
                             est_k_local_d);
                 }
                 total_validation += 1;
-                atomic_min(est_k_global, est_k_local);
             }
         }
     }
@@ -338,6 +321,7 @@ struct RANSACCorrespondenceReduction {
         if (!best_result.IsBetterRANSACThan(other.best_result)) {
             best_result = std::move(other.best_result);
         }
+        est_k = std::min(est_k, other.est_k);
     }
 };
 
@@ -359,7 +343,6 @@ RegistrationResult RegistrationRANSACBasedOnCorrespondence(
     }
 
     geometry::KDTreeFlann kdtree(target);
-    std::atomic<int> est_k_global = criteria.max_iteration_;
     std::atomic<int> total_validation = 0;
     utility::random::UniformIntGenerator<int> rand_gen(0, corres.size() - 1);
     std::vector<CorrespondenceSet> sampled_correspondences(
@@ -369,15 +352,39 @@ RegistrationResult RegistrationRANSACBasedOnCorrespondence(
             correspondence = corres[rand_gen()];
         }
     }
-    RANSACCorrespondenceReduction reducer(
-            source, target, corres, estimation, checkers, kdtree, est_k_global,
-            total_validation, sampled_correspondences,
-            max_correspondence_distance, ransac_n, criteria.confidence_);
-    tbb::parallel_deterministic_reduce(
-            tbb::blocked_range<int>(0, criteria.max_iteration_,
-                                    utility::DefaultGrainSizeTBB()),
-            reducer);
-    auto best_result = std::move(reducer.best_result);
+    // MeshLab: batches of iterations, each validated whole and in parallel, with
+    // the early exit taken between them, from the bound the results so far ask
+    // for. The batches, the split of each and the order of the joins depend on
+    // the iteration count alone, not on the threads or their timing, so a fixed
+    // seed gives a fixed pose, on any machine -- which is also why nothing here
+    // is derived from the thread count.
+    //
+    // The bound is often met within a hundred or so iterations, and every
+    // iteration of a batch past it is wasted, so the batches start small and
+    // double: on the range maps of the tests a first batch of 1024 made RANSAC
+    // about five times slower than the racing loop, starting at 64 within a
+    // third of it. Validating an
+    // iteration takes a transformed copy of the source and a nearest-neighbour
+    // query per point, well above what the default grain is sized for, so a
+    // small grain still splits a small batch across the cores.
+    constexpr int kFirstBatch = 64, kLargestBatch = 1024, kGrain = 4;
+    RegistrationResult best_result;
+    int est_k = criteria.max_iteration_;
+    for (int begin = 0, batch = kFirstBatch; begin < est_k;
+         begin += batch, batch = std::min(2 * batch, kLargestBatch)) {
+        RANSACCorrespondenceReduction reducer(
+                source, target, corres, estimation, checkers, kdtree,
+                total_validation, sampled_correspondences,
+                max_correspondence_distance, ransac_n, criteria.confidence_);
+        tbb::parallel_deterministic_reduce(
+                tbb::blocked_range<int>(begin, std::min(begin + batch, est_k),
+                                        kGrain),
+                reducer);
+        if (reducer.best_result.IsBetterRANSACThan(best_result)) {
+            best_result = std::move(reducer.best_result);
+        }
+        est_k = std::min(est_k, reducer.est_k);
+    }
     utility::LogDebug(
             "RANSAC exits after {:d} validations. Best inlier ratio {:e}, "
             "RMSE {:e}",

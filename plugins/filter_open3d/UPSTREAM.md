@@ -43,8 +43,11 @@ The measured closure, the rejected build route and the reasoning are in
 
 ## Local changes inside `upstream`
 
-One file is patched. `open3d/geometry/BoundingVolume.cpp`: three includes
-removed and the two functions that used them replaced with
+Two files are patched.
+
+### `open3d/geometry/BoundingVolume.cpp`
+
+Three includes removed and the two functions that used them replaced with
 `utility::LogError`.
 
 ```
@@ -70,6 +73,33 @@ on `libMeshLab2Open3DUpstream.a` reports zero undefined symbols into
 A fourth apparent edge, `open3d/Macro.h` → `open3d/core/CUDAUtils.h`, is left
 untouched and is **not** a cut: it sits behind `#if defined(__CUDA_ARCH__)` and
 never fires in a CPU build. A grep for excluded subsystems will report it.
+
+### `open3d/pipelines/registration/Registration.cpp`: deterministic RANSAC
+
+`RegistrationRANSACBasedOnCorrespondence` was not reproducible with a fixed seed
+(added 2026-10-29). The samples are drawn up front from the seeded generator and
+the reduction is `tbb::parallel_deterministic_reduce`, but the early exit was an
+atomic bound every thread lowered as it found a better pose and checked before
+each iteration, so which iterations were validated -- and now and then the pose --
+depended on thread timing. That broke the plugin's `randomSeed` contract (a logged
+seed replays the run), and `FilterTests::open3dFeatureMatchingCanEstimateItsQualityWithIcp`
+failed about one run in three, comparing two runs with the same seed.
+
+The patch takes the early exit between batches of iterations instead: each batch
+is validated whole and in parallel, every chunk keeps the bound its own best
+result asks for, `join()` reduces it by min, and the next batch stops at it. The
+batches start at 64 and double to 1024, with a grain of 4; nothing depends on the
+thread count, so the result is the same on any machine. Measured on the test
+range maps: a pair validates 192 iterations in ~110 ms against ~85 ms for the
+racing loop, giving exactly the sequential result; a first batch of 1024 took
+~470 ms, since the bound is often met within a hundred or so iterations.
+The 20 Open3D filter tests take ~40 s patched against ~42 s before. The
+`atomic_min` helper, used only by the old bound, is removed. A candidate to send
+upstream.
+
+Separately, the reducer's split constructor sizes `ransac_corres` ("Must be sized
+here too"). That line came in with the original import and was not compared
+against a v0.20.0 checkout; `check_upstream_status.sh` will tell.
 
 No other file differs from upstream.
 
@@ -112,8 +142,8 @@ a vendored tree that must be re-patched on every update is a tree nobody updates
 plugins/filter_open3d/check_upstream_status.sh [path-to-open3d-checkout]
 ```
 
-It reports which vendored files differ from the given upstream tree — the patch
-above should be the only hit — and which are missing or newly added. The file
+It reports which vendored files differ from the given upstream tree — the two
+patched files above should be the only hits — and which are missing or newly added. The file
 set itself is **not** derivable by following includes alone: a C++ library closes
 over symbol definitions too, and `EstimateNormals.cpp`,
 `SurfaceReconstructionBallPivoting.cpp`, `ImageFactory.cpp` and
