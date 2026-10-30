@@ -10,6 +10,7 @@
 #include <QSet>
 
 #include "document.h"
+#include "filterpresentation.h"
 #include "filtercategories.h"
 #include "selectionscope.h"
 
@@ -184,6 +185,8 @@ private slots:
     void layerCreatingFiltersDeclareAnOutputTag();
     void alignmentFiltersStateTheirStartingAlignment();
     void open3dLengthsAreScaleRelativeNotZeroMeansDerive();
+    void searchRanksTheReferenceQueries();
+    void searchAliasesCoverTheRejectedSynonyms();
 
 private:
     // Parsed once: the ratified verbs of docs/design/vocabulary.md section 3.
@@ -1025,4 +1028,127 @@ void FilterDescriptorTests::layerCreatingFiltersDeclareAnOutputTag()
 }
 
 QTEST_MAIN(FilterDescriptorTests)
+// The first result of the queries docs/design/proposals/filter_search.md pins, and, where
+// the best answers differ only in backend, that the whole group comes first in any order:
+// registry order is all that separates them, and a test must not pin that.
+void FilterDescriptorTests::searchRanksTheReferenceQueries()
+{
+    const auto ranked = [&](const QString &query) {
+        const QStringList terms = FilterPresentation::tokenize(query);
+        std::vector<std::pair<FilterPresentation::SearchRank, QString>> hits;
+        for (const auto &info : m_infos) {
+            if (const auto rank = FilterPresentation::rank(info, terms))
+                hits.emplace_back(*rank, info.descriptor.name);
+        }
+        std::stable_sort(hits.begin(), hits.end(),
+                         [](const auto &a, const auto &b) { return a.first < b.first; });
+        QStringList names;
+        for (const auto &hit : hits)
+            names << hit.second;
+        return names;
+    };
+
+    static const std::pair<const char *, const char *> firsts[] = {
+        { "set tex", "Set Texture" },
+        { "rem tex", "Remove Textures" },
+        { "del tex", "Remove Textures" },
+        { "vert coord expr", "Compute Vertex Coordinates by Expression" },
+        { "vert pos expr", "Compute Vertex Coordinates by Expression" },
+        { "delete selected faces", "Remove Selected Faces" },
+        { "fill holes", "Close Holes" },
+        { "close holes", "Close Holes" },
+        { "decimate", "Simplify by Decimation (TrueForm)" },
+        { "weld vertices", "Merge Close Vertices" },
+        { "erase current layer", "Remove Current Mesh Layer" },
+        { "invert sel", "Invert Selection" },
+        { "sel border", "Select Border" },
+        { "merge layers", "Merge Visible Layers" },
+        { "load cameras", "Import Cameras to Visible Rasters" },
+        { "save cameras", "Export Cameras from Visible Rasters" },
+        { "screenshot", "Render from Render-State JSON" },
+        { "unwrap xatlas", "Parametrize by Atlas (xatlas)" },
+        { "register icp vcg", "Align by ICP (vcglib)" },
+        { "denoise point cloud normals", "Smooth Point Cloud Normals" },
+        { "texcoord distortion", "Compute UV Distortion" },
+        { "colour vert by quality", "Colorize Vertices by Scalar" },
+        { "load photo", "Import Image to Current Raster" },
+        { "uv seams polyline", "Create Polyline from UV Seams" },
+        { "remove_textures", "Remove Textures" },
+    };
+    QStringList misses;
+    for (const auto &[query, first] : firsts) {
+        const QStringList names = ranked(QString::fromLatin1(query));
+        if (names.isEmpty() || names.front() != QLatin1String(first))
+            misses << QStringLiteral("'%1' -> %2 (want %3)")
+                          .arg(QLatin1String(query), names.mid(0, 3).join(QStringLiteral(", ")),
+                               QLatin1String(first));
+    }
+
+    static const std::pair<const char *, const char *> groups[] = {
+        { "quadric", "Quadric Edge Collapse" },
+        { "icp", "ICP" },
+        { "ball pivot", "Ball Pivoting" },
+    };
+    for (const auto &[query, group] : groups) {
+        int size = 0;
+        for (const auto &info : m_infos)
+            size += info.descriptor.name.contains(QLatin1String(group)) ? 1 : 0;
+        const QStringList top = ranked(QString::fromLatin1(query)).mid(0, size);
+        const bool together = size > 0 && std::all_of(top.begin(), top.end(), [&](const QString &n) {
+            return n.contains(QLatin1String(group));
+        });
+        if (!together)
+            misses << QStringLiteral("'%1': the %2 \"%3\" filters are not first: %4")
+                          .arg(QLatin1String(query)).arg(size)
+                          .arg(QLatin1String(group), top.join(QStringLiteral(", ")));
+    }
+    QVERIFY2(misses.isEmpty(), qPrintable(misses.join(QLatin1Char('\n'))));
+}
+
+// Every rejected synonym of the verb lexicon is a search alias that leads to its verb, so
+// that someone who types the word the vocabulary turned down still finds the filter. Words
+// that are verbs in their own right, or already the start of their verb ("Color" of
+// "Colorize"), need no alias; a few are left out because they mean something else too.
+void FilterDescriptorTests::searchAliasesCoverTheRejectedSynonyms()
+{
+    QFile doc(QStringLiteral(TEST_SOURCE_DIR "/docs/design/vocabulary.md"));
+    QVERIFY(doc.open(QIODevice::ReadOnly | QIODevice::Text));
+    const QString text = QString::fromUtf8(doc.readAll());
+    const int start = text.indexOf(QStringLiteral("## 3. Verb lexicon"));
+    QString section = text.mid(start, text.indexOf(QStringLiteral("`Estimate` is permitted"), start) - start);
+
+    static const QSet<QString> leftOut = {
+        QStringLiteral("copy"), QStringLiteral("map"), QStringLiteral("push"),
+        QStringLiteral("pull"), QStringLiteral("apply"), QStringLiteral("bin"),
+    };
+    static const QRegularExpression tickRe(QStringLiteral("`([A-Za-z]+)`"));
+    const QHash<QString, QStringList> &aliases = FilterPresentation::searchAliases();
+    QStringList missing;
+    int checked = 0;
+    for (const QString &line : section.split(QLatin1Char('\n'))) {
+        const QStringList cells = line.split(QLatin1Char('|'));
+        if (cells.size() < 5 || !cells.at(1).contains(QLatin1Char('`')))
+            continue;
+        QStringList verbs;
+        for (auto it = tickRe.globalMatch(cells.at(1)); it.hasNext();)
+            verbs << it.next().captured(1).toLower();
+        for (auto it = tickRe.globalMatch(cells.at(3)); it.hasNext();) {
+            const QString word = it.next().captured(1);
+            const QString lower = word.toLower();
+            if (m_verbs.contains(word) || leftOut.contains(lower))
+                continue;
+            if (std::any_of(verbs.begin(), verbs.end(), [&](const QString &v) { return v.startsWith(lower); }))
+                continue;
+            ++checked;
+            const QStringList targets = aliases.value(lower);
+            if (!std::any_of(verbs.begin(), verbs.end(), [&](const QString &v) { return targets.contains(v); }))
+                missing << QStringLiteral("%1 (rejected for %2)").arg(lower, verbs.join(QLatin1Char('/')));
+        }
+    }
+    QVERIFY2(checked > 40, qPrintable(QStringLiteral("only %1 rejected synonyms parsed").arg(checked)));
+    QVERIFY2(missing.isEmpty(),
+             qPrintable(QStringLiteral("rejected synonyms with no search alias to their verb: ")
+                        + missing.join(QStringLiteral(", "))));
+}
+
 #include "test_filter_descriptors.moc"

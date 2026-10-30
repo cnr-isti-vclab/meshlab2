@@ -517,19 +517,15 @@ void MeshFilterPanel::rebuildResultsList()
     m_resultsList->clear();
     m_visibleFilterIndices.clear();
     const QStringList terms = tokenizeSearchTerms(m_searchEdit->text());
-    std::vector<int> titleFirst;
-    std::vector<int> otherMatches;
-
+    // Best match first (see FilterPresentation::rank); registry order breaks the ties, so
+    // the list is stable.
+    std::vector<std::pair<FilterPresentation::SearchRank, int>> ranked;
     for (int i = 0; i < static_cast<int>(m_filters.size()); ++i) {
-        const Document::FilterInfo &info = m_filters[static_cast<size_t>(i)];
-        if (!matchesSearch(info, terms))
-            continue;
-
-        if (titleMatchesAllTerms(info, terms))
-            titleFirst.push_back(i);
-        else
-            otherMatches.push_back(i);
+        if (const auto rank = FilterPresentation::rank(m_filters[static_cast<size_t>(i)], terms))
+            ranked.emplace_back(*rank, i);
     }
+    std::stable_sort(ranked.begin(), ranked.end(),
+                     [](const auto &a, const auto &b) { return a.first < b.first; });
 
     auto appendResultItem = [this](int filterIndex) {
         const Document::FilterInfo &info = m_filters[static_cast<size_t>(filterIndex)];
@@ -550,10 +546,8 @@ void MeshFilterPanel::rebuildResultsList()
             item->setToolTip(tip);
     };
 
-    for (int filterIndex : titleFirst)
-        appendResultItem(filterIndex);
-    for (int filterIndex : otherMatches)
-        appendResultItem(filterIndex);
+    for (const auto &entry : ranked)
+        appendResultItem(entry.second);
 
     if (m_resultsList->count() > 0 && m_resultsList->currentRow() < 0)
         m_resultsList->setCurrentRow(0);
@@ -756,21 +750,6 @@ void MeshFilterPanel::openCurrentReferenceLink(bool doi)
         return;
     }
     QDesktopServices::openUrl(QUrl(doi ? selected->doiUrl() : selected->webUrl()));
-}
-
-bool MeshFilterPanel::matchesSearch(
-    const Document::FilterInfo &filterInfo,
-    const QStringList &terms) const
-{
-    // Shared with the Filter Plugins Info dialog; see src/ui/filterpresentation.h.
-    return FilterPresentation::matches(filterInfo, terms);
-}
-
-bool MeshFilterPanel::titleMatchesAllTerms(
-    const Document::FilterInfo &filterInfo,
-    const QStringList &terms) const
-{
-    return FilterPresentation::titleMatchesAll(filterInfo, terms);
 }
 
 void MeshFilterPanel::clearParameterEditors()

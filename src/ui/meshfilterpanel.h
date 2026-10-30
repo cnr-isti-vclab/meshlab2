@@ -91,8 +91,6 @@ private:
     void refreshSelectionScopeControl(bool reset);
     int currentSelectionScopeMeshIndex() const;
     void updateParameterFormContext();
-    bool matchesSearch(const Document::FilterInfo &filterInfo, const QStringList &terms) const;
-    bool titleMatchesAllTerms(const Document::FilterInfo &filterInfo, const QStringList &terms) const;
     void openSelectedResult(bool focusApplyButton);
     const Document::FilterInfo *filterByKey(const QString &filterKey) const;
     void showSearchResultsFromUi(bool focusSearch);

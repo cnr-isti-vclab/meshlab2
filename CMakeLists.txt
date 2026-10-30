@@ -677,10 +677,12 @@ add_test(NAME MeshLab2FilterCreationTests COMMAND MeshLab2FilterCreationTests)
 
 qt_add_executable(MeshLab2FilterDescriptorTests
     tests/test_filter_descriptors.cpp
+    src/ui/filterpresentation.h src/ui/filterpresentation.cpp
 )
 
 target_include_directories(MeshLab2FilterDescriptorTests PRIVATE
     ${MESHLAB2_SOURCE_DIR}
+    ${MESHLAB2_SOURCE_DIR}/src/ui
 )
 
 target_link_libraries(MeshLab2FilterDescriptorTests PRIVATE
