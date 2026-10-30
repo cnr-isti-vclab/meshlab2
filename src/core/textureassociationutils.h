@@ -66,5 +66,10 @@ void appendTextureAssociations(
     const std::vector<MeshIOTextureAsset> &assets);
 void ensureMaterialSlotCount(Document::MeshEntry &entry, int count);
 int ensureTextureListed(Document::MeshEntry &entry, const QString &path);
+// Removes the layer's texture image `textureIndex`. The material slots stop referring to it,
+// by index or by path, and a slot left with no image at all goes as well: the faces that used
+// it lose their texture (index -1) and those of the slots after it move down one. Returns how
+// many faces lost their texture, or -1, with nothing changed, if there is no such image.
+int removeTextureAsset(Document::MeshEntry &entry, int textureIndex);
 
 } // namespace TextureAssociationUtils

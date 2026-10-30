@@ -87,6 +87,7 @@ private slots:
     void enabledWhenIgnoresBadReferences();
     void point3fRoleChoosesThePresetList();
     void optionalMeshReferenceOffersNone();
+    void textureReferenceNamesItsZeroChoice();
     void visibilitySetParametersOfferTheSetsByName();
 };
 
@@ -533,6 +534,29 @@ void ParameterFormTests::point3fRoleChoosesThePresetList()
     QVERIFY(presetsFor(QStringLiteral("direction")).contains(QStringLiteral("-X Axis")));
     // Unspecified means "point", which offers places rather than orientations.
     QVERIFY(presetsFor(QString()).contains(QStringLiteral("Mesh BBox Center")));
+}
+
+// A texture reference's choice 0 is "Automatic (per-face assignment)" unless the
+// descriptor names it: for Remove Textures it means every texture.
+void ParameterFormTests::textureReferenceNamesItsZeroChoice()
+{
+    Document doc;
+    QWidget host;
+    auto *layout = new QFormLayout(&host);
+    ParameterFormBuilder builder(layout, &host);
+    builder.setContext({ &doc, {}, {}, {} });
+
+    auto named = makeParam(QStringLiteral("texture"), MeshFilterParameterType::TextureRef, 0);
+    named.textureAutomaticLabel = QStringLiteral("All textures");
+    builder.build({ named, makeParam(QStringLiteral("source"), MeshFilterParameterType::TextureRef, 0) });
+
+    const auto firstChoice = [&](const QString &id) {
+        const ParameterFormBuilder::Binding *binding = builder.bindingById(id);
+        QComboBox *combo = binding ? binding->editor->findChild<QComboBox *>() : nullptr;
+        return combo && combo->count() > 0 ? combo->itemText(0) : QString();
+    };
+    QCOMPARE(firstChoice(QStringLiteral("texture")), QStringLiteral("All textures"));
+    QCOMPARE(firstChoice(QStringLiteral("source")), QStringLiteral("Automatic (per-face assignment)"));
 }
 
 // A mesh reference marked meshAllowsNone offers an explicit empty choice and can default

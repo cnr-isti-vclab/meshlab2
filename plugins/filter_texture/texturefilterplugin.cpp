@@ -926,6 +926,30 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterRemoveTextures)) {
         const int textures = Document::meshTextureAssociationCount(entry);
         const bool removeTexCoords = params.getBool(QStringLiteral("removeTexCoords"));
+
+        // One texture: 0 is all of them, k the k-th as the texture list shows it.
+        const int chosen = params.getTextureRef(QStringLiteral("texture"), 0);
+        if (chosen > 0) {
+            if (removeTexCoords)
+                return fail(QObject::tr("Remove texture coordinates goes with removing all the "
+                                        "textures: the others still use them."));
+            const QString name = Document::meshTextureDisplayName(entry, chosen - 1);
+            const int untextured = Tex::removeTextureAsset(entry, chosen - 1);
+            if (untextured < 0)
+                return fail(QObject::tr("'%1' has no texture image %2.").arg(entry.name).arg(chosen));
+            QStringList info{ QObject::tr("Removed texture %1 (%2) from '%3'.")
+                                  .arg(chosen).arg(name, entry.name) };
+            if (untextured > 0)
+                info << QObject::tr("%n face(s) used it and are now untextured.", nullptr, untextured);
+            doc.markMeshMaterialChanged(meshIndex, info.front());
+            doc.markMeshGeometryChanged(meshIndex, info.front());
+            MeshFilterRunResult result;
+            result.success = true;
+            result.documentModified = true;
+            result.infoMessages = info;
+            return result;
+        }
+
         const bool hasTexCoords = mesh.face.IsWedgeTexCoordEnabled() || mesh.vert.IsTexCoordEnabled();
         if (textures == 0 && !(removeTexCoords && hasTexCoords))
             return fail(removeTexCoords

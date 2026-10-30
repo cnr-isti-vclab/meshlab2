@@ -151,6 +151,7 @@ MeshFilterParameterDescriptor parseParameter(const QJsonObject &obj)
     p.fileDefaultSuffix = obj.value(QStringLiteral("fileDefaultSuffix")).toString();
     p.textureSourceMeshParameter = obj.value(QStringLiteral("sourceMeshParameter")).toString();
     p.textureAllowAutomatic = obj.value(QStringLiteral("allowAutomatic")).toBool(true);
+    p.textureAutomaticLabel = obj.value(QStringLiteral("automaticLabel")).toString();
 
     const QJsonObject meshReq = obj.value(QStringLiteral("meshRequirements")).toObject();
     p.meshRequirements.requireVertices = meshReq.value(QStringLiteral("requireVertices")).toBool(false);

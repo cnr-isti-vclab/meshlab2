@@ -422,10 +422,14 @@ public:
     explicit TextureRefEditor(
         Document *doc,
         bool allowAutomatic,
+        const QString &automaticLabel,
         QWidget *parent = nullptr)
         : QWidget(parent)
         , m_doc(doc)
         , m_allowAutomatic(allowAutomatic)
+        , m_automaticLabel(automaticLabel.isEmpty()
+                               ? QObject::tr("Automatic (per-face assignment)")
+                               : automaticLabel)
     {
         auto *layout = new QHBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
@@ -469,7 +473,7 @@ private:
 
         bool hasTextures = false;
         if (m_allowAutomatic)
-            m_combo->addItem(QObject::tr("Automatic (per-face assignment)"), 0);
+            m_combo->addItem(m_automaticLabel, 0);
 
         if (m_doc && m_sourceMeshIndex >= 0 && m_sourceMeshIndex < m_doc->meshCount()) {
             const Document::MeshEntry &entry = m_doc->mesh(m_sourceMeshIndex);
@@ -498,6 +502,7 @@ private:
 
     Document *m_doc = nullptr;
     bool m_allowAutomatic = true;
+    QString m_automaticLabel;
     int m_sourceMeshIndex = -1;
     QComboBox *m_combo = nullptr;
 };
@@ -1230,7 +1235,8 @@ QWidget *ParameterFormBuilder::createEditor(const MeshFilterParameterDescriptor 
     case MeshFilterParameterType::TextureRef: {
         if (!doc)
             return nullptr;
-        return new TextureRefEditor(doc, param.textureAllowAutomatic, m_parentWidget);
+        return new TextureRefEditor(doc, param.textureAllowAutomatic, param.textureAutomaticLabel,
+                                    m_parentWidget);
     }
     case MeshFilterParameterType::TextureOutputRef: {
         if (!doc)

@@ -551,6 +551,7 @@ private slots:
     void packTextureImagesCreatesGutteredAtlas();
     void setTextureUvGridTellsUAndVApart();
     void removeTexturesKeepsTheUvsUnlessAsked();
+    void removeTexturesCanTakeOne();
     void faceQualityFiltersAreSplit();
     void quasiConformalAndUvScalingTellShapeFromDensity();
     void measureReportsFaceDefectsOrientationAndBoundaryLength();
@@ -9114,6 +9115,101 @@ void FilterTests::removeTexturesKeepsTheUvsUnlessAsked()
     QVERIFY(doc.undo());
     QVERIFY(doc.mesh(meshIndex).mesh.face.IsWedgeTexCoordEnabled());
     QVERIFY(Document::hasMeshTextureAssociation(doc.mesh(meshIndex)));
+}
+
+// One texture rather than all of them. Its image goes; a material left with no image goes
+// too, and the faces that used it become untextured while the others keep theirs; a material
+// that keeps another image stays.
+void FilterTests::removeTexturesCanTakeOne()
+{
+    using Mask = vcg::tri::io::Mask;
+    QImage red(2, 2, QImage::Format_RGBA8888), green(2, 2, QImage::Format_RGBA8888);
+    red.fill(Qt::red);
+    green.fill(Qt::green);
+    const auto layer = [&](Document &doc) {
+        VCGMesh mesh;
+        makeTwoTextureTriangles(mesh); // face 0 on texture 0, face 1 on texture 1
+        const int index = doc.addMesh(mesh, QStringLiteral("uv"), Mask::IOM_VERTCOORD | Mask::IOM_WEDGTEXCOORD);
+        TextureAssociationUtils::replaceTextureAssociations(
+            doc.mesh(index),
+            { TextureAssociationUtils::makeTextureAssetFromImage(red, QStringLiteral("red.png")),
+              TextureAssociationUtils::makeTextureAssetFromImage(green, QStringLiteral("green.png")) });
+        doc.setCurrentMeshIndex(index);
+        return index;
+    };
+    const auto faceTexture = [](const Document &doc, int index, int face) {
+        return int(doc.mesh(index).mesh.face[size_t(face)].cWT(0).N());
+    };
+
+    // One image per material, as a multi-texture OBJ or PLY has: the first goes, its face is
+    // left untextured, and the other face moves down to the texture that is now first.
+    {
+        Document doc;
+        const int index = layer(doc);
+        const QString key = filterKeyForId(doc, QStringLiteral("remove_textures"));
+        const MeshFilterRunResult r = doc.runFilter(key, { { QStringLiteral("texture"), 1 } });
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        const Document::MeshEntry &entry = doc.mesh(index);
+        QCOMPARE(int(entry.textureAssets.size()), 1);
+        QCOMPARE(entry.textureAssets.front().name, QStringLiteral("green.png"));
+        QCOMPARE(int(entry.materialSet.entries.size()), 1);
+        QCOMPARE(entry.materialSet.entries.front().baseColorTexture.assetIndex, 0);
+        QCOMPARE(faceTexture(doc, index, 0), -1);
+        QCOMPARE(faceTexture(doc, index, 1), 0);
+        QVERIFY2(r.infoMessages.join(QLatin1Char(' ')).contains(QStringLiteral("1 face(s) used it")),
+                 qPrintable(r.infoMessages.join(QLatin1Char(' '))));
+
+        // The texture coordinates are still the other texture's.
+        QVERIFY(!doc.runFilter(key, { { QStringLiteral("texture"), 1 },
+                                      { QStringLiteral("removeTexCoords"), true } }).success);
+        QVERIFY(!doc.runFilter(key, { { QStringLiteral("texture"), 2 } }).success); // no such image
+
+        QVERIFY(doc.undo());
+        QCOMPARE(int(doc.mesh(index).textureAssets.size()), 2);
+        QCOMPARE(faceTexture(doc, index, 0), 0);
+        QCOMPARE(faceTexture(doc, index, 1), 1);
+    }
+
+    // The same, with the materials naming their images by path, as OBJ and PLY load them.
+    {
+        Document doc;
+        const int index = layer(doc);
+        Document::MeshEntry &entry = doc.mesh(index);
+        for (int i = 0; i < 2; ++i) {
+            entry.textureAssets[size_t(i)].sourcePath = QStringLiteral("/textures/%1.png").arg(i);
+            entry.materialSet.entries[size_t(i)].baseColorTexture.filePath = entry.textureAssets[size_t(i)].sourcePath;
+            entry.materialSet.entries[size_t(i)].baseColorTexture.assetIndex = -1;
+        }
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("remove_textures")),
+                                                    { { QStringLiteral("texture"), 2 } });
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QCOMPARE(int(doc.mesh(index).materialSet.entries.size()), 1);
+        QCOMPARE(doc.mesh(index).materialSet.entries.front().baseColorTexture.filePath, QStringLiteral("/textures/0.png"));
+        QCOMPARE(faceTexture(doc, index, 0), 0);
+        QCOMPARE(faceTexture(doc, index, 1), -1);
+    }
+
+    // A glTF-like material with a base color and a normal map: removing the normal map keeps
+    // the material, and every face its texture.
+    {
+        Document doc;
+        const int index = layer(doc);
+        Document::MeshEntry &entry = doc.mesh(index);
+        entry.materialSet.entries.resize(1);
+        entry.materialSet.entries.front().normalTexture.assetIndex = 1;
+        for (VCGFace &f : entry.mesh.face)
+            for (int k = 0; k < 3; ++k)
+                f.WT(k).N() = 0;
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("remove_textures")),
+                                                    { { QStringLiteral("texture"), 2 } });
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QCOMPARE(int(doc.mesh(index).textureAssets.size()), 1);
+        QCOMPARE(int(doc.mesh(index).materialSet.entries.size()), 1);
+        QVERIFY(!doc.mesh(index).materialSet.entries.front().normalTexture.isValid());
+        QCOMPARE(doc.mesh(index).materialSet.entries.front().baseColorTexture.assetIndex, 0);
+        QCOMPARE(faceTexture(doc, index, 0), 0);
+        QCOMPARE(faceTexture(doc, index, 1), 0);
+    }
 }
 
 void FilterTests::faceQualityFiltersAreSplit()

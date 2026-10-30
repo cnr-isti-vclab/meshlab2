@@ -112,6 +112,9 @@ struct MeshFilterParameterDescriptor
     // either an existing mesh-associated output texture or a new texture file.
     QString textureSourceMeshParameter;
     bool textureAllowAutomatic = true;
+    // What the TextureRef choice 0 is called, when it means more than the default
+    // "Automatic (per-face assignment)": Remove Textures calls it "All textures".
+    QString textureAutomaticLabel;
     // Only used when type == Mesh: requirements and volatile-data preparation
     // applied to the selected mesh parameter before runFilter().
     MeshFilterMeshRequirements meshRequirements;

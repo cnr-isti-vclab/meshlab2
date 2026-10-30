@@ -66,6 +66,7 @@ class Document;
 //                               // left empty, and the filter then reads -1
 //         "sourceMeshParameter": "sourceMesh", // only for textureref/textureoutputref
 //         "allowAutomatic": true,               // only for textureref
+//         "automaticLabel": "All textures",     // only for textureref: names choice 0
 //         "enumOptions": [      // only for enum type
 //           { "id": "...", "label": "...", "help": "..." }, ...
 //         ]

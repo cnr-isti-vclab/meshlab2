@@ -421,4 +421,75 @@ int ensureTextureListed(Document::MeshEntry &entry, const QString &path)
     return int(entry.textureAssets.size()) - 1;
 }
 
+int removeTextureAsset(Document::MeshEntry &entry, int textureIndex)
+{
+    if (textureIndex < 0 || textureIndex >= int(entry.textureAssets.size()))
+        return -1;
+    const QString removedPath = entry.textureAssets[size_t(textureIndex)].sourcePath.trimmed();
+    const QString removed = removedPath.isEmpty() ? QString() : normalizeExistingPath(removedPath);
+    entry.textureAssets.erase(entry.textureAssets.begin() + textureIndex);
+
+    // A slot names its images by index once they are in the layer (glTF) or by path as the
+    // file declared them (OBJ, PLY), so both are matched.
+    const auto release = [&](MeshIOMaterialTextureRef &ref) {
+        const bool named = ref.assetIndex == textureIndex
+            || (ref.assetIndex < 0 && !removed.isEmpty() && !ref.filePath.trimmed().isEmpty()
+                && normalizeExistingPath(ref.filePath.trimmed()) == removed);
+        if (named)
+            ref = MeshIOMaterialTextureRef();
+        else if (ref.assetIndex > textureIndex)
+            --ref.assetIndex;
+        return named;
+    };
+
+    // What a face's texture index becomes. It names a material slot, or, on a layer with
+    // none, the image itself.
+    std::vector<int> remap;
+    std::vector<MeshIOMaterialSlot> &materials = entry.materialSet.entries;
+    if (materials.empty()) {
+        for (int i = 0; i <= int(entry.textureAssets.size()); ++i)
+            remap.push_back(i < textureIndex ? i : (i == textureIndex ? -1 : i - 1));
+    } else {
+        std::vector<MeshIOMaterialSlot> kept;
+        for (MeshIOMaterialSlot &slot : materials) {
+            bool named = false;
+            for (MeshIOMaterialTextureRef *ref : { &slot.baseColorTexture, &slot.normalTexture,
+                                                   &slot.occlusionTexture, &slot.roughnessTexture })
+                named = release(*ref) || named;
+            const bool emptied = named && !slot.baseColorTexture.isValid() && !slot.normalTexture.isValid()
+                && !slot.occlusionTexture.isValid() && !slot.roughnessTexture.isValid();
+            remap.push_back(emptied ? -1 : int(kept.size()));
+            if (!emptied)
+                kept.push_back(std::move(slot));
+        }
+        materials = std::move(kept);
+    }
+
+    int untextured = 0;
+    VCGMesh &mesh = entry.mesh;
+    const auto apply = [&](auto &texCoord) {
+        const int n = texCoord.N();
+        if (n >= 0 && n < int(remap.size()))
+            texCoord.N() = short(remap[size_t(n)]);
+    };
+    if (mesh.face.IsWedgeTexCoordEnabled()) {
+        for (VCGFace &f : mesh.face) {
+            if (f.IsD())
+                continue;
+            const int n = f.cWT(0).N();
+            if (n >= 0 && n < int(remap.size()) && remap[size_t(n)] < 0)
+                ++untextured;
+            for (int k = 0; k < 3; ++k)
+                apply(f.WT(k));
+        }
+    }
+    if (mesh.vert.IsTexCoordEnabled()) {
+        for (VCGVertex &v : mesh.vert)
+            if (!v.IsD())
+                apply(v.T());
+    }
+    rebuildLegacyTextureAssociation(entry);
+    return untextured;
+}
+
 } // namespace TextureAssociationUtils
