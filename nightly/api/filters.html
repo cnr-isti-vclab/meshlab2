@@ -8926,14 +8926,17 @@ Angle between face normal is considered signed according to convexity/concavity.
 <span id="filter-remove-textures"></span><h2>Remove Textures<a class="headerlink" href="#remove-textures" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.texture</p>
-<p>Detach every texture from the current mesh, keeping its texture coordinates unless asked not to.</p>
+<p>Detach one texture, or every texture, from the current mesh, keeping its texture coordinates unless asked not to.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.remove_textures">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remove_textures</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.remove_textures" title="Link to this definition">¶</a></dt>
-<dd><p>Detaches all the textures of the current mesh – the images, and the materials that refer to them – so that it is drawn and saved untextured. The image files on disk are left alone. The texture coordinates stay, so that <em>Set Texture</em> can give the mesh another texture; <strong>Remove texture coordinates</strong> drops them as well, per wedge and per vertex, when the parametrization itself is not wanted any more.</p>
+<dd><p>Detaches textures from the current mesh – all of them, or the one chosen in <strong>Texture</strong>. The image files on disk are left alone.</p>
+<p>Removing <strong>all</strong> the textures takes the images and the materials that refer to them, so that the mesh is drawn and saved untextured. The texture coordinates stay, so that <em>Set Texture</em> can give it another texture; <strong>Remove texture coordinates</strong> drops them as well, per wedge and per vertex, when the parametrization itself is not wanted any more.</p>
+<p>Removing <strong>one</strong> texture takes that image, and the materials stop using it. A material left with no image at all goes too: the faces that used it become untextured, and every other face keeps the texture it had. A material that keeps another image – a glTF one losing its normal map, say – stays, and so do its faces.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>removeTexCoords</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also drop the per-wedge and per-vertex texture coordinates.</p></li>
+<li><p><strong>texture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — The texture to remove, or all of them.</p></li>
+<li><p><strong>removeTexCoords</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also drop the per-wedge and per-vertex texture coordinates. Only with all the textures, since the others would still use them.</p></li>
 </ul>
 </dd></dl>
 

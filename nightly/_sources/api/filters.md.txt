@@ -10983,16 +10983,21 @@ The selection is **added** to the current one; clear it first for an exact resul
 
 **Plugin:** meshlab2.filter.texture
 
-Detach every texture from the current mesh, keeping its texture coordinates unless asked not to.
+Detach one texture, or every texture, from the current mesh, keeping its texture coordinates unless asked not to.
 
 ```{py:function} ms.remove_textures(**params)
 :module: _meshlab
 
-Detaches all the textures of the current mesh -- the images, and the materials that refer to them -- so that it is drawn and saved untextured. The image files on disk are left alone. The texture coordinates stay, so that *Set Texture* can give the mesh another texture; **Remove texture coordinates** drops them as well, per wedge and per vertex, when the parametrization itself is not wanted any more.
+Detaches textures from the current mesh -- all of them, or the one chosen in **Texture**. The image files on disk are left alone.
+
+Removing **all** the textures takes the images and the materials that refer to them, so that the mesh is drawn and saved untextured. The texture coordinates stay, so that *Set Texture* can give it another texture; **Remove texture coordinates** drops them as well, per wedge and per vertex, when the parametrization itself is not wanted any more.
+
+Removing **one** texture takes that image, and the materials stop using it. A material left with no image at all goes too: the faces that used it become untextured, and every other face keeps the texture it had. A material that keeps another image -- a glTF one losing its normal map, say -- stays, and so do its faces.
 
 **Parameters:**
 
-- **removeTexCoords** (*bool*, default: `False`) — Also drop the per-wedge and per-vertex texture coordinates.
+- **texture** (*textureref*, default: `0`) — The texture to remove, or all of them.
+- **removeTexCoords** (*bool*, default: `False`) — Also drop the per-wedge and per-vertex texture coordinates. Only with all the textures, since the others would still use them.
 ```
 
 ---
