@@ -634,14 +634,9 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             preserveAspect,
             sideGutter);
 
-        // WedgeTexFromPlane writes the UVs and leaves the texture index alone, and a face
-        // still at -1 has no texture: the UVs just made are for the first one.
         for (size_t i = 0; i < mesh.face.size() && i < worldMesh->face.size(); ++i) {
             for (int k = 0; k < 3; ++k)
                 mesh.face[i].WT(k) = worldMesh->face[i].WT(k);
-            if (mesh.face[i].WT(0).N() < 0)
-                for (int k = 0; k < 3; ++k)
-                    mesh.face[i].WT(k).N() = 0;
         }
 
         entry.ioMask |= Mask::IOM_WEDGTEXCOORD;
