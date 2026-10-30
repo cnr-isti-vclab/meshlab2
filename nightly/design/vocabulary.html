@@ -1314,6 +1314,69 @@ implementation vocabulary), <code class="docutils literal notranslate"><span cla
 above), <code class="docutils literal notranslate"><span class="pre">Edges</span> <span class="pre">pass</span></code> and every other <code class="docutils literal notranslate"><span class="pre">…</span> <span class="pre">pass</span></code>.</p></li>
 </ul>
 </section>
+<section id="search-aliases-2026-10-30">
+<h3>Search aliases (2026-10-30)<a class="headerlink" href="#search-aliases-2026-10-30" title="Link to this heading">¶</a></h3>
+<p>The filter search accepts the words this vocabulary turned down, since those are often the
+ones a user brings. Every rejected synonym of §3 is an alias that leads to its verb –
+<code class="docutils literal notranslate"><span class="pre">delete</span></code> finds <em>Remove …</em> – except <code class="docutils literal notranslate"><span class="pre">copy</span></code>, <code class="docutils literal notranslate"><span class="pre">map</span></code>, <code class="docutils literal notranslate"><span class="pre">push</span></code>, <code class="docutils literal notranslate"><span class="pre">pull</span></code>, <code class="docutils literal notranslate"><span class="pre">apply</span></code> and <code class="docutils literal notranslate"><span class="pre">bin</span></code>, each
+of which means something else too often; <code class="docutils literal notranslate"><span class="pre">test_filter_descriptors.cpp</span></code> fails when a row of
+§3 gains a rejected synonym without one. The nouns and spellings below are aliases as well.
+An alias works <strong>one way</strong>: a search for <em>position</em> finds the filters that say
+<em>coordinates</em>, but not the reverse, or texture coordinates would flood a search for
+positions. A match through an alias ranks below a direct one.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>typed</p></th>
+<th class="head"><p>also finds</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>position, positions</p></td>
+<td><p>coordinates</p></td>
+</tr>
+<tr class="row-odd"><td><p>quality</p></td>
+<td><p>scalar</p></td>
+</tr>
+<tr class="row-even"><td><p>texcoord, texcoords, uvs</p></td>
+<td><p>uv</p></td>
+</tr>
+<tr class="row-odd"><td><p>colour, colours</p></td>
+<td><p>color</p></td>
+</tr>
+<tr class="row-even"><td><p>triangle, triangles, tri</p></td>
+<td><p>face</p></td>
+</tr>
+<tr class="row-odd"><td><p>photo, photograph, picture</p></td>
+<td><p>raster, image</p></td>
+</tr>
+<tr class="row-even"><td><p>image</p></td>
+<td><p>raster</p></td>
+</tr>
+<tr class="row-odd"><td><p>model, object</p></td>
+<td><p>mesh</p></td>
+</tr>
+<tr class="row-even"><td><p>bbox, aabb</p></td>
+<td><p>bounding box</p></td>
+</tr>
+<tr class="row-odd"><td><p>pointcloud, points</p></td>
+<td><p>point cloud</p></td>
+</tr>
+<tr class="row-even"><td><p>isoline, contour</p></td>
+<td><p>isocontour</p></td>
+</tr>
+<tr class="row-odd"><td><p>hole, holes</p></td>
+<td><p>boundary</p></td>
+</tr>
+<tr class="row-even"><td><p>stats</p></td>
+<td><p>measure</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The table itself is <code class="docutils literal notranslate"><span class="pre">FilterPresentation::searchAliases()</span></code> (<code class="docutils literal notranslate"><span class="pre">src/ui/filterpresentation.cpp</span></code>);
+how the search uses it is in <a class="reference internal" href="proposals/filter_search.html"><span class="std std-doc">Filter Search</span></a>.</p>
+</section>
 </section>
 <section id="spelling-and-casing">
 <h2>5. Spelling and casing<a class="headerlink" href="#spelling-and-casing" title="Link to this heading">¶</a></h2>
@@ -1459,8 +1522,9 @@ category is currently repeated in those names</strong> (<em>Simplification: Quad
 Collapse</em>). Once the naming pass removes that redundancy, those queries would have lost
 their matches without this fix — so this is the prerequisite that makes the new grammar
 safe, not merely an improvement.</p>
-<p>Ranking is unaffected: sorting uses <code class="docutils literal notranslate"><span class="pre">titleMatchesAllTerms</span></code>, which is name-only, so name
-matches still sort above category-only matches.</p>
+<p>Ranking is unaffected: name matches sort above category-only matches (since 2026-10-30
+by <code class="docutils literal notranslate"><span class="pre">FilterPresentation::rank</span></code>, which replaced the name-only <code class="docutils literal notranslate"><span class="pre">titleMatchesAllTerms</span></code>; see
+<a class="reference internal" href="proposals/filter_search.html"><span class="std std-doc">Filter Search</span></a>).</p>
 <p>The implementation loops over the <code class="docutils literal notranslate"><span class="pre">categories</span></code> array; a single legacy <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> string
 is still accepted by the loader for descriptors that predate it.</p>
 <p>Worth noting <code class="docutils literal notranslate"><span class="pre">provenance.project</span></code> was <em>already</em> searched, which is exactly what the
@@ -1613,6 +1677,7 @@ no tag contains a comma or bracket, and that <code class="docutils literal notra
 <li><a class="reference internal" href="#why-curve-skeleton-2026-09-27">Why <code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code> (2026-09-27)</a></li>
 <li><a class="reference internal" href="#why-scalar-not-quality">Why <code class="docutils literal notranslate"><span class="pre">scalar</span></code>, not <code class="docutils literal notranslate"><span class="pre">quality</span></code></a></li>
 <li><a class="reference internal" href="#the-view-s-pass-bar-2026-09-29">The view’s pass bar (2026-09-29)</a></li>
+<li><a class="reference internal" href="#search-aliases-2026-10-30">Search aliases (2026-10-30)</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#spelling-and-casing">5. Spelling and casing</a></li>

@@ -594,6 +594,36 @@ of the arrow beneath it (*Name* `settings`), and as the title of its panel.
   implementation vocabulary), `Selected elements overlay`, `Quality Histogram` (see
   above), `Edges pass` and every other `… pass`.
 
+### Search aliases (2026-10-30)
+
+The filter search accepts the words this vocabulary turned down, since those are often the
+ones a user brings. Every rejected synonym of §3 is an alias that leads to its verb --
+`delete` finds *Remove …* -- except `copy`, `map`, `push`, `pull`, `apply` and `bin`, each
+of which means something else too often; `test_filter_descriptors.cpp` fails when a row of
+§3 gains a rejected synonym without one. The nouns and spellings below are aliases as well.
+An alias works **one way**: a search for *position* finds the filters that say
+*coordinates*, but not the reverse, or texture coordinates would flood a search for
+positions. A match through an alias ranks below a direct one.
+
+| typed | also finds |
+|---|---|
+| position, positions | coordinates |
+| quality | scalar |
+| texcoord, texcoords, uvs | uv |
+| colour, colours | color |
+| triangle, triangles, tri | face |
+| photo, photograph, picture | raster, image |
+| image | raster |
+| model, object | mesh |
+| bbox, aabb | bounding box |
+| pointcloud, points | point cloud |
+| isoline, contour | isocontour |
+| hole, holes | boundary |
+| stats | measure |
+
+The table itself is `FilterPresentation::searchAliases()` (`src/ui/filterpresentation.cpp`);
+how the search uses it is in [Filter Search](proposals/filter_search.md).
+
 ## 5. Spelling and casing
 
 - Display names: **Title Case**, no trailing period.
@@ -735,8 +765,9 @@ Collapse*). Once the naming pass removes that redundancy, those queries would ha
 their matches without this fix — so this is the prerequisite that makes the new grammar
 safe, not merely an improvement.
 
-Ranking is unaffected: sorting uses `titleMatchesAllTerms`, which is name-only, so name
-matches still sort above category-only matches.
+Ranking is unaffected: name matches sort above category-only matches (since 2026-10-30
+by `FilterPresentation::rank`, which replaced the name-only `titleMatchesAllTerms`; see
+[Filter Search](proposals/filter_search.md)).
 
 The implementation loops over the `categories` array; a single legacy `menuPath` string
 is still accepted by the loader for descriptors that predate it.
