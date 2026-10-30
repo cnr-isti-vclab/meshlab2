@@ -1,0 +1,63 @@
+name: Fetch submodules
+description: >
+  Fetches every submodule, recursively and shallow, retrying when a host fails.
+  QuadWild's CoMISo, OpenMesh and cmake-library, and the submodules inside them, live
+  only on RWTH's GitLab, which is not reliable: their files are kept in the Actions
+  cache, keyed on the commits QuadWild pins, so a run with a warm cache does not contact
+  RWTH at all. Run it after a plain actions/checkout, without its `submodules` option.
+
+runs:
+  using: composite
+  steps:
+    # QuadWild's .gitmodules still names www.graphics.rwth-aachen.de:9000, which is gone;
+    # the same repositories, at the same commits, are on RWTH's GitLab. Remove the rewrite
+    # once the cgg-bern fork updates its .gitmodules. No other host has those commits: the
+    # GitHub copies of CoMISo, libigl's included, stop years before the one QuadWild pins.
+    - name: Fetch the first-level submodules
+      id: rwth
+      shell: bash
+      run: |
+        git config --global "url.https://gitlab.vci.rwth-aachen.de:9000/.insteadOf" "https://www.graphics.rwth-aachen.de:9000/"
+        source "$GITHUB_ACTION_PATH/retry.sh"
+        retry git submodule update --init --depth 1
+        pins="$(git -C external/quadwild-bimdf ls-tree HEAD cmake-library libs/CoMISo libs/OpenMesh)"
+        echo "key=rwth-submodules-$RUNNER_OS-$(printf '%s' "$pins" | git hash-object --stdin)" >> "$GITHUB_OUTPUT"
+
+    # The files only: a cached tree is restored without its .git pointers, so git sees
+    # those submodules as not checked out and the build sees their sources.
+    - name: Restore the RWTH submodules
+      id: cache
+      uses: actions/cache/restore@v6
+      with:
+        key: ${{ steps.rwth.outputs.key }}
+        path: |
+          external/quadwild-bimdf/cmake-library
+          external/quadwild-bimdf/libs/OpenMesh
+          external/quadwild-bimdf/libs/CoMISo
+          !external/quadwild-bimdf/**/.git
+
+    - name: Fetch the nested submodules
+      shell: bash
+      env:
+        CACHE_HIT: ${{ steps.cache.outputs.cache-hit }}
+      run: |
+        source "$GITHUB_ACTION_PATH/retry.sh"
+        if [ "$CACHE_HIT" = true ]; then
+          for name in cmake-library libs/OpenMesh libs/CoMISo; do
+            git -C external/quadwild-bimdf config "submodule.$name.update" none
+          done
+        fi
+        retry git submodule update --init --recursive --depth 1
+
+    # Saved straight away rather than at the end of the job, so a later failure in the
+    # build does not throw away a fetch that succeeded.
+    - name: Cache the RWTH submodules
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        key: ${{ steps.rwth.outputs.key }}
+        path: |
+          external/quadwild-bimdf/cmake-library
+          external/quadwild-bimdf/libs/OpenMesh
+          external/quadwild-bimdf/libs/CoMISo
+          !external/quadwild-bimdf/**/.git
