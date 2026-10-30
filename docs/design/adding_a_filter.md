@@ -266,16 +266,23 @@ The rendering is `QTextBrowser::setMarkdown`, so ordinary Markdown rules apply: 
 line (`\n\n`) starts a paragraph, a single `\n` is a soft break that reads as a space,
 and lists and tables need the blank line before them that Markdown always needs. Write
 paragraphs; the help box is narrow and wraps, so hand-wrapping with single newlines gains
-nothing.
+nothing. A line break inside a paragraph is a line ending in a backslash -- `\\\n` in JSON,
+an escaped backslash and then the newline -- not `<br>`.
+
+HTML that is never closed is worse than unformatted. After a `<br>`, or a `<li>` left open,
+Qt's importer (6.11) drops the plain text and the links of **everything that follows**,
+across paragraphs, keeping only the code spans: 42 help texts showed a run of variable
+names where their prose had been. Where HTML stays, close every tag and write void ones
+self-closed (`<br/>`); text inside a code span is literal and safe.
 
 `shortDescription` is the exception: it is **not** Markdown. It goes to a `QLabel` in the
 filter panel and to the tooltips in the Filters menu and the results list, so write it as
 one plain sentence. `**bold**` keeps its asterisks there, `$x$` its dollars, and a
 `[link](url)` shows both halves.
 
-`test_filter_descriptors.cpp` rejects a literal `\n` in any description or help text, and
-rejects a newline, an emphasis marker, a backtick, a `$`, a Markdown link or an HTML tag
-in a `shortDescription`.
+`test_filter_descriptors.cpp` rejects a literal `\n` or an HTML tag left unclosed in any
+description or help text, and rejects a newline, an emphasis marker, a backtick, a `$`, a
+Markdown link or an HTML tag in a `shortDescription`.
 That check exists because 148 of them reached the help box across three plugins before
 anyone noticed -- the `\\` rule above is easy to over-apply.
 

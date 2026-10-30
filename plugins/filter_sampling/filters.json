@@ -286,7 +286,7 @@
       "name": "Sample Surface by Poisson Disk",
       "pythonName": "sample_surface_by_poisson_disk",
       "shortDescription": "Generate well-spaced samples over a surface or point cloud.",
-      "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh;samples are generated according to a Poisson-disk distribution, using the algorithm described in:<br><b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b><br> Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012",
+      "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh;samples are generated according to a Poisson-disk distribution, using the algorithm described in:\\\n<b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b>\\\nMassimiliano Corsini, Paolo Cignoni, Roberto Scopigno\\\nIEEE TVCG 2012",
       "tags": [
         "sampling",
         "poisson disk",
@@ -686,7 +686,7 @@
       "name": "Transfer Vertex Attributes by Closest Point",
       "pythonName": "transfer_vertex_attributes_by_closest_point",
       "shortDescription": "Transfer attributes from one mesh to another by closest-point projection.",
-      "longDescriptionMarkdown": "Transfer the chosen per-vertex attributes from one layer to another. Useful to transfer attributes to different representations of a same object.<br>For each vertex of the target mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the target vertex.<br>The algorithm assumes that the two meshes are reasonably similar and aligned.",
+      "longDescriptionMarkdown": "Transfer the chosen per-vertex attributes from one layer to another. Useful to transfer attributes to different representations of a same object.\\\nFor each vertex of the target mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the target vertex.\\\nThe algorithm assumes that the two meshes are reasonably similar and aligned.",
       "tags": [
         "sampling",
         "transfer",
@@ -810,7 +810,7 @@
       "name": "Remesh Uniformly by Volumetric Resampling",
       "pythonName": "remesh_uniformly_by_volumetric_resampling",
       "shortDescription": "Build an offset mesh from a signed distance field sampled on a regular grid.",
-      "longDescriptionMarkdown": "Create a new mesh that is a resampled version of the current one.<br>The resampling is done by building a uniform volumetric representation where each voxel contains the signed distance from the original surface. The resampled surface is reconstructed using the <b>marching cube</b> algorithm over this volume.",
+      "longDescriptionMarkdown": "Create a new mesh that is a resampled version of the current one.\\\nThe resampling is done by building a uniform volumetric representation where each voxel contains the signed distance from the original surface. The resampled surface is reconstructed using the <b>marching cube</b> algorithm over this volume.",
       "tags": [
         "sampling",
         "resampling",
@@ -1053,7 +1053,7 @@
       "name": "Simplify Point Cloud",
       "pythonName": "simplify_point_cloud",
       "shortDescription": "Simplify a point cloud with Poisson-disk pruning.",
-      "longDescriptionMarkdown": "Create a new layer populated with a simplified version of the current point cloud. The simplification is performed by subsampling the original point cloud using a Poisson Disk strategy  using the algorithm described in:<br><b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b><br> Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012",
+      "longDescriptionMarkdown": "Create a new layer populated with a simplified version of the current point cloud. The simplification is performed by subsampling the original point cloud using a Poisson Disk strategy  using the algorithm described in:\\\n<b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b>\\\nMassimiliano Corsini, Paolo Cignoni, Roberto Scopigno\\\nIEEE TVCG 2012",
       "tags": [
         "sampling",
         "simplification",

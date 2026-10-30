@@ -276,7 +276,7 @@
         {
           "id": "quickRun",
           "label": "Quick execution",
-          "help": "Speeds up the running time of the filter by never attempting again any rejected merge operation. <br> Although fast, it could lead to worst results.",
+          "help": "Speeds up the running time of the filter by never attempting again any rejected merge operation.\\\nAlthough fast, it could lead to worst results.",
           "group": "main",
           "type": "bool",
           "default": false

@@ -131,6 +131,39 @@ int fixtureIoMask()
          | Mask::IOM_FACEQUALITY | Mask::IOM_WEDGTEXCOORD;
 }
 
+// The first HTML tag in some Markdown that Qt's importer never sees closed, or an empty
+// string: a void element written <br> rather than <br/>, a closing tag that is not the
+// innermost open one, or a tag left open. Code spans are literal and are skipped.
+QString unclosedHtmlTag(QString markdown)
+{
+    static const QRegularExpression codeSpan(QStringLiteral("`[^`]*`"));
+    static const QRegularExpression tag(
+        QStringLiteral("<(/?)([A-Za-z][A-Za-z0-9]*)\\b[^>]*?(/?)>"));
+    static const QSet<QString> voidElements = {
+        QStringLiteral("area"), QStringLiteral("base"), QStringLiteral("br"),
+        QStringLiteral("col"), QStringLiteral("embed"), QStringLiteral("hr"),
+        QStringLiteral("img"), QStringLiteral("input"), QStringLiteral("link"),
+        QStringLiteral("meta"), QStringLiteral("source"), QStringLiteral("track"),
+        QStringLiteral("wbr")
+    };
+    markdown.remove(codeSpan);
+    QStringList open;
+    for (auto it = tag.globalMatch(markdown); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        const QString name = m.captured(2).toLower();
+        if (!m.captured(3).isEmpty())
+            continue; // self-closed, <br/>
+        if (m.captured(1).isEmpty()) {
+            if (voidElements.contains(name))
+                return m.captured(0);
+            open << name;
+        } else if (open.isEmpty() || open.takeLast() != name) {
+            return m.captured(0);
+        }
+    }
+    return open.isEmpty() ? QString() : QStringLiteral("<%1>").arg(open.last());
+}
+
 } // namespace
 
 class FilterDescriptorTests : public QObject
@@ -534,6 +567,23 @@ void FilterDescriptorTests::checkHelpText(const MeshFilterDescriptor &d,
     check(d.longDescriptionMarkdown, QStringLiteral("longDescriptionMarkdown"));
     for (const auto &p : d.parameters)
         check(p.helpMarkdown, QStringLiteral("help for parameter '%1'").arg(p.id));
+
+    // HTML in the Markdown fields that Qt's importer never sees closed. After a <br>, or a
+    // <li> left open, Qt 6.11's setMarkdown drops the plain text and links of everything
+    // that follows, across paragraphs, and keeps only code spans: 42 help texts, 16 of them
+    // the expression filters', showed a run of variable names where their prose had been.
+    const auto checkHtml = [&](const QString &text, const QString &where) {
+        const QString tag = unclosedHtmlTag(text);
+        if (!tag.isEmpty()) {
+            problems << QStringLiteral("%1 has HTML that is never closed, %2, and the help box "
+                                       "drops all the text after it; write Markdown (a line "
+                                       "ending in \\ breaks it), or close the tag (<br/>)")
+                            .arg(where, tag);
+        }
+    };
+    checkHtml(d.longDescriptionMarkdown, QStringLiteral("longDescriptionMarkdown"));
+    for (const auto &p : d.parameters)
+        checkHtml(p.helpMarkdown, QStringLiteral("help for parameter '%1'").arg(p.id));
 
     // shortDescription is the one text field that is NOT Markdown. It goes to
     // QLabel::setText in the filter panel and to the tooltips in the Filters menu and the

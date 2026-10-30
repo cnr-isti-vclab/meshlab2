@@ -7,7 +7,7 @@
       "name": "Parametrize by Voronoi Atlas (vcglib)",
       "pythonName": "parametrize_by_voronoi_atlas_vcglib",
       "shortDescription": "Build an atlased parametrization using a geodesic Voronoi partition of the surface.",
-      "longDescriptionMarkdown": "Build an atlased parametrization based on a geodesic voronoi partitioning of the surface and parametrizing each region using Harmonic Mapping. For the parametrization of the disk like voronoi regions the used method is: <br><b>Ulrich Pinkall, Konrad Polthier</b><br><i>Computing Discrete Minimal Surfaces and Their Conjugates</i> <br>Experimental Mathematics, Vol 2 (1), 1993.",
+      "longDescriptionMarkdown": "Build an atlased parametrization based on a geodesic voronoi partitioning of the surface and parametrizing each region using Harmonic Mapping. For the parametrization of the disk like voronoi regions the used method is:\\\n<b>Ulrich Pinkall, Konrad Polthier</b>\\\n<i>Computing Discrete Minimal Surfaces and Their Conjugates</i>\\\nExperimental Mathematics, Vol 2 (1), 1993.",
       "tags": [
         "texture",
         "uv",
@@ -183,7 +183,7 @@
       "name": "Parametrize by Trivial Per-Triangle Layout",
       "pythonName": "parametrize_by_trivial_per_triangle_layout",
       "shortDescription": "Generate a triangle-by-triangle parametrization using either equal-size or space-optimizing layout.",
-      "longDescriptionMarkdown": "Builds a trivial triangle-by-triangle parametrization. <br> Two methods are provided, the first maps all triangles into equal sized triangles, while the second one adapt the size of the triangles in texture space to their original size.",
+      "longDescriptionMarkdown": "Builds a trivial triangle-by-triangle parametrization.\\\nTwo methods are provided, the first maps all triangles into equal sized triangles, while the second one adapt the size of the triangles in texture space to their original size.",
       "tags": [
         "texture",
         "uv",

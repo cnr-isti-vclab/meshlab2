@@ -495,7 +495,7 @@
         {
           "id": "CurvatureType",
           "label": "Curvature type",
-          "help": "The type of the curvature to plot.<br>ApproxMean uses the radius of the fitted sphere as an approximation of the mean curvature.",
+          "help": "The type of the curvature to plot.\\\nApproxMean uses the radius of the fitted sphere as an approximation of the mean curvature.",
           "group": "main",
           "type": "enum",
           "default": "mean",

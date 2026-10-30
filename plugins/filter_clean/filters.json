@@ -7,7 +7,7 @@
       "name": "Reconstruct Surface by Ball Pivoting (vcglib)",
       "pythonName": "reconstruct_surface_by_ball_pivoting_vcglib",
       "shortDescription": "Reconstruct a surface from oriented points using Ball Pivoting.",
-      "longDescriptionMarkdown": "Given a point cloud with normals it reconstructs a surface using the <b>Ball Pivoting Algorithm</b>.Starting with a seed triangle, the BPA algorithm  pivots a ball of the given radius around the already formed edges until it touches another point, forming another triangle. The process continues until all reachable edges have been tried. This surface reconstruction algorithm uses the existing points without creating new ones. Works better with uniformly sampled point clouds. If needed first perform a poisson disk subsampling of the point cloud. <br>Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G.<br><b>The ball-pivoting algorithm for surface reconstruction.</b><br>IEEE TVCG 1999",
+      "longDescriptionMarkdown": "Given a point cloud with normals it reconstructs a surface using the <b>Ball Pivoting Algorithm</b>.Starting with a seed triangle, the BPA algorithm  pivots a ball of the given radius around the already formed edges until it touches another point, forming another triangle. The process continues until all reachable edges have been tried. This surface reconstruction algorithm uses the existing points without creating new ones. Works better with uniformly sampled point clouds. If needed first perform a poisson disk subsampling of the point cloud.\\\nBernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G.\\\n<b>The ball-pivoting algorithm for surface reconstruction.</b>\\\nIEEE TVCG 1999",
       "tags": [
         "remeshing",
         "reconstruction",
@@ -283,7 +283,7 @@
       "name": "Repair Mismatched Borders",
       "pythonName": "repair_mismatched_borders",
       "shortDescription": "Try to snap together slightly mismatched adjacent borders.",
-      "longDescriptionMarkdown": "Try to snap together adjacent borders that are slightly mismatched.<br>This situation can happen on badly triangulated adjacent patches defined by high order surfaces.<br>For each border vertex the filter snap it onto the closest boundary edge only if it is closest of <i>edge_length*threshold</i>. When vertex is snapped the corresponding face is split and a new vertex is created.",
+      "longDescriptionMarkdown": "Try to snap together adjacent borders that are slightly mismatched.\\\nThis situation can happen on badly triangulated adjacent patches defined by high order surfaces.\\\nFor each border vertex the filter snap it onto the closest boundary edge only if it is closest of <i>edge_length*threshold</i>. When vertex is snapped the corresponding face is split and a new vertex is created.",
       "tags": [
         "cleaning",
         "border",

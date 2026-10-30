@@ -446,7 +446,7 @@
       "name": "Compute Curvature (Discrete)",
       "pythonName": "compute_curvature_discrete",
       "shortDescription": "Compute discrete curvature and store it in vertex quality.",
-      "longDescriptionMarkdown": "Compute discrete curvature and store it in vertex quality. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization.<br>Computed as described in:<br>'<i>Discrete Differential-Geometry Operators for Triangulated 2-Manifolds</i>' <br>M. Meyer, M. Desbrun, P. Schroder, A. H. Barr",
+      "longDescriptionMarkdown": "Compute discrete curvature and store it in vertex quality. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization.\\\nComputed as described in:\\\n'<i>Discrete Differential-Geometry Operators for Triangulated 2-Manifolds</i>'\\\nM. Meyer, M. Desbrun, P. Schroder, A. H. Barr",
       "tags": ["curvature", "quality", "vertex", "bibliography"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",

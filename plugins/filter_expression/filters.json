@@ -7,7 +7,7 @@
       "name": "Select Vertices by Expression",
       "pythonName": "select_vertices_by_expression",
       "shortDescription": "Selects vertices for which a boolean expression evaluates true.",
-      "longDescriptionMarkdown": "Boolean function using muparser lib to perform vertex selection over current mesh.<br>\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Boolean function using muparser lib to perform vertex selection over current mesh.\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "selection",
         "muparser",
@@ -49,7 +49,7 @@
       "name": "Select Faces by Expression",
       "pythonName": "select_faces_by_expression",
       "shortDescription": "Selects faces for which a boolean expression evaluates true.",
-      "longDescriptionMarkdown": "Boolean function using muparser lib to perform faces selection over current mesh.<br>\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Boolean function using muparser lib to perform faces selection over current mesh.\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "selection",
         "muparser",
@@ -239,7 +239,7 @@
       "name": "Compute Vertex Coordinates by Expression",
       "pythonName": "compute_vertex_coordinates_by_expression",
       "shortDescription": "Computes new per-vertex coordinates from expressions.",
-      "longDescriptionMarkdown": "Geometric function using muparser lib to generate new Coord<br>You can change x,y,z for every vertex according to the function specified.<br>\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Geometric function using muparser lib to generate new Coord\\\nYou can change x,y,z for every vertex according to the function specified.\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "geometry",
         "muparser",
@@ -277,14 +277,6 @@
           "default": "sin(x+y)"
         },
         {
-          "id": "a",
-          "label": "Alpha expression",
-          "help": "Expression for alpha channel (ignored for geometry).",
-          "group": "advanced",
-          "type": "string",
-          "default": "1"
-        },
-        {
           "id": "randomSeed",
           "label": "Random seed",
           "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
@@ -306,7 +298,7 @@
       "name": "Compute Vertex Normals by Expression",
       "pythonName": "compute_vertex_normals_by_expression",
       "shortDescription": "Computes new per-vertex normals from expressions.",
-      "longDescriptionMarkdown": "Normal function using muparser to generate new Normal for every vertex<br>\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Normal function using muparser to generate new Normal for every vertex\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "normal",
         "muparser",
@@ -364,7 +356,7 @@
       "name": "Compute Face Normals by Expression",
       "pythonName": "compute_face_normals_by_expression",
       "shortDescription": "Computes new per-face normals from expressions.",
-      "longDescriptionMarkdown": "Normal function using muparser to generate new Normal for every face<br>\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Normal function using muparser to generate new Normal for every face\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "normal",
         "muparser",
@@ -422,7 +414,7 @@
       "name": "Compute Vertex Color by Expression",
       "pythonName": "compute_vertex_color_by_expression",
       "shortDescription": "Computes per-vertex RGBA colors from expressions.",
-      "longDescriptionMarkdown": "Color function using muparser lib to generate new RGBA color for every vertex<br>Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.<br>\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Color function using muparser lib to generate new RGBA color for every vertex\\\nRed, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "color",
         "muparser",
@@ -436,25 +428,25 @@
       },
       "parameters": [
         {
-          "id": "x",
-          "label": "X Function",
-          "help": "Expression for X output.",
+          "id": "r",
+          "label": "Red Function",
+          "help": "Expression for red output in range [0, 255].",
           "group": "main",
           "type": "string",
           "default": "255"
         },
         {
-          "id": "y",
-          "label": "Y Function",
-          "help": "Expression for Y output.",
+          "id": "g",
+          "label": "Green Function",
+          "help": "Expression for green output in range [0, 255].",
           "group": "main",
           "type": "string",
           "default": "255"
         },
         {
-          "id": "z",
-          "label": "Z Function",
-          "help": "Expression for Z output.",
+          "id": "b",
+          "label": "Blue Function",
+          "help": "Expression for blue output in range [0, 255].",
           "group": "main",
           "type": "string",
           "default": "0"
@@ -488,7 +480,7 @@
       "name": "Compute Face Color by Expression",
       "pythonName": "compute_face_color_by_expression",
       "shortDescription": "Computes per-face RGBA colors from expressions.",
-      "longDescriptionMarkdown": "Color function using muparser lib to generate new RGBA color for every face<br>Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.<br>\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Color function using muparser lib to generate new RGBA color for every face\\\nRed, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "color",
         "muparser",
@@ -554,7 +546,7 @@
       "name": "Compute Vertex Scalar by Expression",
       "pythonName": "compute_vertex_scalar_by_expression",
       "shortDescription": "Computes per-vertex scalar quality from an expression.",
-      "longDescriptionMarkdown": "Quality function using muparser to generate new Quality for every vertex<br>\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Quality function using muparser to generate new Quality for every vertex\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "quality",
         "muparser",
@@ -612,7 +604,7 @@
       "name": "Compute Face Scalar by Expression",
       "pythonName": "compute_face_scalar_by_expression",
       "shortDescription": "Computes per-face scalar quality from an expression.",
-      "longDescriptionMarkdown": "Quality function using muparser to generate new Quality for every face<br>Insert three function each one for quality of the three vertex of a face<br>\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Quality function using muparser to generate new Quality for every face\\\nInsert three function each one for quality of the three vertex of a face\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "quality",
         "muparser",
@@ -670,7 +662,7 @@
       "name": "Parametrize per Vertex by Expression",
       "pythonName": "parametrize_per_vertex_by_expression",
       "shortDescription": "Computes per-vertex texture coordinates from expressions.",
-      "longDescriptionMarkdown": "Texture function using muparser to generate new texture coords for every vertex<br>\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Texture function using muparser to generate new texture coords for every vertex\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "texture",
         "muparser",
@@ -723,7 +715,7 @@
       "name": "Parametrize per Wedge by Expression",
       "pythonName": "parametrize_per_wedge_by_expression",
       "shortDescription": "Computes per-wedge texture coordinates from expressions.",
-      "longDescriptionMarkdown": "Texture function using muparser to generate new per wedge tex coords for every face<br>Insert six functions each u v for each one of the three vertex of a face<br>\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Texture function using muparser to generate new per wedge tex coords for every face\\\nInsert six functions each u v for each one of the three vertex of a face\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "texture",
         "muparser",
@@ -808,7 +800,7 @@
       "name": "Define Custom Vertex Scalar Attribute",
       "pythonName": "define_custom_vertex_scalar_attribute",
       "shortDescription": "Defines and fills a custom per-vertex scalar attribute.",
-      "longDescriptionMarkdown": "Add a new Per-Vertex custom scalar attribute to current mesh and fill it with the defined function.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br>\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Add a new Per-Vertex custom scalar attribute to current mesh and fill it with the defined function.\\\nAttribute names must contain only letters, numbers and underscores.\\\nThe name specified for the attribute can be used in other filter functions.\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "attribute",
         "vertex",
@@ -857,7 +849,7 @@
       "name": "Define Custom Face Scalar Attribute",
       "pythonName": "define_custom_face_scalar_attribute",
       "shortDescription": "Defines and fills a custom per-face scalar attribute.",
-      "longDescriptionMarkdown": "Add a new Per-Face custom scalar attribute to current mesh and fill it with the defined function.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br>\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Add a new Per-Face custom scalar attribute to current mesh and fill it with the defined function.\\\nAttribute names must contain only letters, numbers and underscores.\\\nThe name specified for the attribute can be used in other filter functions.\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "attribute",
         "face",
@@ -906,7 +898,7 @@
       "name": "Define Custom Vertex Point Attribute",
       "pythonName": "define_custom_vertex_point_attribute",
       "shortDescription": "Defines and fills a custom per-vertex point attribute.",
-      "longDescriptionMarkdown": "Add a new Per-Vertex custom point attribute to current mesh and fill it with the defined functions.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br> A point attribute called `dir` is read in later formulas as `dir_x`, `dir_y` and `dir_z`.\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Add a new Per-Vertex custom point attribute to current mesh and fill it with the defined functions.\\\nAttribute names must contain only letters, numbers and underscores.\\\nThe name specified for the attribute can be used in other filter functions.\\\nA point attribute called `dir` is read in later formulas as `dir_x`, `dir_y` and `dir_z`.\n\n**Variables.** Evaluated once per vertex: `x y z`, `nx ny nz`, `r g b a`, `q`, `vi`, `vsel` and the bounding box (`zmin`, `zdim`, `bbdiag`, …) are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "attribute",
         "vertex",
@@ -971,7 +963,7 @@
       "name": "Define Custom Face Point Attribute",
       "pythonName": "define_custom_face_point_attribute",
       "shortDescription": "Defines and fills a custom per-face point attribute.",
-      "longDescriptionMarkdown": "Add a new Per-Face custom point attribute to current mesh and fill it with the defined functions.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br> A point attribute called `dir` is read in later formulas as `dir_x`, `dir_y` and `dir_z`.\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Add a new Per-Face custom point attribute to current mesh and fill it with the defined functions.\\\nAttribute names must contain only letters, numbers and underscores.\\\nThe name specified for the attribute can be used in other filter functions.\\\nA point attribute called `dir` is read in later formulas as `dir_x`, `dir_y` and `dir_z`.\n\n**Variables.** Evaluated once per face: the corners (`x0 … z2`, `nx0 … nz2`, `r0 … a2`, `q0 q1 q2`), the face's own `fnx fny fnz`, `fr fg fb fa`, `fq`, `fi`, `fsel`, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "attribute",
         "face",
@@ -1253,7 +1245,7 @@
       "name": "Refine by User Expression",
       "pythonName": "refine_by_user_expression",
       "shortDescription": "Refines edges selected by an expression and places split points by expressions.",
-      "longDescriptionMarkdown": "Refine current mesh with user defined parameters.<br>Specify a Boolean Function needed to select which edges will be cut for refinement purpose.<br>Each edge is identified with first and second vertex.<br>Arguments accepted are first and second vertex attributes:<br>\n\n**Variables.** The edge predicate sees the two endpoints (`x0 … z1`, `nx0 … nz1`, `r0 g0 b0`, `r1 g1 b1`, `q0 q1`) and is tried with them in both orders; the split-point formulas see only `x0 y0 z0 x1 y1 z1`. Functions and operators are in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "longDescriptionMarkdown": "Refine current mesh with user defined parameters.\\\nSpecify a Boolean Function needed to select which edges will be cut for refinement purpose.\\\nEach edge is identified with first and second vertex.\\\nArguments accepted are first and second vertex attributes:\n\n**Variables.** The edge predicate sees the two endpoints (`x0 … z1`, `nx0 … nz1`, `r0 g0 b0`, `r1 g1 b1`, `q0 q1`) and is tried with them in both orders; the split-point formulas see only `x0 y0 z0 x1 y1 z1`. Functions and operators are in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
       "tags": [
         "refine",
         "remeshing",

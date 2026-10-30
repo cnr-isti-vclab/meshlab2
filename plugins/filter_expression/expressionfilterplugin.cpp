@@ -1416,14 +1416,14 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterGeomFunc)
         || filterId == QString::fromLatin1(kFilterVertColor)
         || filterId == QString::fromLatin1(kFilterVertNormal)) {
-        const QString exprX = params.getString(QStringLiteral("x"));
-        const QString exprY = params.getString(QStringLiteral("y"));
-        const QString exprZ = params.getString(QStringLiteral("z"));
-        // Only the color filter uses an alpha. The normal filter declares no `a` at all, and
-        // parsing its missing value as an empty expression made it fail on every run.
-        const QString exprA = filterId == QString::fromLatin1(kFilterVertColor)
-            ? params.getString(QStringLiteral("a"))
-            : QStringLiteral("255");
+        // The color filter names its channels r, g, b and a, as the face and edge color
+        // filters do; the coordinates and normals filters name theirs x, y and z, and have
+        // no alpha.
+        const bool isColor = filterId == QString::fromLatin1(kFilterVertColor);
+        const QString exprX = params.getString(isColor ? QStringLiteral("r") : QStringLiteral("x"));
+        const QString exprY = params.getString(isColor ? QStringLiteral("g") : QStringLiteral("y"));
+        const QString exprZ = params.getString(isColor ? QStringLiteral("b") : QStringLiteral("z"));
+        const QString exprA = isColor ? params.getString(QStringLiteral("a")) : QStringLiteral("255");
         const bool onSelected = params.getBool(QStringLiteral("selectedOnly"));
 
         mu::Parser px;

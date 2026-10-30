@@ -150,7 +150,7 @@
       "name": "Merge Visible Layers",
       "pythonName": "merge_visible_layers",
       "shortDescription": "Merge all layers, or only the visible ones, into a single new mesh. Also known as flattening.",
-      "longDescriptionMarkdown": "Merge all layers, or only the visible ones, into a single new mesh. Also known as flattening.<br>Transformations are preserved. Existing layers can be optionally deleted.",
+      "longDescriptionMarkdown": "Merge all layers, or only the visible ones, into a single new mesh. Also known as flattening.\\\nTransformations are preserved. Existing layers can be optionally deleted.",
       "tags": ["layer", "merge", "flatten", "mesh"],
       "inputDomain": "WholeDocument",
       "outputDomain": "NewMeshes",

@@ -13213,7 +13213,7 @@ void FilterTests::documentedExpressionExamplesRun()
     {
         Rig r; QVERIFY(r.sphere());
         const auto res = r.run("compute_vertex_color_by_expression", {
-            {"x", "255*(z-zmin)/zdim"}, {"y", "0"}, {"z", "255-255*(z-zmin)/zdim"}, {"a", "255"}});
+            {"r", "255*(z-zmin)/zdim"}, {"g", "0"}, {"b", "255-255*(z-zmin)/zdim"}, {"a", "255"}});
         QVERIFY2(res.success, qPrintable(res.errorMessage));
         const VCGMesh &m = r.mesh();
         for (std::size_t i = 0; i < m.vert.size(); ++i) {
@@ -13287,7 +13287,7 @@ void FilterTests::documentedExpressionExamplesRun()
         Rig r; QVERIFY(r.sphere());
         QVERIFY(r.run("define_custom_vertex_scalar_attribute", {{"name", "height"}, {"expr", "z-zmin"}}).success);
         const auto res = r.run("compute_vertex_color_by_expression", {
-            {"x", "255*height/zdim"}, {"y", "0"}, {"z", "0"}, {"a", "255"}});
+            {"r", "255*height/zdim"}, {"g", "0"}, {"b", "0"}, {"a", "255"}});
         QVERIFY2(res.success, qPrintable(res.errorMessage));
         const VCGMesh &m = r.mesh();
         for (std::size_t i = 0; i < m.vert.size(); ++i)
@@ -13301,7 +13301,7 @@ void FilterTests::documentedExpressionExamplesRun()
         std::vector<vcg::Point3f> before;
         for (const auto &v : r.mesh().vert) before.push_back(v.cP());
         const auto res = r.run("compute_vertex_coordinates_by_expression", {
-            {"x", "x"}, {"y", "y"}, {"z", "z+0.1*sin(10*x)"}, {"a", "1"}});
+            {"x", "x"}, {"y", "y"}, {"z", "z+0.1*sin(10*x)"}});
         QVERIFY2(res.success, qPrintable(res.errorMessage));
         const VCGMesh &m = r.mesh();
         for (std::size_t i = 0; i < m.vert.size(); ++i)
@@ -13353,7 +13353,7 @@ void FilterTests::documentedExpressionExamplesRun()
         for (auto &v : r.mesh().vert) v.C() = vcg::Color4b(9, 9, 9, 255);
         for (const char *bad : { "floor(x)", "if(x,1,0)", "pi", "nosuchname" }) {
             const auto res = r.run("compute_vertex_color_by_expression", {
-                {"x", bad}, {"y", "0"}, {"z", "0"}, {"a", "255"}});
+                {"r", bad}, {"g", "0"}, {"b", "0"}, {"a", "255"}});
             QVERIFY2(!res.success, bad);
             QVERIFY2(res.errorMessage.contains(QStringLiteral("Unexpected token")), qPrintable(res.errorMessage));
         }
@@ -13417,15 +13417,6 @@ void FilterTests::documentedExpressionExamplesRun()
         QVERIFY(r.mesh().face[0].cN() == vcg::Point3f(0, 3, 0));
     }
 
-    // --- the Alpha field of the coordinates filter is ignored -----------------------
-    {
-        Rig r; QVERIFY(r.sphere());
-        const auto res = r.run("compute_vertex_coordinates_by_expression", {
-            {"x", "x*2"}, {"y", "y"}, {"z", "z"}, {"a", "this is not an expression ("}});
-        QVERIFY2(res.success, qPrintable(res.errorMessage));
-        QVERIFY(std::abs(r.mesh().bbox.DimX() - 4.0f) < 1e-3f);
-    }
-
     // --- the isosurface is where the formula is zero --------------------------------
     {
         Rig r; QVERIFY(r.sphere());
@@ -13474,7 +13465,7 @@ void FilterTests::documentedExpressionExamplesRun()
         QVERIFY(!r.run("define_custom_vertex_scalar_attribute", {{"name", "1abc"}, {"expr", "x"}}).success);
         QVERIFY(r.run("define_custom_vertex_scalar_attribute", {{"name", "hh"}, {"expr", "z"}}).success);
         QVERIFY(!r.run("compute_face_color_by_expression", {{"r", "hh"}, {"g", "0"}, {"b", "0"}, {"a", "255"}}).success);
-        QVERIFY(r.run("compute_vertex_color_by_expression", {{"x", "hh"}, {"y", "0"}, {"z", "0"}, {"a", "255"}}).success);
+        QVERIFY(r.run("compute_vertex_color_by_expression", {{"r", "hh"}, {"g", "0"}, {"b", "0"}, {"a", "255"}}).success);
         // An attribute that arrives with a name that is already a variable is not an error:
         // it is skipped, and the name keeps meaning the built-in.
         auto shadow = vcg::tri::Allocator<VCGMesh>::AddPerVertexAttribute<float>(r.mesh(), "q");
@@ -13492,11 +13483,11 @@ void FilterTests::documentedExpressionExamplesRun()
     {
         Rig r; QVERIFY(r.sphere());
         QVERIFY(r.run("compute_vertex_color_by_expression", {
-            {"x", "300"}, {"y", "-5"}, {"z", "127.5"}, {"a", "255"}}).success);
+            {"r", "300"}, {"g", "-5"}, {"b", "127.5"}, {"a", "255"}}).success);
         QVERIFY(r.mesh().vert[0].cC()[0] == 255 && r.mesh().vert[0].cC()[1] == 0
                 && r.mesh().vert[0].cC()[2] == 128);
         QVERIFY(r.run("compute_vertex_color_by_expression", {
-            {"x", "sqrt(-1)"}, {"y", "0"}, {"z", "0"}, {"a", "255"}}).success);
+            {"r", "sqrt(-1)"}, {"g", "0"}, {"b", "0"}, {"a", "255"}}).success);
         QVERIFY(r.mesh().vert[0].cC()[0] == 0);
     }
 }

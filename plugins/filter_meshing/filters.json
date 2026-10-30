@@ -335,7 +335,7 @@
       "name": "Subdivide by LS3 Loop",
       "pythonName": "subdivide_by_ls3_loop",
       "shortDescription": "Apply LS3 Loop subdivision.",
-      "longDescriptionMarkdown": "Apply LS3 Subdivision Surface algorithm using Loop's weights. This refinement method take normals into account. <br>See:<i>Boye', S. Guennebaud, G. & Schlick, C.</i> <br><b>Least squares subdivision surfaces</b><br>Computer Graphics Forum, 2010.<br/><br/>Alternatives weighting schemes are based on the paper: <i>Barthe, L. & Kobbelt, L.</i><br><b>Subdivision scheme tuning around extraordinary vertices</b><br>Computer Aided Geometric Design, 2004, 21, 561-583.<br/>The current implementation of these schemes don't handle vertices of valence > 12\n\nDefined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use *Subdivide by Catmull-Clark*.",
+      "longDescriptionMarkdown": "Apply LS3 Subdivision Surface algorithm using Loop's weights. This refinement method take normals into account.\\\nSee:<i>Boye', S. Guennebaud, G. & Schlick, C.</i>\\\n<b>Least squares subdivision surfaces</b>\\\nComputer Graphics Forum, 2010.<br/><br/>Alternatives weighting schemes are based on the paper: <i>Barthe, L. & Kobbelt, L.</i>\\\n<b>Subdivision scheme tuning around extraordinary vertices</b>\\\nComputer Aided Geometric Design, 2004, 21, 561-583.<br/>The current implementation of these schemes don't handle vertices of valence > 12\n\nDefined on triangle meshes: a polygonal mesh (one with faux edges) is subdivided as the triangles it is made of, and comes out as a triangle mesh, its polygon structure dropped first. To subdivide the polygons themselves use *Subdivide by Catmull-Clark*.",
       "tags": [
         "meshing"
       ],
@@ -406,7 +406,7 @@
       "name": "Simplify by Vertex Clustering",
       "pythonName": "simplify_by_vertex_clustering",
       "shortDescription": "Simplify mesh by clustering vertices on a grid.",
-      "longDescriptionMarkdown": "Simplify the mesh by clustering vertices; by using a uniform grid over the mesh, the algorithm merges all the vertices in a grid cell into a single vertex. By design this approach removes all small triangles, but also create a number of non-manifold situation.<br> See: <br><br><i>Jarek Rossignac, and Paul Borrel</i>. <br><b>Multi-resolution 3D approximations for rendering complex scenes.</b><br>Modeling in computer graphics: methods and applications. Springer, 1993",
+      "longDescriptionMarkdown": "Simplify the mesh by clustering vertices; by using a uniform grid over the mesh, the algorithm merges all the vertices in a grid cell into a single vertex. By design this approach removes all small triangles, but also create a number of non-manifold situation.\\\nSee:\\\n\\\n<i>Jarek Rossignac, and Paul Borrel</i>.\\\n<b>Multi-resolution 3D approximations for rendering complex scenes.</b>\\\nModeling in computer graphics: methods and applications. Springer, 1993",
       "tags": [
         "meshing"
       ],
@@ -697,7 +697,7 @@
       "name": "Remesh Isotropically (vcglib)",
       "pythonName": "remesh_isotropically_vcglib",
       "shortDescription": "Explicit isotropic remeshing by local operations.",
-      "longDescriptionMarkdown": "Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge flip, collapse, relax and refine operations to regularize size and aspect ration of the triangular meshing. Loosely inspired to:<br>Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, and Werner Stuetzle.<br>Mesh optimization<br>(SIGGRAPH '93). ACM, New York, NY, USA, 19\u201326. <a href='https://doi.org/10.1145/166117.166119'>DOI</a>",
+      "longDescriptionMarkdown": "Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge flip, collapse, relax and refine operations to regularize size and aspect ration of the triangular meshing. Loosely inspired to:\\\nHugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, and Werner Stuetzle.\\\nMesh optimization\\\n(SIGGRAPH '93). ACM, New York, NY, USA, 19\u201326. <a href='https://doi.org/10.1145/166117.166119'>DOI</a>",
       "tags": [
         "meshing"
       ],
@@ -831,7 +831,7 @@
       "name": "Orient Faces Consistently (vcglib)",
       "pythonName": "orient_faces_consistently_vcglib",
       "shortDescription": "Orient faces consistently.",
-      "longDescriptionMarkdown": "Re-orient in a consistent way all the faces of the mesh. <br>The filter visits a mesh face to face, reorienting any unvisited face so that it is coherent to the already visited faces. If the surface is orientable it will end with a consistent orientation of all the faces. If the surface is not orientable (e.g. it is non manifold or non orientable like a moebius",
+      "longDescriptionMarkdown": "Re-orient in a consistent way all the faces of the mesh.\\\nThe filter visits a mesh face to face, reorienting any unvisited face so that it is coherent to the already visited faces. If the surface is orientable it will end with a consistent orientation of all the faces. If the surface is not orientable (e.g. it is non manifold or non orientable like a moebius",
       "tags": [
         "meshing"
       ],
@@ -856,7 +856,7 @@
       "name": "Invert Face Orientation",
       "pythonName": "invert_face_orientation",
       "shortDescription": "Flip mesh face orientation.",
-      "longDescriptionMarkdown": "Invert faces orientation, flipping the normals of the mesh. <br>If requested, it tries to guess the right orientation; mainly it decide to flip all the faces if the minimum/maximum vertices have not outward point normals for a few directions.<br>Works well for single component watertight objects.",
+      "longDescriptionMarkdown": "Invert faces orientation, flipping the normals of the mesh.\\\nIf requested, it tries to guess the right orientation; mainly it decide to flip all the faces if the minimum/maximum vertices have not outward point normals for a few directions.\\\nWorks well for single component watertight objects.",
       "tags": [
         "meshing"
       ],
@@ -2307,7 +2307,7 @@
       "name": "Convert to Quads by 4-8 Subdivision",
       "pythonName": "convert_to_quads_by_4_8_subdivision",
       "shortDescription": "Convert tri mesh into quad mesh by 4-8 subdivision.",
-      "longDescriptionMarkdown": "Convert a tri mesh into a quad mesh by applying a 4-8 subdivision scheme.It introduces less overhead than the plain Catmull-Clark Subdivision Surfaces, and applying two step of this procedure generates the same connectivity of the Catmull-Clark subdivision approach.(it adds only a single vertex for each triangle instead of four).<br> See: <br><b>4-8 Subdivision</b><br> <i>Luiz Velho, Denis Zorin </i><br>CAGD, volume 18, Issue 5, Pages 397-427.",
+      "longDescriptionMarkdown": "Convert a tri mesh into a quad mesh by applying a 4-8 subdivision scheme.It introduces less overhead than the plain Catmull-Clark Subdivision Surfaces, and applying two step of this procedure generates the same connectivity of the Catmull-Clark subdivision approach.(it adds only a single vertex for each triangle instead of four).\\\nSee:\\\n<b>4-8 Subdivision</b>\\\n<i>Luiz Velho, Denis Zorin </i>\\\nCAGD, volume 18, Issue 5, Pages 397-427.",
       "tags": [
         "meshing"
       ],
@@ -2460,7 +2460,7 @@
       "name": "Select Crease Edges (vcglib)",
       "pythonName": "select_crease_edges_vcglib",
       "shortDescription": "Select crease edges from dihedral angles.",
-      "longDescriptionMarkdown": "It select the crease edges of a mesh according to edge dihedral angle.<br>Angle between face normal is considered signed according to convexity/concavity.Convex angles are positive and concave are negative.",
+      "longDescriptionMarkdown": "It select the crease edges of a mesh according to edge dihedral angle.\\\nAngle between face normal is considered signed according to convexity/concavity.Convex angles are positive and concave are negative.",
       "tags": [
         "meshing"
       ],
@@ -2949,7 +2949,7 @@
       "name": "Create Polyline from Selection Perimeter",
       "pythonName": "create_polyline_from_selection_perimeter",
       "shortDescription": "Create polyline from selection perimeter.",
-      "longDescriptionMarkdown": "Create a new Layer with an edge mesh (polyline) tracing the perimeter of the **selected faces**: every edge of a selected face whose adjacent face is not selected. Selecting all the faces of the mesh therefore converts its boundary edges into a polyline.<br>To build a polyline from an *edge* selection instead, use *Build a Polyline from Selected Edges*.",
+      "longDescriptionMarkdown": "Create a new Layer with an edge mesh (polyline) tracing the perimeter of the **selected faces**: every edge of a selected face whose adjacent face is not selected. Selecting all the faces of the mesh therefore converts its boundary edges into a polyline.\\\nTo build a polyline from an *edge* selection instead, use *Build a Polyline from Selected Edges*.",
       "tags": [
         "meshing"
       ],

@@ -1090,7 +1090,7 @@
       "name": "Select Outliers",
       "pythonName": "select_outliers",
       "shortDescription": "Select outlier vertices using LoOP.",
-      "longDescriptionMarkdown": "Select the vertex classified as outlier using Local Outlier Propabilty measure described in:<br> <b>'LoOP: Local Outlier Probabilities'</b> Kriegel et al.<br>CIKM 2009",
+      "longDescriptionMarkdown": "Select the vertex classified as outlier using Local Outlier Propabilty measure described in:\\\n<b>'LoOP: Local Outlier Probabilities'</b> Kriegel et al.\\\nCIKM 2009",
       "tags": [
         "selection",
         "outlier",
