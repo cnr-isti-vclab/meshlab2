@@ -111,6 +111,7 @@ private slots:
     void saveAndLoad3MFRoundTrip();
     void trueFormRoundTripsObjAndStl();
     void stlOpensWithDuplicateVerticesMerged();
+    void stlFaceColorsLoadInBothConventions();
     void polygonalOffExportKeepsEveryWellFormedQuad();
     void plyWithLongPerVertexListLoads();
     void plyFloatVertexColorsLoad();
@@ -3137,6 +3138,63 @@ void DocumentTests::stlOpensWithDuplicateVerticesMerged()
     soup.setMergeStlDuplicateVertices(true);
     QCOMPARE(soup.reloadMesh(0), 0);
     QCOMPARE(soup.mesh(0).mesh.VN(), 4);
+}
+
+void DocumentTests::stlFaceColorsLoadInBothConventions()
+{
+    // Binary STL keeps a face color in its 16-bit attribute in two incompatible ways.
+    // VisCAM/SolidView (what MeshLab writes): blue in the low bits, bit 15 set = valid.
+    // Materialise Magics: "COLOR=" + the object's RGBA in the label, red in the low bits,
+    // bit 15 set = no color of its own, take the object's. "MATERIAL=" is optional: a
+    // Magics file without it used to load as VisCAM, red and blue swapped, and colors
+    // were dropped altogether because Importer::LoadMask never asked for them.
+    Document probe;
+    const QString previousStl = probe.preferredImportPluginForExtension(QStringLiteral("stl"));
+    const auto restore = qScopeGuard([&] {
+        probe.setPreferredImportPluginForExtension(QStringLiteral("stl"), previousStl);
+    });
+    probe.setPreferredImportPluginForExtension(QStringLiteral("stl"), QStringLiteral("io_vcg"));
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    const QString magicsPath = dir.filePath(QStringLiteral("magics.stl"));
+    {
+        QFile file(magicsPath);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QByteArray label("COLOR=\xaa\xaa\xaa\xff", 10);
+        label.append(QByteArray(80 - label.size(), '\0'));
+        QDataStream out(&file);
+        out.setByteOrder(QDataStream::LittleEndian);
+        out.setFloatingPointPrecision(QDataStream::SinglePrecision);
+        out.writeRawData(label.constData(), label.size());
+        out << quint32(2);
+        const quint16 attrs[2] = { 31, 0x8000 }; // pure red; the object's color
+        for (int f = 0; f < 2; ++f) {
+            // normal, then three corners; the second face is lifted so the two differ
+            for (const float v : { 0.f, 0.f, 1.f,  0.f, 0.f, 0.f,  1.f, 0.f, 0.f,  0.f, 1.f, float(f) })
+                out << v;
+            out << attrs[f];
+        }
+    }
+    Document magics;
+    QCOMPARE(magics.loadMesh(magicsPath), 0);
+    QVERIFY(magics.mesh(0).ioMask & vcg::tri::io::Mask::IOM_FACECOLOR);
+    QCOMPARE(magics.mesh(0).mesh.face[0].C(), vcg::Color4b(248, 0, 0, 255));
+    QCOMPARE(magics.mesh(0).mesh.face[1].C(), vcg::Color4b(170, 170, 170, 255));
+
+    VCGMesh tri;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(tri, VCGMesh::CoordType(0.0f, 0.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(tri, VCGMesh::CoordType(1.0f, 0.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(tri, VCGMesh::CoordType(0.0f, 1.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddFace(tri, size_t(0), size_t(1), size_t(2));
+    tri.face[0].C() = vcg::Color4b(248, 0, 0, 255);
+    const QString viscamPath = dir.filePath(QStringLiteral("viscam.stl"));
+    QCOMPARE(vcg::tri::io::ExporterSTL<VCGMesh>::Save(tri, viscamPath.toStdString().c_str(), true,
+                                                       vcg::tri::io::Mask::IOM_FACECOLOR), 0);
+    Document viscam;
+    QCOMPARE(viscam.loadMesh(viscamPath), 0);
+    QVERIFY(viscam.mesh(0).ioMask & vcg::tri::io::Mask::IOM_FACECOLOR);
+    QCOMPARE(viscam.mesh(0).mesh.face[0].C(), vcg::Color4b(248, 0, 0, 255));
 }
 
 void DocumentTests::saveAndLoadEmbeddedGLBTexture()
