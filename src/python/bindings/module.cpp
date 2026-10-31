@@ -126,6 +126,8 @@ NB_MODULE(_meshlab, m)
              "Whether the mesh at this 0-based position is visible.")
         .def("load_new_mesh",      &MeshSetCore::loadNewMesh,       nb::arg("path"))
         .def("save_current_mesh",  &MeshSetCore::saveCurrentMesh,   nb::arg("path"))
+        .def("save_current_mesh_texture", &MeshSetCore::saveCurrentMeshTexture,
+             nb::arg("texture_index"), nb::arg("path"))
         .def("raster_number",      &MeshSetCore::rasterCount)
         .def("current_raster",     &MeshSetCore::currentRasterIndex)
         .def("set_current_raster", &MeshSetCore::setCurrentRaster,  nb::arg("index"))

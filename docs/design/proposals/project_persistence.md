@@ -1,7 +1,7 @@
 # Project persistence: how the user's work reaches the disk (draft, 2026-10-30)
 
-**Status: approved 2026-10-31. Stage 1 (savers and stored state) implemented 2026-10-31;
-stages 2 to 5 not yet.** See section 10 for what stage 1 did and found. First drafted as "texture storage"; renamed because
+**Status: approved 2026-10-31. Stages 1 (savers and stored state) and 2 (display and
+single saves) implemented 2026-10-31; stages 3 to 5 not yet.** See section 10 for what stage 1 did and found. First drafted as "texture storage"; renamed because
 most of it is about saving the user's work, of which textures are one part.
 
 Every layer and every texture knows where it is stored and whether it differs from what is
@@ -309,7 +309,19 @@ Open: none.
      even when undone back to what was saved. Conservative; left as is.
    - "Re-save modified meshes" in project save still writes nothing (data_model.md); it is
      row 28's neighbour and belongs to stage 4.
-2. **Display and single saves** (rows 17, 20-23, 36-39).
+2. **Display and single saves** (rows 17, 20-23, 36-39). **Done 2026-10-31.** The mark
+   of section 3 on layers (tree prefix and *Src* column), texture rows and raster planes,
+   with the file in the tooltip; `Document::saveMeshTexture` and `saveRasterPlaneImage`,
+   *Save Texture...* on a texture row (a new right-click menu), *Save Plane Image...* now
+   through the document and recording the save, both offering every format
+   `QImageWriter` can write; Python `save_current_mesh_texture`. A selection change
+   rebuilds the panel only when it turns a mark. Tests: `savingOneTextureOrPlaneNamesItsFile`
+   (JPEG and TIFF, the layer changed until its mesh is saved),
+   `theMarkSaysWhetherAFileHoldsTheLayer` (LayerWidget). Two parts wait for stage 5: paths
+   in tooltips are absolute until the document directory exists (row 23), and the
+   project's *save modified meshes* still reads `MeshEntry::modified` (row 17, with stage 4).
+   Raster planes use the same interim rule as textures: an image no save recorded is
+   trusted to match the file it came from.
 3. **Filters** (rows 1-6, 12-16). Tests: a run writes no file; the overwrite case leaves
    the source normal map byte-identical.
 4. **Project save** (rows 28-30).

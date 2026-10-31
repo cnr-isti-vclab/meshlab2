@@ -214,6 +214,13 @@ public:
     enum class StoredState { NotStored, Changed, Stored };
     StoredState meshStoredState(int index) const;
     StoredState meshTextureStoredState(int meshIndex, int textureIndex) const;
+    StoredState rasterPlaneStoredState(int rasterIndex, int planeIndex) const;
+    // Save one texture of a layer (an index into textureAssets), or one raster plane, as an
+    // image file of whatever format the path's suffix names. Saving names the texture's file:
+    // when it is not the one the layer's mesh file refers to, the layer differs from its file
+    // until the mesh is saved too. Not undo steps: they change the disk, not the document.
+    bool saveMeshTexture(int meshIndex, int textureIndex, const QString &path, QString *error = nullptr);
+    bool saveRasterPlaneImage(int rasterIndex, int planeIndex, const QString &path, QString *error = nullptr);
     void beginUndoStep(const QString &label);
     void beginUndoStep(const QString &label,
                        const ScriptAction &scriptAction);

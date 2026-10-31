@@ -14,6 +14,7 @@
 #include "testdatasets.h"
 #include "filedialogdirectory.h"
 #include "textureassociationutils.h"
+#include <QImageReader>
 #include "layerdata.h"
 #include "helperprocess.h"
 #include "processmemoryinfo.h"
@@ -121,6 +122,7 @@ private slots:
     void saveAndLoadEmbeddedGLBTexture();
     void savingWritesTheTexturesNoFileHolds();
     void savingNamesTheLayersFileAndUndoKeepsIt();
+    void savingOneTextureOrPlaneNamesItsFile();
     void savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist();
     void savePolygonalFormatsHonorFauxEdgesAndTriangulationOption();
     void benchmarkLoadMesh();
@@ -3361,6 +3363,50 @@ void DocumentTests::savingNamesTheLayersFileAndUndoKeepsIt()
     // A layer made in memory has no file until it is saved.
     addTinyMesh(doc, QStringLiteral("generated"));
     QCOMPARE(doc.meshStoredState(1), Document::StoredState::NotStored);
+}
+
+// Save Texture writes one texture in the format its suffix names, and the texture then lives in
+// that file. The layer's mesh file still names the old one, so the layer differs from its
+// file until it is saved too; saving the texture over its own file changes nothing else.
+// Save Plane Image does the same for a raster plane.
+void DocumentTests::savingOneTextureOrPlaneNamesItsFile()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("tiny"));
+    doc.mesh(0).mesh.face.EnableWedgeTexCoord();
+    QImage red(4, 4, QImage::Format_RGB32);
+    red.fill(Qt::red);
+    TextureAssociationUtils::replaceTextureAssociations(
+        doc.mesh(0), { TextureAssociationUtils::makeTextureAssetFromImage(red, QStringLiteral("atlas.png")) });
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEINDEX
+        | vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
+    QCOMPARE(doc.saveMesh(0, dir.filePath(QStringLiteral("tiny.ply")), options), 0);
+    QCOMPARE(doc.meshStoredState(0), Document::StoredState::Stored);
+
+    const QString jpeg = dir.filePath(QStringLiteral("atlas.jpg"));
+    QString error;
+    QVERIFY2(doc.saveMeshTexture(0, 0, jpeg, &error), qPrintable(error));
+    QCOMPARE(QImageReader(jpeg).format(), QByteArray("jpeg"));
+    QCOMPARE(Document::meshTextureSourcePath(doc.mesh(0), 0), QDir::toNativeSeparators(jpeg));
+    QCOMPARE(doc.meshTextureStoredState(0, 0), Document::StoredState::Stored);
+    QCOMPARE(doc.meshStoredState(0), Document::StoredState::Changed);
+
+    QCOMPARE(doc.saveMesh(0, dir.filePath(QStringLiteral("tiny.ply")), options), 0);
+    QVERIFY(doc.saveMeshTexture(0, 0, jpeg));
+    QCOMPARE(doc.meshStoredState(0), Document::StoredState::Stored);
+    QVERIFY(!doc.saveMeshTexture(0, 1, jpeg, &error));
+
+    QImage photo(8, 4, QImage::Format_RGBA8888);
+    photo.fill(Qt::green);
+    const int raster = doc.addRasterImage(photo, QStringLiteral("photo"));
+    QCOMPARE(doc.rasterPlaneStoredState(raster, 0), Document::StoredState::NotStored);
+    const QString tiff = dir.filePath(QStringLiteral("photo.tif"));
+    QVERIFY2(doc.saveRasterPlaneImage(raster, 0, tiff, &error), qPrintable(error));
+    QCOMPARE(QImageReader(tiff).format(), QByteArray("tiff"));
+    QCOMPARE(doc.rasterPlaneStoredState(raster, 0), Document::StoredState::Stored);
 }
 
 void DocumentTests::savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist()

@@ -124,6 +124,7 @@ The live `ms` object supports the following core methods:
 - `is_current_mesh_visible()`, `is_mesh_visible(index)`
 - `load_new_mesh(path)`
 - `save_current_mesh(path)`
+- `save_current_mesh_texture(texture_index, path)` -- one texture of the current mesh, in the format the suffix names; the texture then lives in that file
 - `raster_number()`
 - `current_raster()`, `set_current_raster(index)`
 - `load_new_raster(path)`

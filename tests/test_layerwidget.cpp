@@ -2,6 +2,7 @@
 
 #include "document.h"
 #include "layerwidget.h"
+#include "textureassociationutils.h"
 
 #include <QImage>
 #include <QScrollBar>
@@ -23,6 +24,7 @@ private slots:
     void theEyeShowsAllOrHidesAllAndSaysWhatIsShown();
     void theTitleBarButtonsGoOverTheArrowsAndTheCheckMarks();
     void theListStaysWhereTheUserScrolledItWhenALayerChanges();
+    void theMarkSaysWhetherAFileHoldsTheLayer();
 };
 
 namespace {
@@ -285,6 +287,55 @@ void LayerWidgetTests::theListStaysWhereTheUserScrolledItWhenALayerChanges()
     doc.setMeshVisible(0, true);
     QTest::qWait(50);
     QCOMPARE(tableBar->value(), 0);
+}
+
+// One mark for layers and their textures, replacing D, G and *: none when a file holds it, a
+// filled dot when it did and the layer has changed since -- a selection counts -- and a hollow
+// one when no file does.
+void LayerWidgetTests::theMarkSaysWhetherAFileHoldsTheLayer()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("tiny"));
+    doc.mesh(0).mesh.face.EnableWedgeTexCoord();
+    QImage red(2, 2, QImage::Format_RGBA8888);
+    red.fill(Qt::red);
+    TextureAssociationUtils::replaceTextureAssociations(
+        doc.mesh(0), { TextureAssociationUtils::makeTextureAssetFromImage(red, QStringLiteral("atlas.png")) });
+    LayerWidget widget(&doc);
+    widget.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&widget));
+
+    QTreeWidget *tree = nullptr;
+    for (QTreeWidget *candidate : widget.findChildren<QTreeWidget *>()) {
+        if (candidate->topLevelItemCount() == 1)
+            tree = candidate;
+    }
+    QVERIFY(tree);
+    const auto layerText = [&] { return tree->topLevelItem(0)->text(0); };
+    const auto textureMark = [&] {
+        QTreeWidgetItem *layer = tree->topLevelItem(0);
+        for (int c = 0; c < layer->childCount(); ++c)
+            if (layer->child(c)->text(1).startsWith(QStringLiteral("Tex")))
+                return layer->child(c)->text(0);
+        return QStringLiteral("no texture row");
+    };
+    const QString notStored = QStringLiteral("\u25CB");
+    const QString changed = QStringLiteral("\u25CF");
+
+    QCOMPARE(layerText(), notStored + QStringLiteral(" tiny"));
+    QCOMPARE(textureMark(), notStored);
+
+    QCOMPARE(doc.saveMesh(0, dir.filePath(QStringLiteral("tiny.ply"))), 0);
+    QTest::qWait(50);
+    QCOMPARE(layerText(), QStringLiteral("tiny"));
+    QCOMPARE(textureMark(), QString());
+
+    doc.mesh(0).mesh.face[0].SetS();
+    doc.markMeshSelectionChanged(0);
+    QTest::qWait(50);
+    QCOMPARE(layerText(), changed + QStringLiteral(" tiny"));
 }
 
 QTEST_MAIN(LayerWidgetTests)

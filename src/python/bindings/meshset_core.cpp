@@ -262,6 +262,13 @@ void MeshSetCore::saveCurrentMesh(const std::string &path)
         throw std::runtime_error("Failed to save current mesh: " + path);
 }
 
+void MeshSetCore::saveCurrentMeshTexture(int textureIndex, const std::string &path)
+{
+    QString error;
+    if (!m_document->saveMeshTexture(m_document->currentMeshIndex(), textureIndex, toQString(path), &error))
+        throw std::runtime_error(error.toStdString());
+}
+
 int MeshSetCore::rasterCount() const
 {
     return m_document->rasterCount();

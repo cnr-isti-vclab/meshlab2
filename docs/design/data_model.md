@@ -52,13 +52,9 @@ A mesh layer carries three separate pieces of information about where it came fr
 | Changed | `MeshEntry::modified` | Set by `markMeshGeometryChanged`, `markMeshMaterialChanged` and `markMeshSelectionChanged` -- so a selection change counts -- and cleared only by `reloadMesh`. A transform change does not set it, and neither does saving clear it. Being replaced by the stored state below ([project_persistence.md](proposals/project_persistence.md), stage 2). |
 | Stored | `Document::meshStoredState`, `meshTextureStoredState` | Whether a file holds what the document holds: `NotStored` (no file), `Changed` (a file did when last read or written, and the layer's geometry, material or selection revision has moved since), `Stored`. Recorded at load, reload and save, in `m_storedMeshes` (by `meshId`: file and the three revisions) and `m_storedImages` (by `QImage::cacheKey`: the file holding exactly that texture image, or the mesh file for one packed in a glb or 3mf). Neither is part of the undo state, so undoing past a save shows the layer changed and undoing back shows it stored again. That needs revisions that are never reused, so material and selection revisions draw from the document's geometry counter. A selection undone through the delta path gets a new revision, so a layer undone back to a saved selection shows changed: conservative, never the reverse. |
 
-The Layers panel prefixes each layer's name with a tag built from the last two on every rebuild:
+The Layers panel marks each layer, and each texture and raster plane under it, by its stored state (the row above), the same way for all three: no mark when a file holds it, `●` when one did and it has changed since, `○` when no file holds it. The tooltip says which file, or that it is inside its mesh file (a texture packed in a glb). Layers added through `Document::addMesh()` (the filters that create layers, the measure tool) and through `duplicateMesh()` have no file and are `○` until saved. A selection change rebuilds the panel only when it turns a layer's mark, so painting a selection stays cheap. These marks replaced the `[D]`, `[G]` and `*` tags, which said whether a layer had been loaded from a file, not whether the file held it.
 
-- `[D]` -- `sourcePath` is not empty: the layer came from disk.
-- `[G]` -- `sourcePath` is empty: the layer exists only in memory.
-- `*` after the letter -- `modified` is set.
-
-So the tag answers "does this layer have a file", not "was it made by a filter". Layers added through `Document::addMesh()` (the filters that create layers, the measure tool) and through `duplicateMesh()` have no file and are `[G]`; a duplicate of a `[D]` layer is therefore `[G]`. Saving a layer with Save Mesh leaves it `[G]` or `[D]*` as it was, since `saveMesh` records nothing back on the entry.
+A texture can be saved on its own (`Document::saveMeshTexture`, *Save Texture...* on a texture row, Python `save_current_mesh_texture`), and a raster plane likewise (`saveRasterPlaneImage`, *Save Plane Image...*), in any format the installed image plugins write, picked by the suffix. The texture or plane then lives in that file; when it is not the file the layer's mesh refers to, the layer is changed (its material revision moves) until the mesh is saved too.
 
 The tag is part of the displayed text, not a field, so the panel cannot sort or filter on it. A separate provenance column (from disk / from disk and changed / generated) is the intended replacement.
 
@@ -87,8 +83,8 @@ Each mesh layer is sorted into one of three cases by its provenance (see [Layer 
 
 | Layer | What the save does | Project `filename` |
 |---|---|---|
-| No file (`[G]`) | Always written, as PLY, to `meshes/<name>.ply` in the project folder. The name is simplified and every character outside `[A-Za-z0-9_.-]` becomes `_`; two names that simplify to the same text overwrite each other. | `meshes/<name>.ply` |
-| From disk, changed (`[D]*`) with "Re-save modified meshes" on (the default) | **Not written yet.** The option marks the layer for re-saving over its own file, but nothing performs the write, so the project refers to the unchanged file and reopens without the change. | the original file |
+| No file (`○`) | Always written, as PLY, to `meshes/<name>.ply` in the project folder. The name is simplified and every character outside `[A-Za-z0-9_.-]` becomes `_`; two names that simplify to the same text overwrite each other. | `meshes/<name>.ply` |
+| From disk, changed (`●`) with "Re-save modified meshes" on (the default) | **Not written yet.** The option marks the layer for re-saving over its own file, but nothing performs the write, so the project refers to the unchanged file and reopens without the change. | the original file |
 | From disk otherwise | Not written; referenced where it is. | the original file |
 
 The "no file" case used to be skipped when the layer was unmodified, which dropped every filter-created layer from the saved project without a message; the regression test is `saveMeshLabProjectKeepsLayersWithoutAFile`.

@@ -1,6 +1,8 @@
 #include "document_internal.h"
 #include "textureassociationutils.h"
 
+#include <QImageWriter>
+
 using namespace DocumentInternal;
 
 QString Document::openDialogFilter() const
@@ -738,6 +740,98 @@ Document::StoredState Document::meshStoredState(int index) const
             && s.selectionRevision == entry.selectionRevision
         ? StoredState::Stored
         : StoredState::Changed;
+}
+
+Document::StoredState Document::rasterPlaneStoredState(int rasterIndex, int planeIndex) const
+{
+    if (rasterIndex < 0 || rasterIndex >= rasterCount())
+        return StoredState::NotStored;
+    const RasterEntry &entry = raster(rasterIndex);
+    if (planeIndex < 0 || planeIndex >= int(entry.planes.size()))
+        return StoredState::NotStored;
+    const RasterPlane &plane = entry.planes[size_t(planeIndex)];
+    if (plane.hasImage() && m_storedImages.count(plane.image.cacheKey()))
+        return StoredState::Stored;
+    return QFileInfo(plane.sourcePath.trimmed()).isFile() ? StoredState::Stored : StoredState::NotStored;
+}
+
+namespace {
+// The format comes from the suffix: whatever the installed image plugins can write.
+bool writeImageFile(const QImage &image, const QString &file, QString &error)
+{
+    QImageWriter writer(file);
+    if (writer.write(image))
+        return true;
+    error = QObject::tr("Cannot save the image to %1: %2").arg(QDir::toNativeSeparators(file), writer.errorString());
+    return false;
+}
+}
+
+bool Document::saveMeshTexture(int meshIndex, int textureIndex, const QString &path, QString *error)
+{
+    QString message;
+    const auto fail = [&] {
+        writeLog(message, LogSource::Application, LogLevel::Warning);
+        if (error)
+            *error = message;
+        return false;
+    };
+    if (meshIndex < 0 || meshIndex >= meshCount()
+        || textureIndex < 0 || textureIndex >= int(mesh(meshIndex).textureAssets.size())) {
+        message = tr("Cannot save texture %1: the layer has no such texture.").arg(textureIndex);
+        return fail();
+    }
+    MeshEntry &entry = mesh(meshIndex);
+    MeshIOTextureAsset &asset = entry.textureAssets[size_t(textureIndex)];
+    QImage image = asset.image;
+    if (image.isNull() && !TextureAssociationUtils::readImageFile(asset.sourcePath, image, message))
+        return fail();
+    const QString file = QFileInfo(path.trimmed()).absoluteFilePath();
+    if (!writeImageFile(image, file, message))
+        return fail();
+
+    const bool moved = asset.sourcePath.trimmed().isEmpty()
+        || QFileInfo(asset.sourcePath.trimmed()).absoluteFilePath() != file;
+    asset.sourcePath = QDir::toNativeSeparators(file);
+    if (asset.hasImage())
+        m_storedImages[asset.image.cacheKey()] = { file, false };
+    TextureAssociationUtils::rebuildLegacyTextureAssociation(entry);
+    // The mesh file still names the texture's old file, or none.
+    if (moved)
+        entry.materialRevision = m_nextGeometryRevision++;
+    writeLog(tr("Saved texture '%1' of '%2' to %3")
+                 .arg(meshTextureDisplayName(entry, textureIndex), entry.name, QDir::toNativeSeparators(file)),
+             LogSource::Application);
+    emit meshDataChanged(meshIndex);
+    return true;
+}
+
+bool Document::saveRasterPlaneImage(int rasterIndex, int planeIndex, const QString &path, QString *error)
+{
+    QString message;
+    if (rasterIndex < 0 || rasterIndex >= rasterCount()
+        || planeIndex < 0 || planeIndex >= int(raster(rasterIndex).planes.size())) {
+        message = tr("Cannot save plane %1: the raster has no such plane.").arg(planeIndex);
+    } else {
+        RasterPlane &plane = raster(rasterIndex).planes[size_t(planeIndex)];
+        ensureRasterPlaneImage(plane);
+        const QString file = QFileInfo(path.trimmed()).absoluteFilePath();
+        if (plane.image.isNull()) {
+            message = tr("Cannot save plane %1: it has no image.").arg(planeIndex);
+        } else if (writeImageFile(plane.image, file, message)) {
+            plane.sourcePath = QDir::toNativeSeparators(file);
+            m_storedImages[plane.image.cacheKey()] = { file, false };
+            writeLog(tr("Saved plane %1 of '%2' to %3")
+                         .arg(planeIndex).arg(raster(rasterIndex).name, QDir::toNativeSeparators(file)),
+                     LogSource::Application);
+            emit rasterDataChanged(rasterIndex);
+            return true;
+        }
+    }
+    writeLog(message, LogSource::Application, LogLevel::Warning);
+    if (error)
+        *error = message;
+    return false;
 }
 
 Document::StoredState Document::meshTextureStoredState(int meshIndex, int textureIndex) const

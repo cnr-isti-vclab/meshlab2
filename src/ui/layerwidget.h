@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QHash>
 #include <QPair>
 #include <cstdint>
 #include <utility>
@@ -118,6 +119,7 @@ private:
     bool isPreviewed(const QModelIndex &index) const;
     void showVisibilitySetMenu(int index, const QPoint &globalPos);
     void savePlaneImage(int rasterIndex, int planeIndex);
+    void saveMeshTexture(int meshIndex, int textureIndex);
 
 private slots:
     void onTreeItemChanged(QTreeWidgetItem *item, int column);
@@ -135,6 +137,9 @@ private:
     bool m_columnsUserSized = false;
     bool m_adjustingColumns = false;
     bool m_rebuildPending = false;
+    // The stored state each layer's mark showed at the last rebuild, by meshId, so that a
+    // selection change rebuilds only when it turns a mark.
+    QHash<std::uint64_t, int> m_shownStoredStates;   // Document::StoredState
     ViewMode m_viewMode = ViewMode::Tree;
 
     QString m_summaryText;
