@@ -8909,8 +8909,15 @@ void FilterTests::importImageToCurrentRasterKeepsTheCamera()
     QCOMPARE(reloaded.loadMeshLabProject(project), 0);
     const Document::RasterEntry &raster = reloaded.raster(0);
     QCOMPARE(raster.planes.size(), size_t(2));
-    QCOMPARE(QFileInfo(raster.planes[0].sourcePath).canonicalFilePath(),
-             QFileInfo(originalPath).canonicalFilePath());
+    // The plane from outside the project was copied into its images/, and the project names
+    // the copy; the one already in the project folder is referenced where it is.
+    const auto sameBytes = [](const QString &a, const QString &b) {
+        QFile fa(a), fb(b);
+        return fa.open(QIODevice::ReadOnly) && fb.open(QIODevice::ReadOnly) && fa.readAll() == fb.readAll();
+    };
+    const QFileInfo copied(raster.planes[0].sourcePath);
+    QCOMPARE(copied.absolutePath(), QFileInfo(dir.filePath(QStringLiteral("images/x"))).absolutePath());
+    QVERIFY(sameBytes(copied.absoluteFilePath(), originalPath));
     QCOMPARE(QFileInfo(raster.planes[1].sourcePath).canonicalFilePath(),
              QFileInfo(invertedPath).canonicalFilePath());
     QCOMPARE(raster.currentPlaneIndex, 1);

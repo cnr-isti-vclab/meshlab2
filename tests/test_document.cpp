@@ -85,6 +85,7 @@ private slots:
     void legacyTargaLoadsThroughTheStbFallback();
     void loadMeshLabProjectLoadsMeshesAndTransforms();
     void saveMeshLabProjectKeepsLayersWithoutAFile();
+    void saveMeshLabProjectWritesWhatChangedUnderUniqueNames();
     void visibilitySetsShowTheirLayersAndSayWhenTheyAreShown();
     void visibilitySetsSurviveAProjectRoundTripWhateverIsLeftOut();
     void definingRenamingRedefiningAndDeletingASetAreUndoSteps();
@@ -1695,6 +1696,92 @@ void DocumentTests::legacyTargaLoadsThroughTheStbFallback()
     QCOMPARE(image.size(), QSize(kWidth, kHeight));
     QCOMPARE(image.pixelColor(0, 0), QColor(Qt::red));
     QCOMPARE(image.pixelColor(kWidth - 1, kHeight - 1), QColor(Qt::blue));
+}
+
+// A project writes what no file holds, once, and never two layers into one file. Two new
+// layers both called "scan", each with a texture of the same name, used to overwrite each
+// other in meshes/ and lose their textures; a changed layer was meant to be re-saved and was
+// not; and copying an outside layer into the project copied it without its textures and
+// left the project naming the original.
+void DocumentTests::saveMeshLabProjectWritesWhatChangedUnderUniqueNames()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const auto texturedLayer = [](Document &doc, const QColor &color) {
+        const int i = addTinyMesh(doc, QStringLiteral("scan"));
+        doc.mesh(i).mesh.face.EnableWedgeTexCoord();
+        for (int corner = 0; corner < 3; ++corner)
+            doc.mesh(i).mesh.face[0].WT(corner).N() = 0;
+        QImage image(4, 4, QImage::Format_RGB32);
+        image.fill(color);
+        TextureAssociationUtils::replaceTextureAssociations(
+            doc.mesh(i), { TextureAssociationUtils::makeTextureAssetFromImage(image, QStringLiteral("scan_color.png")) });
+        doc.mesh(i).ioMask |= vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
+        return i;
+    };
+    const auto firstPixel = [](const Document &doc, int i) {
+        QImage image;
+        QString error;
+        return TextureAssociationUtils::loadAssociatedTextureImage(doc.mesh(i), 0, image, error)
+            ? image.pixelColor(0, 0) : QColor();
+    };
+
+    Document doc;
+    texturedLayer(doc, Qt::red);
+    texturedLayer(doc, Qt::blue);
+    doc.mesh(1).name = QStringLiteral("scan");   // addMesh made it "scan 2"
+    const QString projectPath = dir.filePath(QStringLiteral("project/p.mlp"));
+    QString error;
+    QVERIFY2(doc.saveMeshLabProject(projectPath, {}, &error), qPrintable(error));
+    const QDir meshes(dir.filePath(QStringLiteral("project/meshes")));
+    QCOMPARE(meshes.entryList({ QStringLiteral("*.ply") }, QDir::Files),
+             QStringList({ QStringLiteral("scan.ply"), QStringLiteral("scan_1.ply") }));
+    QCOMPARE(doc.meshStoredState(0), Document::StoredState::Stored);
+    QCOMPARE(doc.meshStoredState(1), Document::StoredState::Stored);
+    {
+        Document reopened;
+        QCOMPARE(reopened.loadMeshLabProject(projectPath), 0);
+        QCOMPARE(reopened.meshCount(), 2);
+        QCOMPARE(firstPixel(reopened, 0), QColor(Qt::red));
+        QCOMPARE(firstPixel(reopened, 1), QColor(Qt::blue));
+    }
+
+    // Saved again with one layer changed: that one is written over its file, nothing new.
+    const QStringList filesBefore = meshes.entryList(QDir::Files);
+    doc.mesh(0).mesh.face[0].SetS();
+    doc.markMeshSelectionChanged(0);
+    QCOMPARE(doc.meshStoredState(0), Document::StoredState::Changed);
+    QVERIFY2(doc.saveMeshLabProject(projectPath, {}, &error), qPrintable(error));
+    QCOMPARE(meshes.entryList(QDir::Files), filesBefore);
+    QCOMPARE(doc.meshStoredState(0), Document::StoredState::Stored);
+    {
+        Document reopened;
+        QCOMPARE(reopened.loadMeshLabProject(projectPath), 0);
+        QVERIFY(reopened.mesh(0).mesh.face[0].IsS());
+    }
+
+    // A layer from outside the project, copied in: with its texture, and the project names the copy.
+    const QString outsideDir = dir.filePath(QStringLiteral("outside"));
+    QVERIFY(QDir().mkpath(outsideDir));
+    {
+        Document writer;
+        texturedLayer(writer, Qt::green);
+        QCOMPARE(writer.saveMesh(0, outsideDir + QStringLiteral("/scan.ply")), 0);
+    }
+    Document outside;
+    QCOMPARE(outside.loadMesh(outsideDir + QStringLiteral("/scan.ply")), 0);
+    const QString copiedProject = dir.filePath(QStringLiteral("copied/c.mlp"));
+    Document::MeshLabProjectSaveOptions copy;
+    QVERIFY(!outside.saveMeshLabProject(copiedProject, copy, &error));
+    copy.copyFiles = true;
+    QVERIFY2(outside.saveMeshLabProject(copiedProject, copy, &error), qPrintable(error));
+    QCOMPARE(QFileInfo(outside.mesh(0).sourcePath).absolutePath(),
+             QFileInfo(dir.filePath(QStringLiteral("copied/meshes/scan.ply"))).absolutePath());
+    QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("copied/meshes/scan_color.png"))));
+    QVERIFY(QDir(outsideDir).removeRecursively());
+    Document reopened;
+    QCOMPARE(reopened.loadMeshLabProject(copiedProject), 0);
+    QCOMPARE(firstPixel(reopened, 0), QColor(Qt::green));
 }
 
 // A layer that has no file -- a filter's output, a duplicate -- exists only in memory, so a

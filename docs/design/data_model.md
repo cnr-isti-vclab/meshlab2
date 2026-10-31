@@ -79,17 +79,18 @@ The tag is part of the displayed text, not a field, so the panel cannot sort or 
 
 `Document::saveMeshLabProject(...)`: writes a `.mlp` project from the current document. It changes the document only through `saveMesh`: a layer it writes takes the written file as its own. No `modified` flag is cleared.
 
-Each mesh layer is sorted into one of three cases by its provenance (see [Layer Provenance](#layer-provenance)):
+Each mesh layer is sorted by its stored state (see [Layer Provenance](#layer-provenance)). Every write goes through `saveMesh`, so it writes the layer's textures that no file holds beside it, takes the written file as the layer's own and records it as stored: the next project save writes only what changed since.
 
 | Layer | What the save does | Project `filename` |
 |---|---|---|
-| No file (`○`) | Always written, as PLY, to `meshes/<name>.ply` in the project folder. The name is simplified and every character outside `[A-Za-z0-9_.-]` becomes `_`; two names that simplify to the same text overwrite each other. | `meshes/<name>.ply` |
-| From disk, changed (`●`) with "Re-save modified meshes" on (the default) | **Not written yet.** The option marks the layer for re-saving over its own file, but nothing performs the write, so the project refers to the unchanged file and reopens without the change. | the original file |
-| From disk otherwise | Not written; referenced where it is. | the original file |
+| No file (`○`) | Always written, as PLY, to `meshes/<name>.ply` in the project folder. The name keeps to `[A-Za-z0-9_.-]` and gets `_1`, `_2` ... when the name is taken on disk or by another layer in the same save, so two layers called "scan" become `scan.ply` and `scan_1.ply`. | `meshes/<name>.ply` |
+| File in the project folder, changed (`●`), with "Re-save changed meshes" on (the default) | Written back over its own file. | its file |
+| File outside the project folder | Refused unless "Copy files to project folder" is on; then saved into `meshes/` under a unique name in its own format (PLY when that cannot be written), with every texture copied beside it. A layer is saved rather than its file copied, because its texture references are relative to it. | the copy |
+| File in the project folder otherwise | Not written; referenced where it is. | its file |
 
 The "no file" case used to be skipped when the layer was unmodified, which dropped every filter-created layer from the saved project without a message; the regression test is `saveMeshLabProjectKeepsLayersWithoutAFile`.
 
-Options (`MeshLabProjectSaveOptions`, offered by the Save Project dialog): `onlyVisibleMeshes` leaves hidden layers out of the project altogether; `saveModifiedMeshes` is the re-save above; `copyFiles` lets the save proceed when some referenced meshes or rasters live outside the project folder. Without it, such a project is refused with an error rather than saved with paths that would break when the folder moves. With it the files are copied into `meshes/` and `images/`, but the project still names the original locations, so the copies are not what a reopened project loads. Paths in the file are relative to the project folder.
+Options (`MeshLabProjectSaveOptions`, offered by the Save Project dialog): `onlyVisibleMeshes` leaves hidden layers out of the project altogether; `saveModifiedMeshes` is the re-save above; `copyFiles` lets the save proceed when some referenced meshes or rasters live outside the project folder. Without it, such a project is refused with an error rather than saved with paths that would break when the folder moves. With it meshes are saved into `meshes/` as above and raster images copied into `images/`, each under a unique name, and the project -- and the document -- name the copies. A snapshot plane with no file is written to `images/` (`saveRasterPlaneImage`). Paths in the file are relative to the project folder.
 
 **Unit** (`Document::unit()`, `LengthUnit` in `lengthunit.h`): what the coordinates are measured in --
 micrometers, millimeters, centimeters, meters, kilometers, inches or feet -- as far as it is known. Most

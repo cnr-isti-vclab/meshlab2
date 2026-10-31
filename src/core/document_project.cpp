@@ -200,96 +200,99 @@ bool Document::saveMeshLabProject(
             return fail(tr("Cannot create project directory: %1").arg(projectDir.absolutePath()));
     }
 
-    // Check for files outside the project directory
-    const auto isOutsideProject = [&](const QString &absPath) {
-        return absPath.startsWith(projectDir.absolutePath() + QDir::separator())
-            || QFileInfo(absPath).dir() == projectDir;
+    // A file is in the project when it is in its folder or below.
+    const auto insideProject = [&](const QString &path) {
+        const QString abs = QFileInfo(path).absoluteFilePath();
+        return abs.startsWith(projectDir.absolutePath() + QLatin1Char('/'))
+            || QFileInfo(abs).absolutePath() == projectDir.absolutePath();
     };
-    (void)isOutsideProject;
+    // Files the project writes go into one flat folder each, under the layer's name made safe
+    // for every reader and suffixed when the name is taken on disk or by this save: two
+    // layers called "scan" must not end up in one file.
+    QSet<QString> takenNames;
+    const auto uniqueFile = [&](const QString &folder, const QString &name, const QString &fallback,
+                                const QString &suffix) {
+        static const QRegularExpression unsafe(QStringLiteral("[^\\w.-]"));
+        QString stem = QFileInfo(name.simplified()).completeBaseName();
+        stem.replace(unsafe, QStringLiteral("_"));
+        if (stem.isEmpty())
+            stem = fallback;
+        const QDir dir(projectDir.filePath(folder));
+        QString candidate = stem + QLatin1Char('.') + suffix;
+        for (int i = 1; takenNames.contains(dir.filePath(candidate).toLower()) || dir.exists(candidate); ++i)
+            candidate = QStringLiteral("%1_%2.%3").arg(stem).arg(i).arg(suffix);
+        takenNames.insert(dir.filePath(candidate).toLower());
+        return dir.filePath(candidate);
+    };
 
-    QStringList newMeshPaths;
-    QStringList newImagePaths;
-
-    // Phase 1: collect paths and validate
-    struct EntryPath {
+    // Phase 1: what happens to each layer. A layer with no file exists only in memory -- a
+    // filter's output, a duplicate -- so it is always written: leaving it out would silently
+    // drop it from the project. A layer whose file does not hold it any more is written back
+    // over that file when the option asks. A file outside the project folder is refused
+    // unless the option to copy files is on; then the layer is saved into the project, with
+    // its textures, and the project names that copy. Otherwise the file is referenced.
+    enum class MeshAction { Skip, Reference, Save, SaveCopy };
+    struct MeshPlan {
+        MeshAction action = MeshAction::Skip;
         QString absPath;
-        bool needsCopy = false;
     };
-    QVector<EntryPath> meshSavePaths(meshCount());
-    // One per plane: the planes of a raster share its camera, not its file.
-    QVector<QVector<EntryPath>> rasterSavePaths(rasterCount());
-
+    QVector<MeshPlan> meshPlans(meshCount());
+    bool outsideFiles = false;
     for (int mi = 0; mi < meshCount(); ++mi) {
         const MeshEntry &entry = mesh(mi);
-        if (options.onlyVisibleMeshes && !entry.visible) continue;
-        // A layer with no file exists only in memory -- a filter's output, a duplicate -- so
-        // it is always written: leaving it out would silently drop it from the project. A
-        // layer from disk is written back only if it has changed and the option asks for it,
-        // and referenced where it is otherwise.
-        if (entry.sourcePath.isEmpty() || (entry.modified && options.saveModifiedMeshes)) {
-            if (!entry.sourcePath.isEmpty()) {
-                // Re-save, over the file it came from
-                meshSavePaths[mi].absPath = entry.sourcePath;
-                meshSavePaths[mi].needsCopy = false;
-            } else {
-                // New mesh — save to meshes/ dir
-                QString safeName = entry.name.simplified();
-                safeName.replace(QRegularExpression(QStringLiteral("[^\\w.-]")), QStringLiteral("_"));
-                if (safeName.isEmpty()) safeName = QStringLiteral("mesh_%1").arg(mi);
-                if (!safeName.endsWith(QStringLiteral(".ply"), Qt::CaseInsensitive))
-                    safeName += QStringLiteral(".ply");
-                meshSavePaths[mi].absPath = projectDir.filePath(QStringLiteral("meshes") + QDir::separator() + safeName);
-                meshSavePaths[mi].needsCopy = true;
-            }
+        if (options.onlyVisibleMeshes && !entry.visible)
+            continue;
+        MeshPlan &plan = meshPlans[mi];
+        const bool hasFile = !entry.sourcePath.isEmpty();
+        if (hasFile && !insideProject(entry.sourcePath)) {
+            outsideFiles = true;
+            QString suffix = QFileInfo(entry.sourcePath).suffix().toLower();
+            if (!m_pluginManager->pluginForSave(QStringLiteral("x.") + suffix))
+                suffix = QStringLiteral("ply");
+            plan = { MeshAction::SaveCopy, uniqueFile(QStringLiteral("meshes"), entry.name,
+                                                      QStringLiteral("mesh_%1").arg(mi), suffix) };
+        } else if (!hasFile) {
+            plan = { MeshAction::Save, uniqueFile(QStringLiteral("meshes"), entry.name,
+                                                  QStringLiteral("mesh_%1").arg(mi), QStringLiteral("ply")) };
+        } else if (options.saveModifiedMeshes && meshStoredState(mi) != StoredState::Stored) {
+            plan = { MeshAction::Save, entry.sourcePath };
         } else {
-            meshSavePaths[mi].absPath = entry.sourcePath;
-            meshSavePaths[mi].needsCopy = false;
+            plan = { MeshAction::Reference, entry.sourcePath };
         }
     }
 
+    // One per plane: the planes of a raster share its camera, not its file. A snapshot plane
+    // has no file and is written to images/; one outside the project is copied there.
+    struct PlanePlan {
+        QString absPath;
+        bool write = false;
+        QString copyFrom;
+    };
+    QVector<QVector<PlanePlan>> planePlans(rasterCount());
     for (int ri = 0; ri < rasterCount(); ++ri) {
         const RasterEntry &re = raster(ri);
         for (int pi = 0; pi < int(re.planes.size()); ++pi) {
             const RasterPlane &p = re.planes[size_t(pi)];
-            EntryPath path;
-            if (!p.sourcePath.isEmpty()) {
-                path.absPath = p.sourcePath;
+            const QString name = pi > 0 ? QStringLiteral("%1_%2").arg(re.name).arg(pi) : re.name;
+            PlanePlan plan;
+            if (p.sourcePath.isEmpty()) {
+                plan.absPath = uniqueFile(QStringLiteral("images"), name, QStringLiteral("raster_%1").arg(ri),
+                                          QStringLiteral("png"));
+                plan.write = true;
+            } else if (!insideProject(p.sourcePath)) {
+                outsideFiles = true;
+                plan.copyFrom = p.sourcePath;
+                plan.absPath = uniqueFile(QStringLiteral("images"), QFileInfo(p.sourcePath).fileName(),
+                                          QStringLiteral("raster_%1").arg(ri),
+                                          QFileInfo(p.sourcePath).suffix());
             } else {
-                // Snapshot plane — save to images/
-                QString safeName = re.name.simplified();
-                safeName.replace(QRegularExpression(QStringLiteral("[^\\w.-]")), QStringLiteral("_"));
-                if (safeName.isEmpty()) safeName = QStringLiteral("raster_%1").arg(ri);
-                if (pi > 0) safeName += QStringLiteral("_%1").arg(pi);
-                safeName += QStringLiteral(".png");
-                path.absPath = projectDir.filePath(QStringLiteral("images") + QDir::separator() + safeName);
-                path.needsCopy = true;
+                plan.absPath = p.sourcePath;
             }
-            rasterSavePaths[ri].push_back(path);
+            planePlans[ri].push_back(plan);
         }
     }
 
-    // Check for files requiring copy-to-project
-    bool needsCopy = false;
-    for (int mi = 0; mi < meshCount(); ++mi) {
-        if (!meshSavePaths[mi].absPath.isEmpty() && meshSavePaths[mi].needsCopy) continue;
-        if (!meshSavePaths[mi].absPath.isEmpty()) {
-            if (!QFileInfo(meshSavePaths[mi].absPath).absoluteFilePath().startsWith(projectDir.absolutePath() + QDir::separator())
-                && QFileInfo(meshSavePaths[mi].absPath).absolutePath() != projectDir.absolutePath()) {
-                needsCopy = true;
-            }
-        }
-    }
-    for (const QVector<EntryPath> &planePaths : rasterSavePaths) {
-        for (const EntryPath &path : planePaths) {
-            if (path.needsCopy) continue;
-            if (!QFileInfo(path.absPath).absoluteFilePath().startsWith(projectDir.absolutePath() + QDir::separator())
-                && QFileInfo(path.absPath).absolutePath() != projectDir.absolutePath()) {
-                needsCopy = true;
-            }
-        }
-    }
-
-    if (needsCopy && !options.copyFiles)
+    if (outsideFiles && !options.copyFiles)
         return fail(tr("Some mesh or raster files are outside the project directory. "
                        "Enable 'copy files to project folder' to proceed."));
 
@@ -297,43 +300,32 @@ bool Document::saveMeshLabProject(
     projectDir.mkpath(QStringLiteral("meshes"));
     projectDir.mkpath(QStringLiteral("images"));
 
-    // Phase 3: save/copy mesh files
+    // Phase 3: write the layers. Saving names each layer's file and records it as stored
+    // (saveMesh), so the next project save writes only what has changed since.
     for (int mi = 0; mi < meshCount(); ++mi) {
-        if (meshSavePaths[mi].absPath.isEmpty()) continue;
-        const QString &destPath = meshSavePaths[mi].absPath;
-        if (meshSavePaths[mi].needsCopy) {
-            // Save mesh to destination
-            const int result = saveMesh(mi, destPath);
-            if (result != 0)
-                return fail(tr("Failed to save mesh '%1' to %2").arg(mesh(mi).name, destPath));
-            newMeshPaths.push_back(destPath);
-        } else if (needsCopy && !meshSavePaths[mi].absPath.startsWith(projectDir.absolutePath() + QDir::separator())) {
-            // Copy existing file into project
-            const QString dest = projectDir.filePath(QStringLiteral("meshes") + QDir::separator()
-                + QFileInfo(meshSavePaths[mi].absPath).fileName());
-            if (!QFile::copy(meshSavePaths[mi].absPath, dest))
-                return fail(tr("Failed to copy mesh file '%1'").arg(meshSavePaths[mi].absPath));
-        }
+        const MeshPlan &plan = meshPlans[mi];
+        if (plan.action != MeshAction::Save && plan.action != MeshAction::SaveCopy)
+            continue;
+        MeshIOSaveOptions saveOptions;
+        saveOptions.copyAssociatedTextures = plan.action == MeshAction::SaveCopy;
+        if (saveMesh(mi, plan.absPath, saveOptions) != 0)
+            return fail(tr("Failed to save mesh '%1' to %2").arg(mesh(mi).name, plan.absPath));
     }
 
-    // Phase 4: save raster images
+    // Phase 4: write or copy the raster images
     for (int ri = 0; ri < rasterCount(); ++ri) {
-        for (int pi = 0; pi < rasterSavePaths[ri].size(); ++pi) {
-            const QString &destPath = rasterSavePaths[ri][pi].absPath;
-            if (rasterSavePaths[ri][pi].needsCopy) {
-                // Save QImage
-                RasterPlane &rp = raster(ri).planes[size_t(pi)];
-                ensureRasterPlaneImage(rp);
-                if (!rp.image.isNull()) {
-                    if (!rp.image.save(destPath))
-                        return fail(tr("Failed to save raster image to %1").arg(destPath));
-                    newImagePaths.push_back(destPath);
-                }
-            } else if (needsCopy && !destPath.startsWith(projectDir.absolutePath() + QDir::separator())) {
-                const QString dest = projectDir.filePath(QStringLiteral("images") + QDir::separator()
-                    + QFileInfo(destPath).fileName());
-                if (!QFile::copy(destPath, dest))
-                    return fail(tr("Failed to copy raster image '%1'").arg(destPath));
+        for (int pi = 0; pi < planePlans[ri].size(); ++pi) {
+            const PlanePlan &plan = planePlans[ri][pi];
+            if (plan.write) {
+                QString planeError;
+                ensureRasterPlaneImage(raster(ri).planes[size_t(pi)]);
+                if (raster(ri).planes[size_t(pi)].hasImage()
+                    && !saveRasterPlaneImage(ri, pi, plan.absPath, &planeError))
+                    return fail(planeError);
+            } else if (!plan.copyFrom.isEmpty()) {
+                if (!QFile::copy(plan.copyFrom, plan.absPath))
+                    return fail(tr("Failed to copy raster image '%1'").arg(plan.copyFrom));
+                raster(ri).planes[size_t(pi)].sourcePath = QDir::toNativeSeparators(plan.absPath);
             }
         }
     }
@@ -354,7 +346,7 @@ bool Document::saveMeshLabProject(
     for (int mi = 0; mi < meshCount(); ++mi) {
         const MeshEntry &entry = mesh(mi);
         if (options.onlyVisibleMeshes && !entry.visible) continue;
-        const QString &absPath = meshSavePaths[mi].absPath;
+        const QString &absPath = meshPlans[mi].absPath;
         if (absPath.isEmpty()) continue;
         ordinalOfMeshId[entry.meshId] = int(ordinalOfMeshId.size());
 
@@ -383,7 +375,7 @@ bool Document::saveMeshLabProject(
     xml.writeStartElement(QStringLiteral("RasterGroup"));
     for (int ri = 0; ri < rasterCount(); ++ri) {
         const RasterEntry &re = raster(ri);
-        if (rasterSavePaths[ri].isEmpty()) continue;
+        if (planePlans[ri].isEmpty()) continue;
 
         xml.writeStartElement(QStringLiteral("MLRaster"));
         xml.writeAttribute(QStringLiteral("label"), re.name);
@@ -429,7 +421,7 @@ bool Document::saveMeshLabProject(
         for (int pi = 0; pi < int(re.planes.size()); ++pi) {
             const RasterPlane &plane = re.planes[size_t(pi)];
             xml.writeStartElement(QStringLiteral("Plane"));
-            QString planeRelPath = projectDir.relativeFilePath(rasterSavePaths[ri][pi].absPath);
+            QString planeRelPath = projectDir.relativeFilePath(planePlans[ri][pi].absPath);
             xml.writeAttribute(QStringLiteral("fileName"), planeRelPath);
             QString semanticStr;
             switch (plane.semantic) {

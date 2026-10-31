@@ -2710,9 +2710,14 @@ void MainWindow::saveProjectAs()
     auto *layout = new QVBoxLayout(&dlg);
 
     auto *cbOnlyVisible = new QCheckBox(tr("Save only visible meshes"));
-    auto *cbSaveModified = new QCheckBox(tr("Re-save modified meshes"));
+    auto *cbSaveModified = new QCheckBox(tr("Re-save changed meshes"));
     cbSaveModified->setChecked(true);
+    cbSaveModified->setToolTip(tr("Write the layers marked \u25CF back over their own files. Layers never "
+                                  "saved (\u25CB) are always written into the project's meshes folder."));
     auto *cbCopyFiles = new QCheckBox(tr("Copy files to project folder (if needed)"));
+    cbCopyFiles->setToolTip(tr("Save the meshes from outside the folder into its meshes folder, with their "
+                               "textures, and copy outside images into its images folder. The project "
+                               "then refers to the copies."));
 
     // Check if files will be outside the project
     const QDir projectDir = QFileInfo(targetPath).absoluteDir();

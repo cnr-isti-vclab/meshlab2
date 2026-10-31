@@ -1,7 +1,7 @@
 # Project persistence: how the user's work reaches the disk (draft, 2026-10-30)
 
 **Status: approved 2026-10-31. Stages 1 (savers and stored state), 2 (display and single
-saves) and 3 (filters) implemented 2026-10-31; stages 4 and 5 not yet.** See section 10 for what stage 1 did and found. First drafted as "texture storage"; renamed because
+saves), 3 (filters) and 4 (project save) implemented 2026-10-31; stage 5 not yet.** See section 10 for what stage 1 did and found. First drafted as "texture storage"; renamed because
 most of it is about saving the user's work, of which textures are one part.
 
 Every layer and every texture knows where it is stored and whether it differs from what is
@@ -341,5 +341,17 @@ Open: none.
    directory, the default name, an overwritten file byte-identical for both filters, the
    save writing beside it); the consolidation test takes the new parameter; the old
    anchoring test went with the behaviour it tested.
-4. **Project save** (rows 28-30).
+4. **Project save** (rows 28-30, and row 17 for *save modified meshes*). **Done
+   2026-10-31.** `saveMeshLabProject` plans each layer as referenced, saved over its own
+   file (changed, by `meshStoredState`, with the option on -- it wrote nothing before), saved
+   new into `meshes/`, or saved as a copy into `meshes/` when outside the project; every
+   write goes through `saveMesh`, so textures follow the rule of stage 1 and the stored
+   state is recorded. Names in `meshes/` and `images/` are unique on disk and within the
+   save. A copy is a save into the project rather than a byte copy, because a mesh's texture
+   references are relative to it: what MeshLab does not read from the file is not carried
+   over. Raster copies are recorded too, and a snapshot plane goes through
+   `saveRasterPlaneImage`. The dialog's "Re-save modified meshes" became "Re-save changed
+   meshes", with tooltips. Tests: `saveMeshLabProjectWritesWhatChangedUnderUniqueNames` (fails
+   on the old code); `importImageToCurrentRasterKeepsTheCamera` asserted the old behaviour,
+   that a copied plane's project still named the original, and now checks the copy.
 5. **Document directory** (rows 31-35).
