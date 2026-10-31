@@ -22,6 +22,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -205,6 +206,14 @@ public:
     int saveMesh(int index, const QString &filename);
     int saveCurrentMesh(const QString &filename, const MeshIOSaveOptions &options);
     int saveCurrentMesh(const QString &filename);
+    // Whether a layer, or one of its textures, is what a file holds. NotStored: no file holds
+    // it; Changed: one did when it was last read or written, and the layer has changed since
+    // (a selection counts, as PLY keeps it); Stored: the file holds what the document holds.
+    // These are facts about the disk, kept outside the undo state: undoing past a save shows
+    // the layer changed, and undoing back to what was saved shows it stored again.
+    enum class StoredState { NotStored, Changed, Stored };
+    StoredState meshStoredState(int index) const;
+    StoredState meshTextureStoredState(int meshIndex, int textureIndex) const;
     void beginUndoStep(const QString &label);
     void beginUndoStep(const QString &label,
                        const ScriptAction &scriptAction);
@@ -625,7 +634,29 @@ private:
     // Globally monotonic counter for geometry revisions. Never reset or restored
     // during undo/redo, so every distinct geometry snapshot always gets a unique
     // (meshId, geometryRevision) key — preventing cross-branch cache collisions.
+    // Material and selection revisions draw from it too, so a revision a layer was saved
+    // at is never reached again by a different state after an undo.
     std::uint64_t m_nextGeometryRevision = 1;
+    // What the files hold, as of the last load or save (meshStoredState). Never restored by
+    // undo. A layer's file and the revisions it was read or written at, by meshId; and, by
+    // QImage::cacheKey, the file holding exactly that texture image -- the mesh file itself
+    // for one packed inside it (glb, 3mf), which no other mesh file can refer to.
+    struct StoredMesh {
+        QString path;
+        std::uint64_t geometryRevision = 0;
+        std::uint64_t materialRevision = 0;
+        std::uint64_t selectionRevision = 0;
+    };
+    struct StoredImage {
+        QString path;
+        bool packed = false;
+    };
+    std::unordered_map<std::uint64_t, StoredMesh> m_storedMeshes;
+    std::unordered_map<qint64, StoredImage> m_storedImages;
+    // Records that the layer's file is path. savedTexturePaths is what a save reported
+    // (MeshIOTextureContext); null when the layer was just read from path, whose textures
+    // that have an image and no file of their own were packed inside it.
+    void recordMeshStored(MeshEntry &entry, const QString &path, const QStringList *savedTexturePaths);
     void setCurrentMeshIndexInternal(int index, bool makeCurrentLayer);
     void setCurrentRasterIndexInternal(int index, bool makeCurrentLayer);
     int m_currentMeshIndex = -1;

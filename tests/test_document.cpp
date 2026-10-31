@@ -119,6 +119,8 @@ private slots:
     void plyEdgeScalarsRoundTrip();
     void polygonalOffExportSurvivesMalformedFaces();
     void saveAndLoadEmbeddedGLBTexture();
+    void savingWritesTheTexturesNoFileHolds();
+    void savingNamesTheLayersFileAndUndoKeepsIt();
     void savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist();
     void savePolygonalFormatsHonorFauxEdgesAndTriangulationOption();
     void benchmarkLoadMesh();
@@ -3241,6 +3243,124 @@ void DocumentTests::saveAndLoadEmbeddedGLBTexture()
     QCOMPARE(loadedAsset->image.size(), QSize(2, 1));
     QCOMPARE(loadedAsset->image.pixelColor(0, 0), QColor(Qt::red));
     QCOMPARE(loadedAsset->image.pixelColor(1, 0), QColor(Qt::green));
+}
+
+// A layer whose first texture exists only in memory -- what Texture Defragmentation leaves --
+// and whose second has a file of its own. Saving writes the first next to the mesh in every
+// format, whatever the options, and refers to or copies the second; reopening finds both, on
+// the faces that use them. PLY used to write the first only with "copy textures", and to give
+// face 0 the second texture's file, because mesh.textures leaves out textures with no file.
+// The name has a space, which vcglib's PLY and OBJ readers cannot take: the file written
+// for it has none.
+void DocumentTests::savingWritesTheTexturesNoFileHolds()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QImage red(4, 4, QImage::Format_RGBA8888);
+    red.fill(Qt::red);
+    QImage blue(4, 4, QImage::Format_RGBA8888);
+    blue.fill(Qt::blue);
+    const QString bluePath = dir.filePath(QStringLiteral("blue.png"));
+    QVERIFY(blue.save(bluePath));
+
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0, 0, 0));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(1, 0, 0));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0, 1, 0));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(1, 1, 0));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(1), size_t(2));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(1), size_t(3), size_t(2));
+    mesh.face.EnableWedgeTexCoord();
+    for (int f = 0; f < 2; ++f)
+        for (int corner = 0; corner < 3; ++corner) {
+            mesh.face[size_t(f)].WT(corner).U() = 0.5f;
+            mesh.face[size_t(f)].WT(corner).V() = 0.5f;
+            mesh.face[size_t(f)].WT(corner).N() = short(f);
+        }
+
+    Document doc;
+    const int index = doc.addMesh(mesh, QStringLiteral("defragmented"), vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    TextureAssociationUtils::replaceTextureAssociations(doc.mesh(index), {
+        TextureAssociationUtils::makeTextureAssetFromImage(red, QStringLiteral("atlas image.png")),
+        TextureAssociationUtils::makeTextureAssetFromPath(bluePath) });
+    QCOMPARE(doc.meshTextureStoredState(index, 0), Document::StoredState::NotStored);
+    QCOMPARE(doc.meshTextureStoredState(index, 1), Document::StoredState::Stored);
+
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEINDEX
+        | vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
+    for (const QString &ext : { QStringLiteral("ply"), QStringLiteral("obj"), QStringLiteral("gltf") }) {
+        QVERIFY(QDir(dir.path()).mkpath(ext));
+        const QString path = dir.filePath(ext + QStringLiteral("/saved.") + ext);
+        Document saving;
+        const int i = saving.addMesh(doc.mesh(index).mesh, QStringLiteral("defragmented"),
+                                     vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+        TextureAssociationUtils::replaceTextureAssociations(saving.mesh(i), doc.mesh(index).textureAssets);
+        QCOMPARE(saving.saveMesh(i, path, options), 0);
+        QCOMPARE(saving.meshStoredState(i), Document::StoredState::Stored);
+        QCOMPARE(saving.meshTextureStoredState(i, 0), Document::StoredState::Stored);
+
+        Document reopened;
+        QCOMPARE(reopened.loadMesh(path), 0);
+        const VCGMesh &loaded = reopened.mesh(0).mesh;
+        for (int f = 0; f < 2; ++f) {
+            QImage image;
+            QString error;
+            QVERIFY2(TextureAssociationUtils::loadAssociatedTextureImage(
+                         reopened.mesh(0), loaded.face[size_t(f)].cWT(0).N(), image, error),
+                     qPrintable(ext + QStringLiteral(": ") + error));
+            QCOMPARE(image.pixelColor(0, 0), f == 0 ? QColor(Qt::red) : QColor(Qt::blue));
+        }
+    }
+
+    // Saved twice, the texture with no file is written once, as atlas_image_1.png beside the
+    // atlas_image.png the loop wrote: the first save recorded where it went.
+    const QString twice = dir.filePath(QStringLiteral("ply/twice.ply"));
+    QCOMPARE(doc.saveMesh(index, twice, options), 0);
+    QCOMPARE(doc.saveMesh(index, twice, options), 0);
+    QCOMPARE(QDir(dir.filePath(QStringLiteral("ply"))).entryList({ QStringLiteral("atlas_image*.png") }).size(), 2);
+}
+
+// Saving to a new file makes it the layer's file, as in any document application, and the
+// label follows when it was the old file's name. That is a fact about the disk: undo does not
+// take it back, and undoing past the save shows the layer changed, redoing shows it saved.
+void DocumentTests::savingNamesTheLayersFileAndUndoKeepsIt()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString first = dir.filePath(QStringLiteral("first.ply"));
+    const QString second = dir.filePath(QStringLiteral("second.ply"));
+    {
+        Document writer;
+        addTinyMesh(writer, QStringLiteral("tiny"));
+        QCOMPARE(writer.saveMesh(0, first), 0);
+    }
+
+    Document doc;
+    QCOMPARE(doc.loadMesh(first), 0);
+    QCOMPARE(doc.meshStoredState(0), Document::StoredState::Stored);
+    doc.markMeshMaterialChanged(0);
+    QCOMPARE(doc.meshStoredState(0), Document::StoredState::Changed);
+
+    QCOMPARE(doc.saveMesh(0, second), 0);
+    QCOMPARE(doc.mesh(0).sourcePath, QFileInfo(second).absoluteFilePath());
+    QCOMPARE(doc.mesh(0).name, QStringLiteral("second.ply"));
+    QCOMPARE(doc.meshStoredState(0), Document::StoredState::Stored);
+
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.meshStoredState(0), Document::StoredState::Changed);
+    QCOMPARE(doc.mesh(0).sourcePath, QFileInfo(second).absoluteFilePath());
+    QVERIFY(doc.redo());
+    QCOMPARE(doc.meshStoredState(0), Document::StoredState::Stored);
+
+    // A selection counts: PLY keeps it, and a project re-saving changed layers needs to see it.
+    doc.mesh(0).mesh.face[0].SetS();
+    doc.markMeshSelectionChanged(0);
+    QCOMPARE(doc.meshStoredState(0), Document::StoredState::Changed);
+
+    // A layer made in memory has no file until it is saved.
+    addTinyMesh(doc, QStringLiteral("generated"));
+    QCOMPARE(doc.meshStoredState(1), Document::StoredState::NotStored);
 }
 
 void DocumentTests::savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist()

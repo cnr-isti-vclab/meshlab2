@@ -139,7 +139,10 @@ void Document::restoreUndoState(const UndoState &state)
                 entry->selectionRevision = snap.selectionRevision;
                 entry->transform  = snap.transform;
                 entry->name             = snap.name;
-                entry->sourcePath       = snap.sourcePath;
+                // The layer's file is a fact about the disk, not the history: a save since
+                // this state was captured named another one.
+                const auto stored = m_storedMeshes.find(snap.meshId);
+                entry->sourcePath       = stored != m_storedMeshes.end() ? stored->second.path : snap.sourcePath;
                 entry->textureFileNames = snap.textureFileNames;
                 entry->textureFilePaths = snap.textureFilePaths;
                 entry->textureAssets    = snap.textureAssets;

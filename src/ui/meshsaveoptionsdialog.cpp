@@ -124,13 +124,15 @@ MeshSaveOptionsDialog::MeshSaveOptionsDialog(
         layout->addWidget(m_embedTexturesCheckBox);
     }
 
-    m_copyAssociatedTexturesCheckBox = new QCheckBox(tr("Copy associated textures next to the mesh"), this);
+    m_copyAssociatedTexturesCheckBox = new QCheckBox(tr("Copy saved textures next to the mesh"), this);
     m_copyAssociatedTexturesCheckBox->setVisible(m_supportsCopyAssociatedTextures);
     m_copyAssociatedTexturesCheckBox->setChecked(
         m_supportsCopyAssociatedTextures ? initialOptions.copyAssociatedTextures : false);
     if (m_supportsCopyAssociatedTextures) {
         m_copyAssociatedTexturesCheckBox->setToolTip(
-            tr("Copy associated texture images into the destination folder and write relative references in the saved mesh."));
+            tr("Textures not saved yet are always written next to the mesh. With this on, the ones "
+               "that already have a file are copied there too; with it off, the saved mesh refers "
+               "to them where they are."));
         layout->addWidget(m_copyAssociatedTexturesCheckBox);
     }
 

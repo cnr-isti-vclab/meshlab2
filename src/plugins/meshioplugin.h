@@ -68,7 +68,9 @@ struct MeshIOSaveOptions
     bool binary = true;
     // Optional hint used by formats supporting embedded textures (e.g. glTF/glb).
     bool embedTextures = false;
-    // Optional hint used by formats supporting external texture references (e.g. PLY TextureFile comments).
+    // For formats that refer to texture files (PLY TextureFile comments, OBJ map_Kd). A texture
+    // with no file of its own is always written next to the mesh; this also copies there the
+    // ones that have a file, which are otherwise referred to where they are.
     bool copyAssociatedTextures = false;
     // Optional hint for formats supporting Draco geometry compression (e.g. glTF/glb).
     bool dracoCompression = false;
@@ -79,12 +81,19 @@ struct MeshIOSaveOptions
     LengthUnit unit = LengthUnit::Unknown;
 };
 
+// On save, an asset's sourcePath is the file holding exactly its image (Document::saveMesh
+// resolves it), so a saver copies or refers to that file and writes the image only when the
+// path is empty.
 struct MeshIOTextureContext
 {
     const QStringList *textureFileNames = nullptr;
     const QStringList *textureFilePaths = nullptr;
     const std::vector<MeshIOTextureAsset> *textureAssets = nullptr;
     const MeshIOMaterialSet *materialSet = nullptr;
+    // Out, on save: one entry per asset, the absolute path of the file that now holds it --
+    // written, copied or referred to -- or the mesh file itself when packed inside it; empty
+    // when this save did not store it. A saver that stores no texture leaves it alone.
+    QStringList *savedTexturePaths = nullptr;
 };
 
 struct MeshIOCapabilities

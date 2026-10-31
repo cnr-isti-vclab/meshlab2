@@ -3,7 +3,6 @@
 #include "meshioplugin.h"
 #include "meshiopluginmanager.h"
 
-#include <vcg/complex/append.h>
 #include <wrap/io_trimesh/export_obj.h>
 #include <wrap/io_trimesh/export_off.h>
 #include <wrap/io_trimesh/export_ply.h>
@@ -16,6 +15,8 @@
 #include <QHash>
 #include <QImage>
 #include <QObject>
+#include <QRegularExpression>
+#include <QScopeGuard>
 #include <algorithm>
 #include <memory>
 
@@ -134,7 +135,7 @@ int loadMaskCapabilityForExtension(const QString &ext)
     return 0;
 }
 
-bool plySaveWritesTextureReferences(int saveMask)
+bool saveWritesTextureReferences(int saveMask)
 {
     return (saveMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
         || (saveMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
@@ -157,6 +158,12 @@ QString uniqueTextureFileName(
     QFileInfo info(baseName);
     QString stem = info.completeBaseName();
     QString suffix = info.suffix();
+    // vcglib's readers take a texture name as one token of printable ASCII: PLY drops the
+    // spaces from "TextureFile a b.png", OBJ ignores "map_Kd a b.png". A file this save
+    // writes keeps to [A-Za-z0-9_.-], as project save does for mesh files.
+    static const QRegularExpression unsafe(QStringLiteral("[^A-Za-z0-9_.-]"));
+    stem.replace(unsafe, QStringLiteral("_"));
+    suffix.replace(unsafe, QStringLiteral("_"));
     if (stem.isEmpty())
         stem = QStringLiteral("texture");
     if (!suffix.isEmpty())
@@ -173,22 +180,24 @@ QString uniqueTextureFileName(
     return candidate;
 }
 
-bool preparePlyMeshWithCopiedTextures(
+// The texture names a PLY or OBJ file will carry, one per texture slot, so the faces'
+// texture indices keep pointing at the right one. A texture with a file is referred to where
+// it is, by a path relative to the mesh, or copied next to the mesh with copyStored; one with
+// only an image is written next to the mesh under its name, suffixed when that is taken, so
+// nothing already there is overwritten. One that has neither keeps the name it was declared
+// with. savedPaths gets, per slot, the file that now holds it (empty for the last kind).
+// Fails only when a texture cannot be written or copied.
+bool prepareTextureReferences(
     const QString &filename,
     const VCGMesh &mesh,
     const MeshIOTextureContext *textureContext,
-    VCGMesh &outMesh)
+    bool copyStored,
+    std::vector<std::string> &outTextures,
+    QStringList &savedPaths)
 {
-    if (vcg::tri::HasPerVertexTexCoord(mesh))
-        outMesh.vert.EnableTexCoord();
-    if (vcg::tri::HasPerWedgeTexCoord(mesh))
-        outMesh.face.EnableWedgeTexCoord();
-    vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(outMesh, mesh);
-
     const QDir destinationDir = QFileInfo(filename).absoluteDir();
     QHash<QString, QString> copiedTargetsBySourcePath;
     QHash<QString, QString> reservedNames;
-    std::vector<std::string> rewrittenTextures;
 
     const QStringList *textureFileNames = textureContext ? textureContext->textureFileNames : nullptr;
     const QStringList *textureFilePaths = textureContext ? textureContext->textureFilePaths : nullptr;
@@ -202,7 +211,7 @@ bool preparePlyMeshWithCopiedTextures(
         textureCount = std::max(textureCount, int(textureFilePaths->size()));
     if (textureAssets)
         textureCount = std::max(textureCount, int(textureAssets->size()));
-    rewrittenTextures.reserve(size_t(std::max(0, textureCount)));
+    outTextures.reserve(size_t(std::max(0, textureCount)));
 
     for (int textureIndex = 0; textureIndex < textureCount; ++textureIndex) {
         QString sourcePath;
@@ -214,13 +223,17 @@ bool preparePlyMeshWithCopiedTextures(
             displayName = asset.name.trimmed();
             if (asset.hasImage())
                 image = asset.image;
+        } else {
+            // The legacy lists only where there is no asset: mesh.textures leaves out the
+            // assets that have no file, so reading it by an asset's index can find another
+            // texture's file.
+            if (textureFilePaths && textureIndex < textureFilePaths->size())
+                sourcePath = textureFilePaths->at(textureIndex).trimmed();
+            if (textureFileNames && textureIndex < textureFileNames->size())
+                displayName = textureFileNames->at(textureIndex).trimmed();
+            if (sourcePath.isEmpty() && textureIndex < int(mesh.textures.size()))
+                sourcePath = QString::fromStdString(mesh.textures[size_t(textureIndex)]).trimmed();
         }
-        if (sourcePath.isEmpty() && textureFilePaths && textureIndex < textureFilePaths->size())
-            sourcePath = textureFilePaths->at(textureIndex).trimmed();
-        if (displayName.isEmpty() && textureFileNames && textureIndex < textureFileNames->size())
-            displayName = textureFileNames->at(textureIndex).trimmed();
-        if (sourcePath.isEmpty() && textureIndex < int(mesh.textures.size()))
-            sourcePath = QString::fromStdString(mesh.textures[size_t(textureIndex)]).trimmed();
         if (displayName.isEmpty() && !sourcePath.isEmpty())
             displayName = QFileInfo(sourcePath).fileName();
         if (displayName.isEmpty())
@@ -229,36 +242,39 @@ bool preparePlyMeshWithCopiedTextures(
             displayName += QStringLiteral(".png");
 
         const QFileInfo sourceInfo(sourcePath);
-        if ((sourcePath.isEmpty() || !sourceInfo.exists() || !sourceInfo.isFile()) && image.isNull())
-            return false;
-
-        QString destinationName;
-        if (sourceInfo.exists() && sourceInfo.isFile()) {
+        const bool hasFile = !sourcePath.isEmpty() && sourceInfo.isFile();
+        QString reference;
+        QString savedPath;
+        if (hasFile && !copyStored) {
+            savedPath = sourceInfo.absoluteFilePath();
+            reference = destinationDir.relativeFilePath(savedPath);
+        } else if (hasFile) {
             const QString normalizedSource = normalizeExistingPath(sourceInfo.absoluteFilePath());
-            destinationName = copiedTargetsBySourcePath.value(normalizedSource);
-            if (destinationName.isEmpty()) {
-                destinationName = uniqueTextureFileName(destinationDir, sourceInfo.fileName(), reservedNames);
-                const QString destinationPath = destinationDir.filePath(destinationName);
+            reference = copiedTargetsBySourcePath.value(normalizedSource);
+            if (reference.isEmpty()) {
+                reference = uniqueTextureFileName(destinationDir, sourceInfo.fileName(), reservedNames);
+                const QString destinationPath = destinationDir.filePath(reference);
                 const QString normalizedDestination = normalizeExistingPath(destinationPath);
                 if (normalizedSource != normalizedDestination) {
                     QFile::remove(destinationPath);
                     if (!QFile::copy(sourceInfo.absoluteFilePath(), destinationPath))
                         return false;
                 }
-                copiedTargetsBySourcePath.insert(normalizedSource, destinationName);
+                copiedTargetsBySourcePath.insert(normalizedSource, reference);
             }
-        } else {
-            destinationName = uniqueTextureFileName(destinationDir, displayName, reservedNames);
-            const QString destinationPath = destinationDir.filePath(destinationName);
-            QFile::remove(destinationPath);
-            if (!image.save(destinationPath))
+            savedPath = destinationDir.absoluteFilePath(reference);
+        } else if (!image.isNull()) {
+            reference = uniqueTextureFileName(destinationDir, displayName, reservedNames);
+            savedPath = destinationDir.absoluteFilePath(reference);
+            if (!image.save(savedPath))
                 return false;
+        } else {
+            reference = sourcePath.isEmpty() ? displayName : sourcePath;
         }
 
-        rewrittenTextures.push_back(QDir::toNativeSeparators(destinationName).toStdString());
+        outTextures.push_back(QDir::toNativeSeparators(reference).toStdString());
+        savedPaths.append(savedPath);
     }
-
-    outMesh.textures = std::move(rewrittenTextures);
     return true;
 }
 
@@ -367,36 +383,51 @@ public:
         const QByteArray encodedPath = QFile::encodeName(filename);
         const char *path = encodedPath.constData();
 
+        // PLY and OBJ refer to texture files by name: the mesh's own list is swapped for the
+        // names this save writes, and put back afterwards.
+        std::vector<std::string> savedTextureNames;
+        QStringList savedTexturePaths;
+        const bool hasTextureAssociations =
+            !mesh.textures.empty()
+            || (textureContext
+                && ((textureContext->textureFileNames && !textureContext->textureFileNames->isEmpty())
+                    || (textureContext->textureFilePaths && !textureContext->textureFilePaths->isEmpty())
+                    || (textureContext->textureAssets && !textureContext->textureAssets->empty())));
+        const bool writesTextures = (ext == QLatin1String("ply") || ext == QLatin1String("obj"))
+            && saveWritesTextureReferences(saveMask) && hasTextureAssociations;
+        if (writesTextures) {
+            if (!prepareTextureReferences(filename, mesh, textureContext, options.copyAssociatedTextures,
+                                          savedTextureNames, savedTexturePaths))
+                return kErrSaveTextureCopyFailed;
+            std::swap(mesh.textures, savedTextureNames);
+        }
+        const auto restoreTextures = qScopeGuard([&] {
+            if (writesTextures)
+                std::swap(mesh.textures, savedTextureNames);
+        });
+        const auto reportTextures = [&](int err) {
+            if (err == 0 && writesTextures && textureContext && textureContext->savedTexturePaths)
+                *textureContext->savedTexturePaths = savedTexturePaths;
+            return err;
+        };
+
         if (ext == QLatin1String("ply")) {
-            VCGMesh *meshToSave = &mesh;
-            VCGMesh exportMesh;
-            const bool hasTextureAssociations =
-                !mesh.textures.empty()
-                || (textureContext
-                    && ((textureContext->textureFileNames && !textureContext->textureFileNames->isEmpty())
-                        || (textureContext->textureFilePaths && !textureContext->textureFilePaths->isEmpty())
-                        || (textureContext->textureAssets && !textureContext->textureAssets->empty())));
-            if (options.copyAssociatedTextures && plySaveWritesTextureReferences(saveMask) && hasTextureAssociations) {
-                if (!preparePlyMeshWithCopiedTextures(filename, mesh, textureContext, exportMesh))
-                    return kErrSaveTextureCopyFailed;
-                meshToSave = &exportMesh;
-            }
             // Polygon reconstruction traverses faux edges through FF adjacency.
             // Keep this ancillary OCF component enabled only for the export.
             const bool restoreDisabledFF =
                 (saveMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL) != 0
-                && !meshToSave->face.IsFFAdjacencyEnabled();
+                && !mesh.face.IsFFAdjacencyEnabled();
             if (restoreDisabledFF)
-                meshToSave->face.EnableFFAdjacency();
+                mesh.face.EnableFFAdjacency();
             const int err = vcg::tri::io::ExporterPLY<VCGMesh>::Save(
-                *meshToSave,
+                mesh,
                 path,
                 saveMask,
                 options.binary,
                 cb);
             if (restoreDisabledFF)
-                meshToSave->face.DisableFFAdjacency();
-            return encodeExporterError(kErrSavePlyBase, err);
+                mesh.face.DisableFFAdjacency();
+            return reportTextures(encodeExporterError(kErrSavePlyBase, err));
         }
         if (ext == QLatin1String("obj") || ext == QLatin1String("off")) {
             const bool restoreDisabledFF =
@@ -410,7 +441,7 @@ public:
                 : vcg::tri::io::ExporterOFF<VCGMesh>::Save(mesh, path, saveMask);
             if (restoreDisabledFF)
                 mesh.face.DisableFFAdjacency();
-            return encodeExporterError(obj ? kErrSaveObjBase : kErrSaveOffBase, err);
+            return reportTextures(encodeExporterError(obj ? kErrSaveObjBase : kErrSaveOffBase, err));
         }
         if (ext == QLatin1String("stl")) {
             const int err =
@@ -436,7 +467,7 @@ public:
         if (errCode == kErrSaveUnsupportedFormat)
             return QObject::tr("Unsupported export format");
         if (errCode == kErrSaveTextureCopyFailed)
-            return QObject::tr("Failed to copy one or more associated texture files for PLY export");
+            return QObject::tr("Failed to write or copy one or more texture files");
 
         int exporterErr = 0;
         if (decodeExporterError(errCode, kErrSavePlyBase, &exporterErr))

@@ -1,4 +1,5 @@
 #include "document_internal.h"
+#include "textureassociationutils.h"
 
 using namespace DocumentInternal;
 
@@ -217,7 +218,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
     entry->ioMask = loadMask;
     entry->meshId = m_nextMeshId++;
     entry->geometryRevision = m_nextGeometryRevision++;
-    entry->materialRevision = 1;
+    entry->materialRevision = m_nextGeometryRevision++;
     if (transform)
         entry->transform = *transform;
     else
@@ -274,6 +275,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
         addIfNew(slot.roughnessTexture);
     }
 
+    recordMeshStored(*entry, filename, nullptr);
     int index = meshCount();
     m_meshes.push_back(std::move(entry));
     refreshMeshPolygonFaceCount(index);
@@ -494,8 +496,9 @@ int Document::reloadMesh(int index)
         loadedMaterialSet.textureAssets);
     entry.materialSet = normalizeMaterialSet(sourcePath, loadedMaterialSet, reloadedMesh);
     entry.geometryRevision = m_nextGeometryRevision++;
-    ++entry.materialRevision;
+    entry.materialRevision = m_nextGeometryRevision++;
     entry.modified = false;
+    recordMeshStored(entry, sourcePath, nullptr);
     refreshMeshPolygonFaceCount(index);
 
     const qint64 elapsedMs = loadTimer.elapsed();
@@ -634,11 +637,25 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
     m_callbackMode = CallbackMode::Save;
     m_cancelRequested.store(false, std::memory_order_relaxed);
     g_callbackDocument = this;
+    // A texture whose image a file holds is handed to the saver with that file, which it
+    // copies or refers to; one no file holds goes without, and is written from its image.
+    // The asset's own path cannot say which: undo may have brought back an image that a
+    // later save wrote somewhere else.
+    std::vector<MeshIOTextureAsset> savedAssets = entry.textureAssets;
+    for (MeshIOTextureAsset &asset : savedAssets) {
+        if (!asset.hasImage())
+            continue;
+        const auto stored = m_storedImages.find(asset.image.cacheKey());
+        if (stored != m_storedImages.end())
+            asset.sourcePath = stored->second.packed ? QString() : QDir::toNativeSeparators(stored->second.path);
+    }
+    QStringList savedTexturePaths;
     const MeshIOTextureContext textureContext{
         &entry.textureFileNames,
         &entry.textureFilePaths,
-        &entry.textureAssets,
-        &entry.materialSet
+        &savedAssets,
+        &entry.materialSet,
+        &savedTexturePaths
     };
     // The formats that record a unit get the document's.
     MeshIOSaveOptions saveOptions = options;
@@ -668,7 +685,75 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
             .arg(entry.name, normalizedFilename)
             .arg(elapsedMs),
         LogSource::Application);
+
+    // Saving names the layer's file, as in any document application, and a label that was
+    // still the old file's name follows it. Not an undo step: it is a fact about the disk.
+    const QString savedPath = QFileInfo(normalizedFilename).absoluteFilePath();
+    if (!entry.sourcePath.isEmpty() && entry.name == QFileInfo(entry.sourcePath).fileName())
+        entry.name = QFileInfo(savedPath).fileName();
+    entry.sourcePath = savedPath;
+    recordMeshStored(entry, savedPath, &savedTexturePaths);
+    emit meshDataChanged(index);
     return 0;
+}
+
+void Document::recordMeshStored(MeshEntry &entry, const QString &path, const QStringList *savedTexturePaths)
+{
+    const QString file = QFileInfo(path).absoluteFilePath();
+    m_storedMeshes[entry.meshId] = { file, entry.geometryRevision, entry.materialRevision, entry.selectionRevision };
+    bool repointed = false;
+    for (int i = 0; i < int(entry.textureAssets.size()); ++i) {
+        MeshIOTextureAsset &asset = entry.textureAssets[size_t(i)];
+        QString stored;
+        if (!savedTexturePaths)
+            stored = asset.hasImage() && asset.sourcePath.trimmed().isEmpty() ? file : QString();
+        else if (i < savedTexturePaths->size())
+            stored = savedTexturePaths->at(i);
+        if (stored.isEmpty())
+            continue;
+        if (stored == file) {
+            if (asset.hasImage())
+                m_storedImages[asset.image.cacheKey()] = { file, true };
+            continue;
+        }
+        if (asset.hasImage())
+            m_storedImages[asset.image.cacheKey()] = { stored, false };
+        asset.sourcePath = QDir::toNativeSeparators(stored);
+        repointed = true;
+    }
+    if (repointed)
+        TextureAssociationUtils::rebuildLegacyTextureAssociation(entry);
+}
+
+Document::StoredState Document::meshStoredState(int index) const
+{
+    if (index < 0 || index >= meshCount())
+        return StoredState::NotStored;
+    const MeshEntry &entry = mesh(index);
+    const auto stored = m_storedMeshes.find(entry.meshId);
+    if (stored == m_storedMeshes.end())
+        return StoredState::NotStored;
+    const StoredMesh &s = stored->second;
+    return s.geometryRevision == entry.geometryRevision && s.materialRevision == entry.materialRevision
+            && s.selectionRevision == entry.selectionRevision
+        ? StoredState::Stored
+        : StoredState::Changed;
+}
+
+Document::StoredState Document::meshTextureStoredState(int meshIndex, int textureIndex) const
+{
+    if (meshIndex < 0 || meshIndex >= meshCount())
+        return StoredState::NotStored;
+    const MeshEntry &entry = mesh(meshIndex);
+    if (textureIndex < 0 || textureIndex >= int(entry.textureAssets.size()))
+        return StoredState::NotStored;
+    const MeshIOTextureAsset &asset = entry.textureAssets[size_t(textureIndex)];
+    if (asset.hasImage() && m_storedImages.count(asset.image.cacheKey()))
+        return StoredState::Stored;
+    // An image nobody recorded is trusted to be its file's content while the texture filters
+    // still write the file they return; once they stop (project_persistence.md, stage 3) it
+    // means a changed texture.
+    return QFileInfo(asset.sourcePath.trimmed()).isFile() ? StoredState::Stored : StoredState::NotStored;
 }
 
 int Document::saveMesh(int index, const QString &filename)

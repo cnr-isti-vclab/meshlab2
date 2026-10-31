@@ -132,7 +132,7 @@ int Document::addMesh(const VCGMesh &meshData, const QString &name, int ioMask)
 
     entry->meshId = m_nextMeshId++;
     entry->geometryRevision = m_nextGeometryRevision++;
-    entry->materialRevision = 1;
+    entry->materialRevision = m_nextGeometryRevision++;
     entry->transform.setToIdentity();
     entry->ioMask = ioMask;
     entry->sourcePath.clear();
@@ -182,7 +182,7 @@ int Document::duplicateMesh(int sourceIndex, const QString &newName)
     deepCopyMesh(src.mesh, dst->mesh);
     dst->meshId = m_nextMeshId++;
     dst->geometryRevision = m_nextGeometryRevision++;
-    dst->materialRevision = 1;
+    dst->materialRevision = m_nextGeometryRevision++;
     dst->sourcePath.clear();
     dst->name = newName.trimmed().isEmpty() ? tr("%1 copy").arg(src.name) : newName.trimmed();
 
@@ -372,6 +372,8 @@ void Document::clearAllLayers()
     if (hadSets)
         emit visibilitySetsChanged();
     m_projectFilePath.clear();
+    m_storedMeshes.clear();
+    m_storedImages.clear();
     // And the unit is what was said of those layers.
     if (m_unit != LengthUnit::Unknown) {
         m_unit = LengthUnit::Unknown;
@@ -943,7 +945,7 @@ void Document::markMeshMaterialChanged(int index, const QString &contextMessage)
         beginUndoStep(tr("Modify Mesh Material"));
     MeshEntry &entry = mesh(index);
     entry.modified = true;
-    ++entry.materialRevision;
+    entry.materialRevision = m_nextGeometryRevision++;
     if (!contextMessage.trimmed().isEmpty()) {
         writeLog(contextMessage.trimmed(), LogSource::Application);
     } else {
@@ -966,7 +968,7 @@ void Document::markMeshSelectionChanged(int index, const QString &contextMessage
     // Bump only selectionRevision: the GPU selection overlay rebuilds while the
     // fill/wire/point buffers (keyed on geometryRevision) are left intact, so
     // selection stays cheap on large meshes.
-    ++entry.selectionRevision;
+    entry.selectionRevision = m_nextGeometryRevision++;
     if (!contextMessage.trimmed().isEmpty()) {
         writeLog(contextMessage.trimmed(), LogSource::Application);
     } else {
@@ -1132,7 +1134,7 @@ void Document::applyAttributeDelta(const MeshAttributeDelta &delta)
             emit meshDataChanged(i);
         }
         if (delta.kinds & MeshAttributeSelection) {
-            ++entry.selectionRevision;
+            entry.selectionRevision = m_nextGeometryRevision++;
             emit meshSelectionChanged(i);
         }
         return;

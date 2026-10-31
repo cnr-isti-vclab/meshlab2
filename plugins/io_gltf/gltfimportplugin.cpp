@@ -1719,16 +1719,21 @@ public:
 
         // Prepare texture/material mapping (only for triangle groups with valid texture slots).
         std::unordered_map<int, int> textureSlotToMaterial;
-        if (!mesh.textures.empty() && !usedTextureSlots.empty()) {
+        // Assets with no file are missing from mesh.textures, so it alone undercounts them.
+        const int textureSlotCount = std::max(int(mesh.textures.size()),
+            textureContext && textureContext->textureAssets
+                ? int(textureContext->textureAssets->size()) : 0);
+        QStringList savedTexturePaths(textureContext && textureContext->textureAssets
+            ? qsizetype(textureContext->textureAssets->size()) : 0);
+        if (textureSlotCount > 0 && !usedTextureSlots.empty()) {
             for (const auto &entry : usedTextureSlots) {
                 const int slot = entry.first;
-                if (slot < 0 || slot >= int(mesh.textures.size()))
+                if (slot < 0 || slot >= textureSlotCount)
                     continue;
 
-                const QString sourceTexturePath = QString::fromStdString(mesh.textures[size_t(slot)]);
                 const MeshIOTextureAsset *asset = nullptr;
+                int assetIndex = slot;
                 if (textureContext && textureContext->textureAssets) {
-                    int assetIndex = slot;
                     if (textureContext->materialSet
                         && slot < int(textureContext->materialSet->entries.size())) {
                         const int referenced = textureContext->materialSet->entries[size_t(slot)]
@@ -1741,22 +1746,34 @@ public:
                         asset = &textureContext->textureAssets->at(size_t(assetIndex));
                     }
                 }
+                const QString sourceTexturePath = asset
+                    ? asset->sourcePath.trimmed()
+                    : (slot < int(mesh.textures.size()) ? QString::fromStdString(mesh.textures[size_t(slot)])
+                                                         : QString());
+                // A texture's file holds exactly its image (Document::saveMesh sees to it), so
+                // copy the file rather than re-encode the image: a JPEG stays a JPEG.
+                const bool fromImage = asset && asset->hasImage() && !QFileInfo(sourceTexturePath).isFile();
                 tinygltf::Image image;
+                QString savedPath;
                 if (embedTextures) {
-                    const bool loaded = asset && asset->hasImage()
+                    const bool loaded = fromImage
                         ? fillTinyGltfImage(image, asset->image, slot, cb)
                         : fillTinyGltfImageFromFile(image, sourceTexturePath, slot, cb);
                     if (!loaded)
                         continue;
+                    savedPath = QFileInfo(filename).absoluteFilePath();
                 } else {
-                    const QString uri = asset && asset->hasImage()
+                    const QString uri = fromImage
                         ? saveTextureImage(filename, asset->image, asset->name, slot, cb)
                         : makeCopiedTextureUri(filename, sourceTexturePath, cb, slot);
                     if (uri.isEmpty())
                         continue;
                     image.uri = uri.toStdString();
                     image.name = QFileInfo(uri).fileName().toStdString();
+                    savedPath = QFileInfo(filename).absoluteDir().absoluteFilePath(uri);
                 }
+                if (asset)
+                    savedTexturePaths[assetIndex] = savedPath;
                 model.images.push_back(std::move(image));
                 const int imageIndex = int(model.images.size() - 1);
 
@@ -1985,6 +2002,8 @@ public:
             writeBinary);
         if (!ok)
             return kErrSaveWrite;
+        if (textureContext && textureContext->savedTexturePaths)
+            *textureContext->savedTexturePaths = savedTexturePaths;
 
         reportProgress(cb, 100, QObject::tr("Saved glTF: %1").arg(QFileInfo(filename).fileName()), true);
         return 0;

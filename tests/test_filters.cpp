@@ -987,7 +987,9 @@ void FilterTests::basicFiltersRunOnLoadedMesh()
         QVERIFY(result.success);
         QVERIFY(result.documentModified);
     }
-    QCOMPARE(doc.mesh(currentBeforeNormalize).geometryRevision, geomRevBefore + 1);
+    // The revision counter is shared with the material and selection revisions, so the new
+    // value is later, not necessarily the next one.
+    QVERIFY(doc.mesh(currentBeforeNormalize).geometryRevision > geomRevBefore);
 
     const int meshCountBeforeDuplicate = doc.meshCount();
     {
