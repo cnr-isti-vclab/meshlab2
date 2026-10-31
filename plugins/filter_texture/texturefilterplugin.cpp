@@ -38,6 +38,7 @@ constexpr QLatin1StringView kFilterPlanarMapping("parametrize_by_flat_plane");
 constexpr QLatin1StringView kFilterTriangleMapping("parametrize_by_trivial_per_triangle_layout");
 constexpr QLatin1StringView kFilterSetTexture("set_texture");
 constexpr QLatin1StringView kFilterRemoveTextures("remove_textures");
+constexpr QLatin1StringView kFilterRenameTexture("rename_texture");
 constexpr QLatin1StringView kFilterColorToTexture("transfer_color_from_vertex_to_texture");
 constexpr QLatin1StringView kFilterTextureToVertexColor("transfer_color_from_texture_to_vertex_by_closest_point");
 constexpr QLatin1StringView kFilterTransferToTexture("transfer_vertex_attributes_to_texture_by_closest_point");
@@ -903,6 +904,37 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         // is immediately visible.
         result.visualizationHints.push_back(
             { meshIndex, MeshFilterVisualizationAttribute::Texture });
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterRenameTexture)) {
+        const int chosen = params.getTextureRef(QStringLiteral("texture"), 0) - 1;
+        if (chosen < 0 || chosen >= int(entry.textureAssets.size()))
+            return fail(QObject::tr("'%1' has no texture %2.").arg(entry.name).arg(chosen + 1));
+        QString newName = params.getString(QStringLiteral("textureName")).trimmed();
+        if (newName.isEmpty())
+            return fail(QObject::tr("Give the texture a name."));
+        if (QFileInfo(newName).suffix().isEmpty())
+            newName += QStringLiteral(".png");
+        MeshIOTextureAsset &asset = entry.textureAssets[size_t(chosen)];
+        const QString oldName = Document::meshTextureDisplayName(entry, chosen);
+        // The name is the file name a save writes, and the file the texture has holds it under
+        // the old one: so the texture must read as changed, and be written again. A fresh copy
+        // of its image is one no save has recorded; its file is left as it is.
+        QImage image = asset.image;
+        QString readError;
+        if (image.isNull() && !Tex::readImageFile(asset.sourcePath, image, readError))
+            return fail(readError);
+        asset.image = image.copy();
+        asset.name = newName;
+        Tex::rebuildLegacyTextureAssociation(entry);
+        doc.markMeshMaterialChanged(meshIndex,
+            QObject::tr("Renamed texture '%1' of '%2' to '%3'.").arg(oldName, entry.name, newName));
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages = { QObject::tr("Renamed texture '%1' to '%2'; saving the mesh writes it under that name.")
+                                    .arg(oldName, newName) };
         return result;
     }
 

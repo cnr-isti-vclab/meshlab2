@@ -28,7 +28,7 @@ MeshIOTextureAsset makeTextureAssetFromImage(
     const QString &name,
     const QString &sourcePath = {});
 // The textures a filter makes have a name and no file: saving the mesh writes them
-// (docs/design/proposals/project_persistence.md). outputTextureNames gives one name per
+// (docs/design/data_model.md, "Layer Provenance"). outputTextureNames gives one name per
 // texture slot -- the one asked for, or "<layer>_<role>.png" when none was -- with _0, _1, ...
 // before the suffix when there are several.
 QStringList outputTextureNames(

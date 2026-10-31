@@ -33,7 +33,6 @@ UndoState Document::captureUndoState() const
         snap.textureAssets      = entry->textureAssets;
         snap.materialSet        = entry->materialSet;
         snap.visible            = entry->visible;
-        snap.modified           = entry->modified;
         snap.ioMask             = entry->ioMask;
         snap.polygonFaceCount   = entry->polygonFaceCount;
         // Pointers, not payloads: immutability makes sharing the capture.
@@ -148,7 +147,6 @@ void Document::restoreUndoState(const UndoState &state)
                 entry->textureAssets    = snap.textureAssets;
                 entry->materialSet      = snap.materialSet;
                 entry->visible          = snap.visible;
-                entry->modified         = snap.modified;
                 entry->ioMask           = snap.ioMask;
                 entry->polygonFaceCount = snap.polygonFaceCount;
                 entry->pluginData       = snap.pluginData;

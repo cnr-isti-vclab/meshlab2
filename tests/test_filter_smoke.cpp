@@ -348,6 +348,9 @@ const QHash<QString, QString> &expectedRefusals()
         {QStringLiteral("transfer_color_from_visible_rasters_to_texture_texture_consolidation"), QStringLiteral("needs rasters and a chart-based atlas; the raster rung's per-triangle UVs are refused (FilterTests::textureConsolidationBuildsTextureFromRasters drives it)")},
         {QStringLiteral("trim_point_cloud_by_plane"),                      QStringLiteral("needs a point cloud; every rung has faces (FilterTests::trimPointCloudByPlaneDropsThePointsBehindIt drives it)")},
 
+        // Needs a parameter no default can give.
+        {QStringLiteral("rename_texture"),                                 QStringLiteral("needs the new name, which has no sensible default (FilterTests::textureFiltersWriteNoFile drives it)")},
+
         // Needs a selection the ladder does not build: its rungs select everything or nothing.
         {QStringLiteral("select_coplanar_faces"),                          QStringLiteral("needs a face selection lying on one plane")},
 

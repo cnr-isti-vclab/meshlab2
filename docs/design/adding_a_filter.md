@@ -92,7 +92,7 @@ writes it. Take the name as a `string` parameter `textureName`, empty by default
 "new" choice of a `textureoutputref`, which is a name too. To overwrite an existing
 texture, replace its image and keep its name and `sourcePath`: the file is left alone, the
 texture shows changed, and the next save writes the new image beside the mesh. See
-[project_persistence.md](proposals/project_persistence.md).
+[project_persistence.md](history/project_persistence.md).
 
 An `absperc` is a **length**, as an absolute value or as a percentage of its range
 (`@bboxDiag` and the other bound tokens). Its absolute half is labelled with the

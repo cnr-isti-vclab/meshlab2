@@ -81,7 +81,6 @@ public:
         std::vector<MeshIOTextureAsset> textureAssets;
         MeshIOMaterialSet materialSet;
         bool visible = true;
-        bool modified = false;
         int ioMask = 0;
         // Logical face count for faux-edge polygon meshes; -1 for triangle meshes.
         int polygonFaceCount = -1;
@@ -307,6 +306,9 @@ public:
     bool saveMeshLabProject(const QString &filename,
                             const MeshLabProjectSaveOptions &options,
                             QString *error = nullptr);
+    // Whether a project saved in folder would refer to a mesh or raster file outside it, which
+    // it refuses unless told to copy them in (MeshLabProjectSaveOptions::copyFiles).
+    bool referencesFilesOutside(const QString &folder, bool onlyVisibleMeshes = false) const;
     // The project last loaded or saved, as an absolute path; empty for a document that has
     // never been one, and again after clearAllLayers(). Filters write relative output names
     // next to it when their layer has no file of its own.

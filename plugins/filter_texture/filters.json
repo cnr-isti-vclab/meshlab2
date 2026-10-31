@@ -399,6 +399,43 @@
       ]
     },
     {
+      "id": "rename_texture",
+      "categories": ["Texture/Assignment"],
+      "name": "Rename Texture",
+      "pythonName": "rename_texture",
+      "shortDescription": "Give one texture of the current mesh a new name, which is the file name it is saved under.",
+      "longDescriptionMarkdown": "Renames the texture chosen in **Texture**. A texture's name is the file name that saving the mesh writes it under, so this is how a texture made by a filter gets a better file name than the one it was given.\n\nA texture that already has a file is not renamed on disk: that file is left alone, the texture shows as changed in the layer panel, and the next save of the mesh writes it next to the mesh under the new name.",
+      "tags": [
+        "texture",
+        "name",
+        "file"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "texture",
+          "label": "Texture",
+          "help": "The texture to rename.",
+          "group": "main",
+          "type": "textureref",
+          "default": 1,
+          "allowAutomatic": false
+        },
+        {
+          "id": "textureName",
+          "label": "New name",
+          "help": "The texture's new name. Without a suffix it is saved as PNG.",
+          "group": "main",
+          "type": "string",
+          "default": ""
+        }
+      ],
+      "outputModifies": [
+        "TX"
+      ]
+    },
+    {
       "id": "transfer_color_from_vertex_to_texture",
       "categories": ["Transfer/Within a Mesh", "Texture"],
       "name": "Transfer Color from Vertex to Texture",

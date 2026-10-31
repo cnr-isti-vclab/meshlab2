@@ -1,20 +1,17 @@
-# Project persistence: how the user's work reaches the disk (draft, 2026-10-30)
+# Project persistence, applied 2026-10-31
 
-**Status: implemented 2026-10-31, all five stages.** Kept here for the mapping table and
-the decisions until its content moves into data_model.md, which already describes the
-behaviour. See section 10 for what stage 1 did and found. First drafted as "texture storage"; renamed because
-most of it is about saving the user's work, of which textures are one part.
+How the user's work reaches the disk: whether each layer, texture and raster plane is saved,
+how textures made by filters get written, how a project is saved, and the document's folder.
+Planned on 2026-10-30 as a proposal (first called "texture storage"), approved on 2026-10-31
+with the 39-row mapping table of section 8, and applied the same day in five stages plus a
+closing step (section 10). The rules now in force are in [data_model.md](../data_model.md),
+[adding_a_filter.md](../adding_a_filter.md) and
+[filter_organization.md](../filter_organization.md#texturename); this records how they came to
+be. Sections 2 to 7 are the design as approved; where the implementation differed, section 10
+says so.
 
-Every layer and every texture knows where it is stored and whether it differs from what is
-stored there, and the layer panel says so in one consistent way. Work reaches the disk only
-when a mesh or the project is saved: a texture behaves like the geometry it belongs to,
-living in the document until then, and no filter writes a texture while it runs. Opening a
-mesh, working on it and saving it never involves a project. The document gets a
-**directory**, shown in the status bar: the default for saving and the reference layer
-paths are shown against -- never a base for resolving a mesh's own textures, which stay
-relative to that mesh's file as every format stores them.
+## 1. What was wrong
 
-## 1. What is wrong today
 
 The texture data is already in memory. `MeshIOTextureAsset` carries the `QImage` beside its
 `sourcePath` (`src/plugins/meshioplugin.h:10`), undo snapshots hold it, and memory
@@ -282,9 +279,12 @@ Taken 2026-10-31:
 9. The Python name of row 39 is `save_current_mesh_texture(texture_index, path)`, after
    `save_current_mesh`.
 
-Open: none.
+Taken 2026-10-31, closing:
 
-## 10. Staging
+10. A *Rename Texture* filter, since a texture's name is the file name a save writes.
+11. `MeshEntry::modified`, read by nothing once stages 2 and 4 had replaced it, is removed.
+
+## 10. How it was applied
 
 1. **Savers** (rows 24-27, 18-19). **Done 2026-10-31.** `Document::meshStoredState` and
    `meshTextureStoredState`, recorded at load, reload and save outside the undo state;
@@ -368,3 +368,20 @@ Open: none.
    anything two levels up, where a relative path stops being easier to read.
    `anchorOutputPath` uses the folder alone. Test:
    `theDocumentFolderComesFromTheFirstFileThenTheProject`.
+6. **Closing.** *Rename Texture* (`rename_texture`, `Texture/Assignment`): a texture's name
+   is the file name a save writes, so renaming one gives it a fresh copy of its image, which
+   no save has recorded -- the texture shows changed and the next save writes it under the
+   new name; its old file is left alone. vocabulary.md's `Rename` now covers textures. It
+   refuses an empty name, so the smoke ladder lists it as an expected refusal;
+   `textureFiltersWriteNoFile` drives it. `Document::referencesFilesOutside` replaced the
+   Save Project dialog's own copy of the outside-the-folder check. `MeshEntry::modified`
+   was removed with its copies in the undo snapshot. The `textureName` convention went into
+   filter_organization.md, the texture-saving behaviour into python_scripting.md. The
+   generated API reference (`docs/api/`, gitignored, rebuilt by the docs workflow) was
+   regenerated locally to check that it lists `save_current_mesh_texture` and
+   `rename_texture`.
+
+Known and left as they are: a selection undone through the delta path gets a new revision,
+so a layer undone back to a saved selection shows changed (conservative, never the
+reverse); no filter has a FileSave parameter now, so anchoring a bare name in the
+document's folder has no test.

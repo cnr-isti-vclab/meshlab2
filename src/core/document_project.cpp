@@ -186,6 +186,32 @@ int Document::loadMeshLabProject(const QString &filename)
 // Project saving
 // ---------------------------------------------------------------------------
 
+namespace {
+// A file is in a project when it is in the project's folder or below.
+bool insideFolder(const QString &path, const QDir &folder)
+{
+    const QString abs = QFileInfo(path).absoluteFilePath();
+    return abs.startsWith(folder.absolutePath() + QLatin1Char('/'))
+        || QFileInfo(abs).absolutePath() == folder.absolutePath();
+}
+}
+
+bool Document::referencesFilesOutside(const QString &folder, bool onlyVisibleMeshes) const
+{
+    const QDir dir(folder);
+    for (int mi = 0; mi < meshCount(); ++mi) {
+        const MeshEntry &entry = mesh(mi);
+        if ((!onlyVisibleMeshes || entry.visible) && !entry.sourcePath.isEmpty()
+            && !insideFolder(entry.sourcePath, dir))
+            return true;
+    }
+    for (int ri = 0; ri < rasterCount(); ++ri)
+        for (const RasterPlane &plane : raster(ri).planes)
+            if (!plane.sourcePath.isEmpty() && !insideFolder(plane.sourcePath, dir))
+                return true;
+    return false;
+}
+
 bool Document::saveMeshLabProject(
     const QString &filename,
     const MeshLabProjectSaveOptions &options,
@@ -202,12 +228,10 @@ bool Document::saveMeshLabProject(
             return fail(tr("Cannot create project directory: %1").arg(projectDir.absolutePath()));
     }
 
-    // A file is in the project when it is in its folder or below.
-    const auto insideProject = [&](const QString &path) {
-        const QString abs = QFileInfo(path).absoluteFilePath();
-        return abs.startsWith(projectDir.absolutePath() + QLatin1Char('/'))
-            || QFileInfo(abs).absolutePath() == projectDir.absolutePath();
-    };
+    if (referencesFilesOutside(projectDir.absolutePath(), options.onlyVisibleMeshes) && !options.copyFiles)
+        return fail(tr("Some mesh or raster files are outside the project directory. "
+                       "Enable 'copy files to project folder' to proceed."));
+    const auto insideProject = [&](const QString &path) { return insideFolder(path, projectDir); };
     // Files the project writes go into one flat folder each, under the layer's name made safe
     // for every reader and suffixed when the name is taken on disk or by this save: two
     // layers called "scan" must not end up in one file.
@@ -239,7 +263,6 @@ bool Document::saveMeshLabProject(
         QString absPath;
     };
     QVector<MeshPlan> meshPlans(meshCount());
-    bool outsideFiles = false;
     for (int mi = 0; mi < meshCount(); ++mi) {
         const MeshEntry &entry = mesh(mi);
         if (options.onlyVisibleMeshes && !entry.visible)
@@ -247,7 +270,6 @@ bool Document::saveMeshLabProject(
         MeshPlan &plan = meshPlans[mi];
         const bool hasFile = !entry.sourcePath.isEmpty();
         if (hasFile && !insideProject(entry.sourcePath)) {
-            outsideFiles = true;
             QString suffix = QFileInfo(entry.sourcePath).suffix().toLower();
             if (!m_pluginManager->pluginForSave(QStringLiteral("x.") + suffix))
                 suffix = QStringLiteral("ply");
@@ -282,7 +304,6 @@ bool Document::saveMeshLabProject(
                                           QStringLiteral("png"));
                 plan.write = true;
             } else if (!insideProject(p.sourcePath)) {
-                outsideFiles = true;
                 plan.copyFrom = p.sourcePath;
                 plan.absPath = uniqueFile(QStringLiteral("images"), QFileInfo(p.sourcePath).fileName(),
                                           QStringLiteral("raster_%1").arg(ri),
@@ -293,10 +314,6 @@ bool Document::saveMeshLabProject(
             planePlans[ri].push_back(plan);
         }
     }
-
-    if (outsideFiles && !options.copyFiles)
-        return fail(tr("Some mesh or raster files are outside the project directory. "
-                       "Enable 'copy files to project folder' to proceed."));
 
     // Phase 2: ensure directories exist
     projectDir.mkpath(QStringLiteral("meshes"));

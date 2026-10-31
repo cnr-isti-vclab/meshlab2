@@ -9581,7 +9581,7 @@ void FilterTests::measureUvMappingCountsIslandsEdgesAndDistortionInTexels()
 // the vertices, since a seam is held differently by each. Then the same square with the second
 // face mirrored in its own island, which is not a fold at all.
 // A texture filter makes a texture and writes no file: saving the mesh does
-// (project_persistence.md). They used to write theirs while running, under a default name
+// (docs/design/history/project_persistence.md). They used to write theirs while running, under a default name
 // next to the layer's file, so a scan whose texture was called texture.png lost it to Transfer
 // Color from Vertex to Texture run with defaults, and undo left the file changed. Now the new
 // texture is named after the layer, nothing in the folder changes, and overwriting a texture
@@ -9671,6 +9671,32 @@ void FilterTests::textureFiltersWriteNoFile()
     QVERIFY(originalFile.open(QIODevice::ReadOnly));
     QCOMPARE(originalFile.readAll(), originalBytes);
     QCOMPARE(normals.meshTextureStoredState(n, 0), Document::StoredState::Changed);
+    originalFile.close();
+
+    // Rename Texture: the name is the file name a save writes. The texture's file stays as it
+    // is, the texture shows changed, and the next save writes it under the new name.
+    Document renamed;
+    const int k = renamed.addMesh(mesh, QStringLiteral("disk.ply"), mask);
+    renamed.setCurrentMeshIndex(k);
+    TextureAssociationUtils::replaceTextureAssociations(
+        renamed.mesh(k), { TextureAssociationUtils::makeTextureAssetFromPath(original) });
+    QCOMPARE(renamed.saveMesh(k, layerDir.filePath(QStringLiteral("renamed.ply"))), 0);
+    QCOMPARE(renamed.meshTextureStoredState(k, 0), Document::StoredState::Stored);
+    const QString renameKey = filterKeyForId(renamed, QStringLiteral("rename_texture"));
+    QVERIFY(!renameKey.isEmpty());
+    QVERIFY(!renamed.runFilter(renameKey, { { QStringLiteral("texture"), 1 } }).success);
+    r = renamed.runFilter(renameKey, { { QStringLiteral("texture"), 1 },
+                                       { QStringLiteral("textureName"), QStringLiteral("disk albedo") } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(Document::meshTextureDisplayName(renamed.mesh(k), 0), QStringLiteral("disk albedo.png"));
+    QCOMPARE(renamed.meshTextureStoredState(k, 0), Document::StoredState::Changed);
+    QCOMPARE(renamed.saveMesh(k, layerDir.filePath(QStringLiteral("renamed.ply"))), 0);
+    QVERIFY(QFileInfo::exists(layerDir.filePath(QStringLiteral("disk_albedo.png"))));
+    QCOMPARE(renamed.meshTextureStoredState(k, 0), Document::StoredState::Stored);
+    QVERIFY(originalFile.open(QIODevice::ReadOnly));
+    QCOMPARE(originalFile.readAll(), originalBytes);
+    QVERIFY(renamed.undo());
+    QCOMPARE(Document::meshTextureDisplayName(renamed.mesh(k), 0), QStringLiteral("texture.png"));
 }
 
 void FilterTests::foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds()

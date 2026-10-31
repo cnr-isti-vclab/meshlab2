@@ -500,7 +500,6 @@ int Document::reloadMesh(int index)
     entry.materialSet = normalizeMaterialSet(sourcePath, loadedMaterialSet, reloadedMesh);
     entry.geometryRevision = m_nextGeometryRevision++;
     entry.materialRevision = m_nextGeometryRevision++;
-    entry.modified = false;
     recordMeshStored(entry, sourcePath, nullptr);
     refreshMeshPolygonFaceCount(index);
 

@@ -2752,29 +2752,7 @@ void MainWindow::saveProjectAs()
                                "textures, and copy outside images into its images folder. The project "
                                "then refers to the copies."));
 
-    // Check if files will be outside the project
-    const QDir projectDir = QFileInfo(targetPath).absoluteDir();
-    bool needsCopyCheck = false;
-    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        const QString src = m_doc->mesh(mi).sourcePath;
-        if (src.isEmpty()) continue;
-        if (!src.startsWith(projectDir.absolutePath() + QDir::separator())
-            && QFileInfo(src).absolutePath() != projectDir.absolutePath()) {
-            needsCopyCheck = true; break;
-        }
-    }
-    if (!needsCopyCheck) {
-        for (int ri = 0; ri < m_doc->rasterCount() && !needsCopyCheck; ++ri) {
-            for (const RasterPlane &plane : m_doc->raster(ri).planes) {
-                const QString src = plane.sourcePath;
-                if (src.isEmpty()) continue;
-                if (!src.startsWith(projectDir.absolutePath() + QDir::separator())
-                    && QFileInfo(src).absolutePath() != projectDir.absolutePath()) {
-                    needsCopyCheck = true; break;
-                }
-            }
-        }
-    }
+    const bool needsCopyCheck = m_doc->referencesFilesOutside(QFileInfo(targetPath).absolutePath());
 
     auto *warnLabel = new QLabel(
         tr("Some files are outside the project directory\nand need to be copied."));

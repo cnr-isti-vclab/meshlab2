@@ -891,7 +891,6 @@ void Document::markMeshGeometryChanged(int index, const QString &contextMessage)
     if (ownUndoStep)
         beginUndoStep(tr("Modify Mesh Geometry"));
     MeshEntry &entry = mesh(index);
-    entry.modified = true;
     entry.geometryRevision = m_nextGeometryRevision++;
     // Plugin intermediates are derived from the geometry, so by default they do not
     // outlive a change to it; one that genuinely does says so for itself.
@@ -945,7 +944,6 @@ void Document::markMeshMaterialChanged(int index, const QString &contextMessage)
     if (ownUndoStep)
         beginUndoStep(tr("Modify Mesh Material"));
     MeshEntry &entry = mesh(index);
-    entry.modified = true;
     entry.materialRevision = m_nextGeometryRevision++;
     if (!contextMessage.trimmed().isEmpty()) {
         writeLog(contextMessage.trimmed(), LogSource::Application);
@@ -965,7 +963,6 @@ void Document::markMeshSelectionChanged(int index, const QString &contextMessage
     if (ownUndoStep)
         beginUndoStep(tr("Change Selection"), index, MeshAttributeSelection);
     MeshEntry &entry = mesh(index);
-    entry.modified = true;
     // Bump only selectionRevision: the GPU selection overlay rebuilds while the
     // fill/wire/point buffers (keyed on geometryRevision) are left intact, so
     // selection stays cheap on large meshes.
