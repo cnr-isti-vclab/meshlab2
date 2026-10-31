@@ -179,12 +179,9 @@ TextureOutputRefValue FilterParams::getTextureOutputRef(
     TextureOutputRefValue out = fallback;
     const QVariantMap map = it.value().toMap();
     if (map.isEmpty()) {
-        const QString path = it.value().toString().trimmed();
-        if (!path.isEmpty()) {
-            out.overwriteExisting = false;
-            out.textureSlot = -1;
-            out.filePath = path;
-        }
+        out.overwriteExisting = false;
+        out.textureSlot = -1;
+        out.name = it.value().toString().trimmed();
         return out;
     }
 
@@ -195,17 +192,14 @@ TextureOutputRefValue FilterParams::getTextureOutputRef(
         if (ok && oneBasedSlot > 0) {
             out.overwriteExisting = true;
             out.textureSlot = oneBasedSlot - 1;
-            out.filePath.clear();
+            out.name.clear();
             return out;
         }
     }
 
-    const QString path = map.value(QStringLiteral("path")).toString().trimmed();
-    if (!path.isEmpty()) {
-        out.overwriteExisting = false;
-        out.textureSlot = -1;
-        out.filePath = path;
-    }
+    out.overwriteExisting = false;
+    out.textureSlot = -1;
+    out.name = map.value(QStringLiteral("name")).toString().trimmed();
     return out;
 }
 

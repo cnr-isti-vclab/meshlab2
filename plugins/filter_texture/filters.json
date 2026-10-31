@@ -421,20 +421,12 @@
       },
       "parameters": [
         {
-          "id": "textName",
-          "label": "Texture file",
-          "help": "Base path of the texture image to be created. If more than one texture slot is used, numeric suffixes are added automatically.",
+          "id": "textureName",
+          "label": "Texture name",
+          "help": "Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.",
           "group": "main",
-          "type": "filesave",
-          "default": "texture.png",
-          "fileDialogTitle": "Choose Output Texture",
-          "fileNameFilters": [
-            "PNG Image (*.png)",
-            "JPEG Image (*.jpg *.jpeg)",
-            "BMP Image (*.bmp)",
-            "TIFF Image (*.tif *.tiff)"
-          ],
-          "fileDefaultSuffix": "png"
+          "type": "string",
+          "default": ""
         },
         {
           "id": "textW",
@@ -620,20 +612,12 @@
           "decimals": 6
         },
         {
-          "id": "textName",
-          "label": "Texture file",
-          "help": "Base path of the texture image to be created. If more than one target texture slot is used, numeric suffixes are added automatically.",
+          "id": "textureName",
+          "label": "Texture name",
+          "help": "Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.",
           "group": "main",
-          "type": "filesave",
-          "default": "texture.png",
-          "fileDialogTitle": "Choose Output Texture",
-          "fileNameFilters": [
-            "PNG Image (*.png)",
-            "JPEG Image (*.jpg *.jpeg)",
-            "BMP Image (*.bmp)",
-            "TIFF Image (*.tif *.tiff)"
-          ],
-          "fileDefaultSuffix": "png"
+          "type": "string",
+          "default": ""
         },
         {
           "id": "textW",
@@ -730,18 +714,10 @@
         {
           "id": "targetNormalMap",
           "label": "Target Tangent-Space Normal Map",
-          "help": "Choose where the generated tangent-space normal map should go: overwrite an existing associated texture, or create a new texture file and add it to the mesh texture list.",
+          "help": "Where the generated tangent-space normal map goes: over the image of an existing texture, whose file is left alone, or into a new texture added to the mesh, named as given here or after the layer when left empty. Saving the mesh writes it.",
           "group": "main",
           "type": "textureoutputref",
-          "default": "tangent_normal.png",
-          "fileDialogTitle": "Choose Output Tangent-Space Normal Map",
-          "fileNameFilters": [
-            "PNG Image (*.png)",
-            "JPEG Image (*.jpg *.jpeg)",
-            "BMP Image (*.bmp)",
-            "TIFF Image (*.tif *.tiff)"
-          ],
-          "fileDefaultSuffix": "png"
+          "default": ""
         },
         {
           "id": "bindAsPbrNormal",

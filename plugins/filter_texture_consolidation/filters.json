@@ -110,12 +110,12 @@
       ],
       "parameters": [
         {
-          "id": "textureFile",
-          "label": "Texture file",
-          "help": "Where the new texture image is written. It replaces the mesh's texture.",
+          "id": "textureName",
+          "label": "Texture name",
+          "help": "Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.",
           "group": "main",
-          "type": "filesave",
-          "default": "consolidated_texture.png"
+          "type": "string",
+          "default": ""
         },
         {
           "id": "textureSize",

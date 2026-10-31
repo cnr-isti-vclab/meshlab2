@@ -642,14 +642,16 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
     // A texture whose image a file holds is handed to the saver with that file, which it
     // copies or refers to; one no file holds goes without, and is written from its image.
     // The asset's own path cannot say which: undo may have brought back an image that a
-    // later save wrote somewhere else.
+    // later save wrote somewhere else, and a filter that replaced a texture's image leaves
+    // the path of the file it came from. A texture with no image is its file.
     std::vector<MeshIOTextureAsset> savedAssets = entry.textureAssets;
     for (MeshIOTextureAsset &asset : savedAssets) {
         if (!asset.hasImage())
             continue;
         const auto stored = m_storedImages.find(asset.image.cacheKey());
-        if (stored != m_storedImages.end())
-            asset.sourcePath = stored->second.packed ? QString() : QDir::toNativeSeparators(stored->second.path);
+        asset.sourcePath = stored == m_storedImages.end() || stored->second.packed
+            ? QString()
+            : QDir::toNativeSeparators(stored->second.path);
     }
     QStringList savedTexturePaths;
     const MeshIOTextureContext textureContext{
@@ -842,12 +844,14 @@ Document::StoredState Document::meshTextureStoredState(int meshIndex, int textur
     if (textureIndex < 0 || textureIndex >= int(entry.textureAssets.size()))
         return StoredState::NotStored;
     const MeshIOTextureAsset &asset = entry.textureAssets[size_t(textureIndex)];
-    if (asset.hasImage() && m_storedImages.count(asset.image.cacheKey()))
+    const bool hasFile = QFileInfo(asset.sourcePath.trimmed()).isFile();
+    if (!asset.hasImage())
+        return hasFile ? StoredState::Stored : StoredState::NotStored;
+    if (m_storedImages.count(asset.image.cacheKey()))
         return StoredState::Stored;
-    // An image nobody recorded is trusted to be its file's content while the texture filters
-    // still write the file they return; once they stop (project_persistence.md, stage 3) it
-    // means a changed texture.
-    return QFileInfo(asset.sourcePath.trimmed()).isFile() ? StoredState::Stored : StoredState::NotStored;
+    // An image no load or save recorded is one a filter made, or put in place of the one its
+    // file holds.
+    return hasFile ? StoredState::Changed : StoredState::NotStored;
 }
 
 int Document::saveMesh(int index, const QString &filename)

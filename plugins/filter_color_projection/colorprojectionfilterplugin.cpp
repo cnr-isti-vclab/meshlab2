@@ -310,9 +310,9 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
         bool ub = p.getBool(QStringLiteral("useborders"), true);
         bool us = p.getBool(QStringLiteral("usesilhouettes"), true);
         bool ualpha = p.getBool(QStringLiteral("usealpha"), false);
-        QString tn = p.getFileSave(QStringLiteral("textName")).trimmed();
+        const QString tn = TextureAssociationUtils::outputTextureNames(
+            ent, p.getString(QStringLiteral("textureName")), QStringLiteral("color"), 1).front();
         if (ts <= 0) return fail(QObject::tr("texsize must be positive."));
-        if (tn.isEmpty()) return fail(QObject::tr("Texture file not specified."));
         if (doc.rasterCount() == 0) return fail(QObject::tr("No rasters."));
 
         if (ua) vcg::tri::UpdateNormal<VCGMesh>::PerVertex(m);
@@ -407,13 +407,11 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
         }
         if (dr) vcg::PullPush(img, qRgba(0,0,0,0));
 
-        QString se;
-        if (!TextureAssociationUtils::saveImages({tn}, {img}, se)) return fail(se);
-        auto oa = TextureAssociationUtils::makeTextureAssetsFromSavedImages({tn}, {img});
+        auto oa = TextureAssociationUtils::makeTextureAssetsFromImages({tn}, {img});
         TextureAssociationUtils::replaceTextureAssociations(ent, oa);
         ent.ioMask |= Mask::IOM_WEDGTEXCOORD;
         doc.markMeshMaterialChanged(mi, QObject::tr("Projected rasters onto texture '%1'.").arg(tn));
-        return success({QObject::tr("Saved: %1").arg(tn)});
+        return success({QObject::tr("Made texture '%1'; saving the mesh writes it.").arg(tn)});
     }
 
     return fail(QObject::tr("Unknown filter: %1").arg(fid));

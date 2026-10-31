@@ -146,9 +146,8 @@ MeshFilterRunResult TextureConsolidationFilterPlugin::runFilter(
                                 "with Parametrize by Atlas (xatlas)."));
 
     const int textureSize = params.getInt(QStringLiteral("textureSize"));
-    const QString textureFile = params.getFileSave(QStringLiteral("textureFile")).trimmed();
-    if (textureFile.isEmpty())
-        return fail(QObject::tr("No texture file given."));
+    const QString textureName = TextureAssociationUtils::outputTextureNames(
+        entry, params.getString(QStringLiteral("textureName")), QStringLiteral("color"), 1).front();
 
     // The views: every visible raster with a valid camera and an image. The helpers take
     // pinhole cameras, so anything else is refused here rather than misprojected there.
@@ -384,20 +383,18 @@ MeshFilterRunResult TextureConsolidationFilterPlugin::runFilter(
     }
 
     progress(doc, 98, "Attaching the texture...");
-    if (!TextureAssociationUtils::saveImages({textureFile}, {texture}, error))
-        return failKeeping(error);
-    const auto assets = TextureAssociationUtils::makeTextureAssetsFromSavedImages({textureFile}, {texture});
+    const auto assets = TextureAssociationUtils::makeTextureAssetsFromImages({textureName}, {texture});
     TextureAssociationUtils::replaceTextureAssociations(entry, assets);
     doc.markMeshMaterialChanged(
-        meshIndex, QObject::tr("Consolidated %1 rasters into texture '%2'.").arg(viewCount).arg(textureFile));
+        meshIndex, QObject::tr("Consolidated %1 rasters into texture '%2'.").arg(viewCount).arg(textureName));
     progress(doc, 100, "Texture consolidation complete.");
 
     MeshFilterRunResult result;
     result.success = true;
     result.documentModified = true;
     result.infoMessages
-        << QObject::tr("Consolidated %1 rasters into a %2 x %2 texture: %3")
-               .arg(viewCount).arg(textureSize).arg(textureFile)
+        << QObject::tr("Consolidated %1 rasters into a %2 x %2 texture, '%3'; saving the mesh writes it.")
+               .arg(viewCount).arg(textureSize).arg(textureName)
         << QObject::tr("Atlas: %1 charts for %2 faces.").arg(charts).arg(mesh.FN())
         << QObject::tr("Mesh scaled by %1 to a surface area of %2 for the helpers.")
                .arg(scale, 0, 'g', 6).arg(kReferenceArea)

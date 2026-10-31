@@ -193,16 +193,40 @@ MeshIOTextureAsset makeTextureAssetFromImage(
     return asset;
 }
 
-std::vector<MeshIOTextureAsset> makeTextureAssetsFromSavedImages(
-    const QStringList &paths,
+QStringList outputTextureNames(
+    const Document::MeshEntry &entry,
+    const QString &requestedName,
+    const QString &role,
+    int slotCount)
+{
+    QString name = requestedName.trimmed();
+    if (name.isEmpty()) {
+        QString layer = QFileInfo(entry.name.trimmed()).completeBaseName();
+        if (layer.isEmpty())
+            layer = QStringLiteral("texture");
+        name = QStringLiteral("%1_%2.png").arg(layer, role);
+    }
+    if (QFileInfo(name).suffix().isEmpty())
+        name += QStringLiteral(".png");
+    QStringList names;
+    if (slotCount <= 1) {
+        names << name;
+        return names;
+    }
+    const QFileInfo info(name);
+    for (int i = 0; i < slotCount; ++i)
+        names << QStringLiteral("%1_%2.%3").arg(info.completeBaseName()).arg(i).arg(info.suffix());
+    return names;
+}
+
+std::vector<MeshIOTextureAsset> makeTextureAssetsFromImages(
+    const QStringList &names,
     const std::vector<QImage> &images)
 {
     std::vector<MeshIOTextureAsset> assets;
     assets.reserve(images.size());
-    for (int i = 0; i < paths.size() && size_t(i) < images.size(); ++i) {
-        const QFileInfo info(paths.at(i));
-        assets.push_back(makeTextureAssetFromImage(images[size_t(i)], info.fileName(), paths.at(i)));
-    }
+    for (int i = 0; i < names.size() && size_t(i) < images.size(); ++i)
+        assets.push_back(makeTextureAssetFromImage(images[size_t(i)], names.at(i)));
     return assets;
 }
 
@@ -317,33 +341,6 @@ TextureSizes resolveTextureSizes(const Document::MeshEntry &entry, int askedWidt
                                    "Texture Height to measure in texels");
     }
     return result;
-}
-
-bool saveImages(const QStringList &paths, const std::vector<QImage> &images, QString &error)
-{
-    if (paths.size() != int(images.size())) {
-        error = QObject::tr("Texture path/image count mismatch.");
-        return false;
-    }
-
-    for (int i = 0; i < paths.size(); ++i) {
-        const QString path = paths.at(i).trimmed();
-        if (path.isEmpty()) {
-            error = QObject::tr("Texture output path is empty.");
-            return false;
-        }
-        QFileInfo info(path);
-        QDir dir = info.absoluteDir();
-        if (!dir.exists() && !dir.mkpath(QStringLiteral("."))) {
-            error = QObject::tr("Cannot create directory '%1'.").arg(dir.path());
-            return false;
-        }
-        if (!images[size_t(i)].save(path)) {
-            error = QObject::tr("Failed to save texture '%1'.").arg(path);
-            return false;
-        }
-    }
-    return true;
 }
 
 void rebuildLegacyTextureAssociation(Document::MeshEntry &entry)

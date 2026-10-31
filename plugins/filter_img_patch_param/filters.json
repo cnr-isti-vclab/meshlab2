@@ -123,17 +123,10 @@
         {
           "id": "textureName",
           "label": "Texture name",
-          "help": "Specifies the name of the file into which the texture image will be saved.",
+          "help": "Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.",
           "group": "main",
-          "type": "filesave",
-          "default": "texture.png",
-          "fileDialogTitle": "Save Texture Image",
-          "fileNameFilters": [
-            "PNG Image (*.png)",
-            "JPEG Image (*.jpg *.jpeg)",
-            "BMP Image (*.bmp)"
-          ],
-          "fileDefaultSuffix": "png"
+          "type": "string",
+          "default": ""
         },
         {
           "id": "colorCorrection",

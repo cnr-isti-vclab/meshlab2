@@ -109,7 +109,7 @@ struct MeshFilterParameterDescriptor
     QStringList fileNameFilters;
     QString fileDefaultSuffix;
     // TextureRef selects a mesh-associated input texture. TextureOutputRef selects
-    // either an existing mesh-associated output texture or a new texture file.
+    // either an existing mesh-associated output texture or a new texture, by name.
     QString textureSourceMeshParameter;
     bool textureAllowAutomatic = true;
     // What the TextureRef choice 0 is called, when it means more than the default

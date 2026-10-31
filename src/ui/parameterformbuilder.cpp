@@ -510,12 +510,7 @@ private:
 class TextureOutputRefEditor : public QWidget
 {
 public:
-    explicit TextureOutputRefEditor(
-        Document *doc,
-        const QString &dialogTitle,
-        const QStringList &nameFilters,
-        const QString &defaultSuffix,
-        QWidget *parent = nullptr)
+    explicit TextureOutputRefEditor(Document *doc, QWidget *parent = nullptr)
         : QWidget(parent)
         , m_doc(doc)
     {
@@ -527,14 +522,10 @@ public:
         m_combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         layout->addWidget(m_combo);
 
-        m_fileEditor = new FilePathEditor(
-            FilePathEditor::Mode::SaveFile,
-            dialogTitle,
-            nameFilters,
-            defaultSuffix,
-            doc,
-            this);
-        layout->addWidget(m_fileEditor);
+        // A new texture has a name, not a file: saving the mesh writes it under that name.
+        m_nameEditor = new QLineEdit(this);
+        m_nameEditor->setPlaceholderText(QObject::tr("Named after the layer"));
+        layout->addWidget(m_nameEditor);
 
         connect(m_combo, &QComboBox::currentIndexChanged, this, [this]() { updateModeUi(); });
         repopulate({});
@@ -553,11 +544,8 @@ public:
     {
         QVariantMap preferred = rawValue.toMap();
         if (preferred.isEmpty()) {
-            const QString path = rawValue.toString().trimmed();
-            if (!path.isEmpty()) {
-                preferred.insert(QStringLiteral("mode"), QStringLiteral("new"));
-                preferred.insert(QStringLiteral("path"), path);
-            }
+            preferred.insert(QStringLiteral("mode"), QStringLiteral("new"));
+            preferred.insert(QStringLiteral("name"), rawValue.toString().trimmed());
         }
         repopulate(preferred);
     }
@@ -573,7 +561,7 @@ public:
         }
         return QVariantMap{
             { QStringLiteral("mode"), QStringLiteral("new") },
-            { QStringLiteral("path"), m_fileEditor->value().trimmed() }
+            { QStringLiteral("name"), m_nameEditor->text().trimmed() }
         };
     }
 
@@ -590,13 +578,11 @@ private:
                 m_combo->addItem(QObject::tr("Overwrite %1").arg(textureChoiceLabel(entry, i)), i + 1);
         }
 
-        m_combo->addItem(QObject::tr("Create New Texture File..."), 0);
+        m_combo->addItem(QObject::tr("Create New Texture"), 0);
 
         const QString mode = preferred.value(QStringLiteral("mode")).toString().trimmed().toLower();
         const int preferredSlot = preferred.value(QStringLiteral("slot")).toInt();
-        const QString preferredPath = preferred.value(QStringLiteral("path")).toString().trimmed();
-        if (!preferredPath.isEmpty())
-            m_fileEditor->setValue(preferredPath);
+        m_nameEditor->setText(preferred.value(QStringLiteral("name")).toString().trimmed());
 
         int targetValue = 0;
         if (mode == QStringLiteral("existing") && preferredSlot > 0)
@@ -614,13 +600,13 @@ private:
     void updateModeUi()
     {
         const bool creatingNew = (m_combo->currentData().toInt() <= 0);
-        m_fileEditor->setVisible(creatingNew);
+        m_nameEditor->setVisible(creatingNew);
     }
 
     Document *m_doc = nullptr;
     int m_sourceMeshIndex = -1;
     QComboBox *m_combo = nullptr;
-    FilePathEditor *m_fileEditor = nullptr;
+    QLineEdit *m_nameEditor = nullptr;
 };
 
 QString groupDisplayName(const QString &group)
@@ -1241,12 +1227,7 @@ QWidget *ParameterFormBuilder::createEditor(const MeshFilterParameterDescriptor 
     case MeshFilterParameterType::TextureOutputRef: {
         if (!doc)
             return nullptr;
-        auto *w = new TextureOutputRefEditor(
-            doc,
-            param.fileDialogTitle,
-            param.fileNameFilters,
-            param.fileDefaultSuffix,
-            m_parentWidget);
+        auto *w = new TextureOutputRefEditor(doc, m_parentWidget);
         w->setValue(param.defaultValue);
         return w;
     }

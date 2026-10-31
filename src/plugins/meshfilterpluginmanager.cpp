@@ -733,7 +733,7 @@ QVariant defaultValueForParameter(const MeshFilterParameterDescriptor &parameter
     case MeshFilterParameterType::TextureOutputRef:
         return QVariantMap{
             { QStringLiteral("mode"), QStringLiteral("new") },
-            { QStringLiteral("path"), parameter.defaultValue.toString() }
+            { QStringLiteral("name"), parameter.defaultValue.toString() }
         };
     case MeshFilterParameterType::Double:
     case MeshFilterParameterType::AbsPerc:
@@ -1446,15 +1446,8 @@ bool MeshFilterPluginManager::normalizeAndValidateParameters(
             return false;
 
         // Only the filter sees the anchored path; history and scripts keep the name as given.
-        if (parameter.type == MeshFilterParameterType::FileSave) {
+        if (parameter.type == MeshFilterParameterType::FileSave)
             convertedValue = anchorOutputPath(convertedValue.toString(), doc);
-        } else if (parameter.type == MeshFilterParameterType::TextureOutputRef) {
-            QVariantMap map = convertedValue.toMap();
-            if (map.value(QStringLiteral("mode")).toString() == QStringLiteral("new")) {
-                map.insert(QStringLiteral("path"), anchorOutputPath(map.value(QStringLiteral("path")).toString(), doc));
-                convertedValue = map;
-            }
-        }
 
         normalizedParameters.insert(parameterId, convertedValue);
     }
@@ -1536,18 +1529,11 @@ bool MeshFilterPluginManager::convertParameterValue(
         return true;
     }
     case MeshFilterParameterType::TextureOutputRef: {
+        // A bare string is a new texture's name; empty names it after the layer.
         QVariantMap map = inputValue.toMap();
         if (map.isEmpty()) {
-            const QString path = appendSuffixIfMissing(
-                inputValue.toString().trimmed(),
-                parameter.fileDefaultSuffix.trimmed());
-            if (path.isEmpty()) {
-                errorMessage = QObject::tr("%1 requires either an existing texture choice or a new output file path.")
-                                   .arg(prefix);
-                return false;
-            }
             map.insert(QStringLiteral("mode"), QStringLiteral("new"));
-            map.insert(QStringLiteral("path"), path);
+            map.insert(QStringLiteral("name"), inputValue.toString().trimmed());
         }
 
         const QString mode = map.value(QStringLiteral("mode")).toString().trimmed().toLower();
@@ -1565,17 +1551,9 @@ bool MeshFilterPluginManager::convertParameterValue(
             return true;
         }
 
-        const QString path = appendSuffixIfMissing(
-            map.value(QStringLiteral("path")).toString().trimmed(),
-            parameter.fileDefaultSuffix.trimmed());
-        if (path.isEmpty()) {
-            errorMessage = QObject::tr("%1 requires a destination file path when creating a new texture.")
-                               .arg(prefix);
-            return false;
-        }
         outputValue = QVariantMap{
             { QStringLiteral("mode"), QStringLiteral("new") },
-            { QStringLiteral("path"), path }
+            { QStringLiteral("name"), map.value(QStringLiteral("name")).toString().trimmed() }
         };
         return true;
     }

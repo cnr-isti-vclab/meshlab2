@@ -148,20 +148,12 @@
       "inputRequirements": { "requireVertices": true, "requireFaces": true, "requirePerWedgeTexCoords": true },
       "parameters": [
         {
-          "id": "textName",
-          "label": "Texture file",
-          "help": "Output texture image file path.",
+          "id": "textureName",
+          "label": "Texture name",
+          "help": "Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.",
           "group": "main",
-          "type": "filesave",
-          "default": "projected_texture.png",
-          "fileDialogTitle": "Choose Output Texture File",
-          "fileNameFilters": [
-            "PNG Image (*.png)",
-            "JPEG Image (*.jpg *.jpeg)",
-            "BMP Image (*.bmp)",
-            "TIFF Image (*.tif *.tiff)"
-          ],
-          "fileDefaultSuffix": "png"
+          "type": "string",
+          "default": ""
         },
         {
           "id": "texsize",

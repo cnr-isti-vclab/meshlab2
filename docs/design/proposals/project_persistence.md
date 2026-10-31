@@ -1,7 +1,7 @@
 # Project persistence: how the user's work reaches the disk (draft, 2026-10-30)
 
-**Status: approved 2026-10-31. Stages 1 (savers and stored state) and 2 (display and
-single saves) implemented 2026-10-31; stages 3 to 5 not yet.** See section 10 for what stage 1 did and found. First drafted as "texture storage"; renamed because
+**Status: approved 2026-10-31. Stages 1 (savers and stored state), 2 (display and single
+saves) and 3 (filters) implemented 2026-10-31; stages 4 and 5 not yet.** See section 10 for what stage 1 did and found. First drafted as "texture storage"; renamed because
 most of it is about saving the user's work, of which textures are one part.
 
 Every layer and every texture knows where it is stored and whether it differs from what is
@@ -275,7 +275,9 @@ Taken 2026-10-31:
 6. Save Mesh (Ctrl+S) keeps opening the file dialog every time; there is no separate
    *Save Mesh As*.
 7. A selection counts as a change (section 2).
-8. `textureName` / `texture_name` is the one name of section 7.
+8. `textureName` is the one name of section 7. (Recorded first as `textureName` /
+   `texture_name`: a parameter id is also its Python keyword, so it is `textureName` there
+   too, lowerCamelCase as vocabulary.md asks of parameter ids.)
 9. The Python name of row 39 is `save_current_mesh_texture(texture_index, path)`, after
    `save_current_mesh`.
 
@@ -322,7 +324,22 @@ Open: none.
    project's *save modified meshes* still reads `MeshEntry::modified` (row 17, with stage 4).
    Raster planes use the same interim rule as textures: an image no save recorded is
    trusted to match the file it came from.
-3. **Filters** (rows 1-6, 12-16). Tests: a run writes no file; the overwrite case leaves
-   the source normal map byte-identical.
+3. **Filters** (rows 1-6, 12-16). **Done 2026-10-31.** The six filters return a texture with
+   a name and no file; the five `filesave` outputs became a `string` `textureName`, empty by
+   default for `<layer>_<role>.png` (`TextureAssociationUtils::outputTextureNames`), and the
+   "new" choice of `textureoutputref` is a name (a line edit, map key `name`, no anchoring).
+   Overwriting a texture -- Transfer Color from Vertex to Texture and the closest-point
+   transfer with *overwrite*, the tangent-space conversion onto an existing slot -- replaces
+   its image and keeps its name and path: the file is left alone, the texture shows changed,
+   and a save writes the new image beside the mesh under a free name (`texture_1.png`), never
+   over the file. `saveImages` is gone; `makeTextureAssetsFromSavedImages` became
+   `makeTextureAssetsFromImages` (names, no paths). The interim rule of stage 1 is flipped:
+   an image no load or save recorded is a changed texture, and saving writes it. The
+   tangent-space result also records its asset index in the PBR normal slot, which a texture
+   with no file needs. `anchorOutputPath` stays for FileSave, which no filter uses now.
+   Tests: `textureFiltersWriteNoFile` (nothing written in the layer's folder or the working
+   directory, the default name, an overwritten file byte-identical for both filters, the
+   save writing beside it); the consolidation test takes the new parameter; the old
+   anchoring test went with the behaviour it tested.
 4. **Project save** (rows 28-30).
 5. **Document directory** (rows 31-35).

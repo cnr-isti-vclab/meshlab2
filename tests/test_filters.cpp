@@ -408,8 +408,8 @@ class FilterTests : public QObject
 {
     Q_OBJECT
 
-    // Filters write default output files (texture.png...) next to the layer's file, or into
-    // the working directory for a generated layer: the latter is this scratch directory.
+    // A filter that writes a file given as a bare name puts it next to the layer's file, or
+    // into the working directory for a generated layer: the latter is this scratch directory.
     QTemporaryDir m_scratch;
     QString m_startDirectory;
 
@@ -557,7 +557,7 @@ private slots:
     void measureReportsFaceDefectsOrientationAndBoundaryLength();
     void measureUvMappingCountsIslandsEdgesAndDistortionInTexels();
     void foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds();
-    void relativeOutputNamesGoNextToTheLayerThenTheProject();
+    void textureFiltersWriteNoFile();
     void aThinFoldedUvTriangleIsFoundWhereFloatArithmeticMissesIt();
     void measureUvMappingAgreesWithTexMetroOnARealAtlas();
     void measureTexelCoverageCountsAKnownLayoutExactly();
@@ -6452,9 +6452,8 @@ void FilterTests::textureConsolidationBuildsTextureFromRasters()
 
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
-    const QString texturePath = dir.filePath(QStringLiteral("consolidated.png"));
     MeshFilterParameterValues values;
-    values.insert(QStringLiteral("textureFile"), texturePath);
+    values.insert(QStringLiteral("textureName"), QStringLiteral("consolidated.png"));
     values.insert(QStringLiteral("levels"), 3);
     values.insert(QStringLiteral("textureSize"), 1024);
     const MeshFilterRunResult result = doc.runFilter(key, values);
@@ -6464,7 +6463,8 @@ void FilterTests::textureConsolidationBuildsTextureFromRasters()
     QCOMPARE(int(entry.textureAssets.size()), 1);
     const QImage texture = entry.textureAssets.front().image;
     QCOMPARE(texture.size(), QSize(1024, 1024));
-    QVERIFY(QFileInfo::exists(texturePath));
+    QCOMPARE(entry.textureAssets.front().name, QStringLiteral("consolidated.png"));
+    QVERIFY(entry.textureAssets.front().sourcePath.isEmpty());
 
     int colored = 0;
     for (int y = 0; y < texture.height(); ++y) {
@@ -9573,9 +9573,13 @@ void FilterTests::measureUvMappingCountsIslandsEdgesAndDistortionInTexels()
 // fold -- while the other three keep their orientation. Run with the UV on the corners and on
 // the vertices, since a seam is held differently by each. Then the same square with the second
 // face mirrored in its own island, which is not a fold at all.
-// A filter's default output name ("texture.png") is relative. It goes next to the layer's
-// file, then next to the project, never into the working directory of whoever runs it.
-void FilterTests::relativeOutputNamesGoNextToTheLayerThenTheProject()
+// A texture filter makes a texture and writes no file: saving the mesh does
+// (project_persistence.md). They used to write theirs while running, under a default name
+// next to the layer's file, so a scan whose texture was called texture.png lost it to Transfer
+// Color from Vertex to Texture run with defaults, and undo left the file changed. Now the new
+// texture is named after the layer, nothing in the folder changes, and overwriting a texture
+// replaces its image and leaves its file as it was.
+void FilterTests::textureFiltersWriteNoFile()
 {
     VCGMesh mesh;
     makeOpenDiskMesh(mesh);
@@ -9588,34 +9592,78 @@ void FilterTests::relativeOutputNamesGoNextToTheLayerThenTheProject()
     }
     const int mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTCOLOR
                      | vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
-    QTemporaryDir layerDir, projectDir;
-    QVERIFY(layerDir.isValid() && projectDir.isValid());
+    QTemporaryDir layerDir;
+    QVERIFY(layerDir.isValid());
+    const QString original = layerDir.filePath(QStringLiteral("texture.png"));
+    QImage blue(8, 8, QImage::Format_RGB32);
+    blue.fill(Qt::blue);
+    QVERIFY(blue.save(original));
+    QFile originalFile(original);
+    QVERIFY(originalFile.open(QIODevice::ReadOnly));
+    const QByteArray originalBytes = originalFile.readAll();
+    originalFile.close();
 
     Document doc;
-    const int index = doc.addMesh(mesh, QStringLiteral("disk"), mask);
+    const int index = doc.addMesh(mesh, QStringLiteral("disk.ply"), mask);
     doc.setCurrentMeshIndex(index);
+    TextureAssociationUtils::replaceTextureAssociations(
+        doc.mesh(index), { TextureAssociationUtils::makeTextureAssetFromPath(original) });
+    QCOMPARE(doc.saveMesh(index, layerDir.filePath(QStringLiteral("disk.ply"))), 0);
+    const QStringList before = QDir(layerDir.path()).entryList(QDir::Files);
+
     const QString key = filterKeyForId(doc, QStringLiteral("transfer_color_from_vertex_to_texture"));
     QVERIFY(!key.isEmpty());
     MeshFilterParameterValues small;
     small.insert(QStringLiteral("textW"), 16);
     small.insert(QStringLiteral("textH"), 16);
-
-    // A layer without a file of its own, in a saved project: next to the project.
-    QString error;
-    QVERIFY2(doc.saveMeshLabProject(projectDir.filePath(QStringLiteral("p.mlp")), {}, &error), qPrintable(error));
-    doc.mesh(index).sourcePath.clear();
+    small.insert(QStringLiteral("overwrite"), false);
     MeshFilterRunResult r = doc.runFilter(key, small);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
-    QVERIFY(QFileInfo::exists(projectDir.filePath(QStringLiteral("texture.png"))));
-    QVERIFY(!QFileInfo::exists(QDir::current().filePath(QStringLiteral("texture.png"))));
+    QCOMPARE(QDir(layerDir.path()).entryList(QDir::Files), before);
+    QVERIFY(QDir(m_scratch.path()).entryList({ QStringLiteral("*.png") }, QDir::Files).isEmpty());
+    const Document::MeshEntry &entry = doc.mesh(index);
+    QCOMPARE(int(entry.textureAssets.size()), 2);
+    QCOMPARE(entry.textureAssets.back().name, QStringLiteral("disk_color.png"));
+    QCOMPARE(doc.meshTextureStoredState(index, 1), Document::StoredState::NotStored);
 
-    // A layer with one: next to that file.
-    doc.mesh(index).sourcePath = layerDir.filePath(QStringLiteral("disk.ply"));
-    small.insert(QStringLiteral("textName"), QStringLiteral("again.png"));
+    // Overwriting the texture that has a file: its image changes, its file does not.
+    QVERIFY(doc.undo());
+    small.insert(QStringLiteral("overwrite"), true);
     r = doc.runFilter(key, small);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
-    QVERIFY(QFileInfo::exists(layerDir.filePath(QStringLiteral("again.png"))));
-    QVERIFY(!QFileInfo::exists(QDir::current().filePath(QStringLiteral("again.png"))));
+    QVERIFY(originalFile.open(QIODevice::ReadOnly));
+    QCOMPARE(originalFile.readAll(), originalBytes);
+    originalFile.close();
+    QCOMPARE(doc.meshTextureStoredState(index, 0), Document::StoredState::Changed);
+    QCOMPARE(doc.meshStoredState(index), Document::StoredState::Changed);
+
+    // Saving the mesh writes the new image beside it, and leaves the original alone.
+    QCOMPARE(doc.saveMesh(index, layerDir.filePath(QStringLiteral("disk.ply"))), 0);
+    QCOMPARE(doc.meshTextureStoredState(index, 0), Document::StoredState::Stored);
+    QVERIFY(originalFile.open(QIODevice::ReadOnly));
+    QCOMPARE(originalFile.readAll(), originalBytes);
+    QVERIFY(QFileInfo::exists(layerDir.filePath(QStringLiteral("texture_1.png"))));
+    originalFile.close();
+
+    // Convert Object-Space Normal Map to Tangent Space, told to overwrite the normal map it
+    // reads, used to write over that very file.
+    Document normals;
+    const int n = normals.addMesh(mesh, QStringLiteral("disk.ply"), mask);
+    normals.setCurrentMeshIndex(n);
+    TextureAssociationUtils::replaceTextureAssociations(
+        normals.mesh(n), { TextureAssociationUtils::makeTextureAssetFromPath(original) });
+    const QString tangentKey = filterKeyForId(normals, QStringLiteral("convert_object_space_normal_map_to_tangent_space"));
+    QVERIFY(!tangentKey.isEmpty());
+    MeshFilterParameterValues tangent;
+    tangent.insert(QStringLiteral("targetTexture"), 1);
+    tangent.insert(QStringLiteral("sourceNormalMap"), 1);
+    tangent.insert(QStringLiteral("targetNormalMap"),
+                   QVariantMap{ { QStringLiteral("mode"), QStringLiteral("existing") }, { QStringLiteral("slot"), 1 } });
+    r = normals.runFilter(tangentKey, tangent);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(originalFile.open(QIODevice::ReadOnly));
+    QCOMPARE(originalFile.readAll(), originalBytes);
+    QCOMPARE(normals.meshTextureStoredState(n, 0), Document::StoredState::Changed);
 }
 
 void FilterTests::foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds()

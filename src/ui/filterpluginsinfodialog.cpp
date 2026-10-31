@@ -151,10 +151,9 @@ QString filterParameterValueText(const QVariant &value, MeshFilterParameterType 
                 if (slot > 0)
                     return QObject::tr("overwrite texture %1").arg(slot);
             }
-            const QString path = map.value(QStringLiteral("path")).toString().trimmed();
-            if (!path.isEmpty())
-                return QObject::tr("create new: %1").arg(path);
-            return QObject::tr("create new");
+            const QString name = map.value(QStringLiteral("name")).toString().trimmed();
+            return name.isEmpty() ? QObject::tr("create new, named after the layer")
+                                  : QObject::tr("create new: %1").arg(name);
         }
         return value.toString();
     case MeshFilterParameterType::Point3f:

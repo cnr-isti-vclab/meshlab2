@@ -9,7 +9,9 @@ struct TextureOutputRefValue
 {
     bool overwriteExisting = false;
     int textureSlot = -1; // zero-based when overwriteExisting is true
-    QString filePath;
+    // A new texture's name, also its file name when the mesh is saved; empty to name it after
+    // the layer (TextureAssociationUtils::outputTextureNames).
+    QString name;
 };
 
 // Resolved value of the conventional `randomSeed` parameter (see the parameter

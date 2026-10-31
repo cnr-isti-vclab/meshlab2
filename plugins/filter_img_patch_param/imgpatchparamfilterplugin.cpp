@@ -1105,8 +1105,8 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
 
         // --- Texturing ---
         int     texSize  = p.getInt(QStringLiteral("textureSize"), 1024);
-        QString texName  = p.getFileSave(QStringLiteral("textureName"),
-                                         QStringLiteral("texture.png")).trimmed();
+        const QString texName = TextureAssociationUtils::outputTextureNames(
+            doc.mesh(mi), p.getString(QStringLiteral("textureName")), QStringLiteral("color"), 1).front();
         bool    doCorr   = p.getBool(QStringLiteral("colorCorrection"), true);
         int     corrSize = p.getInt(QStringLiteral("colorCorrectionFilterSize"), 1);
 
@@ -1117,15 +1117,12 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
             tex = rectifyColorCPU(patches, tex, texSize, corrSize);
         sLog << QStringLiteral("TEXTURE PAINTING: %1 sec.").arg(0.001f * pt.elapsed(), 0, 'f', 3);
 
-        QString saveError;
-        if (!TextureAssociationUtils::saveImages({texName}, {tex}, saveError))
-            return fail(saveError);
-        auto oa = TextureAssociationUtils::makeTextureAssetsFromSavedImages({texName}, {tex});
+        auto oa = TextureAssociationUtils::makeTextureAssetsFromImages({texName}, {tex});
         TextureAssociationUtils::replaceTextureAssociations(doc.mesh(mi), oa);
         doc.mesh(mi).ioMask |= Mask::IOM_WEDGTEXCOORD;
         doc.markMeshMaterialChanged(mi,
             QObject::tr("Textured '%1' from registered rasters.").arg(doc.mesh(mi).name));
-        sLog << QObject::tr("Saved: %1").arg(texName);
+        sLog << QObject::tr("Made texture '%1'; saving the mesh writes it.").arg(texName);
         return ok(sLog);
     }
 
