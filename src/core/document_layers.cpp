@@ -372,6 +372,7 @@ void Document::clearAllLayers()
     if (hadSets)
         emit visibilitySetsChanged();
     m_projectFilePath.clear();
+    setDirectory({});
     m_storedMeshes.clear();
     m_storedImages.clear();
     // And the unit is what was said of those layers.

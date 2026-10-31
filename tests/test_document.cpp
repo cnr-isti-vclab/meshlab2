@@ -86,6 +86,7 @@ private slots:
     void loadMeshLabProjectLoadsMeshesAndTransforms();
     void saveMeshLabProjectKeepsLayersWithoutAFile();
     void saveMeshLabProjectWritesWhatChangedUnderUniqueNames();
+    void theDocumentFolderComesFromTheFirstFileThenTheProject();
     void visibilitySetsShowTheirLayersAndSayWhenTheyAreShown();
     void visibilitySetsSurviveAProjectRoundTripWhateverIsLeftOut();
     void definingRenamingRedefiningAndDeletingASetAreUndoSteps();
@@ -1696,6 +1697,55 @@ void DocumentTests::legacyTargaLoadsThroughTheStbFallback()
     QCOMPARE(image.size(), QSize(kWidth, kHeight));
     QCOMPARE(image.pixelColor(0, 0), QColor(Qt::red));
     QCOMPARE(image.pixelColor(kWidth - 1, kHeight - 1), QColor(Qt::blue));
+}
+
+// The document's folder is where new saves start and what paths are shown against. The first
+// mesh loaded -- or saved, for a document made in memory -- sets it; later loads leave it; a
+// project's folder replaces it; File > New clears it.
+void DocumentTests::theDocumentFolderComesFromTheFirstFileThenTheProject()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QDir root(dir.path());
+    QVERIFY(root.mkpath(QStringLiteral("a/sub")) && root.mkpath(QStringLiteral("b")) && root.mkpath(QStringLiteral("c")));
+    const QString a = root.filePath(QStringLiteral("a/first.ply"));
+    const QString b = root.filePath(QStringLiteral("b/second.ply"));
+    {
+        Document writer;
+        addTinyMesh(writer, QStringLiteral("tiny"));
+        QCOMPARE(writer.saveMesh(0, a), 0);
+        QCOMPARE(writer.saveMesh(0, b), 0);
+    }
+
+    Document doc;
+    QSignalSpy changed(&doc, &Document::directoryChanged);
+    QVERIFY(doc.directory().isEmpty());
+    addTinyMesh(doc, QStringLiteral("generated"));
+    QVERIFY(doc.directory().isEmpty());
+    QCOMPARE(doc.loadMesh(a), 0);
+    QCOMPARE(doc.directory(), QFileInfo(a).absolutePath());
+    QCOMPARE(doc.loadMesh(b), 0);
+    QCOMPARE(doc.directory(), QFileInfo(a).absolutePath());
+    QCOMPARE(changed.count(), 1);
+
+    QCOMPARE(doc.displayPath(root.filePath(QStringLiteral("a/sub/x.png"))), QDir::toNativeSeparators(QStringLiteral("sub/x.png")));
+    QCOMPARE(doc.displayPath(b), QDir::toNativeSeparators(QStringLiteral("../b/second.ply")));
+    const QString far = QDir::rootPath() + QStringLiteral("far/away.ply");
+    QCOMPARE(doc.displayPath(far), QDir::toNativeSeparators(far));
+
+    QString error;
+    QVERIFY2(doc.saveMeshLabProject(root.filePath(QStringLiteral("c/p.mlp")), { false, true, true }, &error),
+             qPrintable(error));
+    QCOMPARE(doc.directory(), root.filePath(QStringLiteral("c")));
+    doc.setDirectory(root.filePath(QStringLiteral("b")));
+    QCOMPARE(doc.directory(), root.filePath(QStringLiteral("b")));
+    doc.clearAllLayers();
+    QVERIFY(doc.directory().isEmpty());
+
+    Document generated;
+    addTinyMesh(generated, QStringLiteral("generated"));
+    QCOMPARE(generated.saveMesh(0, root.filePath(QStringLiteral("c/g.ply"))), 0);
+    QCOMPARE(generated.directory(), root.filePath(QStringLiteral("c")));
 }
 
 // A project writes what no file holds, once, and never two layers into one file. Two new

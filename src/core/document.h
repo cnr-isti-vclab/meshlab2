@@ -311,6 +311,16 @@ public:
     // never been one, and again after clearAllLayers(). Filters write relative output names
     // next to it when their layer has no file of its own.
     QString projectFilePath() const { return m_projectFilePath; }
+    // The document's folder: where new saves start, what layer paths are shown against, and
+    // where a filter's file given as a bare name goes. The project's folder once there is a
+    // project; before that, the folder of the first mesh loaded or saved; or what the user
+    // sets. It never resolves a mesh's own textures, which stay relative to that mesh's file.
+    // Empty for a new document, and again after clearAllLayers().
+    QString directory() const { return m_directory; }
+    void setDirectory(const QString &directory);
+    // A path as the user should see it: relative to directory() when inside it or one level
+    // up, absolute otherwise (another volume, far away, or no folder yet).
+    QString displayPath(const QString &path) const;
     int addRaster(const RasterEntry &raster);
     int addRasterImage(
         const QImage &image,
@@ -561,6 +571,7 @@ signals:
     // A visibility set was added, removed, renamed or redefined.
     void visibilitySetsChanged();
     void unitChanged();
+    void directoryChanged();
     void currentMeshChanged(int index);
     void meshDataChanged(int index);
     // Selection-bit-only change. Distinct from meshDataChanged so consumers that
@@ -635,6 +646,9 @@ private:
     std::vector<VisibilitySet> m_visibilitySets;
     LengthUnit m_unit = LengthUnit::Unknown;
     QString m_projectFilePath;
+    QString m_directory;
+    // Sets directory() to the folder of file when it is not set yet.
+    void adoptDirectoryOf(const QString &file);
     std::vector<std::unique_ptr<RasterEntry>> m_rasters;
     std::uint64_t m_nextMeshId = 1;
     std::uint64_t m_nextRasterId = 1;

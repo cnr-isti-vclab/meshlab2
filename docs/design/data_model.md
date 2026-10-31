@@ -92,6 +92,8 @@ The "no file" case used to be skipped when the layer was unmodified, which dropp
 
 Options (`MeshLabProjectSaveOptions`, offered by the Save Project dialog): `onlyVisibleMeshes` leaves hidden layers out of the project altogether; `saveModifiedMeshes` is the re-save above; `copyFiles` lets the save proceed when some referenced meshes or rasters live outside the project folder. Without it, such a project is refused with an error rather than saved with paths that would break when the folder moves. With it meshes are saved into `meshes/` as above and raster images copied into `images/`, each under a unique name, and the project -- and the document -- name the copies. A snapshot plane with no file is written to `images/` (`saveRasterPlaneImage`). Paths in the file are relative to the project folder.
 
+**Folder** (`Document::directory()`): where new saves start, what the Layers panel shows paths against (`displayPath`: relative when inside the folder or one level up, absolute otherwise), and where a `filesave` parameter given as a bare name goes. It is the project's folder once a project is loaded or saved; before that, the folder of the first mesh loaded or saved; or what the user sets with the status-bar button, before the unit. `clearAllLayers()` clears it. It never resolves a mesh's own textures, which stay relative to that mesh's file as every format stores them. Not part of the undo state.
+
 **Unit** (`Document::unit()`, `LengthUnit` in `lengthunit.h`): what the coordinates are measured in --
 micrometers, millimeters, centimeters, meters, kilometers, inches or feet -- as far as it is known. Most
 mesh formats do not say, so it is `Unknown` until the user sets it, or a project that holds one or

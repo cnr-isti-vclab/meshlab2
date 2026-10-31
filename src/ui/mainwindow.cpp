@@ -569,6 +569,35 @@ MainWindow::MainWindow(QWidget *parent)
     m_frameStatsLabel->setFont(statsFont);
     statusBar()->addPermanentWidget(m_frameStatsLabel, 1);
 
+    // The document's folder: where new saves start and what layer paths are shown against.
+    // The first mesh loaded or saved sets it, a project's folder replaces it, and a click
+    // changes it.
+    auto *folderButton = new QToolButton(this);
+    folderButton->setAutoRaise(true);
+    const auto showFolder = [this, folderButton] {
+        const QString dir = m_doc->directory();
+        folderButton->setText(dir.isEmpty() ? tr("Folder: not set")
+                                            : tr("Folder: %1").arg(QDir(dir).dirName()));
+        folderButton->setToolTip(
+            (dir.isEmpty() ? tr("The document has no folder yet: the first mesh loaded or saved sets it.")
+                           : tr("Document folder: %1").arg(QDir::toNativeSeparators(dir)))
+            + QLatin1Char('\n')
+            + tr("New saves start here and layer paths are shown relative to it. Click to change it."));
+    };
+    connect(folderButton, &QToolButton::clicked, this, [this] {
+        const QString dir = QFileDialog::getExistingDirectory(this, tr("Document Folder"), m_doc->directory());
+        if (!dir.isEmpty())
+            m_doc->setDirectory(dir);
+    });
+    showFolder();
+    connect(m_doc, &Document::directoryChanged, this, [this, showFolder] {
+        showFolder();
+        if (!m_doc->directory().isEmpty())
+            statusBar()->showMessage(
+                tr("Document folder: %1").arg(QDir::toNativeSeparators(m_doc->directory())), 5000);
+    });
+    statusBar()->addPermanentWidget(folderButton, 0);
+
     // The unit the coordinates are in, which most mesh formats do not say: it shows what the
     // document has and offers the others. It names the lengths the parameter panels show.
     auto *unitButton = new QToolButton(this);
@@ -2621,12 +2650,11 @@ void MainWindow::saveCurrentMesh()
     }
 
     const Document::MeshEntry &entry = m_doc->mesh(currentIndex);
-    const QString defaultPath = !entry.sourcePath.isEmpty()
-        ? entry.sourcePath
-        : FileDialogDirectory::startingPath(
-              QStringLiteral("mesh"),
-              QStringLiteral("%1.ply").arg(
-                  entry.name.isEmpty() ? QStringLiteral("mesh") : entry.name));
+    const QString newName = QStringLiteral("%1.ply").arg(
+        entry.name.isEmpty() ? QStringLiteral("mesh") : QFileInfo(entry.name).completeBaseName());
+    const QString defaultPath = !entry.sourcePath.isEmpty() ? entry.sourcePath
+        : !m_doc->directory().isEmpty() ? QDir(m_doc->directory()).filePath(newName)
+                                         : FileDialogDirectory::startingPath(QStringLiteral("mesh"), newName);
 
     QString selectedFilter;
     QString targetPath = QFileDialog::getSaveFileName(
@@ -2693,8 +2721,13 @@ void MainWindow::saveProjectAs()
     using SaveOpts = Document::MeshLabProjectSaveOptions;
 
     QString selectedFilter;
-    const QString defaultPath = FileDialogDirectory::startingPath(
-        QStringLiteral("project"), QStringLiteral("project.mlp"));
+    // The project already saved, or one named after the first layer in the document's folder.
+    QString projectName = QStringLiteral("project.mlp");
+    if (m_doc->meshCount() > 0 && !QFileInfo(m_doc->mesh(0).name).completeBaseName().isEmpty())
+        projectName = QFileInfo(m_doc->mesh(0).name).completeBaseName() + QStringLiteral(".mlp");
+    const QString defaultPath = !m_doc->projectFilePath().isEmpty() ? m_doc->projectFilePath()
+        : !m_doc->directory().isEmpty() ? QDir(m_doc->directory()).filePath(projectName)
+                                         : FileDialogDirectory::startingPath(QStringLiteral("project"), projectName);
     QString targetPath = QFileDialog::getSaveFileName(
         this,
         tr("Save MeshLab Project"),

@@ -79,10 +79,10 @@ visibilityset
 
 (`file_open` and `file_save` are accepted as alternates.)
 
-A relative `filesave` value reaches the filter already anchored: next to the current
-layer's file, or failing that next to the project (`Document::projectFilePath()`). Only a
-layer with neither, in a document never saved as a project, keeps the bare name, which
-then resolves against the working directory. So a default such as `"report.csv"` is fine,
+A relative `filesave` value reaches the filter already anchored in the document's folder
+(`Document::directory()`: the project's folder, or that of the first mesh loaded or saved).
+Only a document with no folder yet keeps the bare name, which then resolves against the
+working directory. So a default such as `"report.csv"` is fine,
 and a filter must not anchor it again. History and scripts keep the name as given.
 
 **A filter that makes a texture writes no file.** It returns an image with a name and no

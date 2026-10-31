@@ -1,7 +1,8 @@
 # Project persistence: how the user's work reaches the disk (draft, 2026-10-30)
 
-**Status: approved 2026-10-31. Stages 1 (savers and stored state), 2 (display and single
-saves), 3 (filters) and 4 (project save) implemented 2026-10-31; stage 5 not yet.** See section 10 for what stage 1 did and found. First drafted as "texture storage"; renamed because
+**Status: implemented 2026-10-31, all five stages.** Kept here for the mapping table and
+the decisions until its content moves into data_model.md, which already describes the
+behaviour. See section 10 for what stage 1 did and found. First drafted as "texture storage"; renamed because
 most of it is about saving the user's work, of which textures are one part.
 
 Every layer and every texture knows where it is stored and whether it differs from what is
@@ -354,4 +355,16 @@ Open: none.
    meshes", with tooltips. Tests: `saveMeshLabProjectWritesWhatChangedUnderUniqueNames` (fails
    on the old code); `importImageToCurrentRasterKeepsTheCamera` asserted the old behaviour,
    that a copied plane's project still named the original, and now checks the copy.
-5. **Document directory** (rows 31-35).
+5. **Document directory** (rows 31-35, and 14, 23). **Done 2026-10-31.**
+   `Document::directory()`, `setDirectory`, `displayPath` and the `directoryChanged` signal.
+   The first mesh loaded sets it, and so does the first save of a document made in memory (a
+   small extension of section 6, which named loads only); a project loaded or saved replaces
+   it; `clearAllLayers` clears it; it is not in the undo state. A status-bar button before
+   the unit shows its name, the full path in the tooltip, and changes it on a click; the
+   status bar says when it is set. Save Mesh for a layer with no file and Save Project start
+   there (Save Project at the project already saved, or `<first layer>.mlp`). The layer
+   panel's tooltips show paths through `displayPath`: relative inside the folder or one
+   level up, absolute otherwise -- "absolute on another volume" of section 6, widened to
+   anything two levels up, where a relative path stops being easier to read.
+   `anchorOutputPath` uses the folder alone. Test:
+   `theDocumentFolderComesFromTheFirstFileThenTheProject`.

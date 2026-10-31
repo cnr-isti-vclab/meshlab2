@@ -278,6 +278,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
     }
 
     recordMeshStored(*entry, filename, nullptr);
+    adoptDirectoryOf(filename);
     int index = meshCount();
     m_meshes.push_back(std::move(entry));
     refreshMeshPolygonFaceCount(index);
@@ -697,8 +698,36 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
         entry.name = QFileInfo(savedPath).fileName();
     entry.sourcePath = savedPath;
     recordMeshStored(entry, savedPath, &savedTexturePaths);
+    adoptDirectoryOf(savedPath);
     emit meshDataChanged(index);
     return 0;
+}
+
+void Document::setDirectory(const QString &directory)
+{
+    const QString dir = directory.trimmed().isEmpty() ? QString() : QDir::cleanPath(QDir(directory).absolutePath());
+    if (dir == m_directory)
+        return;
+    m_directory = dir;
+    if (!dir.isEmpty())
+        writeLog(tr("Document folder: %1").arg(QDir::toNativeSeparators(dir)), LogSource::Application);
+    emit directoryChanged();
+}
+
+void Document::adoptDirectoryOf(const QString &file)
+{
+    if (m_directory.isEmpty())
+        setDirectory(QFileInfo(file).absolutePath());
+}
+
+QString Document::displayPath(const QString &path) const
+{
+    if (path.trimmed().isEmpty() || m_directory.isEmpty())
+        return QDir::toNativeSeparators(path);
+    const QString relative = QDir(m_directory).relativeFilePath(QFileInfo(path).absoluteFilePath());
+    if (QDir::isAbsolutePath(relative) || relative.startsWith(QStringLiteral("../../")))
+        return QDir::toNativeSeparators(QFileInfo(path).absoluteFilePath());
+    return QDir::toNativeSeparators(relative);
 }
 
 void Document::recordMeshStored(MeshEntry &entry, const QString &path, const QStringList *savedTexturePaths)

@@ -173,8 +173,10 @@ int Document::loadMeshLabProject(const QString &filename)
         LogSource::Application);
 
     m_bulkLoading = false;
-    if (success)
+    if (success) {
         m_projectFilePath = QFileInfo(normalizedFilename).absoluteFilePath();
+        setDirectory(QFileInfo(m_projectFilePath).absolutePath());
+    }
     if (ownUndoStep)
         endUndoStep(success);
     return success ? 0 : 1;
@@ -475,6 +477,7 @@ bool Document::saveMeshLabProject(
     file.close();
 
     m_projectFilePath = QFileInfo(filename).absoluteFilePath();
+    setDirectory(QFileInfo(m_projectFilePath).absolutePath());
     writeLog(tr("Saved project: %1").arg(filename), LogSource::Application);
     return true;
 }

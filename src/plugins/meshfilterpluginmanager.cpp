@@ -803,21 +803,15 @@ QString appendSuffixIfMissing(const QString &path, const QString &suffix)
     return QStringLiteral("%1.%2").arg(path, suffix);
 }
 
-// A relative output name, such as a filter's default "texture.png", goes next to the
-// current layer's file, or failing that next to the project. Left alone it would resolve
-// against the process's working directory -- wherever the application or a test happened
-// to start -- and turned up as stray files there. With neither it is left as given.
+// A relative output name goes into the document's folder (Document::directory). Left alone
+// it would resolve against the process's working directory -- wherever the application or a
+// test happened to start -- and turn up as stray files there. With no folder yet it is left
+// as given.
 QString anchorOutputPath(const QString &path, const Document &doc)
 {
-    if (path.isEmpty() || QDir::isAbsolutePath(path))
+    if (path.isEmpty() || QDir::isAbsolutePath(path) || doc.directory().isEmpty())
         return path;
-    const int meshIndex = doc.currentMeshIndex();
-    QString base;
-    if (meshIndex >= 0 && meshIndex < doc.meshCount() && !doc.mesh(meshIndex).sourcePath.isEmpty())
-        base = QFileInfo(doc.mesh(meshIndex).sourcePath).absolutePath();
-    else if (!doc.projectFilePath().isEmpty())
-        base = QFileInfo(doc.projectFilePath()).absolutePath();
-    return base.isEmpty() ? path : QDir::cleanPath(QDir(base).filePath(path));
+    return QDir::cleanPath(QDir(doc.directory()).filePath(path));
 }
 
 // A visibility-set parameter names a set that has to be there and to hold a layer that is.

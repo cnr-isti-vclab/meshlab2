@@ -1406,6 +1406,8 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     connect(m_doc, &Document::rasterDataChanged, this, [this](int) {
         scheduleRebuild();
     });
+    // Paths in the tooltips are shown against it.
+    connect(m_doc, &Document::directoryChanged, this, &LayerWidget::scheduleRebuild);
 
     rebuild();
 }
@@ -1850,7 +1852,7 @@ void LayerWidget::rebuildTree()
             const std::vector<LayerTextureInfo> textures = collectLayerTextures(entry);
             const Document::StoredState stored = m_doc->meshStoredState(i);
             m_shownStoredStates[entry.meshId] = int(stored);
-            const QString storedLine = storedTip(stored, entry.sourcePath);
+            const QString storedLine = storedTip(stored, m_doc->displayPath(entry.sourcePath));
             const QString displayName = withMark(storedMark(stored), entry.name);
             auto *item = new QTreeWidgetItem(m_meshTree, {displayName, QString()});
             const QString itemKey = layerItemKey(kLayerKindMesh, qulonglong(entry.meshId));
@@ -1947,7 +1949,7 @@ void LayerWidget::rebuildTree()
                 auto *tItem = new QTreeWidgetItem({storedMark(texStored), tr("Tex %1").arg(texIdx), QString()});
                 tItem->setFlags(tItem->flags() & ~Qt::ItemIsSelectable);
                 tItem->setData(0, kRoleTextureIndex, tex.assetIndex);
-                QString texTip = storedTip(texStored, tex.path);
+                QString texTip = storedTip(texStored, m_doc->displayPath(tex.path));
                 if (!tex.usage.isEmpty()) {
                     const QString usageLine = tr("Usage: %1").arg(tex.usage.join(QStringLiteral(", ")));
                     texTip = texTip.isEmpty() ? usageLine : (texTip + QLatin1Char('\n') + usageLine);
@@ -2040,7 +2042,7 @@ void LayerWidget::rebuildTree()
                     planeItem->setFont(1, pf);
                     planeItem->setFont(2, pf);
                 }
-                const QString planeTip = storedTip(planeStored, Document::rasterPlaneSourcePath(plane));
+                const QString planeTip = storedTip(planeStored, m_doc->displayPath(Document::rasterPlaneSourcePath(plane)));
                 planeItem->setToolTip(0, planeTip);
                 planeItem->setToolTip(1, planeTip);
                 planeItem->setToolTip(2, planeTip);
@@ -2128,7 +2130,7 @@ void LayerWidget::rebuildTable()
             auto *provenanceItem = new QTableWidgetItem(storedMark(stored));
             provenanceItem->setFlags(provenanceItem->flags() & ~Qt::ItemIsEditable);
             provenanceItem->setTextAlignment(Qt::AlignCenter);
-            provenanceItem->setToolTip(storedTip(stored, entry.sourcePath));
+            provenanceItem->setToolTip(storedTip(stored, m_doc->displayPath(entry.sourcePath)));
             m_meshTable->setItem(i, 2, provenanceItem);
 
             // V column (3)
