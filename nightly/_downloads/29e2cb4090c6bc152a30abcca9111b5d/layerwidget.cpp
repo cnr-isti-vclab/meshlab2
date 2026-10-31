@@ -57,6 +57,7 @@ constexpr int kRoleMeshId = Qt::UserRole + 2;
 constexpr int kRoleRasterIndex = Qt::UserRole + 3;
 constexpr int kRoleRasterId = Qt::UserRole + 4;
 constexpr int kRolePlaneIndex = Qt::UserRole + 5;
+constexpr int kRoleTextureIndex = Qt::UserRole + 6;
 constexpr int kLayerKindMesh = 1;
 constexpr int kLayerKindRaster = 2;
 
@@ -87,6 +88,37 @@ struct LayerTextureInfo {
 };
 
 std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &entry);
+
+// Whether a file holds a layer, a texture or a plane, the same way for all three: no mark
+// when it does, a filled dot when it did and the document has changed since, a hollow one
+// when no file holds it.
+QString storedMark(Document::StoredState state)
+{
+    switch (state) {
+    case Document::StoredState::Stored: return QString();
+    case Document::StoredState::Changed: return QStringLiteral("\u25CF");
+    case Document::StoredState::NotStored: break;
+    }
+    return QStringLiteral("\u25CB");
+}
+
+QString storedTip(Document::StoredState state, const QString &path)
+{
+    const QString file = QDir::toNativeSeparators(path);
+    switch (state) {
+    case Document::StoredState::Stored:
+        return file.isEmpty() ? QObject::tr("Saved inside its mesh file") : QObject::tr("Saved in %1").arg(file);
+    case Document::StoredState::Changed:
+        return QObject::tr("Changes not saved -- %1").arg(file);
+    case Document::StoredState::NotStored: break;
+    }
+    return QObject::tr("Not saved yet");
+}
+
+QString withMark(const QString &mark, const QString &text)
+{
+    return mark.isEmpty() ? text : mark + QLatin1Char(' ') + text;
+}
 
 // A rebuild empties a tree and fills it again, which sends it to the top, and then makes the
 // current layer current again, which scrolls to that layer: the list would jump whenever anything
@@ -1351,6 +1383,15 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
         scheduleRebuild();
     });
+    // A selection counts as a change to save, but it must stay cheap: rebuild only when it
+    // turns a layer's mark, not on every stroke of a brush.
+    connect(m_doc, &Document::meshSelectionChanged, this, [this](int index) {
+        if (index < 0 || index >= m_doc->meshCount())
+            return;
+        const auto shown = m_shownStoredStates.constFind(m_doc->mesh(index).meshId);
+        if (shown == m_shownStoredStates.constEnd() || shown.value() != int(m_doc->meshStoredState(index)))
+            scheduleRebuild();
+    });
     connect(m_doc, &Document::rasterAdded, this, [this](int) {
         scheduleRebuild();
     });
@@ -1365,6 +1406,8 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     connect(m_doc, &Document::rasterDataChanged, this, [this](int) {
         scheduleRebuild();
     });
+    // Paths in the tooltips are shown against it.
+    connect(m_doc, &Document::directoryChanged, this, &LayerWidget::scheduleRebuild);
 
     rebuild();
 }
@@ -1807,16 +1850,10 @@ void LayerWidget::rebuildTree()
             const int faceCount = displayedFaceCount(entry);
             const MeshCustomAttributeInfo attrs = collectCustomAttributes(entry.mesh);
             const std::vector<LayerTextureInfo> textures = collectLayerTextures(entry);
-            const bool loaded = !entry.sourcePath.trimmed().isEmpty();
-            QString displayName;
-            if (loaded)
-                displayName = QStringLiteral("[D]");
-            else
-                displayName = QStringLiteral("[G]");
-            if (entry.modified)
-                displayName.append(QLatin1Char('*'));
-            displayName.append(QLatin1Char(' '));
-            displayName += entry.name;
+            const Document::StoredState stored = m_doc->meshStoredState(i);
+            m_shownStoredStates[entry.meshId] = int(stored);
+            const QString storedLine = storedTip(stored, m_doc->displayPath(entry.sourcePath));
+            const QString displayName = withMark(storedMark(stored), entry.name);
             auto *item = new QTreeWidgetItem(m_meshTree, {displayName, QString()});
             const QString itemKey = layerItemKey(kLayerKindMesh, qulonglong(entry.meshId));
             item->setData(0, kRoleLayerKind, kLayerKindMesh);
@@ -1908,11 +1945,11 @@ void LayerWidget::rebuildTree()
 
             for (int texIdx = 0; texIdx < int(textures.size()); ++texIdx) {
                 const LayerTextureInfo &tex = textures[size_t(texIdx)];
-                auto *tItem = new QTreeWidgetItem({QString(), tr("Tex %1").arg(texIdx), QString()});
+                const Document::StoredState texStored = m_doc->meshTextureStoredState(i, tex.assetIndex);
+                auto *tItem = new QTreeWidgetItem({storedMark(texStored), tr("Tex %1").arg(texIdx), QString()});
                 tItem->setFlags(tItem->flags() & ~Qt::ItemIsSelectable);
-                QString texTip;
-                if (!tex.path.isEmpty())
-                    texTip = tex.path;
+                tItem->setData(0, kRoleTextureIndex, tex.assetIndex);
+                QString texTip = storedTip(texStored, m_doc->displayPath(tex.path));
                 if (!tex.usage.isEmpty()) {
                     const QString usageLine = tr("Usage: %1").arg(tex.usage.join(QStringLiteral(", ")));
                     texTip = texTip.isEmpty() ? usageLine : (texTip + QLatin1Char('\n') + usageLine);
@@ -1926,7 +1963,7 @@ void LayerWidget::rebuildTree()
                 m_meshTree->setItemWidget(tItem, 2, textureInfoWidget(m_meshTree, tex, fm));
             }
 
-            const QString dataTip = meshDataTooltip(entry, faceCount);
+            const QString dataTip = storedLine + QLatin1Char('\n') + meshDataTooltip(entry, faceCount);
             item->setToolTip(0, dataTip);
             item->setToolTip(1, dataTip);
             item->setToolTip(2, dataTip);
@@ -1994,7 +2031,8 @@ void LayerWidget::rebuildTree()
 
             for (int planeIndex = 0; planeIndex < int(entry.planes.size()); ++planeIndex) {
                 const RasterPlane &plane = entry.planes[size_t(planeIndex)];
-                auto *planeItem = new QTreeWidgetItem({QString(), tr("Plane %1").arg(planeIndex), QString()});
+                const Document::StoredState planeStored = m_doc->rasterPlaneStoredState(i, planeIndex);
+                auto *planeItem = new QTreeWidgetItem({storedMark(planeStored), tr("Plane %1").arg(planeIndex), QString()});
                 planeItem->setData(0, kRolePlaneIndex, planeIndex);
                 planeItem->setFlags((planeItem->flags() | Qt::ItemIsSelectable | Qt::ItemIsEnabled)
                     & ~Qt::ItemIsUserCheckable);
@@ -2004,12 +2042,10 @@ void LayerWidget::rebuildTree()
                     planeItem->setFont(1, pf);
                     planeItem->setFont(2, pf);
                 }
-                const QString path = Document::rasterPlaneSourcePath(plane);
-                if (!path.isEmpty()) {
-                    planeItem->setToolTip(0, path);
-                    planeItem->setToolTip(1, path);
-                    planeItem->setToolTip(2, path);
-                }
+                const QString planeTip = storedTip(planeStored, m_doc->displayPath(Document::rasterPlaneSourcePath(plane)));
+                planeItem->setToolTip(0, planeTip);
+                planeItem->setToolTip(1, planeTip);
+                planeItem->setToolTip(2, planeTip);
                 item->addChild(planeItem);
                 m_rasterTree->setItemWidget(planeItem, 2, rasterPlaneInfoWidget(m_rasterTree, plane, planeIndex, fm));
             }
@@ -2088,20 +2124,13 @@ void LayerWidget::rebuildTable()
             nameItem->setToolTip(meshDataTooltip(entry, faceCount));
             m_meshTable->setItem(i, 1, nameItem);
 
-            // Src column (2): D from disk, G generated, * changed since
-            const bool loaded = !entry.sourcePath.trimmed().isEmpty();
-            QString provenance = loaded ? QStringLiteral("D") : QStringLiteral("G");
-            QString provenanceTip = loaded
-                ? tr("Loaded from %1").arg(QDir::toNativeSeparators(entry.sourcePath))
-                : tr("Generated in memory: it has no file");
-            if (entry.modified) {
-                provenance.append(QLatin1Char('*'));
-                provenanceTip += QLatin1Char('\n') + tr("Changed since it was loaded or created");
-            }
-            auto *provenanceItem = new QTableWidgetItem(provenance);
+            // Src column (2): whether its file holds it (storedMark)
+            const Document::StoredState stored = m_doc->meshStoredState(i);
+            m_shownStoredStates[entry.meshId] = int(stored);
+            auto *provenanceItem = new QTableWidgetItem(storedMark(stored));
             provenanceItem->setFlags(provenanceItem->flags() & ~Qt::ItemIsEditable);
             provenanceItem->setTextAlignment(Qt::AlignCenter);
-            provenanceItem->setToolTip(provenanceTip);
+            provenanceItem->setToolTip(storedTip(stored, m_doc->displayPath(entry.sourcePath)));
             m_meshTable->setItem(i, 2, provenanceItem);
 
             // V column (3)
@@ -2434,6 +2463,18 @@ void LayerWidget::updateCurrentItemVisuals()
     }
 }
 
+namespace {
+// Every format the installed image plugins can write, PNG first; the suffix picks one.
+QString imageSaveFilter()
+{
+    QStringList patterns;
+    for (const QByteArray &format : QImageWriter::supportedImageFormats())
+        patterns << QStringLiteral("*.") + QString::fromLatin1(format);
+    patterns.removeDuplicates();
+    return QObject::tr("PNG Image (*.png);;Images (%1);;All Files (*)").arg(patterns.join(QLatin1Char(' ')));
+}
+}
+
 void LayerWidget::savePlaneImage(int rasterIndex, int planeIndex)
 {
     if (rasterIndex < 0 || rasterIndex >= m_doc->rasterCount())
@@ -2442,23 +2483,41 @@ void LayerWidget::savePlaneImage(int rasterIndex, int planeIndex)
     if (planeIndex < 0 || planeIndex >= int(entry.planes.size()))
         return;
     const RasterPlane &plane = entry.planes[size_t(planeIndex)];
-    if (plane.image.isNull()) {
-        QMessageBox::warning(this, tr("Save Plane Image"), tr("The selected plane has no image data."));
-        return;
-    }
     const QString defaultName = Document::rasterPlaneDisplayName(plane, planeIndex);
     const QString path = QFileDialog::getSaveFileName(
         this,
         tr("Save Plane Image"),
         FileDialogDirectory::startingPath(QStringLiteral("raster"), defaultName),
-        tr("PNG Image (*.png);;JPEG Image (*.jpg *.jpeg);;BMP Image (*.bmp);;All Files (*)"));
+        imageSaveFilter());
     if (path.isEmpty())
         return;
     FileDialogDirectory::remember(QStringLiteral("raster"), path);
-    if (!plane.image.save(path)) {
-        QMessageBox::critical(this, tr("Save Plane Image"),
-            tr("Failed to save image to:\n%1").arg(path));
-    }
+    QString error;
+    if (!m_doc->saveRasterPlaneImage(rasterIndex, planeIndex, path, &error))
+        QMessageBox::critical(this, tr("Save Plane Image"), error);
+}
+
+void LayerWidget::saveMeshTexture(int meshIndex, int textureIndex)
+{
+    if (meshIndex < 0 || meshIndex >= m_doc->meshCount())
+        return;
+    const Document::MeshEntry &entry = m_doc->mesh(meshIndex);
+    QString defaultName = QFileInfo(Document::meshTextureSourcePath(entry, textureIndex)).fileName();
+    if (defaultName.isEmpty())
+        defaultName = Document::meshTextureDisplayName(entry, textureIndex);
+    if (QFileInfo(defaultName).suffix().isEmpty())
+        defaultName += QStringLiteral(".png");
+    const QString path = QFileDialog::getSaveFileName(
+        this,
+        tr("Save Texture"),
+        FileDialogDirectory::startingPath(QStringLiteral("texture"), defaultName),
+        imageSaveFilter());
+    if (path.isEmpty())
+        return;
+    FileDialogDirectory::remember(QStringLiteral("texture"), path);
+    QString error;
+    if (!m_doc->saveMeshTexture(meshIndex, textureIndex, path, &error))
+        QMessageBox::critical(this, tr("Save Texture"), error);
 }
 
 LayerWidget::LayerItemRef LayerWidget::layerRefAt(const QPoint &widgetPos) const
@@ -2517,6 +2576,24 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
             itemUnderCursor = m_meshTree->itemAt(meshPos);
         else if (m_rasterTree->viewport()->rect().contains(rasterPos))
             itemUnderCursor = m_rasterTree->itemAt(rasterPos);
+    }
+
+    // Right-click on a texture child item
+    if (itemUnderCursor && itemUnderCursor->parent()) {
+        bool textureOk = false;
+        const int textureIndex = itemUnderCursor->data(0, kRoleTextureIndex).toInt(&textureOk);
+        const LayerItemRef ref = layerRefForItem(itemUnderCursor);
+        if (textureOk && ref.kind == LayerItemKind::Mesh && ref.index >= 0 && ref.index < m_doc->meshCount()) {
+            QMenu menu(this);
+            QAction *saveAction = menu.addAction(tr("Save Texture..."));
+            saveAction->setEnabled(textureIndex >= 0
+                                   && textureIndex < int(m_doc->mesh(ref.index).textureAssets.size()));
+            connect(saveAction, &QAction::triggered, this, [this, meshIndex = ref.index, textureIndex]() {
+                saveMeshTexture(meshIndex, textureIndex);
+            });
+            menu.exec(event->globalPos());
+            return;
+        }
     }
 
     // Right-click on a plane child item

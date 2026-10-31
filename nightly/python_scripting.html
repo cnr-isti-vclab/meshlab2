@@ -358,6 +358,10 @@ defaults at the time each action was recorded.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">is_current_mesh_visible()</span></code>, <code class="docutils literal notranslate"><span class="pre">is_mesh_visible(index)</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">load_new_mesh(path)</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">save_current_mesh(path)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">save_current_mesh_texture(texture_index,</span> <span class="pre">path)</span></code> – one texture of the current mesh, in the format the suffix names (PNG, JPEG, TIFF, WebP …); the texture then lives in that file. Raises <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> for an index the mesh does not have.</p></li>
+</ul>
+<p>Textures that filters make are kept in memory, not written while the filter runs: <code class="docutils literal notranslate"><span class="pre">save_current_mesh</span></code> writes each one next to the mesh, under its name (the filter’s <code class="docutils literal notranslate"><span class="pre">textureName</span></code>, or <code class="docutils literal notranslate"><span class="pre">&lt;layer&gt;_&lt;role&gt;.png</span></code>), with a numeric suffix when a file of that name is already there. Rename one first with <code class="docutils literal notranslate"><span class="pre">rename_texture</span></code>, or write it alone with <code class="docutils literal notranslate"><span class="pre">save_current_mesh_texture</span></code>.</p>
+<ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">raster_number()</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">current_raster()</span></code>, <code class="docutils literal notranslate"><span class="pre">set_current_raster(index)</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">load_new_raster(path)</span></code></p></li>

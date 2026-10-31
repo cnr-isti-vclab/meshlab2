@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 400 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 401 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -7665,7 +7665,7 @@ Leave 0 for automatic calculation.</p></li>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — Specifies the dimension of the generated texture.</p></li>
-<li><p><strong>textureName</strong> (<em>filesave</em>, default: <code class="docutils literal notranslate"><span class="pre">texture.png</span></code>) — Specifies the name of the file into which the texture image will be saved.</p></li>
+<li><p><strong>textureName</strong> (<em>string</em>, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.</p></li>
 <li><p><strong>colorCorrection</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If true, the final texture is corrected to ensure seamless transitions between adjacent patches.</p></li>
 <li><p><strong>colorCorrectionFilterSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Radius (in pixels) of the kernel used to compute the difference between corresponding texels in different rasters. Default of 1 generates a 3x3 kernel. Higher values increase robustness for strong misalignments.</p></li>
 <li><p><strong>useDistanceWeight</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Includes a weight accounting for the distance to the camera during the computation of reference images.</p></li>
@@ -8942,6 +8942,25 @@ Angle between face normal is considered signed according to convexity/concavity.
 
 <hr class="docutils" />
 </section>
+<section id="rename-texture">
+<span id="filter-rename-texture"></span><h2>Rename Texture<a class="headerlink" href="#rename-texture" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.texture</p>
+<p>Give one texture of the current mesh a new name, which is the file name it is saved under.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.rename_texture">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">rename_texture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.rename_texture" title="Link to this definition">¶</a></dt>
+<dd><p>Renames the texture chosen in <strong>Texture</strong>. A texture’s name is the file name that saving the mesh writes it under, so this is how a texture made by a filter gets a better file name than the one it was given.</p>
+<p>A texture that already has a file is not renamed on disk: that file is left alone, the texture shows as changed in the layer panel, and the next save of the mesh writes it next to the mesh under the new name.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>texture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — The texture to rename.</p></li>
+<li><p><strong>textureName</strong> (<em>string</em>, default: ``) — The texture’s new name. Without a suffix it is saved as PNG.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="set-texture">
 <span id="filter-set-texture"></span><h2>Set Texture<a class="headerlink" href="#set-texture" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code></p>
@@ -8976,7 +8995,7 @@ Angle between face normal is considered signed according to convexity/concavity.
 <ul class="simple">
 <li><p><strong>targetTexture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Choose the mesh texture slot that owns the UV layout to process. Only faces whose per-wedge texture index uses this slot are converted, and this is also the material slot whose PBR normal channel can be updated. This is separate from the source image because the object-space normal map may be stored as another associated texture.</p></li>
 <li><p><strong>sourceNormalMap</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Choose the associated texture image to interpret as the object-space normal map. Its pixels are sampled through the selected UV / Material Slot.</p></li>
-<li><p><strong>targetNormalMap</strong> (<em>textureoutputref</em>, default: <code class="docutils literal notranslate"><span class="pre">tangent_normal.png</span></code>) — Choose where the generated tangent-space normal map should go: overwrite an existing associated texture, or create a new texture file and add it to the mesh texture list.</p></li>
+<li><p><strong>targetNormalMap</strong> (<em>textureoutputref</em>, default: ``) — Where the generated tangent-space normal map goes: over the image of an existing texture, whose file is left alone, or into a new texture added to the mesh, named as given here or after the layer when left empty. Saving the mesh writes it.</p></li>
 <li><p><strong>bindAsPbrNormal</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled, the converted texture is added to the mesh associated texture list and assigned to the selected slot’s PBR normal channel.</p></li>
 <li><p><strong>invertX</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Invert the tangent-space X channel in the generated normal map.</p></li>
 <li><p><strong>invertY</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Invert the tangent-space Y channel in the generated normal map.</p></li>
@@ -9097,7 +9116,7 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <li><p><strong>targetMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The mesh whose texture will be filled according to source mesh data.</p></li>
 <li><p><strong>AttributeEnum</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">vertex_color</span></code>) — Choose what attribute has to be transferred onto the target texture. You can choose between per-vertex attributes or transfer color information from source mesh texture.</p></li>
 <li><p><strong>upperBound</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.</p></li>
-<li><p><strong>textName</strong> (<em>filesave</em>, default: <code class="docutils literal notranslate"><span class="pre">texture.png</span></code>) — Base path of the texture image to be created. If more than one target texture slot is used, numeric suffixes are added automatically.</p></li>
+<li><p><strong>textureName</strong> (<em>string</em>, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.</p></li>
 <li><p><strong>textW</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture width.</p></li>
 <li><p><strong>textH</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture height.</p></li>
 <li><p><strong>overwrite</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If target mesh has associated textures, overwrite them instead of creating new files.</p></li>
@@ -9139,7 +9158,7 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <dd><p>Projects color information from all visible and valid rasters onto a new texture image, using the mesh’s existing wedge UV coordinates. The result is saved as a texture image and associated with the mesh.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>textName</strong> (<em>filesave</em>, default: <code class="docutils literal notranslate"><span class="pre">projected_texture.png</span></code>) — Output texture image file path.</p></li>
+<li><p><strong>textureName</strong> (<em>string</em>, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.</p></li>
 <li><p><strong>texsize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — Square texture image size in pixels. Should be a power of 2.</p></li>
 <li><p><strong>dorefill</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If true, unfilled areas of the texture atlas are interpolated using PullPush to avoid visible seams when mipmapping.</p></li>
 <li><p><strong>deptheta</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Tolerance value for depth buffer comparison (shadow buffer).</p></li>
@@ -9180,7 +9199,7 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>textureFile</strong> (<em>filesave</em>, default: <code class="docutils literal notranslate"><span class="pre">consolidated_texture.png</span></code>) — Where the new texture image is written. It replaces the mesh’s texture.</p></li>
+<li><p><strong>textureName</strong> (<em>string</em>, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.</p></li>
 <li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — Width and height of the texture image produced.</p></li>
 <li><p><strong>depthRadius</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">20</span></code>) — Distance from a depth discontinuity, in raster pixels, over which confidence rises from zero to one.</p></li>
 <li><p><strong>confidenceCutoff</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.05</span></code>) — Back-projected confidences below this are set to zero.</p></li>
@@ -9290,7 +9309,7 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <dd><p>Fills the specified texture using per-vertex color data of the mesh.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>textName</strong> (<em>filesave</em>, default: <code class="docutils literal notranslate"><span class="pre">texture.png</span></code>) — Base path of the texture image to be created. If more than one texture slot is used, numeric suffixes are added automatically.</p></li>
+<li><p><strong>textureName</strong> (<em>string</em>, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.</p></li>
 <li><p><strong>textW</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture width.</p></li>
 <li><p><strong>textH</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture height.</p></li>
 <li><p><strong>overwrite</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If current mesh has associated textures, overwrite them instead of creating new files.</p></li>
@@ -10914,6 +10933,10 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#remove-textures">Remove Textures</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.remove_textures"><code class="docutils literal notranslate"><span class="pre">ms.remove_textures()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#rename-texture">Rename Texture</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.rename_texture"><code class="docutils literal notranslate"><span class="pre">ms.rename_texture()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#set-texture">Set Texture</a><ul>

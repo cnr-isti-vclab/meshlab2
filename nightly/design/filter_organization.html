@@ -532,28 +532,31 @@ all three (ruling 2).</p>
 <tr class="row-odd"><td><p>output texture</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">outputTexture</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>selected-only toggle</p></td>
+<tr class="row-even"><td><p>name of a texture the filter makes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureName</span></code> (see below)</p></td>
+</tr>
+<tr class="row-odd"><td><p>selected-only toggle</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">selectedOnly</span></code> — injected from <code class="docutils literal notranslate"><span class="pre">selectionScope</span></code>, never declared by hand (<a class="reference internal" href="adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>)</p></td>
 </tr>
-<tr class="row-odd"><td><p>preserve boundary</p></td>
+<tr class="row-even"><td><p>preserve boundary</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">preserveBoundary</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>preserve topology</p></td>
+<tr class="row-odd"><td><p>preserve topology</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">preserveTopology</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>update normals</p></td>
+<tr class="row-even"><td><p>update normals</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">updateNormals</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>random seed</p></td>
+<tr class="row-odd"><td><p>random seed</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code> (see below)</p></td>
 </tr>
-<tr class="row-odd"><td><p>iteration count</p></td>
+<tr class="row-even"><td><p>iteration count</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">iterations</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>quality threshold</p></td>
+<tr class="row-odd"><td><p>quality threshold</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">qualityThreshold</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>distance threshold</p></td>
+<tr class="row-even"><td><p>distance threshold</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">distanceThreshold</span></code></p></td>
 </tr>
 </tbody>
@@ -591,6 +594,21 @@ declared it modified. The counts above predate this and were not re-measured. Th
 TrueForm aligners (<em>Align by Bounding Box</em>, <em>by ICP</em> and the others in <code class="docutils literal notranslate"><span class="pre">filter_trueform</span></code>)
 still take both parameters; they are the same pattern and were left alone because the
 request named Open3D only.</p>
+</section>
+<section id="texturename">
+<h3><code class="docutils literal notranslate"><span class="pre">textureName</span></code><a class="headerlink" href="#texturename" title="Link to this heading">¶</a></h3>
+<p>A filter that makes a texture writes no file: it returns an image with a name, and saving
+the mesh writes it under that name (<a class="reference internal" href="adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>). The name is a
+<code class="docutils literal notranslate"><span class="pre">textureName</span></code> parameter – <code class="docutils literal notranslate"><span class="pre">string</span></code>, default empty – resolved through
+<code class="docutils literal notranslate"><span class="pre">TextureAssociationUtils::outputTextureNames</span></code>:</p>
+<ul class="simple">
+<li><p><strong>empty</strong> (the default) names it after the layer and what it holds, <code class="docutils literal notranslate"><span class="pre">&lt;layer&gt;_&lt;role&gt;.png</span></code>
+(<code class="docutils literal notranslate"><span class="pre">scan_color.png</span></code>, <code class="docutils literal notranslate"><span class="pre">scan_tangent_normal.png</span></code>), so two layers’ textures do not share a name;</p></li>
+<li><p><strong>a name</strong> is used as given, with <code class="docutils literal notranslate"><span class="pre">.png</span></code> added when it has no suffix;</p></li>
+<li><p>with <strong>several texture slots</strong>, <code class="docutils literal notranslate"><span class="pre">_0</span></code>, <code class="docutils literal notranslate"><span class="pre">_1</span></code> … go before the suffix.</p></li>
+</ul>
+<p>It is a name and not a path: where the file goes is decided by the save. <em>Rename Texture</em>
+changes it afterwards. Python passes it as <code class="docutils literal notranslate"><span class="pre">textureName</span></code>, the parameter id.</p>
 </section>
 <section id="randomseed">
 <h3><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code><a class="headerlink" href="#randomseed" title="Link to this heading">¶</a></h3>
@@ -1427,6 +1445,7 @@ specific release-management reason?</p></li>
 </li>
 <li><a class="reference internal" href="#parameter-naming-rules">Parameter Naming Rules</a><ul>
 <li><a class="reference internal" href="#a-single-mesh-filter-works-on-the-current-layer">A single-mesh filter works on the current layer</a></li>
+<li><a class="reference internal" href="#texturename"><code class="docutils literal notranslate"><span class="pre">textureName</span></code></a></li>
 <li><a class="reference internal" href="#randomseed"><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code></a></li>
 </ul>
 </li>

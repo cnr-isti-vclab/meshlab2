@@ -79,12 +79,20 @@ visibilityset
 
 (`file_open` and `file_save` are accepted as alternates.)
 
-A relative `filesave` value, and the path of a new texture in a `textureoutputref`, reach
-the filter already anchored: next to the current layer's file, or failing that next to
-the project (`Document::projectFilePath()`). Only a layer with neither, in a document never
-saved as a project, keeps the bare name, which then resolves against the working
-directory. So a default such as `"texture.png"` is fine, and a filter must not anchor it
-again. History and scripts keep the name as given.
+A relative `filesave` value reaches the filter already anchored in the document's folder
+(`Document::directory()`: the project's folder, or that of the first mesh loaded or saved).
+Only a document with no folder yet keeps the bare name, which then resolves against the
+working directory. So a default such as `"report.csv"` is fine,
+and a filter must not anchor it again. History and scripts keep the name as given.
+
+**A filter that makes a texture writes no file.** It returns an image with a name and no
+path -- `TextureAssociationUtils::outputTextureNames` for the name (the one asked for, or
+`<layer>_<role>.png`), `makeTextureAssetsFromImages` for the assets -- and saving the mesh
+writes it. Take the name as a `string` parameter `textureName`, empty by default, or as the
+"new" choice of a `textureoutputref`, which is a name too. To overwrite an existing
+texture, replace its image and keep its name and `sourcePath`: the file is left alone, the
+texture shows changed, and the next save writes the new image beside the mesh. See
+[project_persistence.md](history/project_persistence.md).
 
 An `absperc` is a **length**, as an absolute value or as a percentage of its range
 (`@bboxDiag` and the other bound tokens). Its absolute half is labelled with the

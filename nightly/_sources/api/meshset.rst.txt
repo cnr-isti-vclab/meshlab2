@@ -141,6 +141,11 @@ Methods
 
    save_current_mesh(self, path: str) -> None
 
+.. py:method:: MeshSet.save_current_mesh_texture(...)
+   :module: _meshlab
+
+   save_current_mesh_texture(self, texture_index: int, path: str) -> None
+
 .. py:method:: MeshSet.save_project(...)
    :module: _meshlab
 

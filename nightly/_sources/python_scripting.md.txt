@@ -124,6 +124,9 @@ The live `ms` object supports the following core methods:
 - `is_current_mesh_visible()`, `is_mesh_visible(index)`
 - `load_new_mesh(path)`
 - `save_current_mesh(path)`
+- `save_current_mesh_texture(texture_index, path)` -- one texture of the current mesh, in the format the suffix names (PNG, JPEG, TIFF, WebP ...); the texture then lives in that file. Raises `RuntimeError` for an index the mesh does not have.
+
+Textures that filters make are kept in memory, not written while the filter runs: `save_current_mesh` writes each one next to the mesh, under its name (the filter's `textureName`, or `<layer>_<role>.png`), with a numeric suffix when a file of that name is already there. Rename one first with `rename_texture`, or write it alone with `save_current_mesh_texture`.
 - `raster_number()`
 - `current_raster()`, `set_current_raster(index)`
 - `load_new_raster(path)`

@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 400 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 401 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -9316,7 +9316,7 @@ Requires at least one visible raster with a valid camera and a 2-manifold mesh.
 **Parameters:**
 
 - **textureSize** (*int*, default: `1024`) — Specifies the dimension of the generated texture.
-- **textureName** (*filesave*, default: `texture.png`) — Specifies the name of the file into which the texture image will be saved.
+- **textureName** (*string*, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.
 - **colorCorrection** (*bool*, default: `True`) — If true, the final texture is corrected to ensure seamless transitions between adjacent patches.
 - **colorCorrectionFilterSize** (*int*, default: `1`) — Radius (in pixels) of the kernel used to compute the difference between corresponding texels in different rasters. Default of 1 generates a 3x3 kernel. Higher values increase robustness for strong misalignments.
 - **useDistanceWeight** (*bool*, default: `True`) — Includes a weight accounting for the distance to the camera during the computation of reference images.
@@ -11002,6 +11002,31 @@ Removing **one** texture takes that image, and the materials stop using it. A ma
 
 ---
 
+(filter-rename-texture)=
+
+## Rename Texture
+
+**Categories:** `Texture/Assignment`
+
+**Plugin:** meshlab2.filter.texture
+
+Give one texture of the current mesh a new name, which is the file name it is saved under.
+
+```{py:function} ms.rename_texture(**params)
+:module: _meshlab
+
+Renames the texture chosen in **Texture**. A texture's name is the file name that saving the mesh writes it under, so this is how a texture made by a filter gets a better file name than the one it was given.
+
+A texture that already has a file is not renamed on disk: that file is left alone, the texture shows as changed in the layer panel, and the next save of the mesh writes it next to the mesh under the new name.
+
+**Parameters:**
+
+- **texture** (*textureref*, default: `1`) — The texture to rename.
+- **textureName** (*string*, default: ``) — The texture's new name. Without a suffix it is saved as PNG.
+```
+
+---
+
 (filter-set-texture)=
 
 ## Set Texture
@@ -11047,7 +11072,7 @@ Converts an object-space normal map into a tangent-space normal map using the cu
 
 - **targetTexture** (*textureref*, default: `1`) — Choose the mesh texture slot that owns the UV layout to process. Only faces whose per-wedge texture index uses this slot are converted, and this is also the material slot whose PBR normal channel can be updated. This is separate from the source image because the object-space normal map may be stored as another associated texture.
 - **sourceNormalMap** (*textureref*, default: `1`) — Choose the associated texture image to interpret as the object-space normal map. Its pixels are sampled through the selected UV / Material Slot.
-- **targetNormalMap** (*textureoutputref*, default: `tangent_normal.png`) — Choose where the generated tangent-space normal map should go: overwrite an existing associated texture, or create a new texture file and add it to the mesh texture list.
+- **targetNormalMap** (*textureoutputref*, default: ``) — Where the generated tangent-space normal map goes: over the image of an existing texture, whose file is left alone, or into a new texture added to the mesh, named as given here or after the layer when left empty. Saving the mesh writes it.
 - **bindAsPbrNormal** (*bool*, default: `True`) — If enabled, the converted texture is added to the mesh associated texture list and assigned to the selected slot's PBR normal channel.
 - **invertX** (*bool*, default: `False`) — Invert the tangent-space X channel in the generated normal map.
 - **invertY** (*bool*, default: `False`) — Invert the tangent-space Y channel in the generated normal map.
@@ -11199,7 +11224,7 @@ Transfer texture color, vertex color or normal from one mesh the texture of anot
 - **targetMesh** (*mesh*, default: `@otherMeshIndex`) — The mesh whose texture will be filled according to source mesh data.
 - **AttributeEnum** (*enum*, default: `vertex_color`) — Choose what attribute has to be transferred onto the target texture. You can choose between per-vertex attributes or transfer color information from source mesh texture.
 - **upperBound** (*absperc*, default: `@bboxDiag002`) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.
-- **textName** (*filesave*, default: `texture.png`) — Base path of the texture image to be created. If more than one target texture slot is used, numeric suffixes are added automatically.
+- **textureName** (*string*, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.
 - **textW** (*int*, default: `1024`) — The texture width.
 - **textH** (*int*, default: `1024`) — The texture height.
 - **overwrite** (*bool*, default: `False`) — If target mesh has associated textures, overwrite them instead of creating new files.
@@ -11251,7 +11276,7 @@ Projects color information from all visible and valid rasters onto a new texture
 
 **Parameters:**
 
-- **textName** (*filesave*, default: `projected_texture.png`) — Output texture image file path.
+- **textureName** (*string*, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.
 - **texsize** (*int*, default: `1024`) — Square texture image size in pixels. Should be a power of 2.
 - **dorefill** (*bool*, default: `True`) — If true, unfilled areas of the texture atlas are interpolated using PullPush to avoid visible seams when mipmapping.
 - **deptheta** (*double*, default: `0.5`) — Tolerance value for depth buffer comparison (shadow buffer).
@@ -11302,7 +11327,7 @@ The defaults are those of the released code; the paper reports somewhat differen
 
 **Parameters:**
 
-- **textureFile** (*filesave*, default: `consolidated_texture.png`) — Where the new texture image is written. It replaces the mesh's texture.
+- **textureName** (*string*, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.
 - **textureSize** (*int*, default: `1024`) — Width and height of the texture image produced.
 - **depthRadius** (*int*, default: `20`) — Distance from a depth discontinuity, in raster pixels, over which confidence rises from zero to one.
 - **confidenceCutoff** (*double*, default: `0.05`) — Back-projected confidences below this are set to zero.
@@ -11445,7 +11470,7 @@ Fills the specified texture using per-vertex color data of the mesh.
 
 **Parameters:**
 
-- **textName** (*filesave*, default: `texture.png`) — Base path of the texture image to be created. If more than one texture slot is used, numeric suffixes are added automatically.
+- **textureName** (*string*, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.
 - **textW** (*int*, default: `1024`) — The texture width.
 - **textH** (*int*, default: `1024`) — The texture height.
 - **overwrite** (*bool*, default: `False`) — If current mesh has associated textures, overwrite them instead of creating new files.

@@ -254,6 +254,7 @@ Recommended common names:
 | source texture | `sourceTexture` |
 | target texture | `targetTexture` |
 | output texture | `outputTexture` |
+| name of a texture the filter makes | `textureName` (see below) |
 | selected-only toggle | `selectedOnly` — injected from `selectionScope`, never declared by hand ([Adding a Filter](adding_a_filter.md)) |
 | preserve boundary | `preserveBoundary` |
 | preserve topology | `preserveTopology` |
@@ -298,6 +299,21 @@ declared it modified. The counts above predate this and were not re-measured. Th
 TrueForm aligners (*Align by Bounding Box*, *by ICP* and the others in `filter_trueform`)
 still take both parameters; they are the same pattern and were left alone because the
 request named Open3D only.
+
+### `textureName`
+
+A filter that makes a texture writes no file: it returns an image with a name, and saving
+the mesh writes it under that name ([Adding a Filter](adding_a_filter.md)). The name is a
+`textureName` parameter -- `string`, default empty -- resolved through
+`TextureAssociationUtils::outputTextureNames`:
+
+- **empty** (the default) names it after the layer and what it holds, `<layer>_<role>.png`
+  (`scan_color.png`, `scan_tangent_normal.png`), so two layers' textures do not share a name;
+- **a name** is used as given, with `.png` added when it has no suffix;
+- with **several texture slots**, `_0`, `_1` ... go before the suffix.
+
+It is a name and not a path: where the file goes is decided by the save. *Rename Texture*
+changes it afterwards. Python passes it as `textureName`, the parameter id.
 
 ### `randomSeed`
 

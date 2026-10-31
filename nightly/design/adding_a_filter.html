@@ -317,12 +317,19 @@ falls through to <code class="docutils literal notranslate"><span class="pre">st
 </pre></div>
 </div>
 <p>(<code class="docutils literal notranslate"><span class="pre">file_open</span></code> and <code class="docutils literal notranslate"><span class="pre">file_save</span></code> are accepted as alternates.)</p>
-<p>A relative <code class="docutils literal notranslate"><span class="pre">filesave</span></code> value, and the path of a new texture in a <code class="docutils literal notranslate"><span class="pre">textureoutputref</span></code>, reach
-the filter already anchored: next to the current layer’s file, or failing that next to
-the project (<code class="docutils literal notranslate"><span class="pre">Document::projectFilePath()</span></code>). Only a layer with neither, in a document never
-saved as a project, keeps the bare name, which then resolves against the working
-directory. So a default such as <code class="docutils literal notranslate"><span class="pre">&quot;texture.png&quot;</span></code> is fine, and a filter must not anchor it
-again. History and scripts keep the name as given.</p>
+<p>A relative <code class="docutils literal notranslate"><span class="pre">filesave</span></code> value reaches the filter already anchored in the document’s folder
+(<code class="docutils literal notranslate"><span class="pre">Document::directory()</span></code>: the project’s folder, or that of the first mesh loaded or saved).
+Only a document with no folder yet keeps the bare name, which then resolves against the
+working directory. So a default such as <code class="docutils literal notranslate"><span class="pre">&quot;report.csv&quot;</span></code> is fine,
+and a filter must not anchor it again. History and scripts keep the name as given.</p>
+<p><strong>A filter that makes a texture writes no file.</strong> It returns an image with a name and no
+path – <code class="docutils literal notranslate"><span class="pre">TextureAssociationUtils::outputTextureNames</span></code> for the name (the one asked for, or
+<code class="docutils literal notranslate"><span class="pre">&lt;layer&gt;_&lt;role&gt;.png</span></code>), <code class="docutils literal notranslate"><span class="pre">makeTextureAssetsFromImages</span></code> for the assets – and saving the mesh
+writes it. Take the name as a <code class="docutils literal notranslate"><span class="pre">string</span></code> parameter <code class="docutils literal notranslate"><span class="pre">textureName</span></code>, empty by default, or as the
+“new” choice of a <code class="docutils literal notranslate"><span class="pre">textureoutputref</span></code>, which is a name too. To overwrite an existing
+texture, replace its image and keep its name and <code class="docutils literal notranslate"><span class="pre">sourcePath</span></code>: the file is left alone, the
+texture shows changed, and the next save writes the new image beside the mesh. See
+<a class="reference internal" href="history/project_persistence.html"><span class="std std-doc">project_persistence.md</span></a>.</p>
 <p>An <code class="docutils literal notranslate"><span class="pre">absperc</span></code> is a <strong>length</strong>, as an absolute value or as a percentage of its range
 (<code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code> and the other bound tokens). Its absolute half is labelled with the
 document’s unit (<code class="docutils literal notranslate"><span class="pre">Document::unit()</span></code>, “mm”, “m”, …) once the user has set one, and
