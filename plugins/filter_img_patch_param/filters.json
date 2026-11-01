@@ -256,13 +256,13 @@
       ]
     },
     {
-      "id": "compute_face_scalar_from_raster_coverage",
+      "id": "compute_face_scalar_from_rasters",
       "categories": ["Attribute/Scalar", "Transfer/From Rasters"],
-      "name": "Compute Face Scalar from Raster Coverage",
-      "pythonName": "compute_face_scalar_from_raster_coverage",
-      "shortDescription": "Compute a quality value representing the number of images into which each face of the active mesh is visible.",
-      "longDescriptionMarkdown": "Compute a quality value representing the number of images into which each face of the active mesh is visible. For each active raster, a software depth buffer is built and each face is tested for visibility. A face is considered visible if at least one of its three vertices is visible. The quality value counts how many rasters each face is visible in. Optionally normalizes to [0,1].",
-      "tags": ["quality", "raster", "coverage", "visibility"],
+      "name": "Compute Face Scalar from Rasters",
+      "pythonName": "compute_face_scalar_from_rasters",
+      "shortDescription": "Measure, for each face, how well the visible rasters see it: how many, at what resolution, or at what angle.",
+      "longDescriptionMarkdown": "Measures, for each face, how well the visible rasters cover it, so that a photo set can be checked before it is used for texturing or color transfer. The result is a per-face scalar, shown with the colormap.\n\nA raster **sees** a face when at least two of three points inside it (at barycentric coordinates (2/3, 1/6, 1/6) and its permutations) project inside the image, in front of the camera, on the front side of the face, and pass a depth test against a software depth buffer of the whole mesh. This asks whether most of the face is visible: a single sample at a vertex or at the centroid decides a half-hidden face by chance.\n\n**Measure** chooses what is written:\n\n- **Count**: how many rasters see the face.\n- **Best resolution**: over the rasters that see the face, the largest square root of its projected area in pixels over its area on the mesh. It is a linear density, in pixels per document unit (pixels per centimeter when the document unit is centimeters), and it falls both with distance and with foreshortening.\n- **Best angle**: over the rasters that see the face, the smallest angle in degrees between the face normal and the direction to the camera. It separates faces seen only at grazing angles from faces seen head-on from too far away.\n\nFaces that no raster sees get 0 for Count and Best resolution, and 180 for Best angle.\n\nThe run also reports the minimum, median and 5th percentile of the measure over the faces that some raster sees, and how many faces no raster sees and how many only one raster sees.",
+      "tags": ["raster", "coverage", "visibility", "resolution", "pixel density", "viewing angle", "photogrammetry"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
@@ -271,17 +271,31 @@
       "outputModifies": ["FQ"],
       "parameters": [
         {
-          "id": "normalizeQuality",
-          "label": "Normalize",
-          "help": "Rescale quality values to the range [0,1].",
+          "id": "measure",
+          "label": "Measure",
+          "help": "What to write for each face: how many rasters see it, the best resolution any of them gives it in pixels per document unit, or the smallest angle in degrees between its normal and a camera that sees it.",
           "group": "main",
-          "type": "bool",
-          "default": false
+          "type": "enum",
+          "default": "count",
+          "enumOptions": [
+            {
+              "id": "count",
+              "label": "Count"
+            },
+            {
+              "id": "bestResolution",
+              "label": "Best resolution"
+            },
+            {
+              "id": "bestAngle",
+              "label": "Best angle"
+            }
+          ]
         },
         {
           "id": "depthEpsilon",
           "label": "Depth epsilon",
-          "help": "Tolerance for depth test when checking vertex visibility. Increase for noisy registrations.",
+          "help": "Tolerance for the depth test, in document units, when checking whether a point of a face is hidden. Increase for noisy registrations.",
           "group": "advanced",
           "type": "double",
           "default": 0.5,

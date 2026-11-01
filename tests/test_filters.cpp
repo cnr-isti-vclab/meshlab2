@@ -560,6 +560,7 @@ private slots:
     void textureFiltersWriteNoFile();
     void closestPointTransfersWriteTheCurrentLayer();
     void samplingTwoLayerFiltersWriteTheCurrentLayer();
+    void faceScalarFromRastersMeasuresTheViews();
     void aThinFoldedUvTriangleIsFoundWhereFloatArithmeticMissesIt();
     void measureUvMappingAgreesWithTexMetroOnARealAtlas();
     void measureTexelCoverageCountsAKnownLayoutExactly();
@@ -9784,6 +9785,99 @@ void FilterTests::closestPointTransfersWriteTheCurrentLayer()
     QCOMPARE(doc.meshStoredState(from), Document::StoredState::Stored);
     QCOMPARE(int(doc.mesh(from).textureAssets.size()), 1);
 }
+
+// Compute Face Scalar from Rasters on the gargoyle and its four calibrated photos. The count
+// stays within the rasters and agrees with the summary; every seen face is seen from its front
+// side; and the resolution is a density, so scaling the scene with its cameras by 3 divides it
+// by 3 while the count and the angles stay the same.
+void FilterTests::faceScalarFromRastersMeasuresTheViews()
+{
+    const auto run = [](Document &doc, const QString &measure, double scale) {
+        if (scale != 1.0) {
+            const vcg::Box3f box = doc.mesh(0).mesh.bbox;
+            const QVector3D a = doc.mesh(0).transform.map(QVector3D(box.min[0], box.min[1], box.min[2]));
+            const QVector3D b = doc.mesh(0).transform.map(QVector3D(box.max[0], box.max[1], box.max[2]));
+            const MeshFilterRunResult s = doc.runFilter(
+                filterKeyForId(doc, QStringLiteral("scale_to_known_length")),
+                { { QStringLiteral("pointA"), a }, { QStringLiteral("pointB"), b },
+                  { QStringLiteral("length"), scale * double(a.distanceToPoint(b)) },
+                  { QStringLiteral("unit"), QStringLiteral("not_set") },
+                  { QStringLiteral("allLayers"), true }, { QStringLiteral("scaleRasters"), true } });
+            if (!s.success) return s;
+        }
+        // The depth tolerance is in scene units: it scales with the scene.
+        return doc.runFilter(filterKeyForId(doc, QStringLiteral("compute_face_scalar_from_rasters")),
+                             { { QStringLiteral("measure"), measure },
+                               { QStringLiteral("depthEpsilon"), 0.5 * scale } });
+    };
+    const auto scalars = [](const Document &doc) {
+        std::vector<float> q;
+        for (const auto &f : doc.mesh(0).mesh.face) q.push_back(f.cQ());
+        return q;
+    };
+    const auto load = [](Document &doc) {
+        QCOMPARE(doc.loadMeshLabProject(
+                     QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
+        doc.setCurrentMeshIndex(0);
+    };
+
+    Document doc;
+    load(doc);
+    const int rasters = doc.rasterCount();
+    QVERIFY(rasters == 4);
+
+    MeshFilterRunResult r = run(doc, QStringLiteral("count"), 1.0);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const std::vector<float> count = scalars(doc);
+    int unseen = 0, once = 0;
+    for (float c : count) {
+        QVERIFY(c >= 0 && c <= rasters && c == std::floor(c));
+        unseen += c == 0;
+        once += c == 1;
+    }
+    QCOMPARE(r.outputValues.value("unseen_faces").toInt(), unseen);
+    QCOMPARE(r.outputValues.value("faces_seen_once").toInt(), once);
+    QVERIFY(unseen < int(count.size()) / 2);
+    // The four photos surround the statue: no face is in all of them, many are in two or three.
+    QVERIFY(r.outputValues.value("measure_max").toDouble() >= 2.0);
+    qDebug("face scalar from rasters, count: %d faces, %d unseen, %d seen once | %s", int(count.size()),
+           unseen, once, qPrintable(r.infoMessages.join(' ')));
+
+    r = run(doc, QStringLiteral("bestAngle"), 1.0);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const std::vector<float> angle = scalars(doc);
+    for (size_t i = 0; i < angle.size(); ++i)
+        QVERIFY(count[i] == 0 ? angle[i] == 180.0f : angle[i] >= 0.0f && angle[i] < 90.0f);
+    qDebug("face scalar from rasters, best angle | %s", qPrintable(r.infoMessages.join(' ')));
+
+    r = run(doc, QStringLiteral("bestResolution"), 1.0);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const std::vector<float> resolution = scalars(doc);
+    for (size_t i = 0; i < resolution.size(); ++i)
+        QVERIFY((count[i] == 0) == (resolution[i] == 0.0f));
+    qDebug("face scalar from rasters, best resolution | %s", qPrintable(r.infoMessages.join(' ')));
+
+    Document scaled;
+    load(scaled);
+    r = run(scaled, QStringLiteral("bestResolution"), 3.0);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const std::vector<float> scaledResolution = scalars(scaled);
+    QCOMPARE(scaledResolution.size(), resolution.size());
+    size_t compared = 0, changedVisibility = 0;
+    for (size_t i = 0; i < resolution.size(); ++i) {
+        if ((resolution[i] == 0) != (scaledResolution[i] == 0)) { ++changedVisibility; continue; }
+        if (resolution[i] == 0) continue;
+        // Relative, plus a little for faces seen edge-on, whose few square pixels lose digits.
+        QVERIFY2(std::abs(scaledResolution[i] * 3.0f - resolution[i]) < 1e-3f * resolution[i] + 2e-3f,
+                 qPrintable(QStringLiteral("face %1: %2 became %3").arg(i).arg(resolution[i]).arg(scaledResolution[i])));
+        ++compared;
+    }
+    // A face on the edge of the depth test may flip from rounding; almost none should.
+    QVERIFY2(changedVisibility * 1000 < resolution.size(),
+             qPrintable(QStringLiteral("%1 faces changed visibility").arg(changedVisibility)));
+    QVERIFY(compared > resolution.size() / 2);
+}
+
 
 // Compute Distance from Reference Mesh and the two Colorize Vertices filters named the layer
 // they change as a parameter; it is now the current one, and the parameter names the other.

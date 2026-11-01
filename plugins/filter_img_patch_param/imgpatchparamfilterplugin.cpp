@@ -3,6 +3,7 @@
 #include "camerashot.h"
 #include "document.h"
 #include "filterparam.h"
+#include "lengthunit.h"
 #include "meshfilterpluginmanager.h"
 #include "textureassociationutils.h"
 #include "vcgmesh.h"
@@ -43,8 +44,8 @@ constexpr QLatin1StringView kPatchParamTex(
     "parametrize_from_registered_rasters_with_texture");
 constexpr QLatin1StringView kCoverageVert(
     "compute_vertex_scalar_from_raster_coverage");
-constexpr QLatin1StringView kCoverageFace(
-    "compute_face_scalar_from_raster_coverage");
+constexpr QLatin1StringView kFaceFromRasters(
+    "compute_face_scalar_from_rasters");
 
 MeshFilterRunResult fail(const QString &m) { return {false, false, m}; }
 MeshFilterRunResult ok(const QStringList &info = {}) {
@@ -131,21 +132,34 @@ void getFaceNeighbors(VCGFace *f, NeighbSet &neighb)
 }
 
 // ---------------------------------------------------------------------------
-// Per-vertex visibility test
+// Visibility tests
 // ---------------------------------------------------------------------------
 
-bool checkVertVisibleFast(int vi, const RasterContext &rc, float depthEpsilon)
+// A point projected to pixel pp at view depth d is visible when it is in front of the camera,
+// inside the image, and no farther than the depth buffer there by more than depthEpsilon.
+bool passesDepthTest(const QVector2D &pp, float d, const RasterContext &rc, float depthEpsilon)
 {
-    if (size_t(vi) >= rc.vcache.proj.size()) return false;
-    if (!rc.vcache.frontFace[size_t(vi)]) return false;
-    const QVector2D &pp = rc.vcache.proj[size_t(vi)];
-    const float d = rc.vcache.depth[size_t(vi)];
     if (d <= 0.0f) return false;
     if (pp.x() <= 0 || pp.y() <= 0 || pp.x() >= float(rc.iw) || pp.y() >= float(rc.ih))
         return false;
     float pd = rc.dbuf->getval(int(pp.x()), int(pp.y()));
     if (pd <= 0.0f) return false;
     return d <= pd + depthEpsilon;
+}
+
+bool checkVertVisibleFast(int vi, const RasterContext &rc, float depthEpsilon)
+{
+    if (size_t(vi) >= rc.vcache.proj.size()) return false;
+    if (!rc.vcache.frontFace[size_t(vi)]) return false;
+    return passesDepthTest(rc.vcache.proj[size_t(vi)], rc.vcache.depth[size_t(vi)], rc, depthEpsilon);
+}
+
+// A world point q of a surface with normal n: also on the front side of the surface.
+bool checkPointVisible(const QVector3D &q, const QVector3D &n, const RasterContext &rc,
+                       float depthEpsilon)
+{
+    if (QVector3D::dotProduct(rc.shot->directionToCamera(q), n) <= 0.0f) return false;
+    return passesDepthTest(rc.shot->project(q), rc.shot->depth(q), rc, depthEpsilon);
 }
 
 // ---------------------------------------------------------------------------
@@ -1017,38 +1031,89 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
                      .arg(m.VN()).arg(activeRasters.size())});
     }
 
-    // --- Coverage (Face) ---
-    if (fid == QString::fromLatin1(kCoverageFace)) {
-        float depthEps = float(p.getDouble(QStringLiteral("depthEpsilon"), 0.0));
-        for (auto &f : m.face) f.Q() = 0.0f;
+    // --- Face scalar from rasters ---
+    if (fid == QString::fromLatin1(kFaceFromRasters)) {
+        const float depthEps = float(p.getDouble(QStringLiteral("depthEpsilon"), 0.0));
+        const QString measure = p.getEnum(QStringLiteral("measure"), QStringLiteral("count"));
+        const bool resolution = measure == QLatin1String("bestResolution");
+        const bool angle = measure == QLatin1String("bestAngle");
+        std::vector<int> seenBy(m.face.size(), 0);
+        for (auto &f : m.face) f.Q() = angle ? 180.0f : 0.0f;
 
         for (int ri : activeRasters) {
-            auto &rc = rcs[size_t(ri)];
-            std::vector<bool> vVis(size_t(m.VN()), false);
-            for (int vi = 0; vi < m.VN(); ++vi) {
-                if (m.vert[size_t(vi)].IsD()) continue;
-                vVis[size_t(vi)] = checkVertVisibleFast(vi, rc, depthEps);
-            }
-            for (int fi = 0; fi < m.FN(); ++fi) {
-                auto &f = m.face[size_t(fi)];
+            const RasterContext &rc = rcs[size_t(ri)];
+            for (size_t fi = 0; fi < m.face.size(); ++fi) {
+                VCGFace &f = m.face[fi];
                 if (f.IsD()) continue;
-                if (vVis[vcg::tri::Index(m, f.V(0))] ||
-                    vVis[vcg::tri::Index(m, f.V(1))] ||
-                    vVis[vcg::tri::Index(m, f.V(2))])
+                const QVector3D w[3] = { transformPoint(tf, f.cP(0)), transformPoint(tf, f.cP(1)),
+                                         transformPoint(tf, f.cP(2)) };
+                const QVector3D n = QVector3D::crossProduct(w[1] - w[0], w[2] - w[0]);
+                const float area2 = n.length(); // twice the area, like area2px below
+                if (area2 <= 0.0f) continue;
+                // Seen when most of the face is: two of the three points of the classic
+                // three-point quadrature rule, halfway between the centroid and each vertex.
+                int visible = 0;
+                for (int k = 0; k < 3; ++k) {
+                    const QVector3D q = (4.0f * w[k] + w[(k + 1) % 3] + w[(k + 2) % 3]) / 6.0f;
+                    if (checkPointVisible(q, n, rc, depthEps)) ++visible;
+                }
+                if (visible < 2) continue;
+                ++seenBy[fi];
+                if (resolution) {
+                    const QVector2D &a = rc.vcache.proj[size_t(vcg::tri::Index(m, f.V(0)))];
+                    const QVector2D &b = rc.vcache.proj[size_t(vcg::tri::Index(m, f.V(1)))];
+                    const QVector2D &c = rc.vcache.proj[size_t(vcg::tri::Index(m, f.V(2)))];
+                    const float area2px = std::abs((b.x() - a.x()) * (c.y() - a.y()) -
+                                                   (b.y() - a.y()) * (c.x() - a.x()));
+                    f.Q() = std::max(f.Q(), std::sqrt(area2px / area2));
+                } else if (angle) {
+                    const QVector3D toCamera = rc.shot->directionToCamera((w[0] + w[1] + w[2]) / 3.0f);
+                    const float cosA = std::clamp(QVector3D::dotProduct(toCamera, n / area2), -1.0f, 1.0f);
+                    f.Q() = std::min(f.Q(), float(qRadiansToDegrees(std::acos(cosA))));
+                } else {
                     f.Q() += 1.0f;
+                }
             }
         }
 
-        if (p.getBool(QStringLiteral("normalizeQuality"), false)) {
-            float nf = 1.0f / float(activeRasters.size());
-            for (auto &f : m.face) f.Q() *= nf;
+        // Summary over the faces some raster sees; the worst 5% is the low tail of a count or
+        // a resolution, and the high tail of an angle.
+        std::vector<float> values;
+        int unseen = 0, seenOnce = 0;
+        for (size_t fi = 0; fi < m.face.size(); ++fi) {
+            if (m.face[fi].IsD()) continue;
+            if (seenBy[fi] == 0) { ++unseen; continue; }
+            if (seenBy[fi] == 1) ++seenOnce;
+            values.push_back(m.face[fi].Q());
         }
+        std::sort(values.begin(), values.end());
+        auto at = [&](double t) { return double(values[size_t(t * double(values.size() - 1) + 0.5)]); };
 
         doc.mesh(mi).ioMask |= Mask::IOM_FACEQUALITY;
         doc.markMeshGeometryChanged(mi,
-            QObject::tr("Computed raster coverage per face on '%1'.").arg(doc.mesh(mi).name));
-        return ok({QObject::tr("Processed %1 faces across %2 rasters.")
-                     .arg(m.FN()).arg(activeRasters.size())});
+            QObject::tr("Computed face scalar from rasters on '%1'.").arg(doc.mesh(mi).name));
+
+        const QString unit = LengthUnits::symbol(doc.unit());
+        const QString suffix = resolution ? QObject::tr(" px/%1").arg(unit.isEmpty() ? QObject::tr("unit") : unit)
+                             : angle ? QStringLiteral("\u00B0") : QString();
+        QStringList info{ QObject::tr("%1 faces, %2 rasters: %3 seen by no raster, %4 by only one.")
+                              .arg(m.FN()).arg(activeRasters.size()).arg(unseen).arg(seenOnce) };
+        QVariantMap stats;
+        if (!values.empty()) {
+            const double worst = at(angle ? 0.95 : 0.05);
+            info << QObject::tr("Over the seen faces: min %1%4, median %2%4, max %3%4; worst 5%: %5%4.")
+                        .arg(values.front()).arg(at(0.5)).arg(values.back()).arg(suffix).arg(worst);
+            stats["measure_min"] = double(values.front());
+            stats["measure_median"] = at(0.5);
+            stats["measure_max"] = double(values.back());
+            stats["measure_worst_5_percent"] = worst;
+        }
+        stats["unseen_faces"] = unseen;
+        stats["faces_seen_once"] = seenOnce;
+        MeshFilterRunResult r = ok(info);
+        r.outputValues = stats;
+        r.visualizationHints.push_back({ mi, MeshFilterVisualizationAttribute::FaceQuality });
+        return r;
     }
 
     // --- Parametrization filters ---
