@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 401 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 402 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -177,8 +177,7 @@ Given a Mesh <b>M</b> and a Pointset <b>P</b>, The filter project each vertex of
 
 **Parameters:**
 
-- **ColoredMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh whose vertices will be colored.
-- **VertexMesh** (*mesh*, default: `@otherMeshIndex`) — The point cloud whose vertices are used as disk centers.
+- **sourceMesh** (*mesh*, default: `@otherMeshIndex`) — The point cloud whose vertices are used as disk centers.
 - **Radius** (*absperc*, default: `@bboxDiagTenth`) — Disk radius around each point-cloud seed.
 - **SampleRadius** (*bool*, default: `False`) — Use the per-vertex quality of the seed cloud as the disk radius.
 - **ApproximateGeodetic** (*bool*, default: `False`) — Weight the Euclidean distance by the normal difference between the two points.
@@ -256,8 +255,7 @@ Given a Mesh <b>M</b> and a Pointset <b>P</b>, The filter project each vertex of
 
 **Parameters:**
 
-- **ColoredMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh whose surface will be colored.
-- **VertexMesh** (*mesh*, default: `@otherMeshIndex`) — The point cloud whose vertices are used as Voronoi seeds.
+- **sourceMesh** (*mesh*, default: `@otherMeshIndex`) — The point cloud whose vertices are used as Voronoi seeds.
 - **backward** (*bool*, default: `False`) — Color according to the distance from the Voronoi frontier instead of from the seed.
 ```
 
@@ -1955,7 +1953,6 @@ Compare with *Measure Hausdorff Distance*, which reports a single worst-case num
 
 **Parameters:**
 
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer whose vertices are measured.
 - **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The closed surface distances are measured to.
 - **unsigned** (*bool*, default: `False`) — Store absolute distance, discarding inside/outside.
 ```
@@ -4755,9 +4752,9 @@ Applies a render-state JSON payload to the active view, renders an offscreen sna
 
 ---
 
-(filter-align-by-bounding-box-trueform)=
+(filter-align-layer-to-reference-by-bounding-box-trueform)=
 
-## Align by Bounding Box (TrueForm)
+## Align Layer to Reference by Bounding Box (TrueForm)
 
 **Categories:** `Geometry/Alignment`
 
@@ -4765,105 +4762,20 @@ Applies a render-state JSON payload to the active view, renders an offscreen sna
 
 Coarsely align one layer to another by matching their oriented bounding boxes.
 
-```{py:function} ms.align_by_bounding_box_trueform(**params)
+```{py:function} ms.align_layer_to_reference_by_bounding_box_trueform(**params)
 :module: _meshlab
 
-Aligns the source layer to the reference by fitting their **oriented bounding boxes**. It needs no initial guess and no correspondences, and it is fast, which makes it the natural first step before ICP — *Align by ICP* can run it for you.
+Aligns the current layer to the **Reference Layer** by fitting their **oriented bounding boxes**. It needs no initial guess and no correspondences, and it is fast, which makes it the natural first step before ICP — *Align Layer to Reference by ICP (TrueForm)* can run it for you.
 
 An oriented bounding box is only defined up to 180-degree flips about its axes, so the fit is ambiguous in principle. TrueForm resolves this by testing the candidate orientations against a spatial index of the reference and keeping the best.
 
-The result is written to the source layer's **matrix**; vertex coordinates are not touched.
+The result is written to the current layer's **matrix**; vertex coordinates are not touched.
 
 Implemented with TrueForm's `fit_obb_alignment`.
 
 **Parameters:**
 
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer that is moved.
-- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer that stays put.
-```
-
----
-
-(filter-align-by-icp-trueform)=
-
-## Align by ICP (TrueForm)
-
-**Categories:** `Geometry/Alignment`
-
-**Plugin:** meshlab2.filter.trueform
-
-Align one layer to another with iterative closest point, point-to-point or point-to-plane.
-
-```{py:function} ms.align_by_icp_trueform(**params)
-:module: _meshlab
-
-Refines the alignment of the source layer onto the reference by **iterative closest point**.
-
-**Metric** chooses the error being minimised:
-
-- *Point to point* — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.
-- *Point to plane* — measures each correspondence along the reference's surface normal, so the source can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.
-
-ICP only refines **locally**: from a poor starting position it converges confidently to the wrong answer rather than failing. **Coarse Initialization** therefore runs *Align by Bounding Box (TrueForm)* first, which is usually enough to land in the right basin.
-
-**Samples** subsamples the source each iteration, which is what keeps large clouds tractable; 0 uses every point. **Outlier Proportion** discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.
-
-The reported **Chamfer residual** is the mean one-way distance after alignment — useful for comparing runs.
-
-The result is written to the source layer's **matrix**; vertex coordinates are not touched.
-
-Implemented with TrueForm's `fit_icp_alignment`.
-
-**Parameters:**
-
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer that is moved.
-- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer that stays put.
-- **metric** (*enum*, default: `point_to_plane`) — Point to plane converges faster on smooth surfaces; point to point is safer when the reference normals are unreliable.
-- **coarseInit** (*bool*, default: `True`) — Run a bounding-box alignment first. Leave on unless the layers are already roughly registered.
-- **maxIterations** (*int*, default: `50`) — Upper bound on ICP iterations.
-- **samples** (*int*, default: `1000`) — Source points sampled per iteration. 0 uses all of them, which is slower but deterministic.
-- **minImprovement** (*double*, default: `0.001`) — Stop once the error improves by less than this fraction between iterations.
-- **outlierProportion** (*double*, default: `0.0`) — Fraction of the worst correspondences rejected each iteration. Raise it when the two layers only partly overlap.
-```
-
----
-
-(filter-align-by-icp-vcglib)=
-
-## Align by ICP (vcglib)
-
-**Categories:** `Geometry/Alignment`
-
-**Plugin:** meshlab2.filter.icp
-
-Compute an ICP transform that aligns one mesh layer to another.
-
-```{py:function} ms.align_by_icp_vcglib(**params)
-:module: _meshlab
-
-Perform Iterative Closest Point alignment between a fixed reference layer and a moving source layer. The source layer transform is updated; vertex coordinates are not baked. Existing layer transforms are used as the initial pose, so the alignment follows what is visible in the 3D view.
-
-**References:**
-
-- Paul J. Besl, Neil D. McKay. **A Method for Registration of 3-D Shapes**. *IEEE Transactions on Pattern Analysis and Machine Intelligence* (1992). [DOI](https://doi.org/10.1109/34.121791)
-
-**Parameters:**
-
-- **ReferenceMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh kept fixed during ICP.
-- **SourceMesh** (*mesh*, default: `@otherMeshIndex`) — The mesh whose transform will be updated to match the reference.
-- **SampleNum** (*int*, default: `2000`) — Number of source samples used at each ICP iteration.
-- **MinDistAbs** (*double*, default: `10.0`) — Initial maximum correspondence distance. Only source samples nearer than this value are used.
-- **TrgDistAbs** (*double*, default: `0.005`) — ICP stops when the median sample distance goes below this value.
-- **MaxIterNum** (*int*, default: `75`) — Maximum number of ICP iterations.
-- **SampleMode** (*bool*, default: `True`) — Distribute samples uniformly with respect to normal directions instead of spatial random sampling.
-- **ReduceFactorPerc** (*double*, default: `0.8`) — Percentile used to reduce the maximum correspondence distance at each iteration.
-- **PassHiFilter** (*double*, default: `0.75`) — Discard samples farther than this percentile of the current correspondence distances.
-- **MatchMode** (*bool*, default: `True`) — If enabled, ICP solves only rotations and translations. If disabled, similarity matching may include scale.
-- **UseVertexOnly** (*bool*, default: `False`) — Use closest vertices instead of closest points on faces. This is automatically used for point clouds.
-- **MaxAngleDeg** (*double*, default: `45.0`) — Maximum angle, in degrees, between source and reference normals for accepted correspondences.
-- **MinPointNum** (*int*, default: `30`) — Minimum number of accepted point pairs required for an ICP iteration to be valid.
-- **SaveLastIteration** (*bool*, default: `False`) — Create two diagnostic point layers containing the last accepted source samples and their reference correspondences.
-- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sub-sampling of the moving mesh exactly reproducible.
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer that stays put; the current layer is moved onto it.
 ```
 
 ---
@@ -4902,6 +4814,37 @@ The **current layer** is the one that moves, and the reference layer stays put. 
 - **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer the current layer is moved onto. It stays put.
 - **maxCorrespondenceDistance** (*absperc*, default: `@bboxDiag002`) — Points further apart than this are never paired, in the layer's units, and also as a percentage of the current layer's bounding-box diagonal. Larger values tolerate a rougher starting alignment; too large lets distant surfaces pair with each other.
 - **maxIterations** (*int*, default: `30`) — Upper bound on ICP iterations; it stops earlier once fitness and RMSE settle.
+```
+
+---
+
+(filter-align-layer-to-reference-by-corresponding-points-trueform)=
+
+## Align Layer to Reference by Corresponding Points (TrueForm)
+
+**Categories:** `Geometry/Alignment`
+
+**Plugin:** meshlab2.filter.trueform
+
+Align two layers whose vertices already correspond one to one, optionally solving for scale.
+
+```{py:function} ms.align_layer_to_reference_by_corresponding_points_trueform(**params)
+:module: _meshlab
+
+Computes the transformation that best maps the current layer's vertices onto the **Reference Layer**'s, assuming the two are already in **one-to-one correspondence**: same number of live vertices, in matching order. This is the Procrustes (Kabsch) fit.
+
+Use it when the correspondence is known by construction — two states of the same mesh, a mesh and its deformed copy, or point sets you have paired yourself. When the correspondence is unknown, use *Align Layer to Reference by ICP (TrueForm)* instead, which searches for it.
+
+**Allow Uniform Scale** is the reason to reach for this filter over ICP: with correspondences given, scale can be solved for as well as rotation and translation, which no ICP variant here does. Leave it off for a rigid fit.
+
+The result is written to the current layer's **matrix**; vertex coordinates are not touched.
+
+Implemented with TrueForm's `fit_rigid_alignment` and `fit_similarity_alignment`.
+
+**Parameters:**
+
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer that stays put; the current layer is moved onto it.
+- **allowScale** (*bool*, default: `False`) — Also solve for a single scale factor. Only possible because the correspondences are given rather than searched for.
 ```
 
 ---
@@ -4961,6 +4904,88 @@ The **current layer** is the one that moves, and the reference layer stays put. 
 - **maximumTupleCount** (*int*, default: `1000`) — Upper bound on the compatible triples kept from the initial correspondences.
 - **tupleTest** (*bool*, default: `True`) — Discard correspondence triples whose relative distances disagree between the two layers. Cheap, and it removes most wrong matches before the optimization starts.
 - **randomSeed** (*int*, default: `0`) — Seed for the random sampling this method does. Zero draws a fresh seed each run and reports it, so a result can be reproduced afterwards by pinning that value. Two runs with the same seed give the same pose; two runs with different seeds may not.
+```
+
+---
+
+(filter-align-layer-to-reference-by-icp-trueform)=
+
+## Align Layer to Reference by ICP (TrueForm)
+
+**Categories:** `Geometry/Alignment`
+
+**Plugin:** meshlab2.filter.trueform
+
+Align one layer to another with iterative closest point, point-to-point or point-to-plane.
+
+```{py:function} ms.align_layer_to_reference_by_icp_trueform(**params)
+:module: _meshlab
+
+Refines the alignment of the current layer onto the **Reference Layer** by **iterative closest point**.
+
+**Metric** chooses the error being minimised:
+
+- *Point to point* — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.
+- *Point to plane* — measures each correspondence along the reference's surface normal, so the current layer can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.
+
+ICP only refines **locally**: from a poor starting position it converges confidently to the wrong answer rather than failing. **Coarse Initialization** therefore runs *Align Layer to Reference by Bounding Box (TrueForm)* first, which is usually enough to land in the right basin.
+
+**Samples** subsamples the current layer each iteration, which is what keeps large clouds tractable; 0 uses every point. **Outlier Proportion** discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.
+
+The reported **Chamfer residual** is the mean one-way distance after alignment — useful for comparing runs.
+
+The result is written to the current layer's **matrix**; vertex coordinates are not touched.
+
+Implemented with TrueForm's `fit_icp_alignment`.
+
+**Parameters:**
+
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer that stays put; the current layer is moved onto it.
+- **metric** (*enum*, default: `point_to_plane`) — Point to plane converges faster on smooth surfaces; point to point is safer when the reference normals are unreliable.
+- **coarseInit** (*bool*, default: `True`) — Run a bounding-box alignment first. Leave on unless the layers are already roughly registered.
+- **maxIterations** (*int*, default: `50`) — Upper bound on ICP iterations.
+- **samples** (*int*, default: `1000`) — Source points sampled per iteration. 0 uses all of them, which is slower but deterministic.
+- **minImprovement** (*double*, default: `0.001`) — Stop once the error improves by less than this fraction between iterations.
+- **outlierProportion** (*double*, default: `0.0`) — Fraction of the worst correspondences rejected each iteration. Raise it when the two layers only partly overlap.
+```
+
+---
+
+(filter-align-layer-to-reference-by-icp-vcglib)=
+
+## Align Layer to Reference by ICP (vcglib)
+
+**Categories:** `Geometry/Alignment`
+
+**Plugin:** meshlab2.filter.icp
+
+Compute an ICP transform that aligns the current layer to a reference layer.
+
+```{py:function} ms.align_layer_to_reference_by_icp_vcglib(**params)
+:module: _meshlab
+
+Perform Iterative Closest Point alignment of the current layer, which moves, onto the **Reference Mesh**, which stays fixed. The current layer's transform is updated; vertex coordinates are not baked. Existing layer transforms are used as the initial pose, so the alignment follows what is visible in the 3D view.
+
+**References:**
+
+- Paul J. Besl, Neil D. McKay. **A Method for Registration of 3-D Shapes**. *IEEE Transactions on Pattern Analysis and Machine Intelligence* (1992). [DOI](https://doi.org/10.1109/34.121791)
+
+**Parameters:**
+
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The mesh kept fixed; the current layer is moved onto it.
+- **SampleNum** (*int*, default: `2000`) — Number of source samples used at each ICP iteration.
+- **MinDistAbs** (*double*, default: `10.0`) — Initial maximum correspondence distance. Only source samples nearer than this value are used.
+- **TrgDistAbs** (*double*, default: `0.005`) — ICP stops when the median sample distance goes below this value.
+- **MaxIterNum** (*int*, default: `75`) — Maximum number of ICP iterations.
+- **SampleMode** (*bool*, default: `True`) — Distribute samples uniformly with respect to normal directions instead of spatial random sampling.
+- **ReduceFactorPerc** (*double*, default: `0.8`) — Percentile used to reduce the maximum correspondence distance at each iteration.
+- **PassHiFilter** (*double*, default: `0.75`) — Discard samples farther than this percentile of the current correspondence distances.
+- **MatchMode** (*bool*, default: `True`) — If enabled, ICP solves only rotations and translations. If disabled, similarity matching may include scale.
+- **UseVertexOnly** (*bool*, default: `False`) — Use closest vertices instead of closest points on faces. This is automatically used for point clouds.
+- **MaxAngleDeg** (*double*, default: `45.0`) — Maximum angle, in degrees, between source and reference normals for accepted correspondences.
+- **MinPointNum** (*int*, default: `30`) — Minimum number of accepted point pairs required for an ICP iteration to be valid.
+- **SaveLastIteration** (*bool*, default: `False`) — Create two diagnostic point layers containing the last accepted source samples and their reference correspondences.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sub-sampling of the moving mesh exactly reproducible.
 ```
 
 ---
@@ -5351,38 +5376,6 @@ On success the two sets together are left as a new visibility set called *aligne
 
 ---
 
-(filter-align-to-corresponding-points-trueform)=
-
-## Align to Corresponding Points (TrueForm)
-
-**Categories:** `Geometry/Alignment`
-
-**Plugin:** meshlab2.filter.trueform
-
-Align two layers whose vertices already correspond one to one, optionally solving for scale.
-
-```{py:function} ms.align_to_corresponding_points_trueform(**params)
-:module: _meshlab
-
-Computes the transformation that best maps the source layer's vertices onto the reference's, assuming the two are already in **one-to-one correspondence**: same number of live vertices, in matching order. This is the Procrustes (Kabsch) fit.
-
-Use it when the correspondence is known by construction — two states of the same mesh, a mesh and its deformed copy, or point sets you have paired yourself. When the correspondence is unknown, use *Align by ICP* instead, which searches for it.
-
-**Allow Uniform Scale** is the reason to reach for this filter over ICP: with correspondences given, scale can be solved for as well as rotation and translation, which no ICP variant here does. Leave it off for a rigid fit.
-
-The result is written to the source layer's **matrix**; vertex coordinates are not touched.
-
-Implemented with TrueForm's `fit_rigid_alignment` and `fit_similarity_alignment`.
-
-**Parameters:**
-
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer that is moved.
-- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer that stays put.
-- **allowScale** (*bool*, default: `False`) — Also solve for a single scale factor. Only possible because the correspondences are given rather than searched for.
-```
-
----
-
 (filter-compute-vertex-coordinates-by-expression)=
 
 ## Compute Vertex Coordinates by Expression
@@ -5706,8 +5699,7 @@ This is the **algebraic point set surfaces** (APSS) variant: the local approxima
 
 **Parameters:**
 
-- **ControlMesh** (*mesh*, default: `@currentMeshIndex`) — The point set (or mesh) which defines the MLS surface.
-- **ProxyMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh that will be projected/resampled onto the MLS surface.
+- **referenceMesh** (*mesh*, default: `@currentMeshIndex`) — The point set (or mesh) whose MLS surface the current layer is projected onto; by default the current layer itself.
 - **FilterScale** (*double*, default: `2.0`) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.
 - **SphericalParameter** (*double*, default: `1.0`) — Control the curvature of the fitted spheres: 0 is equivalent to a pure plane fit, 1 to a pure spherical fit, values between 0 and 1 give intermediate results, while other real values might give interesting results, but take care with extreme settings.
 - **AccurateNormal** (*bool*, default: `True`) — If checked, use the accurate MLS gradient instead of the local approximation to compute the normals.
@@ -5742,8 +5734,7 @@ This is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS wit
 
 **Parameters:**
 
-- **ControlMesh** (*mesh*, default: `@currentMeshIndex`) — The point set (or mesh) which defines the MLS surface.
-- **ProxyMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh that will be projected/resampled onto the MLS surface.
+- **referenceMesh** (*mesh*, default: `@currentMeshIndex`) — The point set (or mesh) whose MLS surface the current layer is projected onto; by default the current layer itself.
 - **FilterScale** (*double*, default: `2.0`) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.
 - **SigmaN** (*double*, default: `0.75`) — Width of the filter used by the normal refitting weight. This weight function is a Gaussian on the distance between two unit vectors: the current gradient and the input normal. Typical values range between 0.5 (sharp) and 2 (smooth).
 - **MaxRefittingIters** (*int*, default: `3`) — Max number of fitting iterations. (0 or 1 is equivalent to the standard IMLS).
@@ -6419,12 +6410,11 @@ Compute per-vertex distance from another mesh or point cloud.
 ```{py:function} ms.compute_distance_from_reference_mesh(**params)
 :module: _meshlab
 
-Compute the signed/unsigned (per vertex) distance between a mesh/pointcloud and a reference mesh/pointcloud. Distance is stored in vertex quality; after the filter runs MeshLab switches the measured mesh to vertex-quality color visualization without baking colors.
+Compute the signed/unsigned (per vertex) distance of the current mesh/pointcloud from a reference mesh/pointcloud. Distance is stored in vertex quality; after the filter runs MeshLab switches the current mesh to vertex-quality color visualization without baking colors.
 
 **Parameters:**
 
-- **MeasureMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh that will receive the computed distances in vertex quality.
-- **RefMesh** (*mesh*, default: `@otherMeshIndex`) — The mesh or point cloud used as the reference.
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The mesh or point cloud the current layer's distances are measured from.
 - **SignedDist** (*bool*, default: `True`) — If enabled, compute a signed distance instead of the absolute value.
 - **MaxDist** (*absperc*, default: `@bboxDiag`) — Search is interrupted when nothing is found within this range.
 ```
@@ -10469,7 +10459,6 @@ The enclosing layer must be **closed** for inside to be meaningful. Enable **Sel
 
 **Parameters:**
 
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer whose vertices are selected.
 - **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The closed layer that defines inside.
 - **selectOutside** (*bool*, default: `False`) — Select the vertices outside the enclosing layer instead.
 - **mode** (*enum*, default: `replace`) — Replace the current selection, or add to and subtract from it.
@@ -11113,9 +11102,9 @@ Every face must reference one valid texture consistently across its three wedges
 
 ---
 
-(filter-transfer-abstract-domain-to-another-layer)=
+(filter-transfer-abstract-domain-from-another-layer)=
 
-## Transfer Abstract Domain to Another Layer
+## Transfer Abstract Domain from Another Layer
 
 **Categories:** `Transfer/Between Layers`
 
@@ -11123,10 +11112,10 @@ Every face must reference one valid texture consistently across its three wedges
 
 Carry an abstract domain from one layer onto another, similar and aligned one, by closest point.
 
-```{py:function} ms.transfer_abstract_domain_to_another_layer(**params)
+```{py:function} ms.transfer_abstract_domain_from_another_layer(**params)
 :module: _meshlab
 
-Copies a layer's abstract domain onto a second layer -- typically the same object at a different resolution -- by finding, for each target vertex, the closest point on the source parametrization and reading its domain position off that.
+Copies the abstract domain of the **Source layer** onto the current layer -- typically the same object at a different resolution -- by finding, for each target vertex, the closest point on the source parametrization and reading its domain position off that.
 
 This is a convenience rather than part of the original technique, and it inherits the limits of closest-point matching: the two layers must be reasonably similar in shape and already aligned, and nothing here registers them for you. Where the surfaces disagree the domain positions will follow the source's geometry rather than the target's.
 
@@ -11138,8 +11127,7 @@ Unlike MeshLab, which moves the domain and leaves the source without one, the so
 
 **Parameters:**
 
-- **sourceMesh** (*mesh*) — The layer that already carries an abstract domain.
-- **targetMesh** (*mesh*) — The layer to receive the parametrization.
+- **sourceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer that already carries an abstract domain; the current layer receives a copy.
 ```
 
 ---
@@ -11152,19 +11140,47 @@ Unlike MeshLab, which moves the domain and leaves the source without one, the so
 
 **Plugin:** meshlab2.filter.texture
 
-Generate vertex colors by sampling texture colors from the same mesh or another mesh.
+Color the vertices of the current mesh by sampling the texture of a source mesh at the closest point.
 
 ```{py:function} ms.transfer_color_from_texture_to_vertex_by_closest_point(**params)
 :module: _meshlab
 
-Generates Vertex Color values picking color from a texture (same mesh or another mesh).
+Gives each vertex of the current mesh the texture color of the closest point of the **Source Mesh**. The source may be the current mesh itself, to turn its own texture into vertex colors.
 
 **Parameters:**
 
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh with associated texture that we want to sample from.
-- **targetMesh** (*mesh*, default: `@otherMeshIndex`) — The mesh whose vertex color will be filled according to source mesh texture.
+- **sourceMesh** (*mesh*, default: `@otherMeshIndex`) — The textured mesh to sample from; it can be the current mesh itself.
 - **upperBound** (*absperc*, default: `@bboxDiag002`) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering color.
 - **sourceTexture** (*textureref*, default: `0`) — Choose which associated source texture to sample. Automatic uses the source mesh per-face texture slot assignment.
+```
+
+---
+
+(filter-transfer-texture-to-texture-by-closest-point)=
+
+## Transfer Texture to Texture by Closest Point
+
+**Categories:** `Transfer/Between Layers`, `Texture`
+
+**Plugin:** meshlab2.filter.texture
+
+Resample the texture of a source mesh into a texture of the current mesh, by closest point.
+
+```{py:function} ms.transfer_texture_to_texture_by_closest_point(**params)
+:module: _meshlab
+
+For each texel of the current mesh, finds its point on the surface and the closest point of the **Source Mesh**, and writes there the source's texture color. This re-textures a mesh after remeshing, simplification or a new parametrization: give the new mesh its UVs, make it current, and pick the textured original as the source.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@otherMeshIndex`) — The textured mesh to sample from.
+- **sourceTexture** (*textureref*, default: `0`) — Which texture of the source mesh to sample. Automatic follows the source's per-face texture assignment.
+- **upperBound** (*absperc*, default: `@bboxDiag002`) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.
+- **textureName** (*string*, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.
+- **textW** (*int*, default: `1024`) — The texture width.
+- **textH** (*int*, default: `1024`) — The texture height.
+- **overwrite** (*bool*, default: `False`) — If the current mesh has textures, replace their images instead of adding new textures. Their files are left alone.
+- **pullpush** (*bool*, default: `True`) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.
 ```
 
 ---
@@ -11182,14 +11198,13 @@ Transfer attributes from one mesh to another by closest-point projection.
 ```{py:function} ms.transfer_vertex_attributes_by_closest_point(**params)
 :module: _meshlab
 
-Transfer the chosen per-vertex attributes from one layer to another. Useful to transfer attributes to different representations of a same object.\
-For each vertex of the target mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the target vertex.\
+Transfer the chosen per-vertex attributes from the **Source mesh** to the current mesh. Useful to transfer attributes to different representations of a same object.\
+For each vertex of the current mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the vertex.\
 The algorithm assumes that the two meshes are reasonably similar and aligned.
 
 **Parameters:**
 
-- **SourceMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh that provides the attributes to transfer.
-- **TargetMesh** (*mesh*, default: `@otherMeshIndex`) — The mesh whose vertices receive the transferred attributes.
+- **sourceMesh** (*mesh*, default: `@otherMeshIndex`) — The mesh that provides the attributes to transfer to the current one.
 - **VertexSampling** (*bool*, default: `False`) — If enabled, transfer attributes from the closest source vertex instead of the closest point on the source surface.
 - **GeomTransfer** (*bool*, default: `False`) — Snap target vertices onto the corresponding closest point on the source.
 - **NormalTransfer** (*bool*, default: `False`) — Transfer interpolated normals from the source.
@@ -11211,25 +11226,23 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.
 
 **Plugin:** meshlab2.filter.texture
 
-Transfer texture color, vertex color, normals, or quality from one mesh into another mesh texture.
+Bake vertex color, normals or scalar of a source mesh into a texture of the current mesh, by closest point.
 
 ```{py:function} ms.transfer_vertex_attributes_to_texture_by_closest_point(**params)
 :module: _meshlab
 
-Transfer texture color, vertex color or normal from one mesh the texture of another mesh. This may be useful to restore detail lost in simplification, or resample a texture in a different parametrization.
+For each texel of the current mesh, finds its point on the surface and the closest point of the **Source Mesh**, and writes there the interpolated vertex attribute chosen in **Data Source**. This may be useful to restore detail lost in simplification. To resample a texture onto another parametrization, use *Transfer Texture to Texture by Closest Point*.
 
 **Parameters:**
 
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh that contains the source data that we want to transfer.
-- **targetMesh** (*mesh*, default: `@otherMeshIndex`) — The mesh whose texture will be filled according to source mesh data.
-- **AttributeEnum** (*enum*, default: `vertex_color`) — Choose what attribute has to be transferred onto the target texture. You can choose between per-vertex attributes or transfer color information from source mesh texture.
+- **sourceMesh** (*mesh*, default: `@otherMeshIndex`) — The mesh whose vertex attributes are transferred.
+- **AttributeEnum** (*enum*, default: `vertex_color`) — The vertex attribute of the source mesh to write into the texture.
 - **upperBound** (*absperc*, default: `@bboxDiag002`) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.
 - **textureName** (*string*, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.
 - **textW** (*int*, default: `1024`) — The texture width.
 - **textH** (*int*, default: `1024`) — The texture height.
-- **overwrite** (*bool*, default: `False`) — If target mesh has associated textures, overwrite them instead of creating new files.
+- **overwrite** (*bool*, default: `False`) — If the current mesh has textures, replace their images instead of adding new textures. Their files are left alone.
 - **pullpush** (*bool*, default: `True`) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.
-- **sourceTexture** (*textureref*, default: `0`) — When Texture Color is selected, choose which associated source texture to sample. Automatic uses the source mesh per-face texture slot assignment.
 ```
 
 ---

@@ -565,9 +565,10 @@ all three (ruling 2).</p>
 <section id="a-single-mesh-filter-works-on-the-current-layer">
 <h3>A single-mesh filter works on the current layer<a class="headerlink" href="#a-single-mesh-filter-works-on-the-current-layer" title="Link to this heading">¶</a></h3>
 <p>A filter that works on one mesh takes it from the current layer, chosen in the layer panel,
-never from a mesh parameter; a mesh parameter names a <em>second</em> input. <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> in the
-table above is the source of a source-to-target pair, so one standing alone is the telltale,
-and <code class="docutils literal notranslate"><span class="pre">FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer</span></code> refuses it.</p>
+never from a mesh parameter; a mesh parameter names a <em>second</em> input. A lone <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code>
+that defaults to the current layer is the telltale of a filter taking its own mesh as a
+parameter, and <code class="docutils literal notranslate"><span class="pre">FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer</span></code> refuses it; one
+that defaults to another layer is the source a two-layer filter reads (next section).</p>
 <p>Migrated 2026-09-29 (measured from the code, not the manifests: each of these read its
 <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> and never touched the current layer otherwise): the ten TrueForm filters
 <em>Create Tube from Polyline</em>, <em>Split into Connected Components</em>, <em>Extract Outer Shell</em>,
@@ -582,18 +583,32 @@ current layer), the projection reference of <em>Remesh Isotropically</em>, the s
 <em>Sample Surface by Poisson Disk</em>, the fixed base of <em>Align Meshes Globally</em>, and the optional
 fit layer of <em>Create Grid</em>. That is all 17 filters with a single mesh parameter; the other
 30 with mesh parameters take two meshes.</p>
-<p><strong>Open3D pairwise aligners, 2026-10-15.</strong> The five pairwise registrations —
-<em>Align by Point-to-Point ICP</em>, <em>Point-to-Plane ICP</em>, <em>Colored ICP</em>, <em>Feature Matching</em> and
-<em>Fast Global Registration</em>, all <code class="docutils literal notranslate"><span class="pre">(Open3D)</span></code> (renamed <em>Align Layer to Reference by …</em> on
-2026-10-18, see <a class="reference internal" href="vocabulary.html"><span class="std std-doc">vocabulary</span></a> §4) — dropped <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> and now take only
-<code class="docutils literal notranslate"><span class="pre">referenceMesh</span></code>: the current layer is the one that moves and the parameter names the layer
-it moves onto. Measured from their manifests before the change: each declared
-<code class="docutils literal notranslate"><span class="pre">inputDomain:</span> <span class="pre">SingleMesh</span></code> and <code class="docutils literal notranslate"><span class="pre">outputDomain:</span> <span class="pre">ModifyCurrentMesh</span></code>, and each <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code>
-defaulted to <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>, so the parameter named the layer the filter already
-declared it modified. The counts above predate this and were not re-measured. The five
-TrueForm aligners (<em>Align by Bounding Box</em>, <em>by ICP</em> and the others in <code class="docutils literal notranslate"><span class="pre">filter_trueform</span></code>)
-still take both parameters; they are the same pattern and were left alone because the
-request named Open3D only.</p>
+<p><strong>Open3D pairwise aligners, 2026-10-15.</strong> The five pairwise registrations dropped
+<code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> and take only <code class="docutils literal notranslate"><span class="pre">referenceMesh</span></code>: the first filters migrated to the general rule
+below.</p>
+</section>
+<section id="a-filter-that-reads-two-layers-changes-the-current-one">
+<h3>A filter that reads two layers changes the current one<a class="headerlink" href="#a-filter-that-reads-two-layers-changes-the-current-one" title="Link to this heading">¶</a></h3>
+<p>A filter that reads two layers and changes one changes the <strong>current</strong> layer, as a
+single-mesh filter does. The other layer is one mesh parameter, defaulting to
+<code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>, named for its role: <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> when it is read from, <code class="docutils literal notranslate"><span class="pre">referenceMesh</span></code>
+when the current layer is matched, measured or projected onto it. There is no parameter for
+the layer that changes. Such a filter declares <code class="docutils literal notranslate"><span class="pre">outputDomain:</span> <span class="pre">ModifyCurrentMesh</span></code>.</p>
+<p>So the verb’s object is always the current layer: for a transfer, make current the layer
+that receives and pick where it comes from; for an alignment, the layer that moves and what
+it moves onto; for a distance or a selection, the layer that gets the values and what it is
+measured against. A filter that changes neither layer – it creates one, or only reports –
+is not bound by this.</p>
+<p><code class="docutils literal notranslate"><span class="pre">FilterDescriptorTests::twoLayerFiltersChangeTheCurrentLayer</span></code> refuses a <code class="docutils literal notranslate"><span class="pre">ModifyCurrentMesh</span></code>
+filter with two mesh parameters, or with one that defaults to the current layer: both are
+how a filter names the layer it changes. Its exception table holds the parameters that may
+default to the current layer without naming the changed one – a surface to project onto,
+by default the layer’s own (<em>Remesh Isotropically</em>, the two MLS projections), and the layer
+held fixed by the whole-document aligners – and fails the run in both directions. The
+migration that brought 15 filters under the rule is recorded in
+<a class="reference internal" href="history/two_layer_filters.html"><span class="std std-doc">two_layer_filters.md</span></a>.</p>
+<p>A scoped filter (<code class="docutils literal notranslate"><span class="pre">selectionScope</span></code>) confines itself on the current layer’s selection, which
+under this rule is always the layer it changes.</p>
 </section>
 <section id="texturename">
 <h3><code class="docutils literal notranslate"><span class="pre">textureName</span></code><a class="headerlink" href="#texturename" title="Link to this heading">¶</a></h3>
@@ -1445,6 +1460,7 @@ specific release-management reason?</p></li>
 </li>
 <li><a class="reference internal" href="#parameter-naming-rules">Parameter Naming Rules</a><ul>
 <li><a class="reference internal" href="#a-single-mesh-filter-works-on-the-current-layer">A single-mesh filter works on the current layer</a></li>
+<li><a class="reference internal" href="#a-filter-that-reads-two-layers-changes-the-current-one">A filter that reads two layers changes the current one</a></li>
 <li><a class="reference internal" href="#texturename"><code class="docutils literal notranslate"><span class="pre">textureName</span></code></a></li>
 <li><a class="reference internal" href="#randomseed"><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code></a></li>
 </ul>

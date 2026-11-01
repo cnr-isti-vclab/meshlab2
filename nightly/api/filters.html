@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 401 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 402 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -381,8 +381,7 @@
 <dd><p>Given a Mesh <b>M</b> and a Pointset <b>P</b>, The filter project each vertex of P over M and color M according to the Euclidean distance from these projected points. Projection and coloring are done on a per vertex basis.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>ColoredMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh whose vertices will be colored.</p></li>
-<li><p><strong>VertexMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The point cloud whose vertices are used as disk centers.</p></li>
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The point cloud whose vertices are used as disk centers.</p></li>
 <li><p><strong>Radius</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiagTenth</span></code>) — Disk radius around each point-cloud seed.</p></li>
 <li><p><strong>SampleRadius</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Use the per-vertex quality of the seed cloud as the disk radius.</p></li>
 <li><p><strong>ApproximateGeodetic</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Weight the Euclidean distance by the normal difference between the two points.</p></li>
@@ -445,8 +444,7 @@
 <dd><p>Given a Mesh <b>M</b> and a Pointset <b>P</b>, The filter project each vertex of P over M and color M according to the geodesic distance from these projected points. Projection and coloring are done on a per vertex basis.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>ColoredMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh whose surface will be colored.</p></li>
-<li><p><strong>VertexMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The point cloud whose vertices are used as Voronoi seeds.</p></li>
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The point cloud whose vertices are used as Voronoi seeds.</p></li>
 <li><p><strong>backward</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Color according to the distance from the Voronoi frontier instead of from the seed.</p></li>
 </ul>
 </dd></dl>
@@ -1797,7 +1795,6 @@ Insert three function each one for quality of the three vertex of a face</p>
 <p>Compare with <em>Measure Hausdorff Distance</em>, which reports a single worst-case number, and <em>Measure Chamfer Distance (TrueForm)</em>, which reports a mean.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose vertices are measured.</p></li>
 <li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The closed surface distances are measured to.</p></li>
 <li><p><strong>unsigned</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Store absolute distance, discarding inside/outside.</p></li>
 </ul>
@@ -4037,91 +4034,21 @@ Transformations are preserved. Existing layers can be optionally deleted.</p>
 
 <hr class="docutils" />
 </section>
-<section id="align-by-bounding-box-trueform">
-<span id="filter-align-by-bounding-box-trueform"></span><h2>Align by Bounding Box (TrueForm)<a class="headerlink" href="#align-by-bounding-box-trueform" title="Link to this heading">¶</a></h2>
+<section id="align-layer-to-reference-by-bounding-box-trueform">
+<span id="filter-align-layer-to-reference-by-bounding-box-trueform"></span><h2>Align Layer to Reference by Bounding Box (TrueForm)<a class="headerlink" href="#align-layer-to-reference-by-bounding-box-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Alignment</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.trueform</p>
 <p>Coarsely align one layer to another by matching their oriented bounding boxes.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="meshlab.ms.align_by_bounding_box_trueform">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">align_by_bounding_box_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.align_by_bounding_box_trueform" title="Link to this definition">¶</a></dt>
-<dd><p>Aligns the source layer to the reference by fitting their <strong>oriented bounding boxes</strong>. It needs no initial guess and no correspondences, and it is fast, which makes it the natural first step before ICP — <em>Align by ICP</em> can run it for you.</p>
+<dt class="sig sig-object py" id="meshlab.ms.align_layer_to_reference_by_bounding_box_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">align_layer_to_reference_by_bounding_box_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.align_layer_to_reference_by_bounding_box_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Aligns the current layer to the <strong>Reference Layer</strong> by fitting their <strong>oriented bounding boxes</strong>. It needs no initial guess and no correspondences, and it is fast, which makes it the natural first step before ICP — <em>Align Layer to Reference by ICP (TrueForm)</em> can run it for you.</p>
 <p>An oriented bounding box is only defined up to 180-degree flips about its axes, so the fit is ambiguous in principle. TrueForm resolves this by testing the candidate orientations against a spatial index of the reference and keeping the best.</p>
-<p>The result is written to the source layer’s <strong>matrix</strong>; vertex coordinates are not touched.</p>
+<p>The result is written to the current layer’s <strong>matrix</strong>; vertex coordinates are not touched.</p>
 <p>Implemented with TrueForm’s <code class="docutils literal notranslate"><span class="pre">fit_obb_alignment</span></code>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer that is moved.</p></li>
-<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The layer that stays put.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="align-by-icp-trueform">
-<span id="filter-align-by-icp-trueform"></span><h2>Align by ICP (TrueForm)<a class="headerlink" href="#align-by-icp-trueform" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Alignment</span></code></p>
-<p><strong>Plugin:</strong> meshlab2.filter.trueform</p>
-<p>Align one layer to another with iterative closest point, point-to-point or point-to-plane.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="meshlab.ms.align_by_icp_trueform">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">align_by_icp_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.align_by_icp_trueform" title="Link to this definition">¶</a></dt>
-<dd><p>Refines the alignment of the source layer onto the reference by <strong>iterative closest point</strong>.</p>
-<p><strong>Metric</strong> chooses the error being minimised:</p>
-<ul class="simple">
-<li><p><em>Point to point</em> — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.</p></li>
-<li><p><em>Point to plane</em> — measures each correspondence along the reference’s surface normal, so the source can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.</p></li>
-</ul>
-<p>ICP only refines <strong>locally</strong>: from a poor starting position it converges confidently to the wrong answer rather than failing. <strong>Coarse Initialization</strong> therefore runs <em>Align by Bounding Box (TrueForm)</em> first, which is usually enough to land in the right basin.</p>
-<p><strong>Samples</strong> subsamples the source each iteration, which is what keeps large clouds tractable; 0 uses every point. <strong>Outlier Proportion</strong> discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.</p>
-<p>The reported <strong>Chamfer residual</strong> is the mean one-way distance after alignment — useful for comparing runs.</p>
-<p>The result is written to the source layer’s <strong>matrix</strong>; vertex coordinates are not touched.</p>
-<p>Implemented with TrueForm’s <code class="docutils literal notranslate"><span class="pre">fit_icp_alignment</span></code>.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer that is moved.</p></li>
-<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The layer that stays put.</p></li>
-<li><p><strong>metric</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">point_to_plane</span></code>) — Point to plane converges faster on smooth surfaces; point to point is safer when the reference normals are unreliable.</p></li>
-<li><p><strong>coarseInit</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Run a bounding-box alignment first. Leave on unless the layers are already roughly registered.</p></li>
-<li><p><strong>maxIterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">50</span></code>) — Upper bound on ICP iterations.</p></li>
-<li><p><strong>samples</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1000</span></code>) — Source points sampled per iteration. 0 uses all of them, which is slower but deterministic.</p></li>
-<li><p><strong>minImprovement</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.001</span></code>) — Stop once the error improves by less than this fraction between iterations.</p></li>
-<li><p><strong>outlierProportion</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of the worst correspondences rejected each iteration. Raise it when the two layers only partly overlap.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="align-by-icp-vcglib">
-<span id="filter-align-by-icp-vcglib"></span><h2>Align by ICP (vcglib)<a class="headerlink" href="#align-by-icp-vcglib" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Alignment</span></code></p>
-<p><strong>Plugin:</strong> meshlab2.filter.icp</p>
-<p>Compute an ICP transform that aligns one mesh layer to another.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="meshlab.ms.align_by_icp_vcglib">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">align_by_icp_vcglib</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.align_by_icp_vcglib" title="Link to this definition">¶</a></dt>
-<dd><p>Perform Iterative Closest Point alignment between a fixed reference layer and a moving source layer. The source layer transform is updated; vertex coordinates are not baked. Existing layer transforms are used as the initial pose, so the alignment follows what is visible in the 3D view.</p>
-<p><strong>References:</strong></p>
-<ul class="simple">
-<li><p>Paul J. Besl, Neil D. McKay. <strong>A Method for Registration of 3-D Shapes</strong>. <em>IEEE Transactions on Pattern Analysis and Machine Intelligence</em> (1992). <a class="reference external" href="https://doi.org/10.1109/34.121791">DOI</a></p></li>
-</ul>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>ReferenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh kept fixed during ICP.</p></li>
-<li><p><strong>SourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The mesh whose transform will be updated to match the reference.</p></li>
-<li><p><strong>SampleNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">2000</span></code>) — Number of source samples used at each ICP iteration.</p></li>
-<li><p><strong>MinDistAbs</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">10.0</span></code>) — Initial maximum correspondence distance. Only source samples nearer than this value are used.</p></li>
-<li><p><strong>TrgDistAbs</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.005</span></code>) — ICP stops when the median sample distance goes below this value.</p></li>
-<li><p><strong>MaxIterNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">75</span></code>) — Maximum number of ICP iterations.</p></li>
-<li><p><strong>SampleMode</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Distribute samples uniformly with respect to normal directions instead of spatial random sampling.</p></li>
-<li><p><strong>ReduceFactorPerc</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.8</span></code>) — Percentile used to reduce the maximum correspondence distance at each iteration.</p></li>
-<li><p><strong>PassHiFilter</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.75</span></code>) — Discard samples farther than this percentile of the current correspondence distances.</p></li>
-<li><p><strong>MatchMode</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled, ICP solves only rotations and translations. If disabled, similarity matching may include scale.</p></li>
-<li><p><strong>UseVertexOnly</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Use closest vertices instead of closest points on faces. This is automatically used for point clouds.</p></li>
-<li><p><strong>MaxAngleDeg</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">45.0</span></code>) — Maximum angle, in degrees, between source and reference normals for accepted correspondences.</p></li>
-<li><p><strong>MinPointNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">30</span></code>) — Minimum number of accepted point pairs required for an ICP iteration to be valid.</p></li>
-<li><p><strong>SaveLastIteration</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Create two diagnostic point layers containing the last accepted source samples and their reference correspondences.</p></li>
-<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sub-sampling of the moving mesh exactly reproducible.</p></li>
+<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The layer that stays put; the current layer is moved onto it.</p></li>
 </ul>
 </dd></dl>
 
@@ -4150,6 +4077,28 @@ Transformations are preserved. Existing layers can be optionally deleted.</p>
 <li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The layer the current layer is moved onto. It stays put.</p></li>
 <li><p><strong>maxCorrespondenceDistance</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>) — Points further apart than this are never paired, in the layer’s units, and also as a percentage of the current layer’s bounding-box diagonal. Larger values tolerate a rougher starting alignment; too large lets distant surfaces pair with each other.</p></li>
 <li><p><strong>maxIterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">30</span></code>) — Upper bound on ICP iterations; it stops earlier once fitness and RMSE settle.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="align-layer-to-reference-by-corresponding-points-trueform">
+<span id="filter-align-layer-to-reference-by-corresponding-points-trueform"></span><h2>Align Layer to Reference by Corresponding Points (TrueForm)<a class="headerlink" href="#align-layer-to-reference-by-corresponding-points-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Alignment</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.trueform</p>
+<p>Align two layers whose vertices already correspond one to one, optionally solving for scale.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.align_layer_to_reference_by_corresponding_points_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">align_layer_to_reference_by_corresponding_points_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.align_layer_to_reference_by_corresponding_points_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Computes the transformation that best maps the current layer’s vertices onto the <strong>Reference Layer</strong>’s, assuming the two are already in <strong>one-to-one correspondence</strong>: same number of live vertices, in matching order. This is the Procrustes (Kabsch) fit.</p>
+<p>Use it when the correspondence is known by construction — two states of the same mesh, a mesh and its deformed copy, or point sets you have paired yourself. When the correspondence is unknown, use <em>Align Layer to Reference by ICP (TrueForm)</em> instead, which searches for it.</p>
+<p><strong>Allow Uniform Scale</strong> is the reason to reach for this filter over ICP: with correspondences given, scale can be solved for as well as rotation and translation, which no ICP variant here does. Leave it off for a rigid fit.</p>
+<p>The result is written to the current layer’s <strong>matrix</strong>; vertex coordinates are not touched.</p>
+<p>Implemented with TrueForm’s <code class="docutils literal notranslate"><span class="pre">fit_rigid_alignment</span></code> and <code class="docutils literal notranslate"><span class="pre">fit_similarity_alignment</span></code>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The layer that stays put; the current layer is moved onto it.</p></li>
+<li><p><strong>allowScale</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also solve for a single scale factor. Only possible because the correspondences are given rather than searched for.</p></li>
 </ul>
 </dd></dl>
 
@@ -4195,6 +4144,73 @@ Transformations are preserved. Existing layers can be optionally deleted.</p>
 <li><p><strong>maximumTupleCount</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1000</span></code>) — Upper bound on the compatible triples kept from the initial correspondences.</p></li>
 <li><p><strong>tupleTest</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Discard correspondence triples whose relative distances disagree between the two layers. Cheap, and it removes most wrong matches before the optimization starts.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the random sampling this method does. Zero draws a fresh seed each run and reports it, so a result can be reproduced afterwards by pinning that value. Two runs with the same seed give the same pose; two runs with different seeds may not.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="align-layer-to-reference-by-icp-trueform">
+<span id="filter-align-layer-to-reference-by-icp-trueform"></span><h2>Align Layer to Reference by ICP (TrueForm)<a class="headerlink" href="#align-layer-to-reference-by-icp-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Alignment</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.trueform</p>
+<p>Align one layer to another with iterative closest point, point-to-point or point-to-plane.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.align_layer_to_reference_by_icp_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">align_layer_to_reference_by_icp_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.align_layer_to_reference_by_icp_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Refines the alignment of the current layer onto the <strong>Reference Layer</strong> by <strong>iterative closest point</strong>.</p>
+<p><strong>Metric</strong> chooses the error being minimised:</p>
+<ul class="simple">
+<li><p><em>Point to point</em> — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.</p></li>
+<li><p><em>Point to plane</em> — measures each correspondence along the reference’s surface normal, so the current layer can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.</p></li>
+</ul>
+<p>ICP only refines <strong>locally</strong>: from a poor starting position it converges confidently to the wrong answer rather than failing. <strong>Coarse Initialization</strong> therefore runs <em>Align Layer to Reference by Bounding Box (TrueForm)</em> first, which is usually enough to land in the right basin.</p>
+<p><strong>Samples</strong> subsamples the current layer each iteration, which is what keeps large clouds tractable; 0 uses every point. <strong>Outlier Proportion</strong> discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.</p>
+<p>The reported <strong>Chamfer residual</strong> is the mean one-way distance after alignment — useful for comparing runs.</p>
+<p>The result is written to the current layer’s <strong>matrix</strong>; vertex coordinates are not touched.</p>
+<p>Implemented with TrueForm’s <code class="docutils literal notranslate"><span class="pre">fit_icp_alignment</span></code>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The layer that stays put; the current layer is moved onto it.</p></li>
+<li><p><strong>metric</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">point_to_plane</span></code>) — Point to plane converges faster on smooth surfaces; point to point is safer when the reference normals are unreliable.</p></li>
+<li><p><strong>coarseInit</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Run a bounding-box alignment first. Leave on unless the layers are already roughly registered.</p></li>
+<li><p><strong>maxIterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">50</span></code>) — Upper bound on ICP iterations.</p></li>
+<li><p><strong>samples</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1000</span></code>) — Source points sampled per iteration. 0 uses all of them, which is slower but deterministic.</p></li>
+<li><p><strong>minImprovement</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.001</span></code>) — Stop once the error improves by less than this fraction between iterations.</p></li>
+<li><p><strong>outlierProportion</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of the worst correspondences rejected each iteration. Raise it when the two layers only partly overlap.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="align-layer-to-reference-by-icp-vcglib">
+<span id="filter-align-layer-to-reference-by-icp-vcglib"></span><h2>Align Layer to Reference by ICP (vcglib)<a class="headerlink" href="#align-layer-to-reference-by-icp-vcglib" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Alignment</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.icp</p>
+<p>Compute an ICP transform that aligns the current layer to a reference layer.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.align_layer_to_reference_by_icp_vcglib">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">align_layer_to_reference_by_icp_vcglib</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.align_layer_to_reference_by_icp_vcglib" title="Link to this definition">¶</a></dt>
+<dd><p>Perform Iterative Closest Point alignment of the current layer, which moves, onto the <strong>Reference Mesh</strong>, which stays fixed. The current layer’s transform is updated; vertex coordinates are not baked. Existing layer transforms are used as the initial pose, so the alignment follows what is visible in the 3D view.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Paul J. Besl, Neil D. McKay. <strong>A Method for Registration of 3-D Shapes</strong>. <em>IEEE Transactions on Pattern Analysis and Machine Intelligence</em> (1992). <a class="reference external" href="https://doi.org/10.1109/34.121791">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The mesh kept fixed; the current layer is moved onto it.</p></li>
+<li><p><strong>SampleNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">2000</span></code>) — Number of source samples used at each ICP iteration.</p></li>
+<li><p><strong>MinDistAbs</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">10.0</span></code>) — Initial maximum correspondence distance. Only source samples nearer than this value are used.</p></li>
+<li><p><strong>TrgDistAbs</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.005</span></code>) — ICP stops when the median sample distance goes below this value.</p></li>
+<li><p><strong>MaxIterNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">75</span></code>) — Maximum number of ICP iterations.</p></li>
+<li><p><strong>SampleMode</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Distribute samples uniformly with respect to normal directions instead of spatial random sampling.</p></li>
+<li><p><strong>ReduceFactorPerc</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.8</span></code>) — Percentile used to reduce the maximum correspondence distance at each iteration.</p></li>
+<li><p><strong>PassHiFilter</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.75</span></code>) — Discard samples farther than this percentile of the current correspondence distances.</p></li>
+<li><p><strong>MatchMode</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled, ICP solves only rotations and translations. If disabled, similarity matching may include scale.</p></li>
+<li><p><strong>UseVertexOnly</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Use closest vertices instead of closest points on faces. This is automatically used for point clouds.</p></li>
+<li><p><strong>MaxAngleDeg</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">45.0</span></code>) — Maximum angle, in degrees, between source and reference normals for accepted correspondences.</p></li>
+<li><p><strong>MinPointNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">30</span></code>) — Minimum number of accepted point pairs required for an ICP iteration to be valid.</p></li>
+<li><p><strong>SaveLastIteration</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Create two diagnostic point layers containing the last accepted source samples and their reference correspondences.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sub-sampling of the moving mesh exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -4498,29 +4514,6 @@ Transformations are preserved. Existing layers can be optionally deleted.</p>
 
 <hr class="docutils" />
 </section>
-<section id="align-to-corresponding-points-trueform">
-<span id="filter-align-to-corresponding-points-trueform"></span><h2>Align to Corresponding Points (TrueForm)<a class="headerlink" href="#align-to-corresponding-points-trueform" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Alignment</span></code></p>
-<p><strong>Plugin:</strong> meshlab2.filter.trueform</p>
-<p>Align two layers whose vertices already correspond one to one, optionally solving for scale.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="meshlab.ms.align_to_corresponding_points_trueform">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">align_to_corresponding_points_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.align_to_corresponding_points_trueform" title="Link to this definition">¶</a></dt>
-<dd><p>Computes the transformation that best maps the source layer’s vertices onto the reference’s, assuming the two are already in <strong>one-to-one correspondence</strong>: same number of live vertices, in matching order. This is the Procrustes (Kabsch) fit.</p>
-<p>Use it when the correspondence is known by construction — two states of the same mesh, a mesh and its deformed copy, or point sets you have paired yourself. When the correspondence is unknown, use <em>Align by ICP</em> instead, which searches for it.</p>
-<p><strong>Allow Uniform Scale</strong> is the reason to reach for this filter over ICP: with correspondences given, scale can be solved for as well as rotation and translation, which no ICP variant here does. Leave it off for a rigid fit.</p>
-<p>The result is written to the source layer’s <strong>matrix</strong>; vertex coordinates are not touched.</p>
-<p>Implemented with TrueForm’s <code class="docutils literal notranslate"><span class="pre">fit_rigid_alignment</span></code> and <code class="docutils literal notranslate"><span class="pre">fit_similarity_alignment</span></code>.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer that is moved.</p></li>
-<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The layer that stays put.</p></li>
-<li><p><strong>allowScale</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also solve for a single scale factor. Only possible because the correspondences are given rather than searched for.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
 <section id="compute-vertex-coordinates-by-expression">
 <span id="filter-compute-vertex-coordinates-by-expression"></span><h2>Compute Vertex Coordinates by Expression<a class="headerlink" href="#compute-vertex-coordinates-by-expression" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Deformation</span></code></p>
@@ -4779,8 +4772,7 @@ You can change x,y,z for every vertex according to the function specified.</p>
 </ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>ControlMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The point set (or mesh) which defines the MLS surface.</p></li>
-<li><p><strong>ProxyMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh that will be projected/resampled onto the MLS surface.</p></li>
+<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The point set (or mesh) whose MLS surface the current layer is projected onto; by default the current layer itself.</p></li>
 <li><p><strong>FilterScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.</p></li>
 <li><p><strong>SphericalParameter</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Control the curvature of the fitted spheres: 0 is equivalent to a pure plane fit, 1 to a pure spherical fit, values between 0 and 1 give intermediate results, while other real values might give interesting results, but take care with extreme settings.</p></li>
 <li><p><strong>AccurateNormal</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If checked, use the accurate MLS gradient instead of the local approximation to compute the normals.</p></li>
@@ -4809,8 +4801,7 @@ You can change x,y,z for every vertex according to the function specified.</p>
 </ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>ControlMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The point set (or mesh) which defines the MLS surface.</p></li>
-<li><p><strong>ProxyMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh that will be projected/resampled onto the MLS surface.</p></li>
+<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The point set (or mesh) whose MLS surface the current layer is projected onto; by default the current layer itself.</p></li>
 <li><p><strong>FilterScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.</p></li>
 <li><p><strong>SigmaN</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.75</span></code>) — Width of the filter used by the normal refitting weight. This weight function is a Gaussian on the distance between two unit vectors: the current gradient and the input normal. Typical values range between 0.5 (sharp) and 2 (smooth).</p></li>
 <li><p><strong>MaxRefittingIters</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Max number of fitting iterations. (0 or 1 is equivalent to the standard IMLS).</p></li>
@@ -5341,11 +5332,10 @@ You can change x,y,z for every vertex according to the function specified.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_distance_from_reference_mesh">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_distance_from_reference_mesh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_distance_from_reference_mesh" title="Link to this definition">¶</a></dt>
-<dd><p>Compute the signed/unsigned (per vertex) distance between a mesh/pointcloud and a reference mesh/pointcloud. Distance is stored in vertex quality; after the filter runs MeshLab switches the measured mesh to vertex-quality color visualization without baking colors.</p>
+<dd><p>Compute the signed/unsigned (per vertex) distance of the current mesh/pointcloud from a reference mesh/pointcloud. Distance is stored in vertex quality; after the filter runs MeshLab switches the current mesh to vertex-quality color visualization without baking colors.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>MeasureMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh that will receive the computed distances in vertex quality.</p></li>
-<li><p><strong>RefMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The mesh or point cloud used as the reference.</p></li>
+<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The mesh or point cloud the current layer’s distances are measured from.</p></li>
 <li><p><strong>SignedDist</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled, compute a signed distance instead of the absolute value.</p></li>
 <li><p><strong>MaxDist</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code>) — Search is interrupted when nothing is found within this range.</p></li>
 </ul>
@@ -8534,7 +8524,6 @@ The filter visits a mesh face to face, reorienting any unvisited face so that it
 <p>The enclosing layer must be <strong>closed</strong> for inside to be meaningful. Enable <strong>Select Outside</strong> to invert the test.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose vertices are selected.</p></li>
 <li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The closed layer that defines inside.</p></li>
 <li><p><strong>selectOutside</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Select the vertices outside the enclosing layer instead.</p></li>
 <li><p><strong>mode</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">replace</span></code>) — Replace the current selection, or add to and subtract from it.</p></li>
@@ -9028,15 +9017,15 @@ Angle between face normal is considered signed according to convexity/concavity.
 
 <hr class="docutils" />
 </section>
-<section id="transfer-abstract-domain-to-another-layer">
-<span id="filter-transfer-abstract-domain-to-another-layer"></span><h2>Transfer Abstract Domain to Another Layer<a class="headerlink" href="#transfer-abstract-domain-to-another-layer" title="Link to this heading">¶</a></h2>
+<section id="transfer-abstract-domain-from-another-layer">
+<span id="filter-transfer-abstract-domain-from-another-layer"></span><h2>Transfer Abstract Domain from Another Layer<a class="headerlink" href="#transfer-abstract-domain-from-another-layer" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.isoparam</p>
 <p>Carry an abstract domain from one layer onto another, similar and aligned one, by closest point.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="meshlab.ms.transfer_abstract_domain_to_another_layer">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_abstract_domain_to_another_layer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.transfer_abstract_domain_to_another_layer" title="Link to this definition">¶</a></dt>
-<dd><p>Copies a layer’s abstract domain onto a second layer – typically the same object at a different resolution – by finding, for each target vertex, the closest point on the source parametrization and reading its domain position off that.</p>
+<dt class="sig sig-object py" id="meshlab.ms.transfer_abstract_domain_from_another_layer">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_abstract_domain_from_another_layer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.transfer_abstract_domain_from_another_layer" title="Link to this definition">¶</a></dt>
+<dd><p>Copies the abstract domain of the <strong>Source layer</strong> onto the current layer – typically the same object at a different resolution – by finding, for each target vertex, the closest point on the source parametrization and reading its domain position off that.</p>
 <p>This is a convenience rather than part of the original technique, and it inherits the limits of closest-point matching: the two layers must be reasonably similar in shape and already aligned, and nothing here registers them for you. Where the surfaces disagree the domain positions will follow the source’s geometry rather than the target’s.</p>
 <p>Unlike MeshLab, which moves the domain and leaves the source without one, the source <strong>keeps its own domain</strong> and the target gets an independent copy.</p>
 <p><strong>References:</strong></p>
@@ -9045,8 +9034,7 @@ Angle between face normal is considered signed according to convexity/concavity.
 </ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>) — The layer that already carries an abstract domain.</p></li>
-<li><p><strong>targetMesh</strong> (<em>mesh</em>) — The layer to receive the parametrization.</p></li>
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The layer that already carries an abstract domain; the current layer receives a copy.</p></li>
 </ul>
 </dd></dl>
 
@@ -9056,17 +9044,40 @@ Angle between face normal is considered signed according to convexity/concavity.
 <span id="filter-transfer-color-from-texture-to-vertex-by-closest-point"></span><h2>Transfer Color from Texture to Vertex by Closest Point<a class="headerlink" href="#transfer-color-from-texture-to-vertex-by-closest-point" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.texture</p>
-<p>Generate vertex colors by sampling texture colors from the same mesh or another mesh.</p>
+<p>Color the vertices of the current mesh by sampling the texture of a source mesh at the closest point.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.transfer_color_from_texture_to_vertex_by_closest_point">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_color_from_texture_to_vertex_by_closest_point</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.transfer_color_from_texture_to_vertex_by_closest_point" title="Link to this definition">¶</a></dt>
-<dd><p>Generates Vertex Color values picking color from a texture (same mesh or another mesh).</p>
+<dd><p>Gives each vertex of the current mesh the texture color of the closest point of the <strong>Source Mesh</strong>. The source may be the current mesh itself, to turn its own texture into vertex colors.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh with associated texture that we want to sample from.</p></li>
-<li><p><strong>targetMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The mesh whose vertex color will be filled according to source mesh texture.</p></li>
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The textured mesh to sample from; it can be the current mesh itself.</p></li>
 <li><p><strong>upperBound</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering color.</p></li>
 <li><p><strong>sourceTexture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Choose which associated source texture to sample. Automatic uses the source mesh per-face texture slot assignment.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="transfer-texture-to-texture-by-closest-point">
+<span id="filter-transfer-texture-to-texture-by-closest-point"></span><h2>Transfer Texture to Texture by Closest Point<a class="headerlink" href="#transfer-texture-to-texture-by-closest-point" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.texture</p>
+<p>Resample the texture of a source mesh into a texture of the current mesh, by closest point.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.transfer_texture_to_texture_by_closest_point">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_texture_to_texture_by_closest_point</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.transfer_texture_to_texture_by_closest_point" title="Link to this definition">¶</a></dt>
+<dd><p>For each texel of the current mesh, finds its point on the surface and the closest point of the <strong>Source Mesh</strong>, and writes there the source’s texture color. This re-textures a mesh after remeshing, simplification or a new parametrization: give the new mesh its UVs, make it current, and pick the textured original as the source.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The textured mesh to sample from.</p></li>
+<li><p><strong>sourceTexture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Which texture of the source mesh to sample. Automatic follows the source’s per-face texture assignment.</p></li>
+<li><p><strong>upperBound</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.</p></li>
+<li><p><strong>textureName</strong> (<em>string</em>, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.</p></li>
+<li><p><strong>textW</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture width.</p></li>
+<li><p><strong>textH</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture height.</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If the current mesh has textures, replace their images instead of adding new textures. Their files are left alone.</p></li>
+<li><p><strong>pullpush</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.</p></li>
 </ul>
 </dd></dl>
 
@@ -9080,13 +9091,12 @@ Angle between face normal is considered signed according to convexity/concavity.
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.transfer_vertex_attributes_by_closest_point">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_vertex_attributes_by_closest_point</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.transfer_vertex_attributes_by_closest_point" title="Link to this definition">¶</a></dt>
-<dd><p>Transfer the chosen per-vertex attributes from one layer to another. Useful to transfer attributes to different representations of a same object.<br />
-For each vertex of the target mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the target vertex.<br />
+<dd><p>Transfer the chosen per-vertex attributes from the <strong>Source mesh</strong> to the current mesh. Useful to transfer attributes to different representations of a same object.<br />
+For each vertex of the current mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the vertex.<br />
 The algorithm assumes that the two meshes are reasonably similar and aligned.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>SourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh that provides the attributes to transfer.</p></li>
-<li><p><strong>TargetMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The mesh whose vertices receive the transferred attributes.</p></li>
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The mesh that provides the attributes to transfer to the current one.</p></li>
 <li><p><strong>VertexSampling</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, transfer attributes from the closest source vertex instead of the closest point on the source surface.</p></li>
 <li><p><strong>GeomTransfer</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Snap target vertices onto the corresponding closest point on the source.</p></li>
 <li><p><strong>NormalTransfer</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Transfer interpolated normals from the source.</p></li>
@@ -9105,23 +9115,21 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <span id="filter-transfer-vertex-attributes-to-texture-by-closest-point"></span><h2>Transfer Vertex Attributes to Texture by Closest Point<a class="headerlink" href="#transfer-vertex-attributes-to-texture-by-closest-point" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.texture</p>
-<p>Transfer texture color, vertex color, normals, or quality from one mesh into another mesh texture.</p>
+<p>Bake vertex color, normals or scalar of a source mesh into a texture of the current mesh, by closest point.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.transfer_vertex_attributes_to_texture_by_closest_point">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_vertex_attributes_to_texture_by_closest_point</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.transfer_vertex_attributes_to_texture_by_closest_point" title="Link to this definition">¶</a></dt>
-<dd><p>Transfer texture color, vertex color or normal from one mesh the texture of another mesh. This may be useful to restore detail lost in simplification, or resample a texture in a different parametrization.</p>
+<dd><p>For each texel of the current mesh, finds its point on the surface and the closest point of the <strong>Source Mesh</strong>, and writes there the interpolated vertex attribute chosen in <strong>Data Source</strong>. This may be useful to restore detail lost in simplification. To resample a texture onto another parametrization, use <em>Transfer Texture to Texture by Closest Point</em>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh that contains the source data that we want to transfer.</p></li>
-<li><p><strong>targetMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The mesh whose texture will be filled according to source mesh data.</p></li>
-<li><p><strong>AttributeEnum</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">vertex_color</span></code>) — Choose what attribute has to be transferred onto the target texture. You can choose between per-vertex attributes or transfer color information from source mesh texture.</p></li>
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The mesh whose vertex attributes are transferred.</p></li>
+<li><p><strong>AttributeEnum</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">vertex_color</span></code>) — The vertex attribute of the source mesh to write into the texture.</p></li>
 <li><p><strong>upperBound</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.</p></li>
 <li><p><strong>textureName</strong> (<em>string</em>, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.</p></li>
 <li><p><strong>textW</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture width.</p></li>
 <li><p><strong>textH</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture height.</p></li>
-<li><p><strong>overwrite</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If target mesh has associated textures, overwrite them instead of creating new files.</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If the current mesh has textures, replace their images instead of adding new textures. Their files are left alone.</p></li>
 <li><p><strong>pullpush</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.</p></li>
-<li><p><strong>sourceTexture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — When Texture Color is selected, choose which associated source texture to sample. Automatic uses the source mesh per-face texture slot assignment.</p></li>
 </ul>
 </dd></dl>
 
@@ -10091,24 +10099,28 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <li><a class="reference internal" href="#meshlab.ms.render_from_render_state_json"><code class="docutils literal notranslate"><span class="pre">ms.render_from_render_state_json()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#align-by-bounding-box-trueform">Align by Bounding Box (TrueForm)</a><ul>
-<li><a class="reference internal" href="#meshlab.ms.align_by_bounding_box_trueform"><code class="docutils literal notranslate"><span class="pre">ms.align_by_bounding_box_trueform()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#align-by-icp-trueform">Align by ICP (TrueForm)</a><ul>
-<li><a class="reference internal" href="#meshlab.ms.align_by_icp_trueform"><code class="docutils literal notranslate"><span class="pre">ms.align_by_icp_trueform()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#align-by-icp-vcglib">Align by ICP (vcglib)</a><ul>
-<li><a class="reference internal" href="#meshlab.ms.align_by_icp_vcglib"><code class="docutils literal notranslate"><span class="pre">ms.align_by_icp_vcglib()</span></code></a></li>
+<li><a class="reference internal" href="#align-layer-to-reference-by-bounding-box-trueform">Align Layer to Reference by Bounding Box (TrueForm)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.align_layer_to_reference_by_bounding_box_trueform"><code class="docutils literal notranslate"><span class="pre">ms.align_layer_to_reference_by_bounding_box_trueform()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#align-layer-to-reference-by-colored-icp-open3d">Align Layer to Reference by Colored ICP (Open3D)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.align_layer_to_reference_by_colored_icp_open3d"><code class="docutils literal notranslate"><span class="pre">ms.align_layer_to_reference_by_colored_icp_open3d()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#align-layer-to-reference-by-corresponding-points-trueform">Align Layer to Reference by Corresponding Points (TrueForm)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.align_layer_to_reference_by_corresponding_points_trueform"><code class="docutils literal notranslate"><span class="pre">ms.align_layer_to_reference_by_corresponding_points_trueform()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#align-layer-to-reference-by-fast-global-registration-open3d">Align Layer to Reference by Fast Global Registration (Open3D)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.align_layer_to_reference_by_fast_global_registration_open3d"><code class="docutils literal notranslate"><span class="pre">ms.align_layer_to_reference_by_fast_global_registration_open3d()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#align-layer-to-reference-by-icp-trueform">Align Layer to Reference by ICP (TrueForm)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.align_layer_to_reference_by_icp_trueform"><code class="docutils literal notranslate"><span class="pre">ms.align_layer_to_reference_by_icp_trueform()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#align-layer-to-reference-by-icp-vcglib">Align Layer to Reference by ICP (vcglib)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.align_layer_to_reference_by_icp_vcglib"><code class="docutils literal notranslate"><span class="pre">ms.align_layer_to_reference_by_icp_vcglib()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#align-layer-to-reference-by-point-to-plane-icp-open3d">Align Layer to Reference by Point-to-Plane ICP (Open3D)</a><ul>
@@ -10141,10 +10153,6 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#align-sets-by-ransac-feature-matching-open3d">Align Sets by RANSAC Feature Matching (Open3D)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.align_sets_by_ransac_feature_matching_open3d"><code class="docutils literal notranslate"><span class="pre">ms.align_sets_by_ransac_feature_matching_open3d()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#align-to-corresponding-points-trueform">Align to Corresponding Points (TrueForm)</a><ul>
-<li><a class="reference internal" href="#meshlab.ms.align_to_corresponding_points_trueform"><code class="docutils literal notranslate"><span class="pre">ms.align_to_corresponding_points_trueform()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#compute-vertex-coordinates-by-expression">Compute Vertex Coordinates by Expression</a><ul>
@@ -10951,12 +10959,16 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <li><a class="reference internal" href="#meshlab.ms.pack_texture_images"><code class="docutils literal notranslate"><span class="pre">ms.pack_texture_images()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#transfer-abstract-domain-to-another-layer">Transfer Abstract Domain to Another Layer</a><ul>
-<li><a class="reference internal" href="#meshlab.ms.transfer_abstract_domain_to_another_layer"><code class="docutils literal notranslate"><span class="pre">ms.transfer_abstract_domain_to_another_layer()</span></code></a></li>
+<li><a class="reference internal" href="#transfer-abstract-domain-from-another-layer">Transfer Abstract Domain from Another Layer</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.transfer_abstract_domain_from_another_layer"><code class="docutils literal notranslate"><span class="pre">ms.transfer_abstract_domain_from_another_layer()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#transfer-color-from-texture-to-vertex-by-closest-point">Transfer Color from Texture to Vertex by Closest Point</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.transfer_color_from_texture_to_vertex_by_closest_point"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_from_texture_to_vertex_by_closest_point()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#transfer-texture-to-texture-by-closest-point">Transfer Texture to Texture by Closest Point</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.transfer_texture_to_texture_by_closest_point"><code class="docutils literal notranslate"><span class="pre">ms.transfer_texture_to_texture_by_closest_point()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#transfer-vertex-attributes-by-closest-point">Transfer Vertex Attributes by Closest Point</a><ul>

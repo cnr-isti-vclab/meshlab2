@@ -171,7 +171,7 @@ left out on purpose, or pinned to a backend word.
 | save cameras | Export Cameras from Visible Rasters | verb synonym |
 | screenshot | Render from Render-State JSON | verb synonym |
 | unwrap xatlas | Parametrize by Atlas (xatlas) | synonym plus backend word |
-| register icp vcg | Align by ICP (vcglib) | synonym, prefix of *vcglib* |
+| register icp vcg | Align Layer to Reference by ICP (vcglib) | synonym, prefix of *vcglib* |
 | denoise point cloud normals | Smooth Point Cloud Normals | verb synonym |
 | texcoord distortion | Compute UV Distortion | noun synonym |
 | colour vert by quality | Colorize Vertices by Scalar | spelling and noun synonyms, prefix *color* of *colorize* |

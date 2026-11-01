@@ -394,10 +394,9 @@ re-checking by hand — 291 of 337 filters do.</p>
 <code class="docutils literal notranslate"><span class="pre">&quot;vertices&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;faces&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;edges&quot;</span></code>, the kind of element its algorithm restricts to —
 and <strong>no toggle of its own</strong>. The loader injects one <code class="docutils literal notranslate"><span class="pre">selectedOnly</span></code> bool, first and never
 advanced, labelled <em>Only selected vertices / faces / edges</em>; read it with
-<code class="docutils literal notranslate"><span class="pre">params.getBool(&quot;selectedOnly&quot;)</span></code>. A filter that confines some layer other than the
-current one names that mesh parameter in <code class="docutils literal notranslate"><span class="pre">selectionScopeMesh</span></code> (<em>Transfer Vertex
-Attributes</em> uses <code class="docutils literal notranslate"><span class="pre">TargetMesh</span></code>, the MLS projections <code class="docutils literal notranslate"><span class="pre">ProxyMesh</span></code>). Everything else is the
-framework’s (<code class="docutils literal notranslate"><span class="pre">src/plugins/selectionscope.h</span></code>):</p>
+<code class="docutils literal notranslate"><span class="pre">params.getBool(&quot;selectedOnly&quot;)</span></code>. The scope is always the current layer’s selection: a
+two-layer filter changes the current layer (<a class="reference internal" href="filter_organization.html"><span class="std std-doc">filter_organization.md</span></a>),
+so that is the one it confines itself on. Everything else is the framework’s (<code class="docutils literal notranslate"><span class="pre">src/plugins/selectionscope.h</span></code>):</p>
 <ul class="simple">
 <li><p><strong>Default</strong>: omitted, <code class="docutils literal notranslate"><span class="pre">selectedOnly</span></code> is on exactly when there is something to confine
 the filter to, in the panel, in Python and in a replayed compact call alike.</p></li>
