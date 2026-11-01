@@ -287,18 +287,32 @@ current layer), the projection reference of *Remesh Isotropically*, the samples 
 fit layer of *Create Grid*. That is all 17 filters with a single mesh parameter; the other
 30 with mesh parameters take two meshes.
 
-**Open3D pairwise aligners, 2026-10-15.** The five pairwise registrations —
-*Align by Point-to-Point ICP*, *Point-to-Plane ICP*, *Colored ICP*, *Feature Matching* and
-*Fast Global Registration*, all `(Open3D)` (renamed *Align Layer to Reference by ...* on
-2026-10-18, see [vocabulary](vocabulary.md) §4) — dropped `sourceMesh` and now take only
-`referenceMesh`: the current layer is the one that moves and the parameter names the layer
-it moves onto. Measured from their manifests before the change: each declared
-`inputDomain: SingleMesh` and `outputDomain: ModifyCurrentMesh`, and each `sourceMesh`
-defaulted to `@currentMeshIndex`, so the parameter named the layer the filter already
-declared it modified. The counts above predate this and were not re-measured. The five
-TrueForm aligners (*Align by Bounding Box*, *by ICP* and the others in `filter_trueform`)
-still take both parameters; they are the same pattern and were left alone because the
-request named Open3D only.
+**Open3D pairwise aligners, 2026-10-15.** The five pairwise registrations dropped
+`sourceMesh` and take only `referenceMesh`: the first filters migrated to the general rule
+below.
+
+### A filter that reads two layers changes the current one
+
+A filter that reads two layers and changes one changes the **current** layer, as a
+single-mesh filter does. The other layer is one mesh parameter, defaulting to
+`@otherMeshIndex`, named for its role: `sourceMesh` when it is read from, `referenceMesh`
+when the current layer is matched, measured or projected onto it. There is no parameter for
+the layer that changes. Such a filter declares `outputDomain: ModifyCurrentMesh`.
+
+So the verb's object is always the current layer: for a transfer, make current the layer
+that receives and pick where it comes from; for an alignment, the layer that moves and what
+it moves onto; for a distance or a selection, the layer that gets the values and what it is
+measured against. A filter that changes neither layer -- it creates one, or only reports --
+is not bound by this.
+
+`FilterDescriptorTests::twoLayerFiltersChangeTheCurrentLayer` refuses a `ModifyCurrentMesh`
+filter with two mesh parameters, or with one that defaults to the current layer: both are
+how a filter names the layer it changes. Its exception table holds the parameters that may
+default to the current layer without naming the changed one -- a surface to project onto,
+by default the layer's own (*Remesh Isotropically*, the two MLS projections), and the layer
+held fixed by the whole-document aligners -- and its pending table the filters not yet
+migrated ([two_layer_filters.md](proposals/two_layer_filters.md)). Both fail the run in
+both directions.
 
 ### `textureName`
 

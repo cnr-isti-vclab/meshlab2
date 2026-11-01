@@ -182,6 +182,7 @@ private slots:
     void selectionScopeIsDeclaredNotHandWritten();
     void transformResultIsDeclaredNotHandWritten();
     void singleMeshFiltersUseTheCurrentLayer();
+    void twoLayerFiltersChangeTheCurrentLayer();
     void layerCreatingFiltersDeclareAnOutputTag();
     void alignmentFiltersStateTheirStartingAlignment();
     void open3dLengthsAreScaleRelativeNotZeroMeansDerive();
@@ -875,6 +876,86 @@ void FilterDescriptorTests::transformResultIsDeclaredNotHandWritten()
 // telltale of the other pattern -- the mesh to work on picked in the form instead -- which
 // ten TrueForm filters had, with the current layer's requirements checked against a layer
 // the filter then ignored.
+// A filter that changes the current layer names the other layer, if it reads one, with one
+// mesh parameter that defaults to another layer (filter_organization.md, "A filter that
+// reads two layers changes the current one"). Two mesh parameters, or one defaulting to the
+// current layer, are how a filter names the layer it changes as a parameter -- which is how
+// five filters came to change the other layer while declaring the current one. Both tables
+// fail the run in both directions, so neither can rot.
+void FilterDescriptorTests::twoLayerFiltersChangeTheCurrentLayer()
+{
+    // Not migrated yet (docs/design/proposals/two_layer_filters.md, section 4); the next
+    // stages empty this.
+    static const QHash<QString, QString> pending = {
+        // 4.1, inverted: they change the layer the parameter names, the other one by default.
+        { QStringLiteral("transfer_vertex_attributes_to_texture_by_closest_point"), QStringLiteral("row 1") },
+        { QStringLiteral("transfer_color_from_texture_to_vertex_by_closest_point"), QStringLiteral("row 2") },
+        { QStringLiteral("transfer_vertex_attributes_by_closest_point"), QStringLiteral("row 3") },
+        { QStringLiteral("align_by_icp_vcglib"), QStringLiteral("row 4") },
+        { QStringLiteral("transfer_abstract_domain_to_another_layer"), QStringLiteral("row 5") },
+        // 4.2, the right layer, but named by a parameter.
+        { QStringLiteral("align_by_bounding_box_trueform"), QStringLiteral("row 6") },
+        { QStringLiteral("align_by_icp_trueform"), QStringLiteral("row 7") },
+        { QStringLiteral("align_to_corresponding_points_trueform"), QStringLiteral("row 8") },
+        { QStringLiteral("compute_signed_distance_to_mesh_trueform"), QStringLiteral("row 9") },
+        { QStringLiteral("select_vertices_inside_mesh_trueform"), QStringLiteral("row 10") },
+        { QStringLiteral("compute_distance_from_reference_mesh"), QStringLiteral("row 11") },
+        { QStringLiteral("colorize_vertices_by_voronoi_regions"), QStringLiteral("row 12") },
+        { QStringLiteral("colorize_vertices_by_disk_distance"), QStringLiteral("row 13") },
+        { QStringLiteral("project_vertices_onto_mls_surface_apss"), QStringLiteral("row 14") },
+        { QStringLiteral("project_vertices_onto_mls_surface_rimls"), QStringLiteral("row 15") },
+    };
+    // A mesh parameter that may default to the current layer, for good: it does not name the
+    // layer that changes.
+    static const QHash<QString, QString> exceptions = {
+        { QStringLiteral("remesh_isotropically_vcglib"),
+          QStringLiteral("the surface to project onto while remeshing; by default the layer's own") },
+        { QStringLiteral("align_meshes_globally_vcglib"),
+          QStringLiteral("moves every layer; the parameter names the one held fixed") },
+        { QStringLiteral("align_meshes_globally_open3d"),
+          QStringLiteral("moves every layer; the parameter names the one held fixed") },
+        { QStringLiteral("align_meshes_sequentially_open3d"),
+          QStringLiteral("moves every layer; the parameter names the one held fixed") },
+        { QStringLiteral("project_vertices_onto_mls_surface_apss"),
+          QStringLiteral("projecting a cloud onto its own MLS surface is the usual run (decision 3)") },
+        { QStringLiteral("project_vertices_onto_mls_surface_rimls"),
+          QStringLiteral("projecting a cloud onto its own MLS surface is the usual run (decision 3)") },
+    };
+
+    QStringList offenders;
+    QStringList stale;
+    for (const auto &info : m_infos) {
+        const MeshFilterDescriptor &d = info.descriptor;
+        if (d.outputDomain != MeshFilterOutputDomain::ModifyCurrentMesh)
+            continue;
+        int meshParameters = 0;
+        bool defaultsToCurrent = false;
+        for (const auto &p : d.parameters) {
+            if (p.type != MeshFilterParameterType::Mesh)
+                continue;
+            ++meshParameters;
+            // Defaults arrive resolved against the fixture: "@currentMeshIndex" is layer 0.
+            bool isIndex = false;
+            if (p.defaultValue.toInt(&isIndex) == m_doc.currentMeshIndex() && isIndex)
+                defaultsToCurrent = true;
+        }
+        const bool breaks = meshParameters > 1 || (defaultsToCurrent && !exceptions.contains(d.id));
+        if (breaks && !pending.contains(d.id))
+            offenders << d.id;
+        if (!breaks && pending.contains(d.id))
+            stale << d.id;
+        if (exceptions.contains(d.id) && !defaultsToCurrent)
+            stale << d.id;
+    }
+    QVERIFY2(offenders.isEmpty(),
+             qPrintable(QStringLiteral("filters naming the layer they change as a mesh parameter: %1")
+                            .arg(offenders.join(QStringLiteral(", ")))));
+    QVERIFY2(stale.isEmpty(),
+             qPrintable(QStringLiteral("listed but no longer breaking the rule, so take them out of "
+                                       "the pending or the exception table: %1")
+                            .arg(stale.join(QStringLiteral(", ")))));
+}
+
 void FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer()
 {
     QStringList offenders;
