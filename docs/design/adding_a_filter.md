@@ -151,10 +151,9 @@ A filter that can confine itself to the selection declares **`selectionScope`** 
 `"vertices"`, `"faces"` or `"edges"`, the kind of element its algorithm restricts to —
 and **no toggle of its own**. The loader injects one `selectedOnly` bool, first and never
 advanced, labelled *Only selected vertices / faces / edges*; read it with
-`params.getBool("selectedOnly")`. A filter that confines some layer other than the
-current one names that mesh parameter in `selectionScopeMesh` (*Transfer Vertex
-Attributes* uses `TargetMesh`, the MLS projections `ProxyMesh`). Everything else is the
-framework's (`src/plugins/selectionscope.h`):
+`params.getBool("selectedOnly")`. The scope is always the current layer's selection: a
+two-layer filter changes the current layer ([filter_organization.md](filter_organization.md)),
+so that is the one it confines itself on. Everything else is the framework's (`src/plugins/selectionscope.h`):
 
 - **Default**: omitted, `selectedOnly` is on exactly when there is something to confine
   the filter to, in the panel, in Python and in a replayed compact call alike.

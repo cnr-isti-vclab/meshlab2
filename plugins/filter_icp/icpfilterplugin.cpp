@@ -27,7 +27,7 @@ vcg::Box3d vcg::PointMatchingScale::b;
 
 namespace {
 
-constexpr QLatin1StringView kTwoMeshIcp("align_by_icp_vcglib");
+constexpr QLatin1StringView kTwoMeshIcp("align_layer_to_reference_by_icp_vcglib");
 constexpr QLatin1StringView kGlobalIcp("align_meshes_globally_vcglib");
 constexpr QLatin1StringView kOverlappingMeshes("measure_layer_overlap");
 
@@ -322,7 +322,7 @@ MeshFilterRunResult runTwoMeshIcp(const FilterParams &params, Document &doc)
     if (!referenceInvertible)
         return fail(QObject::tr("Reference mesh transform is not invertible."));
 
-    doc.beginFilterProgress(QObject::tr("Align by ICP (vcglib)"));
+    doc.beginFilterProgress(QObject::tr("Align Layer to Reference by ICP (vcglib)"));
     if (vcg::CallBackPos *cb = doc.progressCallback())
         (*cb)(5, "Preparing ICP alignment...");
 

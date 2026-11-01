@@ -32,10 +32,10 @@
   ],
   "filters": [
     {
-      "id": "align_by_icp_vcglib",
+      "id": "align_layer_to_reference_by_icp_vcglib",
       "categories": ["Geometry/Alignment"],
-      "name": "Align by ICP (vcglib)",
-      "pythonName": "align_by_icp_vcglib",
+      "name": "Align Layer to Reference by ICP (vcglib)",
+      "pythonName": "align_layer_to_reference_by_icp_vcglib",
       "shortDescription": "Compute an ICP transform that aligns the current layer to a reference layer.",
       "longDescriptionMarkdown": "Perform Iterative Closest Point alignment of the current layer, which moves, onto the **Reference Mesh**, which stays fixed. The current layer's transform is updated; vertex coordinates are not baked. Existing layer transforms are used as the initial pose, so the alignment follows what is visible in the 3D view.",
       "referenceIds": ["besl1992"],

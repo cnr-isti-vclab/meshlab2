@@ -130,7 +130,7 @@ namespace {
 constexpr QLatin1StringView kFilterAbstractDomain("parametrize_by_abstract_domain");
 constexpr QLatin1StringView kFilterRemesh("remesh_by_abstract_domain");
 constexpr QLatin1StringView kFilterAtlas("create_atlased_mesh_from_abstract_domain");
-constexpr QLatin1StringView kFilterTransfer("transfer_abstract_domain_to_another_layer");
+constexpr QLatin1StringView kFilterTransfer("transfer_abstract_domain_from_another_layer");
 constexpr QLatin1StringView kFilterMeasure("measure_abstract_domain");
 const QString kDomainKey = QStringLiteral("meshlab2.filter.isoparam/abstract_domain");
 
@@ -622,7 +622,7 @@ MeshFilterRunResult runTransfer(const FilterParams &params, Document &doc)
     if (target.mesh.FN() <= 0)
         return fail(QObject::tr("The target layer needs faces."));
 
-    doc.beginFilterProgress(QObject::tr("Transfer Abstract Domain to Another Layer"));
+    doc.beginFilterProgress(QObject::tr("Transfer Abstract Domain from Another Layer"));
 
     VCGMeshFFAdjScope ffAdj(target.mesh);
     VCGMeshMarkScope faceMark(target.mesh);

@@ -18,14 +18,14 @@
   ],
   "filters": [
     {
-      "id": "align_by_bounding_box_trueform",
+      "id": "align_layer_to_reference_by_bounding_box_trueform",
       "categories": [
         "Geometry/Alignment"
       ],
-      "name": "Align by Bounding Box (TrueForm)",
-      "pythonName": "align_by_bounding_box_trueform",
+      "name": "Align Layer to Reference by Bounding Box (TrueForm)",
+      "pythonName": "align_layer_to_reference_by_bounding_box_trueform",
       "shortDescription": "Coarsely align one layer to another by matching their oriented bounding boxes.",
-      "longDescriptionMarkdown": "Aligns the source layer to the reference by fitting their **oriented bounding boxes**. It needs no initial guess and no correspondences, and it is fast, which makes it the natural first step before ICP — *Align by ICP* can run it for you.\n\nAn oriented bounding box is only defined up to 180-degree flips about its axes, so the fit is ambiguous in principle. TrueForm resolves this by testing the candidate orientations against a spatial index of the reference and keeping the best.\n\nThe result is written to the source layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_obb_alignment`.",
+      "longDescriptionMarkdown": "Aligns the current layer to the **Reference Layer** by fitting their **oriented bounding boxes**. It needs no initial guess and no correspondences, and it is fast, which makes it the natural first step before ICP — *Align Layer to Reference by ICP (TrueForm)* can run it for you.\n\nAn oriented bounding box is only defined up to 180-degree flips about its axes, so the fit is ambiguous in principle. TrueForm resolves this by testing the candidate orientations against a spatial index of the reference and keeping the best.\n\nThe result is written to the current layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_obb_alignment`.",
       "tags": [
         "trueform",
         "alignment",
@@ -41,17 +41,9 @@
       },
       "parameters": [
         {
-          "id": "sourceMesh",
-          "label": "Source Layer",
-          "help": "The layer that is moved.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        },
-        {
           "id": "referenceMesh",
           "label": "Reference Layer",
-          "help": "The layer that stays put.",
+          "help": "The layer that stays put; the current layer is moved onto it.",
           "group": "main",
           "type": "mesh",
           "default": "@otherMeshIndex"
@@ -65,14 +57,14 @@
       ]
     },
     {
-      "id": "align_by_icp_trueform",
+      "id": "align_layer_to_reference_by_icp_trueform",
       "categories": [
         "Geometry/Alignment"
       ],
-      "name": "Align by ICP (TrueForm)",
-      "pythonName": "align_by_icp_trueform",
+      "name": "Align Layer to Reference by ICP (TrueForm)",
+      "pythonName": "align_layer_to_reference_by_icp_trueform",
       "shortDescription": "Align one layer to another with iterative closest point, point-to-point or point-to-plane.",
-      "longDescriptionMarkdown": "Refines the alignment of the source layer onto the reference by **iterative closest point**.\n\n**Metric** chooses the error being minimised:\n\n- *Point to point* — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.\n- *Point to plane* — measures each correspondence along the reference's surface normal, so the source can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.\n\nICP only refines **locally**: from a poor starting position it converges confidently to the wrong answer rather than failing. **Coarse Initialization** therefore runs *Align by Bounding Box (TrueForm)* first, which is usually enough to land in the right basin.\n\n**Samples** subsamples the source each iteration, which is what keeps large clouds tractable; 0 uses every point. **Outlier Proportion** discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.\n\nThe reported **Chamfer residual** is the mean one-way distance after alignment — useful for comparing runs.\n\nThe result is written to the source layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_icp_alignment`.",
+      "longDescriptionMarkdown": "Refines the alignment of the current layer onto the **Reference Layer** by **iterative closest point**.\n\n**Metric** chooses the error being minimised:\n\n- *Point to point* — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.\n- *Point to plane* — measures each correspondence along the reference's surface normal, so the current layer can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.\n\nICP only refines **locally**: from a poor starting position it converges confidently to the wrong answer rather than failing. **Coarse Initialization** therefore runs *Align Layer to Reference by Bounding Box (TrueForm)* first, which is usually enough to land in the right basin.\n\n**Samples** subsamples the current layer each iteration, which is what keeps large clouds tractable; 0 uses every point. **Outlier Proportion** discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.\n\nThe reported **Chamfer residual** is the mean one-way distance after alignment — useful for comparing runs.\n\nThe result is written to the current layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_icp_alignment`.",
       "tags": [
         "trueform",
         "alignment",
@@ -88,17 +80,9 @@
       },
       "parameters": [
         {
-          "id": "sourceMesh",
-          "label": "Source Layer",
-          "help": "The layer that is moved.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        },
-        {
           "id": "referenceMesh",
           "label": "Reference Layer",
-          "help": "The layer that stays put.",
+          "help": "The layer that stays put; the current layer is moved onto it.",
           "group": "main",
           "type": "mesh",
           "default": "@otherMeshIndex"
@@ -180,14 +164,14 @@
       ]
     },
     {
-      "id": "align_to_corresponding_points_trueform",
+      "id": "align_layer_to_reference_by_corresponding_points_trueform",
       "categories": [
         "Geometry/Alignment"
       ],
-      "name": "Align to Corresponding Points (TrueForm)",
-      "pythonName": "align_to_corresponding_points_trueform",
+      "name": "Align Layer to Reference by Corresponding Points (TrueForm)",
+      "pythonName": "align_layer_to_reference_by_corresponding_points_trueform",
       "shortDescription": "Align two layers whose vertices already correspond one to one, optionally solving for scale.",
-      "longDescriptionMarkdown": "Computes the transformation that best maps the source layer's vertices onto the reference's, assuming the two are already in **one-to-one correspondence**: same number of live vertices, in matching order. This is the Procrustes (Kabsch) fit.\n\nUse it when the correspondence is known by construction — two states of the same mesh, a mesh and its deformed copy, or point sets you have paired yourself. When the correspondence is unknown, use *Align by ICP* instead, which searches for it.\n\n**Allow Uniform Scale** is the reason to reach for this filter over ICP: with correspondences given, scale can be solved for as well as rotation and translation, which no ICP variant here does. Leave it off for a rigid fit.\n\nThe result is written to the source layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_rigid_alignment` and `fit_similarity_alignment`.",
+      "longDescriptionMarkdown": "Computes the transformation that best maps the current layer's vertices onto the **Reference Layer**'s, assuming the two are already in **one-to-one correspondence**: same number of live vertices, in matching order. This is the Procrustes (Kabsch) fit.\n\nUse it when the correspondence is known by construction — two states of the same mesh, a mesh and its deformed copy, or point sets you have paired yourself. When the correspondence is unknown, use *Align Layer to Reference by ICP (TrueForm)* instead, which searches for it.\n\n**Allow Uniform Scale** is the reason to reach for this filter over ICP: with correspondences given, scale can be solved for as well as rotation and translation, which no ICP variant here does. Leave it off for a rigid fit.\n\nThe result is written to the current layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_rigid_alignment` and `fit_similarity_alignment`.",
       "tags": [
         "trueform",
         "alignment",
@@ -204,17 +188,9 @@
       },
       "parameters": [
         {
-          "id": "sourceMesh",
-          "label": "Source Layer",
-          "help": "The layer that is moved.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        },
-        {
           "id": "referenceMesh",
           "label": "Reference Layer",
-          "help": "The layer that stays put.",
+          "help": "The layer that stays put; the current layer is moved onto it.",
           "group": "main",
           "type": "mesh",
           "default": "@otherMeshIndex"
@@ -854,14 +830,6 @@
       ],
       "parameters": [
         {
-          "id": "sourceMesh",
-          "label": "Layer",
-          "help": "The layer whose vertices are measured.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        },
-        {
           "id": "referenceMesh",
           "label": "Reference Surface",
           "help": "The closed surface distances are measured to.",
@@ -904,14 +872,6 @@
         "crop"
       ],
       "parameters": [
-        {
-          "id": "sourceMesh",
-          "label": "Layer",
-          "help": "The layer whose vertices are selected.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex"
-        },
         {
           "id": "referenceMesh",
           "label": "Enclosing Layer",

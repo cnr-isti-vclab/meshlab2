@@ -1143,8 +1143,9 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterDistanceFromReference)) {
-        const int measuredMeshIndex = meshIndexFromParam(params, QStringLiteral("MeasureMesh"), doc);
-        const int referenceMeshIndex = meshIndexFromParam(params, QStringLiteral("RefMesh"), doc);
+        // The current layer gets the distances from the reference.
+        const int measuredMeshIndex = doc.currentMeshIndex();
+        const int referenceMeshIndex = params.getMesh(QStringLiteral("referenceMesh"), -1);
         if (measuredMeshIndex == referenceMeshIndex)
             return failResult(QObject::tr("Distance from reference requires two different meshes."));
 
@@ -1368,8 +1369,8 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterVoronoiColoring)) {
-        const int coloredMeshIndex = meshIndexFromParam(params, QStringLiteral("ColoredMesh"), doc);
-        const int vertexMeshIndex = meshIndexFromParam(params, QStringLiteral("VertexMesh"), doc);
+        const int coloredMeshIndex = doc.currentMeshIndex();
+        const int vertexMeshIndex = params.getMesh(QStringLiteral("sourceMesh"), -1);
 
         Document::MeshEntry &coloredEntry = doc.mesh(coloredMeshIndex);
         const Document::MeshEntry &vertexEntry = doc.mesh(vertexMeshIndex);
@@ -1415,8 +1416,8 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterDiskColoring)) {
-        const int coloredMeshIndex = meshIndexFromParam(params, QStringLiteral("ColoredMesh"), doc);
-        const int vertexMeshIndex = meshIndexFromParam(params, QStringLiteral("VertexMesh"), doc);
+        const int coloredMeshIndex = doc.currentMeshIndex();
+        const int vertexMeshIndex = params.getMesh(QStringLiteral("sourceMesh"), -1);
 
         Document::MeshEntry &coloredEntry = doc.mesh(coloredMeshIndex);
         const Document::MeshEntry &vertexEntry = doc.mesh(vertexMeshIndex);

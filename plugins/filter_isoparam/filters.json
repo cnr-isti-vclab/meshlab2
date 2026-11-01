@@ -336,9 +336,9 @@
       ]
     },
     {
-      "id": "transfer_abstract_domain_to_another_layer",
-      "pythonName": "transfer_abstract_domain_to_another_layer",
-      "name": "Transfer Abstract Domain to Another Layer",
+      "id": "transfer_abstract_domain_from_another_layer",
+      "pythonName": "transfer_abstract_domain_from_another_layer",
+      "name": "Transfer Abstract Domain from Another Layer",
       "categories": [
         "Transfer/Between Layers"
       ],

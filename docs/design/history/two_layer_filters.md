@@ -1,16 +1,16 @@
-# Two-layer filters modify the current layer (draft, 2026-10-31)
+# Two-layer filters change the current layer, applied 2026-11-01
 
-**Status: approved 2026-11-01 (section 6). Stages 1 (the rule and the test) and 2 (the
-inverted filters and the split) implemented 2026-11-01; stage 3 not yet.**
+How the rule that a filter reading two layers and changing one changes the current layer
+came to be written down and applied. Drafted on 2026-10-31 as a proposal, approved on
+2026-11-01 (section 6), and applied the same day in three stages (section 5), with the
+split of *Transfer Vertex Attributes to Texture by Closest Point* and five renames. The rule
+in force is in [filter_organization.md](../filter_organization.md), enforced by
+`FilterDescriptorTests::twoLayerFiltersChangeTheCurrentLayer`; this records the
+measurement and the decisions behind it. Sections 2 to 4 are the design as approved; where
+the implementation differed, section 5 says so.
 
-A filter that reads two layers and changes one should change the **current** layer, and
-take the other through a single mesh parameter. That is how the single-mesh filters work
-since 2026-09-29 and how the five Open3D aligners work since 2026-10-15, but it is written
-down only for those cases, and a dozen filters do it some other way -- four of them the
-opposite way. This draft states the rule, measures every filter against it, and proposes
-splitting *Transfer Vertex Attributes to Texture by Closest Point* on the way.
+## 1. What there was
 
-## 1. What is there today
 
 [filter_organization.md](../filter_organization.md), "A single-mesh filter works on the current
 layer", says that a filter working on one mesh takes it from the current layer and that a
@@ -136,8 +136,28 @@ mesh parameter for the other. Their parameter names are left for the vocabulary 
 | 19 | `inputDomain` of rows 1-5, 11-15 | `WholeDocument` → `SingleMesh`, as their outputs already say `ModifyCurrentMesh` |
 | 20 | tests | rows 1, 2, 11-13 have no behavioural test today (no test names them); each gets one that runs with the current layer as target, as the migration's measurement |
 
+### 4.5 Renames (approved 2026-11-01)
+
+Once the current layer is the one that changes, two names read wrong, and the pairwise
+aligners fall under vocabulary.md's 2026-10-18 ruling (`Align Layer to Reference by
+<Method>`), which was applied to the Open3D ones only because that request named Open3D.
+
+| # | current id / name | new id / name | why |
+|---|---|---|---|
+| 21 | `transfer_abstract_domain_to_another_layer` / *Transfer Abstract Domain to Another Layer* | `transfer_abstract_domain_from_another_layer` / *Transfer Abstract Domain from Another Layer* | the current layer receives |
+| 22 | `align_by_icp_vcglib` / *Align by ICP (vcglib)* | `align_layer_to_reference_by_icp_vcglib` / *Align Layer to Reference by ICP (vcglib)* | the ruling |
+| 23 | `align_by_bounding_box_trueform` / *Align by Bounding Box (TrueForm)* | `align_layer_to_reference_by_bounding_box_trueform` / *Align Layer to Reference by Bounding Box (TrueForm)* | the ruling |
+| 24 | `align_by_icp_trueform` / *Align by ICP (TrueForm)* | `align_layer_to_reference_by_icp_trueform` / *Align Layer to Reference by ICP (TrueForm)* | the ruling |
+| 25 | `align_to_corresponding_points_trueform` / *Align to Corresponding Points (TrueForm)* | `align_layer_to_reference_by_corresponding_points_trueform` / *Align Layer to Reference by Corresponding Points (TrueForm)* | the ruling |
+
+References measured with `git grep` outside `history/`: the manifest `id`, `pythonName` and
+`name`, the plugin's id constant and its progress title, the tests that look the filter up
+by id (`test_filters.cpp` 11 places, `test_filter_smoke.cpp` 1, `test_filter_descriptors.cpp`
+the pending table and the reference query `register icp vcg`), and filter_search.md's
+reference-query table. No alias for the old ids or Python names, as agreed.
+
 **Totals:** 5 inverted + 10 parameterised + 1 row for the ten that conform + 4 framework
-items = **20 rows**; plus the split of row 1 into two filters.
+items = **20 rows**; plus the split of row 1 into two filters, and the 5 renames of 4.5.
 
 Python: every script that passes the dropped parameters changes. The parameter ids are the
 Python keywords, so `TargetMesh=`, `MeasureMesh=`, `ColoredMesh=`, `SourceMesh=` on ICP and
@@ -182,9 +202,20 @@ the `sourceMesh=` of rows 6-10 go; a script sets the current layer instead
    another layer into the current one, so its name reads backwards; and *Align by ICP
    (vcglib)* now works as the Open3D *Align Layer to Reference by ...* filters do, under a
    different name.
-3. **Parameterised filters** (rows 6-15). With the MLS projections migrated nothing uses
-   `selectionScopeMesh` any more, so the field, its loader check and the filter panel's
-   handling go too.
+3. **Parameterised filters** (rows 6-15) and the renames of 4.5. **Done 2026-11-01.** The
+   five TrueForm filters dropped `sourceMesh`; *Compute Distance from Reference Mesh* dropped
+   `MeasureMesh` and reads `referenceMesh`; the two *Colorize Vertices* filters dropped
+   `ColoredMesh` and read `sourceMesh`; the MLS projections dropped `ProxyMesh`, and the
+   point set is `referenceMesh`, still defaulting to the current layer. The ones that
+   declared `WholeDocument` declare `SingleMesh`. The five renames of 4.5 were applied,
+   with the descriptions that named the old filters. With no filter left that confines
+   another layer, `selectionScopeMesh` was removed -- the descriptor field, the loader,
+   the framework's resolution, the filter panel's handling and the descriptor check, which
+   now refuses the key so a manifest cannot carry it silently. The test's pending table
+   went with the last migration; its exception table stays. *Measure Chamfer Distance
+   (TrueForm)* keeps `sourceMesh` beside `referenceMesh`: it only reports, so the rule
+   does not bind it. Tests: the four TrueForm tests set the current layer;
+   `samplingTwoLayerFiltersWriteTheCurrentLayer` is new for rows 11-13, which had none.
 
 ## 6. Decisions (2026-11-01)
 

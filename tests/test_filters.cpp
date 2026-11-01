@@ -559,6 +559,7 @@ private slots:
     void foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds();
     void textureFiltersWriteNoFile();
     void closestPointTransfersWriteTheCurrentLayer();
+    void samplingTwoLayerFiltersWriteTheCurrentLayer();
     void aThinFoldedUvTriangleIsFoundWhereFloatArithmeticMissesIt();
     void measureUvMappingAgreesWithTexMetroOnARealAtlas();
     void measureTexelCoverageCountsAKnownLayoutExactly();
@@ -775,7 +776,7 @@ void FilterTests::filterRegistryExposesBuiltins()
         hasSolidWireframe =
             hasSolidWireframe || (info.descriptor.id == QStringLiteral("create_solid_wireframe"));
         hasTwoMeshIcp =
-            hasTwoMeshIcp || (info.descriptor.id == QStringLiteral("align_by_icp_vcglib"));
+            hasTwoMeshIcp || (info.descriptor.id == QStringLiteral("align_layer_to_reference_by_icp_vcglib"));
         hasGlobalIcp =
             hasGlobalIcp || (info.descriptor.id == QStringLiteral("align_meshes_globally_vcglib"));
         hasOverlapGraph =
@@ -3833,9 +3834,9 @@ void FilterTests::trueFormAlignmentRecoversAKnownTransform()
     for (const auto &info : doc.filterInfos()) {
         const QString id = info.descriptor.id;
         if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
-        else if (id == QStringLiteral("align_by_bounding_box_trueform")) obbKey = info.key;
-        else if (id == QStringLiteral("align_by_icp_trueform")) icpKey = info.key;
-        else if (id == QStringLiteral("align_to_corresponding_points_trueform")) correspondingKey = info.key;
+        else if (id == QStringLiteral("align_layer_to_reference_by_bounding_box_trueform")) obbKey = info.key;
+        else if (id == QStringLiteral("align_layer_to_reference_by_icp_trueform")) icpKey = info.key;
+        else if (id == QStringLiteral("align_layer_to_reference_by_corresponding_points_trueform")) correspondingKey = info.key;
     }
     QVERIFY(!sphereKey.isEmpty());
     if (icpKey.isEmpty())
@@ -3875,8 +3876,9 @@ void FilterTests::trueFormAlignmentRecoversAKnownTransform()
     };
     QVERIFY2(maxDeviation() > 0.1f * diagonal, "the displacement should start far off");
 
+    // The current layer moves onto the reference.
+    doc.setCurrentMeshIndex(sourceIndex);
     MeshFilterParameterValues shared;
-    shared.insert(QStringLiteral("sourceMesh"), sourceIndex);
     shared.insert(QStringLiteral("referenceMesh"), referenceIndex);
 
     // Exact correspondences: this must land essentially on top of the original.
@@ -7163,8 +7165,8 @@ void FilterTests::trueFormDistanceAndContainment()
     shrink.scale(side * 0.2f / doc.mesh(sphere).mesh.bbox.Diag());
     doc.setMeshTransform(sphere, shrink);
 
+    doc.setCurrentMeshIndex(sphere);
     MeshFilterParameterValues p;
-    p.insert(QStringLiteral("sourceMesh"), sphere);
     p.insert(QStringLiteral("referenceMesh"), box);
 
     // Inside: every distance negative.
@@ -8052,8 +8054,8 @@ void FilterTests::trueFormSignedDistanceReportsExactMagnitudes()
     const int source = doc.addMesh(probes, QStringLiteral("Probes"),
                                    vcg::tri::io::Mask::IOM_VERTCOORD);
 
+    doc.setCurrentMeshIndex(source);
     MeshFilterParameterValues p;
-    p.insert(QStringLiteral("sourceMesh"), source);
     p.insert(QStringLiteral("referenceMesh"), reference);
     const MeshFilterRunResult r = doc.runFilter(key, p);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
@@ -8110,8 +8112,8 @@ void FilterTests::trueFormContainmentSelectionModesCompose()
         return bits;
     };
 
+    doc.setCurrentMeshIndex(source);
     MeshFilterParameterValues p;
-    p.insert(QStringLiteral("sourceMesh"), source);
     p.insert(QStringLiteral("referenceMesh"), reference);
     QVERIFY2(doc.runFilter(key, p).success, "containment failed");
     QCOMPARE(selection(), QStringLiteral("100"));
@@ -8519,7 +8521,7 @@ void FilterTests::icpBetweenPointCloudsUpdatesSourceTransform()
 
     QString icpKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("align_by_icp_vcglib")) {
+        if (info.descriptor.id == QStringLiteral("align_layer_to_reference_by_icp_vcglib")) {
             icpKey = info.key;
             break;
         }
@@ -9781,6 +9783,62 @@ void FilterTests::closestPointTransfersWriteTheCurrentLayer()
     // The source was only read.
     QCOMPARE(doc.meshStoredState(from), Document::StoredState::Stored);
     QCOMPARE(int(doc.mesh(from).textureAssets.size()), 1);
+}
+
+// Compute Distance from Reference Mesh and the two Colorize Vertices filters named the layer
+// they change as a parameter; it is now the current one, and the parameter names the other.
+// Each runs with the receiving layer current: its values change, and the other layer,
+// saved first, is only read.
+void FilterTests::samplingTwoLayerFiltersWriteTheCurrentLayer()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    Document doc;
+    VCGMesh surface;
+    makeOpenDiskMesh(surface);
+    const int receiver = doc.addMesh(surface, QStringLiteral("surface"),
+                                     vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTCOLOR
+                                         | vcg::tri::io::Mask::IOM_VERTQUALITY);
+    VCGMesh seeds;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(seeds, VCGMesh::CoordType(0.1f, 0.1f, 0.2f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(seeds, VCGMesh::CoordType(0.9f, 0.9f, 0.2f));
+    vcg::tri::UpdateBounding<VCGMesh>::Box(seeds);
+    const int other = doc.addMesh(seeds, QStringLiteral("seeds"), vcg::tri::io::Mask::IOM_VERTCOORD);
+    QCOMPARE(doc.saveMesh(other, dir.filePath(QStringLiteral("seeds.ply"))), 0);
+    doc.setCurrentMeshIndex(receiver);
+
+    const auto qualities = [&] {
+        std::vector<float> q;
+        for (const VCGVertex &v : doc.mesh(receiver).mesh.vert)
+            q.push_back(v.cQ());
+        return q;
+    };
+    for (VCGVertex &v : doc.mesh(receiver).mesh.vert)
+        v.Q() = -1.0f;
+    std::vector<float> before = qualities();
+    MeshFilterRunResult r = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("compute_distance_from_reference_mesh")),
+        { { QStringLiteral("referenceMesh"), other } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(qualities() != before);
+
+    for (VCGVertex &v : doc.mesh(receiver).mesh.vert)
+        v.C() = vcg::Color4b::White;
+    r = doc.runFilter(filterKeyForId(doc, QStringLiteral("colorize_vertices_by_voronoi_regions")),
+                      { { QStringLiteral("sourceMesh"), other } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    bool colored = false;
+    for (const VCGVertex &v : doc.mesh(receiver).mesh.vert)
+        colored = colored || v.cC() != vcg::Color4b(vcg::Color4b::White);
+    QVERIFY(colored);
+
+    before = qualities();
+    r = doc.runFilter(filterKeyForId(doc, QStringLiteral("colorize_vertices_by_disk_distance")),
+                      { { QStringLiteral("sourceMesh"), other } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(qualities() != before);
+
+    QCOMPARE(doc.meshStoredState(other), Document::StoredState::Stored);
 }
 
 void FilterTests::foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds()
@@ -11506,7 +11564,7 @@ void FilterTests::randomizedFiltersDeclareARandomSeed()
         QStringLiteral("create_points_on_sphere"),
         QStringLiteral("create_points_on_spherical_cap"),
         QStringLiteral("displace_vertices_randomly"),
-        QStringLiteral("align_by_icp_vcglib"),
+        QStringLiteral("align_layer_to_reference_by_icp_vcglib"),
         QStringLiteral("align_meshes_globally_vcglib"),
         QStringLiteral("defragment_texture_atlas"),
         QStringLiteral("merge_texture_islands"),
@@ -12166,7 +12224,7 @@ void FilterTests::structuredReferencesRenderCitations()
             QStringLiteral("reconstruct_surface_by_marching_cubes_rimls"),
             QStringLiteral("compute_curvature_apss"),
             QStringLiteral("compute_curvature_rimls"),
-            QStringLiteral("align_by_icp_vcglib"),
+            QStringLiteral("align_layer_to_reference_by_icp_vcglib"),
             QStringLiteral("align_meshes_globally_vcglib"),
             QStringLiteral("displace_vertices_by_fractal_brownian_motion"),
             QStringLiteral("smooth_vertices_by_taubin_trueform"),
@@ -15633,7 +15691,7 @@ void FilterTests::alignmentBakesOnlyTheLayerItMoved()
         params.insert(QStringLiteral("PassHiFilter"), 1.0);
         params.insert(QStringLiteral("transformResult"), mode);
         const MeshFilterRunResult r =
-            doc.runFilter(filterKeyForId(doc, QStringLiteral("align_by_icp_vcglib")), params);
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("align_layer_to_reference_by_icp_vcglib")), params);
         QVERIFY2(r.success, qPrintable(r.errorMessage));
 
         out.sourceMatrix = doc.mesh(sourceIndex).transform;
@@ -15971,7 +16029,7 @@ void FilterTests::abstractDomainConsumersRunAndRefuseWithoutIt()
     MeshFilterParameterValues transfer;
     transfer.insert(QStringLiteral("sourceMesh"), 0);
     const MeshFilterRunResult moved = doc.runFilter(
-        filterKeyForId(doc, QStringLiteral("transfer_abstract_domain_to_another_layer")), transfer);
+        filterKeyForId(doc, QStringLiteral("transfer_abstract_domain_from_another_layer")), transfer);
     QVERIFY2(moved.success, qPrintable(moved.errorMessage));
     QVERIFY2(doc.layerData(copy, kDomain), "the target did not receive a domain");
     QVERIFY2(doc.layerData(0, kDomain), "the source lost its own domain");
@@ -17109,8 +17167,7 @@ void FilterTests::scopedFiltersConfineThemselvesToTheSelection()
             if (info.descriptor.id != filterId)
                 continue;
             for (const auto &p : info.descriptor.parameters) {
-                if (p.id == QLatin1String(SelectionScopes::kParameterId)
-                    && info.descriptor.selectionScopeMesh.isEmpty())
+                if (p.id == QLatin1String(SelectionScopes::kParameterId))
                     QVERIFY2(p.defaultValue.toBool(), "selectedOnly not on by default over a selection");
             }
         }

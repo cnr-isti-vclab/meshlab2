@@ -89,7 +89,6 @@ private:
     // control back to its default -- on when there is a selection -- as opening a filter
     // does; otherwise an explicit choice survives while the selection stays non-empty.
     void refreshSelectionScopeControl(bool reset);
-    int currentSelectionScopeMeshIndex() const;
     void updateParameterFormContext();
     void openSelectedResult(bool focusApplyButton);
     const Document::FilterInfo *filterByKey(const QString &filterKey) const;
@@ -129,7 +128,6 @@ private:
     // header, never among the parameters, because it decides where the filter works.
     QCheckBox *m_selectedOnlyCheck = nullptr;
     SelectionScope m_currentScope = SelectionScope::None;
-    QString m_currentScopeMeshParameter;
     int m_lastScopeCount = 0;
     QScrollArea *m_parametersScroll = nullptr;
     QWidget *m_parametersWidget = nullptr;

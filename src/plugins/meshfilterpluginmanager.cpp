@@ -39,20 +39,6 @@ constexpr QLatin1StringView kKeySeparator("::");
 // they are a property of faces rather than a container of their own, the face edges --
 // the three sides each face carries -- only when the filter says it marks them or some
 // are marked already.
-// The layer a scoped filter confines itself on: the one its `selectionScopeMesh`
-// parameter names, or the current mesh.
-int selectionScopeMeshIndex(
-    const MeshFilterDescriptor &descriptor,
-    const MeshFilterParameterValues &parameters,
-    const Document &doc)
-{
-    if (descriptor.selectionScopeMesh.isEmpty())
-        return doc.currentMeshIndex();
-    bool ok = false;
-    const int index = parameters.value(descriptor.selectionScopeMesh).toInt(&ok);
-    return ok ? index : -1;
-}
-
 QString selectionSummaryFor(
     const VCGMesh &mesh, const QStringList &outputModifies)
 {
@@ -1193,7 +1179,7 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
         // kind, and leaves the user's selection as it found it.
         SelectionScopes::RunGuard scopeGuard(
             doc,
-            selectionScopeMeshIndex(*targetDescriptor, normalizedParameters, doc),
+            doc.currentMeshIndex(),
             targetDescriptor->selectionScope,
             normalizedParameters.value(QString::fromLatin1(SelectionScopes::kParameterId)).toBool());
         // Libraries report a mesh that lacks what an algorithm needs by throwing: vcglib's
@@ -1465,7 +1451,7 @@ bool MeshFilterPluginManager::normalizeAndValidateParameters(
     // before any filter code runs, with one message for every scoped filter.
     if (descriptor.selectionScope != SelectionScope::None) {
         const QString scopeId = QString::fromLatin1(SelectionScopes::kParameterId);
-        const int meshIndex = selectionScopeMeshIndex(descriptor, normalizedParameters, doc);
+        const int meshIndex = doc.currentMeshIndex();
         const SelectionScopes::Restriction restriction =
             (meshIndex >= 0 && meshIndex < doc.meshCount())
                 ? SelectionScopes::restriction(doc.mesh(meshIndex).mesh, descriptor.selectionScope)

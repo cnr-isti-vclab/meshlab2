@@ -46,9 +46,9 @@
 
 namespace {
 
-constexpr QLatin1StringView kFilterAlignObb("align_by_bounding_box_trueform");
-constexpr QLatin1StringView kFilterAlignIcp("align_by_icp_trueform");
-constexpr QLatin1StringView kFilterAlignCorresponding("align_to_corresponding_points_trueform");
+constexpr QLatin1StringView kFilterAlignObb("align_layer_to_reference_by_bounding_box_trueform");
+constexpr QLatin1StringView kFilterAlignIcp("align_layer_to_reference_by_icp_trueform");
+constexpr QLatin1StringView kFilterAlignCorresponding("align_layer_to_reference_by_corresponding_points_trueform");
 constexpr QLatin1StringView kFilterUnion("mesh_union_trueform");
 constexpr QLatin1StringView kFilterIntersection("mesh_intersection_trueform");
 constexpr QLatin1StringView kFilterDifference("mesh_difference_trueform");
@@ -189,7 +189,8 @@ struct AlignmentInputs
 // Resolve and validate the two layers every alignment filter works on.
 bool resolveInputs(const FilterParams &params, Document &doc, AlignmentInputs &out, QString &error)
 {
-    out.sourceIndex = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    // The current layer moves onto the reference.
+    out.sourceIndex = doc.currentMeshIndex();
     out.referenceIndex = params.getMesh(QStringLiteral("referenceMesh"), -1);
 
     const auto valid = [&doc](int i) { return i >= 0 && i < doc.meshCount(); };
@@ -229,7 +230,7 @@ MeshFilterRunResult runAlignObb(const FilterParams &params, Document &doc)
     if (!resolveInputs(params, doc, in, error))
         return fail(error);
 
-    doc.beginFilterProgress(QObject::tr("Align by Bounding Box (TrueForm)"));
+    doc.beginFilterProgress(QObject::tr("Align Layer to Reference by Bounding Box (TrueForm)"));
     QMatrix4x4 delta;
     try {
         const TfPoints source = worldPoints(doc.mesh(in.sourceIndex));
@@ -272,7 +273,7 @@ MeshFilterRunResult runAlignIcp(const FilterParams &params, Document &doc)
     cfg.outlier_proportion =
         float(std::clamp(params.getDouble(QStringLiteral("outlierProportion"), 0.0), 0.0, 0.9));
 
-    doc.beginFilterProgress(QObject::tr("Align by ICP (TrueForm)"));
+    doc.beginFilterProgress(QObject::tr("Align Layer to Reference by ICP (TrueForm)"));
     QMatrix4x4 delta;
     double residual = 0.0;
     try {
@@ -340,14 +341,14 @@ MeshFilterRunResult runAlignCorresponding(const FilterParams &params, Document &
         return fail(QObject::tr(
             "This filter needs one-to-one correspondences: both layers must have the same "
             "number of live vertices, in matching order ('%1' has %2, '%3' has %4). Use "
-            "an 'Align by ICP' filter when the correspondence is unknown.")
+            "an 'Align Layer to Reference by ICP' filter when the correspondence is unknown.")
                         .arg(doc.mesh(in.sourceIndex).name)
                         .arg(source.size())
                         .arg(doc.mesh(in.referenceIndex).name)
                         .arg(reference.size()));
     }
 
-    doc.beginFilterProgress(QObject::tr("Align to Corresponding Points (TrueForm)"));
+    doc.beginFilterProgress(QObject::tr("Align Layer to Reference by Corresponding Points (TrueForm)"));
     QMatrix4x4 delta;
     double fittedScale = 1.0;
     try {
@@ -1546,7 +1547,7 @@ struct SignedDistanceContext
 // readout, and what lets the containment filter share the same machinery.
 MeshFilterRunResult runSignedDistance(const FilterParams &params, Document &doc)
 {
-    const int targetIndex = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int targetIndex = doc.currentMeshIndex();
     const int referenceIndex = params.getMesh(QStringLiteral("referenceMesh"), -1);
     const auto valid = [&doc](int i) { return i >= 0 && i < doc.meshCount(); };
     if (!valid(targetIndex) || !valid(referenceIndex))
@@ -1622,7 +1623,7 @@ MeshFilterRunResult runSignedDistance(const FilterParams &params, Document &doc)
 // than a ray-parity test, so a point exactly on the surface is decided consistently.
 MeshFilterRunResult runSelectInsideMesh(const FilterParams &params, Document &doc)
 {
-    const int targetIndex = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int targetIndex = doc.currentMeshIndex();
     const int referenceIndex = params.getMesh(QStringLiteral("referenceMesh"), -1);
     const auto valid = [&doc](int i) { return i >= 0 && i < doc.meshCount(); };
     if (!valid(targetIndex) || !valid(referenceIndex))

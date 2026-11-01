@@ -574,31 +574,21 @@
       "name": "Compute Distance from Reference Mesh",
       "pythonName": "compute_distance_from_reference_mesh",
       "shortDescription": "Compute per-vertex distance from another mesh or point cloud.",
-      "longDescriptionMarkdown": "Compute the signed/unsigned (per vertex) distance between a mesh/pointcloud and a reference mesh/pointcloud. Distance is stored in vertex quality; after the filter runs MeshLab switches the measured mesh to vertex-quality color visualization without baking colors.",
+      "longDescriptionMarkdown": "Compute the signed/unsigned (per vertex) distance of the current mesh/pointcloud from a reference mesh/pointcloud. Distance is stored in vertex quality; after the filter runs MeshLab switches the current mesh to vertex-quality color visualization without baking colors.",
       "tags": [
         "sampling",
         "distance",
         "quality",
         "analysis"
       ],
-      "inputDomain": "WholeDocument",
+      "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
       "parameters": [
         {
-          "id": "MeasureMesh",
-          "label": "Measured mesh",
-          "help": "The mesh that will receive the computed distances in vertex quality.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex",
-          "meshRequirements": {
-            "requireVertices": true
-          }
-        },
-        {
-          "id": "RefMesh",
+          "id": "referenceMesh",
           "label": "Reference mesh",
-          "help": "The mesh or point cloud used as the reference.",
+          "help": "The mesh or point cloud the current layer's distances are measured from.",
           "group": "main",
           "type": "mesh",
           "default": "@otherMeshIndex",
@@ -902,22 +892,12 @@
         "voronoi",
         "projection"
       ],
-      "inputDomain": "WholeDocument",
+      "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
       "parameters": [
         {
-          "id": "ColoredMesh",
-          "label": "To be colored mesh",
-          "help": "The mesh whose surface will be colored.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex",
-          "meshRequirements": {
-            "requireVertices": true
-          }
-        },
-        {
-          "id": "VertexMesh",
+          "id": "sourceMesh",
           "label": "Vertex mesh",
           "help": "The point cloud whose vertices are used as Voronoi seeds.",
           "group": "main",
@@ -953,22 +933,12 @@
         "distance",
         "point cloud"
       ],
-      "inputDomain": "WholeDocument",
+      "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
       "parameters": [
         {
-          "id": "ColoredMesh",
-          "label": "To be colored mesh",
-          "help": "The mesh whose vertices will be colored.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex",
-          "meshRequirements": {
-            "requireVertices": true
-          }
-        },
-        {
-          "id": "VertexMesh",
+          "id": "sourceMesh",
           "label": "Vertex mesh",
           "help": "The point cloud whose vertices are used as disk centers.",
           "group": "main",

@@ -246,9 +246,6 @@ struct MeshFilterDescriptor
     // Which part of a mesh the filter can confine itself to; when set, the framework
     // injects the `selectedOnly` parameter. See selectionscope.h.
     SelectionScope selectionScope = SelectionScope::None;
-    // The mesh parameter naming the layer the scope applies to, for a filter that
-    // restricts some layer other than the current one; empty means the current mesh.
-    QString selectionScopeMesh;
     // The declared default of the injected transformResult parameter, `assign_matrix` or
     // `bake_positions`; empty for a filter that leaves no matrix on a layer.
     QString transformResult;

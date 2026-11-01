@@ -311,9 +311,12 @@ filter with two mesh parameters, or with one that defaults to the current layer:
 how a filter names the layer it changes. Its exception table holds the parameters that may
 default to the current layer without naming the changed one -- a surface to project onto,
 by default the layer's own (*Remesh Isotropically*, the two MLS projections), and the layer
-held fixed by the whole-document aligners -- and its pending table the filters not yet
-migrated ([two_layer_filters.md](proposals/two_layer_filters.md)). Both fail the run in
-both directions.
+held fixed by the whole-document aligners -- and fails the run in both directions. The
+migration that brought 15 filters under the rule is recorded in
+[two_layer_filters.md](history/two_layer_filters.md).
+
+A scoped filter (`selectionScope`) confines itself on the current layer's selection, which
+under this rule is always the layer it changes.
 
 ### `textureName`
 

@@ -397,8 +397,9 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kIdApssProjection)
         || filterId == QString::fromLatin1(kIdRimlsProjection)) {
-        const int controlIndex = params.getMesh(QStringLiteral("ControlMesh"), currentIndex);
-        const int proxyIndex = params.getMesh(QStringLiteral("ProxyMesh"), currentIndex);
+        // The current layer is projected onto the MLS surface of the reference, by default its own.
+        const int controlIndex = params.getMesh(QStringLiteral("referenceMesh"), currentIndex);
+        const int proxyIndex = currentIndex;
 
         const Document::MeshEntry &controlEntry = doc.mesh(controlIndex);
         Document::MeshEntry &proxyEntry = doc.mesh(proxyIndex);

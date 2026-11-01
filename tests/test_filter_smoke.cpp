@@ -367,7 +367,7 @@ const QHash<QString, QString> &expectedRefusals()
         {QStringLiteral("measure_abstract_domain"),                        QStringLiteral("needs an abstract domain from Parametrize by Abstract Domain")},
         {QStringLiteral("remesh_by_abstract_domain"),                      QStringLiteral("needs an abstract domain from Parametrize by Abstract Domain")},
         {QStringLiteral("create_atlased_mesh_from_abstract_domain"),       QStringLiteral("needs an abstract domain from Parametrize by Abstract Domain")},
-        {QStringLiteral("transfer_abstract_domain_to_another_layer"),      QStringLiteral("needs an abstract domain on a second layer")},
+        {QStringLiteral("transfer_abstract_domain_from_another_layer"),      QStringLiteral("needs an abstract domain on a second layer")},
     };
     return table;
 }

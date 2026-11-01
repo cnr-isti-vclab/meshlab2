@@ -762,17 +762,9 @@ void FilterDescriptorTests::selectionScopeIsDeclaredNotHandWritten()
             const QString scope = f.value(QStringLiteral("selectionScope")).toString();
             if (!kScopes.contains(scope))
                 offenders << QStringLiteral("%1: unknown selectionScope '%2'").arg(id, scope);
-            const QString mesh = f.value(QStringLiteral("selectionScopeMesh")).toString();
-            if (!mesh.isEmpty()) {
-                bool found = false;
-                for (const QJsonValue &pv : params) {
-                    const QJsonObject p = pv.toObject();
-                    found = found || (p.value(QStringLiteral("id")).toString() == mesh
-                                      && p.value(QStringLiteral("type")).toString() == QLatin1String("mesh"));
-                }
-                if (!found)
-                    offenders << QStringLiteral("%1: selectionScopeMesh '%2' is not a mesh parameter").arg(id, mesh);
-            }
+            if (f.contains(QStringLiteral("selectionScopeMesh")))
+                offenders << QStringLiteral("%1: selectionScopeMesh is gone; a scoped filter confines "
+                                            "the current layer").arg(id);
         }
     }
 
@@ -870,35 +862,15 @@ void FilterDescriptorTests::transformResultIsDeclaredNotHandWritten()
     QVERIFY2(offenders.isEmpty(), qPrintable(offenders.join(QStringLiteral("; "))));
 }
 
-// A filter that works on one mesh works on the current layer, chosen in the layer panel
-// like every other; a mesh parameter names a second input. `sourceMesh` is the source of a
-// source-to-target pair (docs/design/filter_organization.md), so one standing alone is the
-// telltale of the other pattern -- the mesh to work on picked in the form instead -- which
-// ten TrueForm filters had, with the current layer's requirements checked against a layer
-// the filter then ignored.
 // A filter that changes the current layer names the other layer, if it reads one, with one
 // mesh parameter that defaults to another layer (filter_organization.md, "A filter that
 // reads two layers changes the current one"). Two mesh parameters, or one defaulting to the
 // current layer, are how a filter names the layer it changes as a parameter -- which is how
-// five filters came to change the other layer while declaring the current one. Both tables
-// fail the run in both directions, so neither can rot.
+// five filters came to change the other layer while declaring the current one, until
+// 2026-11-01 (docs/design/history/two_layer_filters.md). The exception table fails the run
+// in both directions, so it cannot rot.
 void FilterDescriptorTests::twoLayerFiltersChangeTheCurrentLayer()
 {
-    // Not migrated yet (docs/design/proposals/two_layer_filters.md, section 4); the next
-    // stages empty this.
-    static const QHash<QString, QString> pending = {
-        // 4.2, the right layer, but named by a parameter.
-        { QStringLiteral("align_by_bounding_box_trueform"), QStringLiteral("row 6") },
-        { QStringLiteral("align_by_icp_trueform"), QStringLiteral("row 7") },
-        { QStringLiteral("align_to_corresponding_points_trueform"), QStringLiteral("row 8") },
-        { QStringLiteral("compute_signed_distance_to_mesh_trueform"), QStringLiteral("row 9") },
-        { QStringLiteral("select_vertices_inside_mesh_trueform"), QStringLiteral("row 10") },
-        { QStringLiteral("compute_distance_from_reference_mesh"), QStringLiteral("row 11") },
-        { QStringLiteral("colorize_vertices_by_voronoi_regions"), QStringLiteral("row 12") },
-        { QStringLiteral("colorize_vertices_by_disk_distance"), QStringLiteral("row 13") },
-        { QStringLiteral("project_vertices_onto_mls_surface_apss"), QStringLiteral("row 14") },
-        { QStringLiteral("project_vertices_onto_mls_surface_rimls"), QStringLiteral("row 15") },
-    };
     // A mesh parameter that may default to the current layer, for good: it does not name the
     // layer that changes.
     static const QHash<QString, QString> exceptions = {
@@ -911,9 +883,9 @@ void FilterDescriptorTests::twoLayerFiltersChangeTheCurrentLayer()
         { QStringLiteral("align_meshes_sequentially_open3d"),
           QStringLiteral("moves every layer; the parameter names the one held fixed") },
         { QStringLiteral("project_vertices_onto_mls_surface_apss"),
-          QStringLiteral("projecting a cloud onto its own MLS surface is the usual run (decision 3)") },
+          QStringLiteral("projecting a cloud onto its own MLS surface is the usual run") },
         { QStringLiteral("project_vertices_onto_mls_surface_rimls"),
-          QStringLiteral("projecting a cloud onto its own MLS surface is the usual run (decision 3)") },
+          QStringLiteral("projecting a cloud onto its own MLS surface is the usual run") },
     };
 
     QStringList offenders;
@@ -933,11 +905,8 @@ void FilterDescriptorTests::twoLayerFiltersChangeTheCurrentLayer()
             if (p.defaultValue.toInt(&isIndex) == m_doc.currentMeshIndex() && isIndex)
                 defaultsToCurrent = true;
         }
-        const bool breaks = meshParameters > 1 || (defaultsToCurrent && !exceptions.contains(d.id));
-        if (breaks && !pending.contains(d.id))
+        if (meshParameters > 1 || (defaultsToCurrent && !exceptions.contains(d.id)))
             offenders << d.id;
-        if (!breaks && pending.contains(d.id))
-            stale << d.id;
         if (exceptions.contains(d.id) && !defaultsToCurrent)
             stale << d.id;
     }
@@ -945,11 +914,15 @@ void FilterDescriptorTests::twoLayerFiltersChangeTheCurrentLayer()
              qPrintable(QStringLiteral("filters naming the layer they change as a mesh parameter: %1")
                             .arg(offenders.join(QStringLiteral(", ")))));
     QVERIFY2(stale.isEmpty(),
-             qPrintable(QStringLiteral("listed but no longer breaking the rule, so take them out of "
-                                       "the pending or the exception table: %1")
-                            .arg(stale.join(QStringLiteral(", ")))));
+             qPrintable(QStringLiteral("listed as exceptions but no longer defaulting to the current "
+                                       "layer: %1").arg(stale.join(QStringLiteral(", ")))));
 }
 
+// A filter that works on one mesh works on the current layer, chosen in the layer panel
+// like every other; a mesh parameter names a second input. A lone `sourceMesh` defaulting to
+// the current layer is the telltale of the other pattern -- the mesh to work on picked in
+// the form instead -- which ten TrueForm filters had, with the current layer's requirements
+// checked against a layer the filter then ignored.
 void FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer()
 {
     QStringList offenders;
@@ -1151,7 +1124,7 @@ void FilterDescriptorTests::searchRanksTheReferenceQueries()
         { "save cameras", "Export Cameras from Visible Rasters" },
         { "screenshot", "Render from Render-State JSON" },
         { "unwrap xatlas", "Parametrize by Atlas (xatlas)" },
-        { "register icp vcg", "Align by ICP (vcglib)" },
+        { "register icp vcg", "Align Layer to Reference by ICP (vcglib)" },
         { "denoise point cloud normals", "Smooth Point Cloud Normals" },
         { "texcoord distortion", "Compute UV Distortion" },
         { "colour vert by quality", "Colorize Vertices by Scalar" },

@@ -279,8 +279,6 @@ void MeshFilterPanel::buildUi()
                 if (binding->descriptor.type == MeshFilterParameterType::Mesh)
                     m_paramForm->refreshDependentEditors();
             }
-            if (!m_currentScopeMeshParameter.isEmpty() && parameterId == m_currentScopeMeshParameter)
-                refreshSelectionScopeControl(false);
             refreshCurrentFilterApplicability();
         });
 
@@ -764,7 +762,6 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
 {
     clearParameterEditors();
     m_currentScope = filterInfo.descriptor.selectionScope;
-    m_currentScopeMeshParameter = filterInfo.descriptor.selectionScopeMesh;
     std::vector<MeshFilterParameterDescriptor> formParameters;
     formParameters.reserve(filterInfo.descriptor.parameters.size());
     for (const MeshFilterParameterDescriptor &p : filterInfo.descriptor.parameters) {
@@ -842,17 +839,6 @@ MeshFilterParameterValues MeshFilterPanel::currentParameterValues() const
     return values;
 }
 
-int MeshFilterPanel::currentSelectionScopeMeshIndex() const
-{
-    if (!m_doc)
-        return -1;
-    if (m_currentScopeMeshParameter.isEmpty())
-        return m_doc->currentMeshIndex();
-    bool ok = false;
-    const int index = m_paramForm->values().value(m_currentScopeMeshParameter).toInt(&ok);
-    return ok ? index : -1;
-}
-
 void MeshFilterPanel::refreshSelectionScopeControl(bool reset)
 {
     if (!m_selectedOnlyCheck)
@@ -862,15 +848,10 @@ void MeshFilterPanel::refreshSelectionScopeControl(bool reset)
         m_lastScopeCount = 0;
         return;
     }
-    const int meshIndex = currentSelectionScopeMeshIndex();
-    const bool validMesh = meshIndex >= 0 && meshIndex < m_doc->meshCount();
+    // A scoped filter confines itself on the current layer.
     const SelectionScopes::Restriction restriction =
-        SelectionScopes::cachedRestriction(*m_doc, meshIndex, m_currentScope);
-    QString text = SelectionScopes::describe(m_currentScope, restriction);
-    // Name the layer when the scope is on one the filter picks by parameter rather than
-    // on the current one, where it goes without saying.
-    if (validMesh && !m_currentScopeMeshParameter.isEmpty())
-        text += tr(" of '%1'").arg(m_doc->mesh(meshIndex).name);
+        SelectionScopes::cachedRestriction(*m_doc, m_doc->currentMeshIndex(), m_currentScope);
+    const QString text = SelectionScopes::describe(m_currentScope, restriction);
 
     const QSignalBlocker blocker(m_selectedOnlyCheck);
     m_selectedOnlyCheck->setText(text);

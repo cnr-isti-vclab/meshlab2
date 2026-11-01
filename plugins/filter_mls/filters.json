@@ -65,29 +65,17 @@
         "apss",
         "smoothing"
       ],
-      "inputDomain": "WholeDocument",
+      "inputDomain": "SingleMesh",
       "selectionScope": "vertices",
-      "selectionScopeMesh": "ProxyMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true
       },
       "parameters": [
         {
-          "id": "ControlMesh",
+          "id": "referenceMesh",
           "label": "Point set",
-          "help": "The point set (or mesh) which defines the MLS surface.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex",
-          "meshRequirements": {
-            "requireVertices": true
-          }
-        },
-        {
-          "id": "ProxyMesh",
-          "label": "Proxy Mesh",
-          "help": "The mesh that will be projected/resampled onto the MLS surface.",
+          "help": "The point set (or mesh) whose MLS surface the current layer is projected onto; by default the current layer itself.",
           "group": "main",
           "type": "mesh",
           "default": "@currentMeshIndex",
@@ -188,29 +176,17 @@
         "rimls",
         "smoothing"
       ],
-      "inputDomain": "WholeDocument",
+      "inputDomain": "SingleMesh",
       "selectionScope": "vertices",
-      "selectionScopeMesh": "ProxyMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true
       },
       "parameters": [
         {
-          "id": "ControlMesh",
+          "id": "referenceMesh",
           "label": "Point set",
-          "help": "The point set (or mesh) which defines the MLS surface.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex",
-          "meshRequirements": {
-            "requireVertices": true
-          }
-        },
-        {
-          "id": "ProxyMesh",
-          "label": "Proxy Mesh",
-          "help": "The mesh that will be projected/resampled onto the MLS surface.",
+          "help": "The point set (or mesh) whose MLS surface the current layer is projected onto; by default the current layer itself.",
           "group": "main",
           "type": "mesh",
           "default": "@currentMeshIndex",

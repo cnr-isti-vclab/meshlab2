@@ -276,7 +276,6 @@ MeshFilterDescriptor parseFilter(const QJsonObject &obj)
     // to confine the filter to. An unknown scope string loads as no scope at all; the
     // descriptor tests read the manifests directly to catch that.
     d.selectionScope = SelectionScopes::parse(obj.value(QStringLiteral("selectionScope")).toString());
-    d.selectionScopeMesh = obj.value(QStringLiteral("selectionScopeMesh")).toString().trimmed();
     if (d.selectionScope != SelectionScope::None) {
         MeshFilterParameterDescriptor p;
         p.id           = QString::fromLatin1(SelectionScopes::kParameterId);
@@ -650,16 +649,8 @@ void FilterDescriptorLoader::resolveSymbolicBounds(
         // The same rule the manager applies to a call that omits it, so that a compact
         // Python call, which leaves out defaults, replays with the same restriction.
         if (fd.selectionScope != SelectionScope::None) {
-            int scopeMesh = currentMeshIndex;
-            if (!fd.selectionScopeMesh.isEmpty()) {
-                scopeMesh = -1;
-                for (const MeshFilterParameterDescriptor &p : fd.parameters) {
-                    if (p.id == fd.selectionScopeMesh)
-                        scopeMesh = p.defaultValue.toInt();
-                }
-            }
             const bool restricted =
-                SelectionScopes::cachedRestriction(doc, scopeMesh, fd.selectionScope).count > 0;
+                SelectionScopes::cachedRestriction(doc, currentMeshIndex, fd.selectionScope).count > 0;
             for (MeshFilterParameterDescriptor &p : fd.parameters) {
                 if (p.id == QLatin1String(SelectionScopes::kParameterId))
                     p.defaultValue = restricted;
