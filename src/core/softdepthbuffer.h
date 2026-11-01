@@ -36,7 +36,12 @@ inline void rasterizeTriangleDepth(
     const QVector2D &p0, const QVector2D &p1, const QVector2D &p2,
     float d0, float d1, float d2)
 {
-    if (d0 <= 0.0f && d1 <= 0.0f && d2 <= 0.0f) return;
+    // A triangle with a vertex at or behind the camera plane is skipped, not only one wholly
+    // behind it: projecting such a vertex flips or explodes it, so the triangle's box covers
+    // the whole image and its depths are wrong anyway. Drawing it right would need clipping
+    // at a near plane; it only happens when a camera sits inside the model, and there it
+    // turned a depth buffer from 0.2 s into a minute.
+    if (d0 <= 0.0f || d1 <= 0.0f || d2 <= 0.0f) return;
     const float area = (p1.x() - p0.x()) * (p2.y() - p0.y()) -
                        (p1.y() - p0.y()) * (p2.x() - p0.x());
     if (std::abs(area) < 1e-8f) return;
@@ -109,7 +114,6 @@ inline std::unique_ptr<FloatBuffer> buildDepthBuffer(
         const float d0 = depths[size_t(i0)];
         const float d1 = depths[size_t(i1)];
         const float d2 = depths[size_t(i2)];
-        if (d0 <= 0.0f && d1 <= 0.0f && d2 <= 0.0f) continue;
         rasterizeTriangleDepth(zbuf, w, h,
             proj[size_t(i0)], proj[size_t(i1)], proj[size_t(i2)], d0, d1, d2);
     }

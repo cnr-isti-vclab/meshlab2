@@ -944,7 +944,11 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
     VCGMesh &m = doc.mesh(mi).mesh;
     QMatrix4x4 tf = doc.mesh(mi).transform;
 
-    // Collect active rasters with valid camera and image
+    // Collect active rasters with valid camera and image, decoding the images not yet loaded:
+    // the first tenth of the progress bar; the depth buffers take it to half, and the second
+    // half is what each filter does with them.
+    vcg::CallBackPos *cb = doc.progressCallback();
+    const auto canceled = [] { return fail(QObject::tr("Operation canceled.")); };
     std::vector<int> activeRasters;
     int maxRi = -1;
     for (int ri = 0; ri < doc.rasterCount(); ++ri) {
@@ -952,6 +956,10 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         if (re.visible && re.shot.isValid() && !re.planes.empty()) {
             RasterPlane *rp = re.currentPlane();
             if (rp) {
+                if (cb && !cb(10 * ri / doc.rasterCount(),
+                              qPrintable(QObject::tr("Image of raster %1 of %2")
+                                             .arg(ri + 1).arg(doc.rasterCount()))))
+                    return canceled();
                 Document::ensureRasterPlaneImage(*rp);
                 if (rp->hasImage()) {
                     activeRasters.push_back(ri);
@@ -967,7 +975,12 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
     QElapsedTimer tDepth;
     tDepth.start();
     std::vector<RasterContext> rcs(size_t(maxRi + 1));
-    for (int ri : activeRasters) {
+    for (size_t k = 0; k < activeRasters.size(); ++k) {
+        const int ri = activeRasters[k];
+        if (cb && !cb(10 + int(40 * k / activeRasters.size()),
+                      qPrintable(QObject::tr("Depth buffer of raster %1 of %2")
+                                     .arg(k + 1).arg(activeRasters.size()))))
+            return canceled();
         auto &re = doc.raster(ri);
         RasterContext &rc = rcs[size_t(ri)];
         rc.shot = &re.shot;
@@ -1040,9 +1053,15 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         std::vector<int> seenBy(m.face.size(), 0);
         for (auto &f : m.face) f.Q() = angle ? 180.0f : 0.0f;
 
-        for (int ri : activeRasters) {
-            const RasterContext &rc = rcs[size_t(ri)];
+        for (size_t k = 0; k < activeRasters.size(); ++k) {
+            const RasterContext &rc = rcs[size_t(activeRasters[k])];
             for (size_t fi = 0; fi < m.face.size(); ++fi) {
+                if (cb && fi % 65536 == 0 &&
+                    !cb(50 + int(50 * (double(k) + double(fi) / double(m.face.size())) /
+                                 double(activeRasters.size())),
+                        qPrintable(QObject::tr("Faces seen by raster %1 of %2")
+                                       .arg(k + 1).arg(activeRasters.size()))))
+                    return canceled();
                 VCGFace &f = m.face[fi];
                 if (f.IsD()) continue;
                 const QVector3D w[3] = { transformPoint(tf, f.cP(0)), transformPoint(tf, f.cP(1)),

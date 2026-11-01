@@ -458,6 +458,16 @@ up front, or with a `success = false` result that says why.
   expose an opt-in `map` / `colorize` parameter, all defaulting to false — they are
   waiting to be removed (a parameter is script-visible, so it needs its own pass), not
   precedent to copy.
+- **Report progress from anything that can run for more than a moment.** Size it on a
+  large real input, not on the test fixture: a filter that takes 50 ms on the gargoyle
+  can take minutes on a 3 M-face scan with 35 full-size photos, and without progress the
+  user cannot tell slow from hung. Take `vcg::CallBackPos *cb = doc.progressCallback()`
+  and call it with a percentage and a short message at every step of the outer loop (per
+  raster, per layer, per pass) and every few tens of thousands of elements in an inner
+  loop; split the range among the stages so the bar never runs backwards. Pass `cb` on to
+  the vcglib algorithms that take one. **The callback returns `false` when the user
+  cancels**: stop and return a failure, as *Compute Face Scalar from Rasters* does (`fail`
+  with "Operation canceled.") — the framework rolls the document back.
 - **Randomized filters declare `randomSeed`** — `int`, default `0`, minimum `0`,
   resolved through `FilterParams::getRandomSeed()`, with the drawn value reported
   in the result messages so a run can be pinned afterwards. 39 parameters follow
