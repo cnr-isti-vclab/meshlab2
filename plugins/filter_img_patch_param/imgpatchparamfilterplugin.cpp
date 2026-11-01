@@ -944,6 +944,13 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
     VCGMesh &m = doc.mesh(mi).mesh;
     QMatrix4x4 tf = doc.mesh(mi).transform;
 
+    // The two coverage filters read cameras and depth only: they never decode an image, and
+    // they build one raster's depth buffer at a time and drop it, so that memory does not
+    // grow with the number of rasters. The parametrizations need every image and buffer at
+    // once, and build them all here.
+    const bool perRaster =
+        fid == QString::fromLatin1(kCoverageVert) || fid == QString::fromLatin1(kFaceFromRasters);
+
     // Collect active rasters with valid camera and image, decoding the images not yet loaded:
     // the first tenth of the progress bar; the depth buffers take it to half, and the second
     // half is what each filter does with them.
@@ -956,12 +963,14 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         if (re.visible && re.shot.isValid() && !re.planes.empty()) {
             RasterPlane *rp = re.currentPlane();
             if (rp) {
-                if (cb && !cb(10 * ri / doc.rasterCount(),
-                              qPrintable(QObject::tr("Image of raster %1 of %2")
-                                             .arg(ri + 1).arg(doc.rasterCount()))))
+                if (cb && !perRaster &&
+                    !cb(10 * ri / doc.rasterCount(),
+                        qPrintable(QObject::tr("Image of raster %1 of %2")
+                                       .arg(ri + 1).arg(doc.rasterCount()))))
                     return canceled();
-                Document::ensureRasterPlaneImage(*rp);
-                if (rp->hasImage()) {
+                if (!perRaster)
+                    Document::ensureRasterPlaneImage(*rp);
+                if (perRaster || rp->hasImage()) {
                     activeRasters.push_back(ri);
                     if (ri > maxRi) maxRi = ri;
                 }
@@ -972,22 +981,16 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         return fail(QObject::tr("No active rasters with valid cameras and images."));
 
     // Build raster contexts (including depth buffers)
-    QElapsedTimer tDepth;
-    tDepth.start();
     std::vector<RasterContext> rcs(size_t(maxRi + 1));
-    for (size_t k = 0; k < activeRasters.size(); ++k) {
-        const int ri = activeRasters[k];
-        if (cb && !cb(10 + int(40 * k / activeRasters.size()),
-                      qPrintable(QObject::tr("Depth buffer of raster %1 of %2")
-                                     .arg(k + 1).arg(activeRasters.size()))))
-            return canceled();
+    const auto buildContext = [&](int ri) {
         auto &re = doc.raster(ri);
         RasterContext &rc = rcs[size_t(ri)];
         rc.shot = &re.shot;
         rc.iw = re.shot.viewportPx().width();
         rc.ih = re.shot.viewportPx().height();
         rc.cz = re.shot.referenceAxis(2);
-        rc.rimg = re.currentPlane()->image;
+        if (RasterPlane *rp = re.currentPlane())
+            rc.rimg = rp->image;
 
         QElapsedTimer tOne;
         tOne.start();
@@ -1013,23 +1016,41 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
             .arg(rc.iw).arg(rc.ih)
             .arg(oneMs),
             Document::LogSource::Application, Document::LogLevel::Debug);
+    };
+    const auto dropContext = [&](int ri) { rcs[size_t(ri)] = RasterContext(); };
+
+    if (!perRaster) {
+        QElapsedTimer tDepth;
+        tDepth.start();
+        for (size_t k = 0; k < activeRasters.size(); ++k) {
+            if (cb && !cb(10 + int(40 * k / activeRasters.size()),
+                          qPrintable(QObject::tr("Depth buffer of raster %1 of %2")
+                                         .arg(k + 1).arg(activeRasters.size()))))
+                return canceled();
+            buildContext(activeRasters[k]);
+        }
+        doc.writeLog(QObject::tr("All depth buffers: %1 ms").arg(tDepth.elapsed()),
+                     Document::LogSource::Application, Document::LogLevel::Debug);
     }
-    qint64 totalDepthMs = tDepth.elapsed();
-    doc.writeLog(QObject::tr("All depth buffers: %1 ms").arg(totalDepthMs),
-                 Document::LogSource::Application, Document::LogLevel::Debug);
 
     // --- Coverage (Vertex) ---
     if (fid == QString::fromLatin1(kCoverageVert)) {
         float depthEps = float(p.getDouble(QStringLiteral("depthEpsilon"), 0.0));
         for (auto &v : m.vert) v.Q() = 0.0f;
 
-        for (int ri : activeRasters) {
-            auto &rc = rcs[size_t(ri)];
+        for (size_t k = 0; k < activeRasters.size(); ++k) {
+            const int ri = activeRasters[k];
+            if (cb && !cb(int(100 * k / activeRasters.size()),
+                          qPrintable(QObject::tr("Raster %1 of %2").arg(k + 1).arg(activeRasters.size()))))
+                return canceled();
+            buildContext(ri);
+            const RasterContext &rc = rcs[size_t(ri)];
             for (int vi = 0; vi < m.VN(); ++vi) {
                 if (m.vert[size_t(vi)].IsD()) continue;
                 if (checkVertVisibleFast(vi, rc, depthEps))
                     m.vert[size_t(vi)].Q() += 1.0f;
             }
+            dropContext(ri);
         }
 
         if (p.getBool(QStringLiteral("normalizeQuality"), false)) {
@@ -1054,13 +1075,17 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         for (auto &f : m.face) f.Q() = angle ? 180.0f : 0.0f;
 
         for (size_t k = 0; k < activeRasters.size(); ++k) {
-            const RasterContext &rc = rcs[size_t(activeRasters[k])];
+            const int ri = activeRasters[k];
+            const QString step = QObject::tr("Raster %1 of %2").arg(k + 1).arg(activeRasters.size());
+            if (cb && !cb(int(100 * k / activeRasters.size()), qPrintable(step)))
+                return canceled();
+            buildContext(ri);
+            const RasterContext &rc = rcs[size_t(ri)];
             for (size_t fi = 0; fi < m.face.size(); ++fi) {
                 if (cb && fi % 65536 == 0 &&
-                    !cb(50 + int(50 * (double(k) + double(fi) / double(m.face.size())) /
-                                 double(activeRasters.size())),
-                        qPrintable(QObject::tr("Faces seen by raster %1 of %2")
-                                       .arg(k + 1).arg(activeRasters.size()))))
+                    !cb(int(100 * (double(k) + double(fi) / double(m.face.size())) /
+                            double(activeRasters.size())),
+                        qPrintable(step)))
                     return canceled();
                 VCGFace &f = m.face[fi];
                 if (f.IsD()) continue;
@@ -1093,6 +1118,7 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
                     f.Q() += 1.0f;
                 }
             }
+            dropContext(ri);
         }
 
         // Summary over the faces some raster sees; the worst 5% is the low tail of a count or
