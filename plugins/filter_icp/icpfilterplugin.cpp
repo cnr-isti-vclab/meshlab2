@@ -299,8 +299,9 @@ QVector<int> saveLastIterationPoints(
 
 MeshFilterRunResult runTwoMeshIcp(const FilterParams &params, Document &doc)
 {
-    const int referenceIndex = params.getMesh(QStringLiteral("ReferenceMesh"));
-    const int sourceIndex = params.getMesh(QStringLiteral("SourceMesh"));
+    // The current layer moves onto the reference.
+    const int referenceIndex = params.getMesh(QStringLiteral("referenceMesh"));
+    const int sourceIndex = doc.currentMeshIndex();
     if (referenceIndex < 0 || referenceIndex >= doc.meshCount())
         return fail(QObject::tr("Reference mesh index is invalid."));
     if (sourceIndex < 0 || sourceIndex >= doc.meshCount())

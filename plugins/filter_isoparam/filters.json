@@ -346,9 +346,9 @@
         "pietroni2010isoparam"
       ],
       "shortDescription": "Carry an abstract domain from one layer onto another, similar and aligned one, by closest point.",
-      "inputDomain": "WholeDocument",
+      "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "longDescriptionMarkdown": "Copies a layer's abstract domain onto a second layer -- typically the same object at a different resolution -- by finding, for each target vertex, the closest point on the source parametrization and reading its domain position off that.\n\nThis is a convenience rather than part of the original technique, and it inherits the limits of closest-point matching: the two layers must be reasonably similar in shape and already aligned, and nothing here registers them for you. Where the surfaces disagree the domain positions will follow the source's geometry rather than the target's.\n\nUnlike MeshLab, which moves the domain and leaves the source without one, the source **keeps its own domain** and the target gets an independent copy.",
+      "longDescriptionMarkdown": "Copies the abstract domain of the **Source layer** onto the current layer -- typically the same object at a different resolution -- by finding, for each target vertex, the closest point on the source parametrization and reading its domain position off that.\n\nThis is a convenience rather than part of the original technique, and it inherits the limits of closest-point matching: the two layers must be reasonably similar in shape and already aligned, and nothing here registers them for you. Where the surfaces disagree the domain positions will follow the source's geometry rather than the target's.\n\nUnlike MeshLab, which moves the domain and leaves the source without one, the source **keeps its own domain** and the target gets an independent copy.",
       "inputRequirements": {
         "requireVertices": true,
         "requireFaces": true
@@ -357,16 +357,10 @@
         {
           "id": "sourceMesh",
           "label": "Source layer",
-          "help": "The layer that already carries an abstract domain.",
+          "help": "The layer that already carries an abstract domain; the current layer receives a copy.",
           "group": "main",
-          "type": "mesh"
-        },
-        {
-          "id": "targetMesh",
-          "label": "Target layer",
-          "help": "The layer to receive the parametrization.",
-          "group": "main",
-          "type": "mesh"
+          "type": "mesh",
+          "default": "@otherMeshIndex"
         }
       ]
     }

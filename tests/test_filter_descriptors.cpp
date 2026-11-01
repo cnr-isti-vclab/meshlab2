@@ -887,12 +887,6 @@ void FilterDescriptorTests::twoLayerFiltersChangeTheCurrentLayer()
     // Not migrated yet (docs/design/proposals/two_layer_filters.md, section 4); the next
     // stages empty this.
     static const QHash<QString, QString> pending = {
-        // 4.1, inverted: they change the layer the parameter names, the other one by default.
-        { QStringLiteral("transfer_vertex_attributes_to_texture_by_closest_point"), QStringLiteral("row 1") },
-        { QStringLiteral("transfer_color_from_texture_to_vertex_by_closest_point"), QStringLiteral("row 2") },
-        { QStringLiteral("transfer_vertex_attributes_by_closest_point"), QStringLiteral("row 3") },
-        { QStringLiteral("align_by_icp_vcglib"), QStringLiteral("row 4") },
-        { QStringLiteral("transfer_abstract_domain_to_another_layer"), QStringLiteral("row 5") },
         // 4.2, the right layer, but named by a parameter.
         { QStringLiteral("align_by_bounding_box_trueform"), QStringLiteral("row 6") },
         { QStringLiteral("align_by_icp_trueform"), QStringLiteral("row 7") },
@@ -961,11 +955,20 @@ void FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer()
     QStringList offenders;
     for (const auto &info : m_infos) {
         const MeshFilterDescriptor &d = info.descriptor;
+        // A lone sourceMesh is right when it names the other layer, read from; defaulting to
+        // the current layer it is the filter's own mesh taken as a parameter.
         QStringList meshParameters;
-        for (const auto &p : d.parameters)
-            if (p.type == MeshFilterParameterType::Mesh)
-                meshParameters << p.id;
-        if (meshParameters == QStringList{ QStringLiteral("sourceMesh") })
+        bool sourceIsCurrent = false;
+        for (const auto &p : d.parameters) {
+            if (p.type != MeshFilterParameterType::Mesh)
+                continue;
+            meshParameters << p.id;
+            bool isIndex = false;
+            if (p.id == QStringLiteral("sourceMesh")
+                && p.defaultValue.toInt(&isIndex) == m_doc.currentMeshIndex() && isIndex)
+                sourceIsCurrent = true;
+        }
+        if (meshParameters == QStringList{ QStringLiteral("sourceMesh") } && sourceIsCurrent)
             offenders << d.id;
     }
     QVERIFY2(offenders.isEmpty(),

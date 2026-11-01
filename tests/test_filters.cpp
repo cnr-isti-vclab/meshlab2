@@ -558,6 +558,7 @@ private slots:
     void measureUvMappingCountsIslandsEdgesAndDistortionInTexels();
     void foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds();
     void textureFiltersWriteNoFile();
+    void closestPointTransfersWriteTheCurrentLayer();
     void aThinFoldedUvTriangleIsFoundWhereFloatArithmeticMissesIt();
     void measureUvMappingAgreesWithTexMetroOnARealAtlas();
     void measureTexelCoverageCountsAKnownLayoutExactly();
@@ -8526,9 +8527,10 @@ void FilterTests::icpBetweenPointCloudsUpdatesSourceTransform()
 
     QVERIFY(!icpKey.isEmpty());
 
+    // The current layer moves onto the reference.
+    doc.setCurrentMeshIndex(sourceIndex);
     MeshFilterParameterValues params;
-    params.insert(QStringLiteral("ReferenceMesh"), referenceIndex);
-    params.insert(QStringLiteral("SourceMesh"), sourceIndex);
+    params.insert(QStringLiteral("referenceMesh"), referenceIndex);
     params.insert(QStringLiteral("SampleNum"), 5);
     params.insert(QStringLiteral("SampleMode"), false);
     params.insert(QStringLiteral("UseVertexOnly"), true);
@@ -9697,6 +9699,88 @@ void FilterTests::textureFiltersWriteNoFile()
     QCOMPARE(originalFile.readAll(), originalBytes);
     QVERIFY(renamed.undo());
     QCOMPARE(Document::meshTextureDisplayName(renamed.mesh(k), 0), QStringLiteral("texture.png"));
+}
+
+// The closest-point transfers write the current layer and read the one picked as source
+// (filter_organization.md). They used to write the layer picked as target while declaring
+// the current one, which by default was the source. Each runs here with the receiving layer
+// current: the color arrives, and the source, saved first, is left as its file holds it.
+// The layers are flat on purpose: the texture samplers culled by the source's bounding box
+// with an exclusive test, which a box of no thickness fails everywhere.
+void FilterTests::closestPointTransfersWriteTheCurrentLayer()
+{
+    const auto disk = [](VCGMesh &mesh) {
+        makeOpenDiskMesh(mesh);
+        mesh.face.EnableWedgeTexCoord();
+        for (VCGFace &face : mesh.face)
+            for (int corner = 0; corner < 3; ++corner) {
+                face.WT(corner).P() = vcg::Point2f(face.cP(corner).X(), face.cP(corner).Y());
+                face.WT(corner).N() = 0;
+            }
+    };
+    const int mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTCOLOR
+                     | vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
+    // The share of texels of a texture of `layer` that are mostly `channel` (0 red, 2 blue).
+    const auto share = [](const Document &doc, int layer, int texture, int channel) {
+        QImage image;
+        QString error;
+        if (!TextureAssociationUtils::loadAssociatedTextureImage(doc.mesh(layer), texture, image, error))
+            return 0.0;
+        int hits = 0;
+        for (int y = 0; y < image.height(); ++y)
+            for (int x = 0; x < image.width(); ++x) {
+                const QColor c = image.pixelColor(x, y);
+                const int value[3] = { c.red(), c.green(), c.blue() };
+                hits += value[channel] > 200 && value[2 - channel] < 60;
+            }
+        return double(hits) / double(image.width() * image.height());
+    };
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    Document doc;
+    VCGMesh source;
+    disk(source);
+    for (VCGVertex &v : source.vert)
+        v.C() = vcg::Color4b(255, 0, 0, 255);
+    const int from = doc.addMesh(source, QStringLiteral("source"), mask);
+    QImage blue(32, 32, QImage::Format_RGB32);
+    blue.fill(Qt::blue);
+    TextureAssociationUtils::replaceTextureAssociations(
+        doc.mesh(from), { TextureAssociationUtils::makeTextureAssetFromImage(blue, QStringLiteral("blue.png")) });
+    QCOMPARE(doc.saveMesh(from, dir.filePath(QStringLiteral("source.ply"))), 0);
+    VCGMesh target;
+    disk(target);
+    const int to = doc.addMesh(target, QStringLiteral("target"),
+                               vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    doc.setCurrentMeshIndex(to);
+    const auto run = [&](const QString &id, MeshFilterParameterValues params) {
+        params.insert(QStringLiteral("sourceMesh"), from);
+        return doc.runFilter(filterKeyForId(doc, id), params);
+    };
+
+    // Texture to vertex color: the current layer's vertices turn blue.
+    MeshFilterRunResult r = run(QStringLiteral("transfer_color_from_texture_to_vertex_by_closest_point"), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(doc.mesh(to).mesh.vert[4].C(), vcg::Color4b(0, 0, 255, 255));
+
+    // Vertex color to a texture of the current layer: red.
+    MeshFilterParameterValues small{ { QStringLiteral("textW"), 32 }, { QStringLiteral("textH"), 32 } };
+    MeshFilterParameterValues attributes = small;
+    attributes.insert(QStringLiteral("AttributeEnum"), QStringLiteral("vertex_color"));
+    r = run(QStringLiteral("transfer_vertex_attributes_to_texture_by_closest_point"), attributes);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(share(doc, to, 0, 0) > 0.9);
+
+    // Texture to texture: the source's blue, into a second texture of the current layer.
+    r = run(QStringLiteral("transfer_texture_to_texture_by_closest_point"), small);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(int(doc.mesh(to).textureAssets.size()), 2);
+    QVERIFY(share(doc, to, 1, 2) > 0.9);
+
+    // The source was only read.
+    QCOMPARE(doc.meshStoredState(from), Document::StoredState::Stored);
+    QCOMPARE(int(doc.mesh(from).textureAssets.size()), 1);
 }
 
 void FilterTests::foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds()
@@ -15536,9 +15620,9 @@ void FilterTests::alignmentBakesOnlyTheLayerItMoved()
         const int sourceIndex = doc.addMesh(sourceCloud, QStringLiteral("ICP Source"), mask);
         QVERIFY(referenceIndex >= 0 && sourceIndex >= 0);
 
+        doc.setCurrentMeshIndex(sourceIndex);
         MeshFilterParameterValues params;
-        params.insert(QStringLiteral("ReferenceMesh"), referenceIndex);
-        params.insert(QStringLiteral("SourceMesh"), sourceIndex);
+        params.insert(QStringLiteral("referenceMesh"), referenceIndex);
         params.insert(QStringLiteral("SampleNum"), 5);
         params.insert(QStringLiteral("SampleMode"), false);
         params.insert(QStringLiteral("UseVertexOnly"), true);
@@ -15883,9 +15967,9 @@ void FilterTests::abstractDomainConsumersRunAndRefuseWithoutIt()
     const int copy = doc.duplicateMesh(0);
     QVERIFY(copy > 0);
     doc.clearLayerData(copy, kDomain);
+    doc.setCurrentMeshIndex(copy);
     MeshFilterParameterValues transfer;
     transfer.insert(QStringLiteral("sourceMesh"), 0);
-    transfer.insert(QStringLiteral("targetMesh"), copy);
     const MeshFilterRunResult moved = doc.runFilter(
         filterKeyForId(doc, QStringLiteral("transfer_abstract_domain_to_another_layer")), transfer);
     QVERIFY2(moved.success, qPrintable(moved.errorMessage));
@@ -16936,16 +17020,14 @@ void FilterTests::scopedFiltersConfineThemselvesToTheSelection()
         }
         r.layer = r.doc->addMesh(mesh, QStringLiteral("scope"),
                                  polyline ? scopePolylineMask() : scopeSurfaceMask());
-        r.doc->setCurrentMeshIndex(transfer ? source : r.layer);
+        r.doc->setCurrentMeshIndex(r.layer);
         for (const auto &info : r.doc->filterInfos())
             if (info.descriptor.id == filterId)
                 descriptor = info.descriptor;
         MeshFilterParameterValues params = scopeTestParameters(descriptor);
         params.insert(QString::fromLatin1(SelectionScopes::kParameterId), selectedOnly);
-        if (transfer) {
-            params.insert(QStringLiteral("SourceMesh"), source);
-            params.insert(QStringLiteral("TargetMesh"), r.layer);
-        }
+        if (transfer)
+            params.insert(QStringLiteral("sourceMesh"), source);
         r.result = r.doc->runFilter(key, params);
         return r;
     };

@@ -42,6 +42,7 @@ constexpr QLatin1StringView kFilterRenameTexture("rename_texture");
 constexpr QLatin1StringView kFilterColorToTexture("transfer_color_from_vertex_to_texture");
 constexpr QLatin1StringView kFilterTextureToVertexColor("transfer_color_from_texture_to_vertex_by_closest_point");
 constexpr QLatin1StringView kFilterTransferToTexture("transfer_vertex_attributes_to_texture_by_closest_point");
+constexpr QLatin1StringView kFilterTextureToTexture("transfer_texture_to_texture_by_closest_point");
 constexpr QLatin1StringView kFilterObjectToTangentNormal("convert_object_space_normal_map_to_tangent_space");
 constexpr QLatin1StringView kFilterPackTextures("pack_texture_images");
 
@@ -1089,9 +1090,13 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         return result;
     }
 
+    // The closest-point transfers write the current layer and read the source layer
+    // (filter_organization.md, "A filter that reads two layers changes the current one").
     if (filterId == QString::fromLatin1(kFilterTextureToVertexColor)) {
-        const int sourceMeshIndex = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
-        const int targetMeshIndex = params.getMesh(QStringLiteral("targetMesh"), doc.currentMeshIndex());
+        const int sourceMeshIndex = params.getMesh(QStringLiteral("sourceMesh"), -1);
+        const int targetMeshIndex = doc.currentMeshIndex();
+        if (sourceMeshIndex < 0 || sourceMeshIndex >= doc.meshCount())
+            return fail(QObject::tr("Choose the source mesh."));
         const Document::MeshEntry &sourceEntry = doc.mesh(sourceMeshIndex);
         Document::MeshEntry &targetEntry = doc.mesh(targetMeshIndex);
 
@@ -1168,10 +1173,17 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         return result;
     }
 
-    if (filterId == QString::fromLatin1(kFilterTransferToTexture)) {
-        const int sourceMeshIndex = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
-        const int targetMeshIndex = params.getMesh(QStringLiteral("targetMesh"), doc.currentMeshIndex());
-        const QString attributeModeId = params.getEnum(QStringLiteral("AttributeEnum"));
+    // One sampler for both: a texel's point on the current mesh, the closest point of the
+    // source, and what is interpolated there -- a vertex attribute, or the source's texture.
+    if (filterId == QString::fromLatin1(kFilterTransferToTexture)
+        || filterId == QString::fromLatin1(kFilterTextureToTexture)) {
+        const int sourceMeshIndex = params.getMesh(QStringLiteral("sourceMesh"), -1);
+        const int targetMeshIndex = doc.currentMeshIndex();
+        if (sourceMeshIndex < 0 || sourceMeshIndex >= doc.meshCount())
+            return fail(QObject::tr("Choose the source mesh."));
+        const QString attributeModeId = filterId == QString::fromLatin1(kFilterTextureToTexture)
+            ? QStringLiteral("texture_color")
+            : params.getEnum(QStringLiteral("AttributeEnum"));
         const std::optional<TransferAttributeMode> mode = transferModeFromId(attributeModeId);
         if (!mode)
             return fail(QObject::tr("Unsupported source attribute mode '%1'.").arg(attributeModeId));

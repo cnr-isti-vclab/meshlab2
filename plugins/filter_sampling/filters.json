@@ -705,33 +705,22 @@
       "name": "Transfer Vertex Attributes by Closest Point",
       "pythonName": "transfer_vertex_attributes_by_closest_point",
       "shortDescription": "Transfer attributes from one mesh to another by closest-point projection.",
-      "longDescriptionMarkdown": "Transfer the chosen per-vertex attributes from one layer to another. Useful to transfer attributes to different representations of a same object.\\\nFor each vertex of the target mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the target vertex.\\\nThe algorithm assumes that the two meshes are reasonably similar and aligned.",
+      "longDescriptionMarkdown": "Transfer the chosen per-vertex attributes from the **Source mesh** to the current mesh. Useful to transfer attributes to different representations of a same object.\\\nFor each vertex of the current mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the vertex.\\\nThe algorithm assumes that the two meshes are reasonably similar and aligned.",
       "tags": [
         "sampling",
         "transfer",
         "attributes",
         "projection"
       ],
-      "inputDomain": "WholeDocument",
+      "inputDomain": "SingleMesh",
       "selectionScope": "vertices",
-      "selectionScopeMesh": "TargetMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
       "parameters": [
         {
-          "id": "SourceMesh",
+          "id": "sourceMesh",
           "label": "Source mesh",
-          "help": "The mesh that provides the attributes to transfer.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex",
-          "meshRequirements": {
-            "requireVertices": true
-          }
-        },
-        {
-          "id": "TargetMesh",
-          "label": "Target mesh",
-          "help": "The mesh whose vertices receive the transferred attributes.",
+          "help": "The mesh that provides the attributes to transfer to the current one.",
           "group": "main",
           "type": "mesh",
           "default": "@otherMeshIndex",

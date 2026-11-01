@@ -511,39 +511,29 @@
       "categories": ["Transfer/Between Layers", "Attribute/Color"],
       "name": "Transfer Color from Texture to Vertex by Closest Point",
       "pythonName": "transfer_color_from_texture_to_vertex_by_closest_point",
-      "shortDescription": "Generate vertex colors by sampling texture colors from the same mesh or another mesh.",
-      "longDescriptionMarkdown": "Generates Vertex Color values picking color from a texture (same mesh or another mesh).",
+      "shortDescription": "Color the vertices of the current mesh by sampling the texture of a source mesh at the closest point.",
+      "longDescriptionMarkdown": "Gives each vertex of the current mesh the texture color of the closest point of the **Source Mesh**. The source may be the current mesh itself, to turn its own texture into vertex colors.",
       "tags": [
         "texture",
         "vertex color",
         "transfer",
         "uv"
       ],
-      "inputDomain": "WholeDocument",
+      "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
       "parameters": [
         {
           "id": "sourceMesh",
           "label": "Source Mesh",
-          "help": "The mesh with associated texture that we want to sample from.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@currentMeshIndex",
-          "meshRequirements": {
-            "requireFaces": true,
-            "requirePerWedgeTexCoords": true,
-            "requireTextures": true
-          }
-        },
-        {
-          "id": "targetMesh",
-          "label": "Target Mesh",
-          "help": "The mesh whose vertex color will be filled according to source mesh texture.",
+          "help": "The textured mesh to sample from; it can be the current mesh itself.",
           "group": "main",
           "type": "mesh",
           "default": "@otherMeshIndex",
           "meshRequirements": {
-            "requireVertices": true
+            "requireFaces": true,
+            "requirePerWedgeTexCoords": true,
+            "requireTextures": true
           }
         },
         {
@@ -577,44 +567,33 @@
       "categories": ["Transfer/Between Layers", "Texture"],
       "name": "Transfer Vertex Attributes to Texture by Closest Point",
       "pythonName": "transfer_vertex_attributes_to_texture_by_closest_point",
-      "shortDescription": "Transfer texture color, vertex color, normals, or quality from one mesh into another mesh texture.",
-      "longDescriptionMarkdown": "Transfer texture color, vertex color or normal from one mesh the texture of another mesh. This may be useful to restore detail lost in simplification, or resample a texture in a different parametrization.",
+      "shortDescription": "Bake vertex color, normals or scalar of a source mesh into a texture of the current mesh, by closest point.",
+      "longDescriptionMarkdown": "For each texel of the current mesh, finds its point on the surface and the closest point of the **Source Mesh**, and writes there the interpolated vertex attribute chosen in **Data Source**. This may be useful to restore detail lost in simplification. To resample a texture onto another parametrization, use *Transfer Texture to Texture by Closest Point*.",
       "tags": [
         "texture",
         "transfer",
         "bake",
         "uv"
       ],
-      "inputDomain": "WholeDocument",
+      "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true, "requirePerWedgeTexCoords": true },
       "parameters": [
         {
           "id": "sourceMesh",
           "label": "Source Mesh",
-          "help": "The mesh that contains the source data that we want to transfer.",
+          "help": "The mesh whose vertex attributes are transferred.",
           "group": "main",
           "type": "mesh",
-          "default": "@currentMeshIndex",
+          "default": "@otherMeshIndex",
           "meshRequirements": {
             "requireVertices": true
           }
         },
         {
-          "id": "targetMesh",
-          "label": "Target Mesh",
-          "help": "The mesh whose texture will be filled according to source mesh data.",
-          "group": "main",
-          "type": "mesh",
-          "default": "@otherMeshIndex",
-          "meshRequirements": {
-            "requireFaces": true,
-            "requirePerWedgeTexCoords": true
-          }
-        },
-        {
           "id": "AttributeEnum",
-          "label": "Color Data Source",
-          "help": "Choose what attribute has to be transferred onto the target texture. You can choose between per-vertex attributes or transfer color information from source mesh texture.",
+          "label": "Data Source",
+          "help": "The vertex attribute of the source mesh to write into the texture.",
           "group": "main",
           "type": "enum",
           "default": "vertex_color",
@@ -629,11 +608,7 @@
             },
             {
               "id": "vertex_quality",
-              "label": "Vertex Quality"
-            },
-            {
-              "id": "texture_color",
-              "label": "Texture Color"
+              "label": "Vertex Scalar"
             }
           ]
         },
@@ -678,8 +653,8 @@
         },
         {
           "id": "overwrite",
-          "label": "Overwrite Target Mesh Texture",
-          "help": "If target mesh has associated textures, overwrite them instead of creating new files.",
+          "label": "Overwrite Current Texture",
+          "help": "If the current mesh has textures, replace their images instead of adding new textures. Their files are left alone.",
           "group": "main",
           "type": "bool",
           "default": false
@@ -691,16 +666,106 @@
           "group": "main",
           "type": "bool",
           "default": true
+        }
+      ],
+      "outputModifies": [
+        "TX"
+      ]
+    },
+    {
+      "id": "transfer_texture_to_texture_by_closest_point",
+      "categories": ["Transfer/Between Layers", "Texture"],
+      "name": "Transfer Texture to Texture by Closest Point",
+      "pythonName": "transfer_texture_to_texture_by_closest_point",
+      "shortDescription": "Resample the texture of a source mesh into a texture of the current mesh, by closest point.",
+      "longDescriptionMarkdown": "For each texel of the current mesh, finds its point on the surface and the closest point of the **Source Mesh**, and writes there the source's texture color. This re-textures a mesh after remeshing, simplification or a new parametrization: give the new mesh its UVs, make it current, and pick the textured original as the source.",
+      "tags": [
+        "texture",
+        "transfer",
+        "resample",
+        "uv"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true, "requirePerWedgeTexCoords": true },
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Source Mesh",
+          "help": "The textured mesh to sample from.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireFaces": true,
+            "requirePerWedgeTexCoords": true,
+            "requireTextures": true
+          }
         },
         {
           "id": "sourceTexture",
           "label": "Source Texture",
-          "help": "When Texture Color is selected, choose which associated source texture to sample. Automatic uses the source mesh per-face texture slot assignment.",
-          "group": "advanced",
+          "help": "Which texture of the source mesh to sample. Automatic follows the source's per-face texture assignment.",
+          "group": "main",
           "type": "textureref",
           "default": 0,
           "sourceMeshParameter": "sourceMesh",
           "allowAutomatic": true
+        },
+        {
+          "id": "upperBound",
+          "label": "Max Dist Search",
+          "help": "Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag002",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "textureName",
+          "label": "Texture name",
+          "help": "Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.",
+          "group": "main",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "id": "textW",
+          "label": "Texture width (px)",
+          "help": "The texture width.",
+          "group": "main",
+          "type": "int",
+          "default": 1024,
+          "min": 1,
+          "max": 32768
+        },
+        {
+          "id": "textH",
+          "label": "Texture height (px)",
+          "help": "The texture height.",
+          "group": "main",
+          "type": "int",
+          "default": 1024,
+          "min": 1,
+          "max": 32768
+        },
+        {
+          "id": "overwrite",
+          "label": "Overwrite Current Texture",
+          "help": "If the current mesh has textures, replace their images instead of adding new textures. Their files are left alone.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "pullpush",
+          "label": "Fill texture",
+          "help": "If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.",
+          "group": "main",
+          "type": "bool",
+          "default": true
         }
       ],
       "outputModifies": [

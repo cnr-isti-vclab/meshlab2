@@ -604,11 +604,12 @@ MeshFilterRunResult runMeasureDomain(const FilterParams &params, Document &doc, 
 // Carries a domain onto a second, similar layer by closest point.
 MeshFilterRunResult runTransfer(const FilterParams &params, Document &doc)
 {
-    const int sourceIndex = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
-    const int targetIndex = params.getMesh(QStringLiteral("targetMesh"), doc.currentMeshIndex());
+    // The current layer receives the domain of the source one.
+    const int sourceIndex = params.getMesh(QStringLiteral("sourceMesh"), -1);
+    const int targetIndex = doc.currentMeshIndex();
     if (sourceIndex < 0 || sourceIndex >= doc.meshCount()
         || targetIndex < 0 || targetIndex >= doc.meshCount())
-        return fail(QObject::tr("Both a source and a target layer are needed."));
+        return fail(QObject::tr("Both a source and a current layer are needed."));
     if (sourceIndex == targetIndex)
         return fail(QObject::tr("The source and target layers must be different."));
 

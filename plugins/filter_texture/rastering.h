@@ -293,7 +293,12 @@ public:
         startPt[1] = bary[0]*f.cV(0)->cP().Y()+bary[1]*f.cV(1)->cP().Y()+bary[2]*f.cV(2)->cP().Y();
         startPt[2] = bary[0]*f.cV(0)->cP().Z()+bary[1]*f.cV(1)->cP().Z()+bary[2]*f.cV(2)->cP().Z();
 
-        if (!srcMesh->bbox.IsInEx(startPt)) return;
+        // Only the source's box, grown by the search distance, can hold a closest point. Not
+        // IsInEx on the bare box: a flat source has a box of no thickness, and every point
+        // of it fell outside, so a planar mesh transferred nothing.
+        VCGMesh::BoxType reach = srcMesh->bbox;
+        reach.Offset(dist_upper_bound);
+        if (!reach.IsIn(startPt)) return;
 
         // Retrieve closest point on source mesh
 

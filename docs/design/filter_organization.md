@@ -267,9 +267,10 @@ Recommended common names:
 ### A single-mesh filter works on the current layer
 
 A filter that works on one mesh takes it from the current layer, chosen in the layer panel,
-never from a mesh parameter; a mesh parameter names a *second* input. `sourceMesh` in the
-table above is the source of a source-to-target pair, so one standing alone is the telltale,
-and `FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer` refuses it.
+never from a mesh parameter; a mesh parameter names a *second* input. A lone `sourceMesh`
+that defaults to the current layer is the telltale of a filter taking its own mesh as a
+parameter, and `FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer` refuses it; one
+that defaults to another layer is the source a two-layer filter reads (next section).
 
 Migrated 2026-09-29 (measured from the code, not the manifests: each of these read its
 `sourceMesh` and never touched the current layer otherwise): the ten TrueForm filters

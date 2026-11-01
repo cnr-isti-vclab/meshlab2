@@ -1,7 +1,7 @@
 # Two-layer filters modify the current layer (draft, 2026-10-31)
 
-**Status: approved 2026-11-01 (section 6). Stage 1 (the rule and the test) implemented
-2026-11-01; stages 2 and 3 not yet.**
+**Status: approved 2026-11-01 (section 6). Stages 1 (the rule and the test) and 2 (the
+inverted filters and the split) implemented 2026-11-01; stage 3 not yet.**
 
 A filter that reads two layers and changes one should change the **current** layer, and
 take the other through a single mesh parameter. That is how the single-mesh filters work
@@ -158,8 +158,33 @@ the `sourceMesh=` of rows 6-10 go; a script sets the current layer instead
    projections. The aligners move every layer while declaring `ModifyCurrentMesh`, an
    inaccuracy of their own, outside this proposal. Resolved defaults are compared with the
    fixture's current layer, since the test sees `@currentMeshIndex` already resolved.
-2. **Inverted filters** (rows 1-5, with 19-20 for them), and the split of row 1.
-3. **Parameterised filters** (rows 6-15).
+2. **Inverted filters** (rows 1-5, with 19-20 for them), and the split of row 1. **Done
+   2026-11-01.** The five write the current layer and read `sourceMesh` (`referenceMesh`
+   for ICP), defaulting to the other layer; their target parameter is gone, they declare
+   `SingleMesh`, and the target's requirements moved to `inputRequirements`. *Transfer
+   Texture to Texture by Closest Point* is new, sharing the branch and sampler of *Transfer
+   Vertex Attributes to Texture by Closest Point*, which lost its texture option (its
+   *Vertex Quality* option reads *Vertex Scalar*). The sampling transfer's
+   `selectionScopeMesh` went with its target parameter. Found on the way:
+   - The closest-point texture samplers culled each texel by the source's bounding box with
+     `IsInEx`, an exclusive test that a box of no thickness fails everywhere: a planar source
+     transferred nothing into a texture. They now test the box grown by the search distance
+     (`rastering.h`).
+   - No visible failure came from the declared-versus-written mismatch itself: these filters
+     mark the layer they change, and the framework's bookkeeping follows the marks.
+   - `singleMeshFiltersUseTheCurrentLayer` read any lone `sourceMesh` as a filter taking its
+     own mesh; it now does so only when that parameter defaults to the current layer.
+   Tests: `closestPointTransfersWriteTheCurrentLayer` (the three texture transfers, on flat
+   layers, the source left stored); the ICP, abstract-domain and selection-scope tests set
+   the current layer instead of a target parameter.
+
+   Open, for the vocabulary: *Transfer Abstract Domain to Another Layer* now transfers *from*
+   another layer into the current one, so its name reads backwards; and *Align by ICP
+   (vcglib)* now works as the Open3D *Align Layer to Reference by ...* filters do, under a
+   different name.
+3. **Parameterised filters** (rows 6-15). With the MLS projections migrated nothing uses
+   `selectionScopeMesh` any more, so the field, its loader check and the filter panel's
+   handling go too.
 
 ## 6. Decisions (2026-11-01)
 

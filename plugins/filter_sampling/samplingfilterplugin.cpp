@@ -1184,8 +1184,11 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterVertexResampling)) {
-        const int sourceMeshIndex = meshIndexFromParam(params, QStringLiteral("SourceMesh"), doc);
-        const int targetMeshIndex = meshIndexFromParam(params, QStringLiteral("TargetMesh"), doc);
+        // Writes the current layer, reads the source one.
+        const int sourceMeshIndex = params.getMesh(QStringLiteral("sourceMesh"), -1);
+        const int targetMeshIndex = doc.currentMeshIndex();
+        if (sourceMeshIndex < 0 || sourceMeshIndex >= doc.meshCount())
+            return failResult(QObject::tr("Choose the source mesh."));
         if (sourceMeshIndex == targetMeshIndex)
             return failResult(QObject::tr("Attribute transfer requires two different meshes."));
 
