@@ -6,6 +6,7 @@
 #include "lengthunit.h"
 #include "meshfilterpluginmanager.h"
 #include "textureassociationutils.h"
+#include "uvlayer.h"
 #include "vcgmesh.h"
 
 #include "floatbuffer.h"
@@ -1069,8 +1070,25 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
     if (fid == QString::fromLatin1(kFaceFromRasters)) {
         const float depthEps = float(p.getDouble(QStringLiteral("depthEpsilon"), 0.0));
         const QString measure = p.getEnum(QStringLiteral("measure"), QStringLiteral("count"));
-        const bool resolution = measure == QLatin1String("bestResolution");
+        // The texture/photo ratio is the texel density of the mesh's own texture over the best
+        // resolution, so it measures that and divides once every raster is in.
+        const bool ratio = measure == QLatin1String("textureToPhotoRatio");
+        const bool resolution = ratio || measure == QLatin1String("bestResolution");
         const bool angle = measure == QLatin1String("bestAngle");
+        std::vector<float> texels;
+        if (ratio) {
+            UvLayerUtils::UvLayer uvLayer;
+            const QString error = UvLayerUtils::buildUvLayer(doc.mesh(mi), 0, 0, uvLayer);
+            if (!error.isEmpty())
+                return fail(error);
+            if (!uvLayer.texelsKnown)
+                return fail(QObject::tr("The texture/photo ratio needs a texture image: the layer has none."));
+            texels.assign(m.face.size(), 0.0f);
+            size_t next = 0;
+            for (size_t fi = 0; fi < m.face.size(); ++fi)
+                if (!m.face[fi].IsD())
+                    texels[fi] = float(UvLayerUtils::faceTexelDensity(uvLayer.mesh.face[next++]));
+        }
         std::vector<int> seenBy(m.face.size(), 0);
         for (auto &f : m.face) f.Q() = angle ? 180.0f : 0.0f;
 
@@ -1121,8 +1139,13 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
             dropContext(ri);
         }
 
-        // Summary over the faces some raster sees; the worst 5% is the low tail of a count or
-        // a resolution, and the high tail of an angle.
+        if (ratio)
+            for (size_t fi = 0; fi < m.face.size(); ++fi)
+                if (seenBy[fi] > 0 && m.face[fi].Q() > 0)
+                    m.face[fi].Q() = texels[fi] / m.face[fi].Q();
+
+        // Summary over the faces some raster sees; the worst 5% is the low tail of a count, a
+        // resolution or a ratio, and the high tail of an angle.
         std::vector<float> values;
         int unseen = 0, seenOnce = 0;
         for (size_t fi = 0; fi < m.face.size(); ++fi) {
@@ -1139,7 +1162,8 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
             QObject::tr("Computed face scalar from rasters on '%1'.").arg(doc.mesh(mi).name));
 
         const QString unit = LengthUnits::symbol(doc.unit());
-        const QString suffix = resolution ? QObject::tr(" px/%1").arg(unit.isEmpty() ? QObject::tr("unit") : unit)
+        const QString suffix = ratio ? QString()
+                             : resolution ? QObject::tr(" px/%1").arg(unit.isEmpty() ? QObject::tr("unit") : unit)
                              : angle ? QStringLiteral("\u00B0") : QString();
         QStringList info{ QObject::tr("%1 faces, %2 rasters: %3 seen by no raster, %4 by only one.")
                               .arg(m.FN()).arg(activeRasters.size()).arg(unseen).arg(seenOnce) };

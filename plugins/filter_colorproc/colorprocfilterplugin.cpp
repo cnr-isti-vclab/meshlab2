@@ -2,10 +2,12 @@
 
 #include "document.h"
 #include "filterparam.h"
+#include "lengthunit.h"
 #include "meshfilterpluginmanager.h"
 #include "src/render/colormap.h"
 #include "src/render/qualityrange.h"
 #include "textureassociationutils.h"
+#include "uvlayer.h"
 #include "vcgmesh.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/algorithms/bitquad_support.h>
@@ -80,7 +82,8 @@ enum class TextureDistortionMetric {
     L2Stretch,
     LInfStretch,
     QuasiConformal,
-    UVScaling
+    UVScaling,
+    TexelDensity
 };
 
 TextureDistortionMetric textureDistortionMetric(const QString &id)
@@ -91,6 +94,7 @@ TextureDistortionMetric textureDistortionMetric(const QString &id)
     if (id == QStringLiteral("linf_stretch")) return TextureDistortionMetric::LInfStretch;
     if (id == QStringLiteral("quasi_conformal")) return TextureDistortionMetric::QuasiConformal;
     if (id == QStringLiteral("uv_scaling")) return TextureDistortionMetric::UVScaling;
+    if (id == QStringLiteral("texel_density")) return TextureDistortionMetric::TexelDensity;
     return TextureDistortionMetric::Angle;
 }
 
@@ -118,6 +122,8 @@ Scalar faceTextureDistortion(
         return Distortion::QuasiConformalDistortion(&face);
     case TextureDistortionMetric::UVScaling:
         return Distortion::UVScaling(&face, areaScale);
+    case TextureDistortionMetric::TexelDensity: // needs the texture sizes: computed by the caller
+        return 0;
     case TextureDistortionMetric::Angle:
         return Distortion::AngleDistortion(&face);
     }
@@ -695,9 +701,24 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         if (geometricQuality && planarity && (entry.ioMask & Mask::IOM_BITPOLYGONAL) == 0)
             return fail(QObject::tr("This metric is meaningless for triangle-only meshes (all faces are planar by definition)."));
 
+        // Texel density is absolute: the texels a face covers in its own texture over its area
+        // in world units, as a length, so that it reads like a raster's pixels per unit.
+        // The layer as the texel measures take it: UV in texels of each face's texture, positions
+        // through the layer matrix, and the same rule for which texture a face uses.
+        const bool texelDensity = textureDistortion && textureMetric == TextureDistortionMetric::TexelDensity;
+        UvLayerUtils::UvLayer uvLayer;
+        if (texelDensity) {
+            const QString error = UvLayerUtils::buildUvLayer(entry, 0, 0, uvLayer);
+            if (!error.isEmpty())
+                return fail(error);
+            if (!uvLayer.texelsKnown)
+                return fail(QObject::tr("Texel density needs a texture image: the layer has none."));
+        }
+        size_t uvFace = 0;
+
         Scalar areaScaleVal = 0;
         Scalar edgeScaleVal = 0;
-        if (textureDistortion
+        if (textureDistortion && !texelDensity
             && textureMetric != TextureDistortionMetric::Angle
             && textureMetric != TextureDistortionMetric::QuasiConformal) {
             if (useWedgeTex)
@@ -734,6 +755,8 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
                 face.Q() = vcg::QualityMeanRatio(face.P(0), face.P(1), face.P(2));
             else if (geometricQuality && metricId == QStringLiteral("area"))
                 face.Q() = vcg::DoubleArea(face) * 0.5f;
+            else if (texelDensity)
+                face.Q() = Scalar(UvLayerUtils::faceTexelDensity(uvLayer.mesh.face[uvFace++]));
             else if (textureDistortion)
                 face.Q() = useWedgeTex
                     ? faceTextureDistortion<true>(face, textureMetric, areaScaleVal, edgeScaleVal)
@@ -775,7 +798,21 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             geometricQuality
                 ? QObject::tr("Computed per-face geometric quality on '%1'").arg(meshLabel(entry, meshIndex))
                 : QObject::tr("Computed per-face texture distortion on '%1'").arg(meshLabel(entry, meshIndex)));
-        return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::FaceQuality);
+        QStringList info;
+        if (texelDensity) {
+            std::vector<float> values;
+            for (const VCGFace &face : mesh.face)
+                if (!face.IsD() && face.cQ() > 0)
+                    values.push_back(face.cQ());
+            std::sort(values.begin(), values.end());
+            if (!values.empty()) {
+                const QString unit = LengthUnits::symbol(doc.unit());
+                info << QObject::tr("Texel density over %1 textured faces: min %2, median %3, max %4 texels/%5.")
+                            .arg(values.size()).arg(values.front()).arg(values[values.size() / 2])
+                            .arg(values.back()).arg(unit.isEmpty() ? QObject::tr("unit") : unit);
+            }
+        }
+        return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::FaceQuality, info);
     }
 
     if (filterId == QString::fromLatin1(kFilterRandomConnected)) {

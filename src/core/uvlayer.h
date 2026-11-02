@@ -9,6 +9,7 @@
 #include <QSizeF>
 #include <QString>
 
+#include <cmath>
 #include <vector>
 
 // A layer's texture coordinates as the filters that measure or draw the UV mapping take them: the
@@ -39,6 +40,16 @@ struct UvLayer
     bool texelsKnown = false; // the sizes are real ones, from the images or asked for, not the unit square
     QString units;            // how the UV were taken, for the report
 };
+
+// The texels a face covers per unit of length on the mesh, in a layer built in texels: the square
+// root of its UV area over its 3D area, so that it reads like a raster's pixels per unit. 0 for a
+// face without area, or without UV area (one with no texture).
+inline double faceTexelDensity(const UVMeshFace &f)
+{
+    const double area3D = ((f.cP(1) - f.cP(0)) ^ (f.cP(2) - f.cP(0))).Norm();
+    const double areaUV = std::abs((f.cWT(1).P() - f.cWT(0).P()) ^ (f.cWT(2).P() - f.cWT(0).P()));
+    return area3D > 0 ? std::sqrt(areaUV / area3D) : 0;
+}
 
 // Fill `layer` from a layer of the document. The texture size is the one asked for (both sides
 // positive), or that of the layer's images, or, with neither, the unit square. The UV are taken in

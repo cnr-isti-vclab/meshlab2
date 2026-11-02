@@ -260,9 +260,9 @@
       "categories": ["Attribute/Scalar", "Transfer/From Rasters"],
       "name": "Compute Face Scalar from Rasters",
       "pythonName": "compute_face_scalar_from_rasters",
-      "shortDescription": "Measure, for each face, how well the visible rasters see it: how many, at what resolution, or at what angle.",
-      "longDescriptionMarkdown": "Measures, for each face, how well the visible rasters cover it, so that a photo set can be checked before it is used for texturing or color transfer. The result is a per-face scalar, shown with the colormap.\n\nA raster **sees** a face when at least two of three points inside it (at barycentric coordinates (2/3, 1/6, 1/6) and its permutations) project inside the image, in front of the camera, on the front side of the face, and pass a depth test against a software depth buffer of the whole mesh. This asks whether most of the face is visible: a single sample at a vertex or at the centroid decides a half-hidden face by chance.\n\n**Measure** chooses what is written:\n\n- **Count**: how many rasters see the face.\n- **Best resolution**: over the rasters that see the face, the largest square root of its projected area in pixels over its area on the mesh. It is a linear density, in pixels per document unit (pixels per centimeter when the document unit is centimeters), and it falls both with distance and with foreshortening.\n- **Best angle**: over the rasters that see the face, the smallest angle in degrees between the face normal and the direction to the camera. It separates faces seen only at grazing angles from faces seen head-on from too far away.\n\nFaces that no raster sees get 0 for Count and Best resolution, and 180 for Best angle.\n\nThe run also reports the minimum, median and 5th percentile of the measure over the faces that some raster sees, and how many faces no raster sees and how many only one raster sees.",
-      "tags": ["raster", "coverage", "visibility", "resolution", "pixel density", "viewing angle", "photogrammetry"],
+      "shortDescription": "Measure, for each face, how well the visible rasters see it: how many, at what resolution, at what angle, or how much of that resolution its texture keeps.",
+      "longDescriptionMarkdown": "Measures, for each face, how well the visible rasters cover it, so that a photo set can be checked before it is used for texturing or color transfer. The result is a per-face scalar, shown with the colormap.\n\nA raster **sees** a face when at least two of three points inside it (at barycentric coordinates (2/3, 1/6, 1/6) and its permutations) project inside the image, in front of the camera, on the front side of the face, and pass a depth test against a software depth buffer of the whole mesh. This asks whether most of the face is visible: a single sample at a vertex or at the centroid decides a half-hidden face by chance.\n\n**Measure** chooses what is written:\n\n- **Count**: how many rasters see the face.\n- **Best resolution**: over the rasters that see the face, the largest square root of its projected area in pixels over its area on the mesh. It is a linear density, in pixels per document unit (pixels per centimeter when the document unit is centimeters), and it falls both with distance and with foreshortening.\n- **Best angle**: over the rasters that see the face, the smallest angle in degrees between the face normal and the direction to the camera. It separates faces seen only at grazing angles from faces seen head-on from too far away.\n- **Texture/photo ratio**: the texel density of the face in the layer's own texture (as *Compute UV Distortion* measures it, in texels per document unit) over its best resolution. Below 1 the texture keeps less detail than the best photo of the face offers, above 1 it spends texels the photos cannot fill. It needs a texture coordinate layer and its texture images (only their sizes are read); a face without texture gets 0.\n\nFaces that no raster sees get 0 for Count, Best resolution and Texture/photo ratio, and 180 for Best angle.\n\nThe run also reports the minimum, median and 5th percentile of the measure over the faces that some raster sees, and how many faces no raster sees and how many only one raster sees.",
+      "tags": ["raster", "coverage", "visibility", "resolution", "pixel density", "texel density", "viewing angle", "photogrammetry"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
@@ -273,7 +273,7 @@
         {
           "id": "measure",
           "label": "Measure",
-          "help": "What to write for each face: how many rasters see it, the best resolution any of them gives it in pixels per document unit, or the smallest angle in degrees between its normal and a camera that sees it.",
+          "help": "What to write for each face: how many rasters see it, the best resolution any of them gives it in pixels per document unit, the smallest angle in degrees between its normal and a camera that sees it, or its texel density in the layer's texture over that best resolution.",
           "group": "main",
           "type": "enum",
           "default": "count",
@@ -289,6 +289,10 @@
             {
               "id": "bestAngle",
               "label": "Best angle"
+            },
+            {
+              "id": "textureToPhotoRatio",
+              "label": "Texture/photo ratio"
             }
           ]
         },

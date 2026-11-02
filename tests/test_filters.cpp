@@ -554,6 +554,7 @@ private slots:
     void removeTexturesCanTakeOne();
     void faceQualityFiltersAreSplit();
     void quasiConformalAndUvScalingTellShapeFromDensity();
+    void texelDensityCountsTexelsPerUnit();
     void measureReportsFaceDefectsOrientationAndBoundaryLength();
     void measureUvMappingCountsIslandsEdgesAndDistortionInTexels();
     void foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds();
@@ -9308,6 +9309,50 @@ void FilterTests::faceQualityFiltersAreSplit()
     }
 }
 
+// Texel density is absolute: on the unit square with UV = x, y, a face covers as many texels
+// per unit length as its texture has along a side (the square root of W * H for a non-square
+// one), whichever texture it uses; scaling the layer by 2 halves it.
+void FilterTests::texelDensityCountsTexelsPerUnit()
+{
+    Document doc;
+    VCGMesh mesh;
+    makeOpenDiskMesh(mesh);
+    mesh.face.EnableWedgeTexCoord();
+    for (std::size_t f = 0; f < mesh.face.size(); ++f) {
+        for (int corner = 0; corner < 3; ++corner) {
+            mesh.face[f].WT(corner).U() = mesh.face[f].cP(corner).X();
+            mesh.face[f].WT(corner).V() = mesh.face[f].cP(corner).Y();
+            mesh.face[f].WT(corner).N() = f < 2 ? 0 : 1;
+        }
+    }
+    QCOMPARE(doc.addMesh(mesh, QStringLiteral("Textured square"),
+                         vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD), 0);
+    QImage wide(512, 128, QImage::Format_RGB32), small(64, 64, QImage::Format_RGB32);
+    wide.fill(Qt::red);
+    small.fill(Qt::green);
+    TextureAssociationUtils::replaceTextureAssociations(
+        doc.mesh(0),
+        { TextureAssociationUtils::makeTextureAssetFromImage(wide, QStringLiteral("wide.png")),
+          TextureAssociationUtils::makeTextureAssetFromImage(small, QStringLiteral("small.png")) });
+    const QString key = filterKeyForId(doc, QStringLiteral("compute_uv_distortion"));
+    const auto check = [&](float scale) {
+        const MeshFilterRunResult r = doc.runFilter(key, { { QStringLiteral("metric"), QStringLiteral("texel_density") } });
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        const auto &faces = doc.mesh(0).mesh.face;
+        for (std::size_t f = 0; f < faces.size(); ++f) {
+            const float expected = (f < 2 ? 256.0f : 64.0f) / scale;
+            QVERIFY2(std::abs(faces[f].cQ() - expected) < 1e-3f * expected,
+                     qPrintable(QStringLiteral("face %1: %2, expected %3").arg(f).arg(faces[f].cQ()).arg(expected)));
+        }
+    };
+    check(1.0f);
+    QMatrix4x4 twice;
+    twice.scale(2.0f);
+    doc.mesh(0).transform = twice;
+    check(2.0f);
+}
+
+
 // Quasi-conformal distortion (the ratio of the Jacobian's singular values) tells a change of
 // shape from a change of size, and UV scaling (the signed area ratio against the mesh-wide
 // average) the other way round. The unit square in four triangles starts with UV = x, y, so
@@ -9876,6 +9921,33 @@ void FilterTests::faceScalarFromRastersMeasuresTheViews()
     QVERIFY2(changedVisibility * 1000 < resolution.size(),
              qPrintable(QStringLiteral("%1 faces changed visibility").arg(changedVisibility)));
     QVERIFY(compared > resolution.size() / 2);
+
+    // The texture/photo ratio needs a texture, and is the texel density of the face over its
+    // best resolution: textured from the same rasters, both measured on their own must divide to it.
+    r = run(doc, QStringLiteral("textureToPhotoRatio"), 1.0);
+    QVERIFY(!r.success);
+    r = doc.runFilter(filterKeyForId(doc, QStringLiteral("parametrize_from_registered_rasters_with_texture")),
+                      { { QStringLiteral("textureSize"), 512 } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    r = run(doc, QStringLiteral("bestResolution"), 1.0);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const std::vector<float> texturedResolution = scalars(doc);
+    r = doc.runFilter(filterKeyForId(doc, QStringLiteral("compute_uv_distortion")),
+                      { { QStringLiteral("metric"), QStringLiteral("texel_density") } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const std::vector<float> texels = scalars(doc);
+    r = run(doc, QStringLiteral("textureToPhotoRatio"), 1.0);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const std::vector<float> ratio = scalars(doc);
+    size_t textured = 0;
+    for (size_t i = 0; i < ratio.size(); ++i) {
+        const float expected = texturedResolution[i] > 0 ? texels[i] / texturedResolution[i] : 0.0f;
+        QVERIFY2(std::abs(ratio[i] - expected) <= 1e-5f * expected,
+                 qPrintable(QStringLiteral("face %1: %2, expected %3").arg(i).arg(ratio[i]).arg(expected)));
+        textured += ratio[i] > 0;
+    }
+    QVERIFY(textured > ratio.size() / 2);
+    qDebug("face scalar from rasters, texture/photo ratio | %s", qPrintable(r.infoMessages.join(' ')));
 }
 
 
