@@ -1528,19 +1528,29 @@ Insert three function each one for quality of the three vertex of a face</p>
 
 <hr class="docutils" />
 </section>
-<section id="compute-face-scalar-from-raster-coverage">
-<span id="filter-compute-face-scalar-from-raster-coverage"></span><h2>Compute Face Scalar from Raster Coverage<a class="headerlink" href="#compute-face-scalar-from-raster-coverage" title="Link to this heading">¶</a></h2>
+<section id="compute-face-scalar-from-rasters">
+<span id="filter-compute-face-scalar-from-rasters"></span><h2>Compute Face Scalar from Rasters<a class="headerlink" href="#compute-face-scalar-from-rasters" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code>, <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.img_patch_param</p>
-<p>Compute a quality value representing the number of images into which each face of the active mesh is visible.</p>
+<p>Measure, for each face, how well the visible rasters see it: how many, at what resolution, at what angle, or how much of that resolution its texture keeps.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="meshlab.ms.compute_face_scalar_from_raster_coverage">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_face_scalar_from_raster_coverage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_face_scalar_from_raster_coverage" title="Link to this definition">¶</a></dt>
-<dd><p>Compute a quality value representing the number of images into which each face of the active mesh is visible. For each active raster, a software depth buffer is built and each face is tested for visibility. A face is considered visible if at least one of its three vertices is visible. The quality value counts how many rasters each face is visible in. Optionally normalizes to [0,1].</p>
+<dt class="sig sig-object py" id="meshlab.ms.compute_face_scalar_from_rasters">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_face_scalar_from_rasters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_face_scalar_from_rasters" title="Link to this definition">¶</a></dt>
+<dd><p>Measures, for each face, how well the visible rasters cover it, so that a photo set can be checked before it is used for texturing or color transfer. The result is a per-face scalar, shown with the colormap.</p>
+<p>A raster <strong>sees</strong> a face when at least two of three points inside it (at barycentric coordinates (2/3, 1/6, 1/6) and its permutations) project inside the image, in front of the camera, on the front side of the face, and pass a depth test against a software depth buffer of the whole mesh. This asks whether most of the face is visible: a single sample at a vertex or at the centroid decides a half-hidden face by chance.</p>
+<p><strong>Measure</strong> chooses what is written:</p>
+<ul class="simple">
+<li><p><strong>Count</strong>: how many rasters see the face.</p></li>
+<li><p><strong>Best resolution</strong>: over the rasters that see the face, the largest square root of its projected area in pixels over its area on the mesh. It is a linear density, in pixels per document unit (pixels per centimeter when the document unit is centimeters), and it falls both with distance and with foreshortening.</p></li>
+<li><p><strong>Best angle</strong>: over the rasters that see the face, the smallest angle in degrees between the face normal and the direction to the camera. It separates faces seen only at grazing angles from faces seen head-on from too far away.</p></li>
+<li><p><strong>Texture/photo ratio</strong>: the texel density of the face in the layer’s own texture (as <em>Compute UV Distortion</em> measures it, in texels per document unit) over its best resolution. Below 1 the texture keeps less detail than the best photo of the face offers, above 1 it spends texels the photos cannot fill. It needs a texture coordinate layer and its texture images (only their sizes are read); a face without texture gets 0.</p></li>
+</ul>
+<p>Faces that no raster sees get 0 for Count, Best resolution and Texture/photo ratio, and 180 for Best angle.</p>
+<p>The run also reports the minimum, median and 5th percentile of the measure over the faces that some raster sees, and how many faces no raster sees and how many only one raster sees.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>normalizeQuality</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Rescale quality values to the range [0,1].</p></li>
-<li><p><strong>depthEpsilon</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Tolerance for depth test when checking vertex visibility. Increase for noisy registrations.</p></li>
+<li><p><strong>measure</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">count</span></code>) — What to write for each face: how many rasters see it, the best resolution any of them gives it in pixels per document unit, the smallest angle in degrees between its normal and a camera that sees it, or its texel density in the layer’s texture over that best resolution.</p></li>
+<li><p><strong>depthEpsilon</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Tolerance for the depth test, in document units, when checking whether a point of a face is hidden. Increase for noisy registrations.</p></li>
 </ul>
 </dd></dl>
 
@@ -1806,11 +1816,11 @@ Insert three function each one for quality of the three vertex of a face</p>
 <span id="filter-compute-uv-distortion"></span><h2>Compute UV Distortion<a class="headerlink" href="#compute-uv-distortion" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.colorproc</p>
-<p>Measure angular, area, edge-length, stretch, quasi-conformal or texel-density distortion in a UV mapping.</p>
+<p>Measure angular, area, edge-length, stretch or quasi-conformal distortion in a UV mapping, its relative scaling, or its texel density.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_uv_distortion">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_uv_distortion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_uv_distortion" title="Link to this definition">¶</a></dt>
-<dd><p>Compares every triangle in 3D with its mapping in UV space and stores the resulting dimensionless distortion in <strong>face quality</strong>. No colors are baked into the mesh; after completion MeshLab switches the view to face-quality visualization. Both per-wedge and per-vertex texture coordinates are supported, and texture image files are not required.</p>
+<dd><p>Compares every triangle in 3D with its mapping in UV space and stores the result in <strong>face quality</strong>: a dimensionless distortion for every metric but <em>Texel density</em>. No colors are baked into the mesh; after completion MeshLab switches the view to face-quality visualization. Both per-wedge and per-vertex texture coordinates are supported, and texture image files are needed only for <em>Texel density</em>.</p>
 <ul class="simple">
 <li><p><strong>Angle distortion</strong>: the mean relative angular error over the three corners,</p></li>
 </ul>
@@ -1867,6 +1877,14 @@ Insert three function each one for quality of the three vertex of a face</p>
 \[S=\frac{s_A A_{UV}}{A_{3D}}.\]</div>
 </div>
 <p>The ideal value is <span class="math notranslate nohighlight">\(1\)</span>, the texel density of the mesh as a whole. Above <span class="math notranslate nohighlight">\(1\)</span> the face is magnified in texture space, below <span class="math notranslate nohighlight">\(1\)</span> it is compressed, and it is negative for a folded face. <em>Area distortion</em> is <span class="math notranslate nohighlight">\(|S-1|\)</span>, so it cannot tell the two directions apart.</p>
+<ul class="simple">
+<li><p><strong>Texel density</strong>: how many texels of its own texture a face gets per unit of length, with <span class="math notranslate nohighlight">\(W \times H\)</span> the size of that texture in texels and <span class="math notranslate nohighlight">\(A_{3D}\)</span> the face’s area in document units (after the layer’s transformation),</p></li>
+</ul>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[T=\sqrt{\frac{|A_{UV}|\,W H}{A_{3D}}}.\]</div>
+</div>
+<p>Unlike every other metric it is absolute, not normalized: texels per centimeter when the document unit is centimeters. It reads directly against the <em>Best resolution</em> of <em>Compute Face Scalar from Rasters</em>, the pixels per unit the photos give the same face: where the texture is well below the photos it has lost detail they had, where it is well above, texels are wasted. Only the image sizes are read, not their pixels; a face with no texture or no area gets <span class="math notranslate nohighlight">\(0\)</span>.</p>
 <p>The global normalization makes every metric invariant to uniform resizing of the complete UV map. UV area is oriented, matching VCGLib’s distortion implementation. A zero total oriented UV area makes area normalization undefined, for area distortion and UV scaling; stretch additionally requires that total to be positive. For L2 and L-infinity stretch, folded or degenerate individual UV triangles produce non-finite quality values, which are excluded from the displayed finite quality range.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -3557,7 +3575,7 @@ To build a polyline from an <em>edge</em> selection instead, use <em>Build a Pol
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.export_cameras_from_visible_rasters">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">export_cameras_from_visible_rasters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.export_cameras_from_visible_rasters" title="Link to this definition">¶</a></dt>
-<dd><p>Exports the cameras of all visible raster layers as MeshLab-compatible VCGCamera XML entries.</p>
+<dd><p>Exports the cameras of all visible raster layers as MeshLab-compatible VCGCamera XML entries, each with its lens distortion when it has one (LensModel and LensParams, which old MeshLab ignores).</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>camera_file</strong> (<em>file_save</em>, default: ``) — Destination XML file for the active raster cameras.</p></li>
@@ -3574,7 +3592,7 @@ To build a polyline from an <em>edge</em> selection instead, use <em>Build a Pol
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.import_cameras_to_visible_rasters">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">import_cameras_to_visible_rasters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.import_cameras_to_visible_rasters" title="Link to this definition">¶</a></dt>
-<dd><p>Imports MeshLab-compatible VCGCamera XML entries and assigns them, in file order, to visible raster layers.</p>
+<dd><p>Imports MeshLab-compatible VCGCamera XML entries and assigns them, in file order, to visible raster layers, with their lens distortion: a raster given a lens shows its photo undistorted through it.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>camera_file</strong> (<em>file_open</em>, default: ``) — XML file containing VCGCamera entries for the active raster layers.</p></li>
@@ -9655,8 +9673,8 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <li><a class="reference internal" href="#meshlab.ms.compute_face_scalar_from_geometry"><code class="docutils literal notranslate"><span class="pre">ms.compute_face_scalar_from_geometry()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#compute-face-scalar-from-raster-coverage">Compute Face Scalar from Raster Coverage</a><ul>
-<li><a class="reference internal" href="#meshlab.ms.compute_face_scalar_from_raster_coverage"><code class="docutils literal notranslate"><span class="pre">ms.compute_face_scalar_from_raster_coverage()</span></code></a></li>
+<li><a class="reference internal" href="#compute-face-scalar-from-rasters">Compute Face Scalar from Rasters</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.compute_face_scalar_from_rasters"><code class="docutils literal notranslate"><span class="pre">ms.compute_face_scalar_from_rasters()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#compute-generalized-winding-number-libigl">Compute Generalized Winding Number (libigl)</a><ul>

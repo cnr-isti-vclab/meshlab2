@@ -1609,25 +1609,38 @@ The planarity measures apply only to polygonal meshes represented by faux-edge t
 
 ---
 
-(filter-compute-face-scalar-from-raster-coverage)=
+(filter-compute-face-scalar-from-rasters)=
 
-## Compute Face Scalar from Raster Coverage
+## Compute Face Scalar from Rasters
 
 **Categories:** `Attribute/Scalar`, `Transfer/From Rasters`
 
 **Plugin:** meshlab2.filter.img_patch_param
 
-Compute a quality value representing the number of images into which each face of the active mesh is visible.
+Measure, for each face, how well the visible rasters see it: how many, at what resolution, at what angle, or how much of that resolution its texture keeps.
 
-```{py:function} ms.compute_face_scalar_from_raster_coverage(**params)
+```{py:function} ms.compute_face_scalar_from_rasters(**params)
 :module: _meshlab
 
-Compute a quality value representing the number of images into which each face of the active mesh is visible. For each active raster, a software depth buffer is built and each face is tested for visibility. A face is considered visible if at least one of its three vertices is visible. The quality value counts how many rasters each face is visible in. Optionally normalizes to [0,1].
+Measures, for each face, how well the visible rasters cover it, so that a photo set can be checked before it is used for texturing or color transfer. The result is a per-face scalar, shown with the colormap.
+
+A raster **sees** a face when at least two of three points inside it (at barycentric coordinates (2/3, 1/6, 1/6) and its permutations) project inside the image, in front of the camera, on the front side of the face, and pass a depth test against a software depth buffer of the whole mesh. This asks whether most of the face is visible: a single sample at a vertex or at the centroid decides a half-hidden face by chance.
+
+**Measure** chooses what is written:
+
+- **Count**: how many rasters see the face.
+- **Best resolution**: over the rasters that see the face, the largest square root of its projected area in pixels over its area on the mesh. It is a linear density, in pixels per document unit (pixels per centimeter when the document unit is centimeters), and it falls both with distance and with foreshortening.
+- **Best angle**: over the rasters that see the face, the smallest angle in degrees between the face normal and the direction to the camera. It separates faces seen only at grazing angles from faces seen head-on from too far away.
+- **Texture/photo ratio**: the texel density of the face in the layer's own texture (as *Compute UV Distortion* measures it, in texels per document unit) over its best resolution. Below 1 the texture keeps less detail than the best photo of the face offers, above 1 it spends texels the photos cannot fill. It needs a texture coordinate layer and its texture images (only their sizes are read); a face without texture gets 0.
+
+Faces that no raster sees get 0 for Count, Best resolution and Texture/photo ratio, and 180 for Best angle.
+
+The run also reports the minimum, median and 5th percentile of the measure over the faces that some raster sees, and how many faces no raster sees and how many only one raster sees.
 
 **Parameters:**
 
-- **normalizeQuality** (*bool*, default: `False`) — Rescale quality values to the range [0,1].
-- **depthEpsilon** (*double*, default: `0.5`) — Tolerance for depth test when checking vertex visibility. Increase for noisy registrations.
+- **measure** (*enum*, default: `count`) — What to write for each face: how many rasters see it, the best resolution any of them gives it in pixels per document unit, the smallest angle in degrees between its normal and a camera that sees it, or its texel density in the layer's texture over that best resolution.
+- **depthEpsilon** (*double*, default: `0.5`) — Tolerance for the depth test, in document units, when checking whether a point of a face is hidden. Increase for noisy registrations.
 ```
 
 ---
@@ -1967,12 +1980,12 @@ Compare with *Measure Hausdorff Distance*, which reports a single worst-case num
 
 **Plugin:** meshlab2.filter.colorproc
 
-Measure angular, area, edge-length, stretch, quasi-conformal or texel-density distortion in a UV mapping.
+Measure angular, area, edge-length, stretch or quasi-conformal distortion in a UV mapping, its relative scaling, or its texel density.
 
 ```{py:function} ms.compute_uv_distortion(**params)
 :module: _meshlab
 
-Compares every triangle in 3D with its mapping in UV space and stores the resulting dimensionless distortion in **face quality**. No colors are baked into the mesh; after completion MeshLab switches the view to face-quality visualization. Both per-wedge and per-vertex texture coordinates are supported, and texture image files are not required.
+Compares every triangle in 3D with its mapping in UV space and stores the result in **face quality**: a dimensionless distortion for every metric but *Texel density*. No colors are baked into the mesh; after completion MeshLab switches the view to face-quality visualization. Both per-wedge and per-vertex texture coordinates are supported, and texture image files are needed only for *Texel density*.
 
 - **Angle distortion**: the mean relative angular error over the three corners,
 
@@ -2015,6 +2028,12 @@ The ideal value is $1$, reached by every angle-preserving (conformal) map whatev
 $$S=\frac{s_A A_{UV}}{A_{3D}}.$$
 
 The ideal value is $1$, the texel density of the mesh as a whole. Above $1$ the face is magnified in texture space, below $1$ it is compressed, and it is negative for a folded face. *Area distortion* is $|S-1|$, so it cannot tell the two directions apart.
+
+- **Texel density**: how many texels of its own texture a face gets per unit of length, with $W \times H$ the size of that texture in texels and $A_{3D}$ the face's area in document units (after the layer's transformation),
+
+$$T=\sqrt{\frac{|A_{UV}|\,W H}{A_{3D}}}.$$
+
+Unlike every other metric it is absolute, not normalized: texels per centimeter when the document unit is centimeters. It reads directly against the *Best resolution* of *Compute Face Scalar from Rasters*, the pixels per unit the photos give the same face: where the texture is well below the photos it has lost detail they had, where it is well above, texels are wasted. Only the image sizes are read, not their pixels; a face with no texture or no area gets $0$.
 
 The global normalization makes every metric invariant to uniform resizing of the complete UV map. UV area is oriented, matching VCGLib's distortion implementation. A zero total oriented UV area makes area normalization undefined, for area distortion and UV scaling; stretch additionally requires that total to be positive. For L2 and L-infinity stretch, folded or degenerate individual UV triangles produce non-finite quality values, which are excluded from the displayed finite quality range.
 
@@ -4160,7 +4179,7 @@ Export the cameras of the visible raster layers to a file.
 ```{py:function} ms.export_cameras_from_visible_rasters(**params)
 :module: _meshlab
 
-Exports the cameras of all visible raster layers as MeshLab-compatible VCGCamera XML entries.
+Exports the cameras of all visible raster layers as MeshLab-compatible VCGCamera XML entries, each with its lens distortion when it has one (LensModel and LensParams, which old MeshLab ignores).
 
 **Parameters:**
 
@@ -4182,7 +4201,7 @@ Import cameras from a file into the visible raster layers.
 ```{py:function} ms.import_cameras_to_visible_rasters(**params)
 :module: _meshlab
 
-Imports MeshLab-compatible VCGCamera XML entries and assigns them, in file order, to visible raster layers.
+Imports MeshLab-compatible VCGCamera XML entries and assigns them, in file order, to visible raster layers, with their lens distortion: a raster given a lens shows its photo undistorted through it.
 
 **Parameters:**
 

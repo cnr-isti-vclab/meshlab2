@@ -82,30 +82,6 @@ QMatrix4x4 meshLabProjectMatrixToQt(const std::vector<float> &values)
         values[12], values[13], values[14], values[15]);
 }
 
-bool parseIntPair(const QString &text, int &a, int &b)
-{
-    const QStringList parts = text.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
-    if (parts.size() < 2)
-        return false;
-    bool ok0 = false;
-    bool ok1 = false;
-    a = parts.at(0).toInt(&ok0);
-    b = parts.at(1).toInt(&ok1);
-    return ok0 && ok1;
-}
-
-bool parseFloatPair(const QString &text, float &a, float &b)
-{
-    const QStringList parts = text.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
-    if (parts.size() < 2)
-        return false;
-    bool ok0 = false;
-    bool ok1 = false;
-    a = parts.at(0).toFloat(&ok0);
-    b = parts.at(1).toFloat(&ok1);
-    return ok0 && ok1;
-}
-
 RasterPlaneSemantic rasterPlaneSemanticFromProject(const QString &semanticText)
 {
     const QString semantic = semanticText.trimmed().toLower();
@@ -120,133 +96,6 @@ RasterPlaneSemantic rasterPlaneSemanticFromProject(const QString &semanticText)
     if (semantic == QStringLiteral("depth") || semantic == QStringLiteral("depthfloat"))
         return RasterPlaneSemantic::DepthFloat;
     return RasterPlaneSemantic::RGBA;
-}
-
-bool parseMeshLabProjectCamera(
-    const QXmlStreamAttributes &attrs,
-    CameraShot &outShot,
-    QString *errorMessage = nullptr)
-{
-    CameraShot::VcgShot shot;
-    vcg::Camera<float> &cam = shot.Intrinsics;
-
-    if (attrs.hasAttribute(QStringLiteral("CameraType"))) {
-        bool ok = false;
-        const int type = attrs.value(QStringLiteral("CameraType")).toInt(&ok);
-        if (!ok) {
-            if (errorMessage)
-                *errorMessage = QObject::tr("Invalid CameraType attribute");
-            return false;
-        }
-        // Only perspective and orthographic are drawn; the other vcg types (isometric,
-        // cavalieri) are read as perspective rather than refused, so the project still opens.
-        cam.cameraType = type == vcg::Camera<float>::ORTHO ? vcg::Camera<float>::ORTHO
-                                                            : vcg::Camera<float>::PERSPECTIVE;
-        if (type != vcg::Camera<float>::PERSPECTIVE && type != vcg::Camera<float>::ORTHO)
-            qWarning("Camera type %d is not supported; reading it as perspective.", type);
-    }
-
-    const bool binaryData =
-        attrs.value(QStringLiteral("BinaryData")).trimmed() == QStringLiteral("1");
-
-    if (binaryData) {
-        const QByteArray traBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("TranslationVector")).toLocal8Bit());
-        const QByteArray rotBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("RotationMatrix")).toLocal8Bit());
-        const QByteArray focalBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("FocalMm")).toLocal8Bit());
-        const QByteArray viewportBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("ViewportPx")).toLocal8Bit());
-        const QByteArray centerBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("CenterPx")).toLocal8Bit());
-        const QByteArray pixelBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("PixelSizeMm")).toLocal8Bit());
-        const QByteArray lensBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("LensDistortion")).toLocal8Bit());
-
-        if (traBytes.size() < int(sizeof(float) * 3)
-            || rotBytes.size() < int(sizeof(float) * 16)
-            || focalBytes.size() < int(sizeof(float))
-            || viewportBytes.size() < int(sizeof(int) * 2)
-            || centerBytes.size() < int(sizeof(float) * 2)
-            || pixelBytes.size() < int(sizeof(float) * 2)
-            || lensBytes.size() < int(sizeof(float) * 2)) {
-            if (errorMessage)
-                *errorMessage = QObject::tr("Incomplete binary VCGCamera payload");
-            return false;
-        }
-
-        vcg::Point3f tra;
-        memcpy(tra.V(), traBytes.constData(), sizeof(float) * 3);
-        shot.Extrinsics.SetTra(-tra);
-
-        vcg::Matrix44f rot;
-        memcpy(rot.V(), rotBytes.constData(), sizeof(float) * 16);
-        shot.Extrinsics.SetRot(rot);
-
-        memcpy(&cam.FocalMm, focalBytes.constData(), sizeof(float));
-        memcpy(&cam.ViewportPx, viewportBytes.constData(), sizeof(int) * 2);
-        memcpy(&cam.CenterPx, centerBytes.constData(), sizeof(float) * 2);
-        memcpy(&cam.PixelSizeMm, pixelBytes.constData(), sizeof(float) * 2);
-        memcpy(&cam.k[0], lensBytes.constData(), sizeof(float) * 2);
-    } else {
-        std::vector<float> translationValues;
-        std::vector<float> rotationValues;
-        if (!parseFloatList(attrs.value(QStringLiteral("TranslationVector")).toString(), 3, translationValues)
-            || !parseFloatList(attrs.value(QStringLiteral("RotationMatrix")).toString(), 16, rotationValues)) {
-            if (errorMessage)
-                *errorMessage = QObject::tr("Invalid camera extrinsics");
-            return false;
-        }
-        shot.Extrinsics.SetTra(vcg::Point3f(
-            -translationValues[0],
-            -translationValues[1],
-            -translationValues[2]));
-        vcg::Matrix44f rot;
-        for (int row = 0; row < 4; ++row)
-            for (int col = 0; col < 4; ++col)
-                rot[row][col] = rotationValues[size_t(col + 4 * row)];
-        shot.Extrinsics.SetRot(rot);
-
-        bool ok = false;
-        cam.FocalMm = attrs.value(QStringLiteral("FocalMm")).toFloat(&ok);
-        if (!ok) {
-            if (errorMessage)
-                *errorMessage = QObject::tr("Invalid FocalMm attribute");
-            return false;
-        }
-
-        int viewportW = 0;
-        int viewportH = 0;
-        float centerX = 0.0f;
-        float centerY = 0.0f;
-        float pixelX = 0.0f;
-        float pixelY = 0.0f;
-        float lens0 = 0.0f;
-        float lens1 = 0.0f;
-        if (!parseIntPair(attrs.value(QStringLiteral("ViewportPx")).toString(), viewportW, viewportH)
-            || !parseFloatPair(attrs.value(QStringLiteral("CenterPx")).toString(), centerX, centerY)
-            || !parseFloatPair(attrs.value(QStringLiteral("PixelSizeMm")).toString(), pixelX, pixelY)
-            || !parseFloatPair(attrs.value(QStringLiteral("LensDistortion")).toString(), lens0, lens1)) {
-            if (errorMessage)
-                *errorMessage = QObject::tr("Invalid camera intrinsics");
-            return false;
-        }
-        cam.ViewportPx = vcg::Point2i(viewportW, viewportH);
-        cam.CenterPx = vcg::Point2f(centerX, centerY);
-        cam.PixelSizeMm = vcg::Point2f(pixelX, pixelY);
-        cam.k[0] = lens0;
-        cam.k[1] = lens1;
-    }
-
-    outShot = CameraShot::fromVcgShot(shot);
-    if (!outShot.isValid()) {
-        if (errorMessage)
-            *errorMessage = QObject::tr("Parsed VCGCamera is not valid");
-        return false;
-    }
-    return true;
 }
 
 bool parseMeshLabProjectFile(
@@ -315,7 +164,8 @@ bool parseMeshLabProjectFile(
             } else if (name == QStringLiteral("VCGCamera")) {
                 if (currentRaster) {
                     QString cameraError;
-                    if (!parseMeshLabProjectCamera(xml.attributes(), currentRaster->shot, &cameraError)) {
+                    if (!CameraShot::readVcgCameraXml(
+                            xml.attributes(), currentRaster->shot, currentRaster->lens, &cameraError)) {
                         errorMessage =
                             QObject::tr("Invalid VCGCamera in project '%1': %2")
                                 .arg(filename, cameraError);
@@ -332,6 +182,7 @@ bool parseMeshLabProjectFile(
                         attrs.value(QStringLiteral("fileName")).toString());
                     plane.semantic =
                         rasterPlaneSemanticFromProject(attrs.value(QStringLiteral("semantic")).toString());
+                    plane.undistorted = attrs.value(QStringLiteral("undistorted")) == QStringLiteral("1");
                     currentRaster->planes.push_back(std::move(plane));
                 }
             }

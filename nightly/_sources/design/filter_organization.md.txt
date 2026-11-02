@@ -543,7 +543,7 @@ separate plugin because its external algorithm code is the build/provenance unit
 | `filter_geodesic` | 4 | no dep; algorithm-named | `filter_compute` |
 | `filter_icp` | 3 | no dep; **mis-filed** — ICP/Global Align/Overlapping are registration, currently under Remeshing+Measure | `filter_align` (new family) |
 | `filter_plymc` | 2 | no dep — uses vcglib's own `create/plymc/plymc.h` | `filter_reconstruct` (1 *Reconstruct Surface by Volumetric Merging*), `filter_remesh` (1 *Edge Collapse for Marching Cube meshes*) |
-| `filter_img_patch_param` | 4 | no dep | `filter_parametrize` (2), `filter_compute` (2 — "Quality from raster coverage" is a Compute, not a Raster op) |
+| `filter_img_patch_param` | 4 | no dep | `filter_parametrize` (2), `filter_compute` (2 — *Compute Vertex Scalar from Raster Coverage* and *Compute Face Scalar from Rasters* are Compute, not Raster ops) |
 | `filter_color_projection` | 3 | no dep | `filter_transfer` (raster→mesh/texture projection) |
 
 ### `filter_meshing` breakdown (37 filters → 9 families)

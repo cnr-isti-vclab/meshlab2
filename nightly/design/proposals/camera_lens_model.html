@@ -1,0 +1,788 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>Camera Lens Model - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../texture_metrics.html">Texture and UV measures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/proposals/camera_lens_model.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="camera-lens-model">
+<h1>Camera Lens Model<a class="headerlink" href="#camera-lens-model" title="Link to this heading">¶</a></h1>
+<p>This document proposes lens distortion for raster cameras, so that photos calibrated with a
+real lens model (COLMAP, RealityScan, Metashape) can be used without undistorting them by
+hand, and so that the image-to-mesh alignment tools that follow have a camera they can
+refine. <strong>Stages 0 (removing vcglib’s distortion) and 1 (the lens) implemented 2026-11-02;
+Stage 2 (COLMAP import) not yet.</strong> The tables and the open questions were approved the same
+day. How the lens works today is in <a class="reference internal" href="../data_model.html#raster-data-type"><span class="std std-ref">Data Model</span></a>; this
+document keeps the plan and the record of how it was carried out.</p>
+<p>See also: <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a> (rasters, planes, the <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> file),
+<a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a>, <a class="reference internal" href="orthographic_camera.html"><span class="std std-doc">Orthographic Camera</span></a> (the last
+change to <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code>), <a class="reference internal" href="../test_data.html"><span class="std std-doc">Test Data</span></a>.</p>
+<section id="decisions">
+<h2>Decisions<a class="headerlink" href="#decisions" title="Link to this heading">¶</a></h2>
+<p>Taken 2026-11-02:</p>
+<ol class="arabic simple">
+<li><p><strong>A hard boundary between distorted and undistorted.</strong> A raster’s <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code> is a
+pinhole camera, always, and everything that projects – filters, depth buffers, the
+GPU raster view – sees only that. The lens is a separate member of the raster that
+relates the pixels of the photo <em>as shot</em> (the file) to the pixels of the pinhole
+camera (the image in memory). It is applied in exactly two places: when a plane is
+decoded, and when a point picked on the photo as shot must be related to the camera
+(correspondences, imported keypoints). This is way A of the discussion of 2026-11-01;
+way B, a lens applied by every consumer, was rejected because the GPU path cannot
+apply it in a matrix and would need the undistorted image anyway.</p></li>
+<li><p><strong>vcglib’s distortion is removed entirely</strong>, not kept beside the new model: the
+fields, the two conversion functions and the branches in <code class="docutils literal notranslate"><span class="pre">Camera::Project</span></code> and
+<code class="docutils literal notranslate"><span class="pre">UnProject</span></code>. <code class="docutils literal notranslate"><span class="pre">vcg::Camera</span></code> becomes a pure pinhole/orthographic camera.</p></li>
+</ol>
+</section>
+<section id="where-things-stand">
+<h2>Where things stand<a class="headerlink" href="#where-things-stand" title="Link to this heading">¶</a></h2>
+<p>Measured on 2026-11-02.</p>
+<p><strong>vcglib</strong> has a one-parameter radial model in <code class="docutils literal notranslate"><span class="pre">vcg::Camera</span></code>: <code class="docutils literal notranslate"><span class="pre">std::array&lt;S,4&gt;</span> <span class="pre">k</span></code>
+(only <code class="docutils literal notranslate"><span class="pre">k[0]</span></code> used) and <code class="docutils literal notranslate"><span class="pre">DistorCenterPx</span></code>. <code class="docutils literal notranslate"><span class="pre">Camera::Project</span></code> applies
+<code class="docutils literal notranslate"><span class="pre">UndistortedToDistorted</span></code> when <code class="docutils literal notranslate"><span class="pre">k[0]</span> <span class="pre">!=</span> <span class="pre">0</span></code>, on the camera plane in millimetres, against a
+centre converted to [-1, 1] coordinates – two different frames. The cubic solver
+(<code class="docutils literal notranslate"><span class="pre">camera.ipp:393</span></code>) forms Cardano’s discriminant as <code class="docutils literal notranslate"><span class="pre">Q^3</span> <span class="pre">+</span> <span class="pre">sqrt(R)</span></code> where the formula has
+<code class="docutils literal notranslate"><span class="pre">Q^3</span> <span class="pre">+</span> <span class="pre">R^2</span></code>, and takes one cube root of <code class="docutils literal notranslate"><span class="pre">abs((int)(R</span> <span class="pre">-</span> <span class="pre">D))</span></code>, marked <em>MODIFICATO DA ME</em>,
+which truncates its argument to an integer. <code class="docutils literal notranslate"><span class="pre">DistortedToUndistorted</span></code> is a first-order approximation, so the two are not
+inverses.</p>
+<p><strong>Nothing uses it.</strong> Of the 39 <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> files in the repository, <code class="docutils literal notranslate"><span class="pre">tests/local</span></code> and
+<code class="docutils literal notranslate"><span class="pre">.reference</span></code> (every MeshLab sample project), none has a non-zero <code class="docutils literal notranslate"><span class="pre">LensDistortion</span></code>. The two
+vcglib importers that could fill it, <code class="docutils literal notranslate"><span class="pre">import_out.h</span></code> (Bundler) and <code class="docutils literal notranslate"><span class="pre">import_nvm.h</span></code>, set it to
+0 on purpose (“To be uncommented when distortion is taken into account reliably”).
+MeshLab’s own <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> writer writes <code class="docutils literal notranslate"><span class="pre">&quot;0</span> <span class="pre">0&quot;</span></code>. The only code that <em>sets</em> a non-zero <code class="docutils literal notranslate"><span class="pre">k[0]</span></code>
+is <code class="docutils literal notranslate"><span class="pre">wrap/tsai/tsaimethods.cpp</span></code>, a Tsai calibration wrapper that nothing compiles: old
+MeshLab’s three mutual-information plugins once included it, and the include and the call
+are commented out in all three (see <a class="reference internal" href="#old-meshlab"><span class="xref myst">Old MeshLab</span></a>).</p>
+<p><strong>It is already inconsistent in MeshLab.</strong> <code class="docutils literal notranslate"><span class="pre">CameraShot::project</span></code> goes through
+<code class="docutils literal notranslate"><span class="pre">vcg::Shot::Project</span></code>, so a project with a non-zero <code class="docutils literal notranslate"><span class="pre">LensDistortion</span></code> would project with
+distortion on the CPU while the GPU raster view (<code class="docutils literal notranslate"><span class="pre">projectionMatrix</span></code>) and the interiors of
+the depth buffer’s triangles stay pinhole. No file triggers it today.</p>
+<p><strong>Who projects through a raster camera</strong> (<code class="docutils literal notranslate"><span class="pre">project</span></code>, <code class="docutils literal notranslate"><span class="pre">unproject</span></code>, <code class="docutils literal notranslate"><span class="pre">projectionMatrix</span></code>,
+<code class="docutils literal notranslate"><span class="pre">viewRayThrough</span></code>, <code class="docutils literal notranslate"><span class="pre">buildDepthBuffer</span></code>): <code class="docutils literal notranslate"><span class="pre">filter_color_projection</span></code> (7 calls),
+<code class="docutils literal notranslate"><span class="pre">filter_img_patch_param</span></code> (2), <code class="docutils literal notranslate"><span class="pre">filter_camera</span></code> (1), <code class="docutils literal notranslate"><span class="pre">src/core/softdepthbuffer.h</span></code>, and the
+raster view in <code class="docutils literal notranslate"><span class="pre">src/render/renderwidget{,_raster,_render,_frame_plan}.cpp</span></code>. Under the
+boundary none of them changes.</p>
+<p><strong>Who reads a raster image</strong>: everything goes through <code class="docutils literal notranslate"><span class="pre">Document::ensureRasterPlaneImage</span></code>
+(<code class="docutils literal notranslate"><span class="pre">src/core/document_layers.cpp:813</span></code>), the one lazy decode point, called from the document,
+the renderer and the color projection and texture consolidation filters. The layer panel’s
+thumbnails read the file directly with <code class="docutils literal notranslate"><span class="pre">QImageReader</span></code> and so show the photo as shot, which
+is right for a thumbnail.</p>
+</section>
+<section id="the-lens">
+<h2>The lens<a class="headerlink" href="#the-lens" title="Link to this heading">¶</a></h2>
+<p>A lens maps <strong>normalized</strong> camera coordinates, <code class="docutils literal notranslate"><span class="pre">(x/z,</span> <span class="pre">y/z)</span></code> of a point in front of the
+camera, from undistorted to distorted. The pinhole intrinsics stay in <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code> and are
+the same on both sides:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>file pixel    = K · distort(n)
+working pixel = K · n
+</pre></div>
+</div>
+<p>So the image in memory has <strong>the same size and the same <code class="docutils literal notranslate"><span class="pre">K</span></code></strong> as the file; pixels that
+fall outside the photo after undistortion are transparent (alpha 0, which
+<code class="docutils literal notranslate"><span class="pre">filter_img_patch_param</span></code>’s alpha weight already honours). Being normalized, the lens is
+independent of resolution: <em>Import Image to Current Raster</em> rescaling the camera
+(<code class="docutils literal notranslate"><span class="pre">RescaleViewportPx</span></code>) leaves it alone.</p>
+<p><strong>Models.</strong> One rational Brown-Conrady model, OpenCV’s: radial <code class="docutils literal notranslate"><span class="pre">k1..k6</span></code>, tangential <code class="docutils literal notranslate"><span class="pre">p1,</span> <span class="pre">p2</span></code>. It covers COLMAP’s <code class="docutils literal notranslate"><span class="pre">SIMPLE_RADIAL</span></code>, <code class="docutils literal notranslate"><span class="pre">RADIAL</span></code>, <code class="docutils literal notranslate"><span class="pre">OPENCV</span></code> and <code class="docutils literal notranslate"><span class="pre">FULL_OPENCV</span></code>, and
+RealityScan’s and Metashape’s Brown export (Metashape’s <code class="docutils literal notranslate"><span class="pre">b1</span></code> is an aspect change and goes
+into <code class="docutils literal notranslate"><span class="pre">K</span></code>; its skew <code class="docutils literal notranslate"><span class="pre">b2</span></code> is not representable and is refused). The type carries a model
+enum so that an equidistant fisheye (<code class="docutils literal notranslate"><span class="pre">OPENCV_FISHEYE</span></code>, <code class="docutils literal notranslate"><span class="pre">k1..k4</span></code>) can be added when a
+dataset needs one.</p>
+<p><strong>Directions.</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Distort(n)</span></code>: closed form. Undistorting an image needs only this one: for each working
+pixel, find the file pixel it comes from and sample it bilinearly.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Undistort(d)</span></code>: Newton iteration on <code class="docutils literal notranslate"><span class="pre">Distort</span></code>, from <code class="docutils literal notranslate"><span class="pre">d</span></code>, with a convergence flag; at most
+a few iterations for real lenses. Needed only for points picked or imported in the photo
+as shot.</p></li>
+</ul>
+<p><strong>Where it lives.</strong> A new vcglib header, <code class="docutils literal notranslate"><span class="pre">vcg/math/lens_distortion.h</span></code>, templated on the
+scalar, with a short sample in <code class="docutils literal notranslate"><span class="pre">apps/sample/</span></code>. It is general camera geometry with no
+MeshLab dependency, so it belongs in vcglib by the repository’s own rule; it composes with
+<code class="docutils literal notranslate"><span class="pre">vcg::Camera</span></code> rather than living inside it, so the pinhole camera stays what it is.</p>
+</section>
+<section id="mapping-table-1-vcglib-removing-the-old-distortion">
+<h2>Mapping table 1 – vcglib: removing the old distortion<a class="headerlink" href="#mapping-table-1-vcglib-removing-the-old-distortion" title="Link to this heading">¶</a></h2>
+<p>Evidence is from <code class="docutils literal notranslate"><span class="pre">grep</span> <span class="pre">-rn</span> <span class="pre">&quot;DistorCenterPx\|Intrinsics\.k\|UndistortedToDistorted\|</span> <span class="pre">DistortedToUndistorted\|cam\.k\[&quot;</span></code> over <code class="docutils literal notranslate"><span class="pre">vcglib/</span></code> (12 files) and over <code class="docutils literal notranslate"><span class="pre">src</span> <span class="pre">plugins</span> <span class="pre">tests</span></code>
+(4 files), and the file reads cited.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Current</p></th>
+<th class="head"><p>Evidence</p></th>
+<th class="head"><p>Target</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>V1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Camera::k</span></code>, <code class="docutils literal notranslate"><span class="pre">Camera::DistorCenterPx</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera.h:191-193</span></code></p></td>
+<td><p>removed</p></td>
+<td><p>remove</p></td>
+</tr>
+<tr class="row-odd"><td><p>V2</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UndistortedToDistorted</span></code>, <code class="docutils literal notranslate"><span class="pre">DistortedToUndistorted</span></code></p></td>
+<td><p>decl <code class="docutils literal notranslate"><span class="pre">camera.h:178-179</span></code>, def <code class="docutils literal notranslate"><span class="pre">camera.ipp:393-466</span></code></p></td>
+<td><p>removed</p></td>
+<td><p>remove</p></td>
+</tr>
+<tr class="row-even"><td><p>V3</p></td>
+<td><p>the <code class="docutils literal notranslate"><span class="pre">k[0]</span> <span class="pre">!=</span> <span class="pre">0</span></code> branches of <code class="docutils literal notranslate"><span class="pre">Camera::Project</span></code> / <code class="docutils literal notranslate"><span class="pre">UnProject</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera.ipp:279-283</span></code>, <code class="docutils literal notranslate"><span class="pre">298-303</span></code></p></td>
+<td><p>pinhole only</p></td>
+<td><p>remove</p></td>
+</tr>
+<tr class="row-odd"><td><p>V4</p></td>
+<td><p>constructor init, <code class="docutils literal notranslate"><span class="pre">Import</span></code>, <code class="docutils literal notranslate"><span class="pre">operator==</span></code>, <code class="docutils literal notranslate"><span class="pre">RescaleViewportPx</span></code> of the two fields</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camera.ipp:34,37</span></code>, <code class="docutils literal notranslate"><span class="pre">49-54</span></code>, <code class="docutils literal notranslate"><span class="pre">477-478</span></code>, <code class="docutils literal notranslate"><span class="pre">116,132-133</span></code></p></td>
+<td><p>the lines go</p></td>
+<td><p>remove</p></td>
+</tr>
+<tr class="row-even"><td><p>V5</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.mlp</span></code>/<code class="docutils literal notranslate"><span class="pre">.aln</span></code> XML read of <code class="docutils literal notranslate"><span class="pre">LensDistortion</span></code> / <code class="docutils literal notranslate"><span class="pre">LensDist</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">wrap/qt/shot_qt.h:46,75-76,119-120</span></code></p></td>
+<td><p>attribute read and ignored</p></td>
+<td><p>edit</p></td>
+</tr>
+<tr class="row-odd"><td><p>V6</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.mlp</span></code> XML write of <code class="docutils literal notranslate"><span class="pre">LensDistortion</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">shot_qt.h:161-162,206-207</span></code></p></td>
+<td><p>writes <code class="docutils literal notranslate"><span class="pre">&quot;0</span> <span class="pre">0&quot;</span></code>, so old readers that require the attribute still parse</p></td>
+<td><p>edit</p></td>
+</tr>
+<tr class="row-even"><td><p>V7</p></td>
+<td><p>PLY <code class="docutils literal notranslate"><span class="pre">camera</span></code> element read of <code class="docutils literal notranslate"><span class="pre">k1..k4</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">wrap/io_trimesh/import_ply.h:164-167,330-333,725-728,1152-1155</span></code></p></td>
+<td><p>properties still declared (files keep parsing), values discarded</p></td>
+<td><p>edit</p></td>
+</tr>
+<tr class="row-odd"><td><p>V8</p></td>
+<td><p>PLY <code class="docutils literal notranslate"><span class="pre">camera</span></code> element write of <code class="docutils literal notranslate"><span class="pre">k1..k4</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">wrap/io_trimesh/export_ply.h:193-196,397-400,425-428</span></code></p></td>
+<td><p>written as 0, so the element layout is unchanged</p></td>
+<td><p>edit</p></td>
+</tr>
+<tr class="row-even"><td><p>V9</p></td>
+<td><p>nanoply camera <code class="docutils literal notranslate"><span class="pre">k1..k4</span></code> descriptors</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">wrap/nanoply/include/nanoplyWrapper.hpp:954-957,1323-1326</span></code></p></td>
+<td><p>read into and written from a local zeroed array, layout unchanged</p></td>
+<td><p>edit</p></td>
+</tr>
+<tr class="row-odd"><td><p>V10</p></td>
+<td><p>Bundler / NVM importers zeroing <code class="docutils literal notranslate"><span class="pre">k</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">import_out.h:128-129</span></code>, <code class="docutils literal notranslate"><span class="pre">import_nvm.h:148-149</span></code></p></td>
+<td><p>lines go</p></td>
+<td><p>remove</p></td>
+</tr>
+<tr class="row-even"><td><p>V11</p></td>
+<td><p>Tsai wrapper writing <code class="docutils literal notranslate"><span class="pre">kappa1</span></code> and the distortion centre into the shot</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">wrap/tsai/tsaimethods.cpp:154-163,199</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">wrap/tsai/</span></code> deleted: nothing compiles it (<a class="reference internal" href="#old-meshlab"><span class="xref myst">Old MeshLab</span></a>)</p></td>
+<td><p>remove</p></td>
+</tr>
+<tr class="row-odd"><td><p>V12</p></td>
+<td><p>commented-out <code class="docutils literal notranslate"><span class="pre">k</span></code> code</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">wrap/gl/camera.h:329-330</span></code>; <code class="docutils literal notranslate"><span class="pre">wrap/io_tetramesh/import_ply.h:136-139,554-557</span></code>; <code class="docutils literal notranslate"><span class="pre">export_ply.h:266-269,294-297</span></code></p></td>
+<td><p>left as they are: they sit inside commented-out blocks (in <code class="docutils literal notranslate"><span class="pre">wrap/gl/camera.h</span></code>, a whole legacy camera class, lines 212-1101) that touch nothing; removing the blocks is a separate cleanup</p></td>
+<td><p>keep</p></td>
+</tr>
+<tr class="row-even"><td><p>V13</p></td>
+<td><p>the camera test zeroing <code class="docutils literal notranslate"><span class="pre">k</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">apps/test/camerashot/camerashot_test.cpp:435-437,469-471</span></code></p></td>
+<td><p>lines go</p></td>
+<td><p>remove</p></td>
+</tr>
+<tr class="row-odd"><td><p>V14</p></td>
+<td><p>Doxygen field list</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">docs/Doxygen/shot.dox:69-70</span></code></p></td>
+<td><p>lines go</p></td>
+<td><p>remove</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>14 rows: 8 remove (V1-V4, V10, V11, V13, V14), 5 edit (V5-V9), 1 keep (V12). The edits
+keep both file formats byte-compatible: a PLY or <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> written after the change reads in
+old MeshLab, and an old one reads here, with any distortion it held dropped.</p>
+<section id="old-meshlab">
+<h3>Old MeshLab<a class="headerlink" href="#old-meshlab" title="Link to this heading">¶</a></h3>
+<p>Audited 2026-11-02 on <code class="docutils literal notranslate"><span class="pre">.reference/meshlab</span></code>, the current <code class="docutils literal notranslate"><span class="pre">devel</span></code> of <code class="docutils literal notranslate"><span class="pre">cnr-isti-vclab/meshlab</span></code>
+(<code class="docutils literal notranslate"><span class="pre">8aaedcfdd</span></code>, 2026-08-25, which pins vcglib at <code class="docutils literal notranslate"><span class="pre">3aac63d</span></code>; a first pass on the older
+<code class="docutils literal notranslate"><span class="pre">684885ade</span></code> found the same, and none of the 20 source files changed between the two touches
+a camera), by grepping its sources outside <code class="docutils literal notranslate"><span class="pre">src/vcglib</span></code>
+and <code class="docutils literal notranslate"><span class="pre">src/external</span></code> for <code class="docutils literal notranslate"><span class="pre">Intrinsics.k</span></code>, <code class="docutils literal notranslate"><span class="pre">k[0..3]</span></code>, <code class="docutils literal notranslate"><span class="pre">DistorCenterPx</span></code>, <code class="docutils literal notranslate"><span class="pre">LensDistortion</span></code>,
+<code class="docutils literal notranslate"><span class="pre">UndistortedToDistorted</span></code>, <code class="docutils literal notranslate"><span class="pre">DistortedToUndistorted</span></code>, <code class="docutils literal notranslate"><span class="pre">kappa</span></code> and <code class="docutils literal notranslate"><span class="pre">tsai</span></code>.</p>
+<p><strong>No code of old MeshLab computes or uses a distortion value.</strong> What it does with the
+fields:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Where</p></th>
+<th class="head"><p>What</p></th>
+<th class="head"><p>Live?</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">src/meshlab/glarea.cpp:2003-2004,</span> <span class="pre">2125-2126</span></code></p></td>
+<td><p>sets <code class="docutils literal notranslate"><span class="pre">DistorCenterPx</span></code> to the viewport centre when it builds a shot from the view; <code class="docutils literal notranslate"><span class="pre">k</span></code> stays 0, so the centre has no effect</p></td>
+<td><p>live, inert</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_layer/filter_layer.cpp:767-769</span></code></p></td>
+<td><p>Bundler import sets <code class="docutils literal notranslate"><span class="pre">k[0]</span> <span class="pre">=</span> <span class="pre">k[1]</span> <span class="pre">=</span> <span class="pre">0</span></code> (“To be uncommented when distortion is taken into account reliably”)</p></td>
+<td><p>live, inert</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">edit_mutualcorrs</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_mutualinfo</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_mutualglobal</span></code>: <code class="docutils literal notranslate"><span class="pre">solver.cpp</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qDebug</span></code> prints of <code class="docutils literal notranslate"><span class="pre">DistorCenterPx</span></code> and <code class="docutils literal notranslate"><span class="pre">k[0..1]</span></code>, 8 live lines in each</p></td>
+<td><p>live, debug output only</p></td>
+</tr>
+<tr class="row-odd"><td><p>the same three: <code class="docutils literal notranslate"><span class="pre">levmarmethods.cpp:147-193</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Levmar2Shot</span></code> / <code class="docutils literal notranslate"><span class="pre">Shot2Levmar</span></code> writing <code class="docutils literal notranslate"><span class="pre">kappa1</span></code> and the distortion centre</p></td>
+<td><p>commented out</p></td>
+</tr>
+<tr class="row-even"><td><p>the same three: <code class="docutils literal notranslate"><span class="pre">solver.cpp:11-12</span></code>, <code class="docutils literal notranslate"><span class="pre">Solver::tsai</span></code> and its <code class="docutils literal notranslate"><span class="pre">TsaiMethods::calibrate</span></code> call</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">wrap/tsai</span></code></p></td>
+<td><p>commented out; no build file names <code class="docutils literal notranslate"><span class="pre">tsai</span></code>. Each <code class="docutils literal notranslate"><span class="pre">solver.h</span></code> still declares <code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">tsai(AlignSet</span> <span class="pre">*,</span> <span class="pre">Shot</span> <span class="pre">&amp;)</span></code>, never defined or called, and unaffected</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The only way a non-zero <code class="docutils literal notranslate"><span class="pre">k</span></code> reaches old MeshLab is passively, from a file it reads:
+<code class="docutils literal notranslate"><span class="pre">LensDistortion</span></code> in an <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> (<code class="docutils literal notranslate"><span class="pre">io_base/load_project.cpp:301</span></code>, <code class="docutils literal notranslate"><span class="pre">ReadShotFromQDomNode</span></code>) or a
+shot pasted from the clipboard (<code class="docutils literal notranslate"><span class="pre">glarea.cpp:2163</span></code>), and <code class="docutils literal notranslate"><span class="pre">k1..k4</span></code> of a PLY <code class="docutils literal notranslate"><span class="pre">camera</span></code> element
+through vcglib’s PLY importer. Every such file in the corpora holds zeros: the 39 <code class="docutils literal notranslate"><span class="pre">.mlp</span></code>
+above, and all 34 PLY files with a <code class="docutils literal notranslate"><span class="pre">camera</span></code> element (<code class="docutils literal notranslate"><span class="pre">.reference/meshlab/sample/rangemaps</span></code>,
+<code class="docutils literal notranslate"><span class="pre">tests/local</span></code>; read with a script that decodes the element). A non-zero value would only
+have bent the CPU projections, while old MeshLab’s raster rendering, which uses the GL
+matrix, stayed pinhole.</p>
+<p>PyMeshLab’s own sources (outside its <code class="docutils literal notranslate"><span class="pre">meshlab</span></code> submodule) never touch the fields.</p>
+<p><strong>Removing the fields breaks only compilation</strong>, in 31 lines of 5 files:
+<code class="docutils literal notranslate"><span class="pre">glarea.cpp</span></code> (4), <code class="docutils literal notranslate"><span class="pre">filter_layer.cpp</span></code> (3) and the three <code class="docutils literal notranslate"><span class="pre">solver.cpp</span></code> (8 each, the prints of
+the removed fields; the <code class="docutils literal notranslate"><span class="pre">FocalMm</span></code>, <code class="docutils literal notranslate"><span class="pre">CenterPx</span></code> prints around them stay). Behaviour does not
+change. The patch is prepared with Stage 0 and lands in old MeshLab before or with its next
+vcglib bump; until then its pinned vcglib keeps building.</p>
+</section>
+</section>
+<section id="mapping-table-2-meshlab">
+<h2>Mapping table 2 – MeshLab<a class="headerlink" href="#mapping-table-2-meshlab" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Current</p></th>
+<th class="head"><p>Evidence</p></th>
+<th class="head"><p>Target</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>M1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CameraShot::distortionCenterPx/setDistortionCenterPx/distortionK/setDistortionK</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camerashot.h:62-66</span></code>, <code class="docutils literal notranslate"><span class="pre">camerashot.cpp:154-177</span></code></p></td>
+<td><p>removed</p></td>
+<td><p>remove</p></td>
+</tr>
+<tr class="row-odd"><td><p>M2</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fromVcgShot</span></code> and the trackball snapshot setting <code class="docutils literal notranslate"><span class="pre">DistorCenterPx</span> <span class="pre">=</span> <span class="pre">CenterPx</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">camerashot.cpp:89</span></code>, <code class="docutils literal notranslate"><span class="pre">renderwidget.cpp:1444</span></code>, <code class="docutils literal notranslate"><span class="pre">camerafilterplugin.cpp:194</span></code></p></td>
+<td><p>lines go</p></td>
+<td><p>remove</p></td>
+</tr>
+<tr class="row-even"><td><p>M3</p></td>
+<td><p>the <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> camera parse, twice: <code class="docutils literal notranslate"><span class="pre">Document</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_layer</span></code> (<em>Import Cameras to Visible Rasters</em>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">document_internal.cpp:125-250</span></code> (<code class="docutils literal notranslate"><span class="pre">parseMeshLabProjectCamera</span></code>), <code class="docutils literal notranslate"><span class="pre">layerfilterplugin.cpp:234-354</span></code> (<code class="docutils literal notranslate"><span class="pre">parseVcgCamera</span></code>, <code class="docutils literal notranslate"><span class="pre">writeVcgCamera</span></code>)</p></td>
+<td><p>one parser and one writer in core, taking and giving a shot <strong>and a lens</strong>; <code class="docutils literal notranslate"><span class="pre">filter_layer</span></code> calls them</p></td>
+<td><p>merge (duplication found while measuring)</p></td>
+</tr>
+<tr class="row-odd"><td><p>M4</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.mlp</span></code> writer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">document_project.cpp:425</span></code> writes <code class="docutils literal notranslate"><span class="pre">LensDistortion=&quot;0</span> <span class="pre">0&quot;</span></code></p></td>
+<td><p>unchanged, plus the new lens attributes when the lens is not identity</p></td>
+<td><p>edit</p></td>
+</tr>
+<tr class="row-even"><td><p>M5</p></td>
+<td><p>a legacy non-zero <code class="docutils literal notranslate"><span class="pre">LensDistortion</span></code> read</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">document_internal.cpp:192,239-240</span></code> load it into <code class="docutils literal notranslate"><span class="pre">k</span></code></p></td>
+<td><p>ignored with a warning naming the raster (no file has one)</p></td>
+<td><p>edit</p></td>
+</tr>
+<tr class="row-odd"><td><p>M6</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">RasterEntry</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">document.h:93-117</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">+</span> <span class="pre">CameraLens</span> <span class="pre">lens;</span></code></p></td>
+<td><p>add</p></td>
+</tr>
+<tr class="row-even"><td><p>M7</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">RasterSnapshot</span></code> (undo)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">document_undo_types.h:81-88</span></code> holds <code class="docutils literal notranslate"><span class="pre">shot</span></code></p></td>
+<td><p>holds <code class="docutils literal notranslate"><span class="pre">lens</span></code> too</p></td>
+<td><p>add</p></td>
+</tr>
+<tr class="row-odd"><td><p>M8</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">setRasterShot</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">document.h:389</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">setRasterCamera(index,</span> <span class="pre">shot,</span> <span class="pre">lens)</span></code>: a lens change bumps <code class="docutils literal notranslate"><span class="pre">cameraRevision</span></code> <em>and</em> <code class="docutils literal notranslate"><span class="pre">imageRevision</span></code> and drops the decoded planes</p></td>
+<td><p>edit</p></td>
+</tr>
+<tr class="row-even"><td><p>M9</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ensureRasterPlaneImage</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">document_layers.cpp:813-822</span></code> decodes the file</p></td>
+<td><p>decodes, then undistorts when the raster’s lens is not identity</p></td>
+<td><p>edit</p></td>
+</tr>
+<tr class="row-odd"><td><p>M10</p></td>
+<td><p>texture consolidation refusing distorted cameras</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureconsolidationfilterplugin.cpp:175-176</span></code></p></td>
+<td><p>check goes: it now sees a pinhole camera and an undistorted image</p></td>
+<td><p>remove</p></td>
+</tr>
+<tr class="row-even"><td><p>M11</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">data_model.md</span></code> raster section</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">data_model.md:38-42</span></code></p></td>
+<td><p>describes the boundary and the lens</p></td>
+<td><p>edit</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>11 rows: 4 remove (M1, M2, M10, and the second parser of M3), 5 edit, 2 add. No consumer
+of the camera appears in the table: that is the point of the boundary.</p>
+</section>
+<section id="planes-in-memory-and-on-disk">
+<h2>Planes in memory and on disk<a class="headerlink" href="#planes-in-memory-and-on-disk" title="Link to this heading">¶</a></h2>
+<p>Every plane <strong>file</strong> of a raster is in the frame of the photo as shot, and is undistorted on
+decode. A plane made in memory – a snapshot, a mask or depth a filter writes – is in the
+working frame. When such a plane is saved, it is written as it is and the <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> marks it
+<code class="docutils literal notranslate"><span class="pre">undistorted=&quot;1&quot;</span></code>, so that it is not undistorted twice on reload; old MeshLab ignores the
+attribute. The alternative, distorting it back on save, resamples twice for nothing. See
+<a class="reference internal" href="#open-questions"><span class="xref myst">Q3</span></a>.</p>
+</section>
+<section id="the-mlp-extension">
+<h2>The <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> extension<a class="headerlink" href="#the-mlp-extension" title="Link to this heading">¶</a></h2>
+<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span class="nt">&lt;VCGCamera</span><span class="w"> </span><span class="err">...</span><span class="w"> </span><span class="na">LensDistortion=</span><span class="s">"0 0"</span>
+<span class="w">           </span><span class="na">LensModel=</span><span class="s">"brown"</span><span class="w"> </span><span class="na">LensParams=</span><span class="s">"k1 k2 p1 p2 k3 k4 k5 k6"</span><span class="nt">/&gt;</span>
+</pre></div>
+</div>
+<p>The parameter order is OpenCV’s, so that COLMAP’s and OpenCV’s numbers copy across
+unchanged. <code class="docutils literal notranslate"><span class="pre">LensDistortion</span></code> stays, as <code class="docutils literal notranslate"><span class="pre">&quot;0</span> <span class="pre">0&quot;</span></code>, because our reader and old MeshLab’s
+require it. Old MeshLab reads such a project as pinhole cameras on distorted photos, so
+it misprojects by the distortion. Nothing can prevent that short of not writing the
+project, and it is the same error it makes today on any undistorted-by-hand workflow done
+wrong.</p>
+</section>
+<section id="staging">
+<h2>Staging<a class="headerlink" href="#staging" title="Link to this heading">¶</a></h2>
+<p><strong>Stage 0 – vcglib removal</strong> (table 1, M1, M2, M5, M10). Implemented 2026-11-02:
+-452/+31 lines in vcglib (285 of them <code class="docutils literal notranslate"><span class="pre">wrap/tsai</span></code>), -48/+18 in MeshLab. <code class="docutils literal notranslate"><span class="pre">filter_layer</span></code>’s
+copy of the camera parser warns about a non-zero <code class="docutils literal notranslate"><span class="pre">LensDistortion</span></code> as the core one does,
+until M3 merges the two in Stage 1. Verified: the full suite (only the known
+<code class="docutils literal notranslate"><span class="pre">fileDialogsRememberWhereYouWere</span></code> fails), all 62 vcglib sample targets, and a PLY camera
+written in binary and ASCII by the old and the new vcglib, byte for byte identical and
+read back the same. MeshLab’s <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> writers already wrote <code class="docutils literal notranslate"><span class="pre">&quot;0</span> <span class="pre">0&quot;</span></code> / <code class="docutils literal notranslate"><span class="pre">&quot;0.000000</span> <span class="pre">0.000000&quot;</span></code>,
+and still do. <code class="docutils literal notranslate"><span class="pre">apps/test/camerashot</span></code> (qmake only) fails to compile on two unrelated calls
+before and after. The 31-line patch for old MeshLab applies cleanly to its <code class="docutils literal notranslate"><span class="pre">devel</span></code>.</p>
+<p>Found while verifying, not caused by this change: vcglib’s PLY camera does not round-trip
+the same way in binary and ASCII – a shot written both ways and read back projects one
+point to (530, 220) from the binary file and to (470, 180) from the ASCII one, with the
+old vcglib as with the new.</p>
+<p><strong>Stage 1 – the lens</strong> (vcglib header and sample, M3, M4, M6-M9, M11). Implemented
+2026-11-02; what follows the planned tests below. Planned: about 150 lines in vcglib and 300
+in MeshLab, of which M3’s merge removes about 80.
+Tests, in <code class="docutils literal notranslate"><span class="pre">tests/test_document.cpp</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Distort</span></code> / <code class="docutils literal notranslate"><span class="pre">Undistort</span></code> round trip under 1e-4 px over the whole image, for the 35
+<code class="docutils literal notranslate"><span class="pre">FULL_OPENCV</span></code> cameras of the RealityScan export (<code class="docutils literal notranslate"><span class="pre">k1</span></code> about 0.25, <code class="docutils literal notranslate"><span class="pre">k3</span></code> up to 1.6: a
+strong lens, the hard case for Newton).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.mlp</span></code> save and load keep the lens; a <code class="docutils literal notranslate"><span class="pre">LensDistortion</span></code> of <code class="docutils literal notranslate"><span class="pre">&quot;0</span> <span class="pre">0&quot;</span></code> with no <code class="docutils literal notranslate"><span class="pre">LensModel</span></code>
+reads as the identity, a non-zero one warns.</p></li>
+<li><p><strong>End to end on the gargoyle fixture</strong>: distort its four photos with a known lens, give
+that lens to the cameras, load: the undistorted planes match the original photos (PSNR
+above 40 dB away from the transparent border), and <em>Compute Face Scalar from Rasters</em>
+reports the same counts as on the original fixture. This needs four more images in
+<code class="docutils literal notranslate"><span class="pre">tests/sample_mesh/</span></code> (about 0.9 MB) or generating them in the test; generating is
+preferred.</p></li>
+<li><p>Undo of a lens change restores the lens and the image.</p></li>
+</ul>
+<p>As built: <code class="docutils literal notranslate"><span class="pre">vcg/math/lens_distortion.h</span></code> (156 lines) and the sample <code class="docutils literal notranslate"><span class="pre">space_lens_distortion</span></code>;
+in MeshLab +348/-380 lines of source, so the merge of M3 more than paid for the lens, and 249
+lines of tests. The two <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> camera parsers and two writers became one of each,
+<code class="docutils literal notranslate"><span class="pre">CameraShot::readVcgCameraXml</span></code> / <code class="docutils literal notranslate"><span class="pre">writeVcgCameraXml</span></code>; <code class="docutils literal notranslate"><span class="pre">filter_layer</span></code>’s copies and its
+private number parsers are gone, and so are the two pair parsers of <code class="docutils literal notranslate"><span class="pre">document_internal.cpp</span></code>.
+Where it departs from the plan:</p>
+<ul class="simple">
+<li><p><strong>No model enum.</strong> <code class="docutils literal notranslate"><span class="pre">LensDistortion</span></code> holds the eight Brown-Conrady parameters and nothing
+else; the enum is added with the fisheye model (Q4), when there is a second model to tell
+apart. The <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> already names the model (<code class="docutils literal notranslate"><span class="pre">LensModel=&quot;brown&quot;</span></code>), and refuses one it does
+not know rather than reading the photo as pinhole.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">setRasterLens</span></code> beside <code class="docutils literal notranslate"><span class="pre">setRasterShot</span></code></strong> rather than M8’s <code class="docutils literal notranslate"><span class="pre">setRasterCamera(shot,</span> <span class="pre">lens)</span></code>: the seven callers of <code class="docutils literal notranslate"><span class="pre">setRasterShot</span></code> stay as they are. <em>Import Cameras to Visible
+Rasters</em> calls both, inside the filter’s one undo step.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">ensureRasterPlaneImage(raster,</span> <span class="pre">plane)</span></code></strong>: it needs the raster’s camera and lens, so its
+13 callers outside <code class="docutils literal notranslate"><span class="pre">Document</span></code> (renderer, four filters, two tests) pass the raster they
+already held. <em>Import Image to Current Raster</em>, which reads its file itself, undistorts it
+too.</p></li>
+<li><p><strong>Folds.</strong> A calibrated model can fold back on itself beyond the part of the image its
+photos constrained. Camera 21 of the RealityScan export (<code class="docutils literal notranslate"><span class="pre">k3</span></code> -0.43) peaks at a normalized
+radius of 0.7046 while its photo’s corners reach 0.7079: 13 corner pixels (of every fourth)
+have no undistorted point, and <code class="docutils literal notranslate"><span class="pre">Undistort</span></code> reports them as not converged. Past a fold
+<code class="docutils literal notranslate"><span class="pre">Distort</span></code> lands inside the photo again, so <code class="docutils literal notranslate"><span class="pre">IsInvertibleAt</span></code> (the sign of the Jacobian, which
+Newton already computed) leaves such pixels transparent rather than repeating the photo
+mirrored. No working pixel of this dataset reaches a fold; the guard is for lenses that do.</p></li>
+<li><p><strong>The face-scalar check of the end-to-end test was dropped</strong>: <em>Compute Face Scalar from
+Rasters</em> reads cameras and depth only, never an image, so its counts cannot depend on the
+lens. The test checks the planes alone: PSNR 41.9-46.3 dB against the original photos over
+the four rasters, after two bilinear resamplings, with a pincushion lens (k1 0.12), whose
+undistorted corners are left transparent. The distorted photos are generated in the test.</p></li>
+<li><p><strong>Round trip</strong> measured on all 35 cameras rather than committed: the export is not under
+the dataset roots (<code class="docutils literal notranslate"><span class="pre">.reference/TestDataset/2930Colmap</span></code>). Over every fourth pixel the worst
+error is 8e-13 px; the test carries cameras 11 (the strongest, <code class="docutils literal notranslate"><span class="pre">k3</span></code> 1.78) and 21 (the fold)
+as literal values.</p></li>
+<li><p><strong>Checked against <code class="docutils literal notranslate"><span class="pre">tools/colmap_to_mlp.py</span></code></strong>, written separately with the same conventions:
+three of the export’s photos decoded through their lenses match the script’s undistorted
+images to RMS 0.003 and at most 1 level per channel; the only difference is a half-pixel
+ring at the border, which MeshLab keeps (a border pixel reaches half a pixel past its centre)
+and the script drops. A 3840x2160 photo decodes through its lens in about 0.2 s, single
+threaded, on top of reading the file.</p></li>
+</ul>
+<p><strong>Stage 2 – COLMAP import.</strong> A reader for a COLMAP sparse model (<code class="docutils literal notranslate"><span class="pre">cameras</span></code>, <code class="docutils literal notranslate"><span class="pre">images</span></code>,
+<code class="docutils literal notranslate"><span class="pre">points3D</span></code>, text and binary) beside <code class="docutils literal notranslate"><span class="pre">MeshLabProject*</span></code>, producing the same raster entries,
+with the images found as <code class="docutils literal notranslate"><span class="pre">tools/colmap_to_mlp.py</span></code> finds them, <code class="docutils literal notranslate"><span class="pre">points3D</span></code> as a point cloud
+layer with colors, and every COLMAP model in Stage 1’s set imported natively. <em>Open
+Project</em> accepts <code class="docutils literal notranslate"><span class="pre">cameras.txt</span></code> / <code class="docutils literal notranslate"><span class="pre">cameras.bin</span></code>. About 300 lines. Tests: a small committed
+COLMAP text model of the gargoyle fixture (the four cameras with the Stage 1 lens, its
+points), and the RealityScan export as an optional dataset
+(<code class="docutils literal notranslate"><span class="pre">MESHLAB2_REQUIRE_DATASET</span></code>) checking the reprojection error of the points’ tracks under
+1 px. <code class="docutils literal notranslate"><span class="pre">tools/colmap_to_mlp.py</span></code> is then removed; its <code class="docutils literal notranslate"><span class="pre">--z-up</span></code> turn is a transform of all
+layers and rasters, which <em>Transform</em> already does. See <a class="reference internal" href="#open-questions"><span class="xref myst">Q5</span></a>.</p>
+<p><strong>Stage 3 – image-to-mesh alignment.</strong> A proposal of its own once Stages 1 and 2 are in:
+correspondence alignment (old <code class="docutils literal notranslate"><span class="pre">edit_mutualcorrs</span></code>, 3.2k lines, levmar) and mutual-
+information refinement (<code class="docutils literal notranslate"><span class="pre">filter_mutualinfo</span></code>, 2.6k; <code class="docutils literal notranslate"><span class="pre">filter_mutualglobal</span></code>, 4.6k). What this
+proposal fixes for it: picks are made on the displayed image, which is the working frame,
+and are mapped to the photo as shot with <code class="docutils literal notranslate"><span class="pre">Distort</span></code> when the lens is refined; the solver can
+be Eigen’s <code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt</span></code> (in <code class="docutils literal notranslate"><span class="pre">vcglib/eigenlib/unsupported</span></code>), replacing levmar; and
+mutual information renders the mesh through the pinhole camera, which is exactly what it
+needs.</p>
+</section>
+<section id="open-questions">
+<h2>Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Old MeshLab and <code class="docutils literal notranslate"><span class="pre">wrap/tsai</span></code>.</strong> Old MeshLab must not break: audited under
+<a class="reference internal" href="#old-meshlab"><span class="xref myst">Old MeshLab</span></a> – it never uses the fields, so a 31-line patch on its side
+keeps it building with unchanged behaviour. <code class="docutils literal notranslate"><span class="pre">wrap/tsai</span></code> is compiled by nobody, so
+removing it (V11) breaks nothing. Decided 2026-11-02: the fields are removed, and the
+patch goes to old MeshLab.</p></li>
+<li><p><strong>Legacy <code class="docutils literal notranslate"><span class="pre">LensDistortion</span></code>.</strong> Decided 2026-11-02: read, ignored with a warning.</p></li>
+<li><p><strong>Planes saved from memory.</strong> Decided 2026-11-02: written undistorted and marked
+<code class="docutils literal notranslate"><span class="pre">undistorted=&quot;1&quot;</span></code>.</p></li>
+<li><p><strong>Fisheye.</strong> Decided 2026-11-02: later, when a dataset needs it; the enum leaves room.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">tools/colmap_to_mlp.py</span></code>.</strong> Decided 2026-11-02: removed at the end of Stage 2.</p></li>
+</ol>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Camera Lens Model</a><ul>
+<li><a class="reference internal" href="#decisions">Decisions</a></li>
+<li><a class="reference internal" href="#where-things-stand">Where things stand</a></li>
+<li><a class="reference internal" href="#the-lens">The lens</a></li>
+<li><a class="reference internal" href="#mapping-table-1-vcglib-removing-the-old-distortion">Mapping table 1 – vcglib: removing the old distortion</a><ul>
+<li><a class="reference internal" href="#old-meshlab">Old MeshLab</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mapping-table-2-meshlab">Mapping table 2 – MeshLab</a></li>
+<li><a class="reference internal" href="#planes-in-memory-and-on-disk">Planes in memory and on disk</a></li>
+<li><a class="reference internal" href="#the-mlp-extension">The <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> extension</a></li>
+<li><a class="reference internal" href="#staging">Staging</a></li>
+<li><a class="reference internal" href="#open-questions">Open questions</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

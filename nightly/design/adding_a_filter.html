@@ -718,6 +718,16 @@ purpose <em>is</em> color (<code class="docutils literal notranslate"><span clas
 expose an opt-in <code class="docutils literal notranslate"><span class="pre">map</span></code> / <code class="docutils literal notranslate"><span class="pre">colorize</span></code> parameter, all defaulting to false — they are
 waiting to be removed (a parameter is script-visible, so it needs its own pass), not
 precedent to copy.</p></li>
+<li><p><strong>Report progress from anything that can run for more than a moment.</strong> Size it on a
+large real input, not on the test fixture: a filter that takes 50 ms on the gargoyle
+can take minutes on a 3 M-face scan with 35 full-size photos, and without progress the
+user cannot tell slow from hung. Take <code class="docutils literal notranslate"><span class="pre">vcg::CallBackPos</span> <span class="pre">*cb</span> <span class="pre">=</span> <span class="pre">doc.progressCallback()</span></code>
+and call it with a percentage and a short message at every step of the outer loop (per
+raster, per layer, per pass) and every few tens of thousands of elements in an inner
+loop; split the range among the stages so the bar never runs backwards. Pass <code class="docutils literal notranslate"><span class="pre">cb</span></code> on to
+the vcglib algorithms that take one. <strong>The callback returns <code class="docutils literal notranslate"><span class="pre">false</span></code> when the user
+cancels</strong>: stop and return a failure, as <em>Compute Face Scalar from Rasters</em> does (<code class="docutils literal notranslate"><span class="pre">fail</span></code>
+with “Operation canceled.”) — the framework rolls the document back.</p></li>
 <li><p><strong>Randomized filters declare <code class="docutils literal notranslate"><span class="pre">randomSeed</span></code></strong> — <code class="docutils literal notranslate"><span class="pre">int</span></code>, default <code class="docutils literal notranslate"><span class="pre">0</span></code>, minimum <code class="docutils literal notranslate"><span class="pre">0</span></code>,
 resolved through <code class="docutils literal notranslate"><span class="pre">FilterParams::getRandomSeed()</span></code>, with the drawn value reported
 in the result messages so a run can be pinned afterwards. 39 parameters follow
