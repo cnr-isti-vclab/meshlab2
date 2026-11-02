@@ -98,6 +98,7 @@ int Document::loadMeshLabProject(const QString &filename)
         RasterEntry rasterEntry;
         rasterEntry.name = projectRaster.label;
         rasterEntry.shot = projectRaster.shot;
+        rasterEntry.lens = projectRaster.lens;
         rasterEntry.visible = true;
 
         for (const MeshLabProjectPlaneEntry &projectPlane : projectRaster.planes) {
@@ -105,6 +106,7 @@ int Document::loadMeshLabProject(const QString &filename)
             plane.semantic = projectPlane.semantic;
             plane.name = projectPlane.name;
             plane.sourcePath = projectPlane.sourcePath;
+            plane.sourceUndistorted = projectPlane.undistorted;
 
             if (!projectPlane.sourcePath.trimmed().isEmpty() && QFileInfo::exists(projectPlane.sourcePath)) {
                 QImageReader reader(projectPlane.sourcePath);
@@ -337,7 +339,7 @@ bool Document::saveMeshLabProject(
             const PlanePlan &plan = planePlans[ri][pi];
             if (plan.write) {
                 QString planeError;
-                ensureRasterPlaneImage(raster(ri).planes[size_t(pi)]);
+                ensureRasterPlaneImage(raster(ri), raster(ri).planes[size_t(pi)]);
                 if (raster(ri).planes[size_t(pi)].hasImage()
                     && !saveRasterPlaneImage(ri, pi, plan.absPath, &planeError))
                     return fail(planeError);
@@ -399,42 +401,7 @@ bool Document::saveMeshLabProject(
         xml.writeStartElement(QStringLiteral("MLRaster"));
         xml.writeAttribute(QStringLiteral("label"), re.name);
 
-        // Camera
-        xml.writeStartElement(QStringLiteral("VCGCamera"));
-        if (re.shot.isValid()) {
-            CameraShot::VcgShot vcgShot = re.shot.toVcgShot();
-
-            // Translation: negated (matching load convention)
-            vcg::Point3f tra = vcgShot.Extrinsics.Tra();
-            xml.writeAttribute(QStringLiteral("TranslationVector"),
-                QStringLiteral("%1 %2 %3 1").arg(-tra[0], 0, 'f', 6).arg(-tra[1], 0, 'f', 6).arg(-tra[2], 0, 'f', 6));
-
-            // Rotation matrix
-            vcg::Matrix44f rot = vcgShot.Extrinsics.Rot();
-            xml.writeAttribute(QStringLiteral("RotationMatrix"),
-                QStringLiteral("%1 %2 %3 %4 %5 %6 %7 %8 %9 %10 %11 %12 %13 %14 %15 %16")
-                    .arg(rot[0][0], 0, 'f', 6).arg(rot[0][1], 0, 'f', 6).arg(rot[0][2], 0, 'f', 6).arg(rot[0][3], 0, 'f', 6)
-                    .arg(rot[1][0], 0, 'f', 6).arg(rot[1][1], 0, 'f', 6).arg(rot[1][2], 0, 'f', 6).arg(rot[1][3], 0, 'f', 6)
-                    .arg(rot[2][0], 0, 'f', 6).arg(rot[2][1], 0, 'f', 6).arg(rot[2][2], 0, 'f', 6).arg(rot[2][3], 0, 'f', 6)
-                    .arg(rot[3][0], 0, 'f', 6).arg(rot[3][1], 0, 'f', 6).arg(rot[3][2], 0, 'f', 6).arg(rot[3][3], 0, 'f', 6));
-
-            xml.writeAttribute(QStringLiteral("CameraType"),
-                QString::number(                int(vcgShot.Intrinsics.cameraType)));
-            xml.writeAttribute(QStringLiteral("FocalMm"),
-                QString::number(vcgShot.Intrinsics.FocalMm, 'f', 4));
-            xml.writeAttribute(QStringLiteral("LensDistortion"), QStringLiteral("0 0"));
-            xml.writeAttribute(QStringLiteral("PixelSizeMm"),
-                QStringLiteral("%1 %2").arg(vcgShot.Intrinsics.PixelSizeMm[0], 0, 'f', 6)
-                    .arg(vcgShot.Intrinsics.PixelSizeMm[1], 0, 'f', 6));
-            xml.writeAttribute(QStringLiteral("ViewportPx"),
-                QStringLiteral("%1 %2").arg(vcgShot.Intrinsics.ViewportPx[0])
-                    .arg(vcgShot.Intrinsics.ViewportPx[1]));
-            xml.writeAttribute(QStringLiteral("CenterPx"),
-                QStringLiteral("%1 %2").arg(vcgShot.Intrinsics.CenterPx[0], 0, 'f', 2)
-                    .arg(vcgShot.Intrinsics.CenterPx[1], 0, 'f', 2));
-        }
-        xml.writeAttribute(QStringLiteral("BinaryData"), QStringLiteral("0"));
-        xml.writeEndElement(); // VCGCamera
+        re.shot.writeVcgCameraXml(xml, re.lens);
 
         // Planes, in order: a loaded raster shows its last one, as MeshLab always has
         for (int pi = 0; pi < int(re.planes.size()); ++pi) {
@@ -452,6 +419,9 @@ bool Document::saveMeshLabProject(
                 semanticStr = QStringLiteral("RGBA");
             }
             xml.writeAttribute(QStringLiteral("semantic"), semanticStr);
+            // Old MeshLab ignores it, and would read the plane as a photo as shot
+            if (plane.sourceUndistorted)
+                xml.writeAttribute(QStringLiteral("undistorted"), QStringLiteral("1"));
             xml.writeEndElement(); // Plane
         }
 

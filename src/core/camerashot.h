@@ -1,15 +1,24 @@
 #pragma once
 
+#include <vcg/math/lens_distortion.h>
 #include <vcg/math/shot.h>
+#include <QImage>
 #include <QMatrix4x4>
 #include <QSize>
 #include <QVector2D>
 #include <QVector3D>
-#include <array>
+
+class QXmlStreamAttributes;
+class QXmlStreamWriter;
+
+// The lens of a raster's camera, kept beside its CameraShot, which stays a pinhole camera: it
+// relates the photo as shot (the file) to the image the pinhole camera describes (the image in
+// memory). Identity for a pinhole photo. See docs/design/proposals/camera_lens_model.md.
+using CameraLens = vcg::LensDistortion<double>;
 
 // CameraShot wraps vcg::Shot<float> — a pinhole camera model with intrinsics
-// (focal length, pixel size, viewport, distortion) and extrinsics (position,
-// rotation).  It supports ray-casting operations: project(), unproject(),
+// (focal length, pixel size, viewport) and extrinsics (position, rotation), with
+// no lens distortion.  It supports ray-casting operations: project(), unproject(),
 // depth(), viewMatrix(), projectionMatrix().
 //
 // Relationship with ViewTrackball:
@@ -59,12 +68,6 @@ public:
     QVector2D pixelSizeMm() const;
     void setPixelSizeMm(const QVector2D &pixelSize);
 
-    QVector2D distortionCenterPx() const;
-    void setDistortionCenterPx(const QVector2D &center);
-
-    std::array<float, 4> distortionK() const;
-    void setDistortionK(const std::array<float, 4> &k);
-
     float focalMm() const;
     void setFocalMm(float focalMm);
 
@@ -97,6 +100,20 @@ public:
     // transform than the meshes with it. Use applySimilarity, which moves only where it stands.
     // void rescalingWorld(float scale);
     void applySimilarity(const QMatrix4x4 &m);
+
+    // The image this pinhole camera describes, resampled from a photo taken through `lens`,
+    // of the same size: pixels the photo does not cover are transparent. The photo may be at
+    // another resolution than viewportPx(), as the lens is normalized. The photo itself when
+    // the lens is the identity, or the camera orthographic, which a real lens cannot be.
+    QImage undistortImage(const QImage &photo, const CameraLens &lens) const;
+
+    // The VCGCamera element of a MeshLab project (.mlp) and of a camera file. The lens is in
+    // LensModel and LensParams, which old MeshLab ignores; its LensDistortion, the radial
+    // model vcg::Camera no longer has, is always written as zeros and a non-zero one read is
+    // dropped with a warning.
+    static bool readVcgCameraXml(
+        const QXmlStreamAttributes &attrs, CameraShot &shot, CameraLens &lens, QString *errorMessage);
+    void writeVcgCameraXml(QXmlStreamWriter &xml, const CameraLens &lens) const;
 
 private:
     VcgShot m_shot;

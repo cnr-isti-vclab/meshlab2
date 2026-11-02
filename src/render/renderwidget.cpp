@@ -1441,7 +1441,6 @@ CameraShot RenderWidget::cameraShotForViewport(const QSize &pixelSize) const
     shot.Intrinsics.ViewportPx = vcg::Point2i(pixelSize.width(), pixelSize.height());
     shot.Intrinsics.CenterPx =
         vcg::Point2f(float(pixelSize.width()) * 0.5f, float(pixelSize.height()) * 0.5f);
-    shot.Intrinsics.DistorCenterPx = shot.Intrinsics.CenterPx;
     // PixelSizeMm = 1 is a fictitious self-consistent calibration:
     // since FocalMm is computed from FOV and viewport height in the same unit system,
     // the angular mapping (pixel → camera‑plane ray direction) is correct.
@@ -1622,7 +1621,7 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
         const int rasterIndex = m_doc ? m_doc->currentRasterIndex() : -1;
         Document::RasterEntry &rasterEntry = m_doc->raster(rasterIndex);
         RasterPlane *plane = rasterEntry.currentPlane();
-        Document::ensureRasterPlaneImage(*plane);
+        Document::ensureRasterPlaneImage(rasterEntry, *plane);
         m_depthPickPending = false;
         resetRasterView();
         m_rasterOpacity = 0.75f;

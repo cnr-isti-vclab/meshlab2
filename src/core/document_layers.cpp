@@ -760,6 +760,36 @@ void Document::setRasterShot(int index, const CameraShot &shot, const QString &c
         endUndoStep(true);
 }
 
+void Document::setRasterLens(int index, const CameraLens &lens, const QString &contextMessage)
+{
+    if (index < 0 || index >= rasterCount())
+        return;
+
+    RasterEntry &entry = raster(index);
+    if (entry.lens == lens)
+        return;
+
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("Modify Raster Lens"));
+
+    entry.lens = lens;
+    // Planes made in memory, or saved from it, are in the camera's frame and stay as they are
+    for (RasterPlane &plane : entry.planes) {
+        if (plane.hasSourcePath() && !plane.sourceUndistorted)
+            plane.image = QImage();
+    }
+    ++entry.cameraRevision;
+    ++entry.imageRevision;
+    writeLog(contextMessage.trimmed().isEmpty() ? tr("Raster lens updated: '%1'").arg(entry.name)
+                                                : contextMessage.trimmed(),
+             LogSource::Application);
+    emit rasterDataChanged(index);
+
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
 void Document::setCurrentRasterIndex(int index)
 {
     setCurrentRasterIndexInternal(index, true);
@@ -810,15 +840,18 @@ void Document::setCurrentRasterIndexInternal(int index, bool makeCurrentLayer)
         emit currentLayerChanged(m_currentLayerKind, m_currentRasterIndex);
 }
 
-void Document::ensureRasterPlaneImage(RasterPlane &plane)
+void Document::ensureRasterPlaneImage(const RasterEntry &raster, RasterPlane &plane)
 {
     if (!plane.image.isNull())
         return;
     if (plane.sourcePath.trimmed().isEmpty())
         return;
     QString imageError;
-    if (TextureAssociationUtils::readImageFile(plane.sourcePath, plane.image, imageError))
-        plane.size = plane.image.size();
+    if (!TextureAssociationUtils::readImageFile(plane.sourcePath, plane.image, imageError))
+        return;
+    if (!plane.sourceUndistorted)
+        plane.image = raster.shot.undistortImage(plane.image, raster.lens);
+    plane.size = plane.image.size();
 }
 
 void Document::markRasterImageChanged(int index, const QString &contextMessage)

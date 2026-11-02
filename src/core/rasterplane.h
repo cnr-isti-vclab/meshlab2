@@ -28,6 +28,10 @@ struct RasterPlane {
     QString sourcePath;
     QSize size;
     QImage image;
+    // The file at sourcePath holds the image already in the frame of the raster's pinhole
+    // camera: written from memory, so not to be undistorted again by the raster's lens. A
+    // plane file is otherwise the photo as shot.
+    bool sourceUndistorted = false;
 
     bool hasImage() const { return !image.isNull(); }
     bool hasSourcePath() const { return !sourcePath.trimmed().isEmpty(); }

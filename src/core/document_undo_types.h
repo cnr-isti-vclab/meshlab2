@@ -86,6 +86,7 @@ struct RasterSnapshot {
     QString sourcePath;
     bool visible = false;
     CameraShot shot;
+    CameraLens lens;
     std::vector<RasterPlane> planes;
     int currentPlaneIndex = -1;
 };

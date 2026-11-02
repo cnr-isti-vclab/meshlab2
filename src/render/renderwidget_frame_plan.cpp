@@ -62,7 +62,7 @@ RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassReques
                 Document::RasterEntry &entry = m_doc->raster(currentRasterIndex);
                 RasterPlane *plane = entry.currentPlane();
                 if (plane) {
-                    Document::ensureRasterPlaneImage(*plane);
+                    Document::ensureRasterPlaneImage(entry, *plane);
                     if (!plane->image.isNull())
                         requests.rasterBackplates.push_back(currentRasterIndex);
                 }
@@ -77,7 +77,7 @@ RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassReques
                 RasterPlane *plane = entry.currentPlane();
                 if (!entry.visible || !plane)
                     continue;
-                Document::ensureRasterPlaneImage(*plane);
+                Document::ensureRasterPlaneImage(entry, *plane);
                 if (plane->image.isNull())
                     continue;
                 if (entry.shot.isValid())

@@ -42,13 +42,7 @@ bool isMeshLabProjectExtension(const QString &path);
 QString resolveProjectEntryPath(const QString &projectFilePath, const QString &entryPath);
 bool parseFloatList(const QString &text, int expectedCount, std::vector<float> &values);
 QMatrix4x4 meshLabProjectMatrixToQt(const std::vector<float> &values);
-bool parseIntPair(const QString &text, int &a, int &b);
-bool parseFloatPair(const QString &text, float &a, float &b);
 RasterPlaneSemantic rasterPlaneSemanticFromProject(const QString &name);
-bool parseMeshLabProjectCamera(
-    const QXmlStreamAttributes &attrs,
-    CameraShot &outShot,
-    QString *errorMessage);
 
 struct MeshLabProjectMeshEntry {
     QString label;
@@ -61,11 +55,13 @@ struct MeshLabProjectPlaneEntry {
     QString name;
     QString sourcePath;
     RasterPlaneSemantic semantic = RasterPlaneSemantic::RGBA;
+    bool undistorted = false; // the file is in the frame of the pinhole camera already
 };
 
 struct MeshLabProjectRasterEntry {
     QString label;
     CameraShot shot;
+    CameraLens lens;
     std::vector<MeshLabProjectPlaneEntry> planes;
 };
 

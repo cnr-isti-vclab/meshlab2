@@ -98,6 +98,9 @@ public:
         QString sourcePath;
         bool visible = true;
         CameraShot shot;
+        // How the plane files relate to `shot`: decoding undistorts them by it, so the images
+        // in memory are what the pinhole camera sees (ensureRasterPlaneImage)
+        CameraLens lens;
         std::vector<RasterPlane> planes;
         int currentPlaneIndex = -1;
 
@@ -387,9 +390,15 @@ public:
     void setRasterVisible(int index, bool visible);
     void setRasterName(int index, const QString &name);
     void setRasterShot(int index, const CameraShot &shot, const QString &contextMessage = {});
+    // A new lens changes the images, not only the camera: the planes decoded from the photos
+    // as shot are dropped, to be decoded again through it.
+    void setRasterLens(int index, const CameraLens &lens, const QString &contextMessage = {});
     void setCurrentRasterIndex(int index);
     void setCurrentRasterPlaneIndex(int rasterIndex, int planeIndex);
-    static void ensureRasterPlaneImage(RasterPlane &plane);
+    // Decode a plane of `raster` from its file, if it is not in memory, undistorted by the
+    // raster's lens unless the file is undistorted already: the one place the photo as shot
+    // becomes the image the raster's pinhole camera describes.
+    static void ensureRasterPlaneImage(const RasterEntry &raster, RasterPlane &plane);
     void markRasterImageChanged(int index, const QString &contextMessage = {});
     QMatrix4x4 meshTransform(int index) const;
     void setMeshTransform(

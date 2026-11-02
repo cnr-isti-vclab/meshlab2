@@ -8842,7 +8842,7 @@ void FilterTests::importImageToCurrentRasterKeepsTheCamera()
     QCOMPARE(doc.loadMeshLabProject(
                  QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
     doc.setCurrentRasterIndex(0);
-    Document::ensureRasterPlaneImage(*doc.raster(0).currentPlane());
+    Document::ensureRasterPlaneImage(doc.raster(0), *doc.raster(0).currentPlane());
     const QImage original = doc.raster(0).currentPlane()->image;
     const QString originalPath = doc.raster(0).currentPlane()->sourcePath;
     const CameraShot shot = doc.raster(0).shot;

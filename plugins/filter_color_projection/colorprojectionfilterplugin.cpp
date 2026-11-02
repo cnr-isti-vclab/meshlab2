@@ -152,7 +152,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
         if (re.planes.empty()) return fail(QObject::tr("No planes."));
         RasterPlane *rp = re.currentPlane();
         if (!rp) return fail(QObject::tr("No plane."));
-        Document::ensureRasterPlaneImage(*rp);
+        Document::ensureRasterPlaneImage(re, *rp);
         if (rp->image.isNull()) return fail(QObject::tr("No image."));
 
         const QImage &rimg = rp->image;
@@ -225,7 +225,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
             const CameraShot &shot = re.shot;
             RasterPlane *rp = re.currentPlane();
             if (!rp) { ++ci; continue; }
-            Document::ensureRasterPlaneImage(*rp);
+            Document::ensureRasterPlaneImage(re, *rp);
             if (!rp->hasImage()) { ++ci; continue; }
             const QImage &rimg = rp->image;
             int iw = shot.viewportPx().width(), ih = shot.viewportPx().height();
@@ -358,7 +358,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
             const CameraShot &shot = re.shot;
             RasterPlane *rp = re.currentPlane();
             if (!rp) { ++ci; continue; }
-            Document::ensureRasterPlaneImage(*rp);
+            Document::ensureRasterPlaneImage(re, *rp);
             if (!rp->hasImage()) { ++ci; continue; }
             const QImage &rimg = rp->image;
             int iw = shot.viewportPx().width(), ih = shot.viewportPx().height();

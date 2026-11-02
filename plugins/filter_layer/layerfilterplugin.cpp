@@ -190,170 +190,8 @@ std::vector<int> visibleRasterIndices(const Document &doc)
     return indices;
 }
 
-bool parseFloatList(const QString &text, int minCount, std::vector<float> &values)
-{
-    values.clear();
-    const QStringList parts = text.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
-    if (parts.size() < minCount)
-        return false;
-    values.reserve(size_t(parts.size()));
-    for (const QString &part : parts) {
-        bool ok = false;
-        const float value = part.toFloat(&ok);
-        if (!ok)
-            return false;
-        values.push_back(value);
-    }
-    return true;
-}
-
-bool parseIntPair(const QString &text, int &a, int &b)
-{
-    const QStringList parts = text.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
-    if (parts.size() < 2)
-        return false;
-    bool ok0 = false;
-    bool ok1 = false;
-    a = parts.at(0).toInt(&ok0);
-    b = parts.at(1).toInt(&ok1);
-    return ok0 && ok1;
-}
-
-bool parseFloatPair(const QString &text, float &a, float &b)
-{
-    const QStringList parts = text.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
-    if (parts.size() < 2)
-        return false;
-    bool ok0 = false;
-    bool ok1 = false;
-    a = parts.at(0).toFloat(&ok0);
-    b = parts.at(1).toFloat(&ok1);
-    return ok0 && ok1;
-}
-
-bool parseVcgCamera(
-    const QXmlStreamAttributes &attrs,
-    CameraShot &outShot,
-    QString &errorMessage)
-{
-    CameraShot::VcgShot shot;
-    vcg::Camera<float> &cam = shot.Intrinsics;
-
-    if (attrs.hasAttribute(QStringLiteral("CameraType"))) {
-        bool ok = false;
-        const int type = attrs.value(QStringLiteral("CameraType")).toInt(&ok);
-        if (!ok) {
-            errorMessage = QObject::tr("Invalid CameraType attribute.");
-            return false;
-        }
-        // Only perspective and orthographic are drawn; the other vcg types (isometric,
-        // cavalieri) are read as perspective rather than refused, so the project still opens.
-        cam.cameraType = type == vcg::Camera<float>::ORTHO ? vcg::Camera<float>::ORTHO
-                                                            : vcg::Camera<float>::PERSPECTIVE;
-        if (type != vcg::Camera<float>::PERSPECTIVE && type != vcg::Camera<float>::ORTHO)
-            qWarning("Camera type %d is not supported; reading it as perspective.", type);
-    }
-
-    std::vector<float> translationValues;
-    std::vector<float> rotationValues;
-    if (!parseFloatList(attrs.value(QStringLiteral("TranslationVector")).toString(), 3, translationValues)
-        || !parseFloatList(attrs.value(QStringLiteral("RotationMatrix")).toString(), 16, rotationValues)) {
-        errorMessage = QObject::tr("Invalid camera extrinsics.");
-        return false;
-    }
-
-    shot.Extrinsics.SetTra(vcg::Point3f(
-        -translationValues[0],
-        -translationValues[1],
-        -translationValues[2]));
-    vcg::Matrix44f rot;
-    for (int row = 0; row < 4; ++row)
-        for (int col = 0; col < 4; ++col)
-            rot[row][col] = rotationValues[size_t(col + 4 * row)];
-    shot.Extrinsics.SetRot(rot);
-
-    bool ok = false;
-    cam.FocalMm = attrs.value(QStringLiteral("FocalMm")).toFloat(&ok);
-    if (!ok) {
-        errorMessage = QObject::tr("Invalid FocalMm attribute.");
-        return false;
-    }
-
-    int viewportW = 0;
-    int viewportH = 0;
-    float centerX = 0.0f;
-    float centerY = 0.0f;
-    float pixelX = 0.0f;
-    float pixelY = 0.0f;
-    float lens0 = 0.0f;
-    float lens1 = 0.0f;
-    if (!parseIntPair(attrs.value(QStringLiteral("ViewportPx")).toString(), viewportW, viewportH)
-        || !parseFloatPair(attrs.value(QStringLiteral("CenterPx")).toString(), centerX, centerY)
-        || !parseFloatPair(attrs.value(QStringLiteral("PixelSizeMm")).toString(), pixelX, pixelY)
-        || !parseFloatPair(attrs.value(QStringLiteral("LensDistortion")).toString(), lens0, lens1)) {
-        errorMessage = QObject::tr("Invalid camera intrinsics.");
-        return false;
-    }
-    cam.ViewportPx = vcg::Point2i(viewportW, viewportH);
-    cam.CenterPx = vcg::Point2f(centerX, centerY);
-    cam.PixelSizeMm = vcg::Point2f(pixelX, pixelY);
-    cam.k[0] = lens0;
-    cam.k[1] = lens1;
-
-    outShot = CameraShot::fromVcgShot(shot);
-    if (!outShot.isValid()) {
-        errorMessage = QObject::tr("Parsed VCGCamera is not valid.");
-        return false;
-    }
-    return true;
-}
-
-void writeVcgCamera(QXmlStreamWriter &xml, const CameraShot &shot)
-{
-    xml.writeStartElement(QStringLiteral("VCGCamera"));
-    if (shot.isValid()) {
-        const CameraShot::VcgShot vcgShot = shot.toVcgShot();
-        const vcg::Point3f tra = vcgShot.Extrinsics.Tra();
-        const vcg::Matrix44f rot = vcgShot.Extrinsics.Rot();
-        xml.writeAttribute(
-            QStringLiteral("TranslationVector"),
-            QStringLiteral("%1 %2 %3 1")
-                .arg(-tra[0], 0, 'f', 6)
-                .arg(-tra[1], 0, 'f', 6)
-                .arg(-tra[2], 0, 'f', 6));
-        xml.writeAttribute(
-            QStringLiteral("RotationMatrix"),
-            QStringLiteral("%1 %2 %3 %4 %5 %6 %7 %8 %9 %10 %11 %12 %13 %14 %15 %16")
-                .arg(rot[0][0], 0, 'f', 6).arg(rot[0][1], 0, 'f', 6).arg(rot[0][2], 0, 'f', 6).arg(rot[0][3], 0, 'f', 6)
-                .arg(rot[1][0], 0, 'f', 6).arg(rot[1][1], 0, 'f', 6).arg(rot[1][2], 0, 'f', 6).arg(rot[1][3], 0, 'f', 6)
-                .arg(rot[2][0], 0, 'f', 6).arg(rot[2][1], 0, 'f', 6).arg(rot[2][2], 0, 'f', 6).arg(rot[2][3], 0, 'f', 6)
-                .arg(rot[3][0], 0, 'f', 6).arg(rot[3][1], 0, 'f', 6).arg(rot[3][2], 0, 'f', 6).arg(rot[3][3], 0, 'f', 6));
-        xml.writeAttribute(QStringLiteral("CameraType"), QString::number(int(vcgShot.Intrinsics.cameraType)));
-        xml.writeAttribute(QStringLiteral("FocalMm"), QString::number(vcgShot.Intrinsics.FocalMm, 'f', 4));
-        xml.writeAttribute(
-            QStringLiteral("LensDistortion"),
-            QStringLiteral("%1 %2").arg(vcgShot.Intrinsics.k[0], 0, 'f', 6).arg(vcgShot.Intrinsics.k[1], 0, 'f', 6));
-        xml.writeAttribute(
-            QStringLiteral("PixelSizeMm"),
-            QStringLiteral("%1 %2")
-                .arg(vcgShot.Intrinsics.PixelSizeMm[0], 0, 'f', 6)
-                .arg(vcgShot.Intrinsics.PixelSizeMm[1], 0, 'f', 6));
-        xml.writeAttribute(
-            QStringLiteral("ViewportPx"),
-            QStringLiteral("%1 %2")
-                .arg(vcgShot.Intrinsics.ViewportPx[0])
-                .arg(vcgShot.Intrinsics.ViewportPx[1]));
-        xml.writeAttribute(
-            QStringLiteral("CenterPx"),
-            QStringLiteral("%1 %2")
-                .arg(vcgShot.Intrinsics.CenterPx[0], 0, 'f', 2)
-                .arg(vcgShot.Intrinsics.CenterPx[1], 0, 'f', 2));
-    }
-    xml.writeAttribute(QStringLiteral("BinaryData"), QStringLiteral("0"));
-    xml.writeEndElement();
-}
-
-bool readVcgCameraFile(const QString &path, std::vector<CameraShot> &shots, QString &errorMessage)
+bool readVcgCameraFile(
+    const QString &path, std::vector<std::pair<CameraShot, CameraLens>> &cameras, QString &errorMessage)
 {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -366,12 +204,13 @@ bool readVcgCameraFile(const QString &path, std::vector<CameraShot> &shots, QStr
         if (xml.readNext() == QXmlStreamReader::StartElement
             && xml.name() == QStringLiteral("VCGCamera")) {
             CameraShot shot;
+            CameraLens lens;
             QString cameraError;
-            if (!parseVcgCamera(xml.attributes(), shot, cameraError)) {
+            if (!CameraShot::readVcgCameraXml(xml.attributes(), shot, lens, &cameraError)) {
                 errorMessage = QObject::tr("Invalid VCGCamera in '%1': %2").arg(path, cameraError);
                 return false;
             }
-            shots.push_back(shot);
+            cameras.emplace_back(shot, lens);
         }
     }
 
@@ -469,7 +308,7 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
             xml.writeStartElement(QStringLiteral("RasterCamera"));
             xml.writeAttribute(QStringLiteral("label"), raster.name);
             xml.writeAttribute(QStringLiteral("index"), QString::number(rasterIndex));
-            writeVcgCamera(xml, raster.shot);
+            raster.shot.writeVcgCameraXml(xml, raster.lens);
             xml.writeEndElement();
         }
         xml.writeEndElement();
@@ -483,7 +322,7 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
         if (path.isEmpty())
             return fail(QObject::tr("No camera input file selected."));
 
-        std::vector<CameraShot> shots;
+        std::vector<std::pair<CameraShot, CameraLens>> shots;
         QString parseError;
         if (!readVcgCameraFile(path, shots, parseError))
             return fail(parseError);
@@ -500,10 +339,10 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
         }
 
         for (size_t i = 0; i < shots.size(); ++i) {
-            doc.setRasterShot(
-                activeRasters[i],
-                shots[i],
-                QObject::tr("Imported raster camera for '%1'").arg(doc.raster(activeRasters[i]).name));
+            const QString message =
+                QObject::tr("Imported raster camera for '%1'").arg(doc.raster(activeRasters[i]).name);
+            doc.setRasterShot(activeRasters[i], shots[i].first, message);
+            doc.setRasterLens(activeRasters[i], shots[i].second, message);
         }
         return successInfo(true, { QObject::tr("Imported %1 raster camera(s) from '%2'.").arg(shots.size()).arg(path) });
     }
@@ -548,7 +387,8 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
         plane.name = QFileInfo(path).fileName();
         plane.sourcePath = path;
         plane.size = image.size();
-        plane.image = image;
+        // A photo as shot, like every plane file: through the raster's lens, as on decode
+        plane.image = shot.undistortImage(image, entry.lens);
         QString message;
         if (add) {
             entry.planes.push_back(std::move(plane));

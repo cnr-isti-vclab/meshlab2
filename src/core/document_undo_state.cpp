@@ -72,6 +72,7 @@ UndoState Document::captureUndoState() const
         snap.sourcePath = entry->sourcePath;
         snap.visible = entry->visible;
         snap.shot = entry->shot;
+        snap.lens = entry->lens;
         snap.planes = entry->planes;
         snap.currentPlaneIndex = entry->currentPlaneIndex;
         state.rasters.push_back(std::move(snap));
@@ -217,6 +218,7 @@ void Document::restoreUndoState(const UndoState &state)
             entry->sourcePath = snap.sourcePath;
             entry->visible = snap.visible;
             entry->shot = snap.shot;
+            entry->lens = snap.lens;
             entry->planes = snap.planes;
             entry->currentPlaneIndex = snap.currentPlaneIndex;
             m_rasters.push_back(std::move(entry));

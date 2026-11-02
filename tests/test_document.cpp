@@ -19,6 +19,7 @@
 #include "helperprocess.h"
 #include "processmemoryinfo.h"
 #include <vcg/complex/allocate.h>
+#include <vcg/math/lens_distortion.h>
 #include <vcg/space/planar_polygon_tessellation.h>
 #include <vcg/complex/algorithms/stream_order.h>
 #include <wrap/io_trimesh/export_obj.h>
@@ -98,6 +99,10 @@ private slots:
     void layersCanBeAddedToAndRemovedFromASet();
     void loadMeshLabProjectLoadsRastersAndCamera();
     void rasterCameraUndoRedoRestoresShot();
+    void lensUndistortsWhatItDistortsUpToItsFold();
+    void projectKeepsTheLensAndPlanesSavedFromMemory();
+    void undistortedPlanesMatchThePhotosBeforeTheLens();
+    void lensChangeIsOneUndoStepAndRedecodesThePhotos();
     void undoRedoRestoresMeshList();
     void movingALayerChangesItsPositionAndNotItsId();
     void movingARasterChangesItsPositionAndNotItsId();
@@ -2305,7 +2310,7 @@ void DocumentTests::loadMeshLabProjectLoadsRastersAndCamera()
     // image arrives only when something asks for it, and asserting hasImage() straight
     // after the load could never pass. Ask first, which is what this check was for: that
     // the path the project recorded still resolves to something decodable.
-    Document::ensureRasterPlaneImage(*doc.raster(0).currentPlane());
+    Document::ensureRasterPlaneImage(doc.raster(0), *doc.raster(0).currentPlane());
     QVERIFY(raster.currentPlane()->hasImage());
 }
 
@@ -2331,6 +2336,248 @@ void DocumentTests::rasterCameraUndoRedoRestoresShot()
     QCOMPARE(doc.rasterCount(), 1);
     QVERIFY(doc.raster(0).shot.isValid());
     QCOMPARE(doc.raster(0).shot.viewPoint(), QVector3D(1.0f, 2.0f, 3.0f));
+}
+
+// Two of the 35 FULL_OPENCV cameras of a RealityScan export (3840x2160): camera 11, the strongest
+// lens of the set (k3 1.78), and camera 21, whose negative k3 bends the radial curve back down at
+// a normalized radius of 0.7046, short of the photo's corners at 0.7079. Over every fourth pixel
+// of the photo, Undistort and then Distort must come back to it, except past camera 21's fold,
+// where no undistorted point maps to the pixel and Undistort must say so. Measured on all 35:
+// 8e-13 px at worst, and 13 pixels past the fold, all of camera 21.
+void DocumentTests::lensUndistortsWhatItDistortsUpToItsFold()
+{
+    struct Calibration { double f, cx, cy; CameraLens lens; bool folds; };
+    CameraLens strongest;
+    strongest.k1 = 0.2811868000588898;
+    strongest.k2 = -1.311854948330229;
+    strongest.k3 = 1.78028678715768;
+    CameraLens folding;
+    folding.k1 = 0.1863034840499892;
+    folding.k2 = -0.3068459914617556;
+    folding.k3 = -0.4312663463576498;
+    const Calibration calibrations[] = {
+        { 3320.163829628465, 1923.195728132743, 1057.541026457819, strongest, false },
+        { 3127.608622793314, 1925.462632676696, 1067.169646355787, folding, true },
+    };
+    for (const Calibration &c : calibrations) {
+        int unreachable = 0;
+        for (int v = 0; v <= 2160; v += 4) {
+            for (int u = 0; u <= 3840; u += 4) {
+                const vcg::Point2d d((u - c.cx) / c.f, (v - c.cy) / c.f);
+                vcg::Point2d n;
+                if (!c.lens.Undistort(d, n)) {
+                    QVERIFY2(c.folds && d.Norm() > 0.7046, qPrintable(QStringLiteral("(%1, %2)").arg(u).arg(v)));
+                    ++unreachable;
+                    continue;
+                }
+                QVERIFY((c.lens.Distort(n) - d).Norm() * c.f < 1e-4);
+                QVERIFY(c.lens.IsInvertibleAt(n));
+            }
+        }
+        QCOMPARE(unreachable, c.folds ? 13 : 0);
+    }
+}
+
+// The lens goes into the project beside the camera, and comes back; a plane written from memory
+// is marked as already undistorted, so that it is not undistorted again. Old MeshLab's
+// LensDistortion is read: zeros silently, anything else dropped with a warning.
+void DocumentTests::projectKeepsTheLensAndPlanesSavedFromMemory()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    Document doc;
+    QImage image(64, 48, QImage::Format_RGBA8888);
+    image.fill(Qt::darkCyan);
+    QCOMPARE(doc.addRasterImage(image, QStringLiteral("photo")), 0);
+    doc.setRasterShot(0, CameraShot::defaultPerspectiveForImageSize(image.size()));
+    CameraLens lens;
+    lens.k1 = -0.21;
+    lens.k2 = 0.043;
+    lens.p1 = 1.5e-4;
+    lens.p2 = -7.25e-5;
+    lens.k3 = 0.0071;
+    lens.k4 = 0.1;
+    lens.k5 = -0.02;
+    lens.k6 = 0.003;
+    doc.setRasterLens(0, lens);
+
+    QString error;
+    const QString projectPath = dir.filePath(QStringLiteral("lens.mlp"));
+    QVERIFY2(doc.saveMeshLabProject(projectPath, {}, &error), qPrintable(error));
+    QVERIFY(doc.raster(0).planes[0].sourceUndistorted);
+
+    Document loaded;
+    QCOMPARE(loaded.loadMeshLabProject(projectPath), 0);
+    QCOMPARE(loaded.rasterCount(), 1);
+    QVERIFY(loaded.raster(0).lens == lens);
+    QVERIFY(loaded.raster(0).planes[0].sourceUndistorted);
+    Document::ensureRasterPlaneImage(loaded.raster(0), loaded.raster(0).planes[0]);
+    QCOMPARE(loaded.raster(0).planes[0].image.pixelColor(0, 0), QColor(Qt::darkCyan));
+
+    const auto legacy = [&](const char *lensDistortion) {
+        QFile file(dir.filePath(QStringLiteral("legacy.mlp")));
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            return -1;
+        file.write(QByteArray(R"(<MeshLabProject><RasterGroup><MLRaster label="r">)"
+            R"(<VCGCamera TranslationVector="0 0 10 1" RotationMatrix="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1" )"
+            R"(CameraType="0" FocalMm="35" LensDistortion=")") + lensDistortion
+            + R"(" PixelSizeMm="0.01 0.01" ViewportPx="64 48" CenterPx="32 24" BinaryData="0"/>)"
+            R"(<Plane fileName="missing.png" semantic="RGBA"/></MLRaster></RasterGroup></MeshLabProject>)");
+        file.close();
+        Document legacyDoc;
+        const int result = legacyDoc.loadMeshLabProject(file.fileName());
+        return result == 0 && legacyDoc.rasterCount() == 1 && legacyDoc.raster(0).lens.IsIdentity() ? 0 : -1;
+    };
+    QCOMPARE(legacy("0 0"), 0);
+    QTest::ignoreMessage(QtWarningMsg, "Lens distortion 0.1 0 is not supported; reading the camera without it.");
+    QCOMPARE(legacy("0.1 0"), 0);
+}
+
+// End to end on the gargoyle fixture: its four photos are distorted by a known lens, given that
+// lens in a project, and loaded. The planes decoded must be the original photos again, but for
+// the two bilinear resamplings in between and the transparent border the lens leaves.
+void DocumentTests::undistortedPlanesMatchThePhotosBeforeTheLens()
+{
+    const QString fixture = QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/");
+    Document original;
+    QCOMPARE(original.loadMeshLabProject(fixture + QStringLiteral("gargoyle.mlp")), 0);
+    QCOMPARE(original.rasterCount(), 4);
+
+    CameraLens lens;
+    lens.k1 = 0.12;
+    lens.k2 = -0.03;
+    lens.p1 = 0.0008;
+    lens.p2 = -0.0005;
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QFile source(fixture + QStringLiteral("gargoyle.mlp"));
+    QVERIFY(source.open(QIODevice::ReadOnly));
+    QString project = QString::fromUtf8(source.readAll());
+    project.replace(QStringLiteral("filename=\"gargoyle.ply\""),
+                    QStringLiteral("filename=\"%1gargoyle.ply\"").arg(fixture));
+    project.replace(QStringLiteral(" BinaryData=\"0\""),
+                    QStringLiteral(" LensModel=\"brown\" LensParams=\"%1 %2 %3 %4 0 0 0 0\" BinaryData=\"0\"")
+                        .arg(lens.k1).arg(lens.k2).arg(lens.p1).arg(lens.p2));
+
+    for (int ri = 0; ri < 4; ++ri) {
+        Document::RasterEntry &raster = original.raster(ri);
+        Document::ensureRasterPlaneImage(raster, *raster.currentPlane());
+        const QImage photo = raster.currentPlane()->image.convertToFormat(QImage::Format_RGBA8888);
+        // The photo as this lens would have shot it: each of its pixels holds what the pinhole
+        // camera sees at the undistorted point, in the camera's pixels with y down
+        const CameraShot &shot = raster.shot;
+        const double fx = shot.focalMm() / shot.pixelSizeMm().x();
+        const double fy = shot.focalMm() / shot.pixelSizeMm().y();
+        const double cx = shot.centerPx().x();
+        const double cy = shot.viewportPx().height() - shot.centerPx().y();
+        QImage distorted(photo.size(), QImage::Format_RGBA8888);
+        for (int y = 0; y < photo.height(); ++y) {
+            for (int x = 0; x < photo.width(); ++x) {
+                vcg::Point2d n;
+                QVERIFY(lens.Undistort(vcg::Point2d((x + 0.5 - cx) / fx, (y + 0.5 - cy) / fy), n));
+                const double sx = std::clamp(n[0] * fx + cx - 0.5, 0.0, photo.width() - 1.0);
+                const double sy = std::clamp(n[1] * fy + cy - 0.5, 0.0, photo.height() - 1.0);
+                const int x0 = std::min(int(sx), photo.width() - 2);
+                const int y0 = std::min(int(sy), photo.height() - 2);
+                const double ax = sx - x0, ay = sy - y0;
+                QColor c;
+                const QColor c00 = photo.pixelColor(x0, y0), c10 = photo.pixelColor(x0 + 1, y0);
+                const QColor c01 = photo.pixelColor(x0, y0 + 1), c11 = photo.pixelColor(x0 + 1, y0 + 1);
+                const auto mix = [&](int (QColor::*channel)() const) {
+                    return int(std::lround(((c00.*channel)() * (1 - ax) + (c10.*channel)() * ax) * (1 - ay)
+                                           + ((c01.*channel)() * (1 - ax) + (c11.*channel)() * ax) * ay));
+                };
+                distorted.setPixelColor(x, y, QColor(mix(&QColor::red), mix(&QColor::green), mix(&QColor::blue)));
+            }
+        }
+        const QString name = QFileInfo(raster.currentPlane()->sourcePath).fileName();
+        const QString png = QFileInfo(name).completeBaseName() + QStringLiteral(".png");
+        QVERIFY(distorted.save(dir.filePath(png)));
+        project.replace(QStringLiteral("fileName=\"%1\"").arg(name), QStringLiteral("fileName=\"%1\"").arg(png));
+    }
+    QFile target(dir.filePath(QStringLiteral("distorted.mlp")));
+    QVERIFY(target.open(QIODevice::WriteOnly));
+    target.write(project.toUtf8());
+    target.close();
+
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(target.fileName()), 0);
+    QCOMPARE(doc.rasterCount(), 4);
+    for (int ri = 0; ri < 4; ++ri) {
+        Document::RasterEntry &raster = doc.raster(ri);
+        QVERIFY(raster.lens == lens);
+        Document::ensureRasterPlaneImage(raster, *raster.currentPlane());
+        const QImage undistorted = raster.currentPlane()->image;
+        const QImage photo = original.raster(ri).currentPlane()->image.convertToFormat(QImage::Format_RGBA8888);
+        QCOMPARE(undistorted.size(), photo.size());
+        // Away from the border, where the lens pulls in pixels the distorted photo never had
+        double squared = 0;
+        int count = 0;
+        int transparent = 0;
+        const int margin = 16;
+        for (int y = 0; y < photo.height(); ++y) {
+            for (int x = 0; x < photo.width(); ++x) {
+                const QColor u = undistorted.pixelColor(x, y);
+                transparent += u.alpha() == 0;
+                if (x < margin || y < margin || x >= photo.width() - margin || y >= photo.height() - margin)
+                    continue;
+                QCOMPARE(u.alpha(), 255);
+                const QColor p = photo.pixelColor(x, y);
+                for (int d : { u.red() - p.red(), u.green() - p.green(), u.blue() - p.blue() })
+                    squared += d * d;
+                count += 3;
+            }
+        }
+        const double psnr = 10 * std::log10(255.0 * 255.0 / (squared / count));
+        qInfo("raster %d: PSNR %.1f dB, %d transparent pixels", ri, psnr, transparent);
+        QVERIFY2(psnr > 40, qPrintable(QStringLiteral("raster %1: PSNR %2 dB").arg(ri).arg(psnr)));
+        // A pincushion lens (k1 > 0) leaves the corners of the undistorted image uncovered
+        QVERIFY(transparent > 0);
+    }
+}
+
+// Changing the lens changes the image, so it bumps both revisions and drops the decoded photo,
+// which comes back through the new lens; undo restores the lens and the image as they were.
+void DocumentTests::lensChangeIsOneUndoStepAndRedecodesThePhotos()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QImage image(80, 60, QImage::Format_RGBA8888);
+    for (int y = 0; y < image.height(); ++y)
+        for (int x = 0; x < image.width(); ++x)
+            image.setPixelColor(x, y, QColor(x * 3, y * 4, (x + y) % 256));
+    const QString path = dir.filePath(QStringLiteral("photo.png"));
+    QVERIFY(image.save(path));
+
+    Document doc;
+    QCOMPARE(doc.loadRasterImage(path), 0);
+    doc.setRasterShot(0, CameraShot::defaultPerspectiveForImageSize(image.size()));
+    const QImage before = doc.raster(0).currentPlane()->image;
+    const std::uint64_t imageRevision = doc.raster(0).imageRevision;
+    const std::uint64_t cameraRevision = doc.raster(0).cameraRevision;
+
+    CameraLens lens;
+    lens.k1 = -0.3;
+    doc.setRasterLens(0, lens);
+    QVERIFY(doc.raster(0).lens == lens);
+    QVERIFY(doc.raster(0).imageRevision > imageRevision);
+    QVERIFY(doc.raster(0).cameraRevision > cameraRevision);
+    QVERIFY(!doc.raster(0).currentPlane()->hasImage());
+    Document::ensureRasterPlaneImage(doc.raster(0), *doc.raster(0).currentPlane());
+    const QImage after = doc.raster(0).currentPlane()->image;
+    QCOMPARE(after.size(), before.size());
+    QVERIFY(after.convertToFormat(QImage::Format_RGBA8888) != before.convertToFormat(QImage::Format_RGBA8888));
+    // The centre of the photo is where the lens moves nothing
+    QCOMPARE(after.pixelColor(40, 30), before.pixelColor(40, 30));
+
+    QVERIFY(doc.undo());
+    QVERIFY(doc.raster(0).lens.IsIdentity());
+    QVERIFY(doc.raster(0).currentPlane()->image == before);
+    QVERIFY(doc.redo());
+    QVERIFY(doc.raster(0).lens == lens);
+    Document::ensureRasterPlaneImage(doc.raster(0), *doc.raster(0).currentPlane());
+    QVERIFY(doc.raster(0).currentPlane()->image == after);
 }
 
 // Reordering the layer list: the position (the index, the # column) changes, the id does not, the

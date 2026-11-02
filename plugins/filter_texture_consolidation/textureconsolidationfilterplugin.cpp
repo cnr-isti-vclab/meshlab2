@@ -164,18 +164,13 @@ MeshFilterRunResult TextureConsolidationFilterPlugin::runFilter(
         RasterPlane *plane = raster.currentPlane();
         if (!plane)
             continue;
-        Document::ensureRasterPlaneImage(*plane);
+        Document::ensureRasterPlaneImage(raster, *plane);
         if (!plane->hasImage())
             continue;
         const CameraShot::VcgShot shot = raster.shot.toVcgShot();
         if (shot.Intrinsics.cameraType != vcg::Camera<float>::PERSPECTIVE) {
             return fail(QObject::tr("Raster '%1' does not have a perspective camera; this filter "
                                     "needs pinhole cameras.").arg(raster.name));
-        }
-        const auto k = raster.shot.distortionK();
-        if (k[0] != 0.0f || k[1] != 0.0f || k[2] != 0.0f || k[3] != 0.0f) {
-            return fail(QObject::tr("Raster '%1' has lens distortion, which this filter does not "
-                                    "model. Undistort the image first.").arg(raster.name));
         }
         views.push_back({raster.name, plane->image, shot});
     }

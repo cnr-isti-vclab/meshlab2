@@ -844,12 +844,13 @@ bool Document::saveRasterPlaneImage(int rasterIndex, int planeIndex, const QStri
         message = tr("Cannot save plane %1: the raster has no such plane.").arg(planeIndex);
     } else {
         RasterPlane &plane = raster(rasterIndex).planes[size_t(planeIndex)];
-        ensureRasterPlaneImage(plane);
+        ensureRasterPlaneImage(raster(rasterIndex), plane);
         const QString file = QFileInfo(path.trimmed()).absoluteFilePath();
         if (plane.image.isNull()) {
             message = tr("Cannot save plane %1: it has no image.").arg(planeIndex);
         } else if (writeImageFile(plane.image, file, message)) {
             plane.sourcePath = QDir::toNativeSeparators(file);
+            plane.sourceUndistorted = true; // what is in memory, already through the lens
             m_storedImages[plane.image.cacheKey()] = { file, false };
             writeLog(tr("Saved plane %1 of '%2' to %3")
                          .arg(planeIndex).arg(raster(rasterIndex).name, QDir::toNativeSeparators(file)),

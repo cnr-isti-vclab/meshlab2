@@ -191,7 +191,6 @@ MeshFilterRunResult framedCamera(Document &doc, const QVector3D &eye, const QVec
                 orthographic ? vcg::Camera<float>::ORTHO : vcg::Camera<float>::PERSPECTIVE;
             vcgShot.Intrinsics.ViewportPx = vcg::Point2i(size.width(), size.height());
             vcgShot.Intrinsics.CenterPx = vcg::Point2f(0.5f * size.width(), 0.5f * size.height());
-            vcgShot.Intrinsics.DistorCenterPx = vcgShot.Intrinsics.CenterPx;
             // Orthographic: world units per pixel, so that the image's height spans H.
             // Perspective: the fictitious unit pixel, with the focal length that gives the field
             // of view.

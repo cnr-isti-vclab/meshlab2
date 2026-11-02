@@ -970,7 +970,7 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
                                        .arg(ri + 1).arg(doc.rasterCount()))))
                     return canceled();
                 if (!perRaster)
-                    Document::ensureRasterPlaneImage(*rp);
+                    Document::ensureRasterPlaneImage(re, *rp);
                 if (perRaster || rp->hasImage()) {
                     activeRasters.push_back(ri);
                     if (ri > maxRi) maxRi = ri;

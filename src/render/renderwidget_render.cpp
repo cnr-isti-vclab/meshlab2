@@ -472,7 +472,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             }
             proj = rasterEntry->shot.projectionMatrix(nearPlane, farPlane);
             if (RasterPlane *plane = rasterEntry->currentPlane()) {
-                Document::ensureRasterPlaneImage(*plane);
+                Document::ensureRasterPlaneImage(*rasterEntry, *plane);
                 const QSize rasterSize = !plane->image.isNull()
                     ? plane->image.size()
                     : rasterEntry->shot.viewportPx();
