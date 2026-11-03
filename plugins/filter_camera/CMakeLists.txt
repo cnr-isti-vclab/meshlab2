@@ -8,6 +8,8 @@ endif()
 add_library(MeshLab2PluginFilterCamera STATIC
     camerafilterplugin.h
     camerafilterplugin.cpp
+    mutualinformation.h
+    mutualinformation.cpp
 )
 
 target_include_directories(MeshLab2PluginFilterCamera

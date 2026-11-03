@@ -4,6 +4,7 @@
 #include "document.h"
 #include "filterparam.h"
 #include "meshfilterpluginmanager.h"
+#include "mutualinformation.h"
 #include "softdepthbuffer.h"
 #include "vcgmesh.h"
 #include "viewtrackball.h"
@@ -44,6 +45,7 @@ constexpr QLatin1StringView kCameraViewSelection("set_camera_to_view_selection")
 constexpr QLatin1StringView kCameraFromDirection("set_camera_from_direction");
 constexpr QLatin1StringView kCameraFrameFromViewpoint("set_camera_to_frame_from_viewpoint");
 constexpr QLatin1StringView kAlignByCorrespondences("align_current_raster_to_mesh_by_point_correspondences");
+constexpr QLatin1StringView kAlignByMutualInformation("align_current_raster_to_mesh_by_mutual_information");
 
 MeshFilterRunResult fail(const QString &m) { return {false, false, m}; }
 MeshFilterRunResult ok(const QStringList &info = {}) {
@@ -857,6 +859,9 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
         result.outputValues.insert(QStringLiteral("pairErrors"), pairErrors);
         return result;
     }
+
+    if (fid == QString::fromLatin1(kAlignByMutualInformation))
+        return alignRasterByMutualInformation(p, doc);
 
     return fail(QObject::tr("Unknown filter: %1").arg(fid));
 }

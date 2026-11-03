@@ -451,6 +451,8 @@ private slots:
     void setRasterCameraFromViewSeesWhatTheViewSees();
     void alignRasterByCorrespondencesRecoversTheGargoyleCameras();
     void alignRasterByCorrespondencesRefitsAColmapCamera();
+    void alignRasterByMutualInformationRecoversTheGargoyleCameras();
+    void alignRasterByMutualInformationOnARealScan();
     void visibleOnlySelectionCastsParallelRaysInAnOrthographicView();
     void screenSelectionFollowsTheLayerMatrix();
     void visibleOnlySelectionLooksThroughTheLayerMatrix();
@@ -2150,6 +2152,106 @@ void FilterTests::alignRasterByCorrespondencesRecoversTheGargoyleCameras()
     const std::vector<vcg::Point2d> threePixels = { { 10, 10 }, { 20, 10 }, { 10, 20 } };
     QVERIFY(refused(correspondencesJson(three, threePixels), true));
     QVERIFY(refused(correspondencesJson({ three[0], three[1] }, { threePixels[0], threePixels[1] }), false));
+}
+
+// Mutual information from gargoyle cameras moved by 2 and 8 degrees (4 to 21 px off) comes back
+// to where a fit started from the true camera ends, which is not the true camera itself: the
+// fixture's cameras are within 0.5 to 1.6 px of the maximum of mutual information, not on it.
+// Camera 1 sees the least of the gargoyle and has the flattest maximum; its fits end within
+// 3.6 px of each other, the others' within 1.3 (measured 2026-11-03, Normal Map, 0.4 to 1 s a
+// run). An orthographic camera is refused.
+void FilterTests::alignRasterByMutualInformationRecoversTheGargoyleCameras()
+{
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(
+                 QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
+    const QString key = filterKeyForId(doc, QStringLiteral("align_current_raster_to_mesh_by_mutual_information"));
+    QVERIFY(!key.isEmpty());
+    const MeshFilterParameterValues params = { { QStringLiteral("rendering"), QStringLiteral("normalMap") } };
+    const double bound[4] = { 2.0, 5.0, 2.0, 2.0 };
+    for (int ri = 0; ri < doc.rasterCount(); ++ri) {
+        doc.setCurrentRasterIndex(ri);
+        const CameraShot truth = doc.raster(ri).shot;
+        const Document::MeshEntry &mesh = doc.mesh(0);
+        std::vector<vcg::Point3d> points;
+        for (size_t vi = 0; vi < mesh.mesh.vert.size(); vi += 37) {
+            const vcg::Point3f &p = mesh.mesh.vert[vi].cP();
+            points.emplace_back(p[0], p[1], p[2]);
+        }
+        const vcg::Point3f c = mesh.mesh.bbox.Center();
+        const QVector3D pivot(c[0], c[1], c[2]);
+        const float diag = mesh.mesh.bbox.Diag();
+
+        MeshFilterRunResult r = doc.runFilter(key, params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        const CameraShot optimum = doc.raster(ri).shot;
+        const double best = r.outputValues.value(QStringLiteral("informationAfter")).toDouble();
+        for (const float degrees : { 2.0f, 8.0f }) {
+            const CameraShot start = perturbedShot(truth, degrees, pivot, QVector3D(0.004f, -0.003f, 0.002f) * diag * degrees);
+            doc.setRasterShot(ri, start);
+            r = doc.runFilter(key, params);
+            QVERIFY2(r.success, qPrintable(r.errorMessage));
+            const double off = projectedDisplacement(doc.raster(ri).shot, optimum, points);
+            qDebug("raster %d, %.0f degrees: %.2f px off the truth, ends %.2f px from the fit from it; "
+                   "mutual information %.4f -> %.4f, %.4f from the truth", ri, double(degrees),
+                   projectedDisplacement(start, truth, points), off,
+                   r.outputValues.value(QStringLiteral("informationBefore")).toDouble(),
+                   r.outputValues.value(QStringLiteral("informationAfter")).toDouble(), best);
+            QVERIFY(r.outputValues.value(QStringLiteral("informationAfter")).toDouble()
+                    > r.outputValues.value(QStringLiteral("informationBefore")).toDouble());
+            QVERIFY2(off < bound[ri], qPrintable(QString::number(off)));
+            QCOMPARE(doc.raster(ri).shot.centerPx(), truth.centerPx());
+        }
+        doc.setRasterShot(ri, truth);
+    }
+
+    CameraShot orthographic = doc.raster(0).shot;
+    orthographic.setCameraType(CameraShot::CameraType::Orthographic);
+    doc.setCurrentRasterIndex(0);
+    doc.setRasterShot(0, orthographic);
+    QVERIFY(!doc.runFilter(key, params).success);
+}
+
+// On the RealityScan scan (3.2 M faces, its points hidden), with the scan's vertex colors: a
+// COLMAP camera moved by 1 degree (62 px off) comes back to within 1.24 px of where COLMAP put
+// it, in about 270 renderings of 50 ms. The Normal Map is not tested here: on this photo it
+// finds a higher maximum 13 to 19 px away, so the rendering decides whether the method works.
+void FilterTests::alignRasterByMutualInformationOnARealScan()
+{
+    MESHLAB2_REQUIRE_DATASET(path, "2930Colmap/project.mlp");
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(path), 0);
+    for (int mi = 0; mi < doc.meshCount(); ++mi)
+        doc.mesh(mi).visible = doc.mesh(mi).mesh.FN() > 0;
+    const QString key = filterKeyForId(doc, QStringLiteral("align_current_raster_to_mesh_by_mutual_information"));
+    const int ri = 7;
+    doc.setCurrentRasterIndex(ri);
+    const CameraShot truth = doc.raster(ri).shot;
+    const Document::MeshEntry &mesh = doc.mesh(0);
+    std::vector<vcg::Point3d> points;
+    for (size_t vi = 0; vi < mesh.mesh.vert.size(); vi += 997) {
+        const vcg::Point3f &p = mesh.mesh.vert[vi].cP();
+        const QVector3D q = mesh.transform.map(QVector3D(p[0], p[1], p[2]));
+        const QVector2D px = truth.project(q);
+        if (truth.depth(q) > 0 && px.x() >= 0 && px.y() >= 0 && px.x() < truth.viewportPx().width()
+            && px.y() < truth.viewportPx().height())
+            points.emplace_back(q.x(), q.y(), q.z());
+    }
+    const vcg::Point3f c = mesh.mesh.bbox.Center();
+    const CameraShot start = perturbedShot(truth, 1.0f, mesh.transform.map(QVector3D(c[0], c[1], c[2])),
+                                           QVector3D(0.004f, -0.003f, 0.002f) * mesh.mesh.bbox.Diag());
+    doc.setRasterShot(ri, start);
+    QElapsedTimer timer;
+    timer.start();
+    const MeshFilterRunResult r = doc.runFilter(key, { { QStringLiteral("rendering"), QStringLiteral("vertexColor") } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const double off = projectedDisplacement(doc.raster(ri).shot, truth, points);
+    qDebug("%.2f px off -> %.2f px; mutual information %.4f -> %.4f; %d renderings, %lld ms",
+           projectedDisplacement(start, truth, points), off,
+           r.outputValues.value(QStringLiteral("informationBefore")).toDouble(),
+           r.outputValues.value(QStringLiteral("informationAfter")).toDouble(),
+           r.outputValues.value(QStringLiteral("evaluations")).toInt(), timer.elapsed());
+    QVERIFY2(off < 3.0, qPrintable(QString::number(off)));
 }
 
 // COLMAP's own observations of one camera of a real 35-photo scan, taken through the lens to the

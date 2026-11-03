@@ -31,10 +31,15 @@ inline QVector3D transformPoint(const QMatrix4x4 &m, const vcg::Point3f &p)
     return m.map(QVector3D(p[0], p[1], p[2]));
 }
 
+// Rasterizes a triangle into a depth buffer. Where it is the nearest so far, onPixel(index,
+// b0, b1, b2) is called with the pixel's index and its barycentric weights, so a caller can
+// shade it: a pixel covered again by a nearer triangle is called again, and the last call is
+// what the image shows.
+template <class OnPixel>
 inline void rasterizeTriangleDepth(
     std::vector<float> &zbuf, int w, int h,
     const QVector2D &p0, const QVector2D &p1, const QVector2D &p2,
-    float d0, float d1, float d2)
+    float d0, float d1, float d2, OnPixel &&onPixel)
 {
     // A triangle with a vertex at or behind the camera plane is skipped, not only one wholly
     // behind it: projecting such a vertex flips or explodes it, so the triangle's box covers
@@ -70,7 +75,10 @@ inline void rasterizeTriangleDepth(
             const float d = bw0 * d0 + bw1 * d1 + bw2 * d2;
             if (d <= 0.0f) continue;
             float &z = zbuf[size_t(iy * w + ix)];
-            if (d < z) z = d;
+            if (d < z) {
+                z = d;
+                onPixel(size_t(iy * w + ix), bw0, bw1, bw2);
+            }
         }
     }
 }
@@ -115,7 +123,8 @@ inline std::unique_ptr<FloatBuffer> buildDepthBuffer(
         const float d1 = depths[size_t(i1)];
         const float d2 = depths[size_t(i2)];
         rasterizeTriangleDepth(zbuf, w, h,
-            proj[size_t(i0)], proj[size_t(i1)], proj[size_t(i2)], d0, d1, d2);
+            proj[size_t(i0)], proj[size_t(i1)], proj[size_t(i2)], d0, d1, d2,
+            [](size_t, float, float, float) {});
     }
 
     // Write directly to FloatBuffer (single pass)

@@ -753,6 +753,94 @@
           "default": false
         }
       ]
+    },
+    {
+      "id": "align_current_raster_to_mesh_by_mutual_information",
+      "categories": ["Document/Camera"],
+      "name": "Align Current Raster to Mesh by Mutual Information",
+      "pythonName": "align_current_raster_to_mesh_by_mutual_information",
+      "shortDescription": "Refine the current raster's camera so that a rendering of the visible layers matches its photo.",
+      "longDescriptionMarkdown": "Refines where the current raster's camera stands and looks, and optionally its focal length, by maximizing the mutual information between the photo, in grey levels, and a rendering of the visible layers through the camera: the method of Corsini et al. 2009. It is a refinement: the camera has to be close already, within a few pixels, as *Align Current Raster to Mesh by Point Correspondences* leaves it. The principal point, the pixel size and the lens are left as they are.\n\nThe rendering is made on the CPU, at a working resolution whose longest side is **Resolution**, and shows one of: the surface normal's component up the image (*Normal Map*, which needs nothing but normals); the vertex color blended into that by the square of its red, meant to hold ambient occlusion (*Combined*, which is the normal map where the vertex color is white); or the vertex color's red (*Vertex Color*). Rendered background counts 1 / **Background weight** as much as the rest, and pixels the photo does not cover, as an undistorted photo's corners, not at all.\n\nThe camera's parameters are scaled so that a unit step moves the mesh's projection by about a pixel of the working resolution: **Expected error** is how far the optimizer first looks, and it stops when its steps fall below **Tolerance**, or after **Max evaluations** renderings. The mutual information before and after, in bits, the number of renderings, and how far the camera moved the mesh's projection in the raster's pixels are logged and returned as `informationBefore`, `informationAfter`, `evaluations` and `displacement`.",
+      "tags": ["camera", "raster", "align", "register", "mutual information", "photo", "refine"],
+      "inputDomain": "None",
+      "outputDomain": "ModifyCurrentMesh",
+      "outputModifies": [],
+      "parameters": [
+        {
+          "id": "rendering",
+          "label": "Rendering",
+          "help": "What the rendering of the layers shows, to compare with the photo.",
+          "group": "main",
+          "type": "enum",
+          "default": "combined",
+          "enumOptions": [
+            { "id": "combined", "label": "Combined" },
+            { "id": "normalMap", "label": "Normal Map" },
+            { "id": "vertexColor", "label": "Vertex Color" }
+          ]
+        },
+        {
+          "id": "estimateFocal",
+          "label": "Estimate focal length",
+          "help": "Let the focal length change too.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "resolution",
+          "label": "Resolution",
+          "help": "The longest side, in pixels, of the photo and the rendering as they are compared; a larger photo is scaled down.",
+          "group": "main",
+          "type": "int",
+          "default": 800,
+          "min": 64,
+          "max": 8192
+        },
+        {
+          "id": "maxEvaluations",
+          "label": "Max evaluations",
+          "help": "The most renderings the optimizer may make.",
+          "group": "advanced",
+          "type": "int",
+          "default": 300,
+          "min": 10,
+          "max": 100000
+        },
+        {
+          "id": "expectedError",
+          "label": "Expected error (px)",
+          "help": "How far, in pixels of the working resolution, the optimizer first looks.",
+          "group": "advanced",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.01,
+          "max": 1000.0,
+          "decimals": 2
+        },
+        {
+          "id": "tolerance",
+          "label": "Tolerance (px)",
+          "help": "The optimizer stops when its steps move the projection by less than this, in pixels of the working resolution.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.1,
+          "min": 0.0001,
+          "max": 100.0,
+          "decimals": 4
+        },
+        {
+          "id": "backgroundWeight",
+          "label": "Background weight",
+          "help": "Rendered background counts 1 / this as much as the rest; 0 leaves it out.",
+          "group": "advanced",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.0,
+          "max": 100.0,
+          "decimals": 2
+        }
+      ]
     }
   ]
 }
