@@ -320,9 +320,9 @@ tests pass.</p></li>
 </pre></div>
 </div>
 </li>
-<li><p><code class="docutils literal notranslate"><span class="pre">release.yml</span></code> checks the tag, builds the signed macOS DMG and the Windows ZIP, and
-creates a <strong>draft</strong> GitHub Release with both attached and generated notes. Watch it
-in the Actions tab.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">release.yml</span></code> checks the tag, builds the signed macOS DMG, the Windows ZIP, the Linux
+AppImage and the <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> wheels, and creates a <strong>draft</strong> GitHub Release with all
+of them attached and generated notes. Watch it in the Actions tab.</p></li>
 <li><p>Open the draft, download and try the artifacts, then publish it by hand.</p></li>
 </ol>
 <p>The workflow stops before building if the tag does not equal <code class="docutils literal notranslate"><span class="pre">MESHLAB2_VERSION</span></code> or the
@@ -339,6 +339,20 @@ push are named <code class="docutils literal notranslate"><span class="pre">Mesh
 artifacts are visible only to logged-in GitHub users, which is why a release attaches
 its files to the GitHub Release instead.</p>
 </section>
+</section>
+<section id="python-wheels">
+<h2>Python wheels<a class="headerlink" href="#python-wheels" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">wheels.yml</span></code> builds <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> with cibuildwheel for CPython 3.10–3.14 on macOS
+arm64 and Windows x64, and runs <code class="docutils literal notranslate"><span class="pre">python/tests</span></code> against every wheel. Its settings are
+in <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> (<code class="docutils literal notranslate"><span class="pre">[tool.cibuildwheel]</span></code>), so a local <code class="docutils literal notranslate"><span class="pre">cibuildwheel</span></code> run builds the
+same thing. The wheel’s version is <code class="docutils literal notranslate"><span class="pre">MESHLAB2_VERSION</span></code>, read by scikit-build-core, so a
+tagged release and its wheels always agree.</p>
+<p>It runs on a release tag (called by <code class="docutils literal notranslate"><span class="pre">release.yml</span></code>), by hand, and on <code class="docutils literal notranslate"><span class="pre">devel</span></code> pushes that
+touch the bindings or the packaging (<code class="docutils literal notranslate"><span class="pre">src/python</span></code>, <code class="docutils literal notranslate"><span class="pre">python/</span></code>, <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>,
+<code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code>, the macOS repair script). Plugin changes do not trigger it: the
+application workflows already build every plugin on every push.</p>
+<p>The wheels are attached to the draft release; they do not reach PyPI on their own.
+Publishing is a separate, deliberate step, not yet automated — see Open items.</p>
 </section>
 <section id="hotfixes">
 <h2>Hotfixes<a class="headerlink" href="#hotfixes" title="Link to this heading">¶</a></h2>
@@ -399,6 +413,12 @@ artifacts need a GitHub login, so testers cannot use them.</p></li>
 repository’s cache budget is shared. Revisit if tests should gate pull requests.</p></li>
 <li><p>Move the signing secrets into a protected <code class="docutils literal notranslate"><span class="pre">release</span></code> environment with required
 reviewers.</p></li>
+<li><p>Publish the wheels to PyPI. <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> is not registered there yet. The
+recommended route is a trusted publisher (PyPI → the project → Publishing, naming
+this repository and <code class="docutils literal notranslate"><span class="pre">release.yml</span></code>) and a <code class="docutils literal notranslate"><span class="pre">pypa/gh-action-pypi-publish</span></code> job after
+<code class="docutils literal notranslate"><span class="pre">publish</span></code>, run from a protected environment so a person approves each upload.</p></li>
+<li><p>Linux wheels: <code class="docutils literal notranslate"><span class="pre">wheels.yml</span></code> builds macOS and Windows only. A manylinux build needs
+Qt and the vcpkg tree inside cibuildwheel’s container.</p></li>
 </ul>
 </section>
 </section>
@@ -447,6 +467,7 @@ reviewers.</p></li>
 <li><a class="reference internal" href="#if-a-release-run-fails">If a release run fails</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#python-wheels">Python wheels</a></li>
 <li><a class="reference internal" href="#hotfixes">Hotfixes</a></li>
 <li><a class="reference internal" href="#signing">Signing</a></li>
 <li><a class="reference internal" href="#build-caches-follow-the-default-branch">Build caches follow the default branch</a></li>

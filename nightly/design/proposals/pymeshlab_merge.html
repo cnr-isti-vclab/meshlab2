@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
 
     <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
-        <title>Folding the pymeshlab wheel into this repository - MeshLab 0.1 documentation</title>
+        <title>Folding the pymeshlab2 wheel into this repository - MeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -244,13 +244,17 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section class="tex2jax_ignore mathjax_ignore" id="folding-the-pymeshlab-wheel-into-this-repository">
-<h1>Folding the pymeshlab wheel into this repository<a class="headerlink" href="#folding-the-pymeshlab-wheel-into-this-repository" title="Link to this heading">¶</a></h1>
+          <section class="tex2jax_ignore mathjax_ignore" id="folding-the-pymeshlab2-wheel-into-this-repository">
+<h1>Folding the pymeshlab2 wheel into this repository<a class="headerlink" href="#folding-the-pymeshlab2-wheel-into-this-repository" title="Link to this heading">¶</a></h1>
 <p>The Python wheel is built from a separate repository, <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>, which
 carries MeshLab as a git submodule. This document proposes moving that build here
 and retiring the separate repository, and records the mapping table required by
 <code class="docutils literal notranslate"><span class="pre">AGENTS.md</span></code> before anything moves.</p>
-<p><strong>Nothing here has been done.</strong> The table below is for approval first.</p>
+<p><strong>Status (2026-11-03):</strong> both tables approved. The in-app facade rename is done,
+and so are steps 2 and 3: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">wheel</span> <span class="pre">.</span></code> builds <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> from this tree, the
+wheel exposes the same 405 filters as the application, and <code class="docutils literal notranslate"><span class="pre">pytest</span></code> runs green
+against it. Step 4 (CI) is written but not yet proven: it needs a push. Steps 5–6
+(tag, archive) have not started.</p>
 <p>See also: <a class="reference internal" href="llm_integration.html"><span class="std std-doc">LLM Integration</span></a> (why wheel/app convergence came up),
 <a class="reference internal" href="../release_process.html"><span class="std std-doc">Branches and Releases</span></a> (the release machinery this would join),
 <a class="reference internal" href="../../python_scripting.html"><span class="std std-doc">Python Scripting</span></a> (the API the wheel exposes).</p>
@@ -279,9 +283,17 @@ check — which would also give the wheel a real version, replacing the
 <section id="decisions-taken">
 <h2>Decisions taken<a class="headerlink" href="#decisions-taken" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p>The published module becomes <strong><code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code></strong>, matching the name <code class="docutils literal notranslate"><span class="pre">AGENTS.md</span></code>
-declares. The current <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> name is retired at the same moment, so users
-take one breaking change rather than two.</p></li>
+<li><p>The distribution and the import name are both <strong><code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code></strong>, and the
+in-app facade follows (see <a class="reference internal" href="#the-in-app-facade"><span class="xref myst">The in-app facade</span></a>). <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code>
+on PyPI belongs to the legacy PyMeshLab line (<code class="docutils literal notranslate"><span class="pre">cnr-isti-vclab/PyMeshLab</span></code>, latest
+<code class="docutils literal notranslate"><span class="pre">2025.7.post1</span></code>, versioned <code class="docutils literal notranslate"><span class="pre">YYYY.M[.postN]</span></code>), which is still maintained.
+Publishing this API under that name as <code class="docutils literal notranslate"><span class="pre">2026.11</span></code> would sort as an ordinary
+upgrade, so an unpinned <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-U</span> <span class="pre">pymeshlab</span></code> would swap an incompatible
+API in silently, and the shared import name would stop the two from being
+installed side by side while scripts are ported. A calendar version cannot
+signal that break; a distinct name does. <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> has never been published
+(PyPI returns 404), so nobody is broken by adopting it, and it follows the
+<code class="docutils literal notranslate"><span class="pre">AGENTS.md</span></code> rule that code identifiers follow the repository name.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code> is <strong>archived, not deleted</strong>, and not until a tag-built
 wheel has gone green from here.</p></li>
 </ul>
@@ -304,8 +316,8 @@ relative to this repository.</p>
 <tr class="row-even"><td><p>1</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code></p></td>
 <td><p>—</p></td>
-<td><p>Same <code class="docutils literal notranslate"><span class="pre">builtin-baseline</span></code> (<code class="docutils literal notranslate"><span class="pre">37bb045f…</span></code>) as this repository’s manifest; 14 dependencies, <strong>all 14 also in ours</strong>, zero wheel-only. Ours adds 9 more (<code class="docutils literal notranslate"><span class="pre">nanobind</span></code>, <code class="docutils literal notranslate"><span class="pre">openblas</span></code>, <code class="docutils literal notranslate"><span class="pre">qhull</span></code>, <code class="docutils literal notranslate"><span class="pre">fmt</span></code>, <code class="docutils literal notranslate"><span class="pre">jsoncpp</span></code>, <code class="docutils literal notranslate"><span class="pre">libpng</span></code>, <code class="docutils literal notranslate"><span class="pre">libjpeg-turbo</span></code>, <code class="docutils literal notranslate"><span class="pre">nanoflann</span></code>, <code class="docutils literal notranslate"><span class="pre">dirent</span></code>).</p></td>
-<td><p><strong>Drop</strong> — strict subset; use the root manifest</p></td>
+<td><p>Same <code class="docutils literal notranslate"><span class="pre">builtin-baseline</span></code> (<code class="docutils literal notranslate"><span class="pre">37bb045f…</span></code>) as this repository’s manifest; 14 dependencies, all 14 also in ours, zero wheel-only. The 9 ours adds are <strong>lag, not a leaner design</strong>: the wheel manifest was last touched 2026-10-13, and <code class="docutils literal notranslate"><span class="pre">qhull</span></code>, <code class="docutils literal notranslate"><span class="pre">nanoflann</span></code>, <code class="docutils literal notranslate"><span class="pre">fmt</span></code>, <code class="docutils literal notranslate"><span class="pre">jsoncpp</span></code> arrived here 2026-10-16 for <code class="docutils literal notranslate"><span class="pre">filter_open3d</span></code>, <code class="docutils literal notranslate"><span class="pre">dirent</span></code> on 10-18, <code class="docutils literal notranslate"><span class="pre">openblas</span></code> on 10-21, <code class="docutils literal notranslate"><span class="pre">libpng</span></code>/<code class="docutils literal notranslate"><span class="pre">libjpeg-turbo</span></code> on 10-28 for Texture Consolidation. With <code class="docutils literal notranslate"><span class="pre">MESHLAB2_REQUIRE_VCPKG_DEPS</span> <span class="pre">OFF</span></code>, the plugins needing them drop out of the wheel silently. (<code class="docutils literal notranslate"><span class="pre">nanobind</span></code> the wheel gets from pip instead; see the vcpkg <code class="docutils literal notranslate"><span class="pre">python-console</span></code> feature under Known wrinkles.)</p></td>
+<td><p><strong>Drop</strong> — a stale copy; use the root manifest</p></td>
 </tr>
 <tr class="row-odd"><td><p>2</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.gitmodules</span></code></p></td>
@@ -316,7 +328,7 @@ relative to this repository.</p>
 <tr class="row-even"><td><p>3</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">LICENSE</span></code></p></td>
 <td><p>—</p></td>
-<td><p>GPL-2.0-or-later, same as ours.</p></td>
+<td><p>GPL-3.0 text, byte-identical to ours.</p></td>
 <td><p><strong>Drop</strong> — duplicate</p></td>
 </tr>
 <tr class="row-odd"><td><p>4</p></td>
@@ -328,7 +340,7 @@ relative to this repository.</p>
 <tr class="row-even"><td><p>5</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> (repo root)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">name</span> <span class="pre">=</span> <span class="pre">&quot;pymeshlab2&quot;</span></code> → <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code>; <code class="docutils literal notranslate"><span class="pre">version</span> <span class="pre">=</span> <span class="pre">&quot;0.0.1&quot;</span></code> → derived from <code class="docutils literal notranslate"><span class="pre">MESHLAB2_VERSION</span></code> (<code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:59</span></code>). Root placement avoids <code class="docutils literal notranslate"><span class="pre">cmake.source-dir</span></code> pointing at a parent, which would force the sdist to carry the whole tree anyway.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">name</span> <span class="pre">=</span> <span class="pre">&quot;pymeshlab2&quot;</span></code> kept; <code class="docutils literal notranslate"><span class="pre">version</span> <span class="pre">=</span> <span class="pre">&quot;0.0.1&quot;</span></code> → derived from <code class="docutils literal notranslate"><span class="pre">MESHLAB2_VERSION</span></code> (<code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:59</span></code>); <code class="docutils literal notranslate"><span class="pre">requires-python</span></code> <code class="docutils literal notranslate"><span class="pre">&gt;=3.9</span></code> → <code class="docutils literal notranslate"><span class="pre">&gt;=3.10</span></code>, the oldest interpreter the CI matrix builds for. Root placement avoids <code class="docutils literal notranslate"><span class="pre">cmake.source-dir</span></code> pointing at a parent, which would force the sdist to carry the whole tree anyway.</p></td>
 <td><p><strong>Move + edit</strong></p></td>
 </tr>
 <tr class="row-odd"><td><p>6</p></td>
@@ -353,7 +365,7 @@ relative to this repository.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">.github/workflows/wheels.yml</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.github/workflows/wheels.yml</span></code></p></td>
 <td><p>~300 lines. Qt install, vcpkg bootstrap/baseline/cache/install, overlay triplets, failure-log upload — all already present in our three packaging workflows. Genuinely new: the <code class="docutils literal notranslate"><span class="pre">cibuildwheel&#64;v4.2.0</span></code> step, the <code class="docutils literal notranslate"><span class="pre">CIBW_*</span></code> matrix (cp310–cp314, macOS arm64 + Windows x64), and the two <code class="docutils literal notranslate"><span class="pre">CMAKE_ARGS</span></code> composition steps.</p></td>
-<td><p><strong>Move + collapse</strong> onto existing steps</p></td>
+<td><p><strong>Move + collapse</strong> onto existing steps. <em>Done in step 4</em>: rewritten on the step shapes of <code class="docutils literal notranslate"><span class="pre">macos-dmg.yml</span></code> and <code class="docutils literal notranslate"><span class="pre">windows-portable.yml</span></code>, with their fixes (<code class="docutils literal notranslate"><span class="pre">fetch-submodules</span></code>, run-id cache keys, declared Windows binary cache). The Windows Qt install moved into <code class="docutils literal notranslate"><span class="pre">.github/actions/install-qt-windows</span></code>, now shared with <code class="docutils literal notranslate"><span class="pre">windows-portable.yml</span></code>; the <code class="docutils literal notranslate"><span class="pre">CIBW_*</span></code> settings moved into <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> <code class="docutils literal notranslate"><span class="pre">[tool.cibuildwheel]</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>10</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">scripts/repair_macos_wheel.py</span></code></p></td>
@@ -363,57 +375,98 @@ relative to this repository.</p>
 </tr>
 <tr class="row-even"><td><p>11</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">python/pymeshlab2/__init__.py</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">python/pymeshlab/__init__.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">python/pymeshlab2/__init__.py</span></code></p></td>
 <td><p>~35 lines: <code class="docutils literal notranslate"><span class="pre">MESHLAB2_QUADWILD_ROOT</span></code> default, geogram runtime preload for macOS/Windows, then <code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">._meshlab</span> <span class="pre">import</span> <span class="pre">FilterInfo,</span> <span class="pre">FilterRunResult,</span> <span class="pre">Mesh,</span> <span class="pre">MeshSet</span></code>.</p></td>
-<td><p><strong>Move + rename</strong></p></td>
+<td><p><strong>Move</strong></p></td>
 </tr>
 <tr class="row-odd"><td><p>12</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">examples/__init__.py</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">python/examples/__init__.py</span></code></p></td>
-<td><p>Empty; exists so <code class="docutils literal notranslate"><span class="pre">test_examples.py</span></code> can import the package.</p></td>
-<td><p><strong>Move</strong></p></td>
+<td><p>—</p></td>
+<td><p>Empty; existed so <code class="docutils literal notranslate"><span class="pre">test_examples.py</span></code> could import the examples as a package.</p></td>
+<td><p><strong>Dropped</strong> in step 3 (was <em>Move</em>): the test now loads examples by path, see below</p></td>
 </tr>
 <tr class="row-even"><td><p>13–18</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">examples/{create_noisy_isosurface,list_filters,mesh_info,normalize_and_save,raster_basics,wavy_box}.py</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">python/examples/</span></code></p></td>
 <td><p>17–43 lines each, 166 total. Imported and run by <code class="docutils literal notranslate"><span class="pre">test_examples.py</span></code>, so they are regression tests as well as documentation.</p></td>
-<td><p><strong>Move + rename import</strong></p></td>
+<td><p><strong>Move</strong>; two default-mesh paths edited</p></td>
 </tr>
 <tr class="row-odd"><td><p>19</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tests/test_examples.py</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">python/tests/test_examples.py</span></code></p></td>
 <td><p>89 lines; runs each example and checks it completes.</p></td>
-<td><p><strong>Move + rename import</strong></p></td>
+<td><p><strong>Move + edit</strong>, see below</p></td>
 </tr>
 <tr class="row-even"><td><p>20</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tests/test_mesh.py</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">python/tests/test_mesh.py</span></code></p></td>
 <td><p>24 lines; exercises the <code class="docutils literal notranslate"><span class="pre">Mesh</span></code> bindings added in <code class="docutils literal notranslate"><span class="pre">pymesh.cpp</span></code>.</p></td>
-<td><p><strong>Move + rename import</strong></p></td>
+<td><p><strong>Move + edit</strong> paths</p></td>
 </tr>
 <tr class="row-odd"><td><p>21</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tests/test_single_mesh_filters.py</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">python/tests/test_single_mesh_filters.py</span></code></p></td>
-<td><p>64 lines. Reads <code class="docutils literal notranslate"><span class="pre">external/meshlab2/plugins/*/filters.json</span></code>, intersects with <code class="docutils literal notranslate"><span class="pre">list_filters()</span></code>, runs each <code class="docutils literal notranslate"><span class="pre">SingleMesh</span></code> filter with defaults in a subprocess, skipping on <code class="docutils literal notranslate"><span class="pre">applicable</span> <span class="pre">==</span> <span class="pre">false</span></code>. Paths simplify to <code class="docutils literal notranslate"><span class="pre">plugins/*/filters.json</span></code> and <code class="docutils literal notranslate"><span class="pre">tests/data/simple.off</span></code> (present, 36 bytes).</p></td>
-<td><p><strong>Move + simplify paths</strong></p></td>
+<td><p>—</p></td>
+<td><p>64 lines. Reads <code class="docutils literal notranslate"><span class="pre">external/meshlab2/plugins/*/filters.json</span></code>, intersects with <code class="docutils literal notranslate"><span class="pre">list_filters()</span></code>, runs each <code class="docutils literal notranslate"><span class="pre">SingleMesh</span></code> filter with defaults in a subprocess, skipping on <code class="docutils literal notranslate"><span class="pre">applicable</span> <span class="pre">==</span> <span class="pre">false</span></code>.</p></td>
+<td><p><strong>Dropped</strong> in step 3 (was <em>Move + simplify paths</em>), replaced by a parity test; see below</p></td>
 </tr>
 <tr class="row-even"><td><p>22</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tests/test_smoke.py</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">python/tests/test_smoke.py</span></code></p></td>
 <td><p>63 lines; import and basic MeshSet scaffold checks.</p></td>
-<td><p><strong>Move + rename import</strong></p></td>
+<td><p><strong>Move + edit</strong>; gains the parity test</p></td>
 </tr>
 <tr class="row-odd"><td><p>23</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tests/wheel_smoke.py</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">python/tests/wheel_smoke.py</span></code></p></td>
-<td><p>37 lines; the <code class="docutils literal notranslate"><span class="pre">CIBW_TEST_COMMAND</span></code>. Asserts three named filters exist, runs two, and checks the bundled geogram library and quadwild binaries are present and loadable.</p></td>
-<td><p><strong>Move + rename import</strong></p></td>
+<td><p>37 lines; the first half of cibuildwheel’s <code class="docutils literal notranslate"><span class="pre">test-command</span></code>, before <code class="docutils literal notranslate"><span class="pre">pytest</span></code>. Asserts three named filters exist, runs two, and checks the bundled geogram library and quadwild binaries are present and loadable.</p></td>
+<td><p><strong>Move</strong></p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p><strong>Totals:</strong> 23 files → 3 dropped (rows 1–3), 2 folded into other files (rows 6–7),
-1 split across three destinations (row 8), 1 rewritten (row 4), 16 moved with edits.</p>
+<p><strong>Totals:</strong> 23 files → 5 dropped (rows 1–3, and 12 and 21 in step 3), 2 folded into
+other files (rows 6–7), 1 split across three destinations (row 8), 1 rewritten
+(row 4), 14 moved (rows 5, 9–11, 13–20, 22–23). Keeping the <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> name means
+no file in this table is renamed.</p>
+<section id="step-3-in-detail">
+<h3>Step 3, in detail<a class="headerlink" href="#step-3-in-detail" title="Link to this heading">¶</a></h3>
+<p>The tests came over with three kinds of edit beyond their paths, all for the
+same reason: in this tree, a test that skips is a test that hides a failure.</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">pytest.importorskip(&quot;pymeshlab2&quot;)</span></code> became a plain import.</strong> A broken or
+missing wheel used to turn the whole suite into skips and a green run.</p></li>
+<li><p><strong>Path guards went.</strong> <code class="docutils literal notranslate"><span class="pre">test_mesh.py</span></code> and <code class="docutils literal notranslate"><span class="pre">test_smoke.py</span></code> found the sample mesh
+through a working-directory-relative <code class="docutils literal notranslate"><span class="pre">external/meshlab2/…</span></code> path and skipped when
+it was absent, which in-tree it always would have been. They now resolve it from
+the test file; so do the two examples. “Filter missing → skip” guards went too:
+a missing filter is now a build defect, caught by the parity test.</p></li>
+<li><p><strong>Examples are loaded by file path</strong>, not imported as <code class="docutils literal notranslate"><span class="pre">examples.&lt;name&gt;</span></code>. Putting
+<code class="docutils literal notranslate"><span class="pre">python/</span></code> on <code class="docutils literal notranslate"><span class="pre">sys.path</span></code> to make the package importable would also make
+<code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">pymeshlab2</span></code> find the source package, which has no compiled module,
+ahead of the installed wheel.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">test_single_mesh_filters.py</span></code> was <strong>replaced, not moved</strong>. Its contract — every
+filter either runs or refuses — is the one <code class="docutils literal notranslate"><span class="pre">tests/test_filter_smoke.cpp</span></code> already
+owns, with a fixture ladder and an expected-refusals table. The Python copy ran
+one fixture and counted refusals as failures, so in-tree it failed 87 filters for
+saying, correctly, that a single triangle has no second layer or no rasters. What
+it <em>could</em> catch that ctest cannot, a plugin missing from the wheel, is now
+asserted directly: <code class="docutils literal notranslate"><span class="pre">test_wheel_exposes_every_declared_filter</span></code> requires the wheel’s
+filter ids to equal the ids in <code class="docutils literal notranslate"><span class="pre">plugins/*/filters.json</span></code>, both ways.</p>
+<p>It still earned its keep on the way out. <code class="docutils literal notranslate"><span class="pre">tests/data/simple.off</span></code> is a single open
+triangle, an input the C++ ladder (which starts from a closed sphere) never
+gives, and on it, in the application as well as the wheel:
+<code class="docutils literal notranslate"><span class="pre">subdivide_by_doo_sabin</span></code> segfaults; <code class="docutils literal notranslate"><span class="pre">remove_isolated_components_by_face_count</span></code>
+refuses with “Missing component: PerFaceMark”, an internal error rather than an
+input requirement; and <code class="docutils literal notranslate"><span class="pre">create_voronoi_scaffolding</span></code>, <code class="docutils literal notranslate"><span class="pre">sample_volume</span></code> and
+<code class="docutils literal notranslate"><span class="pre">remesh_to_quads_quadwild_bimdf</span></code> do not finish within 60 seconds. These are filter
+bugs, and the guard belongs in the C++ smoke suite, not in a second sweep here.
+<em>Since fixed</em> (2026-11-03): <code class="docutils literal notranslate"><span class="pre">FilterSmokeTests::survivesDegenerateInput</span></code> runs every
+filter once on a single triangle, and the first four are fixed — the two samplers
+and Doo-Sabin in vcglib, which now refuse input they cannot handle instead of
+looping or reading unset corners. QuadWild remains, listed in that test’s
+<code class="docutils literal notranslate"><span class="pre">slowOnDegenerateInput</span></code> table: its automatic sizing divides by enclosed volume.</p>
+</section>
 <section id="row-8-in-detail">
 <h3>Row 8, in detail<a class="headerlink" href="#row-8-in-detail" title="Link to this heading">¶</a></h3>
 <div class="table-wrapper colwidths-auto docutils container">
@@ -425,55 +478,206 @@ relative to this repository.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>The nine <code class="docutils literal notranslate"><span class="pre">MESHLAB2_*</span></code> toggles</p></td>
-<td><p>A <code class="docutils literal notranslate"><span class="pre">wheel</span></code> preset in <code class="docutils literal notranslate"><span class="pre">CMakePresets.json</span></code>, so the app build stays ignorant of them</p></td>
+<td><p>Two kept, <code class="docutils literal notranslate"><span class="pre">PYTHON_CONSOLE</span></code> and <code class="docutils literal notranslate"><span class="pre">MATH_HELP</span></code> off, in <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> <code class="docutils literal notranslate"><span class="pre">[tool.scikit-build.cmake.define]</span></code> rather than the planned <code class="docutils literal notranslate"><span class="pre">CMakePresets.json</span></code> preset: scikit-build-core applies those on every <code class="docutils literal notranslate"><span class="pre">pip</span></code> build, while a preset would sit unused there. The other seven are <strong>dropped</strong>. <code class="docutils literal notranslate"><span class="pre">REQUIRE_VCPKG_DEPS</span></code> stays on, so a missing dependency now fails the build instead of thinning the wheel. The <code class="docutils literal notranslate"><span class="pre">RAPIDOBJ</span></code>/<code class="docutils literal notranslate"><span class="pre">E57</span></code>/<code class="docutils literal notranslate"><span class="pre">GLTF</span></code> plugins build fine here. The three submodule-presence checks are moot in-tree.</p></td>
 </tr>
 <tr class="row-odd"><td><p>nanobind discovery + FetchContent fallback</p></td>
-<td><p>Dropped — already at <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:170</span></code></p></td>
+<td><p>Dropped. The existing <code class="docutils literal notranslate"><span class="pre">find_package(nanobind</span> <span class="pre">CONFIG</span> <span class="pre">REQUIRED)</span></code> now runs for console <em>or</em> wheel, and resolves to pip’s nanobind for the wheel</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nanobind_add_module(_meshlab</span> <span class="pre">…)</span></code> + <code class="docutils literal notranslate"><span class="pre">MeshLab2Plugins</span></code> link</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">src/python/CMakeLists.txt</span></code>, behind a new <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PYTHON_WHEEL</span></code> option</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/python/CMakeLists.txt</span></code>, behind the new <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PYTHON_WHEEL</span></code> option, which also turns on <code class="docutils literal notranslate"><span class="pre">CMAKE_POSITION_INDEPENDENT_CODE</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>Install rules (module, quadwild bin + config + licence, geogram DLL)</p></td>
-<td><p>Same place, same guard</p></td>
+<td><p>Same place, same guard, in an install component <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code>; <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> builds only <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> and installs only that component</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
 </section>
+<section id="the-in-app-facade">
+<h2>The in-app facade<a class="headerlink" href="#the-in-app-facade" title="Link to this heading">¶</a></h2>
+<p><em>Done 2026-11-03.</em> The application’s console registers its own facade module
+(<code class="docutils literal notranslate"><span class="pre">src/python/PythonHost.cpp:222–230</span></code>, a <code class="docutils literal notranslate"><span class="pre">types.ModuleType</span></code> placed in
+<code class="docutils literal notranslate"><span class="pre">sys.modules</span></code>), and it was called <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code>; the user documentation taught
+<code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">pymeshlab</span></code> against it. If the
+wheel is <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> and the console is <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code>, a script written in one does not
+run in the other — the portability the shared <code class="docutils literal notranslate"><span class="pre">sources.cmake</span></code> exists to give. So the
+facade is renamed too, with no alias, per the no-compatibility-names rule for the
+Python API.</p>
+<p>Measured with <code class="docutils literal notranslate"><span class="pre">grep</span> <span class="pre">-o</span> <span class="pre">'pymeshlab[A-Za-z0-9_]*'</span></code> keeping exact <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> tokens only,
+over tracked files outside <code class="docutils literal notranslate"><span class="pre">docs/design/history/</span></code> and <code class="docutils literal notranslate"><span class="pre">docs/design/proposals/</span></code>: <strong>16
+files, 50 occurrences</strong>. Two of them name the <em>legacy</em> PyMeshLab and stay.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>File</p></th>
+<th class="head"><p>Occurrences</p></th>
+<th class="head"><p>What they are</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">src/python/PythonHost.cpp</span></code></p></td>
+<td><p>12</p></td>
+<td><p>11 in the facade registration (222–230); 1 at 214, “mirroring pymeshlab’s approach”, refers to legacy PyMeshLab</p></td>
+<td><p><strong>Rename 11</strong>, keep 1</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">src/ui/scripteditor.cpp</span></code></p></td>
+<td><p>1</p></td>
+<td><p>Highlighted builtin name in the script editor (61)</p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">src/python/bindings/sources.cmake</span></code></p></td>
+<td><p>1</p></td>
+<td><p>Comment naming the wheel consumer</p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">src/python/bindings/meshset_core.h</span></code></p></td>
+<td><p>1</p></td>
+<td><p>Comment</p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">src/python/mlgui.h</span></code></p></td>
+<td><p>1</p></td>
+<td><p>Comment</p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">src/core/headlessrendercontext.h</span></code></p></td>
+<td><p>1</p></td>
+<td><p>Comment</p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">docs/python_scripting.md</span></code></p></td>
+<td><p>19</p></td>
+<td><p>The user-facing guide; line 35, “If you already know <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code>”, addresses legacy users</p></td>
+<td><p><strong>Rename 18</strong>, keep 1 (and say “legacy PyMeshLab” there)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">docs/index.rst</span></code></p></td>
+<td><p>2</p></td>
+<td><p>API docs landing page</p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">docs/generate_api.py</span></code></p></td>
+<td><p>1</p></td>
+<td><p>Emits <code class="docutils literal notranslate"><span class="pre">api/mlgui.rst</span></code> (untracked, regenerated)</p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">docs/examples/texmetro_report.py</span></code></p></td>
+<td><p>3</p></td>
+<td><p>Docstring and <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">pymeshlab</span></code></p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">docs/texture_metrics.md</span></code></p></td>
+<td><p>1</p></td>
+<td><p>Prose</p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">docs/design/architecture.md</span></code></p></td>
+<td><p>2</p></td>
+<td><p>Lines 92, 287</p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">docs/design/data_model.md</span></code></p></td>
+<td><p>1</p></td>
+<td><p>Line 160</p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">docs/design/rendering.md</span></code></p></td>
+<td><p>1</p></td>
+<td><p>Line 563, <code class="docutils literal notranslate"><span class="pre">pymeshlab.MeshSet.render_snapshot</span></code></p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">docs/design/raster_alignment.md</span></code></p></td>
+<td><p>1</p></td>
+<td><p>Line 63</p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">readme.md</span></code></p></td>
+<td><p>2</p></td>
+<td><p>Lines 55, 122</p></td>
+<td><p><strong>Rename</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Totals:</strong> 16 files, 50 occurrences → 48 renamed, 2 kept as references to legacy
+PyMeshLab. <code class="docutils literal notranslate"><span class="pre">docs/design/history/</span></code> is left alone: it records the past. This set is
+independent of the wheel move and can land first, as its own commit.</p>
+</section>
 <section id="known-wrinkles">
 <h2>Known wrinkles<a class="headerlink" href="#known-wrinkles" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">find_package(nanobind)</span></code> sits inside the <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PYTHON_CONSOLE</span></code> guard</strong>
-(<code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:165–170</span></code>), and the wheel build sets that option <code class="docutils literal notranslate"><span class="pre">OFF</span></code>. The
-condition has to become <code class="docutils literal notranslate"><span class="pre">if(MESHLAB2_PYTHON_CONSOLE</span> <span class="pre">OR</span> <span class="pre">MESHLAB2_PYTHON_WHEEL)</span></code>,
-or nanobind lookup moves out of the guard entirely.</p></li>
-<li><p><strong>Deriving the wheel version from <code class="docutils literal notranslate"><span class="pre">MESHLAB2_VERSION</span></code></strong> needs a scikit-build-core
-metadata provider; the exact mechanism is unverified here and should be
-confirmed against the installed version before the table is executed.</p></li>
+<li><p><em>Resolved in step 2:</em> <code class="docutils literal notranslate"><span class="pre">find_package(nanobind)</span></code> sat inside the
+<code class="docutils literal notranslate"><span class="pre">MESHLAB2_PYTHON_CONSOLE</span></code> guard; it now runs for either option.</p></li>
+<li><p><em>Resolved in step 2:</em> the version comes from scikit-build-core’s
+<code class="docutils literal notranslate"><span class="pre">scikit_build_core.metadata.regex</span></code> provider reading <code class="docutils literal notranslate"><span class="pre">MESHLAB2_VERSION</span></code> out of
+<code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code>; the local build produced <code class="docutils literal notranslate"><span class="pre">pymeshlab2-2026.11</span></code>.</p></li>
+<li><p><strong>vcpkg’s <code class="docutils literal notranslate"><span class="pre">python3</span></code> hijacks <code class="docutils literal notranslate"><span class="pre">find_package(Python)</span></code>.</strong> Not foreseen by the
+table. The <code class="docutils literal notranslate"><span class="pre">nanobind</span></code> port depends on <code class="docutils literal notranslate"><span class="pre">python3</span></code>, and that port installs a
+<code class="docutils literal notranslate"><span class="pre">vcpkg-cmake-wrapper.cmake</span></code> which, whenever <code class="docutils literal notranslate"><span class="pre">Development.Module</span></code> is requested,
+points FindPython at vcpkg’s own 3.12 headers. The configure then fails against
+any other interpreter. The sibling never met it because its manifest lacked
+<code class="docutils literal notranslate"><span class="pre">nanobind</span></code>. Fix: <code class="docutils literal notranslate"><span class="pre">nanobind</span></code> moved into a <code class="docutils literal notranslate"><span class="pre">python-console</span></code> manifest feature,
+on by default (so the application, which embeds that very <code class="docutils literal notranslate"><span class="pre">python3</span></code>, is
+unchanged), and the wheel sets <code class="docutils literal notranslate"><span class="pre">VCPKG_MANIFEST_NO_DEFAULT_FEATURES</span></code> and takes
+nanobind from pip (<code class="docutils literal notranslate"><span class="pre">build-system.requires</span></code>, <code class="docutils literal notranslate"><span class="pre">nanobind&gt;=2.13</span></code>; 3.1.0 built
+cleanly). Consequence for step 4: the wheel needs its own vcpkg install tree; it
+cannot reuse an application build’s.</p></li>
+<li><p><strong>The local wheel is tagged <code class="docutils literal notranslate"><span class="pre">macosx_26_0</span></code></strong>, the build machine’s OS, because
+scikit-build-core reads <code class="docutils literal notranslate"><span class="pre">MACOSX_DEPLOYMENT_TARGET</span></code> from the environment and not
+from <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code>’s 15.0 floor. CI must export <code class="docutils literal notranslate"><span class="pre">MACOSX_DEPLOYMENT_TARGET=15.0</span></code>.</p></li>
+<li><p><strong>An unrepaired macOS wheel does not import</strong>: <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> links
+<code class="docutils literal notranslate"><span class="pre">&#64;rpath/libgeogram.1.9.3.dylib</span></code> and Qt frameworks that only
+<code class="docutils literal notranslate"><span class="pre">scripts/repair_macos_wheel.py</span></code> bundles. Row 10 was therefore moved in step 2,
+unchanged, to prove the wheel locally (<code class="docutils literal notranslate"><span class="pre">QT_ROOT_DIR</span></code>, <code class="docutils literal notranslate"><span class="pre">VCPKG_INSTALLED_DIR</span></code>,
+<code class="docutils literal notranslate"><span class="pre">VCPKG_TARGET_TRIPLET</span></code> and <code class="docutils literal notranslate"><span class="pre">delocate</span></code> needed).</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">ci/vcpkg-triplets/</span></code> has no <code class="docutils literal notranslate"><span class="pre">x64-windows-release.cmake</span></code></strong> — both repositories
 name that triplet with the overlay set, and both fall through to vcpkg’s
 builtin. Consistent today, but it means the overlay is load-bearing only on
 macOS and Linux.</p></li>
 <li><p><strong>The test story becomes two-headed</strong>: <code class="docutils literal notranslate"><span class="pre">ctest</span></code> for C++, <code class="docutils literal notranslate"><span class="pre">pytest</span></code> for the wheel.
-That is a mild complication but also a gain — <code class="docutils literal notranslate"><span class="pre">test_single_mesh_filters.py</span></code>
-exercises the wheel path <code class="docutils literal notranslate"><span class="pre">ctest</span></code> structurally cannot reach, and post-move it
-becomes the natural place to assert that <strong>the filters a wheel exposes match
-the descriptors in this tree</strong>, the gap recorded in
-<a class="reference internal" href="llm_integration.html"><span class="std std-doc">LLM Integration</span></a>.</p></li>
+Kept small on purpose: <code class="docutils literal notranslate"><span class="pre">pytest</span></code> covers only what is specific to the wheel (the
+binding surface, the examples, and that <strong>the filters a wheel exposes match the
+descriptors in this tree</strong>, the gap recorded in <a class="reference internal" href="llm_integration.html"><span class="std std-doc">LLM Integration</span></a>);
+filter behaviour stays in the three ctest tiers.</p></li>
 <li><p><strong>cibuildwheel’s isolated build environment</strong> must see the vcpkg install tree
 the way the existing workflows lay it out. This is the one mechanically unknown
-piece and should be proven on a branch before the sibling repo is archived.</p></li>
+piece and should be proven on a branch before the sibling repo is archived.
+<code class="docutils literal notranslate"><span class="pre">wheels.yml</span></code> installs the tree outside the build directory (<code class="docutils literal notranslate"><span class="pre">build-wheel-vcpkg</span></code>),
+without default features, and hands it over through <code class="docutils literal notranslate"><span class="pre">CMAKE_ARGS</span></code>.</p></li>
+<li><p><em>Measured in step 4:</em> every interpreter builds into one <code class="docutils literal notranslate"><span class="pre">build-wheel</span></code> directory
+(<code class="docutils literal notranslate"><span class="pre">[tool.cibuildwheel]</span> <span class="pre">config-settings</span></code>). Locally, switching a built tree from
+CPython 3.12 to 3.13 recompiled only nanobind, <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> and <code class="docutils literal notranslate"><span class="pre">MeshLab2Core</span></code> —
+23 seconds — where the sibling’s fresh directory per wheel rebuilt every plugin
+five times over. The cp312 wheel built that way passes <code class="docutils literal notranslate"><span class="pre">python/tests</span></code> too.</p></li>
+<li><p><strong>Texture Consolidation stays on in the wheels</strong>, unlike the DMG, which turns it
+off on the 7 GB macOS runner because its stitcher alone compiles for an hour.
+Turning it off would make the wheel’s filter set differ from the descriptors and
+fail <code class="docutils literal notranslate"><span class="pre">test_wheel_exposes_every_declared_filter</span></code>; the wheels run on tags, by hand
+and on binding changes only, so the hour is paid rarely. Its helper programs are
+not bundled into the wheel yet, as they are not into the DMG.</p></li>
+<li><p><strong>PyPI upload is not automated.</strong> The wheels go on the draft GitHub Release. The
+trusted-publisher route is described under Open items in
+<a class="reference internal" href="../release_process.html"><span class="std std-doc">Branches and Releases</span></a>.</p></li>
 </ul>
 </section>
 <section id="order-of-operations">
 <h2>Order of operations<a class="headerlink" href="#order-of-operations" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
-<li><p>Land the table (this document), approved.</p></li>
-<li><p>In-tree build: rows 5–8, 11. Prove <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">wheel</span> <span class="pre">.</span></code> produces an importable
-<code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> locally.</p></li>
-<li><p>Tests and examples: rows 12–23. Prove <code class="docutils literal notranslate"><span class="pre">pytest</span></code> green locally.</p></li>
-<li><p>CI: row 9, plus a <code class="docutils literal notranslate"><span class="pre">wheels</span></code> job in <code class="docutils literal notranslate"><span class="pre">release.yml</span></code>. Prove green on <code class="docutils literal notranslate"><span class="pre">devel</span></code>.</p></li>
+<li><p>Land the table (this document), approved. <em>Done</em>, together with the in-app
+facade rename, which touches nothing the wheel move does.</p></li>
+<li><p>In-tree build: rows 5–8, 11 (and 10, see Known wrinkles). Prove <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">wheel</span> <span class="pre">.</span></code>
+produces an importable <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> locally. <em>Done</em>: the repaired cp313 wheel
+imports from a clean venv, lists 405 filters (identical to the application’s
+set), and passes the sibling’s <code class="docutils literal notranslate"><span class="pre">wheel_smoke.py</span></code>.</p></li>
+<li><p>Tests and examples: rows 12–23. Prove <code class="docutils literal notranslate"><span class="pre">pytest</span></code> green locally. <em>Done</em>: 12
+tests pass with none skipped, against the repaired cp313 wheel; the moved
+<code class="docutils literal notranslate"><span class="pre">wheel_smoke.py</span></code> passes too. Run from the repository root with the wheel
+installed: <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">pytest</span></code>.</p></li>
+<li><p>CI: row 9, plus a <code class="docutils literal notranslate"><span class="pre">wheels</span></code> job in <code class="docutils literal notranslate"><span class="pre">release.yml</span></code>. Prove green on <code class="docutils literal notranslate"><span class="pre">devel</span></code>.
+<em>Written</em>: <code class="docutils literal notranslate"><span class="pre">wheels.yml</span></code> (on <code class="docutils literal notranslate"><span class="pre">devel</span></code> pushes touching the bindings or packaging, by
+hand, and from <code class="docutils literal notranslate"><span class="pre">release.yml</span></code>, which attaches the wheels to the draft release).
+Not yet proven: that takes a push.</p></li>
 <li><p>Tag a release; confirm the wheel builds from the tag.</p></li>
 <li><p>Only then archive <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>.</p></li>
 </ol>
@@ -518,13 +722,15 @@ piece and should be proven on a branch before the sibling repo is archived.</p><
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Folding the pymeshlab wheel into this repository</a><ul>
+<li><a class="reference internal" href="#">Folding the pymeshlab2 wheel into this repository</a><ul>
 <li><a class="reference internal" href="#why">Why</a></li>
 <li><a class="reference internal" href="#decisions-taken">Decisions taken</a></li>
 <li><a class="reference internal" href="#mapping-table">Mapping table</a><ul>
+<li><a class="reference internal" href="#step-3-in-detail">Step 3, in detail</a></li>
 <li><a class="reference internal" href="#row-8-in-detail">Row 8, in detail</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#the-in-app-facade">The in-app facade</a></li>
 <li><a class="reference internal" href="#known-wrinkles">Known wrinkles</a></li>
 <li><a class="reference internal" href="#order-of-operations">Order of operations</a></li>
 </ul>

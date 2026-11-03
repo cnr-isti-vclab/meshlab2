@@ -1,11 +1,15 @@
-# Folding the pymeshlab wheel into this repository
+# Folding the pymeshlab2 wheel into this repository
 
 The Python wheel is built from a separate repository, `cignoni/pymeshlab2`, which
 carries MeshLab as a git submodule. This document proposes moving that build here
 and retiring the separate repository, and records the mapping table required by
 `AGENTS.md` before anything moves.
 
-**Nothing here has been done.** The table below is for approval first.
+**Status (2026-11-03):** both tables approved. The in-app facade rename is done,
+and so are steps 2 and 3: `pip wheel .` builds `pymeshlab2` from this tree, the
+wheel exposes the same 405 filters as the application, and `pytest` runs green
+against it. Step 4 (CI) is written but not yet proven: it needs a push. Steps 5–6
+(tag, archive) have not started.
 
 See also: [LLM Integration](llm_integration.md) (why wheel/app convergence came up),
 [Branches and Releases](../release_process.md) (the release machinery this would join),
@@ -34,9 +38,17 @@ Three reasons, in order of weight.
 
 ## Decisions taken
 
-- The published module becomes **`pymeshlab`**, matching the name `AGENTS.md`
-  declares. The current `pymeshlab2` name is retired at the same moment, so users
-  take one breaking change rather than two.
+- The distribution and the import name are both **`pymeshlab2`**, and the
+  in-app facade follows (see [The in-app facade](#the-in-app-facade)). `pymeshlab`
+  on PyPI belongs to the legacy PyMeshLab line (`cnr-isti-vclab/PyMeshLab`, latest
+  `2025.7.post1`, versioned `YYYY.M[.postN]`), which is still maintained.
+  Publishing this API under that name as `2026.11` would sort as an ordinary
+  upgrade, so an unpinned `pip install -U pymeshlab` would swap an incompatible
+  API in silently, and the shared import name would stop the two from being
+  installed side by side while scripts are ported. A calendar version cannot
+  signal that break; a distinct name does. `pymeshlab2` has never been published
+  (PyPI returns 404), so nobody is broken by adopting it, and it follows the
+  `AGENTS.md` rule that code identifiers follow the repository name.
 - `cignoni/pymeshlab2` is **archived, not deleted**, and not until a tag-built
   wheel has gone green from here.
 
@@ -47,67 +59,188 @@ relative to this repository.
 
 | # | Current (`cignoni/pymeshlab2`) | Target | Measured evidence | Verdict |
 |---|---|---|---|---|
-| 1 | `vcpkg.json` | — | Same `builtin-baseline` (`37bb045f…`) as this repository's manifest; 14 dependencies, **all 14 also in ours**, zero wheel-only. Ours adds 9 more (`nanobind`, `openblas`, `qhull`, `fmt`, `jsoncpp`, `libpng`, `libjpeg-turbo`, `nanoflann`, `dirent`). | **Drop** — strict subset; use the root manifest |
+| 1 | `vcpkg.json` | — | Same `builtin-baseline` (`37bb045f…`) as this repository's manifest; 14 dependencies, all 14 also in ours, zero wheel-only. The 9 ours adds are **lag, not a leaner design**: the wheel manifest was last touched 2026-10-13, and `qhull`, `nanoflann`, `fmt`, `jsoncpp` arrived here 2026-10-16 for `filter_open3d`, `dirent` on 10-18, `openblas` on 10-21, `libpng`/`libjpeg-turbo` on 10-28 for Texture Consolidation. With `MESHLAB2_REQUIRE_VCPKG_DEPS OFF`, the plugins needing them drop out of the wheel silently. (`nanobind` the wheel gets from pip instead; see the vcpkg `python-console` feature under Known wrinkles.) | **Drop** — a stale copy; use the root manifest |
 | 2 | `.gitmodules` | — | Single entry, `external/meshlab2`. Becomes meaningless once the build is in-tree. | **Drop** |
-| 3 | `LICENSE` | — | GPL-2.0-or-later, same as ours. | **Drop** — duplicate |
+| 3 | `LICENSE` | — | GPL-3.0 text, byte-identical to ours. | **Drop** — duplicate |
 | 4 | `README` (reStructuredText) | `python/README.md` | Describes the Phase A scaffold; most of it is obsolete. PyPI still needs a long description for `[project.readme]`. | **Rewrite**, much shorter |
-| 5 | `pyproject.toml` | `pyproject.toml` (repo root) | `name = "pymeshlab2"` → `pymeshlab`; `version = "0.0.1"` → derived from `MESHLAB2_VERSION` (`CMakeLists.txt:59`). Root placement avoids `cmake.source-dir` pointing at a parent, which would force the sdist to carry the whole tree anyway. | **Move + edit** |
+| 5 | `pyproject.toml` | `pyproject.toml` (repo root) | `name = "pymeshlab2"` kept; `version = "0.0.1"` → derived from `MESHLAB2_VERSION` (`CMakeLists.txt:59`); `requires-python` `>=3.9` → `>=3.10`, the oldest interpreter the CI matrix builds for. Root placement avoids `cmake.source-dir` pointing at a parent, which would force the sdist to carry the whole tree anyway. | **Move + edit** |
 | 6 | `pytest.ini` | `pyproject.toml` `[tool.pytest.ini_options]` | Three marker definitions only (`examples`, `filters`, `smoke`). | **Merge** into row 5 |
 | 7 | `.gitignore` | `.gitignore` | Ours has **no** Python entries (`__pycache__`, `*.so`, `dist/`, `*.egg-info/`, `.pytest_cache/`, `wheelhouse/`, `_skbuild/`). Theirs also ignores `.reference/`, which ours already does. | **Merge** the Python block |
 | 8 | `CMakeLists.txt` | split three ways | 96 lines. Lines 10–23: nine `MESHLAB2_*` toggles. Lines 28–50: nanobind discovery with a FetchContent fallback — **redundant here**, since `find_package(nanobind CONFIG REQUIRED)` already runs at `CMakeLists.txt:170` and `nanobind` is in our vcpkg manifest. Lines 52–64: `sources.cmake` + `nanobind_add_module(_meshlab …)` + link `MeshLab2Plugins`. Lines 66–95: install rules for the module, quadwild binaries and config, and the geogram DLL. | **Split** — see below |
-| 9 | `.github/workflows/wheels.yml` | `.github/workflows/wheels.yml` | ~300 lines. Qt install, vcpkg bootstrap/baseline/cache/install, overlay triplets, failure-log upload — all already present in our three packaging workflows. Genuinely new: the `cibuildwheel@v4.2.0` step, the `CIBW_*` matrix (cp310–cp314, macOS arm64 + Windows x64), and the two `CMAKE_ARGS` composition steps. | **Move + collapse** onto existing steps |
+| 9 | `.github/workflows/wheels.yml` | `.github/workflows/wheels.yml` | ~300 lines. Qt install, vcpkg bootstrap/baseline/cache/install, overlay triplets, failure-log upload — all already present in our three packaging workflows. Genuinely new: the `cibuildwheel@v4.2.0` step, the `CIBW_*` matrix (cp310–cp314, macOS arm64 + Windows x64), and the two `CMAKE_ARGS` composition steps. | **Move + collapse** onto existing steps. *Done in step 4*: rewritten on the step shapes of `macos-dmg.yml` and `windows-portable.yml`, with their fixes (`fetch-submodules`, run-id cache keys, declared Windows binary cache). The Windows Qt install moved into `.github/actions/install-qt-windows`, now shared with `windows-portable.yml`; the `CIBW_*` settings moved into `pyproject.toml` `[tool.cibuildwheel]` |
 | 10 | `scripts/repair_macos_wheel.py` | `scripts/repair_macos_wheel.py` | Rewrites Qt framework install names inside the wheel and re-signs; no counterpart in `scripts/` (which holds `package-macos-dmg.sh`, `package-linux-appimage.sh`). | **Move** unchanged |
-| 11 | `python/pymeshlab2/__init__.py` | `python/pymeshlab/__init__.py` | ~35 lines: `MESHLAB2_QUADWILD_ROOT` default, geogram runtime preload for macOS/Windows, then `from ._meshlab import FilterInfo, FilterRunResult, Mesh, MeshSet`. | **Move + rename** |
-| 12 | `examples/__init__.py` | `python/examples/__init__.py` | Empty; exists so `test_examples.py` can import the package. | **Move** |
-| 13–18 | `examples/{create_noisy_isosurface,list_filters,mesh_info,normalize_and_save,raster_basics,wavy_box}.py` | `python/examples/` | 17–43 lines each, 166 total. Imported and run by `test_examples.py`, so they are regression tests as well as documentation. | **Move + rename import** |
-| 19 | `tests/test_examples.py` | `python/tests/test_examples.py` | 89 lines; runs each example and checks it completes. | **Move + rename import** |
-| 20 | `tests/test_mesh.py` | `python/tests/test_mesh.py` | 24 lines; exercises the `Mesh` bindings added in `pymesh.cpp`. | **Move + rename import** |
-| 21 | `tests/test_single_mesh_filters.py` | `python/tests/test_single_mesh_filters.py` | 64 lines. Reads `external/meshlab2/plugins/*/filters.json`, intersects with `list_filters()`, runs each `SingleMesh` filter with defaults in a subprocess, skipping on `applicable == false`. Paths simplify to `plugins/*/filters.json` and `tests/data/simple.off` (present, 36 bytes). | **Move + simplify paths** |
-| 22 | `tests/test_smoke.py` | `python/tests/test_smoke.py` | 63 lines; import and basic MeshSet scaffold checks. | **Move + rename import** |
-| 23 | `tests/wheel_smoke.py` | `python/tests/wheel_smoke.py` | 37 lines; the `CIBW_TEST_COMMAND`. Asserts three named filters exist, runs two, and checks the bundled geogram library and quadwild binaries are present and loadable. | **Move + rename import** |
+| 11 | `python/pymeshlab2/__init__.py` | `python/pymeshlab2/__init__.py` | ~35 lines: `MESHLAB2_QUADWILD_ROOT` default, geogram runtime preload for macOS/Windows, then `from ._meshlab import FilterInfo, FilterRunResult, Mesh, MeshSet`. | **Move** |
+| 12 | `examples/__init__.py` | — | Empty; existed so `test_examples.py` could import the examples as a package. | **Dropped** in step 3 (was *Move*): the test now loads examples by path, see below |
+| 13–18 | `examples/{create_noisy_isosurface,list_filters,mesh_info,normalize_and_save,raster_basics,wavy_box}.py` | `python/examples/` | 17–43 lines each, 166 total. Imported and run by `test_examples.py`, so they are regression tests as well as documentation. | **Move**; two default-mesh paths edited |
+| 19 | `tests/test_examples.py` | `python/tests/test_examples.py` | 89 lines; runs each example and checks it completes. | **Move + edit**, see below |
+| 20 | `tests/test_mesh.py` | `python/tests/test_mesh.py` | 24 lines; exercises the `Mesh` bindings added in `pymesh.cpp`. | **Move + edit** paths |
+| 21 | `tests/test_single_mesh_filters.py` | — | 64 lines. Reads `external/meshlab2/plugins/*/filters.json`, intersects with `list_filters()`, runs each `SingleMesh` filter with defaults in a subprocess, skipping on `applicable == false`. | **Dropped** in step 3 (was *Move + simplify paths*), replaced by a parity test; see below |
+| 22 | `tests/test_smoke.py` | `python/tests/test_smoke.py` | 63 lines; import and basic MeshSet scaffold checks. | **Move + edit**; gains the parity test |
+| 23 | `tests/wheel_smoke.py` | `python/tests/wheel_smoke.py` | 37 lines; the first half of cibuildwheel's `test-command`, before `pytest`. Asserts three named filters exist, runs two, and checks the bundled geogram library and quadwild binaries are present and loadable. | **Move** |
 
-**Totals:** 23 files → 3 dropped (rows 1–3), 2 folded into other files (rows 6–7),
-1 split across three destinations (row 8), 1 rewritten (row 4), 16 moved with edits.
+**Totals:** 23 files → 5 dropped (rows 1–3, and 12 and 21 in step 3), 2 folded into
+other files (rows 6–7), 1 split across three destinations (row 8), 1 rewritten
+(row 4), 14 moved (rows 5, 9–11, 13–20, 22–23). Keeping the `pymeshlab2` name means
+no file in this table is renamed.
+
+### Step 3, in detail
+
+The tests came over with three kinds of edit beyond their paths, all for the
+same reason: in this tree, a test that skips is a test that hides a failure.
+
+- **`pytest.importorskip("pymeshlab2")` became a plain import.** A broken or
+  missing wheel used to turn the whole suite into skips and a green run.
+- **Path guards went.** `test_mesh.py` and `test_smoke.py` found the sample mesh
+  through a working-directory-relative `external/meshlab2/…` path and skipped when
+  it was absent, which in-tree it always would have been. They now resolve it from
+  the test file; so do the two examples. "Filter missing → skip" guards went too:
+  a missing filter is now a build defect, caught by the parity test.
+- **Examples are loaded by file path**, not imported as `examples.<name>`. Putting
+  `python/` on `sys.path` to make the package importable would also make
+  `import pymeshlab2` find the source package, which has no compiled module,
+  ahead of the installed wheel.
+
+`test_single_mesh_filters.py` was **replaced, not moved**. Its contract — every
+filter either runs or refuses — is the one `tests/test_filter_smoke.cpp` already
+owns, with a fixture ladder and an expected-refusals table. The Python copy ran
+one fixture and counted refusals as failures, so in-tree it failed 87 filters for
+saying, correctly, that a single triangle has no second layer or no rasters. What
+it *could* catch that ctest cannot, a plugin missing from the wheel, is now
+asserted directly: `test_wheel_exposes_every_declared_filter` requires the wheel's
+filter ids to equal the ids in `plugins/*/filters.json`, both ways.
+
+It still earned its keep on the way out. `tests/data/simple.off` is a single open
+triangle, an input the C++ ladder (which starts from a closed sphere) never
+gives, and on it, in the application as well as the wheel:
+`subdivide_by_doo_sabin` segfaults; `remove_isolated_components_by_face_count`
+refuses with "Missing component: PerFaceMark", an internal error rather than an
+input requirement; and `create_voronoi_scaffolding`, `sample_volume` and
+`remesh_to_quads_quadwild_bimdf` do not finish within 60 seconds. These are filter
+bugs, and the guard belongs in the C++ smoke suite, not in a second sweep here.
+*Since fixed* (2026-11-03): `FilterSmokeTests::survivesDegenerateInput` runs every
+filter once on a single triangle, and the first four are fixed — the two samplers
+and Doo-Sabin in vcglib, which now refuse input they cannot handle instead of
+looping or reading unset corners. QuadWild remains, listed in that test's
+`slowOnDegenerateInput` table: its automatic sizing divides by enclosed volume.
 
 ### Row 8, in detail
 
 | Part of the wheel's `CMakeLists.txt` | Target |
 |---|---|
-| The nine `MESHLAB2_*` toggles | A `wheel` preset in `CMakePresets.json`, so the app build stays ignorant of them |
-| nanobind discovery + FetchContent fallback | Dropped — already at `CMakeLists.txt:170` |
-| `nanobind_add_module(_meshlab …)` + `MeshLab2Plugins` link | `src/python/CMakeLists.txt`, behind a new `MESHLAB2_PYTHON_WHEEL` option |
-| Install rules (module, quadwild bin + config + licence, geogram DLL) | Same place, same guard |
+| The nine `MESHLAB2_*` toggles | Two kept, `PYTHON_CONSOLE` and `MATH_HELP` off, in `pyproject.toml` `[tool.scikit-build.cmake.define]` rather than the planned `CMakePresets.json` preset: scikit-build-core applies those on every `pip` build, while a preset would sit unused there. The other seven are **dropped**. `REQUIRE_VCPKG_DEPS` stays on, so a missing dependency now fails the build instead of thinning the wheel. The `RAPIDOBJ`/`E57`/`GLTF` plugins build fine here. The three submodule-presence checks are moot in-tree. |
+| nanobind discovery + FetchContent fallback | Dropped. The existing `find_package(nanobind CONFIG REQUIRED)` now runs for console *or* wheel, and resolves to pip's nanobind for the wheel |
+| `nanobind_add_module(_meshlab …)` + `MeshLab2Plugins` link | `src/python/CMakeLists.txt`, behind the new `MESHLAB2_PYTHON_WHEEL` option, which also turns on `CMAKE_POSITION_INDEPENDENT_CODE` |
+| Install rules (module, quadwild bin + config + licence, geogram DLL) | Same place, same guard, in an install component `pymeshlab2`; `pyproject.toml` builds only `_meshlab` and installs only that component |
+
+## The in-app facade
+
+*Done 2026-11-03.* The application's console registers its own facade module
+(`src/python/PythonHost.cpp:222–230`, a `types.ModuleType` placed in
+`sys.modules`), and it was called `pymeshlab`; the user documentation taught
+`import pymeshlab` against it. If the
+wheel is `pymeshlab2` and the console is `pymeshlab`, a script written in one does not
+run in the other — the portability the shared `sources.cmake` exists to give. So the
+facade is renamed too, with no alias, per the no-compatibility-names rule for the
+Python API.
+
+Measured with `grep -o 'pymeshlab[A-Za-z0-9_]*'` keeping exact `pymeshlab` tokens only,
+over tracked files outside `docs/design/history/` and `docs/design/proposals/`: **16
+files, 50 occurrences**. Two of them name the *legacy* PyMeshLab and stay.
+
+| File | Occurrences | What they are | Verdict |
+|---|---|---|---|
+| `src/python/PythonHost.cpp` | 12 | 11 in the facade registration (222–230); 1 at 214, "mirroring pymeshlab's approach", refers to legacy PyMeshLab | **Rename 11**, keep 1 |
+| `src/ui/scripteditor.cpp` | 1 | Highlighted builtin name in the script editor (61) | **Rename** |
+| `src/python/bindings/sources.cmake` | 1 | Comment naming the wheel consumer | **Rename** |
+| `src/python/bindings/meshset_core.h` | 1 | Comment | **Rename** |
+| `src/python/mlgui.h` | 1 | Comment | **Rename** |
+| `src/core/headlessrendercontext.h` | 1 | Comment | **Rename** |
+| `docs/python_scripting.md` | 19 | The user-facing guide; line 35, "If you already know `pymeshlab`", addresses legacy users | **Rename 18**, keep 1 (and say "legacy PyMeshLab" there) |
+| `docs/index.rst` | 2 | API docs landing page | **Rename** |
+| `docs/generate_api.py` | 1 | Emits `api/mlgui.rst` (untracked, regenerated) | **Rename** |
+| `docs/examples/texmetro_report.py` | 3 | Docstring and `import pymeshlab` | **Rename** |
+| `docs/texture_metrics.md` | 1 | Prose | **Rename** |
+| `docs/design/architecture.md` | 2 | Lines 92, 287 | **Rename** |
+| `docs/design/data_model.md` | 1 | Line 160 | **Rename** |
+| `docs/design/rendering.md` | 1 | Line 563, `pymeshlab.MeshSet.render_snapshot` | **Rename** |
+| `docs/design/raster_alignment.md` | 1 | Line 63 | **Rename** |
+| `readme.md` | 2 | Lines 55, 122 | **Rename** |
+
+**Totals:** 16 files, 50 occurrences → 48 renamed, 2 kept as references to legacy
+PyMeshLab. `docs/design/history/` is left alone: it records the past. This set is
+independent of the wheel move and can land first, as its own commit.
 
 ## Known wrinkles
 
-- **`find_package(nanobind)` sits inside the `MESHLAB2_PYTHON_CONSOLE` guard**
-  (`CMakeLists.txt:165–170`), and the wheel build sets that option `OFF`. The
-  condition has to become `if(MESHLAB2_PYTHON_CONSOLE OR MESHLAB2_PYTHON_WHEEL)`,
-  or nanobind lookup moves out of the guard entirely.
-- **Deriving the wheel version from `MESHLAB2_VERSION`** needs a scikit-build-core
-  metadata provider; the exact mechanism is unverified here and should be
-  confirmed against the installed version before the table is executed.
+- *Resolved in step 2:* `find_package(nanobind)` sat inside the
+  `MESHLAB2_PYTHON_CONSOLE` guard; it now runs for either option.
+- *Resolved in step 2:* the version comes from scikit-build-core's
+  `scikit_build_core.metadata.regex` provider reading `MESHLAB2_VERSION` out of
+  `CMakeLists.txt`; the local build produced `pymeshlab2-2026.11`.
+- **vcpkg's `python3` hijacks `find_package(Python)`.** Not foreseen by the
+  table. The `nanobind` port depends on `python3`, and that port installs a
+  `vcpkg-cmake-wrapper.cmake` which, whenever `Development.Module` is requested,
+  points FindPython at vcpkg's own 3.12 headers. The configure then fails against
+  any other interpreter. The sibling never met it because its manifest lacked
+  `nanobind`. Fix: `nanobind` moved into a `python-console` manifest feature,
+  on by default (so the application, which embeds that very `python3`, is
+  unchanged), and the wheel sets `VCPKG_MANIFEST_NO_DEFAULT_FEATURES` and takes
+  nanobind from pip (`build-system.requires`, `nanobind>=2.13`; 3.1.0 built
+  cleanly). Consequence for step 4: the wheel needs its own vcpkg install tree; it
+  cannot reuse an application build's.
+- **The local wheel is tagged `macosx_26_0`**, the build machine's OS, because
+  scikit-build-core reads `MACOSX_DEPLOYMENT_TARGET` from the environment and not
+  from `CMakeLists.txt`'s 15.0 floor. CI must export `MACOSX_DEPLOYMENT_TARGET=15.0`.
+- **An unrepaired macOS wheel does not import**: `_meshlab` links
+  `@rpath/libgeogram.1.9.3.dylib` and Qt frameworks that only
+  `scripts/repair_macos_wheel.py` bundles. Row 10 was therefore moved in step 2,
+  unchanged, to prove the wheel locally (`QT_ROOT_DIR`, `VCPKG_INSTALLED_DIR`,
+  `VCPKG_TARGET_TRIPLET` and `delocate` needed).
 - **`ci/vcpkg-triplets/` has no `x64-windows-release.cmake`** — both repositories
   name that triplet with the overlay set, and both fall through to vcpkg's
   builtin. Consistent today, but it means the overlay is load-bearing only on
   macOS and Linux.
 - **The test story becomes two-headed**: `ctest` for C++, `pytest` for the wheel.
-  That is a mild complication but also a gain — `test_single_mesh_filters.py`
-  exercises the wheel path `ctest` structurally cannot reach, and post-move it
-  becomes the natural place to assert that **the filters a wheel exposes match
-  the descriptors in this tree**, the gap recorded in
-  [LLM Integration](llm_integration.md).
+  Kept small on purpose: `pytest` covers only what is specific to the wheel (the
+  binding surface, the examples, and that **the filters a wheel exposes match the
+  descriptors in this tree**, the gap recorded in [LLM Integration](llm_integration.md));
+  filter behaviour stays in the three ctest tiers.
 - **cibuildwheel's isolated build environment** must see the vcpkg install tree
   the way the existing workflows lay it out. This is the one mechanically unknown
   piece and should be proven on a branch before the sibling repo is archived.
+  `wheels.yml` installs the tree outside the build directory (`build-wheel-vcpkg`),
+  without default features, and hands it over through `CMAKE_ARGS`.
+- *Measured in step 4:* every interpreter builds into one `build-wheel` directory
+  (`[tool.cibuildwheel] config-settings`). Locally, switching a built tree from
+  CPython 3.12 to 3.13 recompiled only nanobind, `_meshlab` and `MeshLab2Core` —
+  23 seconds — where the sibling's fresh directory per wheel rebuilt every plugin
+  five times over. The cp312 wheel built that way passes `python/tests` too.
+- **Texture Consolidation stays on in the wheels**, unlike the DMG, which turns it
+  off on the 7 GB macOS runner because its stitcher alone compiles for an hour.
+  Turning it off would make the wheel's filter set differ from the descriptors and
+  fail `test_wheel_exposes_every_declared_filter`; the wheels run on tags, by hand
+  and on binding changes only, so the hour is paid rarely. Its helper programs are
+  not bundled into the wheel yet, as they are not into the DMG.
+- **PyPI upload is not automated.** The wheels go on the draft GitHub Release. The
+  trusted-publisher route is described under Open items in
+  [Branches and Releases](../release_process.md).
 
 ## Order of operations
 
-1. Land the table (this document), approved.
-2. In-tree build: rows 5–8, 11. Prove `pip wheel .` produces an importable
-   `pymeshlab` locally.
-3. Tests and examples: rows 12–23. Prove `pytest` green locally.
+1. Land the table (this document), approved. *Done*, together with the in-app
+   facade rename, which touches nothing the wheel move does.
+2. In-tree build: rows 5–8, 11 (and 10, see Known wrinkles). Prove `pip wheel .`
+   produces an importable `pymeshlab2` locally. *Done*: the repaired cp313 wheel
+   imports from a clean venv, lists 405 filters (identical to the application's
+   set), and passes the sibling's `wheel_smoke.py`.
+3. Tests and examples: rows 12–23. Prove `pytest` green locally. *Done*: 12
+   tests pass with none skipped, against the repaired cp313 wheel; the moved
+   `wheel_smoke.py` passes too. Run from the repository root with the wheel
+   installed: `python -m pytest`.
 4. CI: row 9, plus a `wheels` job in `release.yml`. Prove green on `devel`.
+   *Written*: `wheels.yml` (on `devel` pushes touching the bindings or packaging, by
+   hand, and from `release.yml`, which attaches the wheels to the draft release).
+   Not yet proven: that takes a push.
 5. Tag a release; confirm the wheel builds from the tag.
 6. Only then archive `cignoni/pymeshlab2`.
 

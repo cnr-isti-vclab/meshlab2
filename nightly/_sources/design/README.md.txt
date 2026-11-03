@@ -42,7 +42,7 @@ Three kinds of document live here, and the distinction is worth keeping:
 | Document | Status |
 | --- | --- |
 | [LLM Integration](proposals/llm_integration.md) | Option space for driving MeshLab from a model. Not implemented. |
-| [Folding the pymeshlab2 wheel into this repository](proposals/pymeshlab_merge.md) | Mapping tables for retiring the separate `cignoni/pymeshlab2` repository and building the wheel here, and for renaming the in-app `pymeshlab` facade to `pymeshlab2` so it matches the wheel. Approved; facade rename and in-tree wheel build done, tests and CI not started. |
+| [Folding the pymeshlab2 wheel into this repository](proposals/pymeshlab_merge.md) | Mapping tables for retiring the separate `cignoni/pymeshlab2` repository and building the wheel here, and for renaming the in-app `pymeshlab` facade to `pymeshlab2` so it matches the wheel. Approved; facade rename, in-tree wheel build, its tests and the CI workflow done; CI not yet proven green. |
 | [Usage Statistics](proposals/usage_statistics.md) | Aggregate usage collection, designed for privacy. Not implemented. |
 | [Gaussian Splatting](proposals/gaussian_splatting.md) | Splat loading, rendering and editing. Not implemented; some decisions taken. |
 | [Edge Support](proposals/edge_support.md) | The two kinds of edge, what is missing in selection and rendering, and filters that would generate per-edge colour. Per-edge colour implemented; the rest not. |
