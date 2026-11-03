@@ -368,8 +368,12 @@ reproduces every camera to float precision), but has not yet been run through th
 `libomp`) and skips itself without one. The DMG, the Windows ZIP and the AppImage bundle
 the helpers, which CI keeps between runs (`.github/actions/helper-cache`); the DMG had it
 off while the stitcher took an hour on its 7 GB runner, before the compile-cost work below.
-Windows (MSVC) builds all three helpers, without running ctest. The wheels do not build or
-ship them yet: they build only the `_meshlab` target, which does not depend on them. The Linux AppImage moved from
+Windows (MSVC) builds all three helpers, without running ctest. The wheels install them
+under `pymeshlab2/texture-consolidation`, which `__init__.py` points the plugin at, and the
+wheel repair vendors what they load: delocate rewrites every Mach-O file in the wheel, the
+helpers included, and delvewheel does the executables with `--analyze-existing-exes`,
+moving their DLLs into `pymeshlab2.libs`, which `__init__.py` puts on `PATH` for them. The
+wheel smoke test runs the filter on the gargoyle, so a helper that cannot load fails it. The Linux AppImage moved from
 Ubuntu 22.04 to 24.04, whose GCC 13 the helpers need (see
 [release_process.md](../release_process.md)); there the helpers build and both tests
 pass. The plugin no longer declares a dependency on the helper build, which had held every

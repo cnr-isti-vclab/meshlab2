@@ -30,6 +30,20 @@ if(MESHLAB2_PYTHON_WHEEL)
             DESTINATION pymeshlab2/quadwild-bimdf RENAME LICENSE.txt COMPONENT pymeshlab2)
     endif()
 
+    # Likewise TextureConsolidation's three programs, which __init__.py points
+    # MESHLAB2_TEXTURE_CONSOLIDATION_ROOT at. Their libomp (macOS) and vcpkg DLLs (Windows)
+    # are vendored by the wheel repair: delocate rewrites every Mach-O in the wheel, and
+    # delvewheel does the executables with --analyze-existing-exes (pyproject.toml).
+    if(TARGET MeshLab2PluginFilterTextureConsolidation)
+        if(TARGET MeshLab2TextureConsolidationHelpers)
+            add_dependencies(_meshlab MeshLab2TextureConsolidationHelpers)
+        endif()
+        install(PROGRAMS ${TEXTURE_CONSOLIDATION_EXECUTABLES}
+            DESTINATION pymeshlab2/texture-consolidation/bin COMPONENT pymeshlab2)
+        install(FILES "${MESHLAB2_SOURCE_DIR}/external/texture-consolidation/LICENSE"
+            DESTINATION pymeshlab2/texture-consolidation RENAME LICENSE.txt COMPONENT pymeshlab2)
+    endif()
+
     # Loaded by leaf name at runtime, never linked, so wheel repair cannot find it
     # on Windows; see the root CMakeLists.txt on libgeogram_num_3rdparty.
     if(WIN32 AND TARGET MeshLab2PluginFilterGeogram)

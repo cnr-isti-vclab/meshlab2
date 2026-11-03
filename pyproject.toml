@@ -55,7 +55,7 @@ repair-wheel-command = "python {project}/scripts/repair_macos_wheel.py {wheel} {
 [tool.cibuildwheel.windows]
 archs = ["AMD64"]
 before-build = "pip install delvewheel"
-repair-wheel-command = "delvewheel repair --analyze-existing -w {dest_dir} -v {wheel}"
+repair-wheel-command = "delvewheel repair --analyze-existing --analyze-existing-exes -w {dest_dir} -v {wheel}"
 
 [tool.pytest.ini_options]
 testpaths = ["python/tests"]

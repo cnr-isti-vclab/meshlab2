@@ -34,4 +34,21 @@ assert (quadwild_dir / "bin" / f"quad_from_patches{suffix}").is_file()
 assert (quadwild_dir / "config" / "prep_config" / "basic_setup.txt").is_file()
 assert os.environ["MESHLAB2_QUADWILD_ROOT"] == str(quadwild_dir)
 
+# TextureConsolidation runs three helper programs whose libomp (macOS) or vcpkg DLLs
+# (Windows) the wheel repair vendors, so only running the filter shows they load. About
+# 20 s on an M-series Mac with a 256 px texture.
+consolidation_bin = package_dir / "texture-consolidation" / "bin"
+for helper in ("BackProjection", "TextureFlow", "TextureDomainStitching"):
+	assert (consolidation_bin / f"{helper}{suffix}").is_file()
+assert os.environ["MESHLAB2_TEXTURE_CONSOLIDATION_ROOT"] == str(consolidation_bin)
+gargoyle = Path(__file__).resolve().parents[2] / "tests" / "sample_mesh" / "gargoyle_small" / "gargoyle.mlp"
+rasters = pymeshlab2.MeshSet()
+rasters.load_project(str(gargoyle))
+assert rasters.apply_filter("parametrize_by_atlas_xatlas").success
+result = rasters.apply_filter(
+	"transfer_color_from_visible_rasters_to_texture_texture_consolidation",
+	{"textureSize": 256},
+)
+assert result.success, result.error_message
+
 print(f"Loaded {len(filter_ids)} filters from {package_dir}")
