@@ -183,6 +183,7 @@ add_library(MeshLab2Core STATIC
     src/core/document_logging.cpp
     src/core/document_memory.cpp
     src/core/document_project.cpp
+    src/core/document_colmap.cpp
     src/core/document_textures.cpp
     src/core/document_undo.cpp
     src/core/document_undo_state.cpp

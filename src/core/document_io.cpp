@@ -10,14 +10,16 @@ QString Document::openDialogFilter() const
     const QString meshFilters = m_pluginManager ? m_pluginManager->openDialogFilter() : QString();
     QStringList filters = meshFilters.split(QStringLiteral(";;"), Qt::SkipEmptyParts);
     if (filters.isEmpty())
-        filters << tr("Mesh and Project Files (*.mlp)");
+        filters << tr("Mesh and Project Files (*.mlp cameras.txt cameras.bin)");
     else
         filters[0].replace(
             QStringLiteral(")"),
-            QStringLiteral(" *.mlp)"));
-    const QString projectFilter = tr("MeshLab Project (*.mlp)");
-    if (!filters.contains(projectFilter))
-        filters.insert(filters.size() > 1 ? filters.size() - 1 : 1, projectFilter);
+            QStringLiteral(" *.mlp cameras.txt cameras.bin)"));
+    for (const QString &projectFilter : { tr("MeshLab Project (*.mlp)"),
+                                          tr("COLMAP Model (cameras.txt cameras.bin)") }) {
+        if (!filters.contains(projectFilter))
+            filters.insert(filters.size() > 1 ? filters.size() - 1 : 1, projectFilter);
+    }
     if (!filters.contains(tr("All Files (*)")))
         filters << tr("All Files (*)");
     return filters.join(QStringLiteral(";;"));

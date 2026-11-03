@@ -3644,8 +3644,7 @@ void MainWindow::pasteCameraState()
 
 bool MainWindow::loadMeshFromPath(const QString &filePath, QString *errorMessage)
 {
-    const bool isProject =
-        QFileInfo(filePath).suffix().compare(QStringLiteral("mlp"), Qt::CaseInsensitive) == 0;
+    const bool isProject = Document::isProjectFile(filePath);
     QString reason;
     const int err = isProject
         ? m_doc->loadMeshLabProject(filePath)

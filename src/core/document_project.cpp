@@ -2,6 +2,12 @@
 
 using namespace DocumentInternal;
 
+bool Document::isProjectFile(const QString &filename)
+{
+    return QFileInfo(filename).suffix().compare(QStringLiteral("mlp"), Qt::CaseInsensitive) == 0
+        || isColmapModelFile(filename);
+}
+
 int Document::loadMeshLabProject(const QString &filename)
 {
     const QString normalizedFilename = filename.trimmed();
@@ -12,19 +18,25 @@ int Document::loadMeshLabProject(const QString &filename)
     std::vector<MeshLabProjectRasterEntry> projectRasters;
     std::vector<MeshLabProjectVisibilitySetEntry> projectSets;
     LengthUnit projectUnit = LengthUnit::Unknown;
+    // A COLMAP model opens as a project too: its images are the rasters, its points a layer
+    const bool colmap = isColmapModelFile(normalizedFilename);
+    ColmapModel colmapModel;
     QString parseError;
-    if (!parseMeshLabProjectFile(
-            normalizedFilename, projectMeshes, projectRasters, projectSets, projectUnit, parseError)) {
-        writeLog(parseError, LogSource::Application);
+    if (colmap ? !parseColmapModel(normalizedFilename, colmapModel, parseError)
+               : !parseMeshLabProjectFile(
+                     normalizedFilename, projectMeshes, projectRasters, projectSets, projectUnit, parseError)) {
+        writeLog(parseError, LogSource::Application, LogLevel::Warning);
         return -1;
     }
+    if (colmap)
+        projectRasters = colmapModel.rasters;
 
     const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
     if (ownUndoStep) {
         ScriptAction sa;
         sa.kind = QStringLiteral("load_project");
         sa.filePaths = QStringList{filename};
-        beginUndoStep(tr("Open MeshLab Project"), sa);
+        beginUndoStep(colmap ? tr("Open COLMAP Model") : tr("Open MeshLab Project"), sa);
     }
 
     QElapsedTimer projectTimer;
@@ -74,6 +86,18 @@ int Document::loadMeshLabProject(const QString &filename)
         ++loadedMeshes;
         if (meshCount() > meshesBefore)
             idOfOrdinal[ordinal] = mesh(meshCount() - 1).meshId;
+    }
+
+    if (!colmapModel.points.empty()) {
+        VCGMesh points;
+        vcg::tri::Allocator<VCGMesh>::AddVertices(points, int(colmapModel.points.size()));
+        for (size_t i = 0; i < colmapModel.points.size(); ++i) {
+            points.vert[i].P() = vcg::Point3f::Construct(colmapModel.points[i]);
+            points.vert[i].C() = colmapModel.pointColors[i];
+        }
+        vcg::tri::UpdateBounding<VCGMesh>::Box(points);
+        if (addMesh(points, tr("COLMAP points"), vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTCOLOR) >= 0)
+            ++loadedMeshes;
     }
 
     for (const MeshLabProjectVisibilitySetEntry &projectSet : projectSets) {
@@ -174,10 +198,26 @@ int Document::loadMeshLabProject(const QString &filename)
             .arg(loadedRasters),
         LogSource::Application);
 
+    // How well the cameras and the lenses read reproduce what COLMAP measured: well under a
+    // pixel for a model read right
+    std::vector<double> errors = colmapReprojectionErrors(colmapModel);
+    if (!errors.empty()) {
+        std::sort(errors.begin(), errors.end());
+        writeLog(tr("COLMAP reprojection of %1 observations, in pixels of the photos: median %2, 90% %3, max %4")
+                     .arg(errors.size())
+                     .arg(errors[errors.size() / 2], 0, 'f', 3)
+                     .arg(errors[errors.size() * 9 / 10], 0, 'f', 3)
+                     .arg(errors.back(), 0, 'f', 2),
+                 LogSource::Application);
+    }
+
     m_bulkLoading = false;
     if (success) {
-        m_projectFilePath = QFileInfo(normalizedFilename).absoluteFilePath();
-        setDirectory(QFileInfo(m_projectFilePath).absolutePath());
+        // A COLMAP model is not a project to save over: Save Project starts a new one beside it
+        const QString absolute = QFileInfo(normalizedFilename).absoluteFilePath();
+        if (!colmap)
+            m_projectFilePath = absolute;
+        setDirectory(QFileInfo(absolute).absolutePath());
     }
     if (ownUndoStep)
         endUndoStep(success);

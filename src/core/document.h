@@ -299,7 +299,10 @@ public:
     void moveRaster(int from, int to);
     int duplicateMesh(int sourceIndex, const QString &newName = {});
     int loadRasterImage(const QString &filename);
+    // A MeshLab project (.mlp), or a COLMAP sparse model by its cameras.txt or cameras.bin:
+    // its images become rasters, with their cameras and lenses, and its points a layer
     int loadMeshLabProject(const QString &filename);
+    static bool isProjectFile(const QString &filename);
 
     struct MeshLabProjectSaveOptions {
         bool onlyVisibleMeshes = false;

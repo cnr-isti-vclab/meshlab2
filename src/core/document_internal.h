@@ -38,7 +38,6 @@ namespace DocumentInternal {
 extern Document *g_callbackDocument;
 
 QString summarizeLoadMask(int mask);
-bool isMeshLabProjectExtension(const QString &path);
 QString resolveProjectEntryPath(const QString &projectFilePath, const QString &entryPath);
 bool parseFloatList(const QString &text, int expectedCount, std::vector<float> &values);
 QMatrix4x4 meshLabProjectMatrixToQt(const std::vector<float> &values);
@@ -71,6 +70,26 @@ struct MeshLabProjectVisibilitySetEntry {
     QString name;
     std::vector<int> meshOrdinals;
 };
+
+// A COLMAP sparse model (document_colmap.cpp), opened by its cameras.txt or cameras.bin: the
+// images as rasters with their pinhole cameras and lenses, the points3D with their colors,
+// and which pixel of which raster saw which point, to measure the registration by.
+struct ColmapModel {
+    struct Observation {
+        int raster = 0;
+        vcg::Point2d pixel; // in the photo as shot, COLMAP's pixels: y down, centres at k + 0.5
+        int point = 0;
+    };
+    std::vector<MeshLabProjectRasterEntry> rasters;
+    std::vector<vcg::Point3d> points;
+    std::vector<vcg::Color4b> pointColors;
+    std::vector<Observation> observations;
+};
+bool isColmapModelFile(const QString &path);
+bool parseColmapModel(const QString &camerasPath, ColmapModel &model, QString &error);
+// The distance, in pixels of the photo as shot, between each observation and its point
+// projected through the raster's camera and lens
+std::vector<double> colmapReprojectionErrors(const ColmapModel &model);
 
 bool parseMeshLabProjectFile(
     const QString &filename,

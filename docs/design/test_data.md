@@ -10,7 +10,7 @@ See also: [Adding a Filter](adding_a_filter.md) (the three filter-testing tiers)
 | Location | Tracked? | For |
 |---|---|---|
 | `tests/data/` | yes | Tiny hand-made inputs — a few KB. `simple.off`, `concave_polygon.*` |
-| `tests/sample_mesh/` | yes | Small shared fixtures, up to about 1 MB. The spheres, and the 928 KB `gargoyle_small/` photogrammetry set that is the smoke tier's `rasters` rung |
+| `tests/sample_mesh/` | yes | Small shared fixtures, up to about 1 MB. The spheres, and the 928 KB `gargoyle_small/` photogrammetry set that is the smoke tier's `rasters` rung, with its four cameras also as a COLMAP model in `sparse/0/` (text and binary, 78 KB; see the [lens proposal](proposals/camera_lens_model.md)) |
 | `tests/datasets/<name>/` | **no** | Anything larger, fetched on demand from a manifest |
 | `tests/local/<name>/` | **no** | A maintainer's own data that is not publicly downloadable |
 | `.reference/meshlab/sample/<name>/` | **no** | A clone of classic MeshLab. Its `sample/rangemaps/` tree is the standing corpus for the alignment filters — see below |

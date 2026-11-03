@@ -3,8 +3,8 @@
 This document proposes lens distortion for raster cameras, so that photos calibrated with a
 real lens model (COLMAP, RealityScan, Metashape) can be used without undistorting them by
 hand, and so that the image-to-mesh alignment tools that follow have a camera they can
-refine. **Stages 0 (removing vcglib's distortion) and 1 (the lens) implemented 2026-11-02;
-Stage 2 (COLMAP import) not yet.** The tables and the open questions were approved the same
+refine. **Stages 0 (removing vcglib's distortion), 1 (the lens) and 2 (COLMAP import)
+implemented 2026-11-02; Stage 3 is a proposal of its own.** The tables and the open questions were approved the same
 day. How the lens works today is in [Data Model](../data_model.md#raster-data-type); this
 document keeps the plan and the record of how it was carried out.
 
@@ -298,6 +298,37 @@ points), and the RealityScan export as an optional dataset
 1 px. `tools/colmap_to_mlp.py` is then removed; its `--z-up` turn is a transform of all
 layers and rasters, which *Transform* already does. See [Q5](#open-questions).
 
+As built (2026-11-02): `src/core/document_colmap.cpp`, 447 lines with its comments, reads
+text and binary models into the `MeshLabProjectRasterEntry` records the `.mlp` parser gives
+(`DocumentInternal::parseColmapModel`), so `loadMeshLabProject` opens either with the same
+raster loop, dispatching on the file name (`Document::isProjectFile`): *Open*, a drop, the
+command line and Python `load_project` all take a `cameras.txt` / `cameras.bin`. The images
+are sorted by name, COLMAP's ids saying nothing about how they were taken. The image folder is
+the first of `images/` or the folder itself, from the model's folder up two levels, holding
+the first image. The points become a colored point cloud layer, *COLMAP points*. The load logs
+the reprojection of COLMAP's observations through the cameras and lenses read
+(`colmapReprojectionErrors`), as the Python converter's run did. A COLMAP model is not a
+project to save over: *Save Project* starts a new `.mlp`. An unsupported camera model (the
+fisheye ones, FOV) refuses the whole model, naming it. `isMeshLabProjectExtension`, defined
+and never called, went.
+
+- **The committed model is pinhole**, not the Stage 1 lens on the gargoyle cameras that the
+  plan named: the fixture's photos are pinhole, and a lens in the model would make it say
+  something false about them. The lens mapping of each COLMAP model is tested on a model the
+  test writes, and the lens itself end to end by Stage 1's test. The gargoyle model
+  (`tests/sample_mesh/gargoyle_small/sparse/0/`, text and binary, 78 KB: the four cameras as
+  `PINHOLE`, 201 mesh vertices as points, seen by all four) was written once by a numpy script
+  inverting the Python converter's conversion, independently of the reader; it reopens as
+  gargoyle.mlp's cameras, within 0.01 px.
+- **The RealityScan export as an optional dataset**, `2930Colmap/sparse/0/cameras.txt` under
+  the dataset roots (`tests/local/2930Colmap` on a maintainer's machine): 261,316
+  observations reproject with a median of 0.393 px, 90% under 1.02 px, at most 2.00 px.
+- **The z-up turn is two filters, not one.** *Transform* moves mesh layers only; the cameras
+  turn with *Rotate Cameras* (all rasters, axis X, centre the origin). RealityScan's COLMAP
+  export turns its scene's (x, y, z) into (x, -z, y); the same quarter turn on both, mapping
+  (x, y, z) to (x, z, -y), lines a model exported from the same RealityScan project up with
+  the cameras and points.
+
 **Stage 3 -- image-to-mesh alignment.** A proposal of its own once Stages 1 and 2 are in:
 correspondence alignment (old `edit_mutualcorrs`, 3.2k lines, levmar) and mutual-
 information refinement (`filter_mutualinfo`, 2.6k; `filter_mutualglobal`, 4.6k). What this
@@ -318,4 +349,4 @@ needs.
 3. **Planes saved from memory.** Decided 2026-11-02: written undistorted and marked
    `undistorted="1"`.
 4. **Fisheye.** Decided 2026-11-02: later, when a dataset needs it; the enum leaves room.
-5. **`tools/colmap_to_mlp.py`.** Decided 2026-11-02: removed at the end of Stage 2.
+5. **`tools/colmap_to_mlp.py`.** Decided 2026-11-02: removed at the end of Stage 2. Removed.

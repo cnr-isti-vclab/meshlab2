@@ -11,6 +11,7 @@
 #include <cmath>
 
 #include "document.h"
+#include "document_internal.h"
 #include "testdatasets.h"
 #include "filedialogdirectory.h"
 #include "textureassociationutils.h"
@@ -103,6 +104,9 @@ private slots:
     void projectKeepsTheLensAndPlanesSavedFromMemory();
     void undistortedPlanesMatchThePhotosBeforeTheLens();
     void lensChangeIsOneUndoStepAndRedecodesThePhotos();
+    void colmapModelOpensAsTheProjectItWasMadeFrom();
+    void colmapCameraModelsMapOntoTheLens();
+    void colmapReprojectsARealScanUnderAPixel();
     void undoRedoRestoresMeshList();
     void movingALayerChangesItsPositionAndNotItsId();
     void movingARasterChangesItsPositionAndNotItsId();
@@ -2578,6 +2582,118 @@ void DocumentTests::lensChangeIsOneUndoStepAndRedecodesThePhotos()
     QVERIFY(doc.raster(0).lens == lens);
     Document::ensureRasterPlaneImage(doc.raster(0), *doc.raster(0).currentPlane());
     QVERIFY(doc.raster(0).currentPlane()->image == after);
+}
+
+// The gargoyle fixture's four cameras as a COLMAP model, text and binary, in sparse/0 beside it,
+// with 201 of the mesh's vertices as points and the pixels where each camera sees them. It was
+// written once from gargoyle.mlp by a numpy script, independently of the reader, inverting the
+// conversion of the Python converter that preceded it (tools/colmap_to_mlp.py, removed with
+// Stage 2 of the lens proposal); so opening it must give the cameras of gargoyle.mlp back.
+void DocumentTests::colmapModelOpensAsTheProjectItWasMadeFrom()
+{
+    const QString fixture = QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/");
+    Document project;
+    QCOMPARE(project.loadMeshLabProject(fixture + QStringLiteral("gargoyle.mlp")), 0);
+    const VCGMesh &mesh = project.mesh(0).mesh;
+
+    for (const char *cameras : { "sparse/0/cameras.txt", "sparse/0/cameras.bin" }) {
+        const QString path = fixture + QLatin1String(cameras);
+        QVERIFY(Document::isProjectFile(path));
+        Document doc;
+        QCOMPARE(doc.loadMeshLabProject(path), 0);
+        QVERIFY(doc.projectFilePath().isEmpty()); // not a project to save over
+        QCOMPARE(doc.rasterCount(), 4);
+        QCOMPARE(doc.meshCount(), 1);
+        QCOMPARE(doc.mesh(0).mesh.VN(), 201);
+        QVERIFY(doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR);
+        QCOMPARE(doc.mesh(0).mesh.vert[0].C(), vcg::Color4b(200, 180, 120, 255));
+        for (int ri = 0; ri < 4; ++ri) {
+            const Document::RasterEntry &raster = doc.raster(ri);
+            const Document::RasterEntry &expected = project.raster(ri);
+            QCOMPARE(raster.name, expected.name);
+            QVERIFY(raster.lens.IsIdentity()); // PINHOLE
+            QCOMPARE(QFileInfo(raster.currentPlane()->sourcePath).canonicalFilePath(),
+                     QFileInfo(expected.currentPlane()->sourcePath).canonicalFilePath());
+            QCOMPARE(raster.shot.viewportPx(), expected.shot.viewportPx());
+            for (int vi = 0; vi < mesh.VN(); vi += 97) {
+                const vcg::Point3f &p = mesh.vert[size_t(vi)].cP();
+                const QVector3D q(p[0], p[1], p[2]);
+                QVERIFY((raster.shot.project(q) - expected.shot.project(q)).length() < 1e-2f);
+            }
+        }
+        DocumentInternal::ColmapModel model;
+        QString error;
+        QVERIFY2(DocumentInternal::parseColmapModel(path, model, error), qPrintable(error));
+        QCOMPARE(int(model.observations.size()), 4 * 201);
+        const std::vector<double> errors = DocumentInternal::colmapReprojectionErrors(model);
+        QVERIFY(*std::max_element(errors.begin(), errors.end()) < 1e-2);
+    }
+}
+
+// Each COLMAP model this reader takes, onto the pinhole intrinsics and the lens; the fisheye
+// ones, which the lens cannot represent, are refused rather than read as something else.
+void DocumentTests::colmapCameraModelsMapOntoTheLens()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const auto write = [&](const QString &name, const QByteArray &text) {
+        QFile file(dir.filePath(name));
+        return file.open(QIODevice::WriteOnly | QIODevice::Truncate) && file.write(text) == text.size();
+    };
+    QVERIFY(write(QStringLiteral("cameras.txt"),
+        "1 SIMPLE_PINHOLE 100 80 90 50 40\n"
+        "2 PINHOLE 100 80 90 95 50 40\n"
+        "3 SIMPLE_RADIAL 100 80 90 50 40 0.1\n"
+        "4 RADIAL 100 80 90 50 40 0.1 -0.02\n"
+        "5 OPENCV 100 80 90 95 50 40 0.1 -0.02 0.001 -0.002\n"
+        "6 FULL_OPENCV 100 80 90 95 50 40 0.1 -0.02 0.001 -0.002 0.003 0.2 -0.03 0.004\n"));
+    QByteArray images;
+    for (int i = 1; i <= 6; ++i)
+        images += QByteArray::number(i) + " 1 0 0 0 0 0 5 " + QByteArray::number(i) + " im" + QByteArray::number(i) + ".png\n\n";
+    QVERIFY(write(QStringLiteral("images.txt"), images));
+
+    DocumentInternal::ColmapModel model;
+    QString error;
+    QVERIFY2(DocumentInternal::parseColmapModel(dir.filePath(QStringLiteral("cameras.txt")), model, error),
+             qPrintable(error));
+    QCOMPARE(int(model.rasters.size()), 6);
+    QVERIFY(model.points.empty());
+    const auto fxfy = [&](int i) {
+        const CameraShot &shot = model.rasters[size_t(i)].shot;
+        return QVector2D(shot.focalMm() / shot.pixelSizeMm().x(), shot.focalMm() / shot.pixelSizeMm().y());
+    };
+    QVERIFY((fxfy(0) - QVector2D(90, 90)).length() < 1e-3f);
+    QVERIFY((fxfy(1) - QVector2D(90, 95)).length() < 1e-3f);
+    QCOMPARE(model.rasters[1].shot.centerPx(), QVector2D(50, 40)); // 80 - 40: rows from the bottom
+    QVERIFY(model.rasters[0].lens.IsIdentity() && model.rasters[1].lens.IsIdentity());
+    QCOMPARE(model.rasters[2].lens.k1, 0.1);
+    QCOMPARE(model.rasters[3].lens.k2, -0.02);
+    const CameraLens &opencv = model.rasters[4].lens;
+    QVERIFY(opencv.p1 == 0.001 && opencv.p2 == -0.002 && opencv.k3 == 0);
+    const CameraLens &full = model.rasters[5].lens;
+    QVERIFY(full.k1 == 0.1 && full.k2 == -0.02 && full.p1 == 0.001 && full.p2 == -0.002
+            && full.k3 == 0.003 && full.k4 == 0.2 && full.k5 == -0.03 && full.k6 == 0.004);
+
+    QVERIFY(write(QStringLiteral("cameras.txt"), "1 OPENCV_FISHEYE 100 80 90 95 50 40 0.1 0 0 0\n"));
+    QVERIFY(!DocumentInternal::parseColmapModel(dir.filePath(QStringLiteral("cameras.txt")), model, error));
+    QCOMPARE(error, QStringLiteral("COLMAP camera model OPENCV_FISHEYE is not supported"));
+}
+
+// A RealityScan COLMAP export of 35 photos (3840x2160, FULL_OPENCV lenses up to k3 1.78): its
+// points, projected through the cameras and lenses read, land where COLMAP observed them.
+void DocumentTests::colmapReprojectsARealScanUnderAPixel()
+{
+    MESHLAB2_REQUIRE_DATASET(path, "2930Colmap/sparse/0/cameras.txt");
+    DocumentInternal::ColmapModel model;
+    QString error;
+    QVERIFY2(DocumentInternal::parseColmapModel(path, model, error), qPrintable(error));
+    QCOMPARE(int(model.rasters.size()), 35);
+    std::vector<double> errors = DocumentInternal::colmapReprojectionErrors(model);
+    QVERIFY(!errors.empty());
+    std::sort(errors.begin(), errors.end());
+    qInfo("%zu observations: median %.3f px, 90%% %.3f px, max %.2f px", errors.size(),
+          errors[errors.size() / 2], errors[errors.size() * 9 / 10], errors.back());
+    QVERIFY(errors[errors.size() / 2] < 1.0);
 }
 
 // Reordering the layer list: the position (the index, the # column) changes, the id does not, the
