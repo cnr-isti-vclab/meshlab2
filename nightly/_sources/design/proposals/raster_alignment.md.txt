@@ -4,9 +4,9 @@ This document proposes aligning a raster's camera to a mesh, so that a photo who
 missing or slightly wrong can be registered on the model and then used by the filters that
 project through rasters (color transfer, coverage, parametrization). It is Stage 3 of the
 [Camera Lens Model](camera_lens_model.md), which gave rasters a pinhole camera plus a separate
-lens and a native COLMAP import. **Written 2026-11-03; Stage 3a, the correspondence fit,
-implemented the same day. Stages 3b to 3d are not, and the open questions not about 3a are
-still open.**
+lens and a native COLMAP import. **Written 2026-11-03; Stages 3a, the correspondence fit,
+and 3b, the tool, implemented the same day. Stages 3c and 3d are not, and the open questions
+not about 3a and 3b are still open.**
 
 See also: [Camera Lens Model](camera_lens_model.md) (the boundary this relies on),
 [Data Model](../data_model.md#raster-data-type), [Rendering](../rendering.md) (the
@@ -240,6 +240,41 @@ Each stage is one commit, landed and verified before the next.
 - **3b. The tool.** Depth picking in `RasterImage` mode and the drag-to-pair tool. Picking is
   in the GUI, so the checks are the tool's unit logic plus a hand test on gargoyle. A render
   probe if picking in this mode needs one.
+
+  As built (2026-11-03), with open question 6 taken as recommended, both ends of a pair in the
+  raster view:
+
+  - **The view.** `InteractiveTool::supportsRasterView()`, like `supportsUvView()`, lets a tool
+    have input, its overlay and surface picks in the raster view. `executePendingDepthPick`
+    takes the matrices to project with from its caller: the trackball's in the 3D scene, and
+    in the raster view the ones that frame was drawn with, the raster's camera behind the
+    image's pan and zoom. Each raster-mode frame used to drop any pending pick, a guard from
+    when nothing picked there; `scheduleDepthPick` now lets only a tool's pick through, so the
+    guard went. `widgetToRasterImage` and `rasterImageToWidget` map the widget to the image
+    and back.
+  - **`RasterAlignTool`** (`src/render/tools/rasteraligntool.{h,cpp}`).
+    - A left drag pairs the surface under the press with the image pixel under the release.
+      The press's pick can report after the release, and the pair waits for both. A click is a
+      pair too, of a point already in place; the first version dropped short drags, and the
+      probe below lost a pair to that.
+    - Each pair is drawn as a line from where the raster's camera projects its point to its
+      pixel.
+    - The controls are *Fit*, *Focal Length*, *Undo*, *Clear*, *Save* and *Load*; the files are
+      the filter's JSON.
+    - Pairs are kept per `rasterId` while the tool is engaged.
+    - Engaging it switches the view to the raster when the raster has a camera.
+    - Its icons are old MeshLab's `edit_mutualcorrs` ones.
+  - **Checked on screen, not in ctest.** No Qt test can link `RenderWidget`, and a capture
+    probe does not see the tool's overlay or picks. So a temporary hook in `main.cpp`, since
+    removed, ran the real window:
+    1. It loaded the gargoyle and moved camera 0 by 3° and 2% of the model, 9.03 px off.
+    2. It engaged the tool and zoomed the view.
+    3. It dragged from where the moved camera draws 9 visible vertices to where the true camera
+       puts them, and pressed `F`.
+    4. All 9 picks hit, the fit left 0.26 px root mean square on the pairs, and the camera came
+       back to 0.69 px from the true one.
+    The rest is the press being rounded to a whole widget pixel, which `requestSurfacePick`
+    takes. The result is the same on Metal and on OpenGL, whose readback is flipped.
 - **3c. Mutual information.**
   - First, measure one rendering and one evaluation on gargoyle and on `2930_35.ply`.
   - Then the item buffer, the metric and the filter.
