@@ -56,9 +56,9 @@ name is the version, and `release.yml` takes it from there.
    git tag 2026.11 main && git push origin 2026.11
    ```
 
-4. `release.yml` checks the tag, builds the signed macOS DMG and the Windows ZIP, and
-   creates a **draft** GitHub Release with both attached and generated notes. Watch it
-   in the Actions tab.
+4. `release.yml` checks the tag, builds the signed macOS DMG, the Windows ZIP, the Linux
+   AppImage and the `pymeshlab2` wheels, and creates a **draft** GitHub Release with all
+   of them attached and generated notes. Watch it in the Actions tab.
 5. Open the draft, download and try the artifacts, then publish it by hand.
 
 The workflow stops before building if the tag does not equal `MESHLAB2_VERSION` or the
@@ -77,6 +77,22 @@ Artifacts built for a release are named `MeshLab-<version>-<platform>`; those bu
 push are named `MeshLab-<date>-<commit>-<platform>` and expire after 14 days. Actions
 artifacts are visible only to logged-in GitHub users, which is why a release attaches
 its files to the GitHub Release instead.
+
+## Python wheels
+
+`wheels.yml` builds `pymeshlab2` with cibuildwheel for CPython 3.10–3.14 on macOS
+arm64 and Windows x64, and runs `python/tests` against every wheel. Its settings are
+in `pyproject.toml` (`[tool.cibuildwheel]`), so a local `cibuildwheel` run builds the
+same thing. The wheel's version is `MESHLAB2_VERSION`, read by scikit-build-core, so a
+tagged release and its wheels always agree.
+
+It runs on a release tag (called by `release.yml`), by hand, and on `devel` pushes that
+touch the bindings or the packaging (`src/python`, `python/`, `pyproject.toml`,
+`vcpkg.json`, the macOS repair script). Plugin changes do not trigger it: the
+application workflows already build every plugin on every push.
+
+The wheels are attached to the draft release; they do not reach PyPI on their own.
+Publishing is a separate, deliberate step, not yet automated — see Open items.
 
 ## Hotfixes
 
@@ -121,3 +137,9 @@ default branch. Otherwise every release starts from a cold cache.
   repository's cache budget is shared. Revisit if tests should gate pull requests.
 - Move the signing secrets into a protected `release` environment with required
   reviewers.
+- Publish the wheels to PyPI. `pymeshlab2` is not registered there yet. The
+  recommended route is a trusted publisher (PyPI → the project → Publishing, naming
+  this repository and `release.yml`) and a `pypa/gh-action-pypi-publish` job after
+  `publish`, run from a protected environment so a person approves each upload.
+- Linux wheels: `wheels.yml` builds macOS and Windows only. A manylinux build needs
+  Qt and the vcpkg tree inside cibuildwheel's container.

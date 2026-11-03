@@ -1,0 +1,286 @@
+name: Python Wheels
+
+# Builds and tests the pymeshlab2 wheels (CPython 3.10-3.14, macOS arm64 and Windows
+# x64) with cibuildwheel, whose settings live in pyproject.toml. The Qt and vcpkg
+# setup follows macos-dmg.yml and windows-portable.yml, with one difference that
+# matters: the wheel's vcpkg tree is installed without the manifest's default
+# python-console feature, so it is cached under its own key (see pyproject.toml).
+on:
+  workflow_dispatch:
+  # Called by release.yml, so a tag builds the wheels with the application.
+  workflow_call:
+  push:
+    branches: [devel]
+    # The packaging workflows already build every plugin on each push; what only this
+    # one exercises is the binding layer and the wheel's packaging, so it runs when
+    # those change.
+    paths:
+      - 'src/python/**'
+      - 'python/**'
+      - 'pyproject.toml'
+      - 'vcpkg.json'
+      - 'scripts/repair_macos_wheel.py'
+      - '.github/workflows/wheels.yml'
+
+permissions:
+  contents: read
+
+# Same policy as the packaging workflows: a push cancels the build it supersedes, a
+# manual run gets a group of its own.
+concurrency:
+  group: wheels-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'push' }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: Wheels (macOS arm64)
+    # Pinned for the same reason as macos-dmg.yml: the SDK must match the 15.0
+    # deployment target.
+    runs-on: macos-15
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      QT_VERSION: 6.11.2
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      VCPKG_TARGET_TRIPLET: arm64-osx
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/ci/vcpkg-triplets
+      VCPKG_INSTALLED_DIR: ${{ github.workspace }}/build-wheel-vcpkg
+      # The extension has to load wherever the application does. cibuildwheel also
+      # takes the wheel's platform tag from this; left unset, it is the runner's OS.
+      MACOSX_DEPLOYMENT_TARGET: '15.0'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Fetch submodules
+        uses: ./.github/actions/fetch-submodules
+
+      - name: Install macOS build dependencies
+        run: |
+          # GMP is built from source by vcpkg and its autoreconf step needs the GNU
+          # autotools; libomp, as in macos-dmg.yml, comes from Homebrew.
+          brew install ninja libomp autoconf autoconf-archive automake libtool
+
+      - name: Expose build tools
+        run: |
+          echo "OpenMP_ROOT=$(brew --prefix libomp)" >> "$GITHUB_ENV"
+          echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> "$GITHUB_ENV"
+          echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> "$GITHUB_ENV"
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          arch: clang_64
+          modules: qtshadertools qtimageformats
+          cache: true
+          # Shared with macos-dmg.yml: the same Qt, so the same cache entry.
+          cache-key-prefix: meshlab-qt-macos-imgfmt
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
+          baseline="$(python3 -c 'import json; print(json.load(open("vcpkg.json"))["builtin-baseline"])')"
+          git -C "$VCPKG_ROOT" checkout --detach "$baseline"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: Restore vcpkg artifacts
+        id: restore-vcpkg-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/Library/Caches/vcpkg/archives
+            ${{ env.VCPKG_ROOT }}/downloads
+            ${{ env.VCPKG_INSTALLED_DIR }}
+          # Run id for the same reason as macos-dmg.yml: a content-only key is never
+          # rewritten once it matches.
+          key: wheels-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
+          restore-keys: |
+            wheels-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-
+            wheels-vcpkg-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install vcpkg dependencies
+        id: vcpkg-install
+        run: |
+          set -o pipefail
+          "$VCPKG_ROOT/vcpkg" install \
+            --triplet "$VCPKG_TARGET_TRIPLET" \
+            --overlay-triplets="$VCPKG_OVERLAY_TRIPLETS" \
+            --x-manifest-root="$GITHUB_WORKSPACE" \
+            --x-install-root="$VCPKG_INSTALLED_DIR" \
+            --x-no-default-features \
+            --clean-after-build 2>&1 | tee "$GITHUB_WORKSPACE/vcpkg-install.log"
+          if grep -q '^Building ' "$GITHUB_WORKSPACE/vcpkg-install.log"; then
+            echo "rebuilt=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rebuilt=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Save vcpkg artifacts
+        if: steps.restore-vcpkg-cache.outputs.cache-hit != 'true' || steps.vcpkg-install.outputs.rebuilt == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/Library/Caches/vcpkg/archives
+            ${{ env.VCPKG_ROOT }}/downloads
+            ${{ env.VCPKG_INSTALLED_DIR }}
+          key: wheels-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
+
+      - name: Upload vcpkg failure logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pymeshlab2-macos-vcpkg-logs
+          path: |
+            ${{ github.workspace }}/vcpkg-install.log
+            ${{ env.VCPKG_ROOT }}/buildtrees/**/*.log
+            ${{ env.VCPKG_ROOT }}/buildtrees/**/*.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      # scikit-build-core passes CMAKE_ARGS to every configure; the repair script reads
+      # QT_ROOT_DIR, VCPKG_INSTALLED_DIR and VCPKG_TARGET_TRIPLET from the environment.
+      - name: Configure the wheel build
+        run: |
+          echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR;$OpenMP_ROOT" >> "$GITHUB_ENV"
+          echo "CMAKE_ARGS=-DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=$VCPKG_TARGET_TRIPLET -DVCPKG_OVERLAY_TRIPLETS=$VCPKG_OVERLAY_TRIPLETS -DVCPKG_INSTALLED_DIR=$VCPKG_INSTALLED_DIR -DVCPKG_MANIFEST_INSTALL=OFF -DOpenMP_ROOT=$OpenMP_ROOT -DOpenMP_CXX_INCLUDE_DIR=$OpenMP_ROOT/include -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=$OpenMP_ROOT/lib/libomp.dylib" >> "$GITHUB_ENV"
+
+      - name: Build and test wheels
+        uses: pypa/cibuildwheel@v4.2.0
+        with:
+          output-dir: wheelhouse
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v7
+        with:
+          name: pymeshlab2-wheels-macos-arm64
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    name: Wheels (Windows x64)
+    runs-on: windows-2022
+    env:
+      VCPKG_ROOT_WORKSPACE: ${{ github.workspace }}\vcpkg
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}\ci\vcpkg-triplets
+      # Declared rather than left at %LOCALAPPDATA%; see windows-portable.yml.
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg-archives
+      VCPKG_TARGET_TRIPLET: x64-windows-release
+      VCPKG_INSTALLED_DIR: ${{ github.workspace }}\build-wheel-vcpkg
+      # The Qt that windows-portable.yml ships, for install-qt-windows.
+      QT_VERSION: 6.11.0
+      QT_ARCH: msvc2022_64
+      QT_INSTALL_DIR: ${{ github.workspace }}\Qt
+      QT_PACKAGE_BASE_URL: https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6110/qt6_6110_msvc2022_64
+      QT_PACKAGE_NAMES: qt.qt6.6110.win64_msvc2022_64;qt.qt6.6110.addons.qtshadertools.win64_msvc2022_64;qt.qt6.6110.addons.qtimageformats.win64_msvc2022_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Fetch submodules
+        uses: ./.github/actions/fetch-submodules
+
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Restore workspace tool roots
+        shell: pwsh
+        run: |
+          "VCPKG_ROOT=$env:VCPKG_ROOT_WORKSPACE" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Qt
+        uses: ./.github/actions/install-qt-windows
+
+      - name: Bootstrap vcpkg
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+          $vcpkgBaseline = (Get-Content (Join-Path $env:GITHUB_WORKSPACE "vcpkg.json") | ConvertFrom-Json)."builtin-baseline"
+          git -C $env:VCPKG_ROOT checkout --detach $vcpkgBaseline
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+
+      - name: Restore vcpkg artifacts
+        id: restore-vcpkg-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+            ${{ env.VCPKG_ROOT_WORKSPACE }}\downloads
+            ${{ env.VCPKG_INSTALLED_DIR }}
+          key: wheels-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
+          restore-keys: |
+            wheels-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-
+            wheels-vcpkg-${{ runner.os }}-
+
+      - name: Install vcpkg dependencies
+        id: vcpkg-install
+        shell: pwsh
+        run: |
+          $installLog = Join-Path $env:GITHUB_WORKSPACE "vcpkg-install.log"
+          & "$env:VCPKG_ROOT\vcpkg.exe" install `
+            --triplet "$env:VCPKG_TARGET_TRIPLET" `
+            --overlay-triplets="$env:VCPKG_OVERLAY_TRIPLETS" `
+            --x-manifest-root="$env:GITHUB_WORKSPACE" `
+            --x-install-root="$env:VCPKG_INSTALLED_DIR" `
+            --x-no-default-features `
+            --clean-after-build 2>&1 | Tee-Object -FilePath $installLog
+          if ($LASTEXITCODE -ne 0) {
+            throw "vcpkg install failed with exit code $LASTEXITCODE"
+          }
+          $built = (Select-String -Path $installLog -Pattern '^Building ' -Quiet) -eq $true
+          "rebuilt=$($built.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Save vcpkg artifacts
+        if: steps.restore-vcpkg-cache.outputs.cache-hit != 'true' || steps.vcpkg-install.outputs.rebuilt == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+            ${{ env.VCPKG_ROOT_WORKSPACE }}\downloads
+            ${{ env.VCPKG_INSTALLED_DIR }}
+          key: wheels-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
+
+      - name: Upload vcpkg failure logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pymeshlab2-windows-vcpkg-logs
+          path: |
+            ${{ github.workspace }}\vcpkg-install.log
+            ${{ env.VCPKG_ROOT_WORKSPACE }}\buildtrees\**\*.log
+            ${{ env.VCPKG_ROOT_WORKSPACE }}\buildtrees\**\*.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      # vcpkg's bin on PATH lets delvewheel find the DLLs it bundles into the wheel.
+      - name: Configure the wheel build
+        shell: pwsh
+        run: |
+          $toolchain = (Join-Path $env:VCPKG_ROOT "scripts\buildsystems\vcpkg.cmake").Replace('\', '/')
+          $overlay = $env:VCPKG_OVERLAY_TRIPLETS.Replace('\', '/')
+          $installed = $env:VCPKG_INSTALLED_DIR.Replace('\', '/')
+          "CMAKE_ARGS=-DCMAKE_TOOLCHAIN_FILE=$toolchain -DVCPKG_TARGET_TRIPLET=$env:VCPKG_TARGET_TRIPLET -DVCPKG_OVERLAY_TRIPLETS=$overlay -DVCPKG_INSTALLED_DIR=$installed -DVCPKG_MANIFEST_INSTALL=OFF" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          (Join-Path $env:VCPKG_INSTALLED_DIR "$env:VCPKG_TARGET_TRIPLET\bin") | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build and test wheels
+        uses: pypa/cibuildwheel@v4.2.0
+        with:
+          output-dir: wheelhouse
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v7
+        with:
+          name: pymeshlab2-wheels-windows-x64
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 14

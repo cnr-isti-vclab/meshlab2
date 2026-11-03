@@ -37,6 +37,26 @@ MESHLAB2_PYTHON_WHEEL = "ON"
 MESHLAB2_PYTHON_CONSOLE = "OFF"
 MESHLAB2_MATH_HELP = "OFF"
 
+# Read by cibuildwheel, in CI (.github/workflows/wheels.yml) and locally alike.
+[tool.cibuildwheel]
+build = "cp310-* cp311-* cp312-* cp313-* cp314-*"
+# One build directory for every interpreter. The plugins, nearly all of the build, do
+# not depend on the Python version, so after the first wheel only the extension module
+# and the nanobind runtime are rebuilt; a fresh directory per wheel compiled
+# everything five times over.
+config-settings = { "build-dir" = "build-wheel" }
+test-requires = ["pytest"]
+test-command = "python {project}/python/tests/wheel_smoke.py && python -m pytest {project}/python/tests"
+
+[tool.cibuildwheel.macos]
+archs = ["arm64"]
+repair-wheel-command = "python {project}/scripts/repair_macos_wheel.py {wheel} {dest_dir}"
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64"]
+before-build = "pip install delvewheel"
+repair-wheel-command = "delvewheel repair --analyze-existing -w {dest_dir} -v {wheel}"
+
 [tool.pytest.ini_options]
 testpaths = ["python/tests"]
 markers = [

@@ -1,0 +1,89 @@
+name: Install Qt on Windows
+description: >
+  Installs the Qt SDK named by the calling job's environment (QT_VERSION, QT_ARCH,
+  QT_INSTALL_DIR, QT_PACKAGE_BASE_URL, QT_PACKAGE_NAMES) from Qt's public archives,
+  cached across runs, and exposes it: Qt's bin on PATH, and QT_ROOT_DIR,
+  CMAKE_PREFIX_PATH and Qt6_DIR in the environment. Needs Python on PATH.
+
+runs:
+  using: composite
+  steps:
+    - name: Cache Qt SDK
+      id: cache-qt
+      uses: actions/cache@v6
+      with:
+        path: ${{ env.QT_INSTALL_DIR }}
+        key: windows-qt-${{ runner.os }}-${{ env.QT_VERSION }}-${{ env.QT_ARCH }}-qtshadertools-qtimageformats-public-archives
+
+    - name: Install Qt from public archives
+      if: steps.cache-qt.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install "py7zr==1.0.*"
+        $scriptPath = Join-Path $env:RUNNER_TEMP "install_qt_public.py"
+        @(
+          'import os',
+          'import pathlib',
+          'import re',
+          'import urllib.request',
+          'import xml.etree.ElementTree as ET',
+          '',
+          'import py7zr',
+          '',
+          'base_url = os.environ["QT_PACKAGE_BASE_URL"].rstrip("/")',
+          'install_dir = pathlib.Path(os.environ["QT_INSTALL_DIR"])',
+          'package_names = [name for name in os.environ["QT_PACKAGE_NAMES"].split(";") if name]',
+          'download_dir = install_dir / "_downloads"',
+          'download_dir.mkdir(parents=True, exist_ok=True)',
+          '',
+          'updates_path = download_dir / "Updates.xml"',
+          'print(f"Downloading metadata: {base_url}/Updates.xml")',
+          'urllib.request.urlretrieve(f"{base_url}/Updates.xml", updates_path)',
+          '',
+          'root = ET.parse(updates_path).getroot()',
+          'packages = {}',
+          'for node in root.findall("./PackageUpdate"):',
+          '    name = node.findtext("Name")',
+          '    if name:',
+          '        packages[name] = node',
+          '',
+          'for package_name in package_names:',
+          '    if package_name not in packages:',
+          '        raise RuntimeError(f"Package {package_name} not found in Updates.xml")',
+          '    node = packages[package_name]',
+          '    version = (node.findtext("Version") or "").strip()',
+          '    archives_text = node.findtext("DownloadableArchives") or ""',
+          '    archives = [item for item in re.split(r"[\s,]+", archives_text) if item]',
+          '    if not version or not archives:',
+          '        raise RuntimeError(f"Package {package_name} is missing version or archives metadata")',
+          '',
+          '    print(f"Installing {package_name}")',
+          '    for archive in archives:',
+          '        filename = f"{version}{archive}"',
+          '        archive_url = f"{base_url}/{package_name}/{filename}"',
+          '        archive_path = download_dir / filename',
+          '        print(f"  download {archive_url}")',
+          '        urllib.request.urlretrieve(archive_url, archive_path)',
+          '        print(f"  extract {archive_path.name}")',
+          '        with py7zr.SevenZipFile(archive_path, mode="r") as bundle:',
+          '            bundle.extractall(path=install_dir)',
+          '',
+          'for path in download_dir.iterdir():',
+          '    path.unlink()',
+          'download_dir.rmdir()'
+        ) -join "`n" | Set-Content -Path $scriptPath -Encoding utf8
+        python $scriptPath
+
+    - name: Expose Qt tools
+      shell: pwsh
+      run: |
+        $qtConfig = Get-ChildItem $env:QT_INSTALL_DIR -Recurse -Filter Qt6Config.cmake | Select-Object -First 1
+        if ($null -eq $qtConfig) {
+          throw "Qt6Config.cmake not found under $env:QT_INSTALL_DIR"
+        }
+        $qtRootDir = Split-Path (Split-Path (Split-Path (Split-Path $qtConfig.FullName -Parent) -Parent) -Parent) -Parent
+        "$qtRootDir\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        "QT_ROOT_DIR=$qtRootDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        "CMAKE_PREFIX_PATH=$qtRootDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        "Qt6_DIR=$qtRootDir\lib\cmake\Qt6" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append

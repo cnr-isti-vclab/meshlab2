@@ -57,9 +57,13 @@ jobs:
       release_version: ${{ github.ref_name }}
     secrets: inherit
 
+  wheels:
+    needs: check
+    uses: ./.github/workflows/wheels.yml
+
   publish:
     name: Create draft release
-    needs: [macos, windows, linux]
+    needs: [macos, windows, linux, wheels]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -70,12 +74,20 @@ jobs:
           merge-multiple: true
           path: release
 
+      # The wheels go on the draft release beside the application; uploading them to
+      # PyPI is a separate, deliberate step (docs/design/release_process.md).
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: pymeshlab2-wheels-*
+          merge-multiple: true
+          path: release
+
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -l release
-          gh release create "$GITHUB_REF_NAME" release/*.dmg release/*.zip release/*.AppImage \
+          gh release create "$GITHUB_REF_NAME" release/*.dmg release/*.zip release/*.AppImage release/*.whl \
             --repo "$GITHUB_REPOSITORY" \
             --title "MeshLab $GITHUB_REF_NAME" \
             --generate-notes \

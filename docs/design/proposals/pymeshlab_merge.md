@@ -8,7 +8,8 @@ and retiring the separate repository, and records the mapping table required by
 **Status (2026-11-03):** both tables approved. The in-app facade rename is done,
 and so are steps 2 and 3: `pip wheel .` builds `pymeshlab2` from this tree, the
 wheel exposes the same 405 filters as the application, and `pytest` runs green
-against it. Steps 4–6 (CI, tag, archive) have not started.
+against it. Step 4 (CI) is written but not yet proven: it needs a push. Steps 5–6
+(tag, archive) have not started.
 
 See also: [LLM Integration](llm_integration.md) (why wheel/app convergence came up),
 [Branches and Releases](../release_process.md) (the release machinery this would join),
@@ -66,7 +67,7 @@ relative to this repository.
 | 6 | `pytest.ini` | `pyproject.toml` `[tool.pytest.ini_options]` | Three marker definitions only (`examples`, `filters`, `smoke`). | **Merge** into row 5 |
 | 7 | `.gitignore` | `.gitignore` | Ours has **no** Python entries (`__pycache__`, `*.so`, `dist/`, `*.egg-info/`, `.pytest_cache/`, `wheelhouse/`, `_skbuild/`). Theirs also ignores `.reference/`, which ours already does. | **Merge** the Python block |
 | 8 | `CMakeLists.txt` | split three ways | 96 lines. Lines 10–23: nine `MESHLAB2_*` toggles. Lines 28–50: nanobind discovery with a FetchContent fallback — **redundant here**, since `find_package(nanobind CONFIG REQUIRED)` already runs at `CMakeLists.txt:170` and `nanobind` is in our vcpkg manifest. Lines 52–64: `sources.cmake` + `nanobind_add_module(_meshlab …)` + link `MeshLab2Plugins`. Lines 66–95: install rules for the module, quadwild binaries and config, and the geogram DLL. | **Split** — see below |
-| 9 | `.github/workflows/wheels.yml` | `.github/workflows/wheels.yml` | ~300 lines. Qt install, vcpkg bootstrap/baseline/cache/install, overlay triplets, failure-log upload — all already present in our three packaging workflows. Genuinely new: the `cibuildwheel@v4.2.0` step, the `CIBW_*` matrix (cp310–cp314, macOS arm64 + Windows x64), and the two `CMAKE_ARGS` composition steps. | **Move + collapse** onto existing steps |
+| 9 | `.github/workflows/wheels.yml` | `.github/workflows/wheels.yml` | ~300 lines. Qt install, vcpkg bootstrap/baseline/cache/install, overlay triplets, failure-log upload — all already present in our three packaging workflows. Genuinely new: the `cibuildwheel@v4.2.0` step, the `CIBW_*` matrix (cp310–cp314, macOS arm64 + Windows x64), and the two `CMAKE_ARGS` composition steps. | **Move + collapse** onto existing steps. *Done in step 4*: rewritten on the step shapes of `macos-dmg.yml` and `windows-portable.yml`, with their fixes (`fetch-submodules`, run-id cache keys, declared Windows binary cache). The Windows Qt install moved into `.github/actions/install-qt-windows`, now shared with `windows-portable.yml`; the `CIBW_*` settings moved into `pyproject.toml` `[tool.cibuildwheel]` |
 | 10 | `scripts/repair_macos_wheel.py` | `scripts/repair_macos_wheel.py` | Rewrites Qt framework install names inside the wheel and re-signs; no counterpart in `scripts/` (which holds `package-macos-dmg.sh`, `package-linux-appimage.sh`). | **Move** unchanged |
 | 11 | `python/pymeshlab2/__init__.py` | `python/pymeshlab2/__init__.py` | ~35 lines: `MESHLAB2_QUADWILD_ROOT` default, geogram runtime preload for macOS/Windows, then `from ._meshlab import FilterInfo, FilterRunResult, Mesh, MeshSet`. | **Move** |
 | 12 | `examples/__init__.py` | — | Empty; existed so `test_examples.py` could import the examples as a package. | **Dropped** in step 3 (was *Move*): the test now loads examples by path, see below |
@@ -75,7 +76,7 @@ relative to this repository.
 | 20 | `tests/test_mesh.py` | `python/tests/test_mesh.py` | 24 lines; exercises the `Mesh` bindings added in `pymesh.cpp`. | **Move + edit** paths |
 | 21 | `tests/test_single_mesh_filters.py` | — | 64 lines. Reads `external/meshlab2/plugins/*/filters.json`, intersects with `list_filters()`, runs each `SingleMesh` filter with defaults in a subprocess, skipping on `applicable == false`. | **Dropped** in step 3 (was *Move + simplify paths*), replaced by a parity test; see below |
 | 22 | `tests/test_smoke.py` | `python/tests/test_smoke.py` | 63 lines; import and basic MeshSet scaffold checks. | **Move + edit**; gains the parity test |
-| 23 | `tests/wheel_smoke.py` | `python/tests/wheel_smoke.py` | 37 lines; the `CIBW_TEST_COMMAND`. Asserts three named filters exist, runs two, and checks the bundled geogram library and quadwild binaries are present and loadable. | **Move** |
+| 23 | `tests/wheel_smoke.py` | `python/tests/wheel_smoke.py` | 37 lines; the first half of cibuildwheel's `test-command`, before `pytest`. Asserts three named filters exist, runs two, and checks the bundled geogram library and quadwild binaries are present and loadable. | **Move** |
 
 **Totals:** 23 files → 5 dropped (rows 1–3, and 12 and 21 in step 3), 2 folded into
 other files (rows 6–7), 1 split across three destinations (row 8), 1 rewritten
@@ -207,6 +208,22 @@ independent of the wheel move and can land first, as its own commit.
 - **cibuildwheel's isolated build environment** must see the vcpkg install tree
   the way the existing workflows lay it out. This is the one mechanically unknown
   piece and should be proven on a branch before the sibling repo is archived.
+  `wheels.yml` installs the tree outside the build directory (`build-wheel-vcpkg`),
+  without default features, and hands it over through `CMAKE_ARGS`.
+- *Measured in step 4:* every interpreter builds into one `build-wheel` directory
+  (`[tool.cibuildwheel] config-settings`). Locally, switching a built tree from
+  CPython 3.12 to 3.13 recompiled only nanobind, `_meshlab` and `MeshLab2Core` —
+  23 seconds — where the sibling's fresh directory per wheel rebuilt every plugin
+  five times over. The cp312 wheel built that way passes `python/tests` too.
+- **Texture Consolidation stays on in the wheels**, unlike the DMG, which turns it
+  off on the 7 GB macOS runner because its stitcher alone compiles for an hour.
+  Turning it off would make the wheel's filter set differ from the descriptors and
+  fail `test_wheel_exposes_every_declared_filter`; the wheels run on tags, by hand
+  and on binding changes only, so the hour is paid rarely. Its helper programs are
+  not bundled into the wheel yet, as they are not into the DMG.
+- **PyPI upload is not automated.** The wheels go on the draft GitHub Release. The
+  trusted-publisher route is described under Open items in
+  [Branches and Releases](../release_process.md).
 
 ## Order of operations
 
@@ -221,6 +238,9 @@ independent of the wheel move and can land first, as its own commit.
    `wheel_smoke.py` passes too. Run from the repository root with the wheel
    installed: `python -m pytest`.
 4. CI: row 9, plus a `wheels` job in `release.yml`. Prove green on `devel`.
+   *Written*: `wheels.yml` (on `devel` pushes touching the bindings or packaging, by
+   hand, and from `release.yml`, which attaches the wheels to the draft release).
+   Not yet proven: that takes a push.
 5. Tag a release; confirm the wheel builds from the tag.
 6. Only then archive `cignoni/pymeshlab2`.
 
