@@ -3,6 +3,7 @@
 #include "document.h"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFileInfo>
@@ -99,6 +100,16 @@ bool run(const Request &request, Document &doc, QString &error)
     process.setProcessChannelMode(QProcess::MergedChannels);
 #ifdef Q_OS_UNIX
     process.setChildProcessModifier([] { ::setpgid(0, 0); });
+#endif
+#ifdef Q_OS_WIN
+    // Helpers built against MeshLab's vcpkg tree load its DLLs (TextureConsolidation's
+    // libpng, libjpeg and zlib), which sit beside the application rather than beside the
+    // helper. Windows looks for a program's DLLs in its own directory, then on PATH.
+    QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    environment.insert(QStringLiteral("PATH"),
+                       QDir::toNativeSeparators(QCoreApplication::applicationDirPath()) + QLatin1Char(';')
+                           + environment.value(QStringLiteral("PATH")));
+    process.setProcessEnvironment(environment);
 #endif
     process.start(request.program, request.arguments);
     if (!process.waitForStarted()) {

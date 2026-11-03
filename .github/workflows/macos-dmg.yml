@@ -212,14 +212,9 @@ jobs:
         with:
           mode: restore
 
-      # TextureConsolidation is off here: its stitcher is one translation unit that needs
-      # over 4 GB to compile, and on this 7 GB runner it took an hour on its own. The DMG
-      # does not bundle its helper programs yet, so the filter could not run from it
-      # anyway. Turn it back on with the bundling (docs/design/proposals/texture_consolidation.md).
       - name: Configure
         run: |
           cmake --preset vcpkg-manifest \
-            -DMESHLAB2_PLUGIN_FILTER_TEXTURE_CONSOLIDATION=OFF \
             -DMESHLAB2_RELEASE_BUILD=${{ inputs.release_version && 'ON' || 'OFF' }} \
             -B "$BUILD_DIR" \
             -DCMAKE_BUILD_TYPE=Release \

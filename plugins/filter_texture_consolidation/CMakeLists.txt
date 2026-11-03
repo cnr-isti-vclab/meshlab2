@@ -145,9 +145,8 @@ target_link_libraries(MeshLab2PluginFilterTextureConsolidation PUBLIC
     Qt6::Core
     Qt6::Gui
 )
-# The build tree, as the last place the plugin looks for its helpers: what a developer
-# running from the build directory has. Bundling them into the application is a
-# separate step, not done yet.
+# The build tree, as the last place the plugin looks for its helpers, after where
+# meshlab2_bundle_texture_consolidation() below puts them.
 target_compile_definitions(MeshLab2PluginFilterTextureConsolidation PRIVATE
     "MESHLAB2_TEXTURE_CONSOLIDATION_BUILD_DIR=\"${TEXTURE_CONSOLIDATION_BIN_DIR}\"")
 
@@ -155,3 +154,33 @@ qt_add_resources(MeshLab2PluginFilterTextureConsolidation "filter_texture_consol
     PREFIX "/filters/meshlab2.filter.texture_consolidation"
     FILES filters.json
 )
+
+# Called after the MeshLab executable target exists. Copies the helpers to where the plugin
+# looks first (helperDirectory()): Contents/Helpers on macOS, texture-consolidation/bin
+# beside the executable elsewhere -- with a single-config generator that directory is also
+# the helpers' own build tree, so packaging copies bin/ and LICENSE.txt out of it, not the
+# whole directory. A target of its own rather than a POST_BUILD step as for QuadWild: that
+# would make the application depend on the helpers, and hold back its compiles behind the
+# stitcher (see add_library above).
+function(meshlab2_bundle_texture_consolidation target)
+    if(APPLE)
+        set(_helper_dir "$<TARGET_BUNDLE_DIR:${target}>/Contents/Helpers/texture-consolidation")
+        set(_resource_dir "$<TARGET_BUNDLE_DIR:${target}>/Contents/Resources/texture-consolidation")
+    else()
+        set(_resource_dir "$<TARGET_FILE_DIR:${target}>/texture-consolidation")
+        set(_helper_dir "${_resource_dir}/bin")
+    endif()
+    add_custom_target(MeshLab2TextureConsolidationBundle ALL
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${_helper_dir}" "${_resource_dir}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            ${TEXTURE_CONSOLIDATION_EXECUTABLES} "${_helper_dir}/"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "${MESHLAB2_SOURCE_DIR}/external/texture-consolidation/LICENSE" "${_resource_dir}/LICENSE.txt"
+        COMMENT "Bundling the TextureConsolidation helpers"
+        VERBATIM
+    )
+    add_dependencies(MeshLab2TextureConsolidationBundle ${target})
+    if(TARGET MeshLab2TextureConsolidationHelpers)
+        add_dependencies(MeshLab2TextureConsolidationBundle MeshLab2TextureConsolidationHelpers)
+    endif()
+endfunction()

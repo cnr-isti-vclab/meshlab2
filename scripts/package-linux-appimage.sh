@@ -47,11 +47,27 @@ rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/bin"
 install -m 755 "$BUILD_DIR/MeshLab" "$APPDIR/usr/bin/MeshLab"
 
-# QuadWild's helpers. Beside the executable, which is where the plugin looks, but only
-# what the build copied there: that directory is also QuadWild's own build tree.
-HELPERS="$BUILD_DIR/quadwild-bimdf"
-mkdir -p "$APPDIR/usr/bin/quadwild-bimdf"
-cp -a "$HELPERS/bin" "$HELPERS/config" "$HELPERS/LICENSE.txt" "$APPDIR/usr/bin/quadwild-bimdf/"
+# The helper programs of QuadWild and, when built, TextureConsolidation. Beside the
+# executable, which is where the plugins look, but only what the build copied there: each
+# directory is also that helper set's own build tree.
+HELPER_EXECUTABLES=()
+for set in quadwild-bimdf texture-consolidation; do
+	HELPERS="$BUILD_DIR/$set"
+	if [ ! -d "$HELPERS/bin" ]; then
+		# TextureConsolidation's plugin can be off or skipped; QuadWild's cannot.
+		[ "$set" = texture-consolidation ] && continue
+		echo "$HELPERS/bin not found - build it first" >&2
+		exit 1
+	fi
+	mkdir -p "$APPDIR/usr/bin/$set"
+	cp -a "$HELPERS/bin" "$HELPERS/LICENSE.txt" "$APPDIR/usr/bin/$set/"
+	if [ -d "$HELPERS/config" ]; then
+		cp -a "$HELPERS/config" "$APPDIR/usr/bin/$set/"
+	fi
+	for exe in "$APPDIR/usr/bin/$set/bin"/*; do
+		HELPER_EXECUTABLES+=(--executable "$exe")
+	done
+done
 
 # The Python standard library. libpython is linked in statically and knows only the prefix
 # of the tree that built it, so PythonHost looks for <executable dir>/python instead. Copied
@@ -96,8 +112,7 @@ export PATH="$(dirname "$LINUXDEPLOY"):$PATH"
 
 "$LINUXDEPLOY" --appdir "$APPDIR" \
 	--executable "$APPDIR/usr/bin/MeshLab" \
-	--executable "$APPDIR/usr/bin/quadwild-bimdf/bin/quadwild" \
-	--executable "$APPDIR/usr/bin/quadwild-bimdf/bin/quad_from_patches" \
+	"${HELPER_EXECUTABLES[@]}" \
 	--desktop-file "$BUILD_DIR/MeshLab.desktop" \
 	--icon-file "$BUILD_DIR/MeshLab.png" \
 	--plugin qt \

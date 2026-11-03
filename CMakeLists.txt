@@ -478,6 +478,9 @@ target_link_libraries(MeshLab2 PRIVATE
 if(COMMAND meshlab2_bundle_quadwild)
     meshlab2_bundle_quadwild(MeshLab2)
 endif()
+if(COMMAND meshlab2_bundle_texture_consolidation)
+    meshlab2_bundle_texture_consolidation(MeshLab2)
+endif()
 
 if(MESHLAB2_PYTHON_CONSOLE)
     target_sources(MeshLab2 PRIVATE

@@ -255,9 +255,7 @@ jobs:
           cd "$BUILD_DIR"
           chmod +x "$RELEASE_ARTIFACT_STEM.AppImage"
           "./$RELEASE_ARTIFACT_STEM.AppImage" --appimage-extract > /dev/null
-          for exe in squashfs-root/usr/bin/MeshLab \
-                     squashfs-root/usr/bin/quadwild-bimdf/bin/quadwild \
-                     squashfs-root/usr/bin/quadwild-bimdf/bin/quad_from_patches; do
+          for exe in squashfs-root/usr/bin/MeshLab squashfs-root/usr/bin/*/bin/*; do
             if ldd "$exe" | grep "not found"; then
               echo "$exe has unresolved libraries" >&2
               exit 1

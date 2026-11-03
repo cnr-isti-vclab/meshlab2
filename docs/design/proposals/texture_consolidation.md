@@ -227,14 +227,21 @@ intrinsic did on the raster fixture before (see `AGENTS.md`).
   missing OpenMP inside an `ExternalProject` fails the whole build at build time, so on
   macOS the plugin looks for a runtime at configure time with the hints
   `filter_screened_poisson` uses (`OpenMP_ROOT`, then Homebrew's `libomp`) and skips
-  itself with a message when there is none; GCC and MSVC bring their own. On macOS the helpers then need a `libomp` at run
-  time: whether the one the application already ships is reachable from
-  `Contents/Helpers` is to be verified.
-- **Bundling:** `meshlab2_bundle_quadwild` is QuadWild-specific, and the three release
-  workflows (AppImage, Windows portable, macOS DMG) have QuadWild-specific steps. With
-  a second helper package the bundling function should become a general one taking a
-  name, executables and resources, rather than being copied. That is a small refactor,
-  with its own mapping table when it happens.
+  itself with a message when there is none; GCC and MSVC bring their own. On macOS the
+  helpers link Homebrew's `libomp` by absolute path, and `package-macos-dmg.sh` points
+  them at the copy the application already ships in `Contents/Frameworks`.
+- **Bundling:** `meshlab2_bundle_texture_consolidation` puts the three programs where
+  the plugin looks first, `Contents/Helpers/texture-consolidation` on macOS and
+  `texture-consolidation/bin` beside the executable elsewhere, with the licence beside
+  them. It stays a sibling of `meshlab2_bundle_quadwild` rather than a general function:
+  the two differ in what they copy and in how they are ordered (a target of its own here,
+  so the application does not wait for the stitcher), and a general one would also need a
+  way for each plugin to register its set with the root `CMakeLists.txt`. The packaging
+  steps are general: the AppImage script and the Windows workflow copy `bin`, `config`
+  and the licence of each helper set present, not the whole directory, which with a
+  single-config generator is also that set's build tree. On Windows the helpers load
+  vcpkg DLLs that sit beside `MeshLab.exe`, so `HelperProcess` puts the application's
+  directory on their `PATH`, and the portable workflow checks that each one starts.
 
 ## A fork with changes proposed upstream
 
@@ -358,9 +365,11 @@ written from its `cameras.json` (the inverse of `pinholecamera.h`; the round tri
 reproduces every camera to float precision), but has not yet been run through the filter.
 
 **Builds.** On macOS the plugin needs an OpenMP runtime (`OpenMP_ROOT`, or Homebrew's
-`libomp`) and skips itself without one. The macOS DMG workflow turns it off: there the
-stitcher took an hour on a 7 GB runner, and the DMG cannot bundle the helpers yet. Windows
-(MSVC) builds all three helpers, without running ctest. The Linux AppImage moved from
+`libomp`) and skips itself without one. The DMG, the Windows ZIP and the AppImage bundle
+the helpers, which CI keeps between runs (`.github/actions/helper-cache`); the DMG had it
+off while the stitcher took an hour on its 7 GB runner, before the compile-cost work below.
+Windows (MSVC) builds all three helpers, without running ctest. The wheels do not build or
+ship them yet: they build only the `_meshlab` target, which does not depend on them. The Linux AppImage moved from
 Ubuntu 22.04 to 24.04, whose GCC 13 the helpers need (see
 [release_process.md](../release_process.md)); there the helpers build and both tests
 pass. The plugin no longer declares a dependency on the helper build, which had held every

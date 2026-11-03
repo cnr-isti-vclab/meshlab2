@@ -87,6 +87,23 @@ if [ -n "$OMP_LINK_PATH" ]; then
 		"@executable_path/../Frameworks/libomp.dylib" "$APP_BIN"
 fi
 
+# The TextureConsolidation helpers link the same Homebrew libomp by absolute path. Point
+# them at the copy above, two levels up from Contents/Helpers/<set>/<program>.
+if [ -d "$APP/Contents/Helpers" ]; then
+	while IFS= read -r -d '' helper; do
+		helper_omp="$(otool -L "$helper" 2>/dev/null | awk '/libomp\.dylib/ {print $1; exit}' || true)"
+		[ -n "$helper_omp" ] || continue
+		[ -f "$APP/Contents/Frameworks/libomp.dylib" ] || {
+			echo "$(basename "$helper") needs libomp, which the application does not link" >&2
+			exit 1
+		}
+		echo "==> repointing $(basename "$helper") at the bundled libomp"
+		chmod u+w "$helper"
+		install_name_tool -change "$helper_omp" \
+			"@executable_path/../../Frameworks/libomp.dylib" "$helper"
+	done < <(find "$APP/Contents/Helpers" -type f -print0)
+fi
+
 # Bundle geogram. It is the only dynamically linked vcpkg dependency: its port
 # forces dynamic linkage on Darwin, so unlike the other 43 it cannot be absorbed
 # into the binary and macdeployqt, which only chases Qt's own libraries, leaves

@@ -242,17 +242,50 @@ jobs:
 
           Copy-Item $exePath $portableDir
 
-          $quadWildDir = Join-Path (Split-Path $exePath -Parent) "quadwild-bimdf"
-          if (!(Test-Path $quadWildDir)) {
-            throw "Bundled QuadWild-BiMDF directory not found beside MeshLab.exe"
+          # The helper programs, from where the build bundled them beside MeshLab.exe. Only
+          # bin, config and the licence: with Ninja each directory is also that helper
+          # set's whole build tree. TextureConsolidation's plugin can be off or skipped.
+          foreach ($set in "quadwild-bimdf", "texture-consolidation") {
+            $helperDir = Join-Path (Split-Path $exePath -Parent) $set
+            if (!(Test-Path (Join-Path $helperDir "bin"))) {
+              if ($set -eq "texture-consolidation") { continue }
+              throw "Bundled $set helpers not found beside MeshLab.exe"
+            }
+            $target = Join-Path $portableDir $set
+            New-Item -ItemType Directory -Force -Path $target | Out-Null
+            foreach ($item in "bin", "config", "LICENSE.txt") {
+              $source = Join-Path $helperDir $item
+              if (Test-Path $source) { Copy-Item $source $target -Recurse }
+            }
           }
-          Copy-Item $quadWildDir (Join-Path $portableDir "quadwild-bimdf") -Recurse
 
           & windeployqt --release --compiler-runtime (Join-Path $portableDir "MeshLab.exe")
 
           $vcpkgBin = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\vcpkg_installed\$env:VCPKG_TARGET_TRIPLET\bin"
           if (Test-Path $vcpkgBin) {
             Copy-Item (Join-Path $vcpkgBin "*.dll") $portableDir -Force -ErrorAction SilentlyContinue
+          }
+
+      # TextureConsolidation's helpers load vcpkg DLLs that are only beside MeshLab.exe;
+      # HelperProcess puts that directory on their PATH, so start each one the same way, with
+      # nothing else on PATH but the system. A missing DLL stops a program before main with
+      # STATUS_DLL_NOT_FOUND; run without arguments, a helper that starts prints its usage.
+      - name: Check that the helpers start
+        shell: pwsh
+        run: |
+          $portableDir = Join-Path $env:GITHUB_WORKSPACE "dist\MeshLab-portable-win64"
+          $env:PATH = "$portableDir;$env:SystemRoot\System32;$env:SystemRoot"
+          foreach ($helper in Get-ChildItem (Join-Path $portableDir "texture-consolidation\bin\*.exe")) {
+            $process = Start-Process -FilePath $helper.FullName -NoNewWindow -PassThru
+            $null = $process.Handle  # without it ExitCode reads empty after the exit
+            if (!$process.WaitForExit(60000)) {
+              $process.Kill()
+              throw "$($helper.Name) did not exit within a minute"
+            }
+            if ($process.ExitCode -eq -1073741515) {
+              throw "$($helper.Name) cannot find a DLL it needs"
+            }
+            "$($helper.Name) started (exit code $($process.ExitCode))"
           }
 
       # Code signing goes here, before the archive: the files inside the ZIP must
