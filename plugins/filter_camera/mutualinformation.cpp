@@ -10,6 +10,9 @@
 
 #include <QElapsedTimer>
 #include <QImage>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMatrix3x3>
 
 #include <algorithm>
@@ -24,14 +27,15 @@ MeshFilterRunResult fail(const QString &m) { return {false, false, m}; }
 // What the rendering shows of the mesh, as old MeshLab's OpenGL programs did; each is the one
 // channel they read back. Normal Map: the normal's component up the image, in eye space.
 // Combined: the vertex color blended with that by t = red^2, red being meant to hold ambient
-// occlusion. Vertex Color: its red.
-enum class Rendering { NormalMap, Combined, VertexColor };
+// occlusion. Vertex Color: its red. Silhouette: the layers white on black.
+enum class Rendering { NormalMap, Combined, VertexColor, Silhouette };
 
 Rendering renderingParam(const FilterParams &p)
 {
     const QString id = p.getEnum(QStringLiteral("rendering"));
     return id == QStringLiteral("normalMap")     ? Rendering::NormalMap
          : id == QStringLiteral("vertexColor")   ? Rendering::VertexColor
+         : id == QStringLiteral("silhouette")    ? Rendering::Silhouette
                                                  : Rendering::Combined;
 }
 
@@ -183,6 +187,7 @@ public:
                         break;
                     }
                     case Rendering::VertexColor: value = color(0); break;
+                    case Rendering::Silhouette: value = 1; break;
                     }
                     m_image[i] = uchar(std::clamp(value, 0.0f, 1.0f) * 255.0f + 0.5f);
                 });
@@ -324,12 +329,14 @@ struct Settings
     bool estimateFocal = false;
     int maxEvaluations = 300;
     double expectedError = 2, tolerance = 0.1, backgroundWeight = 2;
+    double pairsWeight = 0;
 
     explicit Settings(const FilterParams &p, bool focalByDefault)
         : rendering(renderingParam(p)), estimateFocal(p.getBool(QStringLiteral("estimateFocal"), focalByDefault)),
           maxEvaluations(std::max(1, p.getInt(QStringLiteral("maxEvaluations"), 300))),
           expectedError(std::max(1e-3, p.getDouble(QStringLiteral("expectedError"), 2.0))),
-          backgroundWeight(p.getDouble(QStringLiteral("backgroundWeight"), 2.0))
+          backgroundWeight(p.getDouble(QStringLiteral("backgroundWeight"), 2.0)),
+          pairsWeight(std::clamp(p.getDouble(QStringLiteral("pairsWeight"), 0.0), 0.0, 1.0))
     {
         tolerance = std::clamp(p.getDouble(QStringLiteral("tolerance"), 0.1), 1e-4, expectedError);
     }
@@ -338,13 +345,33 @@ struct Settings
 struct Refinement
 {
     CameraShot shot;   // at the working resolution
-    double before = 0, after = 0;
+    double before = 0, after = 0;           // mutual information, in bits
+    double pairsBefore = 0, pairsAfter = 0; // mean distance of the point pairs, in working pixels
     int evaluations = 0;
     bool canceled = false;
 };
 
+// Point pairs for the combined objective: world points and the pixels that show them, in the
+// working resolution's vcg pixels (y up).
+struct Pairs
+{
+    std::vector<vcg::Point3d> points;
+    std::vector<vcg::Point2d> pixels;
+
+    double meanDistance(const vcg::Shotd &shot) const
+    {
+        double sum = 0;
+        for (size_t i = 0; i < points.size(); ++i)
+            sum += (shot.Project(points[i]) - pixels[i]).Norm();
+        return points.empty() ? 0.0 : sum / double(points.size());
+    }
+};
+
 // Maximizes the mutual information between a view's photo and the rendering through its camera,
-// painted by the projectors, by NEWUOA over vcg::ShotResection's parametrization about the
+// painted by the projectors, by NEWUOA. With point pairs it minimizes old MeshLab's combined
+// score instead, (1 - w) (2 - MI) + w d, where d is the pairs' mean distance in working pixels
+// and w the pairs' weight: a sum of bits and pixels, so w is a matter of taste rather than of
+// units. It optimizes over vcg::ShotResection's parametrization about the
 // pivot. It runs in rounds, each starting where the last ended with the scales measured again,
 // until a round gains nothing or the evaluations run out. `progress` reports each evaluation
 // and returns false to cancel: a canceled run then returns the worst value without rendering,
@@ -352,17 +379,27 @@ struct Refinement
 template <class Progress>
 Refinement refine(const Document &doc, const View &view, const std::vector<Projector> &projectors,
                   const std::vector<vcg::Point3d> &samples, const vcg::Point3d &pivot, const Settings &settings,
-                  Progress &&progress)
+                  const Pairs &pairs, Progress &&progress)
 {
     Renderer renderer(doc, settings.rendering, view.width, view.height);
     const auto information = [&](const CameraShot &shot) {
         renderer.render(shot, projectors);
         return mutualInformation(view, renderer.image(), settings.backgroundWeight);
     };
+    const double w = pairs.points.empty() ? 0.0 : settings.pairsWeight;
+    // The score minimized, with the information it was made of
+    const auto score = [&](const vcg::Shotd &shot, double *miOut = nullptr) {
+        const double mi = w < 1 ? information(toCameraShot(shot)) : 0.0;
+        if (miOut)
+            *miOut = mi;
+        return (1 - w) * (2 - mi) + w * pairs.meanDistance(shot);
+    };
     Refinement r;
     r.shot = view.shot;
-    r.before = r.after = information(view.shot);
     vcg::Shotd shot = vcg::Shotd::Construct(view.shot.toVcgShot());
+    double best = score(shot, &r.before);
+    r.after = r.before;
+    r.pairsBefore = r.pairsAfter = pairs.meanDistance(shot);
     while (r.evaluations < settings.maxEvaluations) {
         const vcg::ShotResectiond::Parametrization parameters(shot, samples, pivot, settings.estimateFocal);
         auto objective = [&](int, double *x) {
@@ -373,7 +410,7 @@ Refinement refine(const Document &doc, const View &view, const std::vector<Proje
                 r.canceled = true;
                 return 0.0;
             }
-            return -information(toCameraShot(parameters.ToShot(x)));
+            return score(parameters.ToShot(x));
         };
         double x[7] = {0, 0, 0, 0, 0, 0, 0};
         min_newuoa(parameters.Size(), x, objective, settings.expectedError, settings.tolerance,
@@ -381,11 +418,14 @@ Refinement refine(const Document &doc, const View &view, const std::vector<Proje
         if (r.canceled)
             break;
         const vcg::Shotd fitted = parameters.ToShot(x);
-        const double value = information(toCameraShot(fitted));
-        if (!(value > r.after + 1e-6))
+        double mi = 0;
+        const double value = score(fitted, &mi);
+        if (!(value < best - 1e-6))
             break;
         shot = fitted;
-        r.after = value;
+        best = value;
+        r.after = mi;
+        r.pairsAfter = pairs.meanDistance(fitted);
         r.shot = toCameraShot(fitted);
     }
     return r;
@@ -403,6 +443,23 @@ double displacement(const CameraShot &a, const CameraShot &b, const std::vector<
 }
 
 } // namespace
+
+QString parseCorrespondences(const QString &text, const QSize &viewport, std::vector<vcg::Point3d> &points,
+                             std::vector<vcg::Point2d> &pixels)
+{
+    const QJsonDocument json = QJsonDocument::fromJson(text.toUtf8());
+    if (!json.isArray())
+        return QObject::tr("Correspondences must be a JSON array of {\"point\": [x, y, z], \"pixel\": [u, v]}.");
+    for (const QJsonValue &value : json.array()) {
+        const QJsonArray point = value.toObject().value(QStringLiteral("point")).toArray();
+        const QJsonArray pixel = value.toObject().value(QStringLiteral("pixel")).toArray();
+        if (point.size() != 3 || pixel.size() != 2)
+            return QObject::tr("Correspondence %1 needs a point of three numbers and a pixel of two.").arg(points.size() + 1);
+        points.emplace_back(point[0].toDouble(), point[1].toDouble(), point[2].toDouble());
+        pixels.emplace_back(pixel[0].toDouble(), viewport.height() - pixel[1].toDouble());
+    }
+    return {};
+}
 
 MeshFilterRunResult alignRasterByMutualInformation(const FilterParams &p, Document &doc)
 {
@@ -428,7 +485,18 @@ MeshFilterRunResult alignRasterByMutualInformation(const FilterParams &p, Docume
     vcg::CallBackPos *cb = doc.progressCallback();
     QElapsedTimer timer;
     timer.start();
-    const Refinement r = refine(doc, view, {}, samples, box.Center(), settings, [&](int evaluations, double best) {
+    // Point pairs, in the working resolution
+    Pairs pairs;
+    const QString pairsError = parseCorrespondences(p.getString(QStringLiteral("correspondences"), QStringLiteral("[]")),
+                                                    raster.shot.viewportPx(), pairs.points, pairs.pixels);
+    if (!pairsError.isEmpty())
+        return fail(pairsError);
+    const double sx = double(view.width) / raster.shot.viewportPx().width();
+    const double sy = double(view.height) / raster.shot.viewportPx().height();
+    for (vcg::Point2d &pixel : pairs.pixels)
+        pixel = vcg::Point2d(pixel[0] * sx, pixel[1] * sy);
+
+    const Refinement r = refine(doc, view, {}, samples, box.Center(), settings, pairs, [&](int evaluations, double best) {
         return !cb || cb(std::min(99, 100 * evaluations / settings.maxEvaluations),
                          qPrintable(QObject::tr("Mutual information: %1 bits").arg(best, 0, 'f', 4)));
     });
@@ -450,6 +518,16 @@ MeshFilterRunResult alignRasterByMutualInformation(const FilterParams &p, Docume
     result.outputValues.insert(QStringLiteral("informationAfter"), r.after);
     result.outputValues.insert(QStringLiteral("evaluations"), r.evaluations);
     result.outputValues.insert(QStringLiteral("displacement"), moved);
+    if (!pairs.points.empty()) {
+        // The pairs' mean distance in the raster's own pixels
+        const double toRaster = double(raster.shot.viewportPx().height()) / view.height;
+        result.outputValues.insert(QStringLiteral("pairsBefore"), r.pairsBefore * toRaster);
+        result.outputValues.insert(QStringLiteral("pairsAfter"), r.pairsAfter * toRaster);
+        doc.writeLog(QObject::tr("The %1 point pairs were %2 px away on average before, %3 after.")
+                         .arg(pairs.points.size()).arg(r.pairsBefore * toRaster, 0, 'f', 2)
+                         .arg(r.pairsAfter * toRaster, 0, 'f', 2),
+                     Document::LogSource::Application);
+    }
     return result;
 }
 
@@ -570,7 +648,7 @@ MeshFilterRunResult alignRastersGloballyByMutualInformation(const FilterParams &
             const std::vector<vcg::Point3d> samples = seenBy(views[node].shot, allSamples);
             if (samples.size() < 3)
                 continue;
-            const Refinement r = refine(doc, views[node], projectors, samples, pivot, settings,
+            const Refinement r = refine(doc, views[node], projectors, samples, pivot, settings, Pairs(),
                                         [&](int, double) {
                 return report(10 + int(90.0 * ((iteration - 1) * n + step) / (maxIterations * n)),
                               QObject::tr("Refining raster '%1', iteration %2")

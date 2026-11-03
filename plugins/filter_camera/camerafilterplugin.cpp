@@ -20,9 +20,6 @@
 #include <wrap/io_trimesh/io_mask.h>
 
 #include <QElapsedTimer>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QMatrix4x4>
 #include <QVector3D>
 
@@ -806,21 +803,12 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
             return fail(QObject::tr("Raster '%1' has an orthographic camera; only a perspective one can be aligned.").arg(re.name));
 
         // The pairs, with the pixels turned to vcg's: y up the image
-        const QJsonDocument json = QJsonDocument::fromJson(p.getString(QStringLiteral("correspondences")).toUtf8());
-        if (!json.isArray())
-            return fail(QObject::tr("Correspondences must be a JSON array of {\"point\": [x, y, z], \"pixel\": [u, v]}."));
-        const float height = float(re.shot.viewportPx().height());
         std::vector<vcg::Point3d> points;
         std::vector<vcg::Point2d> pixels;
-        for (const QJsonValue &value : json.array()) {
-            const QJsonArray point = value.toObject().value(QStringLiteral("point")).toArray();
-            const QJsonArray pixel = value.toObject().value(QStringLiteral("pixel")).toArray();
-            if (point.size() != 3 || pixel.size() != 2)
-                return fail(QObject::tr("Correspondence %1 needs a point of three numbers and a pixel of two.")
-                                .arg(points.size() + 1));
-            points.emplace_back(point[0].toDouble(), point[1].toDouble(), point[2].toDouble());
-            pixels.emplace_back(pixel[0].toDouble(), height - pixel[1].toDouble());
-        }
+        const QString error = parseCorrespondences(p.getString(QStringLiteral("correspondences")),
+                                                   re.shot.viewportPx(), points, pixels);
+        if (!error.isEmpty())
+            return fail(error);
         const bool estimateFocal = p.getBool(QStringLiteral("estimateFocal"), false);
         const size_t needed = estimateFocal ? 4 : 3;
         if (points.size() < needed)

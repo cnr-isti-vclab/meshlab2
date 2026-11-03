@@ -1,17 +1,19 @@
-# Raster Alignment
+# Raster Alignment, applied 2026-11-03
 
-This document proposes aligning a raster's camera to a mesh, so that a photo whose camera is
-missing or slightly wrong can be registered on the model and then used by the filters that
-project through rasters (color transfer, coverage, parametrization). It is Stage 3 of the
-[Camera Lens Model](camera_lens_model.md), which gave rasters a pinhole camera plus a separate
-lens and a native COLMAP import. **Written 2026-11-03; Stages 3a, the correspondence fit,
-3b, the tool, 3c, mutual information, and 3d, global refinement, implemented the same day.
-Open questions 1, 3 and 9 are still open, 3 now with measurements.**
+Aligning a raster's camera to a mesh, so that a photo whose camera is missing or slightly
+wrong can be registered on the model and then used by the filters that project through
+rasters (color transfer, coverage, parametrization). It is Stage 3 of the
+[Camera Lens Model](../proposals/camera_lens_model.md), which gave rasters a pinhole camera
+plus a separate lens and a native COLMAP import. **Proposed and carried out on 2026-11-03,
+in four stages: 3a, the correspondence fit; 3b, the tool; 3c, mutual information; 3d, global
+refinement. The open questions were decided the same day** (see the end). How it works today
+is in [Raster Alignment](../raster_alignment.md); this is the proposal as written, followed by
+what was built at each stage and what was measured.
 
-See also: [Camera Lens Model](camera_lens_model.md) (the boundary this relies on),
+See also: [Camera Lens Model](../proposals/camera_lens_model.md) (the boundary this relies on),
 [Data Model](../data_model.md#raster-data-type), [Rendering](../rendering.md) (the
-`RasterImage` view), [TexMetro](texmetro.md) (the case for a CPU rasterizer over a QRhi one),
-[Vocabulary](../vocabulary.md).
+`RasterImage` view), [TexMetro](../proposals/texmetro.md) (the case for a CPU rasterizer over
+a QRhi one), [Vocabulary](../vocabulary.md).
 
 ## What old MeshLab has
 
@@ -98,7 +100,7 @@ pinhole, which since Stage 1 holds by construction.
 information needs a derivative-free method anyway, and NEWUOA is already vendored and
 already used. For the correspondence fit, a few hundred evaluations of a 7-parameter
 reprojection error take microseconds. This **changes what
-[Camera Lens Model](camera_lens_model.md) said**, which named Eigen's
+[Camera Lens Model](../proposals/camera_lens_model.md) said**, which named Eigen's
 `LevenbergMarquardt`: that would be a second optimizer for the smaller of the two problems.
 
 **One parametrization**, shared by both:
@@ -117,7 +119,7 @@ reprojection error take microseconds. This **changes what
   few lines. Mutual information shades from that buffer: the normal map, or vertex color or
   vertex scalar. The renderer is then deterministic, runs in `ctest` and `pymeshlab` without
   a GPU, and needs no GL or QRhi context inside a filter.
-- That is the [TexMetro](texmetro.md) argument again. A GPU path would go through
+- That is the [TexMetro](../proposals/texmetro.md) argument again. A GPU path would go through
   `HeadlessRenderContext`, which needs a `RenderWidget`, and no Qt test can link one.
 - **Cost, estimated, not measured:** one 800 × 533 rendering of a 3.2 M-face mesh is
   dominated by triangle setup, on the order of 50–100 ms single-threaded, and NEWUOA takes
@@ -385,45 +387,60 @@ Each stage is one commit, landed and verified before the next.
 
 ## Open questions
 
-1. **The rasterizer in vcglib?** The recommendation is to keep `softdepthbuffer.h` in core
-   and extend it, so that the correspondence fit is the only vcglib addition. The
-   alternative moves the rasterizer into vcglib (with a mapping table for its three
-   consumers), after which mutual information could go there too.
-2. **NEWUOA for the correspondence fit.** This reverses the lens proposal's mention of
-   Eigen's Levenberg–Marquardt, for the reasons above. Agreed?
-3. **Which renderings.** Old MeshLab offered six. *Normal map* needs nothing but normals.
-   *Combined* needs ambient occlusion in the vertex color's red, as old MeshLab read it, and
-   that is what Stage 3c does. In meshlab2, *Compute Mesh Ambient Occlusion* writes to the
-   vertex scalar, so it takes a scalar-to-color step first; reading the scalar directly is
-   the alternative.
-   - What is the blend weight `t = color.r²` meant to do? Read literally, open areas show
-     the normal map and occluded ones fade to their occlusion. Is that the paper's intent,
-     and should the weight be kept as it is?
-   - Do *Specular*, *Specular combined* and *Silhouette* earn a place?
-   - Should *Vertex Color* become *Mesh Color*, so that it also reads the texture? The 2930
-     mesh is textured and has vertex colors too, which is how Stage 3c could test it.
-   - Measured in Stage 3c: on that scan the *Normal Map* finds a wrong maximum 13 to 19 px
-     away, and *Vertex Color* the right one. Should the default stay *Combined*, which is
-     the *Normal Map* on a mesh without color, or follow what the mesh has?
-4. **Category and names.** `Geometry/Alignment` is the vocabulary's home for algorithmic
-   alignment, but its root says *changes vertex positions or the layer matrix*, and a raster
-   camera is neither. The proposal uses `Document/Camera`, beside the other camera filters,
-   and *Align Current Raster to Mesh by …*, following *Align Layer to Reference by
-   <Method>*. If the vocabulary prefers otherwise, it should be extended rather than
-   bent.
-5. **Correspondences as a JSON string parameter.** An alternative is to keep them in the
-   document, for example as the planned annotations, so that they are saved with the
-   project. The proposal keeps them out of the document until a need appears.
-6. **Picking in one view.** The proposal picks both ends of a pair in the `RasterImage` view,
-   which needs a rough camera first. The alternative picks 3D points in a 3D view and 2D
-   points in a `RasterImage` view, which works with no camera at all, but would take the
-   tool model (one tool pinned to one view) across two views.
-7. **Global refinement.** Decided 2026-11-03: ported as a third filter, from the paper where
-   it and the old code disagree (Stage 3d).
-8. **Which intrinsics.** The old code refines the focal length at most. Should the principal
-   point be refinable when there are enough pairs? The lens stays fixed in this proposal;
-   refining it would need `Distort` on every pick, as the lens proposal foresaw.
-9. **A combined objective.** The old tool weighted mutual information against the
-   correspondence error with a slider. It could be a weight parameter of the
-   mutual-information filter, taking the same JSON pairs. Is it wanted, or is fitting first
-   and refining after enough?
+All decided on 2026-11-03. Questions 2, 4, 5, 6 and 8 were carried out as recommended in
+Stages 3a and 3b and not revisited; questions 1, 3 and 9 were answered by the maintainer
+after Stage 3d.
+
+1. **The rasterizer in vcglib?** Decided: it stays in MeshLab's core (`softdepthbuffer.h`),
+   extended with the per-pixel callback; the correspondence fit is the only vcglib addition.
+2. **NEWUOA for the correspondence fit.** Taken as recommended: one optimizer for both fits.
+3. **Which renderings.** Decided:
+   - **The default stays *Combined*.** The measurement against it is that on the 2930 scan
+     the *Normal Map*, which is *Combined* on a mesh without color, finds a wrong maximum 13
+     to 19 px away, while *Vertex Color* finds the right one.
+   - ***Silhouette* is ported**: the layers white on black.
+   - ***Specular* and *Specular combined* are not.**
+   - **The blend weight `t = color.r²` is kept as old MeshLab had it.** What it was meant to
+     do is not known. Read literally, open areas show the normal map and occluded ones fade
+     to their occlusion.
+   - **The AO source is unchanged.** *Combined* reads the occlusion from the vertex color's
+     red, as before; meshlab2's ambient occlusion goes to the vertex scalar, so a
+     scalar-to-color step comes first.
+   - **Reading textures in *Vertex Color* is not done.**
+4. **Category and names.** Taken as recommended: `Document/Camera`, *Align Current Raster to
+   Mesh by …*, and for the global filter *Align Visible Rasters Globally by Mutual
+   Information*, after *Align Meshes Globally*.
+5. **Correspondences as a JSON string parameter.** Taken as recommended; the tool saves and
+   loads them as files.
+6. **Picking in one view.** Taken as recommended: both ends of a pair in the raster view.
+7. **Global refinement.** Decided: ported as a third filter, from the paper where it and the
+   old code disagree (Stage 3d).
+8. **Which intrinsics.** Taken as recommended: the focal length at most; the principal point
+   and the lens stay the calibration's.
+9. **A combined objective.** Decided: wanted, in the filter and in the tool. Built as below.
+
+## After the questions: Silhouette and mutual information with point pairs
+
+- ***Silhouette*** joins the renderings of both mutual-information filters.
+- **The point pairs.** *Align Current Raster to Mesh by Mutual Information* takes the same
+  JSON point pairs as the correspondence filter (`correspondences`), parsed by one shared
+  `parseCorrespondences`. With pairs it minimizes old MeshLab's score,
+  (1 − w)(2 − MI) + w · d, where d is the pairs' mean distance in working pixels and w is
+  `pairsWeight`.
+- **The weight, measured on gargoyle camera 1 started 8 degrees off (20.6 px).** That start
+  is beyond the reach of mutual information alone, which stops 12.95 px from the truth. Six
+  pairs picked with up to 1 px of error were added, and the weight swept from 0 to 1:
+  - w = 0.001: 6.5 px from the truth;
+  - w = 0.01 to 0.5: 0.5 to 0.8 px from the truth;
+  - w = 1, the pairs alone: 1.2 px.
+
+  On camera 0, which mutual information reaches alone, w = 0.01 left the result 0.44 px from
+  the information's optimum, against 0.40 without pairs, while 0.1 and above handed it to the
+  pairs (0.7 to 0.8 px). The default is **0.01**, and the test holds camera 1 to 1.5 px
+  (0.59 measured).
+- **The tool** gained *Mutual Information* (`M`), which runs that filter with the tool's
+  pairs, or without pairs when there are none. It only calls the filter the test covers, and
+  was not run again in the window.
+- **Leftovers.** The three `QJson` includes of `camerafilterplugin.cpp`, unused once the
+  parsing moved, went. The unused `f01` in `rasterizeTriangleDepth` predates this work and is
+  still there.

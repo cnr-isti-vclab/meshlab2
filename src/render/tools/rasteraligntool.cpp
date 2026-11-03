@@ -17,6 +17,8 @@
 namespace {
 constexpr const char *kAlignKey =
     "meshlab2.filter.camera::align_current_raster_to_mesh_by_point_correspondences";
+constexpr const char *kMutualInformationKey =
+    "meshlab2.filter.camera::align_current_raster_to_mesh_by_mutual_information";
 
 // The current raster, when it has a camera to align; null otherwise.
 const Document::RasterEntry *alignableRaster(const RenderWidget *view)
@@ -78,6 +80,9 @@ std::vector<ToolControl> RasterAlignTool::controls() const
         { QStringLiteral("fit"), Kind::Action, QObject::tr("Fit"),
           QObject::tr("Align the raster's camera to the pairs"), { Qt::Key_F, Qt::Key_Return },
           QStringLiteral("fit") },
+        { QStringLiteral("mutual"), Kind::Action, QObject::tr("Mutual Information"),
+          QObject::tr("Refine the camera by mutual information with the photo, kept close to the pairs if there are any"),
+          { Qt::Key_M }, QStringLiteral("fit") },
         { QStringLiteral("focal"), Kind::Toggle, QObject::tr("Focal Length"),
           QObject::tr("Let the fit change the focal length too; it needs four pairs"), { Qt::Key_L },
           QStringLiteral("fit") },
@@ -117,6 +122,8 @@ void RasterAlignTool::triggerControl(const QString &id, Qt::KeyboardModifiers mo
     std::vector<Pair> *pairs = currentPairs();
     if (id == QLatin1String("fit")) {
         fit();
+    } else if (id == QLatin1String("mutual")) {
+        refineByMutualInformation();
     } else if (id == QLatin1String("focal")) {
         m_estimateFocal = !m_estimateFocal;
     } else if (id == QLatin1String("undo") && pairs && !pairs->empty()) {
@@ -261,6 +268,26 @@ void RasterAlignTool::fit()
               .arg(result.outputValues.value(QStringLiteral("rmsAfter")).toDouble(), 0, 'f', 2)
               .arg(result.outputValues.value(QStringLiteral("maxAfter")).toDouble(), 0, 'f', 2)
         : QObject::tr("Fit failed: %1").arg(result.errorMessage);
+}
+
+void RasterAlignTool::refineByMutualInformation()
+{
+    std::vector<Pair> *pairs = currentPairs();
+    Document *doc = m_view ? m_view->document() : nullptr;
+    if (!doc || !pairs)
+        return;
+    const MeshFilterRunResult result = doc->runFilter(QString::fromLatin1(kMutualInformationKey), {
+        { QStringLiteral("correspondences"), QString::fromUtf8(toJson(*pairs, true)) },
+        { QStringLiteral("estimateFocal"), m_estimateFocal } });
+    if (!result.success) {
+        m_lastFit = QObject::tr("Refinement failed: %1").arg(result.errorMessage);
+        return;
+    }
+    m_lastFit = QObject::tr("Refined: mutual information %1 -> %2 bits")
+                    .arg(result.outputValues.value(QStringLiteral("informationBefore")).toDouble(), 0, 'f', 3)
+                    .arg(result.outputValues.value(QStringLiteral("informationAfter")).toDouble(), 0, 'f', 3);
+    if (result.outputValues.contains(QStringLiteral("pairsAfter")))
+        m_lastFit += QObject::tr(", pairs %1 px").arg(result.outputValues.value(QStringLiteral("pairsAfter")).toDouble(), 0, 'f', 2);
 }
 
 void RasterAlignTool::savePairs()

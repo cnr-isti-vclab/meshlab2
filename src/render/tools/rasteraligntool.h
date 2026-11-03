@@ -15,7 +15,8 @@
 // through the raster's camera: a drag goes from a feature where the mesh shows it to the same
 // feature on the photo, and a click pairs a point the mesh already shows in the right place.
 // Each pair is drawn as a line from where the camera projects its point to its pixel, so after
-// a fit what is left of each line is that pair's error.
+// a fit what is left of each line is that pair's error. Mutual Information refines the camera
+// further against the photo, with the pairs as a soft constraint.
 //
 // The pairs are kept per raster for as long as the tool is engaged, and can be saved and
 // loaded as the filter's JSON.
@@ -57,6 +58,8 @@ private:
     static QByteArray toJson(const std::vector<Pair> &pairs, bool compact);
     void addPairIfComplete();
     void fit();
+    // Align Current Raster to Mesh by Mutual Information, with the pairs as its point pairs
+    void refineByMutualInformation();
     void savePairs();
     void loadPairs();
 

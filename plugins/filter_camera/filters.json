@@ -805,7 +805,8 @@
           "enumOptions": [
             { "id": "combined", "label": "Combined" },
             { "id": "normalMap", "label": "Normal Map" },
-            { "id": "vertexColor", "label": "Vertex Color" }
+            { "id": "vertexColor", "label": "Vertex Color" },
+            { "id": "silhouette", "label": "Silhouette" }
           ]
         },
         {
@@ -815,6 +816,25 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "correspondences",
+          "label": "Point pairs",
+          "help": "Optional pairs of a world-space point and the image pixel that shows it, as Align Current Raster to Mesh by Point Correspondences reads them, to keep the camera close to them as it refines.",
+          "group": "main",
+          "type": "string",
+          "default": "[]"
+        },
+        {
+          "id": "pairsWeight",
+          "label": "Point pairs weight",
+          "help": "How much the pairs count against the mutual information, from 0 (not at all) to 1 (only the pairs). The score is (1 - weight) (2 - information) + weight distance, in bits and in pixels of the working resolution, as old MeshLab mixed them: a pixel of distance weighs much more than the hundredths of a bit near the optimum, so useful weights are small. At 0.01 a few pairs keep the camera in the basin of the right optimum and leave the rest to the information.",
+          "group": "main",
+          "type": "double",
+          "default": 0.01,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 3
         },
         {
           "id": "resolution",
@@ -917,6 +937,10 @@
             {
               "id": "vertexColor",
               "label": "Vertex Color"
+            },
+            {
+              "id": "silhouette",
+              "label": "Silhouette"
             }
           ]
         },

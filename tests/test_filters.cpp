@@ -454,6 +454,7 @@ private slots:
     void alignRasterByMutualInformationRecoversTheGargoyleCameras();
     void alignRasterByMutualInformationOnARealScan();
     void alignRastersGloballyByMutualInformation();
+    void alignRasterByMutualInformationWithPointPairs();
     void visibleOnlySelectionCastsParallelRaysInAnOrthographicView();
     void screenSelectionFollowsTheLayerMatrix();
     void visibleOnlySelectionLooksThroughTheLayerMatrix();
@@ -2300,6 +2301,59 @@ void FilterTests::alignRastersGloballyByMutualInformation()
         if (anchor)
             QVERIFY(doc.raster(0).shot.toVcgShot() == anchored.toVcgShot());
     }
+}
+
+// Mutual information with point pairs, old MeshLab's combined score: gargoyle camera 1, moved
+// 8 degrees (20.6 px off), is past the reach of the information alone, which stops 13 px from
+// the truth. Six pairs picked with up to 1 px of error, at the default weight of 0.01, bring it
+// to within 1.5 px. Measured 2026-11-03 over weights 0 to 1: 0.5 to 0.8 px from 0.01 up; and on
+// camera 0, which the information reaches alone, 0.01 leaves the result where it was (0.44 px
+// from its optimum, against 0.40) while heavier weights hand it to the pairs. The Silhouette
+// rendering runs too.
+void FilterTests::alignRasterByMutualInformationWithPointPairs()
+{
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
+    const QString key = filterKeyForId(doc, QStringLiteral("align_current_raster_to_mesh_by_mutual_information"));
+    QVERIFY(!key.isEmpty());
+    const Document::MeshEntry &mesh = doc.mesh(0);
+    std::vector<vcg::Point3d> points;
+    for (size_t vi = 0; vi < mesh.mesh.vert.size(); vi += 37)
+        points.emplace_back(mesh.mesh.vert[vi].cP()[0], mesh.mesh.vert[vi].cP()[1], mesh.mesh.vert[vi].cP()[2]);
+    const vcg::Point3f c = mesh.mesh.bbox.Center();
+    const int ri = 1;
+    doc.setCurrentRasterIndex(ri);
+    const CameraShot truth = doc.raster(ri).shot;
+    const QSize size = truth.viewportPx();
+    std::vector<vcg::Point3d> pairPoints;
+    std::vector<vcg::Point2d> pairPixels;
+    std::mt19937 rng(7);
+    std::uniform_real_distribution<double> noise(-1.0, 1.0);
+    for (size_t vi = 101; vi < mesh.mesh.vert.size() && pairPoints.size() < 6; vi += 1657) {
+        const vcg::Point3f &p = mesh.mesh.vert[vi].cP();
+        const QVector2D t = truth.project(QVector3D(p[0], p[1], p[2]));
+        if (t.x() < 0 || t.y() < 0 || t.x() > size.width() || t.y() > size.height())
+            continue;
+        pairPoints.emplace_back(p[0], p[1], p[2]);
+        pairPixels.emplace_back(t.x() + noise(rng), size.height() - t.y() + noise(rng));
+    }
+    QCOMPARE(int(pairPoints.size()), 6);
+    doc.setRasterShot(ri, perturbedShot(truth, 8.0f, QVector3D(c[0], c[1], c[2]),
+                                        QVector3D(0.004f, -0.003f, 0.002f) * mesh.mesh.bbox.Diag() * 8.0f));
+    MeshFilterRunResult r = doc.runFilter(key, {
+        { QStringLiteral("rendering"), QStringLiteral("normalMap") },
+        { QStringLiteral("correspondences"), correspondencesJson(pairPoints, pairPixels) } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const double off = projectedDisplacement(doc.raster(ri).shot, truth, points);
+    qDebug("%.2f px from the truth; the pairs %.2f px away before, %.2f after", off,
+           r.outputValues.value(QStringLiteral("pairsBefore")).toDouble(),
+           r.outputValues.value(QStringLiteral("pairsAfter")).toDouble());
+    QVERIFY2(off < 1.5, qPrintable(QString::number(off)));
+    QVERIFY(r.outputValues.value(QStringLiteral("pairsAfter")).toDouble() < 1.5);
+
+    r = doc.runFilter(key, { { QStringLiteral("rendering"), QStringLiteral("silhouette") } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(r.outputValues.value(QStringLiteral("informationAfter")).toDouble() > 0);
 }
 
 // COLMAP's own observations of one camera of a real 35-photo scan, taken through the lens to the
