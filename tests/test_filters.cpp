@@ -1,6 +1,9 @@
 #include <QtTest/QtTest>
 
 #include <QElapsedTimer>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QFile>
 #include <QTemporaryDir>
 #include <QFileInfo>
@@ -18,6 +21,7 @@
 #include "viewtrackball.h"
 #include "tools/selectionshortcuts.h"
 #include "testdatasets.h"
+#include "document_internal.h"
 #include <QDir>
 #include "meshfilterpluginmanager.h"
 #include "selectionscope.h"
@@ -444,6 +448,9 @@ private slots:
     void cameraFramingFiltersMakeAndKeepOrthographicShots();
     void setCameraToViewSelectionFacesTheSelection();
     void setCameraToFrameFromViewpointKeepsTheEye();
+    void setRasterCameraFromViewSeesWhatTheViewSees();
+    void alignRasterByCorrespondencesRecoversTheGargoyleCameras();
+    void alignRasterByCorrespondencesRefitsAColmapCamera();
     void visibleOnlySelectionCastsParallelRaysInAnOrthographicView();
     void screenSelectionFollowsTheLayerMatrix();
     void visibleOnlySelectionLooksThroughTheLayerMatrix();
@@ -1987,6 +1994,224 @@ void FilterTests::setCameraToFrameFromViewpointKeepsTheEye()
     frame(ViewTrackball::cameraStateJson(inside.state(), QSize(300, 200)), QStringLiteral("camera"), framed, r);
     QVERIFY(!r.success);
     QVERIFY(r.cameraState.isEmpty());
+}
+
+// Set Raster Camera from a view gives the raster the camera the view sees with, for the raster's
+// own image: every corner of the cube lands on the pixel where the view draws it, roll and
+// orthographic projection included.
+void FilterTests::setRasterCameraFromViewSeesWhatTheViewSees()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    QVERIFY(doc.addMesh(cube, QStringLiteral("cube")) >= 0);
+    QImage image(300, 200, QImage::Format_RGBA8888);
+    image.fill(Qt::white);
+    QCOMPARE(doc.addRasterImage(image, QStringLiteral("photo")), 0);
+    doc.setCurrentRasterIndex(0);
+    const QString key = filterKeyForId(doc, QStringLiteral("set_raster_camera"));
+    QVERIFY(!key.isEmpty());
+
+    for (const Projection projection : { Projection::Perspective, Projection::Orthographic }) {
+        ViewTrackball view;
+        view.setFromLookAt(QVector3D(4.0f, 3.0f, 6.0f), QVector3D(0.5f, 0.5f, 0.5f), 40.0f);
+        ViewTrackball::State state = view.state();
+        // A roll about the view axis, which a camera made from a viewpoint and a direction lacks
+        state.rotation = QQuaternion::fromAxisAndAngle(0.0f, 0.0f, 1.0f, 25.0f) * state.rotation;
+        state.projection = projection;
+        view.setState(state);
+
+        const MeshFilterRunResult r = doc.runFilter(key, {
+            { QStringLiteral("fromView"), true },
+            { QStringLiteral("camera"), ViewTrackball::cameraStateJson(state, QSize(300, 200)) } });
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        const CameraShot &shot = doc.raster(0).shot;
+        QCOMPARE(shot.viewportPx(), QSize(300, 200));
+        QCOMPARE(shot.isOrthographic(), projection == Projection::Orthographic);
+        for (int i = 0; i < 8; ++i) {
+            const QVector3D corner(float(i & 1), float((i >> 1) & 1), float((i >> 2) & 1));
+            const QVector4D clip = view.projectionMatrix(1.5f) * view.viewMatrix() * QVector4D(corner, 1.0f);
+            // vcg's pixels: y up, as normalized device coordinates
+            const QVector2D drawn((clip.x() / clip.w() + 1.0f) * 150.0f, (clip.y() / clip.w() + 1.0f) * 100.0f);
+            const QVector2D projected = shot.project(corner);
+            QVERIFY2((projected - drawn).length() < 1e-2f,
+                     qPrintable(QStringLiteral("corner %1: (%2, %3) drawn at (%4, %5)").arg(i)
+                                    .arg(projected.x()).arg(projected.y()).arg(drawn.x()).arg(drawn.y())));
+        }
+    }
+}
+
+namespace {
+
+// Correspondences as the filter reads them: pixels from the top-left corner, y down.
+QString correspondencesJson(const std::vector<vcg::Point3d> &points, const std::vector<vcg::Point2d> &pixels)
+{
+    QJsonArray pairs;
+    for (size_t i = 0; i < points.size(); ++i)
+        pairs.append(QJsonObject{
+            { QStringLiteral("point"), QJsonArray{ points[i][0], points[i][1], points[i][2] } },
+            { QStringLiteral("pixel"), QJsonArray{ pixels[i][0], pixels[i][1] } } });
+    return QString::fromUtf8(QJsonDocument(pairs).toJson(QJsonDocument::Compact));
+}
+
+// The camera moved by a turn of `degrees` about an oblique axis through `pivot`, and by `offset`.
+CameraShot perturbedShot(const CameraShot &shot, float degrees, const QVector3D &pivot, const QVector3D &offset)
+{
+    QMatrix4x4 motion;
+    motion.translate(pivot + offset);
+    motion.rotate(degrees, QVector3D(1.0f, 2.0f, 0.5f));
+    motion.translate(-pivot);
+    CameraShot moved = shot;
+    moved.applyRigidTransformation(motion);
+    return moved;
+}
+
+// The root mean square distance, in pixels, between where two cameras project the points.
+double projectedDisplacement(const CameraShot &a, const CameraShot &b, const std::vector<vcg::Point3d> &points)
+{
+    double sum = 0;
+    for (const vcg::Point3d &p : points) {
+        const QVector3D q{float(p[0]), float(p[1]), float(p[2])};
+        sum += double((a.project(q) - b.project(q)).lengthSquared());
+    }
+    return std::sqrt(sum / double(points.size()));
+}
+
+} // namespace
+
+// Exact correspondences, the gargoyle's vertices where its calibrated cameras see them: a camera
+// turned by 5 degrees and moved by 5% of the model's size comes back, and with the focal length
+// 10% off too when it is estimated. One undo step undoes the fit. Too few pairs, or pairs that
+// are not JSON, are refused.
+void FilterTests::alignRasterByCorrespondencesRecoversTheGargoyleCameras()
+{
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(
+                 QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
+    const QString key = filterKeyForId(doc, QStringLiteral("align_current_raster_to_mesh_by_point_correspondences"));
+    QVERIFY(!key.isEmpty());
+    for (int ri = 0; ri < doc.rasterCount(); ++ri) {
+        // Fetched again for each raster: undo restores the document, and its meshes with it
+        const Document::MeshEntry &mesh = doc.mesh(0);
+        const float diag = mesh.mesh.bbox.Diag();
+        const auto world = [&](const vcg::Point3f &p) { return mesh.transform.map(QVector3D(p[0], p[1], p[2])); };
+        const QVector3D pivot = world(mesh.mesh.bbox.Center());
+        doc.setCurrentRasterIndex(ri);
+        const CameraShot truth = doc.raster(ri).shot;
+        const QSize size = truth.viewportPx();
+        std::vector<vcg::Point3d> points;
+        std::vector<vcg::Point2d> pixels;
+        for (size_t vi = 0; vi < mesh.mesh.vert.size(); vi += 397) {
+            const QVector3D p = world(mesh.mesh.vert[vi].cP());
+            const QVector2D px = truth.project(p);
+            if (px.x() < 0 || px.y() < 0 || px.x() > size.width() || px.y() > size.height())
+                continue;
+            points.emplace_back(p.x(), p.y(), p.z());
+            pixels.emplace_back(px.x(), size.height() - px.y());
+        }
+        QVERIFY2(points.size() >= 10, qPrintable(QString::number(points.size())));
+        const QString pairs = correspondencesJson(points, pixels);
+
+        for (const bool focal : { false, true }) {
+            CameraShot start = perturbedShot(truth, 5.0f, pivot, QVector3D(0.05f, -0.03f, 0.04f) * diag);
+            if (focal)
+                start.setFocalMm(truth.focalMm() * 1.1f);
+            doc.setRasterShot(ri, start);
+            const MeshFilterRunResult r = doc.runFilter(key, {
+                { QStringLiteral("correspondences"), pairs }, { QStringLiteral("estimateFocal"), focal } });
+            QVERIFY2(r.success, qPrintable(r.errorMessage));
+            const double before = r.outputValues.value(QStringLiteral("rmsBefore")).toDouble();
+            const double after = r.outputValues.value(QStringLiteral("rmsAfter")).toDouble();
+            const double off = projectedDisplacement(doc.raster(ri).shot, truth, points);
+            qDebug("raster %d, focal %d: %.2f px before, %.2e px after, %.2e px from the true camera", ri,
+                   int(focal), before, after, off);
+            QVERIFY(before > 10.0);
+            QVERIFY2(after < 1e-2 && off < 1e-2, qPrintable(QStringLiteral("%1 %2").arg(after).arg(off)));
+            QCOMPARE(r.outputValues.value(QStringLiteral("pairErrors")).toList().size(), int(points.size()));
+            // The principal point and the pixel size are the calibration's
+            QCOMPARE(doc.raster(ri).shot.centerPx(), truth.centerPx());
+            QCOMPARE(doc.raster(ri).shot.pixelSizeMm(), truth.pixelSizeMm());
+            if (!focal)
+                QCOMPARE(doc.raster(ri).shot.focalMm(), start.focalMm());
+            doc.undo();
+            QVERIFY(doc.raster(ri).shot.toVcgShot() == start.toVcgShot());
+        }
+        doc.setRasterShot(ri, truth);
+    }
+
+    const auto refused = [&](const QString &pairs, bool focal) {
+        const MeshFilterRunResult r = doc.runFilter(key, {
+            { QStringLiteral("correspondences"), pairs }, { QStringLiteral("estimateFocal"), focal } });
+        return !r.success && !r.errorMessage.isEmpty();
+    };
+    QVERIFY(refused(QStringLiteral("not json"), false));
+    QVERIFY(refused(QStringLiteral("[{\"point\": [0, 0], \"pixel\": [1, 2]}]"), false));
+    const std::vector<vcg::Point3d> three = { { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 } };
+    const std::vector<vcg::Point2d> threePixels = { { 10, 10 }, { 20, 10 }, { 10, 20 } };
+    QVERIFY(refused(correspondencesJson(three, threePixels), true));
+    QVERIFY(refused(correspondencesJson({ three[0], three[1] }, { threePixels[0], threePixels[1] }), false));
+}
+
+// COLMAP's own observations of one camera of a real 35-photo scan, taken through the lens to the
+// undistorted pixels the filter works in, refit that camera from a start turned by 2 degrees
+// about their centroid and moved by 2% of its distance. The fit
+// is a minimum of the same error: it can be no worse than COLMAP's camera, and lands next to it.
+void FilterTests::alignRasterByCorrespondencesRefitsAColmapCamera()
+{
+    MESHLAB2_REQUIRE_DATASET(path, "2930Colmap/sparse/0/cameras.txt");
+    DocumentInternal::ColmapModel model;
+    QString error;
+    QVERIFY2(DocumentInternal::parseColmapModel(path, model, error), qPrintable(error));
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(path), 0);
+    const QString key = filterKeyForId(doc, QStringLiteral("align_current_raster_to_mesh_by_point_correspondences"));
+    QVERIFY(!key.isEmpty());
+
+    const int ri = 7;
+    const CameraShot truth = doc.raster(ri).shot;
+    const CameraLens &lens = doc.raster(ri).lens;
+    const double fx = truth.focalMm() / truth.pixelSizeMm().x();
+    const double fy = truth.focalMm() / truth.pixelSizeMm().y();
+    const double cx = truth.centerPx().x();
+    const double cy = truth.viewportPx().height() - truth.centerPx().y();
+    std::vector<vcg::Point3d> points;
+    std::vector<vcg::Point2d> pixels;
+    vcg::Point3d centroid(0, 0, 0);
+    for (const DocumentInternal::ColmapModel::Observation &o : model.observations) {
+        if (o.raster != ri)
+            continue;
+        vcg::Point2d n;
+        if (!lens.Undistort(vcg::Point2d((o.pixel[0] - cx) / fx, (o.pixel[1] - cy) / fy), n))
+            continue;
+        points.push_back(model.points[size_t(o.point)]);
+        pixels.emplace_back(n[0] * fx + cx, n[1] * fy + cy);
+        centroid += points.back();
+    }
+    QVERIFY2(points.size() > 1000, qPrintable(QString::number(points.size())));
+
+    centroid /= double(points.size());
+    const QVector3D pivot{float(centroid[0]), float(centroid[1]), float(centroid[2])};
+    const float distance = (truth.viewPoint() - pivot).length();
+    doc.setCurrentRasterIndex(ri);
+    doc.setRasterShot(ri, perturbedShot(truth, 2.0f, pivot, QVector3D(0.02f, 0.01f, -0.01f) * distance));
+    QElapsedTimer timer;
+    timer.start();
+    const MeshFilterRunResult r = doc.runFilter(key, { { QStringLiteral("correspondences"), correspondencesJson(points, pixels) } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+    double colmapSum = 0;
+    for (size_t i = 0; i < points.size(); ++i) {
+        const QVector2D p = truth.project(QVector3D(float(points[i][0]), float(points[i][1]), float(points[i][2])));
+        colmapSum += std::pow(p.x() - pixels[i][0], 2) + std::pow(truth.viewportPx().height() - p.y() - pixels[i][1], 2);
+    }
+    const double colmapRms = std::sqrt(colmapSum / double(points.size()));
+    const double after = r.outputValues.value(QStringLiteral("rmsAfter")).toDouble();
+    const double off = projectedDisplacement(doc.raster(ri).shot, truth, points);
+    qDebug("%zu observations: %.1f px before, %.4f px after, COLMAP's camera %.4f px; %.3f px from it; %lld ms",
+           points.size(), r.outputValues.value(QStringLiteral("rmsBefore")).toDouble(), after, colmapRms, off,
+           timer.elapsed());
+    QVERIFY2(after <= colmapRms + 1e-3, qPrintable(QStringLiteral("%1 > %2").arg(after).arg(colmapRms)));
+    QVERIFY2(off < 0.1, qPrintable(QString::number(off)));
 }
 
 // Visible-only rectangle selection in an orthographic view casts rays along the view

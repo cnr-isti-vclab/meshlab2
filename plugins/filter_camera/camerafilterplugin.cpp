@@ -15,6 +15,7 @@
 #include <vcg/complex/algorithms/update/quality.h>
 #include <vcg/complex/algorithms/update/selection.h>
 #include <vcg/complex/allocate.h>
+#include <vcg/math/shot_resection.h>
 #include <wrap/io_trimesh/io_mask.h>
 
 #include <QElapsedTimer>
@@ -42,6 +43,7 @@ constexpr QLatin1StringView kOrientNormals("orient_vertex_normals_by_cameras");
 constexpr QLatin1StringView kCameraViewSelection("set_camera_to_view_selection");
 constexpr QLatin1StringView kCameraFromDirection("set_camera_from_direction");
 constexpr QLatin1StringView kCameraFrameFromViewpoint("set_camera_to_frame_from_viewpoint");
+constexpr QLatin1StringView kAlignByCorrespondences("align_current_raster_to_mesh_by_point_correspondences");
 
 MeshFilterRunResult fail(const QString &m) { return {false, false, m}; }
 MeshFilterRunResult ok(const QStringList &info = {}) {
@@ -141,6 +143,47 @@ void applyTransformToVisibleMeshes(Document &doc, const QMatrix4x4 &transf)
     }
 }
 
+// The camera a view sees with, for an image of `size`: the view's rotation, roll included, and
+// its projection, with the image's height spanning H = 2 * distance * tan(fovY / 2) at the
+// orbit centre, as the view's does. The vcg rotation is the view matrix's: both map world axes
+// to the camera's right, up and backward axes.
+CameraShot rasterShotFromView(const ViewTrackball::State &state, const QSize &size)
+{
+    ViewTrackball view;
+    view.setState(state);
+    const bool orthographic = state.projection == Projection::Orthographic;
+    const float tanHalfFov = std::tan(0.5f * qDegreesToRadians(state.fovYDeg));
+    CameraShot shot;
+    auto vcgShot = shot.toVcgShot();
+    vcgShot.Intrinsics.cameraType =
+        orthographic ? vcg::Camera<float>::ORTHO : vcg::Camera<float>::PERSPECTIVE;
+    vcgShot.Intrinsics.ViewportPx = vcg::Point2i(size.width(), size.height());
+    vcgShot.Intrinsics.CenterPx = vcg::Point2f(0.5f * size.width(), 0.5f * size.height());
+    // Orthographic: world units per pixel, so that the image's height spans H.
+    // Perspective: the fictitious unit pixel, with the focal length that gives the field
+    // of view.
+    const float pixel = orthographic ? 2.0f * state.distance * tanHalfFov / float(size.height()) : 1.0f;
+    vcgShot.Intrinsics.PixelSizeMm = vcg::Point2f(pixel, pixel);
+    vcgShot.Intrinsics.FocalMm = float(size.height()) / (2.0f * tanHalfFov);
+    const QMatrix4x4 viewMatrix = view.viewMatrix();
+    vcg::Matrix44f rot;
+    rot.SetIdentity();
+    for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 3; ++c)
+            rot[r][c] = viewMatrix(r, c);
+    const QVector3D eye = viewMatrix.inverted().map(QVector3D());
+    vcgShot.Extrinsics.SetRot(rot);
+    vcgShot.Extrinsics.SetTra(vcg::Point3f(eye.x(), eye.y(), eye.z()));
+    return CameraShot::fromVcgShot(vcgShot);
+}
+
+// The size of the image a raster's camera is for: its current plane's, else its camera's.
+QSize rasterImageSize(const Document::RasterEntry &raster)
+{
+    const RasterPlane *plane = raster.currentPlane();
+    return plane && !plane->size.isEmpty() ? plane->size : raster.shot.viewportPx();
+}
+
 // Whether a framing filter makes an orthographic camera: asked for, or left on "current" and
 // the current raster's camera is one. Without a raster, "current" means perspective.
 bool framingIsOrthographic(const FilterParams &p, Document &doc)
@@ -180,29 +223,9 @@ MeshFilterRunResult framedCamera(Document &doc, const QVector3D &eye, const QVec
     const int ri = doc.currentRasterIndex();
     if (ri >= 0) {
         const Document::RasterEntry &raster = doc.raster(ri);
-        const RasterPlane *plane = raster.currentPlane();
-        const QSize size = plane && !plane->size.isEmpty() ? plane->size : raster.shot.viewportPx();
+        const QSize size = rasterImageSize(raster);
         if (!size.isEmpty()) {
-            const float tanHalfFov = std::tan(0.5f * qDegreesToRadians(fovYDeg));
-            const QVector3D viewDir = (center - eye).normalized();
-            CameraShot shot;
-            auto vcgShot = shot.toVcgShot();
-            vcgShot.Intrinsics.cameraType =
-                orthographic ? vcg::Camera<float>::ORTHO : vcg::Camera<float>::PERSPECTIVE;
-            vcgShot.Intrinsics.ViewportPx = vcg::Point2i(size.width(), size.height());
-            vcgShot.Intrinsics.CenterPx = vcg::Point2f(0.5f * size.width(), 0.5f * size.height());
-            // Orthographic: world units per pixel, so that the image's height spans H.
-            // Perspective: the fictitious unit pixel, with the focal length that gives the field
-            // of view.
-            const float pixel = orthographic ? 2.0f * state.distance * tanHalfFov / float(size.height()) : 1.0f;
-            vcgShot.Intrinsics.PixelSizeMm = vcg::Point2f(pixel, pixel);
-            vcgShot.Intrinsics.FocalMm = float(size.height()) / (2.0f * tanHalfFov);
-            QVector3D up(0, 1, 0);
-            if (std::abs(QVector3D::dotProduct(viewDir, up)) > 0.99f) up = QVector3D(1, 0, 0);
-            vcgShot.LookAt(eye.x(), eye.y(), eye.z(),
-                           center.x(), center.y(), center.z(),
-                           up.x(), up.y(), up.z());
-            doc.setRasterShot(ri, CameraShot::fromVcgShot(vcgShot),
+            doc.setRasterShot(ri, rasterShotFromView(state, size),
                               QObject::tr("Raster camera set (%1): '%2'").arg(what, raster.name));
             result.documentModified = true;
         }
@@ -250,6 +273,18 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
         int ri = doc.currentRasterIndex();
         if (ri < 0) return fail(QObject::tr("No current raster selected."));
         auto &re = doc.raster(ri);
+        if (p.getBool(QStringLiteral("fromView"), false)) {
+            ViewTrackball::State state;
+            QString error;
+            if (!ViewTrackball::stateFromCameraStateJson(p.getCameraState(QStringLiteral("camera")), state, &error))
+                return fail(QObject::tr("Invalid camera: %1").arg(error));
+            const QSize size = rasterImageSize(re);
+            if (size.isEmpty())
+                return fail(QObject::tr("Raster '%1' has no image size to make a camera for.").arg(re.name));
+            const QString message = QObject::tr("Set the camera of raster '%1' from a view.").arg(re.name);
+            doc.setRasterShot(ri, rasterShotFromView(state, size), message);
+            return ok({message});
+        }
         QVector3D vp = p.getPoint3f(QStringLiteral("viewpoint"));
         QVector3D dir = p.getPoint3f(QStringLiteral("direction"));
         float focal = float(p.getDouble(QStringLiteral("focalMm")));
@@ -264,10 +299,9 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
         setShotFromParams(shot, vp, dir, focal, sensorW, vpSize);
         if (framingIsOrthographic(p, doc))
             shot.setCameraType(CameraShot::CameraType::Orthographic);
-        re.shot = shot;
-        doc.writeLog(QObject::tr("Set camera for raster '%1'.").arg(re.name),
-                     Document::LogSource::Application);
-        return ok({QObject::tr("Set camera for raster '%1'.").arg(re.name)});
+        const QString message = QObject::tr("Set camera for raster '%1'.").arg(re.name);
+        doc.setRasterShot(ri, shot, message);
+        return ok({message});
     }
 
     // --- Compute Vertex Scalar from Camera ---
@@ -755,6 +789,72 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
         result.outputValues.insert(QStringLiteral("cameraState"), json);
         result.outputValues.insert(QStringLiteral("aspect"), double(aspect));
         result.outputValues.insert(QStringLiteral("fovYDeg"), double(camera.fovYDegrees()));
+        return result;
+    }
+
+    // --- Align Current Raster to Mesh by Point Correspondences ---
+    if (fid == QString::fromLatin1(kAlignByCorrespondences)) {
+        const int ri = doc.currentRasterIndex();
+        if (ri < 0) return fail(QObject::tr("No current raster."));
+        const Document::RasterEntry &re = doc.raster(ri);
+        if (!re.shot.isValid())
+            return fail(QObject::tr("Raster '%1' has no camera to start from; set one, for example from a view.").arg(re.name));
+        if (re.shot.isOrthographic())
+            return fail(QObject::tr("Raster '%1' has an orthographic camera; only a perspective one can be aligned.").arg(re.name));
+
+        // The pairs, with the pixels turned to vcg's: y up the image
+        const QJsonDocument json = QJsonDocument::fromJson(p.getString(QStringLiteral("correspondences")).toUtf8());
+        if (!json.isArray())
+            return fail(QObject::tr("Correspondences must be a JSON array of {\"point\": [x, y, z], \"pixel\": [u, v]}."));
+        const float height = float(re.shot.viewportPx().height());
+        std::vector<vcg::Point3d> points;
+        std::vector<vcg::Point2d> pixels;
+        for (const QJsonValue &value : json.array()) {
+            const QJsonArray point = value.toObject().value(QStringLiteral("point")).toArray();
+            const QJsonArray pixel = value.toObject().value(QStringLiteral("pixel")).toArray();
+            if (point.size() != 3 || pixel.size() != 2)
+                return fail(QObject::tr("Correspondence %1 needs a point of three numbers and a pixel of two.")
+                                .arg(points.size() + 1));
+            points.emplace_back(point[0].toDouble(), point[1].toDouble(), point[2].toDouble());
+            pixels.emplace_back(pixel[0].toDouble(), height - pixel[1].toDouble());
+        }
+        const bool estimateFocal = p.getBool(QStringLiteral("estimateFocal"), false);
+        const size_t needed = estimateFocal ? 4 : 3;
+        if (points.size() < needed)
+            return fail(QObject::tr("%1 correspondences are needed%2; there are %3.")
+                            .arg(needed).arg(estimateFocal ? QObject::tr(" to estimate the focal length") : QString())
+                            .arg(points.size()));
+
+        vcg::Shotd shot = vcg::Shotd::Construct(re.shot.toVcgShot());
+        const double rmsBefore = vcg::ShotResectiond::RmsError(shot, points, pixels);
+        double rmsAfter = 0;
+        try {
+            rmsAfter = vcg::ShotResectiond::Fit(shot, points, pixels, estimateFocal);
+        } catch (const std::invalid_argument &e) {
+            return fail(QString::fromUtf8(e.what()));
+        }
+        const CameraShot fitted = CameraShot::fromVcgShot(vcg::Shotf::Construct(shot));
+
+        QVariantList pairErrors;
+        double maxAfter = 0;
+        for (size_t i = 0; i < points.size(); ++i) {
+            const double e = (shot.Project(points[i]) - pixels[i]).Norm();
+            pairErrors.append(e);
+            maxAfter = std::max(maxAfter, e);
+        }
+        const QString message =
+            QObject::tr("Aligned raster '%1' to %2 correspondences: %3 px root mean square before, %4 px after "
+                        "(at most %5 px)%6.")
+                .arg(re.name).arg(points.size())
+                .arg(rmsBefore, 0, 'f', 3).arg(rmsAfter, 0, 'f', 3).arg(maxAfter, 0, 'f', 3)
+                .arg(estimateFocal ? QObject::tr(", focal length %1 mm").arg(double(fitted.focalMm()), 0, 'f', 3)
+                                   : QString());
+        doc.setRasterShot(ri, fitted, message);
+        MeshFilterRunResult result = ok({message});
+        result.outputValues.insert(QStringLiteral("rmsBefore"), rmsBefore);
+        result.outputValues.insert(QStringLiteral("rmsAfter"), rmsAfter);
+        result.outputValues.insert(QStringLiteral("maxAfter"), maxAfter);
+        result.outputValues.insert(QStringLiteral("pairErrors"), pairErrors);
         return result;
     }
 

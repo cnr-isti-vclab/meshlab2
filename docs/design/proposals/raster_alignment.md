@@ -4,8 +4,9 @@ This document proposes aligning a raster's camera to a mesh, so that a photo who
 missing or slightly wrong can be registered on the model and then used by the filters that
 project through rasters (color transfer, coverage, parametrization). It is Stage 3 of the
 [Camera Lens Model](camera_lens_model.md), which gave rasters a pinhole camera plus a separate
-lens and a native COLMAP import. **Not implemented; written 2026-11-03, awaiting approval of
-the table and the open questions.**
+lens and a native COLMAP import. **Written 2026-11-03; Stage 3a, the correspondence fit,
+implemented the same day. Stages 3b to 3d are not, and the open questions not about 3a are
+still open.**
 
 See also: [Camera Lens Model](camera_lens_model.md) (the boundary this relies on),
 [Data Model](../data_model.md#raster-data-type), [Rendering](../rendering.md) (the
@@ -193,6 +194,49 @@ Each stage is one commit, landed and verified before the next.
     - **Real pairs.** On `2930Colmap`, when present, use COLMAP's own observations of one
       camera as the pairs, perturb the camera, and compare the fit with COLMAP's camera.
   - A vcglib change, so the four-part landing applies.
+
+  As built (2026-11-03), with open questions 2, 4, 5 and 8 taken as recommended: NEWUOA, the
+  name in `Document/Camera`, the JSON parameter, and the focal length as the only intrinsic:
+
+  - **`vcg/math/shot_resection.h`**, 214 lines with its comments: `ShotResection<S>::Fit` and
+    `RmsError`, in viewport pixels as `Shot::Project` gives them. The rotation and translation
+    are in the camera's own frame, about the **centroid of the points**, not the mesh's
+    bounding box: the fit sees only the points. NEWUOA runs in rounds, each measuring the
+    scales again where the last ended, until a round gains less than the tolerance. It throws
+    `std::invalid_argument` for too few points, points all in one place, or an orthographic
+    shot. Sample `apps/sample/space_shot_resection`.
+  - **Measured robustness**, on a synthetic 4000 × 3000 camera with random points and 200
+    random starts per case: with 8 or 30 points, every start converges to 1e-12 px, up to
+    turns of about 17° and moves of 30% of the distance, with or without the focal length.
+    With 4 points, the near-minimal case, 1 to 3 starts in 200 fail at the larger
+    perturbations. A fit takes 0.3 to 2 ms.
+  - **`vcg::Camera<S>::Construct` from `Camera<Q>`**, which never compiled when the scalar
+    types differed: `CameraType` is a distinct nested enum in each. It is cast now, the one
+    line the filter needed to make a `Shotd` of MeshLab's `Shotf`.
+  - **The filter** turns the JSON pixels (y down) into vcg's, fits in double, and writes the
+    camera through `setRasterShot`. It refuses an orthographic camera, a raster with no camera
+    or too few pairs. It returns `rmsBefore`, `rmsAfter`, `maxAfter` and `pairErrors`. The
+    pixels are in the camera's viewport, which is the image's size whenever the image matches
+    its camera, the usual case.
+  - ***Set Raster Camera* from a view** is a bool, `fromView`, not the `source` enum the table
+    named: `enabledWhen` can only follow a bool, and this way it greys out the five other
+    parameters. The camera keeps the view's rotation, roll included, through
+    `rasterShotFromView`. The framing filters' raster camera now comes from the same helper,
+    in place of a second `LookAt` that rebuilt it from the eye and centre. *Set Raster Camera*
+    used to assign the shot directly, so no camera revision was bumped and no view heard of
+    it; both of its paths now go through `setRasterShot`.
+  - **Tests** (`test_filters.cpp`):
+    - *Set Raster Camera* from a view, perspective and orthographic with a 25° roll, puts
+      every cube corner within 0.01 px of where the view draws it.
+    - On the gargoyle, every vertex seen by one camera (one in 397), with the camera turned
+      5° and moved 5% of the model's size (16 to 38 px off): each of the four cameras comes
+      back to under 1e-4 px of the true one, also with the focal length 10% off. The
+      principal point and pixel size are untouched, one undo restores the start, and bad
+      JSON, malformed pairs and too few pairs are refused.
+    - On `2930Colmap`, raster 7: its 5,433 COLMAP observations are undistorted through its
+      lens and the camera is started 2° and 2% away (83.5 px off). It lands 0.050 px from
+      COLMAP's camera, with an error of 0.5917 px against COLMAP's 0.5937, in 25 ms. The fit
+      may come out slightly lower because COLMAP adjusted the points too.
 - **3b. The tool.** Depth picking in `RasterImage` mode and the drag-to-pair tool. Picking is
   in the GUI, so the checks are the tool's unit logic plus a hand test on gargoyle. A render
   probe if picking in this mode needs one.

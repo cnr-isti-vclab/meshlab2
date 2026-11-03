@@ -62,14 +62,31 @@
       "name": "Set Raster Camera",
       "pythonName": "set_raster_camera",
       "shortDescription": "Set the camera parameters for the current raster.",
-      "longDescriptionMarkdown": "Set camera parameters for the current raster. The viewport is automatically recalculated from the raster image dimensions.",
-      "tags": ["camera", "raster"],
+      "longDescriptionMarkdown": "Set camera parameters for the current raster, from a viewpoint, a direction and a focal length, or from a view: the camera of a 3D view, by default the current one, with its projection, field of view and roll. Either way the camera is made for the raster's own image size, centred on it.\n\nThe camera from a view is a starting point for aligning a photo to a mesh: navigate a 3D view until the model looks as it does in the photo, and give that camera to the raster.",
+      "tags": ["camera", "raster", "view", "get shot"],
       "inputDomain": "None",
       "outputDomain": "ModifyCurrentMesh",
       "outputModifies": [],
       "parameters": [
         {
+          "id": "fromView",
+          "label": "From a view",
+          "help": "Take the camera of a view instead of the viewpoint, direction and focal length below.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "camera",
+          "label": "View camera",
+          "help": "The view whose camera the raster gets (MeshLab.CameraState JSON).",
+          "group": "main",
+          "type": "camerastate",
+          "enabledWhen": "fromView"
+        },
+        {
           "id": "viewpoint",
+          "enabledWhen": "!fromView",
           "label": "Viewpoint",
           "help": "Camera position in world space.",
           "group": "main",
@@ -79,6 +96,7 @@
         },
         {
           "id": "direction",
+          "enabledWhen": "!fromView",
           "label": "View direction",
           "help": "Camera viewing direction.",
           "group": "main",
@@ -88,6 +106,7 @@
         },
         {
           "id": "focalMm",
+          "enabledWhen": "!fromView",
           "label": "Focal length (mm)",
           "help": "Camera focal length in millimeters.",
           "group": "main",
@@ -99,6 +118,7 @@
         },
         {
           "id": "sensorWidthMm",
+          "enabledWhen": "!fromView",
           "label": "Sensor width (mm)",
           "help": "Camera sensor width in millimeters. For an orthographic camera, the width of the view volume in world units, and the focal length plays no part.",
           "group": "main",
@@ -110,6 +130,7 @@
         },
         {
           "id": "projection",
+          "enabledWhen": "!fromView",
           "label": "Projection",
           "help": "Perspective or orthographic camera. 'Keep current' uses the projection of the raster's present camera, and perspective when it has none.",
           "group": "main",
@@ -700,6 +721,36 @@
             { "id": "camera", "label": "Camera's own" },
             { "id": "fit", "label": "Fit to the target" }
           ]
+        }
+      ]
+    },
+    {
+      "id": "align_current_raster_to_mesh_by_point_correspondences",
+      "categories": ["Document/Camera"],
+      "name": "Align Current Raster to Mesh by Point Correspondences",
+      "pythonName": "align_current_raster_to_mesh_by_point_correspondences",
+      "shortDescription": "Correct the current raster's camera from points on the mesh and the pixels where the photo shows them.",
+      "longDescriptionMarkdown": "Refines where the current raster's camera stands and looks, and optionally its focal length, so that it projects each point onto its pixel: the camera that minimizes the root mean square distance between them, in pixels. The raster's camera has to be roughly right to start with; *Set Raster Camera* from a view gives one.\n\nThe principal point, the pixel size and the lens are left as they are: they are the calibration's. Three pairs are needed, four with the focal length; more are averaged.\n\n**Correspondences** is a JSON array of pairs, each a world-space point and a pixel of the image the raster's camera is made for (its viewport, the size of the photo as MeshLab shows it, undistorted when the raster has a lens): `[{\"point\": [x, y, z], \"pixel\": [u, v]}, ...]`, with the pixel's origin at the top-left corner of the image, y down, and pixel centres at k + 0.5.\n\nThe error before and after, root mean square and maximum, and each pair's, are logged and returned as `rmsBefore`, `rmsAfter`, `maxAfter` and `pairErrors`.",
+      "tags": ["camera", "raster", "align", "register", "resection", "correspondences", "photo"],
+      "inputDomain": "None",
+      "outputDomain": "ModifyCurrentMesh",
+      "outputModifies": [],
+      "parameters": [
+        {
+          "id": "correspondences",
+          "label": "Correspondences",
+          "help": "Pairs of a world-space point and the image pixel that shows it, as a JSON array of {\"point\": [x, y, z], \"pixel\": [u, v]}; pixels from the top-left corner, y down.",
+          "group": "main",
+          "type": "string",
+          "default": "[]"
+        },
+        {
+          "id": "estimateFocal",
+          "label": "Estimate focal length",
+          "help": "Fit the focal length too; it needs four pairs.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         }
       ]
     }
