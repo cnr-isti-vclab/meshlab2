@@ -116,26 +116,6 @@ not by other branches. The vcpkg dependencies take hours to build, and the build
 save them run on `devel`; a release run on a tag can reuse them only if `devel` is the
 default branch. Otherwise every release starts from a cold cache.
 
-### Helper programs
-
-QuadWild and TextureConsolidation run as separate executables built from submodules,
-and building them took about half of a cold Linux build (QuadWild 7 min, the
-TextureConsolidation helpers 6 min, with all four cores) and 12 minutes of QuadWild
-alone on Windows, although their sources change only when the submodule is bumped.
-`.github/actions/helper-cache` keeps the five programs (25 MB) between runs, one cache
-entry per set, keyed on the runner image, the submodule commit, the plugin's
-`CMakeLists.txt` and `MACOSX_DEPLOYMENT_TARGET` (set only by the wheel jobs, and
-checked by delocate). It sets `MESHLAB2_HELPERS_CACHE_DIR` in the environment, which
-the root `CMakeLists.txt` reads: a plugin that finds its helpers there uses them and
-skips the external build; otherwise it builds them and copies them in, and the save
-step stores each set that is complete and was not restored.
-
-Measured on 2026-11-03 before choosing this over ccache: the cache budget was 9.0 of
-10 GB, and a compiler cache of a few GB per platform would evict the vcpkg caches,
-whose cold rebuild costs two hours on Windows. Restoring the helpers' build directories
-instead would not work: a fresh checkout makes the sources newer than the restored
-objects, so the inner build recompiles everything.
-
 ## Open items
 
 - Make `devel` the default branch on GitHub (Settings → Branches). Do this before the
