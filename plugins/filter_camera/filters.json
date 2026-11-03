@@ -1,5 +1,33 @@
 {
   "pluginId": "meshlab2.filter.camera",
+  "references": [
+    {
+      "id": "corsini2009mutual",
+      "type": "article-journal",
+      "title": "Image-to-geometry registration: a mutual information method exploiting illumination-related geometric properties",
+      "author": [
+        { "family": "Corsini", "given": "M." },
+        { "family": "Dellepiane", "given": "M." },
+        { "family": "Ponchio", "given": "F." },
+        { "family": "Scopigno", "given": "R." }
+      ],
+      "container-title": "Computer Graphics Forum",
+      "volume": "28",
+      "issue": "7",
+      "page": "1755-1764",
+      "issued": { "date-parts": [[2009]] }
+    },
+    {
+      "id": "dellepiane2013global",
+      "type": "paper-conference",
+      "title": "Global refinement of image-to-geometry registration for color projection",
+      "author": [
+        { "family": "Dellepiane", "given": "M." },
+        { "family": "Scopigno", "given": "R." }
+      ],
+      "issued": { "date-parts": [[2013]] }
+    }
+  ],
   "filters": [
     {
       "id": "set_mesh_camera",
@@ -762,6 +790,7 @@
       "shortDescription": "Refine the current raster's camera so that a rendering of the visible layers matches its photo.",
       "longDescriptionMarkdown": "Refines where the current raster's camera stands and looks, and optionally its focal length, by maximizing the mutual information between the photo, in grey levels, and a rendering of the visible layers through the camera: the method of Corsini et al. 2009. It is a refinement: the camera has to be close already, within a few pixels, as *Align Current Raster to Mesh by Point Correspondences* leaves it. The principal point, the pixel size and the lens are left as they are.\n\nThe rendering is made on the CPU, at a working resolution whose longest side is **Resolution**, and shows one of: the surface normal's component up the image (*Normal Map*, which needs nothing but normals); the vertex color blended into that by the square of its red, meant to hold ambient occlusion (*Combined*, which is the normal map where the vertex color is white); or the vertex color's red (*Vertex Color*). Rendered background counts 1 / **Background weight** as much as the rest, and pixels the photo does not cover, as an undistorted photo's corners, not at all.\n\nThe camera's parameters are scaled so that a unit step moves the mesh's projection by about a pixel of the working resolution: **Expected error** is how far the optimizer first looks, and it stops when its steps fall below **Tolerance**, or after **Max evaluations** renderings. The mutual information before and after, in bits, the number of renderings, and how far the camera moved the mesh's projection in the raster's pixels are logged and returned as `informationBefore`, `informationAfter`, `evaluations` and `displacement`.",
       "tags": ["camera", "raster", "align", "register", "mutual information", "photo", "refine"],
+      "referenceIds": ["corsini2009mutual"],
       "inputDomain": "None",
       "outputDomain": "ModifyCurrentMesh",
       "outputModifies": [],
@@ -801,6 +830,139 @@
           "id": "maxEvaluations",
           "label": "Max evaluations",
           "help": "The most renderings the optimizer may make.",
+          "group": "advanced",
+          "type": "int",
+          "default": 300,
+          "min": 10,
+          "max": 100000
+        },
+        {
+          "id": "expectedError",
+          "label": "Expected error (px)",
+          "help": "How far, in pixels of the working resolution, the optimizer first looks.",
+          "group": "advanced",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.01,
+          "max": 1000.0,
+          "decimals": 2
+        },
+        {
+          "id": "tolerance",
+          "label": "Tolerance (px)",
+          "help": "The optimizer stops when its steps move the projection by less than this, in pixels of the working resolution.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.1,
+          "min": 0.0001,
+          "max": 100.0,
+          "decimals": 4
+        },
+        {
+          "id": "backgroundWeight",
+          "label": "Background weight",
+          "help": "Rendered background counts 1 / this as much as the rest; 0 leaves it out.",
+          "group": "advanced",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.0,
+          "max": 100.0,
+          "decimals": 2
+        }
+      ]
+    },
+    {
+      "id": "align_visible_rasters_globally_by_mutual_information",
+      "categories": [
+        "Document/Camera"
+      ],
+      "name": "Align Visible Rasters Globally by Mutual Information",
+      "pythonName": "align_visible_rasters_globally_by_mutual_information",
+      "shortDescription": "Refine the visible rasters' cameras together, so that their photos project the same detail onto the same place of the mesh.",
+      "longDescriptionMarkdown": "Refines the cameras of a set of rasters already aligned to the mesh, so that they agree with each other as well as with the geometry: the global refinement of Dellepiane and Scopigno 2013, for sharper color projection. The visible rasters are refined; hidden rasters with a camera are **anchors**, taken as right, which guide the others and never move.\n\nThe rasters form a graph. The arc from raster *j* into raster *i* weighs how well *j*'s photo, projected onto the mesh and seen from *i*, matches *i*'s photo: the mutual information of the two, times the share of the mesh seen from *i* that *j* paints. Only pairs that share more than 20% get an arc. A pass refines one raster at a time, the one with the most arcs from rasters already refined first: its camera is moved, as by *Align Current Raster to Mesh by Mutual Information*, to maximize the mutual information between its photo and the mesh painted with the photos of all its arcs, weighted by them, and drawn as **Rendering** where none of them sees it. Then its arcs are weighed again. Passes repeat until one moves the mesh's projections by less than **Convergence threshold** on average, or **Max iterations** have run.\n\nThe principal points, pixel sizes and lenses are left as they are. The number of passes, the average movement of each, the number of arcs and of renderings are logged and returned as `iterations`, `variations`, `arcs` and `evaluations`.",
+      "tags": [
+        "camera",
+        "raster",
+        "align",
+        "register",
+        "mutual information",
+        "global",
+        "refine",
+        "color projection"
+      ],
+      "referenceIds": [
+        "dellepiane2013global",
+        "corsini2009mutual"
+      ],
+      "inputDomain": "None",
+      "outputDomain": "ModifyCurrentMesh",
+      "outputModifies": [],
+      "parameters": [
+        {
+          "id": "rendering",
+          "label": "Rendering",
+          "help": "What the rendering of the layers shows, to compare with the photo.",
+          "group": "main",
+          "type": "enum",
+          "default": "combined",
+          "enumOptions": [
+            {
+              "id": "combined",
+              "label": "Combined"
+            },
+            {
+              "id": "normalMap",
+              "label": "Normal Map"
+            },
+            {
+              "id": "vertexColor",
+              "label": "Vertex Color"
+            }
+          ]
+        },
+        {
+          "id": "estimateFocal",
+          "label": "Estimate focal length",
+          "help": "Let the focal lengths change too.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "resolution",
+          "label": "Resolution",
+          "help": "The longest side, in pixels, of the photo and the rendering as they are compared; a larger photo is scaled down.",
+          "group": "main",
+          "type": "int",
+          "default": 800,
+          "min": 64,
+          "max": 8192
+        },
+        {
+          "id": "maxIterations",
+          "label": "Max iterations",
+          "help": "The most passes over all the rasters.",
+          "group": "main",
+          "type": "int",
+          "default": 5,
+          "min": 1,
+          "max": 100
+        },
+        {
+          "id": "threshold",
+          "label": "Convergence threshold (px)",
+          "help": "Stop when a pass moves the mesh's projections by less than this on average, in each raster's own pixels.",
+          "group": "main",
+          "type": "double",
+          "default": 1.2,
+          "min": 0.0,
+          "max": 1000.0,
+          "decimals": 2
+        },
+        {
+          "id": "maxEvaluations",
+          "label": "Max evaluations",
+          "help": "The most renderings for one raster in one pass.",
           "group": "advanced",
           "type": "int",
           "default": 300,

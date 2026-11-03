@@ -46,6 +46,7 @@ constexpr QLatin1StringView kCameraFromDirection("set_camera_from_direction");
 constexpr QLatin1StringView kCameraFrameFromViewpoint("set_camera_to_frame_from_viewpoint");
 constexpr QLatin1StringView kAlignByCorrespondences("align_current_raster_to_mesh_by_point_correspondences");
 constexpr QLatin1StringView kAlignByMutualInformation("align_current_raster_to_mesh_by_mutual_information");
+constexpr QLatin1StringView kAlignGloballyByMutualInformation("align_visible_rasters_globally_by_mutual_information");
 
 MeshFilterRunResult fail(const QString &m) { return {false, false, m}; }
 MeshFilterRunResult ok(const QStringList &info = {}) {
@@ -862,6 +863,8 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
 
     if (fid == QString::fromLatin1(kAlignByMutualInformation))
         return alignRasterByMutualInformation(p, doc);
+    if (fid == QString::fromLatin1(kAlignGloballyByMutualInformation))
+        return alignRastersGloballyByMutualInformation(p, doc);
 
     return fail(QObject::tr("Unknown filter: %1").arg(fid));
 }

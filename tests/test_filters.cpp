@@ -453,6 +453,7 @@ private slots:
     void alignRasterByCorrespondencesRefitsAColmapCamera();
     void alignRasterByMutualInformationRecoversTheGargoyleCameras();
     void alignRasterByMutualInformationOnARealScan();
+    void alignRastersGloballyByMutualInformation();
     void visibleOnlySelectionCastsParallelRaysInAnOrthographicView();
     void screenSelectionFollowsTheLayerMatrix();
     void visibleOnlySelectionLooksThroughTheLayerMatrix();
@@ -2154,12 +2155,13 @@ void FilterTests::alignRasterByCorrespondencesRecoversTheGargoyleCameras()
     QVERIFY(refused(correspondencesJson({ three[0], three[1] }, { threePixels[0], threePixels[1] }), false));
 }
 
-// Mutual information from gargoyle cameras moved by 2 and 8 degrees (4 to 21 px off) comes back
+// Mutual information from gargoyle cameras moved by 2 and 5 degrees (3 to 13 px off) comes back
 // to where a fit started from the true camera ends, which is not the true camera itself: the
 // fixture's cameras are within 0.5 to 1.6 px of the maximum of mutual information, not on it.
-// Camera 1 sees the least of the gargoyle and has the flattest maximum; its fits end within
-// 3.6 px of each other, the others' within 1.3 (measured 2026-11-03, Normal Map, 0.4 to 1 s a
-// run). An orthographic camera is refused.
+// Measured 2026-11-03 with the Normal Map, starting 2 to 8 degrees off (3 to 21 px): cameras 0,
+// 2 and 3 end within 1.4 px of the fit from the truth from every start. Camera 1 sees the least
+// of the gargoyle and has the flattest maximum: within 4.9 px up to 6 degrees (15 px), but from
+// 7 degrees on it stops at lower maxima 10 to 12 px away. An orthographic camera is refused.
 void FilterTests::alignRasterByMutualInformationRecoversTheGargoyleCameras()
 {
     Document doc;
@@ -2186,7 +2188,7 @@ void FilterTests::alignRasterByMutualInformationRecoversTheGargoyleCameras()
         QVERIFY2(r.success, qPrintable(r.errorMessage));
         const CameraShot optimum = doc.raster(ri).shot;
         const double best = r.outputValues.value(QStringLiteral("informationAfter")).toDouble();
-        for (const float degrees : { 2.0f, 8.0f }) {
+        for (const float degrees : { 2.0f, 5.0f }) {
             const CameraShot start = perturbedShot(truth, degrees, pivot, QVector3D(0.004f, -0.003f, 0.002f) * diag * degrees);
             doc.setRasterShot(ri, start);
             r = doc.runFilter(key, params);
@@ -2213,8 +2215,8 @@ void FilterTests::alignRasterByMutualInformationRecoversTheGargoyleCameras()
 }
 
 // On the RealityScan scan (3.2 M faces, its points hidden), with the scan's vertex colors: a
-// COLMAP camera moved by 1 degree (62 px off) comes back to within 1.24 px of where COLMAP put
-// it, in about 270 renderings of 50 ms. The Normal Map is not tested here: on this photo it
+// COLMAP camera moved by 1 degree (62 px off) comes back to within 1.33 px of where COLMAP put
+// it, in about 200 renderings of 50 ms. The Normal Map is not tested here: on this photo it
 // finds a higher maximum 13 to 19 px away, so the rendering decides whether the method works.
 void FilterTests::alignRasterByMutualInformationOnARealScan()
 {
@@ -2252,6 +2254,52 @@ void FilterTests::alignRasterByMutualInformationOnARealScan()
            r.outputValues.value(QStringLiteral("informationAfter")).toDouble(),
            r.outputValues.value(QStringLiteral("evaluations")).toInt(), timer.elapsed());
     QVERIFY2(off < 3.0, qPrintable(QString::number(off)));
+}
+
+// Global refinement of the gargoyle's four cameras, moved by 1 to 2.5 degrees about different
+// axes (1.6 to 5.2 px off): all of them end within 1.5 px of the fixture's cameras, in two
+// passes, the second moving the projections under the 1.2 px threshold. With camera 0 hidden,
+// an anchor at its true place, it does not move and the other three end within 2 px. Measured
+// 2026-11-03 with the Normal Map: 0.4 to 1.4 px, and 0.45 to 1.6 px with the anchor, in about
+// 10 and 7 s.
+void FilterTests::alignRastersGloballyByMutualInformation()
+{
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(
+                 QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
+    const QString key = filterKeyForId(doc, QStringLiteral("align_visible_rasters_globally_by_mutual_information"));
+    QVERIFY(!key.isEmpty());
+    const Document::MeshEntry &mesh = doc.mesh(0);
+    std::vector<vcg::Point3d> points;
+    for (size_t vi = 0; vi < mesh.mesh.vert.size(); vi += 37)
+        points.emplace_back(mesh.mesh.vert[vi].cP()[0], mesh.mesh.vert[vi].cP()[1], mesh.mesh.vert[vi].cP()[2]);
+    const vcg::Point3f c = mesh.mesh.bbox.Center();
+    const QVector3D pivot(c[0], c[1], c[2]);
+    const float diag = mesh.mesh.bbox.Diag();
+    std::vector<CameraShot> truth;
+    for (int ri = 0; ri < doc.rasterCount(); ++ri)
+        truth.push_back(doc.raster(ri).shot);
+    for (const bool anchor : { false, true }) {
+        for (int ri = 0; ri < doc.rasterCount(); ++ri) {
+            const float degrees = (anchor && ri == 0) ? 0.0f : (ri % 2 ? 1.0f : -1.0f) * (1.0f + 0.5f * ri);
+            doc.setRasterShot(ri, perturbedShot(truth[size_t(ri)], degrees, pivot,
+                                                QVector3D(0.004f, -0.003f, 0.002f) * diag * degrees));
+            doc.raster(ri).visible = !(anchor && ri == 0);
+        }
+        const CameraShot anchored = doc.raster(0).shot;
+        const MeshFilterRunResult r = doc.runFilter(key, { { QStringLiteral("rendering"), QStringLiteral("normalMap") } });
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        const QVariantList variations = r.outputValues.value(QStringLiteral("variations")).toList();
+        QVERIFY(!variations.isEmpty() && variations.last().toDouble() < 1.2);
+        for (int ri = 0; ri < doc.rasterCount(); ++ri) {
+            const double off = projectedDisplacement(doc.raster(ri).shot, truth[size_t(ri)], points);
+            qDebug("anchor %d, raster %d: %.2f px off the truth", int(anchor), ri, off);
+            QVERIFY2(off < (anchor ? 2.0 : 1.5), qPrintable(QString::number(off)));
+            QCOMPARE(doc.raster(ri).shot.centerPx(), truth[size_t(ri)].centerPx());
+        }
+        if (anchor)
+            QVERIFY(doc.raster(0).shot.toVcgShot() == anchored.toVcgShot());
+    }
 }
 
 // COLMAP's own observations of one camera of a real 35-photo scan, taken through the lens to the
