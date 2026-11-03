@@ -10358,6 +10358,7 @@ void FilterTests::faceScalarFromRastersMeasuresTheViews()
     r = doc.runFilter(filterKeyForId(doc, QStringLiteral("parametrize_from_registered_rasters_with_texture")),
                       { { QStringLiteral("textureSize"), 512 } });
     QVERIFY2(r.success, qPrintable(r.errorMessage));
+    qDebug("face scalar from rasters, texturing | %s", qPrintable(r.infoMessages.join(' ')));
     r = run(doc, QStringLiteral("bestResolution"), 1.0);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
     const std::vector<float> texturedResolution = scalars(doc);

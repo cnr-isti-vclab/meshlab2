@@ -514,7 +514,7 @@ void patchPacking(RasterPatchMap &patches, int textureGutter, bool allowUVStretc
     if (maxPackingSize > 0 && int(edgeLen) > maxPackingSize)
         edgeLen = float(maxPackingSize);
 
-    log << QStringLiteral("Packing %1 rectangles, grid %2x%2 (area=%.0f, max=%3)")
+    log << QStringLiteral("Packing %1 rectangles, grid %2x%2 (area=%3, max=%4)")
            .arg(patchRect.size())
            .arg(int(edgeLen)).arg(totalArea, 0, 'f', 0).arg(maxPackingSize);
     std::vector<vcg::Similarity2f> patchTr(patchRect.size());
