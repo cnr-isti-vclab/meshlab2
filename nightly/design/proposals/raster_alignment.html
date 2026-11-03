@@ -251,8 +251,8 @@ missing or slightly wrong can be registered on the model and then used by the fi
 project through rasters (color transfer, coverage, parametrization). It is Stage 3 of the
 <a class="reference internal" href="camera_lens_model.html"><span class="std std-doc">Camera Lens Model</span></a>, which gave rasters a pinhole camera plus a separate
 lens and a native COLMAP import. <strong>Written 2026-11-03; Stages 3a, the correspondence fit,
-3b, the tool, and 3c, mutual information, implemented the same day. Stage 3d is not; open
-questions 1, 3, 7 and 9 are still open, 3 now with measurements.</strong></p>
+3b, the tool, 3c, mutual information, and 3d, global refinement, implemented the same day.
+Open questions 1, 3 and 9 are still open, 3 now with measurements.</strong></p>
 <p>See also: <a class="reference internal" href="camera_lens_model.html"><span class="std std-doc">Camera Lens Model</span></a> (the boundary this relies on),
 <a class="reference internal" href="../data_model.html#raster-data-type"><span class="std std-ref">Data Model</span></a>, <a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a> (the
 <code class="docutils literal notranslate"><span class="pre">RasterImage</span></code> view), <a class="reference internal" href="texmetro.html"><span class="std std-doc">TexMetro</span></a> (the case for a CPU rasterizer over a QRhi one),
@@ -683,7 +683,108 @@ whether the method works. The optional test checks <em>Vertex Color</em> only.</
 </li>
 </ul>
 </li>
-<li><p><strong>3d. Global refinement.</strong> Decided after 3c, from its measurements (open question 7).</p></li>
+<li><p><strong>3d. Global refinement.</strong> Decided after 3c, from its measurements (open question 7).</p>
+<p>As built (2026-11-03), from the paper (Dellepiane and Scopigno 2013, kept in
+<code class="docutils literal notranslate"><span class="pre">.reference/papers/GlobalMutual_Final.pdf</span></code>) rather than from old MeshLab’s code:</p>
+<ul>
+<li><p><strong>Where the old code and the paper disagree, the port follows the paper:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>Paper</p></th>
+<th class="head"><p>Old <code class="docutils literal notranslate"><span class="pre">filter_mutualglobal</span></code></p></th>
+<th class="head"><p>Port</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Which images paint the node</p></td>
+<td><p>all images connected to it</p></td>
+<td><p>the three largest overlaps: its shader had three slots</p></td>
+<td><p>all, from the arcs into the node</p></td>
+</tr>
+<tr class="row-odd"><td><p>Weight of each painting image</p></td>
+<td><p>the arc’s value, MI × OV</p></td>
+<td><p>the arc’s MI alone</p></td>
+<td><p>MI × OV</p></td>
+</tr>
+<tr class="row-even"><td><p>The painting</p></td>
+<td><p>the images’ colors combined</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vertex</span> <span class="pre">color</span> <span class="pre">×</span> <span class="pre">photos</span> <span class="pre">/</span> <span class="pre">w</span></code>, read back in the blue channel</p></td>
+<td><p>the photos’ grey levels, weighted, as the target is</p></td>
+</tr>
+<tr class="row-odd"><td><p>Ties in the node order</p></td>
+<td><p>the most arcs</p></td>
+<td><p>the larger summed weight</p></td>
+<td><p>the most arcs</p></td>
+</tr>
+<tr class="row-even"><td><p>Convergence variation</p></td>
+<td><p>mean absolute projection change, below 1.2 px</p></td>
+<td><p>mean of the squared changes, compared with 1.2</p></td>
+<td><p>mean absolute change, in each raster’s own pixels</p></td>
+</tr>
+<tr class="row-odd"><td><p>Anchors</p></td>
+<td><p>nodes the user marks</p></td>
+<td><p>hidden rasters</p></td>
+<td><p>hidden rasters</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The old code’s connected components are not needed: the greedy order runs over all the
+nodes, and a node with no arcs has nothing to guide it, so it is skipped, as the old code
+skipped it. Its <em>Pre-alignment</em> option is <em>Align Current Raster to Mesh by Mutual
+Information</em> on each raster first, which can be run as such.</p>
+</li>
+<li><p><strong>Code.</strong> <code class="docutils literal notranslate"><span class="pre">mutualinformation.cpp</span></code> is now 633 lines for both filters, up from 304. Shared:</p>
+<ul class="simple">
+<li><p>a <em>view</em>, which is a raster at the working resolution with its photo in grey;</p></li>
+<li><p>a renderer that paints the mesh with <em>projectors</em>, other views’ photos, bilinear, where
+their own depth buffer says they see the surface, within 1%;</p></li>
+<li><p>the refinement loop.</p></li>
+</ul>
+<p>The renderer now interpolates with <strong>perspective-correct</strong> barycentrics, as the GPU did;
+it needs the exact surface point under each pixel to project into the other cameras.
+That changed Stage 3c’s results a little, which are re-measured below.</p>
+</li>
+<li><p><strong>The filter</strong>, <em>Align Visible Rasters Globally by Mutual Information</em>:</p>
+<ul class="simple">
+<li><p>It measures every arc into a visible raster: n × (n − 1) renderings at most.</p></li>
+<li><p>It then refines one raster at a time, in the greedy order, against all its arcs,
+weighted. After each raster it weighs again the arcs that involve it.</p></li>
+<li><p>It repeats the passes until one moves the projections of 5,000 samples by less than
+1.2 px on average, or after 5 passes.</p></li>
+<li><p>The focal length is refined by default, as in the paper’s seven parameters and old
+MeshLab’s default.</p></li>
+<li><p>The parameters and their defaults are otherwise Stage 3c’s. Both filters now cite their
+papers (<code class="docutils literal notranslate"><span class="pre">referenceIds</span></code>).</p></li>
+</ul>
+</li>
+<li><p><strong>Measured on the gargoyle</strong>, with the Normal Map:</p>
+<ul class="simple">
+<li><p>All four cameras were moved by 1 to 2.5 degrees about different axes, 1.6 to 5.2 px
+off. They end 0.4 to 1.4 px from the fixture’s cameras, in two passes (3.58 then
+0.38 px of variation), 1,391 renderings and about 10 s.</p></li>
+<li><p>With camera 0 hidden at its true place, as an anchor, it does not move, and the others
+end 0.45 to 1.6 px off, in about 7 s.</p></li>
+<li><p>The test asserts 1.5 and 2 px.</p></li>
+</ul>
+</li>
+<li><p><strong>Stage 3c, re-measured with perspective-correct rendering:</strong></p>
+<ul class="simple">
+<li><p>Cameras 0, 2 and 3 end within 1.4 px of the fit from the truth from every start up to
+21 px off; before, it was 1.3 px.</p></li>
+<li><p>Camera 1 ends within 4.9 px up to 6 degrees (15 px). From 7 degrees on it stops at lower
+maxima 10 to 12 px away, where before the change it had come back from 8 degrees. Its
+test now starts at 2 and 5 degrees.</p></li>
+<li><p>The real scan comes back to 1.33 px of COLMAP’s camera, against 1.24 before.</p></li>
+</ul>
+</li>
+<li><p><strong>Not measured: the global filter on the 35-photo scan.</strong> At 50 ms a rendering, its
+1,190 arcs alone take a minute, and a pass about 7 minutes. A test that size does not
+belong in the suite.</p></li>
+</ul>
+</li>
 </ul>
 </section>
 <section id="open-questions">
@@ -725,9 +826,8 @@ project. The proposal keeps them out of the document until a need appears.</p></
 which needs a rough camera first. The alternative picks 3D points in a 3D view and 2D
 points in a <code class="docutils literal notranslate"><span class="pre">RasterImage</span></code> view, which works with no camera at all, but would take the
 tool model (one tool pinned to one view) across two views.</p></li>
-<li><p><strong>Global refinement.</strong> Port Dellepiane 2013 as a third filter, defer it, or replace it
-with something else? It is 4,558 lines old, with the most GL in it (1,416 lines of
-<code class="docutils literal notranslate"><span class="pre">alignset</span></code>), and its graph of overlapping images is new code whatever happens.</p></li>
+<li><p><strong>Global refinement.</strong> Decided 2026-11-03: ported as a third filter, from the paper where
+it and the old code disagree (Stage 3d).</p></li>
 <li><p><strong>Which intrinsics.</strong> The old code refines the focal length at most. Should the principal
 point be refinable when there are enough pairs? The lens stays fixed in this proposal;
 refining it would need <code class="docutils literal notranslate"><span class="pre">Distort</span></code> on every pick, as the lens proposal foresaw.</p></li>

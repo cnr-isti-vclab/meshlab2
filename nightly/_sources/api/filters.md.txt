@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 404 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 405 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -4185,6 +4185,10 @@ The rendering is made on the CPU, at a working resolution whose longest side is 
 
 The camera's parameters are scaled so that a unit step moves the mesh's projection by about a pixel of the working resolution: **Expected error** is how far the optimizer first looks, and it stops when its steps fall below **Tolerance**, or after **Max evaluations** renderings. The mutual information before and after, in bits, the number of renderings, and how far the camera moved the mesh's projection in the raster's pixels are logged and returned as `informationBefore`, `informationAfter`, `evaluations` and `displacement`.
 
+**References:**
+
+- M. Corsini, M. Dellepiane, F. Ponchio, R. Scopigno. **Image-to-geometry registration: a mutual information method exploiting illumination-related geometric properties**. *Computer Graphics Forum* (2009).
+
 **Parameters:**
 
 - **rendering** (*enum*, default: `combined`) — What the rendering of the layers shows, to compare with the photo.
@@ -4223,6 +4227,45 @@ The error before and after, root mean square and maximum, and each pair's, are l
 
 - **correspondences** (*string*, default: `[]`) — Pairs of a world-space point and the image pixel that shows it, as a JSON array of {"point": [x, y, z], "pixel": [u, v]}; pixels from the top-left corner, y down.
 - **estimateFocal** (*bool*, default: `False`) — Fit the focal length too; it needs four pairs.
+```
+
+---
+
+(filter-align-visible-rasters-globally-by-mutual-information)=
+
+## Align Visible Rasters Globally by Mutual Information
+
+**Categories:** `Document/Camera`
+
+**Plugin:** meshlab2.filter.camera
+
+Refine the visible rasters' cameras together, so that their photos project the same detail onto the same place of the mesh.
+
+```{py:function} ms.align_visible_rasters_globally_by_mutual_information(**params)
+:module: _meshlab
+
+Refines the cameras of a set of rasters already aligned to the mesh, so that they agree with each other as well as with the geometry: the global refinement of Dellepiane and Scopigno 2013, for sharper color projection. The visible rasters are refined; hidden rasters with a camera are **anchors**, taken as right, which guide the others and never move.
+
+The rasters form a graph. The arc from raster *j* into raster *i* weighs how well *j*'s photo, projected onto the mesh and seen from *i*, matches *i*'s photo: the mutual information of the two, times the share of the mesh seen from *i* that *j* paints. Only pairs that share more than 20% get an arc. A pass refines one raster at a time, the one with the most arcs from rasters already refined first: its camera is moved, as by *Align Current Raster to Mesh by Mutual Information*, to maximize the mutual information between its photo and the mesh painted with the photos of all its arcs, weighted by them, and drawn as **Rendering** where none of them sees it. Then its arcs are weighed again. Passes repeat until one moves the mesh's projections by less than **Convergence threshold** on average, or **Max iterations** have run.
+
+The principal points, pixel sizes and lenses are left as they are. The number of passes, the average movement of each, the number of arcs and of renderings are logged and returned as `iterations`, `variations`, `arcs` and `evaluations`.
+
+**References:**
+
+- M. Dellepiane, R. Scopigno. **Global refinement of image-to-geometry registration for color projection** (2013).
+- M. Corsini, M. Dellepiane, F. Ponchio, R. Scopigno. **Image-to-geometry registration: a mutual information method exploiting illumination-related geometric properties**. *Computer Graphics Forum* (2009).
+
+**Parameters:**
+
+- **rendering** (*enum*, default: `combined`) — What the rendering of the layers shows, to compare with the photo.
+- **estimateFocal** (*bool*, default: `True`) — Let the focal lengths change too.
+- **resolution** (*int*, default: `800`) — The longest side, in pixels, of the photo and the rendering as they are compared; a larger photo is scaled down.
+- **maxIterations** (*int*, default: `5`) — The most passes over all the rasters.
+- **threshold** (*double*, default: `1.2`) — Stop when a pass moves the mesh's projections by less than this on average, in each raster's own pixels.
+- **maxEvaluations** (*int*, default: `300`) — The most renderings for one raster in one pass.
+- **expectedError** (*double*, default: `2.0`) — How far, in pixels of the working resolution, the optimizer first looks.
+- **tolerance** (*double*, default: `0.1`) — The optimizer stops when its steps move the projection by less than this, in pixels of the working resolution.
+- **backgroundWeight** (*double*, default: `2.0`) — Rendered background counts 1 / this as much as the rest; 0 leaves it out.
 ```
 
 ---

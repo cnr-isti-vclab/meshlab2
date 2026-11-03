@@ -5,8 +5,8 @@ missing or slightly wrong can be registered on the model and then used by the fi
 project through rasters (color transfer, coverage, parametrization). It is Stage 3 of the
 [Camera Lens Model](camera_lens_model.md), which gave rasters a pinhole camera plus a separate
 lens and a native COLMAP import. **Written 2026-11-03; Stages 3a, the correspondence fit,
-3b, the tool, and 3c, mutual information, implemented the same day. Stage 3d is not; open
-questions 1, 3, 7 and 9 are still open, 3 now with measurements.**
+3b, the tool, 3c, mutual information, and 3d, global refinement, implemented the same day.
+Open questions 1, 3 and 9 are still open, 3 now with measurements.**
 
 See also: [Camera Lens Model](camera_lens_model.md) (the boundary this relies on),
 [Data Model](../data_model.md#raster-data-type), [Rendering](../rendering.md) (the
@@ -328,6 +328,61 @@ Each stage is one commit, landed and verified before the next.
       whether the method works. The optional test checks *Vertex Color* only.
 - **3d. Global refinement.** Decided after 3c, from its measurements (open question 7).
 
+  As built (2026-11-03), from the paper (Dellepiane and Scopigno 2013, kept in
+  `.reference/papers/GlobalMutual_Final.pdf`) rather than from old MeshLab's code:
+
+  - **Where the old code and the paper disagree, the port follows the paper:**
+
+    | | Paper | Old `filter_mutualglobal` | Port |
+    |---|---|---|---|
+    | Which images paint the node | all images connected to it | the three largest overlaps: its shader had three slots | all, from the arcs into the node |
+    | Weight of each painting image | the arc's value, MI × OV | the arc's MI alone | MI × OV |
+    | The painting | the images' colors combined | `vertex color × photos / w`, read back in the blue channel | the photos' grey levels, weighted, as the target is |
+    | Ties in the node order | the most arcs | the larger summed weight | the most arcs |
+    | Convergence variation | mean absolute projection change, below 1.2 px | mean of the squared changes, compared with 1.2 | mean absolute change, in each raster's own pixels |
+    | Anchors | nodes the user marks | hidden rasters | hidden rasters |
+
+    The old code's connected components are not needed: the greedy order runs over all the
+    nodes, and a node with no arcs has nothing to guide it, so it is skipped, as the old code
+    skipped it. Its *Pre-alignment* option is *Align Current Raster to Mesh by Mutual
+    Information* on each raster first, which can be run as such.
+  - **Code.** `mutualinformation.cpp` is now 633 lines for both filters, up from 304. Shared:
+    - a *view*, which is a raster at the working resolution with its photo in grey;
+    - a renderer that paints the mesh with *projectors*, other views' photos, bilinear, where
+      their own depth buffer says they see the surface, within 1%;
+    - the refinement loop.
+
+    The renderer now interpolates with **perspective-correct** barycentrics, as the GPU did;
+    it needs the exact surface point under each pixel to project into the other cameras.
+    That changed Stage 3c's results a little, which are re-measured below.
+  - **The filter**, *Align Visible Rasters Globally by Mutual Information*:
+    - It measures every arc into a visible raster: n × (n − 1) renderings at most.
+    - It then refines one raster at a time, in the greedy order, against all its arcs,
+      weighted. After each raster it weighs again the arcs that involve it.
+    - It repeats the passes until one moves the projections of 5,000 samples by less than
+      1.2 px on average, or after 5 passes.
+    - The focal length is refined by default, as in the paper's seven parameters and old
+      MeshLab's default.
+    - The parameters and their defaults are otherwise Stage 3c's. Both filters now cite their
+      papers (`referenceIds`).
+  - **Measured on the gargoyle**, with the Normal Map:
+    - All four cameras were moved by 1 to 2.5 degrees about different axes, 1.6 to 5.2 px
+      off. They end 0.4 to 1.4 px from the fixture's cameras, in two passes (3.58 then
+      0.38 px of variation), 1,391 renderings and about 10 s.
+    - With camera 0 hidden at its true place, as an anchor, it does not move, and the others
+      end 0.45 to 1.6 px off, in about 7 s.
+    - The test asserts 1.5 and 2 px.
+  - **Stage 3c, re-measured with perspective-correct rendering:**
+    - Cameras 0, 2 and 3 end within 1.4 px of the fit from the truth from every start up to
+      21 px off; before, it was 1.3 px.
+    - Camera 1 ends within 4.9 px up to 6 degrees (15 px). From 7 degrees on it stops at lower
+      maxima 10 to 12 px away, where before the change it had come back from 8 degrees. Its
+      test now starts at 2 and 5 degrees.
+    - The real scan comes back to 1.33 px of COLMAP's camera, against 1.24 before.
+  - **Not measured: the global filter on the 35-photo scan.** At 50 ms a rendering, its
+    1,190 arcs alone take a minute, and a pass about 7 minutes. A test that size does not
+    belong in the suite.
+
 ## Open questions
 
 1. **The rasterizer in vcglib?** The recommendation is to keep `softdepthbuffer.h` in core
@@ -363,9 +418,8 @@ Each stage is one commit, landed and verified before the next.
    which needs a rough camera first. The alternative picks 3D points in a 3D view and 2D
    points in a `RasterImage` view, which works with no camera at all, but would take the
    tool model (one tool pinned to one view) across two views.
-7. **Global refinement.** Port Dellepiane 2013 as a third filter, defer it, or replace it
-   with something else? It is 4,558 lines old, with the most GL in it (1,416 lines of
-   `alignset`), and its graph of overlapping images is new code whatever happens.
+7. **Global refinement.** Decided 2026-11-03: ported as a third filter, from the paper where
+   it and the old code disagree (Stage 3d).
 8. **Which intrinsics.** The old code refines the focal length at most. Should the principal
    point be refinable when there are enough pairs? The lens stays fixed in this proposal;
    refining it would need `Distort` on every pick, as the lens proposal foresaw.
