@@ -4,9 +4,19 @@
   "description": "Qt6-based mesh viewer and editor prototype",
   "license": "GPL-2.0-or-later",
   "builtin-baseline": "37bb045f3c7a747d3e5d1c13b6fe6a0aec4b5d00",
+  "default-features": [
+    "python-console"
+  ],
+  "features": {
+    "python-console": {
+      "description": "Embedded Python console. nanobind's port brings vcpkg's python3, the interpreter the application embeds; the pymeshlab2 wheel turns this feature off and builds against the interpreter it is installed into",
+      "dependencies": [
+        "nanobind"
+      ]
+    }
+  },
   "dependencies": [
     "draco",
-    "nanobind",
     "tinygltf",
     "lib3mf",
     "libe57format",

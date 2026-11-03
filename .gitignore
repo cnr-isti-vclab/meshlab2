@@ -37,6 +37,15 @@ tests/datasets/*
 *.a
 *.dylib
 
+# Python wheel build
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+wheelhouse/
+.pytest_cache/
+
 # Generated documentation
 docs/api/
 docs/_build/

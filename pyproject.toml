@@ -1,0 +1,46 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "nanobind>=2.13"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "pymeshlab2"
+dynamic = ["version"]
+description = "Python bindings for the MeshLab filter engine"
+readme = "python/README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.23"]
+
+[tool.scikit-build]
+minimum-version = "0.10"
+# The project is the whole application; the wheel needs only the extension
+# module and what src/python/CMakeLists.txt installs beside it.
+build.targets = ["_meshlab"]
+install.components = ["pymeshlab2"]
+wheel.packages = ["python/pymeshlab2"]
+
+# The wheel's version is the application's: one number, set in CMakeLists.txt.
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "CMakeLists.txt"
+regex = 'set\(MESHLAB2_VERSION "(?P<value>[^"]+)"'
+
+# vcpkg (CMAKE_TOOLCHAIN_FILE and friends) arrives through CMAKE_ARGS, as for any
+# other build of this tree. The console embeds an interpreter, which an
+# extension module must not; formula rendering is help-browser only. Without
+# the manifest's default `python-console` feature vcpkg installs neither
+# nanobind nor its python3, whose find_package(Python) wrapper would otherwise
+# substitute vcpkg's interpreter for the one this wheel is built for; nanobind
+# then comes from build-system.requires above.
+[tool.scikit-build.cmake.define]
+VCPKG_MANIFEST_NO_DEFAULT_FEATURES = "ON"
+MESHLAB2_PYTHON_WHEEL = "ON"
+MESHLAB2_PYTHON_CONSOLE = "OFF"
+MESHLAB2_MATH_HELP = "OFF"
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
+markers = [
+    "examples: runnable examples that also serve as regression tests",
+    "filters: filter execution regression tests",
+    "smoke: smoke tests for basic scaffold functionality",
+]

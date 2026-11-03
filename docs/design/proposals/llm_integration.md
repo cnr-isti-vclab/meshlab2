@@ -71,7 +71,10 @@ Two consequences remain, and both matter for a model-facing catalogue:
    to know what a given wheel exposes is to ask it. A locally built extension
    checked during this review reported **304 filters against 403 declared in
    `plugins/*/filters.json`** — part stale build, part disabled plugins, with
-   nothing distinguishing the two.
+   nothing distinguishing the two. Built in-tree (2026-11-03, with
+   `REQUIRE_VCPKG_DEPS` back on and the opt-outs dropped) the wheel lists 405,
+   the application's exact set — but the rule below stands, since an
+   installed wheel can still lag the tree it is compared against.
 2. **The submodule pin is a standing source of staleness.** The wheel repository
    pins MeshLab as a submodule, and that pin is routinely behind; at the time of
    writing it trailed `devel` by 135 commits. Folding the wheel into this

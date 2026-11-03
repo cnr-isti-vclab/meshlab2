@@ -48,9 +48,9 @@ if (VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
 endif()
 
 # MeshLab2's own root, used by every path below and inherited by plugins/ and
-# src/. Deliberately not CMAKE_SOURCE_DIR: pymeshlab2 pulls this tree in with
-# add_subdirectory(), where that variable is the *outer* project's root and
-# every path built from it silently points at a directory we do not own.
+# src/. Deliberately not CMAKE_SOURCE_DIR: a project that pulls this tree in with
+# add_subdirectory() would make that variable the *outer* project's root, and
+# every path built from it would silently point at a directory we do not own.
 set(MESHLAB2_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Product identity, single source of truth for the macOS bundle (see
@@ -90,6 +90,15 @@ if (MESHLAB2_REQUIRE_VCPKG_DEPS)
             "or use the 'vcpkg-manifest' preset.")
     endif()
     message(STATUS "MeshLab external dependency mode: vcpkg (triplet: ${VCPKG_TARGET_TRIPLET})")
+endif()
+
+# The standalone `_meshlab` extension module of the pymeshlab2 wheel; pyproject.toml
+# turns it on. Every static library here ends up inside that shared module, so all
+# of it must be position-independent -- set before the first target is created,
+# since the property is read at target creation.
+option(MESHLAB2_PYTHON_WHEEL "Build the _meshlab extension module for the pymeshlab2 wheel" OFF)
+if(MESHLAB2_PYTHON_WHEEL)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
 # CGAL's exact number type, forced to the fast GMP/GMPXX backend, project-wide.
@@ -162,13 +171,19 @@ include(${MESHLAB2_SOURCE_DIR}/cmake/MeshLab2Embree.cmake)
 # Optional embedded Python console
 # ---------------------------------------------------------------------------
 option(MESHLAB2_PYTHON_CONSOLE "Build embedded Python interpreter and console dock" ON)
+# nanobind's cmake config requires the CMake `Python` package (not `Python3`)
+# because it checks for the Python::Module imported target.
 if(MESHLAB2_PYTHON_CONSOLE)
-    # nanobind's cmake config requires the CMake `Python` package (not `Python3`)
-    # because it checks for the Python::Module imported target.
     find_package(Python REQUIRED COMPONENTS Interpreter Development.Embed Development.Module)
-    # nanobind is provided by the local vcpkg ports (vcpkg/ports/nanobind).
-    find_package(nanobind CONFIG REQUIRED)
     message(STATUS "MeshLab: Python console enabled (Python ${Python_VERSION})")
+elseif(MESHLAB2_PYTHON_WHEEL)
+    # An extension module does not link libpython, and wheel build images may not ship one.
+    find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
+endif()
+if(MESHLAB2_PYTHON_CONSOLE OR MESHLAB2_PYTHON_WHEEL)
+    # The application gets nanobind from vcpkg (the manifest's python-console
+    # feature); the wheel from pip, through pyproject.toml's build requirements.
+    find_package(nanobind CONFIG REQUIRED)
 endif()
 
 add_library(MeshLab2Core STATIC
@@ -285,7 +300,7 @@ qt_add_resources(MeshLab2Core "colormaps"
 
 add_subdirectory(plugins)
 
-if(MESHLAB2_PYTHON_CONSOLE)
+if(MESHLAB2_PYTHON_CONSOLE OR MESHLAB2_PYTHON_WHEEL)
     add_subdirectory(src/python)
 endif()
 
