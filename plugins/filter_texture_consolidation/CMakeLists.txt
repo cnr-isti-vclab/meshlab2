@@ -47,7 +47,21 @@ if(APPLE)
 endif()
 
 set(TEXTURE_CONSOLIDATION_BUILD_DIR "${PROJECT_BINARY_DIR}/texture-consolidation")
-if(CMAKE_CONFIGURATION_TYPES)
+# Helpers kept by CI (MESHLAB2_HELPERS_CACHE_DIR in the root CMakeLists) replace the
+# helper build below.
+set(_texture_consolidation_cache_dir "${MESHLAB2_HELPERS_CACHE_DIR}/texture-consolidation")
+set(_texture_consolidation_cached FALSE)
+if(MESHLAB2_HELPERS_CACHE_DIR)
+    set(_texture_consolidation_cached TRUE)
+    foreach(_helper BackProjection TextureFlow TextureDomainStitching)
+        if(NOT EXISTS "${_texture_consolidation_cache_dir}/${_helper}${CMAKE_EXECUTABLE_SUFFIX}")
+            set(_texture_consolidation_cached FALSE)
+        endif()
+    endforeach()
+endif()
+if(_texture_consolidation_cached)
+    set(TEXTURE_CONSOLIDATION_BIN_DIR "${_texture_consolidation_cache_dir}")
+elseif(CMAKE_CONFIGURATION_TYPES)
     set(TEXTURE_CONSOLIDATION_BIN_DIR "${TEXTURE_CONSOLIDATION_BUILD_DIR}/$<CONFIG>")
 else()
     set(TEXTURE_CONSOLIDATION_BIN_DIR "${TEXTURE_CONSOLIDATION_BUILD_DIR}")
@@ -58,47 +72,59 @@ set(TEXTURE_CONSOLIDATION_EXECUTABLES
     "${TEXTURE_CONSOLIDATION_BIN_DIR}/TextureDomainStitching${CMAKE_EXECUTABLE_SUFFIX}"
     CACHE INTERNAL "TextureConsolidation helper programs")
 
-# The helpers use MeshLab's own compiler. Upstream is C++20 and tested with GCC 13.3, which
-# is why the Linux release builds on Ubuntu 24.04 (GCC 13) rather than 22.04 (GCC 11).
-set(_texture_consolidation_cmake_args "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
-if(_texture_consolidation_openmp_root)
-    list(APPEND _texture_consolidation_cmake_args "-DOpenMP_ROOT=${_texture_consolidation_openmp_root}")
-endif()
-if(CMAKE_BUILD_TYPE)
-    list(APPEND _texture_consolidation_cmake_args "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
-endif()
-if(VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
-    list(APPEND _texture_consolidation_cmake_args
-        "-DCMAKE_PREFIX_PATH=${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
-endif()
-foreach(_forwarded CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET)
-    if(${_forwarded})
-        list(APPEND _texture_consolidation_cmake_args "-D${_forwarded}=${${_forwarded}}")
+if(_texture_consolidation_cached)
+    message(STATUS "filter_texture_consolidation: using the cached helpers in ${TEXTURE_CONSOLIDATION_BIN_DIR}")
+else()
+    # The helpers use MeshLab's own compiler. Upstream is C++20 and tested with GCC 13.3, which
+    # is why the Linux release builds on Ubuntu 24.04 (GCC 13) rather than 22.04 (GCC 11).
+    set(_texture_consolidation_cmake_args "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
+    if(_texture_consolidation_openmp_root)
+        list(APPEND _texture_consolidation_cmake_args "-DOpenMP_ROOT=${_texture_consolidation_openmp_root}")
     endif()
-endforeach()
+    if(CMAKE_BUILD_TYPE)
+        list(APPEND _texture_consolidation_cmake_args "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
+    endif()
+    if(VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
+        list(APPEND _texture_consolidation_cmake_args
+            "-DCMAKE_PREFIX_PATH=${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+    endif()
+    foreach(_forwarded CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET)
+        if(${_forwarded})
+            list(APPEND _texture_consolidation_cmake_args "-D${_forwarded}=${${_forwarded}}")
+        endif()
+    endforeach()
 
-set(_texture_consolidation_build_command
-    "${CMAKE_COMMAND}" --build <BINARY_DIR>
-    --target BackProjection TextureFlow TextureDomainStitching)
-if(CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE)
-    list(APPEND _texture_consolidation_build_command --config $<CONFIG>)
+    set(_texture_consolidation_build_command
+        "${CMAKE_COMMAND}" --build <BINARY_DIR>
+        --target BackProjection TextureFlow TextureDomainStitching)
+    if(CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE)
+        list(APPEND _texture_consolidation_build_command --config $<CONFIG>)
+    endif()
+
+    ExternalProject_Add(MeshLab2TextureConsolidationHelpers
+        SOURCE_DIR "${TEXTURE_CONSOLIDATION_ROOT}"
+        BINARY_DIR "${TEXTURE_CONSOLIDATION_BUILD_DIR}"
+        DOWNLOAD_COMMAND ""
+        UPDATE_COMMAND ""
+        CMAKE_ARGS ${_texture_consolidation_cmake_args}
+        BUILD_COMMAND ${_texture_consolidation_build_command}
+        BUILD_BYPRODUCTS ${TEXTURE_CONSOLIDATION_EXECUTABLES}
+        INSTALL_COMMAND ""
+        # The submodule's sources are not tracked by ExternalProject's stamps, so without this
+        # an edit there -- the fork's pending fixes are exactly that -- never reaches the
+        # helpers. The inner build is incremental, so an up-to-date run costs a second.
+        BUILD_ALWAYS TRUE
+        USES_TERMINAL_BUILD TRUE
+    )
+    if(MESHLAB2_HELPERS_CACHE_DIR)
+        ExternalProject_Add_Step(MeshLab2TextureConsolidationHelpers fill_cache
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${_texture_consolidation_cache_dir}"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                ${TEXTURE_CONSOLIDATION_EXECUTABLES} "${_texture_consolidation_cache_dir}/"
+            DEPENDEES build
+        )
+    endif()
 endif()
-
-ExternalProject_Add(MeshLab2TextureConsolidationHelpers
-    SOURCE_DIR "${TEXTURE_CONSOLIDATION_ROOT}"
-    BINARY_DIR "${TEXTURE_CONSOLIDATION_BUILD_DIR}"
-    DOWNLOAD_COMMAND ""
-    UPDATE_COMMAND ""
-    CMAKE_ARGS ${_texture_consolidation_cmake_args}
-    BUILD_COMMAND ${_texture_consolidation_build_command}
-    BUILD_BYPRODUCTS ${TEXTURE_CONSOLIDATION_EXECUTABLES}
-    INSTALL_COMMAND ""
-    # The submodule's sources are not tracked by ExternalProject's stamps, so without this
-    # an edit there -- the fork's pending fixes are exactly that -- never reaches the
-    # helpers. The inner build is incremental, so an up-to-date run costs a second.
-    BUILD_ALWAYS TRUE
-    USES_TERMINAL_BUILD TRUE
-)
 
 add_library(MeshLab2PluginFilterTextureConsolidation STATIC
     pinholecamera.h

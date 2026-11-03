@@ -156,6 +156,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      # Before configuring: see .github/actions/helper-cache.
+      - name: Restore the helper programs
+        uses: ./.github/actions/helper-cache
+        with:
+          mode: restore
+
       - name: Configure
         run: |
           cmake --preset vcpkg-manifest \
@@ -180,6 +186,12 @@ jobs:
               ps -eo rss=,etime=,args= --sort=-rss | head -3 | awk '{f=$3; for(i=4;i<=NF;i++) if($i ~ /\.(c|cpp|cc)$/) f=$i; printf "[mem]   %6d MB %10s %s\n", $1/1024, $2, f}'
             done ) &
           cmake --build "$BUILD_DIR" -j"$(nproc)"
+
+      - name: Save the helper programs
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/helper-cache
+        with:
+          mode: save
 
       - name: Run ctest
         run: |

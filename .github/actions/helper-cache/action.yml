@@ -1,0 +1,91 @@
+name: Helper programs cache
+description: >
+  Keeps the QuadWild and TextureConsolidation helper programs between runs: they are
+  separate executables that MeshLab runs as processes, built from submodules that change
+  rarely, and they take as long to build as the rest of the application. Each set is a
+  cache entry of its own, keyed on the runner image, its submodule commit and its plugin's
+  CMakeLists.txt. Run it with `mode: restore` before configuring, which points
+  MESHLAB2_HELPERS_CACHE_DIR at the cache directory, and with `mode: save` after the
+  build: the plugins use the helpers they find there and copy in the ones they had to
+  build (plugins/filter_quadwild, plugins/filter_texture_consolidation).
+
+inputs:
+  mode:
+    description: restore or save
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # MACOSX_DEPLOYMENT_TARGET is set by the wheel jobs only, and delocate checks the
+    # minimum macOS of everything it bundles, so helpers built without it are not shared.
+    - name: Compute the helper cache keys
+      id: keys
+      shell: bash
+      run: |
+        dir="$RUNNER_TEMP/meshlab2-helpers"
+        base="helpers-${ImageOS:-$RUNNER_OS}-$RUNNER_ARCH-${MACOSX_DEPLOYMENT_TARGET:-native}"
+        qw="$(git rev-parse HEAD:external/quadwild-bimdf)"
+        tc="$(git rev-parse HEAD:external/texture-consolidation)"
+        echo "dir=$dir" >> "$GITHUB_OUTPUT"
+        echo "quadwild=$base-quadwild-$qw-${{ hashFiles('plugins/filter_quadwild/CMakeLists.txt') }}" >> "$GITHUB_OUTPUT"
+        echo "texture-consolidation=$base-texture-consolidation-$tc-${{ hashFiles('plugins/filter_texture_consolidation/CMakeLists.txt') }}" >> "$GITHUB_OUTPUT"
+        if [ "${{ inputs.mode }}" = restore ]; then
+          echo "MESHLAB2_HELPERS_CACHE_DIR=$dir" >> "$GITHUB_ENV"
+        fi
+
+    - name: Restore the QuadWild helpers
+      if: inputs.mode == 'restore'
+      id: restore-quadwild
+      uses: actions/cache/restore@v6
+      with:
+        key: ${{ steps.keys.outputs.quadwild }}
+        path: ${{ steps.keys.outputs.dir }}/quadwild-bimdf
+
+    - name: Restore the TextureConsolidation helpers
+      if: inputs.mode == 'restore'
+      id: restore-texture-consolidation
+      uses: actions/cache/restore@v6
+      with:
+        key: ${{ steps.keys.outputs.texture-consolidation }}
+        path: ${{ steps.keys.outputs.dir }}/texture-consolidation
+
+    # What the save needs to know: a set that was restored is not saved again, and one
+    # that is incomplete (its plugin is off, or its build failed) is not saved at all.
+    - name: Record what was restored
+      if: inputs.mode == 'restore'
+      shell: bash
+      run: |
+        echo "MESHLAB2_HELPERS_RESTORED=${{ steps.restore-quadwild.outputs.cache-hit == 'true' && 'quadwild-bimdf' || '' }},${{ steps.restore-texture-consolidation.outputs.cache-hit == 'true' && 'texture-consolidation' || '' }}" >> "$GITHUB_ENV"
+
+    - name: Check which helper sets to save
+      if: inputs.mode == 'save'
+      id: complete
+      shell: bash
+      run: |
+        # Git Bash on Windows tests files by POSIX path.
+        dir="$(cygpath -u "${{ steps.keys.outputs.dir }}" 2>/dev/null || echo "${{ steps.keys.outputs.dir }}")"
+        complete() {
+          local set="$1"; shift
+          case ",$MESHLAB2_HELPERS_RESTORED," in *",$set,"*) echo false; return;; esac
+          for exe in "$@"; do
+            [ -f "$dir/$set/$exe" ] || [ -f "$dir/$set/$exe.exe" ] || { echo false; return; }
+          done
+          echo true
+        }
+        echo "quadwild=$(complete quadwild-bimdf quadwild quad_from_patches)" >> "$GITHUB_OUTPUT"
+        echo "texture-consolidation=$(complete texture-consolidation BackProjection TextureFlow TextureDomainStitching)" >> "$GITHUB_OUTPUT"
+
+    - name: Save the QuadWild helpers
+      if: inputs.mode == 'save' && steps.complete.outputs.quadwild == 'true'
+      uses: actions/cache/save@v6
+      with:
+        key: ${{ steps.keys.outputs.quadwild }}
+        path: ${{ steps.keys.outputs.dir }}/quadwild-bimdf
+
+    - name: Save the TextureConsolidation helpers
+      if: inputs.mode == 'save' && steps.complete.outputs.texture-consolidation == 'true'
+      uses: actions/cache/save@v6
+      with:
+        key: ${{ steps.keys.outputs.texture-consolidation }}
+        path: ${{ steps.keys.outputs.dir }}/texture-consolidation

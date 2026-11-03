@@ -11,30 +11,16 @@ if(NOT EXISTS "${QUADWILD_ROOT}/quadwild/CMakeLists.txt")
         "QuadWild-BiMDF submodule is missing. Run: git submodule update --init --recursive external/quadwild-bimdf")
 endif()
 
-# Build upstream as a separate project. Besides preventing its many global CMake
-# settings and target names from leaking into MeshLab, this keeps calls to exit()
-# and assertions inside helper processes rather than the application.
-include(FetchContent)
-include(ExternalProject)
-
-# Upstream pins this archive by hash but still downloads it over plain HTTP.
-# Prefetching the same archive over HTTPS lets the pristine submodule find GMM
-# immediately and avoids a fragile network fallback in its configure step. Some
-# Savannah and GNU FTP are occasionally unreachable from CI runners, so include
-# an independent mirror for the same pinned archive.
-FetchContent_Declare(meshlab2_quadwild_gmm
-    URL
-        https://mirrors.kernel.org/gnu/getfem/stable/gmm-5.4.2.tar.gz
-        https://download-mirror.savannah.gnu.org/releases/getfem/stable/gmm-5.4.2.tar.gz
-        https://download.savannah.gnu.org/releases/getfem/stable/gmm-5.4.2.tar.gz
-        https://ftp.gnu.org/gnu/getfem/stable/gmm-5.4.2.tar.gz
-    URL_HASH SHA224=8f4951901a55a1d1987d8199ed0e0b36ff2da26c870a4c3d55694a14
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-FetchContent_MakeAvailable(meshlab2_quadwild_gmm)
-
 set(QUADWILD_BUILD_DIR "${PROJECT_BINARY_DIR}/quadwild-bimdf")
-if(CMAKE_CONFIGURATION_TYPES)
+# Helpers kept by CI (MESHLAB2_HELPERS_CACHE_DIR in the root CMakeLists) replace the
+# whole upstream build below.
+set(_quadwild_cache_dir "${MESHLAB2_HELPERS_CACHE_DIR}/quadwild-bimdf")
+if(MESHLAB2_HELPERS_CACHE_DIR
+        AND EXISTS "${_quadwild_cache_dir}/quadwild${CMAKE_EXECUTABLE_SUFFIX}"
+        AND EXISTS "${_quadwild_cache_dir}/quad_from_patches${CMAKE_EXECUTABLE_SUFFIX}")
+    set(_quadwild_cached TRUE)
+    set(QUADWILD_BIN_DIR "${_quadwild_cache_dir}")
+elseif(CMAKE_CONFIGURATION_TYPES)
     set(QUADWILD_BIN_DIR "${QUADWILD_BUILD_DIR}/Build/bin/$<CONFIG>")
 else()
     set(QUADWILD_BIN_DIR "${QUADWILD_BUILD_DIR}/Build/bin")
@@ -52,37 +38,72 @@ set(QUAD_FROM_PATCHES_EXECUTABLE
     "${QUADWILD_BIN_DIR}/quad_from_patches${CMAKE_EXECUTABLE_SUFFIX}"
     CACHE INTERNAL "QuadWild-BiMDF quad_from_patches helper")
 
-set(_quadwild_cmake_args
-    "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
-    "-DGMM_INCLUDE_DIR=${meshlab2_quadwild_gmm_SOURCE_DIR}/include"
-    "-DQUADRETOPOLOGY_WITH_GUROBI=OFF"
-    "-DSATSUMA_ENABLE_BLOSSOM5=OFF"
-)
-if(CMAKE_OSX_ARCHITECTURES)
-    list(APPEND _quadwild_cmake_args
-        "-DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}")
-endif()
+if(_quadwild_cached)
+    message(STATUS "filter_quadwild: using the cached helpers in ${QUADWILD_BIN_DIR}")
+    add_custom_target(MeshLab2QuadWildHelpers)
+else()
+    # Build upstream as a separate project. Besides preventing its many global CMake
+    # settings and target names from leaking into MeshLab, this keeps calls to exit()
+    # and assertions inside helper processes rather than the application.
+    include(FetchContent)
+    include(ExternalProject)
 
-set(_quadwild_build_command
-    "${CMAKE_COMMAND}" --build <BINARY_DIR>
-    --target quadwild quad_from_patches)
-if(CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE)
-    list(APPEND _quadwild_build_command --config $<CONFIG>)
-endif()
+    # Upstream pins this archive by hash but still downloads it over plain HTTP.
+    # Prefetching the same archive over HTTPS lets the pristine submodule find GMM
+    # immediately and avoids a fragile network fallback in its configure step. Some
+    # Savannah and GNU FTP are occasionally unreachable from CI runners, so include
+    # an independent mirror for the same pinned archive.
+    FetchContent_Declare(meshlab2_quadwild_gmm
+        URL
+            https://mirrors.kernel.org/gnu/getfem/stable/gmm-5.4.2.tar.gz
+            https://download-mirror.savannah.gnu.org/releases/getfem/stable/gmm-5.4.2.tar.gz
+            https://download.savannah.gnu.org/releases/getfem/stable/gmm-5.4.2.tar.gz
+            https://ftp.gnu.org/gnu/getfem/stable/gmm-5.4.2.tar.gz
+        URL_HASH SHA224=8f4951901a55a1d1987d8199ed0e0b36ff2da26c870a4c3d55694a14
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(meshlab2_quadwild_gmm)
 
-ExternalProject_Add(MeshLab2QuadWildHelpers
-    SOURCE_DIR "${QUADWILD_ROOT}"
-    BINARY_DIR "${QUADWILD_BUILD_DIR}"
-    DOWNLOAD_COMMAND ""
-    UPDATE_COMMAND ""
-    CMAKE_ARGS ${_quadwild_cmake_args}
-    BUILD_COMMAND ${_quadwild_build_command}
-    BUILD_BYPRODUCTS
-        "${QUADWILD_EXECUTABLE}"
-        "${QUAD_FROM_PATCHES_EXECUTABLE}"
-    INSTALL_COMMAND ""
-    USES_TERMINAL_BUILD TRUE
-)
+    set(_quadwild_cmake_args
+        "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+        "-DGMM_INCLUDE_DIR=${meshlab2_quadwild_gmm_SOURCE_DIR}/include"
+        "-DQUADRETOPOLOGY_WITH_GUROBI=OFF"
+        "-DSATSUMA_ENABLE_BLOSSOM5=OFF"
+    )
+    if(CMAKE_OSX_ARCHITECTURES)
+        list(APPEND _quadwild_cmake_args
+            "-DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}")
+    endif()
+
+    set(_quadwild_build_command
+        "${CMAKE_COMMAND}" --build <BINARY_DIR>
+        --target quadwild quad_from_patches)
+    if(CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE)
+        list(APPEND _quadwild_build_command --config $<CONFIG>)
+    endif()
+
+    ExternalProject_Add(MeshLab2QuadWildHelpers
+        SOURCE_DIR "${QUADWILD_ROOT}"
+        BINARY_DIR "${QUADWILD_BUILD_DIR}"
+        DOWNLOAD_COMMAND ""
+        UPDATE_COMMAND ""
+        CMAKE_ARGS ${_quadwild_cmake_args}
+        BUILD_COMMAND ${_quadwild_build_command}
+        BUILD_BYPRODUCTS
+            "${QUADWILD_EXECUTABLE}"
+            "${QUAD_FROM_PATCHES_EXECUTABLE}"
+        INSTALL_COMMAND ""
+        USES_TERMINAL_BUILD TRUE
+    )
+    if(MESHLAB2_HELPERS_CACHE_DIR)
+        ExternalProject_Add_Step(MeshLab2QuadWildHelpers fill_cache
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${_quadwild_cache_dir}"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${QUADWILD_EXECUTABLE}" "${QUAD_FROM_PATCHES_EXECUTABLE}" "${_quadwild_cache_dir}/"
+            DEPENDEES build
+        )
+    endif()
+endif()
 
 add_library(MeshLab2PluginFilterQuadWild STATIC
     quadwildfilterplugin.h

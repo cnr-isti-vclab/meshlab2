@@ -101,6 +101,15 @@ if(MESHLAB2_PYTHON_WHEEL)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
+# Where CI keeps the QuadWild and TextureConsolidation helper programs between runs,
+# keyed on their submodule commits (.github/actions/helper-cache). A plugin whose
+# helpers are found there uses them as they are; otherwise it builds them and copies
+# them in. Nothing checks that they match the submodule, so leave it empty locally.
+# CI sets it through the environment, which also reaches the wheel builds.
+file(TO_CMAKE_PATH "$ENV{MESHLAB2_HELPERS_CACHE_DIR}" _helpers_cache_from_env)
+set(MESHLAB2_HELPERS_CACHE_DIR "${_helpers_cache_from_env}" CACHE PATH
+    "Directory of prebuilt QuadWild/TextureConsolidation helper programs (CI only)")
+
 # CGAL's exact number type, forced to the fast GMP/GMPXX backend, project-wide.
 #
 # libigl's vcpkg port disables it for its OWN cgal feature: vcpkg_installed's

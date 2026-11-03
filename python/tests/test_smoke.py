@@ -67,7 +67,7 @@ def test_wheel_exposes_every_declared_filter():
     declared = {
         item["id"]
         for descriptor in (ROOT / "plugins").glob("*/filters.json")
-        for item in json.loads(descriptor.read_text()).get("filters", [])
+        for item in json.loads(descriptor.read_text(encoding="utf-8")).get("filters", [])
     }
     exposed = {item.id for item in mod.MeshSet().list_filters()}
 

@@ -140,6 +140,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      # Before configuring: see .github/actions/helper-cache.
+      - name: Restore the helper programs
+        uses: ./.github/actions/helper-cache
+        with:
+          mode: restore
+
       # scikit-build-core passes CMAKE_ARGS to every configure; the repair script reads
       # QT_ROOT_DIR, VCPKG_INSTALLED_DIR and VCPKG_TARGET_TRIPLET from the environment.
       - name: Configure the wheel build
@@ -151,6 +157,12 @@ jobs:
         uses: pypa/cibuildwheel@v4.2.0
         with:
           output-dir: wheelhouse
+
+      - name: Save the helper programs
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/helper-cache
+        with:
+          mode: save
 
       - name: Upload wheels
         uses: actions/upload-artifact@v7
@@ -262,6 +274,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      # Before configuring: see .github/actions/helper-cache.
+      - name: Restore the helper programs
+        uses: ./.github/actions/helper-cache
+        with:
+          mode: restore
+
       # vcpkg's bin on PATH lets delvewheel find the DLLs it bundles into the wheel.
       - name: Configure the wheel build
         shell: pwsh
@@ -276,6 +294,12 @@ jobs:
         uses: pypa/cibuildwheel@v4.2.0
         with:
           output-dir: wheelhouse
+
+      - name: Save the helper programs
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/helper-cache
+        with:
+          mode: save
 
       - name: Upload wheels
         uses: actions/upload-artifact@v7

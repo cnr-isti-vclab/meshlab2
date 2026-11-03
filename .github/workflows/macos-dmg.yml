@@ -206,6 +206,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      # Before configuring: see .github/actions/helper-cache.
+      - name: Restore the helper programs
+        uses: ./.github/actions/helper-cache
+        with:
+          mode: restore
+
       # TextureConsolidation is off here: its stitcher is one translation unit that needs
       # over 4 GB to compile, and on this 7 GB runner it took an hour on its own. The DMG
       # does not bundle its helper programs yet, so the filter could not run from it
@@ -231,6 +237,12 @@ jobs:
       - name: Build
         run: |
           cmake --build "$BUILD_DIR" -j"$(sysctl -n hw.ncpu)"
+
+      - name: Save the helper programs
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/helper-cache
+        with:
+          mode: save
 
       - name: Define release artifact name
         id: release-metadata
