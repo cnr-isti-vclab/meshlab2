@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 402 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 403 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -4166,6 +4166,35 @@ The unit in the status bar changes it through this filter, so a change made ther
 
 ---
 
+(filter-align-current-raster-to-mesh-by-point-correspondences)=
+
+## Align Current Raster to Mesh by Point Correspondences
+
+**Categories:** `Document/Camera`
+
+**Plugin:** meshlab2.filter.camera
+
+Correct the current raster's camera from points on the mesh and the pixels where the photo shows them.
+
+```{py:function} ms.align_current_raster_to_mesh_by_point_correspondences(**params)
+:module: _meshlab
+
+Refines where the current raster's camera stands and looks, and optionally its focal length, so that it projects each point onto its pixel: the camera that minimizes the root mean square distance between them, in pixels. The raster's camera has to be roughly right to start with; *Set Raster Camera* from a view gives one.
+
+The principal point, the pixel size and the lens are left as they are: they are the calibration's. Three pairs are needed, four with the focal length; more are averaged.
+
+**Correspondences** is a JSON array of pairs, each a world-space point and a pixel of the image the raster's camera is made for (its viewport, the size of the photo as MeshLab shows it, undistorted when the raster has a lens): `[{"point": [x, y, z], "pixel": [u, v]}, ...]`, with the pixel's origin at the top-left corner of the image, y down, and pixel centres at k + 0.5.
+
+The error before and after, root mean square and maximum, and each pair's, are logged and returned as `rmsBefore`, `rmsAfter`, `maxAfter` and `pairErrors`.
+
+**Parameters:**
+
+- **correspondences** (*string*, default: `[]`) — Pairs of a world-space point and the image pixel that shows it, as a JSON array of {"point": [x, y, z], "pixel": [u, v]}; pixels from the top-left corner, y down.
+- **estimateFocal** (*bool*, default: `False`) — Fit the focal length too; it needs four pairs.
+```
+
+---
+
 (filter-export-cameras-from-visible-rasters)=
 
 ## Export Cameras from Visible Rasters
@@ -4381,10 +4410,14 @@ Set the camera parameters for the current raster.
 ```{py:function} ms.set_raster_camera(**params)
 :module: _meshlab
 
-Set camera parameters for the current raster. The viewport is automatically recalculated from the raster image dimensions.
+Set camera parameters for the current raster, from a viewpoint, a direction and a focal length, or from a view: the camera of a 3D view, by default the current one, with its projection, field of view and roll. Either way the camera is made for the raster's own image size, centred on it.
+
+The camera from a view is a starting point for aligning a photo to a mesh: navigate a 3D view until the model looks as it does in the photo, and give that camera to the raster.
 
 **Parameters:**
 
+- **fromView** (*bool*, default: `False`) — Take the camera of a view instead of the viewpoint, direction and focal length below.
+- **camera** (*camerastate*) — The view whose camera the raster gets (MeshLab.CameraState JSON).
 - **viewpoint** (*point3f*, default: `[0.0, 0.0, 0.0]`) — Camera position in world space.
 - **direction** (*point3f*, default: `[0.0, 0.0, -1.0]`) — Camera viewing direction.
 - **focalMm** (*double*, default: `50.0`) — Camera focal length in millimeters.

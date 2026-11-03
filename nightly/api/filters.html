@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 402 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 403 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -3567,6 +3567,27 @@ To build a polyline from an <em>edge</em> selection instead, use <em>Build a Pol
 
 <hr class="docutils" />
 </section>
+<section id="align-current-raster-to-mesh-by-point-correspondences">
+<span id="filter-align-current-raster-to-mesh-by-point-correspondences"></span><h2>Align Current Raster to Mesh by Point Correspondences<a class="headerlink" href="#align-current-raster-to-mesh-by-point-correspondences" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.camera</p>
+<p>Correct the current raster’s camera from points on the mesh and the pixels where the photo shows them.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.align_current_raster_to_mesh_by_point_correspondences">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">align_current_raster_to_mesh_by_point_correspondences</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.align_current_raster_to_mesh_by_point_correspondences" title="Link to this definition">¶</a></dt>
+<dd><p>Refines where the current raster’s camera stands and looks, and optionally its focal length, so that it projects each point onto its pixel: the camera that minimizes the root mean square distance between them, in pixels. The raster’s camera has to be roughly right to start with; <em>Set Raster Camera</em> from a view gives one.</p>
+<p>The principal point, the pixel size and the lens are left as they are: they are the calibration’s. Three pairs are needed, four with the focal length; more are averaged.</p>
+<p><strong>Correspondences</strong> is a JSON array of pairs, each a world-space point and a pixel of the image the raster’s camera is made for (its viewport, the size of the photo as MeshLab shows it, undistorted when the raster has a lens): <code class="docutils literal notranslate"><span class="pre">[{&quot;point&quot;:</span> <span class="pre">[x,</span> <span class="pre">y,</span> <span class="pre">z],</span> <span class="pre">&quot;pixel&quot;:</span> <span class="pre">[u,</span> <span class="pre">v]},</span> <span class="pre">...]</span></code>, with the pixel’s origin at the top-left corner of the image, y down, and pixel centres at k + 0.5.</p>
+<p>The error before and after, root mean square and maximum, and each pair’s, are logged and returned as <code class="docutils literal notranslate"><span class="pre">rmsBefore</span></code>, <code class="docutils literal notranslate"><span class="pre">rmsAfter</span></code>, <code class="docutils literal notranslate"><span class="pre">maxAfter</span></code> and <code class="docutils literal notranslate"><span class="pre">pairErrors</span></code>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>correspondences</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">[]</span></code>) — Pairs of a world-space point and the image pixel that shows it, as a JSON array of {“point”: [x, y, z], “pixel”: [u, v]}; pixels from the top-left corner, y down.</p></li>
+<li><p><strong>estimateFocal</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Fit the focal length too; it needs four pairs.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="export-cameras-from-visible-rasters">
 <span id="filter-export-cameras-from-visible-rasters"></span><h2>Export Cameras from Visible Rasters<a class="headerlink" href="#export-cameras-from-visible-rasters" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p>
@@ -3736,9 +3757,12 @@ To build a polyline from an <em>edge</em> selection instead, use <em>Build a Pol
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.set_raster_camera">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">set_raster_camera</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.set_raster_camera" title="Link to this definition">¶</a></dt>
-<dd><p>Set camera parameters for the current raster. The viewport is automatically recalculated from the raster image dimensions.</p>
+<dd><p>Set camera parameters for the current raster, from a viewpoint, a direction and a focal length, or from a view: the camera of a 3D view, by default the current one, with its projection, field of view and roll. Either way the camera is made for the raster’s own image size, centred on it.</p>
+<p>The camera from a view is a starting point for aligning a photo to a mesh: navigate a 3D view until the model looks as it does in the photo, and give that camera to the raster.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
+<li><p><strong>fromView</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Take the camera of a view instead of the viewpoint, direction and focal length below.</p></li>
+<li><p><strong>camera</strong> (<em>camerastate</em>) — The view whose camera the raster gets (MeshLab.CameraState JSON).</p></li>
 <li><p><strong>viewpoint</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Camera position in world space.</p></li>
 <li><p><strong>direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">-1.0]</span></code>) — Camera viewing direction.</p></li>
 <li><p><strong>focalMm</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">50.0</span></code>) — Camera focal length in millimeters.</p></li>
@@ -10015,6 +10039,10 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#set-unit">Set Unit</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.set_unit"><code class="docutils literal notranslate"><span class="pre">ms.set_unit()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#align-current-raster-to-mesh-by-point-correspondences">Align Current Raster to Mesh by Point Correspondences</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.align_current_raster_to_mesh_by_point_correspondences"><code class="docutils literal notranslate"><span class="pre">ms.align_current_raster_to_mesh_by_point_correspondences()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#export-cameras-from-visible-rasters">Export Cameras from Visible Rasters</a><ul>
