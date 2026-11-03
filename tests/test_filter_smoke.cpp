@@ -47,6 +47,7 @@ QString g_rasterProject = QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gar
 // Ordered poorest to richest. Not a chain of supersets -- Open swaps the closed
 // sphere for a bounded grid -- but a search order.
 enum class Fixture {
+    Triangle,      // not a rung: one open, flat triangle, for survivesDegenerateInput
     Bare,          // vertices, faces, normals
     Attributed,    // + vertex/face colour and a varying quality range
     Parametrized,  // + per-vertex and per-wedge texture coordinates
@@ -70,6 +71,7 @@ const std::array<Fixture, 8> &fixtureLadder()
 QString fixtureName(Fixture f)
 {
     switch (f) {
+    case Fixture::Triangle:     return QStringLiteral("triangle");
     case Fixture::Bare:         return QStringLiteral("bare");
     case Fixture::Attributed:   return QStringLiteral("attributed");
     case Fixture::Parametrized: return QStringLiteral("parametrized");
@@ -95,7 +97,7 @@ int ioMaskFor(Fixture f)
     }
     int mask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL
              | Mask::IOM_FACEINDEX | Mask::IOM_FACENORMAL;
-    if (f == Fixture::Bare)
+    if (f <= Fixture::Bare)
         return mask;
     mask |= Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY
           | Mask::IOM_FACECOLOR | Mask::IOM_FACEQUALITY;
@@ -139,6 +141,12 @@ void buildFixtureMesh(VCGMesh &mesh, Fixture f)
                 e.Q() = float(i) / float(kPerChain - 2);
             }
         }
+        decorateFixtureMesh(mesh, f);
+        return;
+    }
+    if (f == Fixture::Triangle) {
+        vcg::tri::Allocator<VCGMesh>::AddFace(mesh, vcg::Point3f(0, 0, 0),
+                                              vcg::Point3f(1, 0, 0), vcg::Point3f(0, 1, 0));
         decorateFixtureMesh(mesh, f);
         return;
     }
@@ -381,6 +389,17 @@ const QSet<QString> &buildDependent()
     return set;
 }
 
+// Filters survivesDegenerateInput cannot run in reasonable time, each with the reason.
+// Unlike the tables above this one cannot check itself -- a skipped filter is never
+// timed -- so an entry must name what would let it go.
+const QHash<QString, QString> &slowOnDegenerateInput()
+{
+    static const QHash<QString, QString> table = {
+        {QStringLiteral("remesh_to_quads_quadwild_bimdf"), QStringLiteral("QuadWild sizes its remesh by enclosed volume, which an open sheet lacks: one triangle becomes ~450k faces before the field is computed. Remove once the sizing handles open surfaces")},
+    };
+    return table;
+}
+
 } // namespace
 
 class FilterSmokeTests : public QObject
@@ -391,12 +410,15 @@ private slots:
     void initTestCase();
     void runsOrRefuses_data();
     void runsOrRefuses();
+    void survivesDegenerateInput_data() { runsOrRefuses_data(); }
+    void survivesDegenerateInput();
     void cleanupTestCase();
 
 private:
     // Outcome of one attempt on one rung.
     struct Attempt {
         bool success = false;
+        bool refused = false; // the filter itself declined, and said why
         QString error;
     };
     Attempt attempt(Fixture f, const QString &filterId);
@@ -471,6 +493,7 @@ FilterSmokeTests::Attempt FilterSmokeTests::attempt(Fixture f, const QString &fi
     const MeshFilterRunResult result = doc->runFilter(key, {});
     if (!result.success) {
         out.error = result.errorMessage;
+        out.refused = !out.error.trimmed().isEmpty();
         if (out.error.trimmed().isEmpty())
             out.error = QStringLiteral("<refused without an error message>");
         return out;
@@ -552,6 +575,26 @@ void FilterSmokeTests::runsOrRefuses()
                                        "kExpectedRefusals. Either build it an input, or add it "
                                        "with a reason.\n  %2")
                             .arg(filterId, refusals.join(QStringLiteral("\n  ")))));
+}
+
+// Every filter once more, on the poorest input there is: one open, flat triangle.
+// Not a rung -- running here proves no requirement, so nothing is recorded -- but
+// the half of the contract that holds for any input is checked: run, or refuse with
+// a message, and never crash, hang, or report success having produced nothing. The
+// closed sphere the ladder starts from hid all of these: Doo-Sabin segfaulted,
+// Remove Isolated Components by Face Count leaked a missing-component error, and
+// both volume samplers looped forever on a mesh with no inside.
+void FilterSmokeTests::survivesDegenerateInput()
+{
+    QFETCH(QString, filterId);
+    if (qEnvironmentVariableIsSet("MESHLAB2_SMOKE_TRACE"))
+        QTextStream(stderr) << "attempting " << filterId << " on triangle\n" << Qt::flush;
+    if (slowOnDegenerateInput().contains(filterId))
+        QSKIP(qPrintable(slowOnDegenerateInput().value(filterId)));
+
+    const Attempt a = attempt(Fixture::Triangle, filterId);
+    QVERIFY2(a.success || a.refused,
+             qPrintable(QStringLiteral("%1 on a single triangle: %2").arg(filterId, a.error)));
 }
 
 // The rung each filter needed is the evidence for declaring its real input

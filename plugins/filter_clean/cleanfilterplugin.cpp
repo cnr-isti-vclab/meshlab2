@@ -339,6 +339,16 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
             return { false, false, QObject::tr("Current mesh has no faces.") };
         const int minComponentSize =
             std::max(0, params.getInt(QStringLiteral("min_component_size")));
+        // Counted before anything is deleted, so a threshold that would remove every
+        // component leaves the layer as it was instead of emptying it.
+        std::vector<std::pair<int, VCGMesh::FacePointer>> components;
+        vcg::tri::Clean<VCGMesh>::ConnectedComponents(mesh, components);
+        if (std::all_of(components.begin(), components.end(),
+                        [&](const auto &c) { return c.first < minComponentSize; })) {
+            return { false, false, QObject::tr(
+                "Every connected component has fewer than %1 faces, so all of them would be "
+                "removed. The mesh was left unchanged.").arg(minComponentSize) };
+        }
         const auto delInfo =
             vcg::tri::Clean<VCGMesh>::RemoveSmallConnectedComponentsSize(mesh, minComponentSize);
 

@@ -115,8 +115,12 @@ gives, and on it, in the application as well as the wheel:
 refuses with "Missing component: PerFaceMark", an internal error rather than an
 input requirement; and `create_voronoi_scaffolding`, `sample_volume` and
 `remesh_to_quads_quadwild_bimdf` do not finish within 60 seconds. These are filter
-bugs, and the fix belongs in the C++ smoke ladder (a degenerate rung), not in a
-second sweep here.
+bugs, and the guard belongs in the C++ smoke suite, not in a second sweep here.
+*Since fixed* (2026-11-03): `FilterSmokeTests::survivesDegenerateInput` runs every
+filter once on a single triangle, and the first four are fixed — the two samplers
+and Doo-Sabin in vcglib, which now refuse input they cannot handle instead of
+looping or reading unset corners. QuadWild remains, listed in that test's
+`slowOnDegenerateInput` table: its automatic sizing divides by enclosed volume.
 
 ### Row 8, in detail
 

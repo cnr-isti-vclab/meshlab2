@@ -448,6 +448,8 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
         auto mls = createMlsForFilter(filterId, *controlMesh, params, false);
         VCGMesh resultMesh;
         computeMarchingCubes(resultMesh, params.getInt(QStringLiteral("Resolution"), 200), *mls, doc.progressCallback());
+        if (resultMesh.FN() == 0)
+            return fail(QObject::tr("Marching cubes found no surface: '%1' has too few or too sparse points to define one.").arg(entry.name));
         const int newIndex = doc.addMesh(
             resultMesh,
             {},
