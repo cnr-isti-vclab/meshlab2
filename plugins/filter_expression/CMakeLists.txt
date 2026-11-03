@@ -15,8 +15,6 @@ elseif(TARGET unofficial::muparser::muparser)
     set(_muparser_target unofficial::muparser::muparser)
 endif()
 
-set(MUPARSER_INCLUDE_DIR "")
-set(MUPARSER_LIBRARY "")
 if (NOT _muparser_target)
     find_path(MUPARSER_INCLUDE_DIR muParser.h)
     find_library(MUPARSER_LIBRARY NAMES muparser)

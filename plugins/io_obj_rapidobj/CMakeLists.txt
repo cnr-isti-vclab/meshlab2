@@ -6,7 +6,6 @@ if (NOT MESHLAB2_PLUGIN_OBJ_RAPIDOBJ)
 endif()
 
 set(_rapidobj_target "")
-set(RAPIDOBJ_INCLUDE_DIR "")
 
 find_package(RapidObj CONFIG QUIET)
 if (TARGET rapidobj::rapidobj)

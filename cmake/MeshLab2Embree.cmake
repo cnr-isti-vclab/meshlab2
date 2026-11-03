@@ -35,8 +35,6 @@ elseif(TARGET embree4)
     set(_embree_target embree4)
 endif()
 
-set(_embree_include "")
-set(_embree_lib "")
 if (NOT _embree_target)
     find_path(_embree_include embree4/rtcore.h)
     find_library(_embree_lib NAMES embree4 embree)
