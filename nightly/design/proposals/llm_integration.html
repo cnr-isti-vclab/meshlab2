@@ -251,7 +251,7 @@ model. <strong>Nothing described here is implemented.</strong> It exists to make
 choices explicit before any code is written, and to record which of MeshLab’s
 existing mechanisms are already load-bearing for this purpose.</p>
 <p>See also: <a class="reference internal" href="../architecture.html"><span class="std std-doc">Architecture</span></a> (layers and ownership),
-<a class="reference internal" href="../../python_scripting.html"><span class="std std-doc">Python Scripting</span></a> (the current <code class="docutils literal notranslate"><span class="pre">ms</span></code> / <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> surface in the app),
+<a class="reference internal" href="../../python_scripting.html"><span class="std std-doc">Python Scripting</span></a> (the current <code class="docutils literal notranslate"><span class="pre">ms</span></code> / <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> surface in the app),
 <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a> (the naming grammar that makes filters machine-legible),
 <a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a> and <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>
 (descriptor schema).</p>
@@ -359,9 +359,9 @@ checked during this review reported <strong>304 filters against 403 declared in
 nothing distinguishing the two.</p></li>
 <li><p><strong>The submodule pin is a standing source of staleness.</strong> The wheel repository
 pins MeshLab as a submodule, and that pin is routinely behind; at the time of
-writing it trailed <code class="docutils literal notranslate"><span class="pre">devel</span></code> by 135 commits. Whether the wheel should remain a
-separate repository at all, or become a workflow in this one, is an open
-question — see <a class="reference internal" href="#packaging-location"><span class="xref myst">Packaging location</span></a> below.</p></li>
+writing it trailed <code class="docutils literal notranslate"><span class="pre">devel</span></code> by 135 commits. Folding the wheel into this
+repository removes the pin; see <a class="reference internal" href="#packaging-location"><span class="xref myst">Packaging location</span></a>
+below.</p></li>
 </ol>
 <p>A model that is told “these are MeshLab’s filters” should be told so by the
 build it is actually talking to. Any tool server must enumerate filters from the
@@ -378,9 +378,10 @@ behaviour. Nothing here has changed.</p>
 </section>
 <section id="packaging-location">
 <h2>Packaging location<a class="headerlink" href="#packaging-location" title="Link to this heading">¶</a></h2>
-<p>An open question, recorded because it shapes step 2 rather than because it
-blocks it.</p>
-<p>The wheel lives in <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>, which holds 22 files outside the
+<p>Decided 2026-11-03: the wheel folds into this repository, ahead of step 2.
+The plan is <a class="reference internal" href="pymeshlab_merge.html"><span class="std std-doc">Folding the pymeshlab2 wheel into this repository</span></a>;
+what follows is the reasoning that led there.</p>
+<p>The wheel lives in <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>, which holds 23 files outside the
 submodule: a <code class="docutils literal notranslate"><span class="pre">cibuildwheel</span></code> workflow, <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code> (mostly the toggles
 above), <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>, <code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code>, a ~35-line <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code> of runtime
 library shims, a macOS wheel-repair script, six examples and five test files.
@@ -391,18 +392,17 @@ overlay triplets in <code class="docutils literal notranslate"><span class="pre"
 on both macOS arm64 and Windows x64. <code class="docutils literal notranslate"><span class="pre">wheels.yml</span></code> re-implements that sequence,
 and already reaches back through the submodule for the triplets
 (<code class="docutils literal notranslate"><span class="pre">VCPKG_OVERLAY_TRIPLETS:</span> <span class="pre">…/external/meshlab2/ci/vcpkg-triplets</span></code>).</p>
-<p>Folding the wheel in — a <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> in a subdirectory with
-scikit-build-core pointed at the repository root (<code class="docutils literal notranslate"><span class="pre">cmake.source-dir</span></code>), plus a
-tag-triggered workflow reusing the existing Qt and vcpkg steps — would delete
+<p>Folding the wheel in — a root <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> for scikit-build-core, plus a
+tag-triggered workflow reusing the existing Qt and vcpkg steps — deletes
 the submodule pin, the second vcpkg manifest, and the duplicated CI setup. The
 arguments for keeping it separate are release cadence (a wheel release need not
 be an application release), CI budget, and PyPI project identity; the first two
-are solvable with a separate workflow trigger, so the decision rests mainly on
-how independent the two release streams should be.</p>
-<p>Note that the module is currently published as <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code>
-(<code class="docutils literal notranslate"><span class="pre">pyproject.toml:</span> <span class="pre">name</span> <span class="pre">=</span> <span class="pre">&quot;pymeshlab2&quot;</span></code>, imported as <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code>), while
-<code class="docutils literal notranslate"><span class="pre">AGENTS.md</span></code> declares the intended Python module name to be <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code>. Those
-have not been reconciled.</p>
+are solvable with a separate workflow trigger, and the third is settled by the
+name below.</p>
+<p>The name is settled as <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code>, for the wheel and for the in-app facade
+(renamed from <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> 2026-11-03); <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> on PyPI stays with the
+legacy PyMeshLab, which a calendar-versioned <code class="docutils literal notranslate"><span class="pre">2026.11</span></code> would otherwise
+overwrite as an ordinary <code class="docutils literal notranslate"><span class="pre">pip</span></code> upgrade.</p>
 </section>
 <section id="four-independent-axes">
 <h2>Four independent axes<a class="headerlink" href="#four-independent-axes" title="Link to this heading">¶</a></h2>
@@ -458,7 +458,7 @@ exists.</p></li>
 <ol class="arabic simple">
 <li><p><strong>Filter discovery</strong> — “which filter removes these spikes?” Retrieval over
 descriptors. No mesh mutation, no agent loop. Lowest risk, immediate value.</p></li>
-<li><p><strong>Script authoring</strong> — natural language to a <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> script.</p></li>
+<li><p><strong>Script authoring</strong> — natural language to a <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> script.</p></li>
 <li><p><strong>Pipeline execution</strong> — “clean this scan, decimate to 50k, preserve
 boundaries.” Needs the act/observe loop.</p></li>
 <li><p><strong>Closed-loop quality</strong> — “simplify until Hausdorff stays under 0.1%.” The

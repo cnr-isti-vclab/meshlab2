@@ -5,7 +5,7 @@ MlGui
 
 The ``mlgui`` object is available only when running MeshLab
 with a visible window (desktop app).  It is not available in
-headless pymeshlab.
+headless pymeshlab2.
 
 .. py:currentmodule:: _meshlab
 
