@@ -10,7 +10,7 @@ class RenderWidget;
 // Provides view state, camera, and rendering methods that are only meaningful
 // in the context of a running MeshLab application with a visible viewport.
 //
-// In headless pymeshlab this object does not exist — only in the desktop app's
+// In headless pymeshlab2 this object does not exist — only in the desktop app's
 // Python console (where QApplication + MainWindow + RenderWidget are alive).
 class MlGui
 {

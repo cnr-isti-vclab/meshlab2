@@ -21,7 +21,7 @@ on a layer in the document, in the GUI and in scripts.
 
 `docs/examples/texmetro_report.py` in the repository runs the filters on a model and writes TexMetro's JSON
 file, key for key and in TexMetro's order, so that scripts written for its output keep working and the two
-tools can be compared. It needs `pymeshlab`, or MeshLab's own Python console, and the model's texture images
+tools can be compared. It needs `pymeshlab2`, or MeshLab's own Python console, and the model's texture images
 next to the model:
 
 ```

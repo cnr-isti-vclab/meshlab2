@@ -560,7 +560,7 @@ The backdrop is drawn across the whole target when there is a single tile, rathe
 
 Snapshot-to-raster paths reuse the same view capture mechanics but add the resulting image to `Document` through `addRasterImage(...)` with a `CameraShot` from `RenderWidget::cameraShotForViewport(...)` or from `renderSnapshotFromStateJson(...)`. This is how manual snapshot rasters and the `Render from Render-State JSON` layer filter create raster layers.
 
-Programmatic snapshots use the same render-state JSON contract. Embedded `mlgui.render_snapshot(...)` and `mlgui.save_snapshot(...)` render through the live active `RenderWidget`; standalone `pymeshlab.MeshSet.render_snapshot(...)` uses `HeadlessRenderContext`, which owns a hidden `RenderWidget`/QRhi lifecycle for offscreen and batch rendering.
+Programmatic snapshots use the same render-state JSON contract. Embedded `mlgui.render_snapshot(...)` and `mlgui.save_snapshot(...)` render through the live active `RenderWidget`; standalone `pymeshlab2.MeshSet.render_snapshot(...)` uses `HeadlessRenderContext`, which owns a hidden `RenderWidget`/QRhi lifecycle for offscreen and batch rendering.
 
 ## Verifying the Render Path
 

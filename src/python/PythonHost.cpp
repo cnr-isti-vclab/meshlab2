@@ -211,7 +211,7 @@ void PythonHost::setupConsole(Document *doc)
     m_console = console;
 
     // Dynamically add one method per filter to the MeshSet class, mirroring
-    // pymeshlab's approach.  Each method delegates to apply_filter() using
+    // legacy PyMeshLab's approach.  Each method delegates to apply_filter() using
     // the filter's python_name as the resolution key.
     static const char *kBindFiltersCode = R"python(
 import sys
@@ -219,15 +219,15 @@ import types
 
 import _meshlab as _qml
 
-pymeshlab = types.ModuleType("pymeshlab")
-pymeshlab.__doc__ = "Public MeshLab/PyMeshLab2 scripting facade backed by _meshlab."
-pymeshlab.Mesh = _qml.Mesh
-pymeshlab.MeshSet = _qml.MeshSet
-pymeshlab.FilterInfo = _qml.FilterInfo
-pymeshlab.FilterRunResult = _qml.FilterRunResult
-pymeshlab.MlGui = _qml.MlGui
-pymeshlab.__all__ = ["Mesh", "MeshSet", "FilterInfo", "FilterRunResult", "MlGui"]
-sys.modules["pymeshlab"] = pymeshlab
+pymeshlab2 = types.ModuleType("pymeshlab2")
+pymeshlab2.__doc__ = "Public MeshLab/PyMeshLab2 scripting facade backed by _meshlab."
+pymeshlab2.Mesh = _qml.Mesh
+pymeshlab2.MeshSet = _qml.MeshSet
+pymeshlab2.FilterInfo = _qml.FilterInfo
+pymeshlab2.FilterRunResult = _qml.FilterRunResult
+pymeshlab2.MlGui = _qml.MlGui
+pymeshlab2.__all__ = ["Mesh", "MeshSet", "FilterInfo", "FilterRunResult", "MlGui"]
+sys.modules["pymeshlab2"] = pymeshlab2
 
 def _bind_filter_methods():
     def _make_filter(python_name):

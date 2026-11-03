@@ -11,7 +11,7 @@ compared, or so that scripts written for TexMetro's output keep working.
     python texmetro_report.py model.obj -t 2048x1024           # the texture size, if it has no image
     python texmetro_report.py model.obj --compare reference.json   # against a file TexMetro wrote
 
-It needs `pymeshlab`: the standalone package, or MeshLab's own Python console (where it is
+It needs `pymeshlab2`: the standalone package, or MeshLab's own Python console (where it is
 already imported), with the model's texture images next to the model, as TexMetro does.
 
 KEY_MAP below is where each key of TexMetro's JSON comes from; the table in texture_metrics.md is
@@ -142,9 +142,9 @@ def run(ms, name, params):
 
 def build_report(path, texture_size=None, pairing="edge_order", clash="diagonals"):
     """TexMetro's JSON, as a dictionary, for the model at `path`."""
-    import pymeshlab
+    import pymeshlab2
 
-    ms = pymeshlab.MeshSet()
+    ms = pymeshlab2.MeshSet()
     ms.load_new_mesh(path)
     size = {}
     if texture_size:

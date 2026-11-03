@@ -15,7 +15,7 @@ growing this file.
 | Product / display name | **MeshLab** — bundle, window title, About box, bundle id `net.meshlab.MeshLab` |
 | Repository and directory | **meshlab2** (`cnr-isti-vclab/meshlab2`) |
 | Code identifiers | **`MeshLab2*`**, `MESHLAB2_*`, `meshlab2.filter.*` — they follow the repo, not the product |
-| Python | module `pymeshlab`, native `_meshlab` |
+| Python | distribution and module **`pymeshlab2`**, native `_meshlab` — not `pymeshlab`, which is the legacy PyMeshLab on PyPI |
 
 The rename landed 2026-09. Anything written before it — older transcripts, `git log`
 messages, docs in `docs/design/history/` — names targets like `QMeshLabCore` and options
@@ -95,7 +95,7 @@ cannot be justified on vcglib's own terms probably belongs on the MeshLab side i
 Landing one is a **four-part** task: commit inside `vcglib/`, push to `origin/devel`,
 bump the gitlink, and land the MeshLab-side code that depends on it in the same bump. A
 dirty or unpushed submodule builds fine locally and fails for everyone else — CI and the
-pymeshlab sibling repo included.
+pymeshlab2 sibling repo included.
 
 ```bash
 git -C vcglib status -sb && git -C vcglib rev-list --count origin/devel..HEAD

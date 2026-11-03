@@ -60,7 +60,7 @@ again, until a round gains nothing.
 ## The rendering
 
 Mutual information compares the photo with a rendering made **on the CPU**, so it is
-deterministic and runs in `ctest` and `pymeshlab` without a GPU:
+deterministic and runs in `ctest` and `pymeshlab2` without a GPU:
 
 - **The rasterizer.** `rasterizeTriangleDepth` (`src/core/softdepthbuffer.h`) calls back
   each pixel a triangle wins the depth test. The renderer shades there, with

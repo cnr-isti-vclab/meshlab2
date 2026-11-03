@@ -14,7 +14,7 @@ class QWidget;
 
 // Manages a hidden RenderWidget + QRhi lifecycle for offscreen rendering.
 // Designed for use in headless (no visible window) contexts such as
-// pymeshlab scripts or automated batch rendering.
+// pymeshlab2 scripts or automated batch rendering.
 //
 // Usage:
 //   HeadlessRenderContext ctx(doc);

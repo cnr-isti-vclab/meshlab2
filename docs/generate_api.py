@@ -341,7 +341,7 @@ def generate(output_dir):
         fh.write('=====\n\n')
         fh.write('The ``mlgui`` object is available only when running MeshLab\n')
         fh.write('with a visible window (desktop app).  It is not available in\n')
-        fh.write('headless pymeshlab.\n\n')
+        fh.write('headless pymeshlab2.\n\n')
         _write_methods_rst(fh, 'MlGui', mlgui_members)
 
     # --- Write api/types.rst ---

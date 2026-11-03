@@ -6,7 +6,7 @@ choices explicit before any code is written, and to record which of MeshLab's
 existing mechanisms are already load-bearing for this purpose.
 
 See also: [Architecture](../architecture.md) (layers and ownership),
-[Python Scripting](../../python_scripting.md) (the current `ms` / `pymeshlab` surface in the app),
+[Python Scripting](../../python_scripting.md) (the current `ms` / `pymeshlab2` surface in the app),
 [Vocabulary](../vocabulary.md) (the naming grammar that makes filters machine-legible),
 [Filter Organization](../filter_organization.md) and [Adding a Filter](../adding_a_filter.md)
 (descriptor schema).
@@ -74,9 +74,9 @@ Two consequences remain, and both matter for a model-facing catalogue:
    nothing distinguishing the two.
 2. **The submodule pin is a standing source of staleness.** The wheel repository
    pins MeshLab as a submodule, and that pin is routinely behind; at the time of
-   writing it trailed `devel` by 135 commits. Whether the wheel should remain a
-   separate repository at all, or become a workflow in this one, is an open
-   question — see [Packaging location](#packaging-location) below.
+   writing it trailed `devel` by 135 commits. Folding the wheel into this
+   repository removes the pin; see [Packaging location](#packaging-location)
+   below.
 
 A model that is told "these are MeshLab's filters" should be told so by the
 build it is actually talking to. Any tool server must enumerate filters from the
@@ -92,10 +92,11 @@ behaviour. Nothing here has changed.
 
 ## Packaging location
 
-An open question, recorded because it shapes step 2 rather than because it
-blocks it.
+Decided 2026-11-03: the wheel folds into this repository, ahead of step 2.
+The plan is [Folding the pymeshlab2 wheel into this repository](pymeshlab_merge.md);
+what follows is the reasoning that led there.
 
-The wheel lives in `cignoni/pymeshlab2`, which holds 22 files outside the
+The wheel lives in `cignoni/pymeshlab2`, which holds 23 files outside the
 submodule: a `cibuildwheel` workflow, `CMakeLists.txt` (mostly the toggles
 above), `pyproject.toml`, `vcpkg.json`, a ~35-line `__init__.py` of runtime
 library shims, a macOS wheel-repair script, six examples and five test files.
@@ -108,19 +109,18 @@ on both macOS arm64 and Windows x64. `wheels.yml` re-implements that sequence,
 and already reaches back through the submodule for the triplets
 (`VCPKG_OVERLAY_TRIPLETS: …/external/meshlab2/ci/vcpkg-triplets`).
 
-Folding the wheel in — a `pyproject.toml` in a subdirectory with
-scikit-build-core pointed at the repository root (`cmake.source-dir`), plus a
-tag-triggered workflow reusing the existing Qt and vcpkg steps — would delete
+Folding the wheel in — a root `pyproject.toml` for scikit-build-core, plus a
+tag-triggered workflow reusing the existing Qt and vcpkg steps — deletes
 the submodule pin, the second vcpkg manifest, and the duplicated CI setup. The
 arguments for keeping it separate are release cadence (a wheel release need not
 be an application release), CI budget, and PyPI project identity; the first two
-are solvable with a separate workflow trigger, so the decision rests mainly on
-how independent the two release streams should be.
+are solvable with a separate workflow trigger, and the third is settled by the
+name below.
 
-Note that the module is currently published as `pymeshlab2`
-(`pyproject.toml: name = "pymeshlab2"`, imported as `pymeshlab2`), while
-`AGENTS.md` declares the intended Python module name to be `pymeshlab`. Those
-have not been reconciled.
+The name is settled as `pymeshlab2`, for the wheel and for the in-app facade
+(renamed from `pymeshlab` 2026-11-03); `pymeshlab` on PyPI stays with the
+legacy PyMeshLab, which a calendar-versioned `2026.11` would otherwise
+overwrite as an ordinary `pip` upgrade.
 
 ## Four independent axes
 
@@ -171,7 +171,7 @@ The use case should drive the three axes above, not the reverse.
 
 1. **Filter discovery** — "which filter removes these spikes?" Retrieval over
    descriptors. No mesh mutation, no agent loop. Lowest risk, immediate value.
-2. **Script authoring** — natural language to a `pymeshlab` script.
+2. **Script authoring** — natural language to a `pymeshlab2` script.
 3. **Pipeline execution** — "clean this scan, decimate to 50k, preserve
    boundaries." Needs the act/observe loop.
 4. **Closed-loop quality** — "simplify until Hausdorff stays under 0.1%." The
