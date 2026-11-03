@@ -5,8 +5,8 @@ missing or slightly wrong can be registered on the model and then used by the fi
 project through rasters (color transfer, coverage, parametrization). It is Stage 3 of the
 [Camera Lens Model](camera_lens_model.md), which gave rasters a pinhole camera plus a separate
 lens and a native COLMAP import. **Written 2026-11-03; Stages 3a, the correspondence fit,
-and 3b, the tool, implemented the same day. Stages 3c and 3d are not, and the open questions
-not about 3a and 3b are still open.**
+3b, the tool, and 3c, mutual information, implemented the same day. Stage 3d is not; open
+questions 1, 3, 7 and 9 are still open, 3 now with measurements.**
 
 See also: [Camera Lens Model](camera_lens_model.md) (the boundary this relies on),
 [Data Model](../data_model.md#raster-data-type), [Rendering](../rendering.md) (the
@@ -283,6 +283,49 @@ Each stage is one commit, landed and verified before the next.
     true camera to fall below a threshold. The thresholds and the convergence basin are
     measured, not chosen in advance. The same test runs on the 2930 dataset, which is also the
     performance case.
+
+  As built (2026-11-03):
+
+  - **Code.**
+    - **vcglib.** The resection's parametrization is public now, as
+      `vcg::ShotResection<S>::Parametrization`: the reference shot, sample points, a pivot and
+      `fitFocal` give `Size()` parameters and `ToShot(x)`. `Fit` uses it as before (the stress
+      run is unchanged: 5,991 of 6,000 random starts converge), and mutual information
+      minimizes over the same numbers, pivoting on the centre of the visible layers' box, as
+      old MeshLab did.
+    - **The rasterizer.** `rasterizeTriangleDepth` calls `onPixel(index, b0, b1, b2)` where a
+      triangle wins the depth test, which is the item buffer of the proposal in a few lines.
+      The depth buffers pass a no-op.
+    - **The filter.** `plugins/filter_camera/mutualinformation.cpp`, about 300 lines, renders
+      **the visible layers**, not only the current one as old MeshLab did, since that is what
+      the raster view shows. It shades as the old GLSL programs did, using the channel they
+      read back: *Normal Map* (the eye-space normal's y, normalized per pixel), *Combined*
+      (vertex color blended into that by `t = color.r²`, read from the color as old MeshLab
+      did, not from the scalar) and *Vertex Color* (red). The histogram is 128 × 128 bins
+      against the photo in grey levels, the rendered background is weighted
+      1 / `backgroundWeight`, and the photo's transparent pixels (an undistorted photo's
+      corners) are left out. NEWUOA runs in rounds, starting with `expectedError` (2) and
+      stopping at `tolerance` (0.1) pixels of the working resolution, within `maxEvaluations`
+      renderings (300). The run reports progress and can be cancelled.
+  - **Measured on the gargoyle** (750 × 502, 20k faces, Normal Map; it has no vertex color):
+    - About 3.8 ms a rendering, so 0.4 to 1 s a run.
+    - The fixture's cameras are not at the maximum: started on them, the fit moves 0.5 to
+      1.6 px and raises the information (0.6030 to 0.6056 bits on camera 0).
+    - Started 0.5 to 8 degrees off (1 to 21 px), cameras 0, 2 and 3 end within 1.3 px of the
+      fit from the true camera.
+    - Camera 1, whose information is the lowest (0.45 bits), ends within 3.6 px, once at a
+      higher maximum than the fit from the truth.
+    - The test keeps the 2 and 8 degree starts, with bounds of 2 px (5 for camera 1).
+  - **Measured on the RealityScan scan** (`2930Colmap/project.mlp`: 3.2 M faces, its sparse
+    points hidden, raster 7, working at 800 px):
+    - About 50 ms a rendering, as estimated; 7 to 14 s a run.
+    - With *Vertex Color*, from the scan's own colors, a camera moved 1 degree (62 px in the
+      full photo) comes back to 1.24 px from COLMAP's camera, and to 1.09 px when started on
+      it.
+    - With *Normal Map* it walks away: 13 px when started on COLMAP's camera, 19 px from the
+      1 degree start, each time to a higher maximum of the information. On a photo of a
+      real, colored object, shading alone is not enough here, and the rendering decides
+      whether the method works. The optional test checks *Vertex Color* only.
 - **3d. Global refinement.** Decided after 3c, from its measurements (open question 7).
 
 ## Open questions
@@ -294,15 +337,19 @@ Each stage is one commit, landed and verified before the next.
 2. **NEWUOA for the correspondence fit.** This reverses the lens proposal's mention of
    Eigen's Levenberg–Marquardt, for the reasons above. Agreed?
 3. **Which renderings.** Old MeshLab offered six. *Normal map* needs nothing but normals.
-   *Combined* needs ambient occlusion: in meshlab2, *Compute Mesh Ambient Occlusion* writes
-   it to the vertex scalar, so *Combined* would read the scalar where old MeshLab read
-   `color.r`.
+   *Combined* needs ambient occlusion in the vertex color's red, as old MeshLab read it, and
+   that is what Stage 3c does. In meshlab2, *Compute Mesh Ambient Occlusion* writes to the
+   vertex scalar, so it takes a scalar-to-color step first; reading the scalar directly is
+   the alternative.
    - What is the blend weight `t = color.r²` meant to do? Read literally, open areas show
      the normal map and occluded ones fade to their occlusion. Is that the paper's intent,
      and should the weight be kept as it is?
    - Do *Specular*, *Specular combined* and *Silhouette* earn a place?
    - Should *Vertex Color* become *Mesh Color*, so that it also reads the texture? The 2930
-     mesh is textured and has no vertex color.
+     mesh is textured and has vertex colors too, which is how Stage 3c could test it.
+   - Measured in Stage 3c: on that scan the *Normal Map* finds a wrong maximum 13 to 19 px
+     away, and *Vertex Color* the right one. Should the default stay *Combined*, which is
+     the *Normal Map* on a mesh without color, or follow what the mesh has?
 4. **Category and names.** `Geometry/Alignment` is the vocabulary's home for algorithmic
    alignment, but its root says *changes vertex positions or the layer matrix*, and a raster
    camera is neither. The proposal uses `Document/Camera`, beside the other camera filters,

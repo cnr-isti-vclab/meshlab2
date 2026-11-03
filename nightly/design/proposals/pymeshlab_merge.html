@@ -1,0 +1,546 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>Folding the pymeshlab wheel into this repository - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../texture_metrics.html">Texture and UV measures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/proposals/pymeshlab_merge.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="folding-the-pymeshlab-wheel-into-this-repository">
+<h1>Folding the pymeshlab wheel into this repository<a class="headerlink" href="#folding-the-pymeshlab-wheel-into-this-repository" title="Link to this heading">¶</a></h1>
+<p>The Python wheel is built from a separate repository, <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>, which
+carries MeshLab as a git submodule. This document proposes moving that build here
+and retiring the separate repository, and records the mapping table required by
+<code class="docutils literal notranslate"><span class="pre">AGENTS.md</span></code> before anything moves.</p>
+<p><strong>Nothing here has been done.</strong> The table below is for approval first.</p>
+<p>See also: <a class="reference internal" href="llm_integration.html"><span class="std std-doc">LLM Integration</span></a> (why wheel/app convergence came up),
+<a class="reference internal" href="../release_process.html"><span class="std std-doc">Branches and Releases</span></a> (the release machinery this would join),
+<a class="reference internal" href="../../python_scripting.html"><span class="std std-doc">Python Scripting</span></a> (the API the wheel exposes).</p>
+<section id="why">
+<h2>Why<a class="headerlink" href="#why" title="Link to this heading">¶</a></h2>
+<p>Three reasons, in order of weight.</p>
+<ol class="arabic simple">
+<li><p><strong>The submodule pin is a standing staleness bug.</strong> The wheel repository pins
+MeshLab and that pin runs behind — 135 commits at the time of writing, so a
+locally built extension exposed 304 filters against 403 declared here.
+<code class="docutils literal notranslate"><span class="pre">AGENTS.md</span></code> already names this repository’s submodule hygiene as something the
+sibling repo suffers from; merging removes one of the two layers.</p></li>
+<li><p><strong>The duplication is in CI, and it is large.</strong> <code class="docutils literal notranslate"><span class="pre">wheels.yml</span></code> re-implements the
+Qt install, the vcpkg bootstrap pinned to the manifest baseline, the overlay
+triplets and the vcpkg artifact caching that <code class="docutils literal notranslate"><span class="pre">tests.yml</span></code>, <code class="docutils literal notranslate"><span class="pre">macos-dmg.yml</span></code> and
+<code class="docutils literal notranslate"><span class="pre">windows-portable.yml</span></code> already perform, on the same two platforms the wheel
+targets. It already reaches back through the submodule for the triplets.</p></li>
+<li><p><strong>The release machinery here already has the right shape.</strong> <code class="docutils literal notranslate"><span class="pre">release.yml</span></code>
+orchestrates three reusable workflows on a <code class="docutils literal notranslate"><span class="pre">YYYY.MM</span></code> tag, each of which
+supports <code class="docutils literal notranslate"><span class="pre">workflow_dispatch</span></code>, <code class="docutils literal notranslate"><span class="pre">workflow_call</span></code> and a <code class="docutils literal notranslate"><span class="pre">devel</span></code> push. A wheel job
+fits that pattern without inventing anything, and inherits the tag/version
+check — which would also give the wheel a real version, replacing the
+<code class="docutils literal notranslate"><span class="pre">0.0.1</span></code> it has never moved off.</p></li>
+</ol>
+</section>
+<section id="decisions-taken">
+<h2>Decisions taken<a class="headerlink" href="#decisions-taken" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>The published module becomes <strong><code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code></strong>, matching the name <code class="docutils literal notranslate"><span class="pre">AGENTS.md</span></code>
+declares. The current <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> name is retired at the same moment, so users
+take one breaking change rather than two.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code> is <strong>archived, not deleted</strong>, and not until a tag-built
+wheel has gone green from here.</p></li>
+</ul>
+</section>
+<section id="mapping-table">
+<h2>Mapping table<a class="headerlink" href="#mapping-table" title="Link to this heading">¶</a></h2>
+<p>23 files live outside the submodule in <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>. Target paths are
+relative to this repository.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Current (<code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>)</p></th>
+<th class="head"><p>Target</p></th>
+<th class="head"><p>Measured evidence</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code></p></td>
+<td><p>—</p></td>
+<td><p>Same <code class="docutils literal notranslate"><span class="pre">builtin-baseline</span></code> (<code class="docutils literal notranslate"><span class="pre">37bb045f…</span></code>) as this repository’s manifest; 14 dependencies, <strong>all 14 also in ours</strong>, zero wheel-only. Ours adds 9 more (<code class="docutils literal notranslate"><span class="pre">nanobind</span></code>, <code class="docutils literal notranslate"><span class="pre">openblas</span></code>, <code class="docutils literal notranslate"><span class="pre">qhull</span></code>, <code class="docutils literal notranslate"><span class="pre">fmt</span></code>, <code class="docutils literal notranslate"><span class="pre">jsoncpp</span></code>, <code class="docutils literal notranslate"><span class="pre">libpng</span></code>, <code class="docutils literal notranslate"><span class="pre">libjpeg-turbo</span></code>, <code class="docutils literal notranslate"><span class="pre">nanoflann</span></code>, <code class="docutils literal notranslate"><span class="pre">dirent</span></code>).</p></td>
+<td><p><strong>Drop</strong> — strict subset; use the root manifest</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.gitmodules</span></code></p></td>
+<td><p>—</p></td>
+<td><p>Single entry, <code class="docutils literal notranslate"><span class="pre">external/meshlab2</span></code>. Becomes meaningless once the build is in-tree.</p></td>
+<td><p><strong>Drop</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">LICENSE</span></code></p></td>
+<td><p>—</p></td>
+<td><p>GPL-2.0-or-later, same as ours.</p></td>
+<td><p><strong>Drop</strong> — duplicate</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">README</span></code> (reStructuredText)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">python/README.md</span></code></p></td>
+<td><p>Describes the Phase A scaffold; most of it is obsolete. PyPI still needs a long description for <code class="docutils literal notranslate"><span class="pre">[project.readme]</span></code>.</p></td>
+<td><p><strong>Rewrite</strong>, much shorter</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> (repo root)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">name</span> <span class="pre">=</span> <span class="pre">&quot;pymeshlab2&quot;</span></code> → <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code>; <code class="docutils literal notranslate"><span class="pre">version</span> <span class="pre">=</span> <span class="pre">&quot;0.0.1&quot;</span></code> → derived from <code class="docutils literal notranslate"><span class="pre">MESHLAB2_VERSION</span></code> (<code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:59</span></code>). Root placement avoids <code class="docutils literal notranslate"><span class="pre">cmake.source-dir</span></code> pointing at a parent, which would force the sdist to carry the whole tree anyway.</p></td>
+<td><p><strong>Move + edit</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pytest.ini</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> <code class="docutils literal notranslate"><span class="pre">[tool.pytest.ini_options]</span></code></p></td>
+<td><p>Three marker definitions only (<code class="docutils literal notranslate"><span class="pre">examples</span></code>, <code class="docutils literal notranslate"><span class="pre">filters</span></code>, <code class="docutils literal notranslate"><span class="pre">smoke</span></code>).</p></td>
+<td><p><strong>Merge</strong> into row 5</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.gitignore</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.gitignore</span></code></p></td>
+<td><p>Ours has <strong>no</strong> Python entries (<code class="docutils literal notranslate"><span class="pre">__pycache__</span></code>, <code class="docutils literal notranslate"><span class="pre">*.so</span></code>, <code class="docutils literal notranslate"><span class="pre">dist/</span></code>, <code class="docutils literal notranslate"><span class="pre">*.egg-info/</span></code>, <code class="docutils literal notranslate"><span class="pre">.pytest_cache/</span></code>, <code class="docutils literal notranslate"><span class="pre">wheelhouse/</span></code>, <code class="docutils literal notranslate"><span class="pre">_skbuild/</span></code>). Theirs also ignores <code class="docutils literal notranslate"><span class="pre">.reference/</span></code>, which ours already does.</p></td>
+<td><p><strong>Merge</strong> the Python block</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code></p></td>
+<td><p>split three ways</p></td>
+<td><p>96 lines. Lines 10–23: nine <code class="docutils literal notranslate"><span class="pre">MESHLAB2_*</span></code> toggles. Lines 28–50: nanobind discovery with a FetchContent fallback — <strong>redundant here</strong>, since <code class="docutils literal notranslate"><span class="pre">find_package(nanobind</span> <span class="pre">CONFIG</span> <span class="pre">REQUIRED)</span></code> already runs at <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:170</span></code> and <code class="docutils literal notranslate"><span class="pre">nanobind</span></code> is in our vcpkg manifest. Lines 52–64: <code class="docutils literal notranslate"><span class="pre">sources.cmake</span></code> + <code class="docutils literal notranslate"><span class="pre">nanobind_add_module(_meshlab</span> <span class="pre">…)</span></code> + link <code class="docutils literal notranslate"><span class="pre">MeshLab2Plugins</span></code>. Lines 66–95: install rules for the module, quadwild binaries and config, and the geogram DLL.</p></td>
+<td><p><strong>Split</strong> — see below</p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.github/workflows/wheels.yml</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.github/workflows/wheels.yml</span></code></p></td>
+<td><p>~300 lines. Qt install, vcpkg bootstrap/baseline/cache/install, overlay triplets, failure-log upload — all already present in our three packaging workflows. Genuinely new: the <code class="docutils literal notranslate"><span class="pre">cibuildwheel&#64;v4.2.0</span></code> step, the <code class="docutils literal notranslate"><span class="pre">CIBW_*</span></code> matrix (cp310–cp314, macOS arm64 + Windows x64), and the two <code class="docutils literal notranslate"><span class="pre">CMAKE_ARGS</span></code> composition steps.</p></td>
+<td><p><strong>Move + collapse</strong> onto existing steps</p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">scripts/repair_macos_wheel.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">scripts/repair_macos_wheel.py</span></code></p></td>
+<td><p>Rewrites Qt framework install names inside the wheel and re-signs; no counterpart in <code class="docutils literal notranslate"><span class="pre">scripts/</span></code> (which holds <code class="docutils literal notranslate"><span class="pre">package-macos-dmg.sh</span></code>, <code class="docutils literal notranslate"><span class="pre">package-linux-appimage.sh</span></code>).</p></td>
+<td><p><strong>Move</strong> unchanged</p></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">python/pymeshlab2/__init__.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">python/pymeshlab/__init__.py</span></code></p></td>
+<td><p>~35 lines: <code class="docutils literal notranslate"><span class="pre">MESHLAB2_QUADWILD_ROOT</span></code> default, geogram runtime preload for macOS/Windows, then <code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">._meshlab</span> <span class="pre">import</span> <span class="pre">FilterInfo,</span> <span class="pre">FilterRunResult,</span> <span class="pre">Mesh,</span> <span class="pre">MeshSet</span></code>.</p></td>
+<td><p><strong>Move + rename</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>12</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">examples/__init__.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">python/examples/__init__.py</span></code></p></td>
+<td><p>Empty; exists so <code class="docutils literal notranslate"><span class="pre">test_examples.py</span></code> can import the package.</p></td>
+<td><p><strong>Move</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>13–18</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">examples/{create_noisy_isosurface,list_filters,mesh_info,normalize_and_save,raster_basics,wavy_box}.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">python/examples/</span></code></p></td>
+<td><p>17–43 lines each, 166 total. Imported and run by <code class="docutils literal notranslate"><span class="pre">test_examples.py</span></code>, so they are regression tests as well as documentation.</p></td>
+<td><p><strong>Move + rename import</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>19</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tests/test_examples.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">python/tests/test_examples.py</span></code></p></td>
+<td><p>89 lines; runs each example and checks it completes.</p></td>
+<td><p><strong>Move + rename import</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>20</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tests/test_mesh.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">python/tests/test_mesh.py</span></code></p></td>
+<td><p>24 lines; exercises the <code class="docutils literal notranslate"><span class="pre">Mesh</span></code> bindings added in <code class="docutils literal notranslate"><span class="pre">pymesh.cpp</span></code>.</p></td>
+<td><p><strong>Move + rename import</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>21</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tests/test_single_mesh_filters.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">python/tests/test_single_mesh_filters.py</span></code></p></td>
+<td><p>64 lines. Reads <code class="docutils literal notranslate"><span class="pre">external/meshlab2/plugins/*/filters.json</span></code>, intersects with <code class="docutils literal notranslate"><span class="pre">list_filters()</span></code>, runs each <code class="docutils literal notranslate"><span class="pre">SingleMesh</span></code> filter with defaults in a subprocess, skipping on <code class="docutils literal notranslate"><span class="pre">applicable</span> <span class="pre">==</span> <span class="pre">false</span></code>. Paths simplify to <code class="docutils literal notranslate"><span class="pre">plugins/*/filters.json</span></code> and <code class="docutils literal notranslate"><span class="pre">tests/data/simple.off</span></code> (present, 36 bytes).</p></td>
+<td><p><strong>Move + simplify paths</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>22</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tests/test_smoke.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">python/tests/test_smoke.py</span></code></p></td>
+<td><p>63 lines; import and basic MeshSet scaffold checks.</p></td>
+<td><p><strong>Move + rename import</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>23</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tests/wheel_smoke.py</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">python/tests/wheel_smoke.py</span></code></p></td>
+<td><p>37 lines; the <code class="docutils literal notranslate"><span class="pre">CIBW_TEST_COMMAND</span></code>. Asserts three named filters exist, runs two, and checks the bundled geogram library and quadwild binaries are present and loadable.</p></td>
+<td><p><strong>Move + rename import</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Totals:</strong> 23 files → 3 dropped (rows 1–3), 2 folded into other files (rows 6–7),
+1 split across three destinations (row 8), 1 rewritten (row 4), 16 moved with edits.</p>
+<section id="row-8-in-detail">
+<h3>Row 8, in detail<a class="headerlink" href="#row-8-in-detail" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Part of the wheel’s <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code></p></th>
+<th class="head"><p>Target</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>The nine <code class="docutils literal notranslate"><span class="pre">MESHLAB2_*</span></code> toggles</p></td>
+<td><p>A <code class="docutils literal notranslate"><span class="pre">wheel</span></code> preset in <code class="docutils literal notranslate"><span class="pre">CMakePresets.json</span></code>, so the app build stays ignorant of them</p></td>
+</tr>
+<tr class="row-odd"><td><p>nanobind discovery + FetchContent fallback</p></td>
+<td><p>Dropped — already at <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:170</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nanobind_add_module(_meshlab</span> <span class="pre">…)</span></code> + <code class="docutils literal notranslate"><span class="pre">MeshLab2Plugins</span></code> link</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/python/CMakeLists.txt</span></code>, behind a new <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PYTHON_WHEEL</span></code> option</p></td>
+</tr>
+<tr class="row-odd"><td><p>Install rules (module, quadwild bin + config + licence, geogram DLL)</p></td>
+<td><p>Same place, same guard</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<section id="known-wrinkles">
+<h2>Known wrinkles<a class="headerlink" href="#known-wrinkles" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">find_package(nanobind)</span></code> sits inside the <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PYTHON_CONSOLE</span></code> guard</strong>
+(<code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:165–170</span></code>), and the wheel build sets that option <code class="docutils literal notranslate"><span class="pre">OFF</span></code>. The
+condition has to become <code class="docutils literal notranslate"><span class="pre">if(MESHLAB2_PYTHON_CONSOLE</span> <span class="pre">OR</span> <span class="pre">MESHLAB2_PYTHON_WHEEL)</span></code>,
+or nanobind lookup moves out of the guard entirely.</p></li>
+<li><p><strong>Deriving the wheel version from <code class="docutils literal notranslate"><span class="pre">MESHLAB2_VERSION</span></code></strong> needs a scikit-build-core
+metadata provider; the exact mechanism is unverified here and should be
+confirmed against the installed version before the table is executed.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">ci/vcpkg-triplets/</span></code> has no <code class="docutils literal notranslate"><span class="pre">x64-windows-release.cmake</span></code></strong> — both repositories
+name that triplet with the overlay set, and both fall through to vcpkg’s
+builtin. Consistent today, but it means the overlay is load-bearing only on
+macOS and Linux.</p></li>
+<li><p><strong>The test story becomes two-headed</strong>: <code class="docutils literal notranslate"><span class="pre">ctest</span></code> for C++, <code class="docutils literal notranslate"><span class="pre">pytest</span></code> for the wheel.
+That is a mild complication but also a gain — <code class="docutils literal notranslate"><span class="pre">test_single_mesh_filters.py</span></code>
+exercises the wheel path <code class="docutils literal notranslate"><span class="pre">ctest</span></code> structurally cannot reach, and post-move it
+becomes the natural place to assert that <strong>the filters a wheel exposes match
+the descriptors in this tree</strong>, the gap recorded in
+<a class="reference internal" href="llm_integration.html"><span class="std std-doc">LLM Integration</span></a>.</p></li>
+<li><p><strong>cibuildwheel’s isolated build environment</strong> must see the vcpkg install tree
+the way the existing workflows lay it out. This is the one mechanically unknown
+piece and should be proven on a branch before the sibling repo is archived.</p></li>
+</ul>
+</section>
+<section id="order-of-operations">
+<h2>Order of operations<a class="headerlink" href="#order-of-operations" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p>Land the table (this document), approved.</p></li>
+<li><p>In-tree build: rows 5–8, 11. Prove <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">wheel</span> <span class="pre">.</span></code> produces an importable
+<code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> locally.</p></li>
+<li><p>Tests and examples: rows 12–23. Prove <code class="docutils literal notranslate"><span class="pre">pytest</span></code> green locally.</p></li>
+<li><p>CI: row 9, plus a <code class="docutils literal notranslate"><span class="pre">wheels</span></code> job in <code class="docutils literal notranslate"><span class="pre">release.yml</span></code>. Prove green on <code class="docutils literal notranslate"><span class="pre">devel</span></code>.</p></li>
+<li><p>Tag a release; confirm the wheel builds from the tag.</p></li>
+<li><p>Only then archive <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>.</p></li>
+</ol>
+<p>Steps 2–5 are each independently revertible; step 6 is the point of no easy return.</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Folding the pymeshlab wheel into this repository</a><ul>
+<li><a class="reference internal" href="#why">Why</a></li>
+<li><a class="reference internal" href="#decisions-taken">Decisions taken</a></li>
+<li><a class="reference internal" href="#mapping-table">Mapping table</a><ul>
+<li><a class="reference internal" href="#row-8-in-detail">Row 8, in detail</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#known-wrinkles">Known wrinkles</a></li>
+<li><a class="reference internal" href="#order-of-operations">Order of operations</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

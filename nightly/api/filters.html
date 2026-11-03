@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 403 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 404 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -3562,6 +3562,31 @@ To build a polyline from an <em>edge</em> selection instead, use <em>Build a Pol
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>unit</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;documentUnit</span></code>) — The unit the coordinates are measured in. Not Set clears it.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="align-current-raster-to-mesh-by-mutual-information">
+<span id="filter-align-current-raster-to-mesh-by-mutual-information"></span><h2>Align Current Raster to Mesh by Mutual Information<a class="headerlink" href="#align-current-raster-to-mesh-by-mutual-information" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.camera</p>
+<p>Refine the current raster’s camera so that a rendering of the visible layers matches its photo.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.align_current_raster_to_mesh_by_mutual_information">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">align_current_raster_to_mesh_by_mutual_information</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.align_current_raster_to_mesh_by_mutual_information" title="Link to this definition">¶</a></dt>
+<dd><p>Refines where the current raster’s camera stands and looks, and optionally its focal length, by maximizing the mutual information between the photo, in grey levels, and a rendering of the visible layers through the camera: the method of Corsini et al. 2009. It is a refinement: the camera has to be close already, within a few pixels, as <em>Align Current Raster to Mesh by Point Correspondences</em> leaves it. The principal point, the pixel size and the lens are left as they are.</p>
+<p>The rendering is made on the CPU, at a working resolution whose longest side is <strong>Resolution</strong>, and shows one of: the surface normal’s component up the image (<em>Normal Map</em>, which needs nothing but normals); the vertex color blended into that by the square of its red, meant to hold ambient occlusion (<em>Combined</em>, which is the normal map where the vertex color is white); or the vertex color’s red (<em>Vertex Color</em>). Rendered background counts 1 / <strong>Background weight</strong> as much as the rest, and pixels the photo does not cover, as an undistorted photo’s corners, not at all.</p>
+<p>The camera’s parameters are scaled so that a unit step moves the mesh’s projection by about a pixel of the working resolution: <strong>Expected error</strong> is how far the optimizer first looks, and it stops when its steps fall below <strong>Tolerance</strong>, or after <strong>Max evaluations</strong> renderings. The mutual information before and after, in bits, the number of renderings, and how far the camera moved the mesh’s projection in the raster’s pixels are logged and returned as <code class="docutils literal notranslate"><span class="pre">informationBefore</span></code>, <code class="docutils literal notranslate"><span class="pre">informationAfter</span></code>, <code class="docutils literal notranslate"><span class="pre">evaluations</span></code> and <code class="docutils literal notranslate"><span class="pre">displacement</span></code>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>rendering</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">combined</span></code>) — What the rendering of the layers shows, to compare with the photo.</p></li>
+<li><p><strong>estimateFocal</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Let the focal length change too.</p></li>
+<li><p><strong>resolution</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">800</span></code>) — The longest side, in pixels, of the photo and the rendering as they are compared; a larger photo is scaled down.</p></li>
+<li><p><strong>maxEvaluations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">300</span></code>) — The most renderings the optimizer may make.</p></li>
+<li><p><strong>expectedError</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — How far, in pixels of the working resolution, the optimizer first looks.</p></li>
+<li><p><strong>tolerance</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.1</span></code>) — The optimizer stops when its steps move the projection by less than this, in pixels of the working resolution.</p></li>
+<li><p><strong>backgroundWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Rendered background counts 1 / this as much as the rest; 0 leaves it out.</p></li>
 </ul>
 </dd></dl>
 
@@ -10039,6 +10064,10 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#set-unit">Set Unit</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.set_unit"><code class="docutils literal notranslate"><span class="pre">ms.set_unit()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#align-current-raster-to-mesh-by-mutual-information">Align Current Raster to Mesh by Mutual Information</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.align_current_raster_to_mesh_by_mutual_information"><code class="docutils literal notranslate"><span class="pre">ms.align_current_raster_to_mesh_by_mutual_information()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#align-current-raster-to-mesh-by-point-correspondences">Align Current Raster to Mesh by Point Correspondences</a><ul>
