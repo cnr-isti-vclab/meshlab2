@@ -617,14 +617,21 @@ libraries.</p></li>
 missing OpenMP inside an <code class="docutils literal notranslate"><span class="pre">ExternalProject</span></code> fails the whole build at build time, so on
 macOS the plugin looks for a runtime at configure time with the hints
 <code class="docutils literal notranslate"><span class="pre">filter_screened_poisson</span></code> uses (<code class="docutils literal notranslate"><span class="pre">OpenMP_ROOT</span></code>, then Homebrew’s <code class="docutils literal notranslate"><span class="pre">libomp</span></code>) and skips
-itself with a message when there is none; GCC and MSVC bring their own. On macOS the helpers then need a <code class="docutils literal notranslate"><span class="pre">libomp</span></code> at run
-time: whether the one the application already ships is reachable from
-<code class="docutils literal notranslate"><span class="pre">Contents/Helpers</span></code> is to be verified.</p></li>
-<li><p><strong>Bundling:</strong> <code class="docutils literal notranslate"><span class="pre">meshlab2_bundle_quadwild</span></code> is QuadWild-specific, and the three release
-workflows (AppImage, Windows portable, macOS DMG) have QuadWild-specific steps. With
-a second helper package the bundling function should become a general one taking a
-name, executables and resources, rather than being copied. That is a small refactor,
-with its own mapping table when it happens.</p></li>
+itself with a message when there is none; GCC and MSVC bring their own. On macOS the
+helpers link Homebrew’s <code class="docutils literal notranslate"><span class="pre">libomp</span></code> by absolute path, and <code class="docutils literal notranslate"><span class="pre">package-macos-dmg.sh</span></code> points
+them at the copy the application already ships in <code class="docutils literal notranslate"><span class="pre">Contents/Frameworks</span></code>.</p></li>
+<li><p><strong>Bundling:</strong> <code class="docutils literal notranslate"><span class="pre">meshlab2_bundle_texture_consolidation</span></code> puts the three programs where
+the plugin looks first, <code class="docutils literal notranslate"><span class="pre">Contents/Helpers/texture-consolidation</span></code> on macOS and
+<code class="docutils literal notranslate"><span class="pre">texture-consolidation/bin</span></code> beside the executable elsewhere, with the licence beside
+them. It stays a sibling of <code class="docutils literal notranslate"><span class="pre">meshlab2_bundle_quadwild</span></code> rather than a general function:
+the two differ in what they copy and in how they are ordered (a target of its own here,
+so the application does not wait for the stitcher), and a general one would also need a
+way for each plugin to register its set with the root <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code>. The packaging
+steps are general: the AppImage script and the Windows workflow copy <code class="docutils literal notranslate"><span class="pre">bin</span></code>, <code class="docutils literal notranslate"><span class="pre">config</span></code>
+and the licence of each helper set present, not the whole directory, which with a
+single-config generator is also that set’s build tree. On Windows the helpers load
+vcpkg DLLs that sit beside <code class="docutils literal notranslate"><span class="pre">MeshLab.exe</span></code>, so <code class="docutils literal notranslate"><span class="pre">HelperProcess</span></code> puts the application’s
+directory on their <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, and the portable workflow checks that each one starts.</p></li>
 </ul>
 </section>
 <section id="a-fork-with-changes-proposed-upstream">
@@ -800,9 +807,15 @@ test classifies <code class="docutils literal notranslate"><span class="pre">lib
 written from its <code class="docutils literal notranslate"><span class="pre">cameras.json</span></code> (the inverse of <code class="docutils literal notranslate"><span class="pre">pinholecamera.h</span></code>; the round trip
 reproduces every camera to float precision), but has not yet been run through the filter.</p>
 <p><strong>Builds.</strong> On macOS the plugin needs an OpenMP runtime (<code class="docutils literal notranslate"><span class="pre">OpenMP_ROOT</span></code>, or Homebrew’s
-<code class="docutils literal notranslate"><span class="pre">libomp</span></code>) and skips itself without one. The macOS DMG workflow turns it off: there the
-stitcher took an hour on a 7 GB runner, and the DMG cannot bundle the helpers yet. Windows
-(MSVC) builds all three helpers, without running ctest. The Linux AppImage moved from
+<code class="docutils literal notranslate"><span class="pre">libomp</span></code>) and skips itself without one. The DMG, the Windows ZIP and the AppImage bundle
+the helpers, which CI keeps between runs (<code class="docutils literal notranslate"><span class="pre">.github/actions/helper-cache</span></code>); the DMG had it
+off while the stitcher took an hour on its 7 GB runner, before the compile-cost work below.
+Windows (MSVC) builds all three helpers, without running ctest. The wheels install them
+under <code class="docutils literal notranslate"><span class="pre">pymeshlab2/texture-consolidation</span></code>, which <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code> points the plugin at, and the
+wheel repair vendors what they load: delocate rewrites every Mach-O file in the wheel, the
+helpers included, and delvewheel does the executables with <code class="docutils literal notranslate"><span class="pre">--analyze-existing-exes</span></code>,
+moving their DLLs into <code class="docutils literal notranslate"><span class="pre">pymeshlab2.libs</span></code>, which <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code> puts on <code class="docutils literal notranslate"><span class="pre">PATH</span></code> for them. The
+wheel smoke test runs the filter on the gargoyle, so a helper that cannot load fails it. The Linux AppImage moved from
 Ubuntu 22.04 to 24.04, whose GCC 13 the helpers need (see
 <a class="reference internal" href="../release_process.html"><span class="std std-doc">release_process.md</span></a>); there the helpers build and both tests
 pass. The plugin no longer declares a dependency on the helper build, which had held every
