@@ -74,7 +74,9 @@ protected:
     void paintEvent(QPaintEvent *) override
     {
         InteractiveTool *tool = m_view ? m_view->activeTool() : nullptr;
-        if (!tool || m_view->viewMode() != RenderWidget::ViewMode::Scene3D)
+        const RenderWidget::ViewMode mode = m_view ? m_view->viewMode() : RenderWidget::ViewMode::Scene3D;
+        if (!tool || !(mode == RenderWidget::ViewMode::Scene3D
+                       || (mode == RenderWidget::ViewMode::RasterImage && tool->supportsRasterView())))
             return;
         QPainter painter(this);
         tool->paintOverlay(painter);
@@ -3602,7 +3604,9 @@ bool RenderWidget::toolAllowedInCurrentMode() const
         return false;
     return m_viewMode == ViewMode::Scene3D
         || (m_viewMode == ViewMode::ParametrizationUV
-            && m_activeTool && m_activeTool->supportsUvView());
+            && m_activeTool && m_activeTool->supportsUvView())
+        || (m_viewMode == ViewMode::RasterImage
+            && m_activeTool && m_activeTool->supportsRasterView());
 }
 
 bool RenderWidget::isLayerGridActive() const
@@ -3699,7 +3703,14 @@ void RenderWidget::requestSurfacePick(QPoint pixel)
 
 void RenderWidget::scheduleDepthPick(QPoint pixel, PickPurpose purpose)
 {
-    if (!m_doc || m_viewMode != ViewMode::Scene3D || m_doc->meshCount() <= 0)
+    if (!m_doc || m_doc->meshCount() <= 0)
+        return;
+    // The raster view picks for a tool only, through the raster's camera: there is nothing to
+    // recentre on, and no current layer to choose by a click on the photo.
+    const int ri = m_doc->currentRasterIndex();
+    const bool rasterPick = m_viewMode == ViewMode::RasterImage && purpose == PickPurpose::Tool
+        && ri >= 0 && m_doc->raster(ri).shot.isValid();
+    if (m_viewMode != ViewMode::Scene3D && !rasterPick)
         return;
     m_depthPickPos = pixel;
     ++m_depthPickSequence; // reject stale in-flight picks

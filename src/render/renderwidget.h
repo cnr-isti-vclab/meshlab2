@@ -179,6 +179,13 @@ public:
     // A world point's position in widget pixels, through the camera the scene is drawn with.
     // False when it is behind the eye.
     bool projectToWidget(const QVector3D &world, QPointF &widgetPos) const;
+    // In the raster view: where a widget position falls on the current raster's image, and
+    // back, with the image from (0, 0) at its top-left corner to (1, 1), as panned and zoomed.
+    QPointF widgetToRasterImage(const QPointF &widgetPos) const;
+    QPointF rasterImageToWidget(const QPointF &imagePos) const;
+    // Whether the active tool gets input and draws in this view as it is now: all tools in
+    // the 3D scene, those that opt in in the UV and raster views, none in a grid of tiles.
+    bool toolAllowedInCurrentMode() const;
 
 signals:
     void frameRendered(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
@@ -663,10 +670,14 @@ struct SceneRasterProjectedDrawItem {
         const MeshGpuResourceCache::FillPassView &fillView) const;
     // Both render scene geometry into a full-target offscreen buffer, so both need the
     // tile: what to project with, where to put it, and which layers belong in it.
+    // The pick projects with `proj` and `view`, the camera the tile is drawn with: the
+    // trackball's in the 3D scene, the raster's, panned and zoomed, in the raster view.
     void executePendingDepthPick(
         QRhiCommandBuffer *cb,
         const QSize &pixelSize,
-        const ViewTile &tile);
+        const ViewTile &tile,
+        const QMatrix4x4 &proj,
+        const QMatrix4x4 &view);
     void renderCurrentMeshMask(
         QRhiCommandBuffer *cb,
         const QSize &pixelSize,
@@ -708,9 +719,6 @@ struct SceneRasterProjectedDrawItem {
     ToolStrip *m_toolStrip = nullptr; // the active tool's name, state and controls, along the bottom
     QWidget *m_toolOverlayWidget = nullptr; // transparent screen-space tool drawing
     QWidget *m_statePreview = nullptr;      // StatePreviewOverlay, made on first use
-    // View support is a tool capability: all tools support 3D, while only some
-    // explicitly support UV. Raster mode never routes input to tools.
-    bool toolAllowedInCurrentMode() const;
     // The tool receives mouse input only when owned-here, current, supported, and not suspended.
     bool toolLive() const;
     void applyToolCursor(); // sets the cursor for the current tool/suspend state

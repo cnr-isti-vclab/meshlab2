@@ -330,6 +330,7 @@ qt_add_executable(MeshLab2
     src/render/toolstrip.h src/render/toolstrip.cpp
     src/render/tools/rubberbandselecttool.h src/render/tools/rubberbandselecttool.cpp
     src/render/tools/measuretool.h src/render/tools/measuretool.cpp
+    src/render/tools/rasteraligntool.h src/render/tools/rasteraligntool.cpp
     src/render/tools/transformtool.h src/render/tools/transformtool.cpp
     src/ui/layerwidget.h src/ui/layerwidget.cpp
     src/ui/undographlayout.h src/ui/undographlayout.cpp
@@ -557,9 +558,11 @@ qt_add_resources(MeshLab2 "icons"
         img/layer_eye_close.png
         img/tool_select_rect.png
         img/icon_measure.png
+        img/icon_raster_align.png
         img/snapshot.png
         img/axis.png
         img/cur_measure.png
+        img/cur_raster_align.png
         img/cur_trackball.png
         img/cur_sel_rect.png
         img/cur_sel_rect_plus.png

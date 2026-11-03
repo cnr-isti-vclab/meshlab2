@@ -77,6 +77,10 @@ public:
     // The 3D scene is supported by every tool. Only tools that explicitly opt in
     // receive input in the parametrization view.
     virtual bool supportsUvView() const { return false; }
+    // Likewise for the raster view, where the current raster's image is shown with the layers
+    // drawn through its camera: the tool gets input and its overlay there, and surface picks
+    // go through the raster's camera.
+    virtual bool supportsRasterView() const { return false; }
 
     virtual void activate(RenderWidget &view) { m_view = &view; }
     virtual void deactivate(bool commit) { (void)commit; m_view = nullptr; }

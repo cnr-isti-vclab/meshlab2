@@ -115,7 +115,9 @@ void RenderWidget::prepareDirtyBuffers(
 void RenderWidget::executePendingDepthPick(
     QRhiCommandBuffer *cb,
     const QSize &pixelSize,
-    const ViewTile &tile)
+    const ViewTile &tile,
+    const QMatrix4x4 &proj,
+    const QMatrix4x4 &view)
 {
     if (!m_depthPickPending || !m_rhi || !cb || pixelSize.isEmpty())
         return;
@@ -175,9 +177,6 @@ void RenderWidget::executePendingDepthPick(
     // The pick target covers the whole view, but only the clicked tile is drawn into it, at
     // the tile's own place and through the tile's own projection. The readback coordinate is
     // therefore unchanged: it is still the pixel under the cursor.
-    const float aspect = tile.rect.width() / float(qMax(1, tile.rect.height()));
-    QMatrix4x4 proj = m_trackball.projectionMatrix(aspect);
-    const QMatrix4x4 view = m_trackball.viewMatrix();
     const QMatrix4x4 vp = proj * view;
 
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {

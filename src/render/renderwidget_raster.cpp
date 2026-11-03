@@ -72,6 +72,22 @@ QVector2D RenderWidget::rasterScreenToImage(
         0.5f - (ndcY - rect.y()) / (2.0f * halfH));
 }
 
+QPointF RenderWidget::widgetToRasterImage(const QPointF &widgetPos) const
+{
+    const QVector2D image = rasterScreenToImage(widgetPos, QSize(qMax(1, width()), qMax(1, height())));
+    return QPointF(image.x(), image.y());
+}
+
+QPointF RenderWidget::rasterImageToWidget(const QPointF &imagePos) const
+{
+    // rasterScreenToImage backwards
+    const QSize size(qMax(1, width()), qMax(1, height()));
+    const QVector4D rect = rasterViewRectNdc(currentRasterImageSize(), size, m_rasterZoom, m_rasterPan);
+    const double ndcX = rect.x() + (imagePos.x() - 0.5) * 2.0 * rect.z();
+    const double ndcY = rect.y() - (imagePos.y() - 0.5) * 2.0 * rect.w();
+    return QPointF((ndcX + 1.0) * 0.5 * size.width(), (1.0 - ndcY) * 0.5 * size.height());
+}
+
 void RenderWidget::resetRasterView()
 {
     m_rasterPanning = false;

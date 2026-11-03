@@ -286,12 +286,12 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             label->hide();
     }
 
+    // A pick pending in the raster view is a tool's, through the raster's camera:
+    // scheduleDepthPick lets no other kind through there.
     if (!rasterMode) {
         advanceCenterAnimation();
         // After the center: it reads the animated center back out of the state.
         advanceCameraAnimation();
-    } else {
-        m_depthPickPending = false;
     }
     syncPerMeshRenderModesWithDocument();
     if (!rasterMode) {
@@ -598,7 +598,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         m_lightRotation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f));
     const bool depthPickPendingAtFrameStart = m_depthPickPending;
 
-    if (!rasterMode && m_depthPickPending) {
+    if (m_depthPickPending) {
         if (u) {
             cb->resourceUpdate(u);
             u = nullptr;
@@ -606,8 +606,15 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         // The pick belongs to the tile the cursor is over, not the current layer's: in a
         // grid you recentre on what you double-clicked.
         const int pickTile = viewTileAt(m_depthPickPos);
-        executePendingDepthPick(
-            cb, sz, tiles[size_t(pickTile >= 0 ? pickTile : referenceTileIndex(tiles))]);
+        const ViewTile &tile = tiles[size_t(pickTile >= 0 ? pickTile : referenceTileIndex(tiles))];
+        // The raster view picks through the raster's camera, as it draws; the 3D scene through
+        // the trackball's, for the tile's own shape.
+        if (rasterMode)
+            executePendingDepthPick(cb, sz, tile, proj, view);
+        else
+            executePendingDepthPick(cb, sz, tile,
+                                    m_trackball.projectionMatrix(tile.rect.width() / float(qMax(1, tile.rect.height()))),
+                                    m_trackball.viewMatrix());
     }
 
     if (!rasterMode && drawCurrentMeshHighlight) {
