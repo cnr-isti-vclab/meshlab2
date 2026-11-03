@@ -390,6 +390,25 @@ between the two, because a ZIP cannot carry a signature.</p>
 not by other branches. The vcpkg dependencies take hours to build, and the builds that
 save them run on <code class="docutils literal notranslate"><span class="pre">devel</span></code>; a release run on a tag can reuse them only if <code class="docutils literal notranslate"><span class="pre">devel</span></code> is the
 default branch. Otherwise every release starts from a cold cache.</p>
+<section id="helper-programs">
+<h3>Helper programs<a class="headerlink" href="#helper-programs" title="Link to this heading">¶</a></h3>
+<p>QuadWild and TextureConsolidation run as separate executables built from submodules,
+and building them took about half of a cold Linux build (QuadWild 7 min, the
+TextureConsolidation helpers 6 min, with all four cores) and 12 minutes of QuadWild
+alone on Windows, although their sources change only when the submodule is bumped.
+<code class="docutils literal notranslate"><span class="pre">.github/actions/helper-cache</span></code> keeps the five programs (25 MB) between runs, one cache
+entry per set, keyed on the runner image, the submodule commit, the plugin’s
+<code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code> and <code class="docutils literal notranslate"><span class="pre">MACOSX_DEPLOYMENT_TARGET</span></code> (set only by the wheel jobs, and
+checked by delocate). It sets <code class="docutils literal notranslate"><span class="pre">MESHLAB2_HELPERS_CACHE_DIR</span></code> in the environment, which
+the root <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code> reads: a plugin that finds its helpers there uses them and
+skips the external build; otherwise it builds them and copies them in, and the save
+step stores each set that is complete and was not restored.</p>
+<p>Measured on 2026-11-03 before choosing this over ccache: the cache budget was 9.0 of
+10 GB, and a compiler cache of a few GB per platform would evict the vcpkg caches,
+whose cold rebuild costs two hours on Windows. Restoring the helpers’ build directories
+instead would not work: a fresh checkout makes the sources newer than the restored
+objects, so the inner build recompiles everything.</p>
+</section>
 </section>
 <section id="open-items">
 <h2>Open items<a class="headerlink" href="#open-items" title="Link to this heading">¶</a></h2>
@@ -470,7 +489,10 @@ Qt and the vcpkg tree inside cibuildwheel’s container.</p></li>
 <li><a class="reference internal" href="#python-wheels">Python wheels</a></li>
 <li><a class="reference internal" href="#hotfixes">Hotfixes</a></li>
 <li><a class="reference internal" href="#signing">Signing</a></li>
-<li><a class="reference internal" href="#build-caches-follow-the-default-branch">Build caches follow the default branch</a></li>
+<li><a class="reference internal" href="#build-caches-follow-the-default-branch">Build caches follow the default branch</a><ul>
+<li><a class="reference internal" href="#helper-programs">Helper programs</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#open-items">Open items</a></li>
 </ul>
 </li>
