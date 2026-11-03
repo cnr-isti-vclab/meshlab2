@@ -11,6 +11,7 @@
 #include <QJsonObject>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPixmap>
 #include <QSaveFile>
 
@@ -43,7 +44,8 @@ QString RasterAlignTool::name() const
 
 QString RasterAlignTool::statusHint() const
 {
-    return QObject::tr("Drag from a point of the mesh to where the photo shows it · middle drag pans");
+    return QObject::tr("Drag from a point of the mesh to where the photo shows it · drag an end to move it · "
+                       "middle drag pans");
 }
 
 QString RasterAlignTool::statusDetail() const
@@ -51,8 +53,12 @@ QString RasterAlignTool::statusDetail() const
     const Document::RasterEntry *raster = alignableRaster(m_view);
     if (!raster)
         return QObject::tr("The current raster needs a camera; set one from a view first");
-    if (m_dragging)
+    if (m_drag == Drag::NewPair)
         return QObject::tr("Release on the photo, where it shows that point");
+    if (m_drag == Drag::MovePhoto)
+        return QObject::tr("Release where the photo shows the pair's point");
+    if (m_drag == Drag::MoveMesh)
+        return QObject::tr("Release on the mesh, at the point the pair's pixel shows");
     const std::vector<Pair> *pairs = currentPairs();
     const int count = pairs ? int(pairs->size()) : 0;
     if (!m_lastFit.isEmpty())
@@ -70,7 +76,34 @@ QString RasterAlignTool::iconPath() const
 
 QCursor RasterAlignTool::cursor() const
 {
-    return QCursor(QPixmap(QStringLiteral(":/img/cur_raster_align.png")), 1, 1);
+    if (m_hover.index >= 0 || m_drag == Drag::MovePhoto || m_drag == Drag::MoveMesh)
+        return QCursor(Qt::SizeAllCursor);
+    // A cross with "3D→2D" beside it: what a drag does, from a point of the mesh to the photo
+    static const QCursor cursor = [] {
+        QPixmap pixmap(128, 64);
+        pixmap.setDevicePixelRatio(2);
+        pixmap.fill(Qt::transparent);
+        QPainter painter(&pixmap);
+        painter.setRenderHint(QPainter::Antialiasing);
+        const QPointF c(9, 9);
+        for (const auto &[pen, width] : { std::pair{ QColor(Qt::black), 3.0 }, std::pair{ QColor(Qt::white), 1.2 } }) {
+            painter.setPen(QPen(pen, width, Qt::SolidLine, Qt::RoundCap));
+            painter.drawLine(c + QPointF(-8, 0), c + QPointF(-3, 0));
+            painter.drawLine(c + QPointF(3, 0), c + QPointF(8, 0));
+            painter.drawLine(c + QPointF(0, -8), c + QPointF(0, -3));
+            painter.drawLine(c + QPointF(0, 3), c + QPointF(0, 8));
+        }
+        QFont font = painter.font();
+        font.setPixelSize(10);
+        font.setBold(true);
+        QPainterPath text;
+        text.addText(QPointF(17, 28), font, QStringLiteral("3D\u21922D"));
+        painter.strokePath(text, QPen(Qt::black, 2.5));
+        painter.fillPath(text, Qt::white);
+        painter.end();
+        return QCursor(pixmap, 9, 9);
+    }();
+    return cursor;
 }
 
 std::vector<ToolControl> RasterAlignTool::controls() const
@@ -86,8 +119,8 @@ std::vector<ToolControl> RasterAlignTool::controls() const
         { QStringLiteral("focal"), Kind::Toggle, QObject::tr("Focal Length"),
           QObject::tr("Let the fit change the focal length too; it needs four pairs"), { Qt::Key_L },
           QStringLiteral("fit") },
-        { QStringLiteral("undo"), Kind::Action, QObject::tr("Undo"),
-          QObject::tr("Take back the last pair"), { Qt::Key_Backspace, Qt::Key_Delete },
+        { QStringLiteral("delete"), Kind::Action, QObject::tr("Delete"),
+          QObject::tr("Remove the pair under the cursor, or the last pair"), { Qt::Key_Backspace, Qt::Key_Delete },
           QStringLiteral("edit") },
         { QStringLiteral("clear"), Kind::Action, QObject::tr("Clear"),
           QObject::tr("Remove every pair of this raster"), { Qt::Key_C }, QStringLiteral("edit") },
@@ -111,7 +144,7 @@ bool RasterAlignTool::isControlEnabled(const QString &id) const
     const size_t count = pairs ? pairs->size() : 0;
     if (id == QLatin1String("fit"))
         return count >= (m_estimateFocal ? 4u : 3u);
-    if (id == QLatin1String("undo") || id == QLatin1String("clear") || id == QLatin1String("save"))
+    if (id == QLatin1String("delete") || id == QLatin1String("clear") || id == QLatin1String("save"))
         return count > 0;
     return true;
 }
@@ -126,11 +159,16 @@ void RasterAlignTool::triggerControl(const QString &id, Qt::KeyboardModifiers mo
         refineByMutualInformation();
     } else if (id == QLatin1String("focal")) {
         m_estimateFocal = !m_estimateFocal;
-    } else if (id == QLatin1String("undo") && pairs && !pairs->empty()) {
-        pairs->pop_back();
+    } else if (id == QLatin1String("delete") && pairs && !pairs->empty()) {
+        if (m_hover.index >= 0 && m_hover.index < int(pairs->size()))
+            pairs->erase(pairs->begin() + m_hover.index);
+        else
+            pairs->pop_back();
+        m_hover = Handle();
         m_lastFit.clear();
     } else if (id == QLatin1String("clear") && pairs) {
         pairs->clear();
+        m_hover = Handle();
         m_lastFit.clear();
     } else if (id == QLatin1String("save")) {
         savePairs();
@@ -144,6 +182,7 @@ void RasterAlignTool::activate(RenderWidget &view)
     InteractiveTool::activate(view);
     m_pairs.clear();
     m_lastFit.clear();
+    m_hover = Handle();
     cancelGesture();
     // The pairs are made over the photo: go there, when the current raster can be shown
     if (view.viewMode() != RenderWidget::ViewMode::RasterImage && alignableRaster(&view))
@@ -172,15 +211,60 @@ const std::vector<RasterAlignTool::Pair> *RasterAlignTool::currentPairs() const
     return it == m_pairs.end() ? nullptr : &it->second;
 }
 
+void RasterAlignTool::ends(const Pair &pair, QPointF &onMesh, QPointF &onPhoto) const
+{
+    const CameraShot &shot = alignableRaster(m_view)->shot;
+    const QSizeF size(shot.viewportPx());
+    const auto toWidget = [&](const QPointF &pixel) {
+        return m_view->rasterImageToWidget(QPointF(pixel.x() / size.width(), pixel.y() / size.height()));
+    };
+    // vcg's pixels are y up
+    const QVector2D projected = shot.project(pair.point);
+    onMesh = toWidget(QPointF(projected.x(), size.height() - projected.y()));
+    onPhoto = toWidget(pair.pixel);
+}
+
+// The photo ends first: after a fit the two ends of a pair coincide, and its pixel is what one
+// corrects by hand
+RasterAlignTool::Handle RasterAlignTool::handleAt(const QPointF &widgetPos) const
+{
+    const std::vector<Pair> *pairs = currentPairs();
+    if (!pairs || !alignableRaster(m_view))
+        return {};
+    constexpr double kReach = 7.0;
+    for (const bool photo : { true, false })
+        for (int i = int(pairs->size()) - 1; i >= 0; --i) {
+            QPointF onMesh, onPhoto;
+            ends((*pairs)[size_t(i)], onMesh, onPhoto);
+            const QPointF d = (photo ? onPhoto : onMesh) - widgetPos;
+            if (QPointF::dotProduct(d, d) <= kReach * kReach)
+                return { i, photo };
+        }
+    return {};
+}
+
+QPointF RasterAlignTool::toPixel(const QPointF &widgetPos) const
+{
+    const QSize size = alignableRaster(m_view)->shot.viewportPx();
+    const QPointF image = m_view->widgetToRasterImage(widgetPos);
+    return QPointF(image.x() * size.width(), image.y() * size.height());
+}
+
 bool RasterAlignTool::mousePress(QMouseEvent *e)
 {
     if (!m_view || !e || e->button() != Qt::LeftButton)
         return false;   // the middle button pans, as in the raster view without a tool
     if (!alignableRaster(m_view))
         return true;
-    m_dragging = true;
     m_released = m_pickReported = m_pickHit = false;
     m_pressPos = m_cursorPos = e->position();
+    m_handle = handleAt(e->position());
+    if (m_handle.index >= 0) {
+        m_drag = m_handle.photo ? Drag::MovePhoto : Drag::MoveMesh;
+        m_before = (*currentPairs())[size_t(m_handle.index)];
+        return true;
+    }
+    m_drag = Drag::NewPair;
     m_view->requestSurfacePick(e->position().toPoint());
     return true;
 }
@@ -189,26 +273,63 @@ bool RasterAlignTool::mouseMove(QMouseEvent *e)
 {
     if (!m_view || !e)
         return false;
-    if (m_dragging && !m_released)
+    if (m_drag == Drag::None) {
+        // Hovering: the handle under the cursor is highlighted, and Delete removes its pair
+        const Handle hover = handleAt(e->position());
+        const bool changed = hover.index != m_hover.index || hover.photo != m_hover.photo;
+        m_hover = hover;
+        return changed;
+    }
+    if (!m_released)
         m_cursorPos = e->position();
-    return m_dragging;
+    std::vector<Pair> *pairs = currentPairs();
+    if (m_drag == Drag::MovePhoto && pairs && m_handle.index < int(pairs->size()))
+        (*pairs)[size_t(m_handle.index)].pixel = toPixel(e->position());
+    return true;
 }
 
 bool RasterAlignTool::mouseRelease(QMouseEvent *e)
 {
-    if (!m_view || !e || e->button() != Qt::LeftButton || !m_dragging)
+    if (!m_view || !e || e->button() != Qt::LeftButton || m_drag == Drag::None)
         return false;
-    // A click, where the mesh already shows the point where the photo does, is a pair too:
-    // it holds that point while a fit corrects the others
     m_released = true;
-    m_releaseImage = m_view->widgetToRasterImage(e->position());
-    addPairIfComplete();
+    switch (m_drag) {
+    case Drag::NewPair:
+        // A click, where the mesh already shows the point where the photo does, is a pair too:
+        // it holds that point while a fit corrects the others
+        m_releaseImage = m_view->widgetToRasterImage(e->position());
+        addPairIfComplete();
+        break;
+    case Drag::MovePhoto:
+        m_lastFit.clear();
+        m_drag = Drag::None;
+        break;
+    case Drag::MoveMesh:
+        // The new point is the surface under the release
+        m_view->requestSurfacePick(e->position().toPoint());
+        break;
+    case Drag::None:
+        break;
+    }
     return true;
 }
 
 void RasterAlignTool::onSurfacePicked(const SurfacePick &result)
 {
-    if (!m_dragging)
+    if (m_drag == Drag::MoveMesh && m_released) {
+        std::vector<Pair> *pairs = currentPairs();
+        if (result.hit && pairs && m_handle.index < int(pairs->size())) {
+            (*pairs)[size_t(m_handle.index)].point = result.worldPos;
+            m_lastFit.clear();
+        } else if (m_view && m_view->document()) {
+            m_view->document()->writeLog(QObject::tr("Raster alignment: no mesh under the release, so the pair "
+                                                     "keeps its point."),
+                                         Document::LogSource::Application);
+        }
+        m_drag = Drag::None;
+        return;
+    }
+    if (m_drag != Drag::NewPair)
         return;
     m_pickReported = true;
     m_pickHit = result.hit;
@@ -236,7 +357,7 @@ void RasterAlignTool::addPairIfComplete()
                                                 m_releaseImage.y() * size.height()) });
         m_lastFit.clear();
     }
-    cancelGesture();
+    m_drag = Drag::None;
 }
 
 QByteArray RasterAlignTool::toJson(const std::vector<Pair> &pairs, bool compact)
@@ -249,9 +370,14 @@ QByteArray RasterAlignTool::toJson(const std::vector<Pair> &pairs, bool compact)
     return QJsonDocument(json).toJson(compact ? QJsonDocument::Compact : QJsonDocument::Indented);
 }
 
+// A moved end goes back where it was; a new pair is dropped.
 void RasterAlignTool::cancelGesture()
 {
-    m_dragging = m_released = m_pickReported = m_pickHit = false;
+    std::vector<Pair> *pairs = m_view ? currentPairs() : nullptr;
+    if ((m_drag == Drag::MovePhoto || m_drag == Drag::MoveMesh) && pairs && m_handle.index < int(pairs->size()))
+        (*pairs)[size_t(m_handle.index)] = m_before;
+    m_drag = Drag::None;
+    m_released = m_pickReported = m_pickHit = false;
 }
 
 void RasterAlignTool::fit()
@@ -355,35 +481,38 @@ void RasterAlignTool::loadPairs()
 
 void RasterAlignTool::paintOverlay(QPainter &painter)
 {
-    const Document::RasterEntry *raster = alignableRaster(m_view);
-    if (!raster || m_view->viewMode() != RenderWidget::ViewMode::RasterImage)
+    if (!alignableRaster(m_view) || m_view->viewMode() != RenderWidget::ViewMode::RasterImage)
         return;
-    const CameraShot &shot = raster->shot;
-    const QSizeF size(shot.viewportPx());
-    const auto toWidget = [&](const QPointF &pixel) {
-        return m_view->rasterImageToWidget(QPointF(pixel.x() / size.width(), pixel.y() / size.height()));
-    };
     painter.setRenderHint(QPainter::Antialiasing);
     const QColor photoColor(255, 140, 0);
     const QColor meshColor(80, 220, 255);
     if (const std::vector<Pair> *pairs = currentPairs()) {
-        for (const Pair &pair : *pairs) {
-            // Where the camera puts the point now (vcg's pixels are y up), and its pixel: the
-            // line between them is what a fit has left to correct
-            const QVector2D projected = shot.project(pair.point);
-            const QPointF onMesh = toWidget(QPointF(projected.x(), size.height() - projected.y()));
-            const QPointF onPhoto = toWidget(pair.pixel);
-            painter.setPen(QPen(Qt::white, 1.5));
+        for (int i = 0; i < int(pairs->size()); ++i) {
+            // Where the camera puts the point now, and its pixel: the line between them is
+            // what a fit has left to correct
+            QPointF onMesh, onPhoto;
+            ends((*pairs)[size_t(i)], onMesh, onPhoto);
+            const bool hovered = m_hover.index == i && m_drag == Drag::None;
+            const bool dragged = m_handle.index == i && (m_drag == Drag::MovePhoto || m_drag == Drag::MoveMesh);
+            if (dragged && m_drag == Drag::MoveMesh) {
+                // The point is chosen where the drag ends
+                onMesh = m_cursorPos;
+                painter.setPen(QPen(Qt::white, 1.5, Qt::DashLine));
+            } else {
+                painter.setPen(QPen(Qt::white, hovered ? 2.5 : 1.5));
+            }
             painter.drawLine(onMesh, onPhoto);
-            painter.setPen(QPen(meshColor, 2));
-            painter.drawLine(onMesh - QPointF(4, 4), onMesh + QPointF(4, 4));
-            painter.drawLine(onMesh - QPointF(4, -4), onMesh + QPointF(4, -4));
-            painter.setPen(QPen(Qt::black, 1));
+            const double grow = (hovered && !m_hover.photo) ? 2.0 : 0.0;
+            painter.setPen(QPen(meshColor, 2 + grow / 2));
+            painter.drawLine(onMesh - QPointF(4 + grow, 4 + grow), onMesh + QPointF(4 + grow, 4 + grow));
+            painter.drawLine(onMesh - QPointF(4 + grow, -4 - grow), onMesh + QPointF(4 + grow, -4 - grow));
+            const double radius = (hovered && m_hover.photo) ? 5.5 : 3.5;
+            painter.setPen(QPen(hovered ? Qt::white : Qt::black, 1));
             painter.setBrush(photoColor);
-            painter.drawEllipse(onPhoto, 3.5, 3.5);
+            painter.drawEllipse(onPhoto, radius, radius);
         }
     }
-    if (m_dragging) {
+    if (m_drag == Drag::NewPair) {
         painter.setPen(QPen(Qt::white, 1.5, Qt::DashLine));
         painter.drawLine(m_pressPos, m_cursorPos);
         painter.setPen(QPen(meshColor, 2));

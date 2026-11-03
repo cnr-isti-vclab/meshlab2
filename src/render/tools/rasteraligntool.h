@@ -14,6 +14,8 @@
 // Correspondences. It works in the raster view, where the layers are drawn over the photo
 // through the raster's camera: a drag goes from a feature where the mesh shows it to the same
 // feature on the photo, and a click pairs a point the mesh already shows in the right place.
+// Either end of a pair can be dragged: the photo end to another pixel, the mesh end to another
+// point of the surface; Delete removes the pair under the cursor.
 // Each pair is drawn as a line from where the camera projects its point to its pixel, so after
 // a fit what is left of each line is that pair's error. Mutual Information refines the camera
 // further against the photo, with the pairs as a soft constraint.
@@ -42,7 +44,7 @@ public:
     void triggerControl(const QString &id, Qt::KeyboardModifiers modifiers) override;
     void onSurfacePicked(const SurfacePick &result) override;
     void cancelGesture() override;
-    bool gestureInFlight() const override { return m_dragging; }
+    bool gestureInFlight() const override { return m_drag != Drag::None; }
     void paintOverlay(QPainter &painter) override;
 
 private:
@@ -54,8 +56,19 @@ private:
     // The pairs of the current raster, which needs a camera; null when there is none.
     std::vector<Pair> *currentPairs();
     const std::vector<Pair> *currentPairs() const;
+    // An end of a pair under the cursor: its index, and whether it is the photo end
+    struct Handle {
+        int index = -1;
+        bool photo = true;
+    };
+    enum class Drag { None, NewPair, MovePhoto, MoveMesh };
+
     // The pairs as the filter reads them
     static QByteArray toJson(const std::vector<Pair> &pairs, bool compact);
+    // Where a pair's ends are drawn, in widget pixels: the projection of its point, and its pixel
+    void ends(const Pair &pair, QPointF &onMesh, QPointF &onPhoto) const;
+    Handle handleAt(const QPointF &widgetPos) const;
+    QPointF toPixel(const QPointF &widgetPos) const;   // in the camera's viewport
     void addPairIfComplete();
     void fit();
     // Align Current Raster to Mesh by Mutual Information, with the pairs as its point pairs
@@ -67,9 +80,13 @@ private:
     bool m_estimateFocal = false;
     QString m_lastFit;   // what the last fit said, until the pairs change
 
-    // The drag in progress: pressed on the mesh, released on the photo. The press's pick
-    // reports asynchronously, possibly after the release.
-    bool m_dragging = false;
+    // The drag in progress. A new pair is pressed on the mesh and released on the photo, and
+    // the press's pick reports asynchronously, possibly after the release. Moving an end drags
+    // the handle m_handle; its pixel or point before the drag is kept for a cancel.
+    Drag m_drag = Drag::None;
+    Handle m_handle;
+    Pair m_before;
+    Handle m_hover;
     bool m_released = false;
     bool m_pickReported = false;
     bool m_pickHit = false;

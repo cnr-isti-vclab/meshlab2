@@ -4005,6 +4005,7 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
     if (toolAllowedInCurrentMode() && toolLive() && m_activeTool->mouseMove(e)) {
         if (e)
             e->accept();
+        applyToolCursor(); // a tool's cursor may follow what is under the pointer
         update();
         return;
     }
