@@ -356,7 +356,10 @@ the wheel environment. A build is therefore not self-describing: the only way
 to know what a given wheel exposes is to ask it. A locally built extension
 checked during this review reported <strong>304 filters against 403 declared in
 <code class="docutils literal notranslate"><span class="pre">plugins/*/filters.json</span></code></strong> — part stale build, part disabled plugins, with
-nothing distinguishing the two.</p></li>
+nothing distinguishing the two. Built in-tree (2026-11-03, with
+<code class="docutils literal notranslate"><span class="pre">REQUIRE_VCPKG_DEPS</span></code> back on and the opt-outs dropped) the wheel lists 405,
+the application’s exact set — but the rule below stands, since an
+installed wheel can still lag the tree it is compared against.</p></li>
 <li><p><strong>The submodule pin is a standing source of staleness.</strong> The wheel repository
 pins MeshLab as a submodule, and that pin is routinely behind; at the time of
 writing it trailed <code class="docutils literal notranslate"><span class="pre">devel</span></code> by 135 commits. Folding the wheel into this
