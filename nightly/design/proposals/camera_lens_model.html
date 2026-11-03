@@ -249,8 +249,8 @@
 <p>This document proposes lens distortion for raster cameras, so that photos calibrated with a
 real lens model (COLMAP, RealityScan, Metashape) can be used without undistorting them by
 hand, and so that the image-to-mesh alignment tools that follow have a camera they can
-refine. <strong>Stages 0 (removing vcglib’s distortion) and 1 (the lens) implemented 2026-11-02;
-Stage 2 (COLMAP import) not yet.</strong> The tables and the open questions were approved the same
+refine. <strong>Stages 0 (removing vcglib’s distortion), 1 (the lens) and 2 (COLMAP import)
+implemented 2026-11-02; Stage 3 is a proposal of its own.</strong> The tables and the open questions were approved the same
 day. How the lens works today is in <a class="reference internal" href="../data_model.html#raster-data-type"><span class="std std-ref">Data Model</span></a>; this
 document keeps the plan and the record of how it was carried out.</p>
 <p>See also: <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a> (rasters, planes, the <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> file),
@@ -693,6 +693,37 @@ points), and the RealityScan export as an optional dataset
 (<code class="docutils literal notranslate"><span class="pre">MESHLAB2_REQUIRE_DATASET</span></code>) checking the reprojection error of the points’ tracks under
 1 px. <code class="docutils literal notranslate"><span class="pre">tools/colmap_to_mlp.py</span></code> is then removed; its <code class="docutils literal notranslate"><span class="pre">--z-up</span></code> turn is a transform of all
 layers and rasters, which <em>Transform</em> already does. See <a class="reference internal" href="#open-questions"><span class="xref myst">Q5</span></a>.</p>
+<p>As built (2026-11-02): <code class="docutils literal notranslate"><span class="pre">src/core/document_colmap.cpp</span></code>, 447 lines with its comments, reads
+text and binary models into the <code class="docutils literal notranslate"><span class="pre">MeshLabProjectRasterEntry</span></code> records the <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> parser gives
+(<code class="docutils literal notranslate"><span class="pre">DocumentInternal::parseColmapModel</span></code>), so <code class="docutils literal notranslate"><span class="pre">loadMeshLabProject</span></code> opens either with the same
+raster loop, dispatching on the file name (<code class="docutils literal notranslate"><span class="pre">Document::isProjectFile</span></code>): <em>Open</em>, a drop, the
+command line and Python <code class="docutils literal notranslate"><span class="pre">load_project</span></code> all take a <code class="docutils literal notranslate"><span class="pre">cameras.txt</span></code> / <code class="docutils literal notranslate"><span class="pre">cameras.bin</span></code>. The images
+are sorted by name, COLMAP’s ids saying nothing about how they were taken. The image folder is
+the first of <code class="docutils literal notranslate"><span class="pre">images/</span></code> or the folder itself, from the model’s folder up two levels, holding
+the first image. The points become a colored point cloud layer, <em>COLMAP points</em>. The load logs
+the reprojection of COLMAP’s observations through the cameras and lenses read
+(<code class="docutils literal notranslate"><span class="pre">colmapReprojectionErrors</span></code>), as the Python converter’s run did. A COLMAP model is not a
+project to save over: <em>Save Project</em> starts a new <code class="docutils literal notranslate"><span class="pre">.mlp</span></code>. An unsupported camera model (the
+fisheye ones, FOV) refuses the whole model, naming it. <code class="docutils literal notranslate"><span class="pre">isMeshLabProjectExtension</span></code>, defined
+and never called, went.</p>
+<ul class="simple">
+<li><p><strong>The committed model is pinhole</strong>, not the Stage 1 lens on the gargoyle cameras that the
+plan named: the fixture’s photos are pinhole, and a lens in the model would make it say
+something false about them. The lens mapping of each COLMAP model is tested on a model the
+test writes, and the lens itself end to end by Stage 1’s test. The gargoyle model
+(<code class="docutils literal notranslate"><span class="pre">tests/sample_mesh/gargoyle_small/sparse/0/</span></code>, text and binary, 78 KB: the four cameras as
+<code class="docutils literal notranslate"><span class="pre">PINHOLE</span></code>, 201 mesh vertices as points, seen by all four) was written once by a numpy script
+inverting the Python converter’s conversion, independently of the reader; it reopens as
+gargoyle.mlp’s cameras, within 0.01 px.</p></li>
+<li><p><strong>The RealityScan export as an optional dataset</strong>, <code class="docutils literal notranslate"><span class="pre">2930Colmap/sparse/0/cameras.txt</span></code> under
+the dataset roots (<code class="docutils literal notranslate"><span class="pre">tests/local/2930Colmap</span></code> on a maintainer’s machine): 261,316
+observations reproject with a median of 0.393 px, 90% under 1.02 px, at most 2.00 px.</p></li>
+<li><p><strong>The z-up turn is two filters, not one.</strong> <em>Transform</em> moves mesh layers only; the cameras
+turn with <em>Rotate Cameras</em> (all rasters, axis X, centre the origin). RealityScan’s COLMAP
+export turns its scene’s (x, y, z) into (x, -z, y); the same quarter turn on both, mapping
+(x, y, z) to (x, z, -y), lines a model exported from the same RealityScan project up with
+the cameras and points.</p></li>
+</ul>
 <p><strong>Stage 3 – image-to-mesh alignment.</strong> A proposal of its own once Stages 1 and 2 are in:
 correspondence alignment (old <code class="docutils literal notranslate"><span class="pre">edit_mutualcorrs</span></code>, 3.2k lines, levmar) and mutual-
 information refinement (<code class="docutils literal notranslate"><span class="pre">filter_mutualinfo</span></code>, 2.6k; <code class="docutils literal notranslate"><span class="pre">filter_mutualglobal</span></code>, 4.6k). What this
@@ -714,7 +745,7 @@ patch goes to old MeshLab.</p></li>
 <li><p><strong>Planes saved from memory.</strong> Decided 2026-11-02: written undistorted and marked
 <code class="docutils literal notranslate"><span class="pre">undistorted=&quot;1&quot;</span></code>.</p></li>
 <li><p><strong>Fisheye.</strong> Decided 2026-11-02: later, when a dataset needs it; the enum leaves room.</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">tools/colmap_to_mlp.py</span></code>.</strong> Decided 2026-11-02: removed at the end of Stage 2.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">tools/colmap_to_mlp.py</span></code>.</strong> Decided 2026-11-02: removed at the end of Stage 2. Removed.</p></li>
 </ol>
 </section>
 </section>

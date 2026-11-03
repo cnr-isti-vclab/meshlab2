@@ -37,11 +37,6 @@ QString summarizeLoadMask(int mask)
     return attrs.join(QStringLiteral(", "));
 }
 
-bool isMeshLabProjectExtension(const QString &path)
-{
-    return QFileInfo(path).suffix().compare(QStringLiteral("mlp"), Qt::CaseInsensitive) == 0;
-}
-
 QString resolveProjectEntryPath(const QString &projectFilePath, const QString &entryPath)
 {
     const QString normalized = QDir::fromNativeSeparators(entryPath.trimmed());
