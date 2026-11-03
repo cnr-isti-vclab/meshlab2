@@ -250,7 +250,7 @@
 real lens model (COLMAP, RealityScan, Metashape) can be used without undistorting them by
 hand, and so that the image-to-mesh alignment tools that follow have a camera they can
 refine. <strong>Stages 0 (removing vcglib’s distortion), 1 (the lens) and 2 (COLMAP import)
-implemented 2026-11-02; Stage 3 is a proposal of its own, <a class="reference internal" href="raster_alignment.html"><span class="std std-doc">Raster Alignment</span></a>.</strong> The tables and the open questions were approved the same
+implemented 2026-11-02; Stage 3, raster alignment, was proposed and carried out on its own: <a class="reference internal" href="../raster_alignment.html"><span class="std std-doc">Raster Alignment</span></a>, recorded in <a class="reference internal" href="../history/raster_alignment.html"><span class="std std-doc">history</span></a>.</strong> The tables and the open questions were approved the same
 day. How the lens works today is in <a class="reference internal" href="../data_model.html#raster-data-type"><span class="std std-ref">Data Model</span></a>; this
 document keeps the plan and the record of how it was carried out.</p>
 <p>See also: <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a> (rasters, planes, the <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> file),
@@ -724,7 +724,7 @@ export turns its scene’s (x, y, z) into (x, -z, y); the same quarter turn on b
 (x, y, z) to (x, z, -y), lines a model exported from the same RealityScan project up with
 the cameras and points.</p></li>
 </ul>
-<p><strong>Stage 3 – image-to-mesh alignment.</strong> Proposed in <a class="reference internal" href="raster_alignment.html"><span class="std std-doc">Raster Alignment</span></a>, which uses NEWUOA rather than the Levenberg–Marquardt solver named below. The plan as first written:
+<p><strong>Stage 3 – image-to-mesh alignment.</strong> Carried out as <a class="reference internal" href="../history/raster_alignment.html"><span class="std std-doc">Raster Alignment</span></a>, which uses NEWUOA rather than the Levenberg–Marquardt solver named below. The plan as first written:
 correspondence alignment (old <code class="docutils literal notranslate"><span class="pre">edit_mutualcorrs</span></code>, 3.2k lines, levmar) and mutual-
 information refinement (<code class="docutils literal notranslate"><span class="pre">filter_mutualinfo</span></code>, 2.6k; <code class="docutils literal notranslate"><span class="pre">filter_mutualglobal</span></code>, 4.6k). What this
 proposal fixes for it: picks are made on the displayed image, which is the working frame,
