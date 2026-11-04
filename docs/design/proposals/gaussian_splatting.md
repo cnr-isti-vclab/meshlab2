@@ -15,6 +15,11 @@ As of 2026-09-10: nothing implemented, nothing scheduled. Three decisions have
 been taken in advance and the rest of this document is written around them —
 see [Decisions taken](#decisions-taken).
 
+2026-11-04: Open3D 0.20 shipped a splat renderer and splat-aware transforms under the
+MIT licence. They are not usable through MeshLab's Open3D plugin, but they are worth
+lifting, and they change the renderer plan and decision 1 — see
+[Open3D 0.20](#open3d-020-2026-09).
+
 ## What a splat is, and why it is awkward
 
 A 3D Gaussian splat scene is a point cloud where every point carries an
@@ -83,18 +88,87 @@ Two frictions:
 | [3DGS.cpp](https://github.com/shg8/3DGS.cpp) | C++ / Vulkan compute, macOS via MoltenVK | LGPL | Reference for the GPU sort. Standalone app with its own swapchain — not embeddable. |
 | [vkgs](https://github.com/jaesung-cs/vkgs) | C++ / Vulkan | — | Same shape. |
 | [antimatter15/splat](https://github.com/antimatter15/splat) | WebGL | MIT | The canonical minimal implementation. The covariance-projection maths and the sort strategy port directly. |
+| [Open3D 0.20](https://github.com/isl-org/Open3D/tree/v0.20.0/cpp/open3d/visualization/rendering/gaussian_splat) | C++ / GLSL compute, on Vulkan and Metal | MIT | **Yes, shaders and maths** — see [Open3D 0.20](#open3d-020-2026-09). |
 
 Nothing here drops into a QRhi renderer. The work is reimplementing roughly 600
 lines of well-documented technique, not inventing anything. MeshLab is GPL-3.0,
 so LGPL reference code is licence-compatible if any of it were ever lifted
 verbatim, but it would not be.
 
+## Open3D 0.20 (2026-09)
+
+Open3D v0.20.0 (2026-09-16, the release `plugins/filter_open3d` vendors) added splat
+reading (Gaussian PLY, `.splat`, SPZ) into tensor point clouds, splat-aware transforms,
+and a compute renderer composited with its meshes. Everything below was read from the
+v0.20.0 tree on 2026-11-04, and the shader results were measured with this project's
+`qsb` (Qt 6.11.2).
+
+**Not through the Open3D plugin.** The plugin vendors 116 files, the closure of the legacy
+`geometry` and `pipelines/registration` code; all of the splat work is in the excluded
+tensor API (`cpp/open3d/t/`) and `cpp/open3d/visualization/`. The renderer is bound to
+Filament: Open3D creates the Vulkan device and shares it with Filament (Metal on macOS),
+which does not fit a `QRhiWidget`. Widening the vendored subset to take the tensor core
+(173 files) for this is not worth it. What follows is source to lift, with the MIT notice
+kept.
+
+| Open3D piece | Here | Reuse |
+|---|---|---|
+| Six GLSL compute shaders, about 1,400 lines, and `GaussianSplatDesign.md` (37 KB) in `cpp/open3d/visualization/rendering/gaussian_splat/` | Stage 2, the renderer | High, with the adaptation below |
+| Ivanic–Ruedenberg rotation of real spherical harmonics, `BuildIrR1`/`BuildIrRl` at the top of `t/geometry/PointCloud.cpp` | The splat-aware rotation | About 85 lines of plain Eigen. General maths, so it goes into vcglib beside `vcg/math/spherical_harmonics.h` |
+| `Rotate`/`Scale`/`Translate` semantics for splat clouds | Same | Rotate composes the quaternion (`q' = q_R q`) and rotates `f_rest`; a uniform scale multiplies the linear scales, and a negative one negates the odd SH bands; a general 4×4 `Transform` warns and leaves the splat attributes alone. That settles the shear and non-uniform scale question: refuse |
+| Per-splat GPU layout | Buffer sizing | 36–84 B per splat, against the ~240 B assumed above: positions fp32, scales and colour+opacity fp16, quaternion snorm8, SH fp16, sigmoid applied once on the CPU |
+| Depth-aware composite | Decision 1 | The composite reads the scene depth and skips splats behind meshes, so the exclusive mode is not needed even at first |
+| SPZ reader (`t/io/file_format/FileSPZ.cpp`, over Niantic's library) | A format the vcglib branch lacks | The library is in vcpkg: port `spz` 2.1.0 in the pinned baseline, MIT, zlib its only dependency. Open3D builds 3.0.0; whether 2.1 reads the newest files is not checked |
+
+**The renderer differs from the [Rendering](#rendering) plan** in one structural way, for
+the better: it is tile-based and draws nothing. `gaussian_project.comp` projects and culls,
+writing one 32-bit key per (splat, 16×16 tile) — tile index high, normalised linear depth
+low, the split sized to the tile count; a four-pass radix sort (a histogram and a scatter
+shader per 8-bit digit) orders them;
+`gaussian_composite.comp` gives each tile a workgroup that blends front to back into an
+RGBA16F storage image, stopping at T < 1/255. No instanced quads, and occlusion against
+meshes is a depth-texture read in the same pass.
+
+**Measured against QRhi**, compiling each shader unmodified with `qsb` at the targets
+MeshLab already uses (GLSL 430, HLSL 5.0, MSL 1.2):
+
+| Shader | Lines | Compiles | Why not |
+|---|---|---|---|
+| `gaussian_radix_sort_histograms.comp` | 66 | yes | |
+| `gaussian_compute_dispatch_args.comp` | 142 | yes | but see indirect dispatch |
+| `gaussian_depth_merge.comp` | 72 | yes | |
+| `gaussian_project.comp` | 527 | no | subgroup operations (4 call sites) |
+| `gaussian_composite.comp` | 429 | no | subgroup operations (2) |
+| `gaussian_radix_sort_scatter.comp` | 163 | no | subgroup operations (3) |
+
+- **Subgroups.** `qsb` emits SPIR-V 1.0 and subgroup operations need 1.3 ("subgroup op
+  requires SPIR-V 1.3"); raising the HLSL and MSL targets does not change that. The calls
+  batch atomic counters and compute prefix sums, and each has a shared-memory workgroup
+  equivalent: slower, and portable to every QRhi backend including D3D11.
+- **Indirect dispatch.** `QRhiCommandBuffer` has only `dispatch(x, y, z)`, so the counts
+  that `gaussian_compute_dispatch_args.comp` writes on the GPU have to come back another
+  way: a one-frame-late readback, or an upper-bound dispatch whose surplus workgroups exit.
+- No push constants are used, which QRhi lacks anyway.
+
+**Its own limits:** the shader evaluates SH to degree 2 only, rotating degree 3 without
+rendering it; MSAA is off for splat views, the Gaussian low-pass and density compensation
+serving instead; the release notes list hangs on some GPUs (Intel Arc A770m); and its own
+to-do list says the subgroup radix scatter is untested at scale on Intel. Splats too large
+on screen (more than 256 tiles by default) are culled, with a flag the CPU reads back.
+
+**Unchanged:** the [prerequisite](#prerequisite-named-attributes-in-the-undo-pipeline)
+still blocks everything, and decision 3 stands; Open3D's attributes (`f_dc`, `f_rest`,
+`opacity`, `scale`, `rot`) map onto vcg per-vertex attributes one to one. The vcglib
+`gaussian` branch is still the cheaper route for PLY and `.splat`.
+
 ## Decisions taken
 
 1. **A separate render mode, initially exclusive.** When a splat layer is shown,
    ordinary mesh layers are not. This sidesteps the hardest visual problem —
    blending unsorted transparent splats against opaque geometry — and can be
-   relaxed later.
+   relaxed later. *To revisit:* Open3D's composite reads the scene depth and skips
+   occluded splats, which solves that problem in the same pass, so the exclusivity
+   may not be needed at all.
 2. **Sorting on the GPU via `QRhiComputePipeline` from the start.** No CPU-sort
    stepping stone: a CPU sort that is adequate at 500k splats collapses at 5M,
    and the GPU path reshapes the buffer layout, so building the CPU one first
@@ -176,7 +250,7 @@ Points to settle while building it:
 
 | Filter | Difficulty | The hard part |
 |---|---|---|
-| **Rotate (splat-aware)** | High | Composing the per-splat quaternion is trivial. Rotating the **spherical harmonics** is not: SH coefficients live in a world-space basis and rotating them means applying a Wigner-D rotation per band — block-diagonal, 1+3+5+7 for degree 3. vcglib already has `vcg/math/spherical_harmonics.h`, which the student's branch extended. A non-uniform scale or shear breaks the model outright and would need the covariance re-decomposed (polar or eigen) back into scale and rotation, or the operation refused. |
+| **Rotate (splat-aware)** | High | Composing the per-splat quaternion is trivial. Rotating the **spherical harmonics** is not: SH coefficients live in a world-space basis and rotating them means applying a Wigner-D rotation per band — block-diagonal, 1+3+5+7 for degree 3. vcglib already has `vcg/math/spherical_harmonics.h`, which the student's branch extended. A non-uniform scale or shear breaks the model outright and would need the covariance re-decomposed (polar or eigen) back into scale and rotation, or the operation refused. Open3D 0.20 has the SH rotation (Ivanic–Ruedenberg) and refuses the general case; both lift, see [Open3D 0.20](#open3d-020-2026-09). |
 | **Outlier removal** | Low | Ordinary point-cloud work on the splat centres — vcglib has the kd-tree and the cleaning machinery. The only real requirement is that vertex deletion carries the attributes, which vcg's `Reorder` already does once the undo prerequisite is in. Worth also offering opacity- and size-based culling, which are cheaper and often more effective on splat data than geometric outlier tests. |
 | **Select by splat characteristics** | Low–medium | Anisotropy (ratio of scale components), planarity, isolation (k-NN distance), opacity, footprint size. The minimal-code route is a filter that writes the chosen statistic into **per-vertex quality** and then reuses the existing quality-based selection, histogram and colorization filters, rather than building a bespoke selection UI. That also makes the statistic visible before it is used as a threshold. |
 
@@ -195,6 +269,17 @@ Points to settle while building it:
 
 Rough effort, assuming the prerequisite is done: **3–5 days** for stage 1,
 **1–2 weeks** for stage 2, **2–4 weeks** for stage 3.
+
+Revised 2026-11-04, with Open3D 0.20 as a source:
+
+- **Stage 1** also reads SPZ, through the vcpkg `spz` port.
+- **Stage 2** becomes a port of Open3D's tile-based pipeline rather than the instanced-quad
+  design above: three shaders as they are, three with their subgroup operations rewritten
+  over shared memory, indirect dispatch replaced, and the QRhi resource and pass plumbing,
+  which is the real work. Composited against the scene depth, not exclusive. About a week,
+  with most of the design and debugging risk gone.
+- **Stage 3** takes the Ivanic–Ruedenberg rotation into vcglib for the splat-aware Rotate,
+  and adds the degree-3 SH evaluation that Open3D's shader leaves out.
 
 ## Open questions
 
