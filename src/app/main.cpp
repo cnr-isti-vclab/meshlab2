@@ -15,7 +15,9 @@ extern "C" PyObject *PyInit__meshlab();
 #include <QApplication>
 #include <QFileInfo>
 #include <QIcon>
+#include <QImage>
 #include <QImageReader>
+#include <QPainter>
 #include <QSettings>
 #include <QStringList>
 #include <QTimer>
@@ -174,7 +176,37 @@ int main(int argc, char *argv[])
             return 1;
         }
         QTimer::singleShot(1500, &w, [&app, &w, output = args[3]] {
-            if (!w.grab().save(output, "PNG")) {
+            QImage content = w.grab().toImage();
+            if (content.isNull()) {
+                fprintf(stderr, "Could not capture the MeshLab window.\n");
+                app.exit(1);
+                return;
+            }
+            const qreal dpr = content.devicePixelRatio();
+            // Draw in image pixels; QWidget::grab() carries the display's DPR.
+            content.setDevicePixelRatio(1.0);
+
+            // QWidget::grab() omits native window decorations on macOS. A small,
+            // consistent frame keeps the real title visible without requiring
+            // screen-recording permission or capturing other desktop windows.
+            const int border = qMax(1, qRound(dpr));
+            const int titleHeight = qRound(40 * dpr);
+            QImage framed(content.width() + 2 * border,
+                          content.height() + titleHeight + 2 * border,
+                          QImage::Format_RGB32);
+            framed.fill(QColor(QStringLiteral("#d7dcdf")));
+            QPainter painter(&framed);
+            painter.fillRect(border, border, content.width(), titleHeight,
+                             QColor(QStringLiteral("#f3f5f5")));
+            QFont titleFont = painter.font();
+            titleFont.setPixelSize(qRound(14 * dpr));
+            painter.setFont(titleFont);
+            painter.setPen(QColor(QStringLiteral("#24343a")));
+            painter.drawText(QRect(border, border, content.width(), titleHeight),
+                             Qt::AlignCenter, w.windowTitle());
+            painter.drawImage(border, titleHeight + border, content);
+            painter.end();
+            if (!framed.save(output, "PNG")) {
                 fprintf(stderr, "Could not save window capture: %s\n", qPrintable(output));
                 app.exit(1);
                 return;
