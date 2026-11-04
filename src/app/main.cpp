@@ -18,6 +18,7 @@ extern "C" PyObject *PyInit__meshlab();
 #include <QImageReader>
 #include <QSettings>
 #include <QStringList>
+#include <QTimer>
 
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
@@ -152,10 +153,36 @@ int main(int argc, char *argv[])
         && !qEnvironmentVariableIsSet("QSG_RHI_PROFILE"))
         qputenv("QSG_RHI_PROFILE", "1");
 
+    // Capture the real application chrome and render view for documentation/website images.
+    // The project load is synchronous; the timer lets the window and QRhi render a frame.
+    const bool captureWindow = args.size() >= 2 && args[1] == QStringLiteral("--capture-window");
+    if (captureWindow && (args.size() != 4 || !QFileInfo::exists(args[2]))) {
+        fprintf(stderr, "Usage: MeshLab --capture-window <mesh-or-project> <output.png>\n");
+        return 2;
+    }
+
     MainWindow w;
     if (!appIcon.isNull())
         w.setWindowIcon(appIcon);
+    if (captureWindow)
+        w.resize(1440, 900);
     w.show();
+    if (captureWindow) {
+        QString error;
+        if (!w.loadMeshFromPath(args[2], &error)) {
+            fprintf(stderr, "Could not load capture input: %s\n", qPrintable(error));
+            return 1;
+        }
+        QTimer::singleShot(1500, &w, [&app, &w, output = args[3]] {
+            if (!w.grab().save(output, "PNG")) {
+                fprintf(stderr, "Could not save window capture: %s\n", qPrintable(output));
+                app.exit(1);
+                return;
+            }
+            app.quit();
+        });
+        return app.exec();
+    }
     // Files named on the command line open as if chosen in the Open dialog.
     for (const QString &arg : app.arguments().mid(1)) {
         if (QFileInfo::exists(arg))

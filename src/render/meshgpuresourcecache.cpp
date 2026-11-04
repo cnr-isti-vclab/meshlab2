@@ -3,21 +3,19 @@
 #include "textureassociationutils.h"
 #include "meshioplugin.h"
 #include "qualityrange.h"
+#include "parallelfor.h"
 
 #include <wrap/io_trimesh/io_mask.h>
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QImageReader>
-#include <QSemaphore>
 #include <QSet>
 #include <QString>
-#include <QThreadPool>
 #include <QVector3D>
 
 #include <algorithm>
 #include <array>
-#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <limits>
@@ -66,36 +64,6 @@ constexpr size_t kMaxExpandedFillBatchFaces =
     kMaxExpandedFillBatchBytes / kExpandedFillTriangleBytes;
 static_assert(kMaxExpandedFillBatchFaces > 0);
 static_assert(kMaxExpandedFillBatchBytes <= std::numeric_limits<quint32>::max());
-
-template <typename Function>
-void parallelFor(size_t count, Function &&function)
-{
-    constexpr size_t kGrainSize = 64u * 1024u;
-    const size_t chunkCount = count / kGrainSize + (count % kGrainSize != 0);
-    QThreadPool *pool = QThreadPool::globalInstance();
-    const int workerCount = int(std::min(
-        chunkCount, size_t(std::max(1, pool->maxThreadCount()))));
-    if (workerCount <= 1) {
-        function(0, count);
-        return;
-    }
-
-    std::atomic_size_t next { 0 };
-    QSemaphore finished;
-    auto work = [&] {
-        for (;;) {
-            const size_t first = next.fetch_add(kGrainSize, std::memory_order_relaxed);
-            if (first >= count)
-                return;
-            function(first, first + std::min(kGrainSize, count - first));
-        }
-    };
-
-    for (int i = 1; i < workerCount; ++i)
-        pool->start([&] { work(); finished.release(); });
-    work();
-    finished.acquire(workerCount - 1);
-}
 
 int fillVariantIndex(MeshGpuResourceCache::FillVariant variant)
 {

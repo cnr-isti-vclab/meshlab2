@@ -62,9 +62,14 @@ again, until a round gains nothing.
 Mutual information compares the photo with a rendering made **on the CPU**, so it is
 deterministic and runs in `ctest` and `pymeshlab2` without a GPU:
 
-- **The rasterizer.** `rasterizeTriangleDepth` (`src/core/softdepthbuffer.h`) calls back
-  each pixel a triangle wins the depth test. The renderer shades there, with
-  perspective-correct barycentrics, as the GPU interpolates.
+- **The rasterizer.** `rasterizeTriangle` (`src/core/softdepthbuffer.h`) calls back each
+  pixel a triangle covers, and the renderer shades where the triangle wins its depth test,
+  with perspective-correct barycentrics, as the GPU interpolates.
+- **Threads.** The faces are drawn by the threads of the global pool, each into buffers of
+  its own, which are then merged. A pixel keeps the nearest face and, among faces equally
+  near, the first in layer and face order, in each thread and in the merge, as a serial
+  drawing does. So the image, and with it every result, is the same bit for bit whatever the
+  number of threads.
 - **What is rendered.** Every visible layer with faces, at a working resolution whose
   longest side is `resolution` (800). The photo is scaled to the same size and turned to grey
   as 0.3 R + 0.59 G + 0.11 B.
@@ -79,8 +84,9 @@ deterministic and runs in `ctest` and `pymeshlab2` without a GPU:
   - the rendering's darkest bin, which holds the background, counts 1 / `backgroundWeight`
     (default 2);
   - the photo's transparent pixels, such as an undistorted photo's corners, do not count.
-- **Cost.** About 3.8 ms a rendering on 20k faces at 750 × 502, and 50 ms on 3.2 M faces at
-  800 px. A refinement takes 100 to 300 renderings.
+- **Cost.** About 3.5 ms a rendering on 20k faces at 750 × 502, and 13 ms on 3.2 M faces at
+  800 px, on 16 threads of an M3 Max (54 ms on one). A refinement takes 100 to 300
+  renderings.
 
 **The rendering decides whether the method works** on a given photo. On a real colored scan
 the *Normal Map* has a higher maximum 13 to 19 px away from the right camera, while *Vertex

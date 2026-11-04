@@ -2,6 +2,7 @@
 
 #include "camerashot.h"
 #include "floatbuffer.h"
+#include "parallelfor.h"
 #include "vcgmesh.h"
 
 #include <QMatrix4x4>
@@ -9,6 +10,7 @@
 #include <QVector3D>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -21,7 +23,7 @@
 struct DepthBufferVertexCache {
     std::vector<QVector2D> proj;      // screen-space pixel coords per vertex
     std::vector<float>     depth;     // view-space depth per vertex
-    std::vector<bool>      frontFace; // true if vertex normal faces camera
+    std::vector<char>      frontFace; // true if vertex normal faces camera
 
     void clear() { proj.clear(); depth.clear(); frontFace.clear(); }
 };
@@ -31,15 +33,15 @@ inline QVector3D transformPoint(const QMatrix4x4 &m, const vcg::Point3f &p)
     return m.map(QVector3D(p[0], p[1], p[2]));
 }
 
-// Rasterizes a triangle into a depth buffer. Where it is the nearest so far, onPixel(index,
-// b0, b1, b2) is called with the pixel's index and its barycentric weights, so a caller can
-// shade it: a pixel covered again by a nearer triangle is called again, and the last call is
-// what the image shows.
-template <class OnPixel>
-inline void rasterizeTriangleDepth(
-    std::vector<float> &zbuf, int w, int h,
+// The pixels a triangle covers: covered(index, depth, b0, b1, b2) is called for each pixel whose
+// centre lies inside the triangle and in front of the camera, with the pixel's index, the
+// depth there and its barycentric weights. The depth test is the caller's, so that it can
+// keep its own buffer: a plain one, an atomic one shared by threads, or one per thread.
+template <class Covered>
+inline void rasterizeTriangle(
+    int w, int h,
     const QVector2D &p0, const QVector2D &p1, const QVector2D &p2,
-    float d0, float d1, float d2, OnPixel &&onPixel)
+    float d0, float d1, float d2, Covered &&covered)
 {
     // A triangle with a vertex at or behind the camera plane is skipped, not only one wholly
     // behind it: projecting such a vertex flips or explodes it, so the triangle's box covers
@@ -52,10 +54,14 @@ inline void rasterizeTriangleDepth(
     if (std::abs(area) < 1e-8f) return;
     const float invArea = 1.0f / area;
 
-    const int ixMin = std::max(0,     int(std::floor(std::min({p0.x(), p1.x(), p2.x()}))));
-    const int iyMin = std::max(0,     int(std::floor(std::min({p0.y(), p1.y(), p2.y()}))));
-    const int ixMax = std::min(w - 1, int(std::ceil (std::max({p0.x(), p1.x(), p2.x()}))));
-    const int iyMax = std::min(h - 1, int(std::ceil (std::max({p0.y(), p1.y(), p2.y()}))));
+    // The pixels whose centres, at k + 0.5, fall in the triangle's box, give or take 1e-3 px.
+    // Rounding the box itself outward would add a row and a column on each side, most of what
+    // is tested for a small triangle: 77 to 86% of the pixels tested were outside it.
+    const float e = 1e-3f;
+    const int ixMin = std::max(0,     int(std::ceil (std::min({p0.x(), p1.x(), p2.x()}) - 0.5f - e)));
+    const int iyMin = std::max(0,     int(std::ceil (std::min({p0.y(), p1.y(), p2.y()}) - 0.5f - e)));
+    const int ixMax = std::min(w - 1, int(std::floor(std::max({p0.x(), p1.x(), p2.x()}) - 0.5f + e)));
+    const int iyMax = std::min(h - 1, int(std::floor(std::max({p0.y(), p1.y(), p2.y()}) - 0.5f + e)));
     if (ixMin > ixMax || iyMin > iyMax) return;
 
     for (int iy = iyMin; iy <= iyMax; ++iy) {
@@ -66,7 +72,6 @@ inline void rasterizeTriangleDepth(
                               (p2.y() - p1.y()) * (px - p1.x());
             const float f20 = (p0.x() - p2.x()) * (py - p2.y()) -
                               (p0.y() - p2.y()) * (px - p2.x());
-            const float f01 = area - f12 - f20;
 
             const float bw0 = f12 * invArea;
             const float bw1 = f20 * invArea;
@@ -74,11 +79,7 @@ inline void rasterizeTriangleDepth(
             if (bw0 < -1e-5f || bw1 < -1e-5f || bw2 < -1e-5f) continue;
             const float d = bw0 * d0 + bw1 * d1 + bw2 * d2;
             if (d <= 0.0f) continue;
-            float &z = zbuf[size_t(iy * w + ix)];
-            if (d < z) {
-                z = d;
-                onPixel(size_t(iy * w + ix), bw0, bw1, bw2);
-            }
+            covered(size_t(iy) * size_t(w) + size_t(ix), d, bw0, bw1, bw2);
         }
     }
 }
@@ -91,50 +92,55 @@ inline std::unique_ptr<FloatBuffer> buildDepthBuffer(
     const int h = shot.viewportPx().height();
     const int vn = mesh.VN();
     const float kMax = std::numeric_limits<float>::max();
-    std::vector<float> zbuf(size_t(w * h), kMax);
 
     // Pre-compute projection + depth for all vertices in one pass
     // (MeshLab meshes are always compact — no deleted vertices)
-    std::vector<QVector2D> proj;
-    std::vector<float> depths;
-    std::vector<bool> frontFace;
-    proj.resize(size_t(vn));
-    depths.resize(size_t(vn));
-    frontFace.resize(size_t(vn));
-    const QVector3D viewDir = shot.referenceAxis(2); // camera forward = into scene
-    for (int vi = 0; vi < vn; ++vi) {
-        const auto &v = mesh.vert[size_t(vi)];
-        const QVector3D wv = transformPoint(transform, v.cP());
-        proj[size_t(vi)] = shot.project(wv);
-        depths[size_t(vi)] = shot.depth(wv);
-        // face-normal check: dot(direction to the camera, vertexNormal) > 0 means front-facing
-        const QVector3D n(v.cN()[0], v.cN()[1], v.cN()[2]);
-        frontFace[size_t(vi)] = QVector3D::dotProduct(shot.directionToCamera(wv), n.normalized()) > 0.0f;
-    }
+    const size_t vertices = size_t(vn);
+    std::vector<QVector2D> proj(vertices);
+    std::vector<float> depths(vertices);
+    std::vector<char> frontFace(vertices);
+    parallelFor(vertices, [&](size_t first, size_t last) {
+        for (size_t vi = first; vi < last; ++vi) {
+            const auto &v = mesh.vert[vi];
+            const QVector3D wv = transformPoint(transform, v.cP());
+            proj[vi] = shot.project(wv);
+            depths[vi] = shot.depth(wv);
+            // face-normal check: dot(direction to the camera, vertexNormal) > 0 means front-facing
+            const QVector3D n(v.cN()[0], v.cN()[1], v.cN()[2]);
+            frontFace[vi] = QVector3D::dotProduct(shot.directionToCamera(wv), n.normalized()) > 0.0f;
+        }
+    });
 
-    // Rasterize faces using pre-computed per-vertex data
-    const int fn = mesh.FN();
-    for (int fi = 0; fi < fn; ++fi) {
-        const auto &f = mesh.face[size_t(fi)];
-        const int i0 = vcg::tri::Index(mesh, f.V(0));
-        const int i1 = vcg::tri::Index(mesh, f.V(1));
-        const int i2 = vcg::tri::Index(mesh, f.V(2));
-        const float d0 = depths[size_t(i0)];
-        const float d1 = depths[size_t(i1)];
-        const float d2 = depths[size_t(i2)];
-        rasterizeTriangleDepth(zbuf, w, h,
-            proj[size_t(i0)], proj[size_t(i1)], proj[size_t(i2)], d0, d1, d2,
-            [](size_t, float, float, float) {});
-    }
+    // Each pixel keeps the nearest depth of the faces that cover it, which does not depend on
+    // the order they are drawn in: the faces are drawn in parallel into one buffer, lowered by
+    // an atomic minimum, and the result is the serial one exactly.
+    std::vector<std::atomic<float>> zbuf(size_t(w) * size_t(h));
+    parallelFor(zbuf.size(), [&](size_t first, size_t last) {
+        for (size_t i = first; i < last; ++i)
+            zbuf[i].store(kMax, std::memory_order_relaxed);
+    });
+    parallelFor(size_t(mesh.FN()), [&](size_t first, size_t last) {
+        for (size_t fi = first; fi < last; ++fi) {
+            const auto &f = mesh.face[fi];
+            const size_t i0 = size_t(vcg::tri::Index(mesh, f.cV(0)));
+            const size_t i1 = size_t(vcg::tri::Index(mesh, f.cV(1)));
+            const size_t i2 = size_t(vcg::tri::Index(mesh, f.cV(2)));
+            rasterizeTriangle(w, h, proj[i0], proj[i1], proj[i2], depths[i0], depths[i1], depths[i2],
+                              [&](size_t i, float d, float, float, float) {
+                float z = zbuf[i].load(std::memory_order_relaxed);
+                while (d < z && !zbuf[i].compare_exchange_weak(z, d, std::memory_order_relaxed)) {}
+            });
+        }
+    }, 4096);
 
-    // Write directly to FloatBuffer (single pass)
     auto buf = std::make_unique<FloatBuffer>();
     buf->init(w, h);
-    for (int y = 0; y < h; ++y)
-        for (int x = 0; x < w; ++x) {
-            const float v = zbuf[size_t(y * w + x)];
-            buf->setval(x, y, (v == kMax) ? 0.0f : v);
+    parallelFor(zbuf.size(), [&](size_t first, size_t last) {
+        for (size_t i = first; i < last; ++i) {
+            const float v = zbuf[i].load(std::memory_order_relaxed);
+            buf->data[i] = (v == kMax) ? 0.0f : v;
         }
+    });
 
     // Return vertex cache if requested
     if (outCache) {

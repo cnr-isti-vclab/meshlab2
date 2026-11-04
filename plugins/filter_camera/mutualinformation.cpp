@@ -3,6 +3,7 @@
 #include "camerashot.h"
 #include "document.h"
 #include "filterparam.h"
+#include "parallelfor.h"
 #include "softdepthbuffer.h"
 #include "vcgmesh.h"
 
@@ -14,9 +15,12 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMatrix3x3>
+#include <QThreadPool>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <vector>
 
@@ -101,109 +105,199 @@ struct Projector
 // The visible layers rendered on the CPU through a camera into an image of 8-bit values: the
 // rendering, or where projectors are given, their photos in grey levels, weighted, wherever
 // one of them sees the surface, and the rendering only where none does.
+//
+// The faces are drawn by several threads, each into buffers of its own, and merged. A pixel
+// shows the nearest face covering it and, among faces equally near, the first in layer and
+// face order: the face with the least (depth, order) wins in a thread and again in the merge,
+// as in a serial drawing with a strict depth test. The image is then the same however many
+// threads draw it and whichever faces each draws.
 class Renderer
 {
 public:
     Renderer(const Document &doc, Rendering rendering, int width, int height)
-        : m_doc(doc), m_rendering(rendering), m_width(width), m_height(height),
-          m_zbuf(size_t(width) * size_t(height)), m_image(m_zbuf.size()), m_projected(m_zbuf.size())
-    {}
+        : m_rendering(rendering), m_width(width), m_height(height)
+    {
+        // Only the camera changes from one rendering to the next, so the layers' vertices are
+        // taken to world space once
+        uint32_t order = 0;
+        for (int mi = 0; mi < doc.meshCount(); ++mi) {
+            const Document::MeshEntry &entry = doc.mesh(mi);
+            if (!entry.visible || entry.mesh.FN() == 0)
+                continue;
+            Layer layer;
+            layer.mesh = &entry.mesh;
+            layer.normalMatrix = QMatrix4x4(entry.transform.normalMatrix());
+            layer.firstOrder = order;
+            order += uint32_t(entry.mesh.face.size());
+            layer.world.resize(entry.mesh.vert.size());
+            parallelFor(layer.world.size(), [&](size_t first, size_t last) {
+                for (size_t vi = first; vi < last; ++vi)
+                    layer.world[vi] = transformPoint(entry.transform, entry.mesh.vert[vi].cP());
+            });
+            m_layers.push_back(std::move(layer));
+        }
+    }
 
-    const std::vector<uchar> &image() const { return m_image; }
-    const std::vector<float> &depth() const { return m_zbuf; }
+    const std::vector<uchar> &image() const { return m_target.image; }
+    const std::vector<float> &depth() const { return m_target.zbuf; }
     // Of the pixels the layers cover, the share a projector painted
     double projectedShare() const
     {
         size_t covered = 0, projected = 0;
-        for (size_t i = 0; i < m_zbuf.size(); ++i)
-            if (m_zbuf[i] != std::numeric_limits<float>::max()) {
+        for (size_t i = 0; i < m_target.zbuf.size(); ++i)
+            if (m_target.zbuf[i] != std::numeric_limits<float>::max()) {
                 ++covered;
-                projected += m_projected[i];
+                projected += m_target.projected[i];
             }
         return covered ? double(projected) / double(covered) : 0.0;
     }
 
     void render(const CameraShot &shot, const std::vector<Projector> &projectors = {})
     {
-        std::fill(m_zbuf.begin(), m_zbuf.end(), std::numeric_limits<float>::max());
-        std::fill(m_image.begin(), m_image.end(), uchar(0));
-        std::fill(m_projected.begin(), m_projected.end(), uchar(0));
+        const size_t pixels = size_t(m_width) * size_t(m_height);
+        m_target.zbuf.assign(pixels, std::numeric_limits<float>::max());
+        m_target.order.assign(pixels, std::numeric_limits<uint32_t>::max());
+        m_target.image.assign(pixels, uchar(0));
+        m_target.projected.assign(pixels, uchar(0));
         const QMatrix4x4 view = shot.viewMatrix();
-        for (int mi = 0; mi < m_doc.meshCount(); ++mi) {
-            const Document::MeshEntry &layer = m_doc.mesh(mi);
-            if (!layer.visible)
-                continue;
-            const VCGMesh &mesh = layer.mesh;
+        for (const Layer &layer : m_layers) {
+            const VCGMesh &mesh = *layer.mesh;
             // Normals as the OpenGL pipeline had them: through the layer's and the view's
             // matrices, interpolated, normalized at each pixel
-            const QMatrix4x4 normalToEye = view * QMatrix4x4(layer.transform.normalMatrix());
-            m_world.resize(mesh.vert.size());
+            const QMatrix4x4 normalToEye = view * layer.normalMatrix;
             m_proj.resize(mesh.vert.size());
             m_depth.resize(mesh.vert.size());
             m_normal.resize(mesh.vert.size());
-            for (size_t vi = 0; vi < mesh.vert.size(); ++vi) {
-                m_world[vi] = transformPoint(layer.transform, mesh.vert[vi].cP());
-                m_proj[vi] = shot.project(m_world[vi]);
-                m_depth[vi] = shot.depth(m_world[vi]);
-                const vcg::Point3f &n = mesh.vert[vi].cN();
-                m_normal[vi] = normalToEye.mapVector(QVector3D(n[0], n[1], n[2]));
+            parallelFor(mesh.vert.size(), [&](size_t first, size_t last) {
+                for (size_t vi = first; vi < last; ++vi) {
+                    m_proj[vi] = shot.project(layer.world[vi]);
+                    m_depth[vi] = shot.depth(layer.world[vi]);
+                    const vcg::Point3f &n = mesh.vert[vi].cN();
+                    m_normal[vi] = normalToEye.mapVector(QVector3D(n[0], n[1], n[2]));
+                }
+            });
+
+            const size_t faces = mesh.face.size();
+            const size_t threads = std::min((faces + kFacesPerBlock - 1) / kFacesPerBlock,
+                                            size_t(std::max(1, QThreadPool::globalInstance()->maxThreadCount())));
+            if (threads <= 1) {
+                draw(layer, 0, faces, projectors, m_target);
+                continue;
             }
-            for (const auto &f : mesh.face) {
-                if (f.IsD())
-                    continue;
-                const size_t i0 = size_t(vcg::tri::Index(mesh, f.cV(0)));
-                const size_t i1 = size_t(vcg::tri::Index(mesh, f.cV(1)));
-                const size_t i2 = size_t(vcg::tri::Index(mesh, f.cV(2)));
-                const vcg::Color4b &c0 = f.cV(0)->cC(), &c1 = f.cV(1)->cC(), &c2 = f.cV(2)->cC();
-                rasterizeTriangleDepth(m_zbuf, m_width, m_height, m_proj[i0], m_proj[i1], m_proj[i2],
-                                       m_depth[i0], m_depth[i1], m_depth[i2],
-                                       [&](size_t i, float s0, float s1, float s2) {
-                    // Perspective-correct weights, as the GPU interpolates
-                    float b0 = s0 / m_depth[i0], b1 = s1 / m_depth[i1], b2 = s2 / m_depth[i2];
-                    const float sum = b0 + b1 + b2;
-                    b0 /= sum; b1 /= sum; b2 /= sum;
-                    m_projected[i] = 0;
-                    if (!projectors.empty()) {
-                        const QVector3D p = b0 * m_world[i0] + b1 * m_world[i1] + b2 * m_world[i2];
-                        double paint = 0, weight = 0;
-                        for (const Projector &projector : projectors)
-                            sample(projector, p, paint, weight);
-                        if (weight > 0) {
-                            m_image[i] = uchar(std::clamp(paint / weight, 0.0, 255.0) + 0.5);
-                            m_projected[i] = 1;
-                            return;
+            // Each thread starts from what the layers before drew, and takes blocks of faces
+            // until none is left
+            m_threads.resize(threads);
+            std::atomic_size_t next { 0 };
+            parallelFor(threads, [&](size_t first, size_t last) {
+                for (size_t k = first; k < last; ++k) {
+                    Target &t = m_threads[k];
+                    t.zbuf = m_target.zbuf;
+                    t.order = m_target.order;
+                    t.image.resize(pixels);
+                    t.projected.resize(pixels);
+                    for (size_t block; (block = next.fetch_add(kFacesPerBlock)) < faces;)
+                        draw(layer, block, std::min(block + kFacesPerBlock, faces), projectors, t);
+                }
+            }, 1);
+            parallelFor(pixels, [&](size_t first, size_t last) {
+                for (size_t i = first; i < last; ++i)
+                    for (const Target &t : m_threads)
+                        if (t.zbuf[i] < m_target.zbuf[i]
+                            || (t.zbuf[i] == m_target.zbuf[i] && t.order[i] < m_target.order[i])) {
+                            m_target.zbuf[i] = t.zbuf[i];
+                            m_target.order[i] = t.order[i];
+                            m_target.image[i] = t.image[i];
+                            m_target.projected[i] = t.projected[i];
                         }
-                    }
-                    const auto color = [&](int k) { return (b0 * c0[k] + b1 * c1[k] + b2 * c2[k]) / 255.0f; };
-                    const auto up = [&]() {
-                        return (b0 * m_normal[i0] + b1 * m_normal[i1] + b2 * m_normal[i2]).normalized().y() * 0.5f + 0.5f;
-                    };
-                    float value = 0;
-                    switch (m_rendering) {
-                    case Rendering::NormalMap: value = up(); break;
-                    case Rendering::Combined: {
-                        const float t = color(0) * color(0);
-                        value = (1 - t) * color(1) + t * up();
-                        break;
-                    }
-                    case Rendering::VertexColor: value = color(0); break;
-                    case Rendering::Silhouette: value = 1; break;
-                    }
-                    m_image[i] = uchar(std::clamp(value, 0.0f, 1.0f) * 255.0f + 0.5f);
-                });
-            }
+            });
         }
     }
 
 private:
-    const Document &m_doc;
+    static constexpr size_t kFacesPerBlock = 4096;
+
+    struct Layer
+    {
+        const VCGMesh *mesh = nullptr;
+        QMatrix4x4 normalMatrix;
+        uint32_t firstOrder = 0;   // where its faces start in the drawing order
+        std::vector<QVector3D> world;
+    };
+    // What is drawn: per pixel, the nearest depth, the order of the face there, its value,
+    // and whether a projector painted it
+    struct Target
+    {
+        std::vector<float> zbuf;
+        std::vector<uint32_t> order;
+        std::vector<uchar> image, projected;
+    };
+
     Rendering m_rendering;
     int m_width, m_height;
-    std::vector<float> m_zbuf;
-    std::vector<uchar> m_image, m_projected;
-    std::vector<QVector3D> m_world, m_normal;
+    std::vector<Layer> m_layers;
+    Target m_target;
+    std::vector<Target> m_threads;
     std::vector<QVector2D> m_proj;
     std::vector<float> m_depth;
+    std::vector<QVector3D> m_normal;
+
+    // Draws a layer's faces [first, last) into a target
+    void draw(const Layer &layer, size_t first, size_t last, const std::vector<Projector> &projectors,
+              Target &t) const
+    {
+        const VCGMesh &mesh = *layer.mesh;
+        for (size_t fi = first; fi < last; ++fi) {
+            const VCGFace &f = mesh.face[fi];
+            if (f.IsD())
+                continue;
+            const uint32_t order = layer.firstOrder + uint32_t(fi);
+            const size_t i0 = size_t(vcg::tri::Index(mesh, f.cV(0)));
+            const size_t i1 = size_t(vcg::tri::Index(mesh, f.cV(1)));
+            const size_t i2 = size_t(vcg::tri::Index(mesh, f.cV(2)));
+            const vcg::Color4b &c0 = f.cV(0)->cC(), &c1 = f.cV(1)->cC(), &c2 = f.cV(2)->cC();
+            const QVector3D &w0 = layer.world[i0], &w1 = layer.world[i1], &w2 = layer.world[i2];
+            rasterizeTriangle(m_width, m_height, m_proj[i0], m_proj[i1], m_proj[i2],
+                              m_depth[i0], m_depth[i1], m_depth[i2],
+                              [&](size_t i, float d, float s0, float s1, float s2) {
+                if (!(d < t.zbuf[i] || (d == t.zbuf[i] && order < t.order[i])))
+                    return;
+                t.zbuf[i] = d;
+                t.order[i] = order;
+                // Perspective-correct weights, as the GPU interpolates
+                float b0 = s0 / m_depth[i0], b1 = s1 / m_depth[i1], b2 = s2 / m_depth[i2];
+                const float sum = b0 + b1 + b2;
+                b0 /= sum; b1 /= sum; b2 /= sum;
+                t.projected[i] = 0;
+                if (!projectors.empty()) {
+                    const QVector3D p = b0 * w0 + b1 * w1 + b2 * w2;
+                    double paint = 0, weight = 0;
+                    for (const Projector &projector : projectors)
+                        sample(projector, p, paint, weight);
+                    if (weight > 0) {
+                        t.image[i] = uchar(std::clamp(paint / weight, 0.0, 255.0) + 0.5);
+                        t.projected[i] = 1;
+                        return;
+                    }
+                }
+                const auto color = [&](int k) { return (b0 * c0[k] + b1 * c1[k] + b2 * c2[k]) / 255.0f; };
+                const auto up = [&]() {
+                    return (b0 * m_normal[i0] + b1 * m_normal[i1] + b2 * m_normal[i2]).normalized().y() * 0.5f + 0.5f;
+                };
+                float value = 0;
+                switch (m_rendering) {
+                case Rendering::NormalMap: value = up(); break;
+                case Rendering::Combined: {
+                    const float blend = color(0) * color(0);
+                    value = (1 - blend) * color(1) + blend * up();
+                    break;
+                }
+                case Rendering::VertexColor: value = color(0); break;
+                case Rendering::Silhouette: value = 1; break;
+                }
+                t.image[i] = uchar(std::clamp(value, 0.0f, 1.0f) * 255.0f + 0.5f);
+            });
+        }
+    }
 
     // Adds a projector's grey level at world point p, bilinear, if its camera sees p: in its
     // image, and no more than 1% behind the nearest surface there
