@@ -258,6 +258,10 @@ which do not, and the design decisions already taken.</p>
 <p>As of 2026-09-10: nothing implemented, nothing scheduled. Three decisions have
 been taken in advance and the rest of this document is written around them —
 see <a class="reference internal" href="#decisions-taken"><span class="xref myst">Decisions taken</span></a>.</p>
+<p>2026-11-04: Open3D 0.20 shipped a splat renderer and splat-aware transforms under the
+MIT licence. They are not usable through MeshLab’s Open3D plugin, but they are worth
+lifting, and they change the renderer plan and decision 1 — see
+<a class="reference internal" href="#open3d-020-2026-09"><span class="xref myst">Open3D 0.20</span></a>.</p>
 </section>
 <section id="what-a-splat-is-and-why-it-is-awkward">
 <h2>What a splat is, and why it is awkward<a class="headerlink" href="#what-a-splat-is-and-why-it-is-awkward" title="Link to this heading">¶</a></h2>
@@ -428,6 +432,11 @@ submodule is pinned much later. Lift the six headers; do not merge the branch.</
 <td><p>MIT</p></td>
 <td><p>The canonical minimal implementation. The covariance-projection maths and the sort strategy port directly.</p></td>
 </tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/isl-org/Open3D/tree/v0.20.0/cpp/open3d/visualization/rendering/gaussian_splat">Open3D 0.20</a></p></td>
+<td><p>C++ / GLSL compute, on Vulkan and Metal</p></td>
+<td><p>MIT</p></td>
+<td><p><strong>Yes, shaders and maths</strong> — see <a class="reference internal" href="#open3d-020-2026-09"><span class="xref myst">Open3D 0.20</span></a>.</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -436,13 +445,138 @@ lines of well-documented technique, not inventing anything. MeshLab is GPL-3.0,
 so LGPL reference code is licence-compatible if any of it were ever lifted
 verbatim, but it would not be.</p>
 </section>
+<section id="open3d-0-20-2026-09">
+<h2>Open3D 0.20 (2026-09)<a class="headerlink" href="#open3d-0-20-2026-09" title="Link to this heading">¶</a></h2>
+<p>Open3D v0.20.0 (2026-09-16, the release <code class="docutils literal notranslate"><span class="pre">plugins/filter_open3d</span></code> vendors) added splat
+reading (Gaussian PLY, <code class="docutils literal notranslate"><span class="pre">.splat</span></code>, SPZ) into tensor point clouds, splat-aware transforms,
+and a compute renderer composited with its meshes. Everything below was read from the
+v0.20.0 tree on 2026-11-04, and the shader results were measured with this project’s
+<code class="docutils literal notranslate"><span class="pre">qsb</span></code> (Qt 6.11.2).</p>
+<p><strong>Not through the Open3D plugin.</strong> The plugin vendors 116 files, the closure of the legacy
+<code class="docutils literal notranslate"><span class="pre">geometry</span></code> and <code class="docutils literal notranslate"><span class="pre">pipelines/registration</span></code> code; all of the splat work is in the excluded
+tensor API (<code class="docutils literal notranslate"><span class="pre">cpp/open3d/t/</span></code>) and <code class="docutils literal notranslate"><span class="pre">cpp/open3d/visualization/</span></code>. The renderer is bound to
+Filament: Open3D creates the Vulkan device and shares it with Filament (Metal on macOS),
+which does not fit a <code class="docutils literal notranslate"><span class="pre">QRhiWidget</span></code>. Widening the vendored subset to take the tensor core
+(173 files) for this is not worth it. What follows is source to lift, with the MIT notice
+kept.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Open3D piece</p></th>
+<th class="head"><p>Here</p></th>
+<th class="head"><p>Reuse</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Six GLSL compute shaders, about 1,400 lines, and <code class="docutils literal notranslate"><span class="pre">GaussianSplatDesign.md</span></code> (37 KB) in <code class="docutils literal notranslate"><span class="pre">cpp/open3d/visualization/rendering/gaussian_splat/</span></code></p></td>
+<td><p>Stage 2, the renderer</p></td>
+<td><p>High, with the adaptation below</p></td>
+</tr>
+<tr class="row-odd"><td><p>Ivanic–Ruedenberg rotation of real spherical harmonics, <code class="docutils literal notranslate"><span class="pre">BuildIrR1</span></code>/<code class="docutils literal notranslate"><span class="pre">BuildIrRl</span></code> at the top of <code class="docutils literal notranslate"><span class="pre">t/geometry/PointCloud.cpp</span></code></p></td>
+<td><p>The splat-aware rotation</p></td>
+<td><p>About 85 lines of plain Eigen. General maths, so it goes into vcglib beside <code class="docutils literal notranslate"><span class="pre">vcg/math/spherical_harmonics.h</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Rotate</span></code>/<code class="docutils literal notranslate"><span class="pre">Scale</span></code>/<code class="docutils literal notranslate"><span class="pre">Translate</span></code> semantics for splat clouds</p></td>
+<td><p>Same</p></td>
+<td><p>Rotate composes the quaternion (<code class="docutils literal notranslate"><span class="pre">q'</span> <span class="pre">=</span> <span class="pre">q_R</span> <span class="pre">q</span></code>) and rotates <code class="docutils literal notranslate"><span class="pre">f_rest</span></code>; a uniform scale multiplies the linear scales, and a negative one negates the odd SH bands; a general 4×4 <code class="docutils literal notranslate"><span class="pre">Transform</span></code> warns and leaves the splat attributes alone. That settles the shear and non-uniform scale question: refuse</p></td>
+</tr>
+<tr class="row-odd"><td><p>Per-splat GPU layout</p></td>
+<td><p>Buffer sizing</p></td>
+<td><p>36–84 B per splat, against the ~240 B assumed above: positions fp32, scales and colour+opacity fp16, quaternion snorm8, SH fp16, sigmoid applied once on the CPU</p></td>
+</tr>
+<tr class="row-even"><td><p>Depth-aware composite</p></td>
+<td><p>Decision 1</p></td>
+<td><p>The composite reads the scene depth and skips splats behind meshes, so the exclusive mode is not needed even at first</p></td>
+</tr>
+<tr class="row-odd"><td><p>SPZ reader (<code class="docutils literal notranslate"><span class="pre">t/io/file_format/FileSPZ.cpp</span></code>, over Niantic’s library)</p></td>
+<td><p>A format the vcglib branch lacks</p></td>
+<td><p>The library is in vcpkg: port <code class="docutils literal notranslate"><span class="pre">spz</span></code> 2.1.0 in the pinned baseline, MIT, zlib its only dependency. Open3D builds 3.0.0; whether 2.1 reads the newest files is not checked</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>The renderer differs from the <a class="reference internal" href="#rendering"><span class="xref myst">Rendering</span></a> plan</strong> in one structural way, for
+the better: it is tile-based and draws nothing. <code class="docutils literal notranslate"><span class="pre">gaussian_project.comp</span></code> projects and culls,
+writing one 32-bit key per (splat, 16×16 tile) — tile index high, normalised linear depth
+low, the split sized to the tile count; a four-pass radix sort (a histogram and a scatter
+shader per 8-bit digit) orders them;
+<code class="docutils literal notranslate"><span class="pre">gaussian_composite.comp</span></code> gives each tile a workgroup that blends front to back into an
+RGBA16F storage image, stopping at T &lt; 1/255. No instanced quads, and occlusion against
+meshes is a depth-texture read in the same pass.</p>
+<p><strong>Measured against QRhi</strong>, compiling each shader unmodified with <code class="docutils literal notranslate"><span class="pre">qsb</span></code> at the targets
+MeshLab already uses (GLSL 430, HLSL 5.0, MSL 1.2):</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Shader</p></th>
+<th class="head"><p>Lines</p></th>
+<th class="head"><p>Compiles</p></th>
+<th class="head"><p>Why not</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gaussian_radix_sort_histograms.comp</span></code></p></td>
+<td><p>66</p></td>
+<td><p>yes</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gaussian_compute_dispatch_args.comp</span></code></p></td>
+<td><p>142</p></td>
+<td><p>yes</p></td>
+<td><p>but see indirect dispatch</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gaussian_depth_merge.comp</span></code></p></td>
+<td><p>72</p></td>
+<td><p>yes</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gaussian_project.comp</span></code></p></td>
+<td><p>527</p></td>
+<td><p>no</p></td>
+<td><p>subgroup operations (4 call sites)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gaussian_composite.comp</span></code></p></td>
+<td><p>429</p></td>
+<td><p>no</p></td>
+<td><p>subgroup operations (2)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gaussian_radix_sort_scatter.comp</span></code></p></td>
+<td><p>163</p></td>
+<td><p>no</p></td>
+<td><p>subgroup operations (3)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul class="simple">
+<li><p><strong>Subgroups.</strong> <code class="docutils literal notranslate"><span class="pre">qsb</span></code> emits SPIR-V 1.0 and subgroup operations need 1.3 (“subgroup op
+requires SPIR-V 1.3”); raising the HLSL and MSL targets does not change that. The calls
+batch atomic counters and compute prefix sums, and each has a shared-memory workgroup
+equivalent: slower, and portable to every QRhi backend including D3D11.</p></li>
+<li><p><strong>Indirect dispatch.</strong> <code class="docutils literal notranslate"><span class="pre">QRhiCommandBuffer</span></code> has only <code class="docutils literal notranslate"><span class="pre">dispatch(x,</span> <span class="pre">y,</span> <span class="pre">z)</span></code>, so the counts
+that <code class="docutils literal notranslate"><span class="pre">gaussian_compute_dispatch_args.comp</span></code> writes on the GPU have to come back another
+way: a one-frame-late readback, or an upper-bound dispatch whose surplus workgroups exit.</p></li>
+<li><p>No push constants are used, which QRhi lacks anyway.</p></li>
+</ul>
+<p><strong>Its own limits:</strong> the shader evaluates SH to degree 2 only, rotating degree 3 without
+rendering it; MSAA is off for splat views, the Gaussian low-pass and density compensation
+serving instead; the release notes list hangs on some GPUs (Intel Arc A770m); and its own
+to-do list says the subgroup radix scatter is untested at scale on Intel. Splats too large
+on screen (more than 256 tiles by default) are culled, with a flag the CPU reads back.</p>
+<p><strong>Unchanged:</strong> the <a class="reference internal" href="#prerequisite-named-attributes-in-the-undo-pipeline"><span class="xref myst">prerequisite</span></a>
+still blocks everything, and decision 3 stands; Open3D’s attributes (<code class="docutils literal notranslate"><span class="pre">f_dc</span></code>, <code class="docutils literal notranslate"><span class="pre">f_rest</span></code>,
+<code class="docutils literal notranslate"><span class="pre">opacity</span></code>, <code class="docutils literal notranslate"><span class="pre">scale</span></code>, <code class="docutils literal notranslate"><span class="pre">rot</span></code>) map onto vcg per-vertex attributes one to one. The vcglib
+<code class="docutils literal notranslate"><span class="pre">gaussian</span></code> branch is still the cheaper route for PLY and <code class="docutils literal notranslate"><span class="pre">.splat</span></code>.</p>
+</section>
 <section id="decisions-taken">
 <h2>Decisions taken<a class="headerlink" href="#decisions-taken" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
 <li><p><strong>A separate render mode, initially exclusive.</strong> When a splat layer is shown,
 ordinary mesh layers are not. This sidesteps the hardest visual problem —
 blending unsorted transparent splats against opaque geometry — and can be
-relaxed later.</p></li>
+relaxed later. <em>To revisit:</em> Open3D’s composite reads the scene depth and skips
+occluded splats, which solves that problem in the same pass, so the exclusivity
+may not be needed at all.</p></li>
 <li><p><strong>Sorting on the GPU via <code class="docutils literal notranslate"><span class="pre">QRhiComputePipeline</span></code> from the start.</strong> No CPU-sort
 stepping stone: a CPU sort that is adequate at 500k splats collapses at 5M,
 and the GPU path reshapes the buffer layout, so building the CPU one first
@@ -533,7 +667,7 @@ the buffers for 3.</p></li>
 <tbody>
 <tr class="row-even"><td><p><strong>Rotate (splat-aware)</strong></p></td>
 <td><p>High</p></td>
-<td><p>Composing the per-splat quaternion is trivial. Rotating the <strong>spherical harmonics</strong> is not: SH coefficients live in a world-space basis and rotating them means applying a Wigner-D rotation per band — block-diagonal, 1+3+5+7 for degree 3. vcglib already has <code class="docutils literal notranslate"><span class="pre">vcg/math/spherical_harmonics.h</span></code>, which the student’s branch extended. A non-uniform scale or shear breaks the model outright and would need the covariance re-decomposed (polar or eigen) back into scale and rotation, or the operation refused.</p></td>
+<td><p>Composing the per-splat quaternion is trivial. Rotating the <strong>spherical harmonics</strong> is not: SH coefficients live in a world-space basis and rotating them means applying a Wigner-D rotation per band — block-diagonal, 1+3+5+7 for degree 3. vcglib already has <code class="docutils literal notranslate"><span class="pre">vcg/math/spherical_harmonics.h</span></code>, which the student’s branch extended. A non-uniform scale or shear breaks the model outright and would need the covariance re-decomposed (polar or eigen) back into scale and rotation, or the operation refused. Open3D 0.20 has the SH rotation (Ivanic–Ruedenberg) and refuses the general case; both lift, see <a class="reference internal" href="#open3d-020-2026-09"><span class="xref myst">Open3D 0.20</span></a>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>Outlier removal</strong></p></td>
 <td><p>Low</p></td>
@@ -563,6 +697,17 @@ formats, culling and LOD, and possibly relaxing the exclusive mode.</p></li>
 </ol>
 <p>Rough effort, assuming the prerequisite is done: <strong>3–5 days</strong> for stage 1,
 <strong>1–2 weeks</strong> for stage 2, <strong>2–4 weeks</strong> for stage 3.</p>
+<p>Revised 2026-11-04, with Open3D 0.20 as a source:</p>
+<ul class="simple">
+<li><p><strong>Stage 1</strong> also reads SPZ, through the vcpkg <code class="docutils literal notranslate"><span class="pre">spz</span></code> port.</p></li>
+<li><p><strong>Stage 2</strong> becomes a port of Open3D’s tile-based pipeline rather than the instanced-quad
+design above: three shaders as they are, three with their subgroup operations rewritten
+over shared memory, indirect dispatch replaced, and the QRhi resource and pass plumbing,
+which is the real work. Composited against the scene depth, not exclusive. About a week,
+with most of the design and debugging risk gone.</p></li>
+<li><p><strong>Stage 3</strong> takes the Ivanic–Ruedenberg rotation into vcglib for the splat-aware Rotate,
+and adds the degree-3 SH evaluation that Open3D’s shader leaves out.</p></li>
+</ul>
 </section>
 <section id="open-questions">
 <h2>Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
@@ -633,6 +778,7 @@ technique.</p></li>
 <li><a class="reference internal" href="#the-substrate-that-already-exists">The substrate that already exists</a></li>
 <li><a class="reference internal" href="#the-vcglib-gaussian-branch">The vcglib <code class="docutils literal notranslate"><span class="pre">gaussian</span></code> branch</a></li>
 <li><a class="reference internal" href="#prior-art">Prior art</a></li>
+<li><a class="reference internal" href="#open3d-0-20-2026-09">Open3D 0.20 (2026-09)</a></li>
 <li><a class="reference internal" href="#decisions-taken">Decisions taken</a><ul>
 <li><a class="reference internal" href="#why-not-layerdata">Why not LayerData</a></li>
 </ul>

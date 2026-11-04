@@ -589,7 +589,12 @@ afterward. The full set: <code class="docutils literal notranslate"><span class=
 implies its adjacency), <code class="docutils literal notranslate"><span class="pre">FNorm</span></code>, <code class="docutils literal notranslate"><span class="pre">VNorm</span></code> (implies <code class="docutils literal notranslate"><span class="pre">FNorm</span></code>), <code class="docutils literal notranslate"><span class="pre">BBox</span></code>, <code class="docutils literal notranslate"><span class="pre">FMark</span></code>,
 <code class="docutils literal notranslate"><span class="pre">VMark</span></code>, <code class="docutils literal notranslate"><span class="pre">VTex</span></code>, <code class="docutils literal notranslate"><span class="pre">WTex</span></code>, <code class="docutils literal notranslate"><span class="pre">CurvDir</span></code>. <code class="docutils literal notranslate"><span class="pre">VE</span></code> is vertex-edge adjacency on a polyline
 layer’s real edges, for filters that walk the edge graph with <code class="docutils literal notranslate"><span class="pre">vcg::edge::VEIterator</span></code>,
-<code class="docutils literal notranslate"><span class="pre">VVStarVE</span></code> and the like.</p></li>
+<code class="docutils literal notranslate"><span class="pre">VVStarVE</span></code> and the like.
+Loading guarantees face normals, but nothing recomputes them after a filter edits a
+mesh, so a filter that reads face normals of the current mesh still declares <code class="docutils literal notranslate"><span class="pre">FNorm</span></code>.
+Preparation reaches only the current mesh: a filter reading normals of another layer
+(a mesh parameter) computes them itself; the load-time guarantee keeps them from
+being garbage, not from being stale.</p></li>
 <li><p><strong>Cleanup/compaction</strong>: after a successful filter the framework compacts the
 affected meshes; don’t leave deleted elements around expecting them to persist.</p></li>
 <li><p><strong>Read-only inputs stay read-only</strong>: a filter that makes a new layer (<code class="docutils literal notranslate"><span class="pre">NewMeshes</span></code>) or only
