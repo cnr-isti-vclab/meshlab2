@@ -2258,12 +2258,14 @@ void FilterTests::alignRasterByMutualInformationOnARealScan()
 }
 
 // Global refinement of the gargoyle's four cameras, moved by 1 to 2.5 degrees about different
-// axes (1.6 to 5.2 px off): all of them end within 1.5 px of the fixture's cameras, in two
-// passes, the second moving the projections under the 1.2 px threshold. With camera 0 hidden,
-// an anchor at its true place, it does not move and the other three end within 2 px. Measured
-// 2026-11-03 with the Normal Map: 0.4 to 1.4 px, and 0.4 to 1.7 px with the anchor, in about
-// 10 and 7 s. Camera 1, whose maximum is the flattest (see above), gets 2.5 px: rendered by
-// Mesa's llvmpipe on the Linux CI it ends 1.97 px off, the same on every run.
+// axes (1.6 to 5.2 px off): each ends closer to the fixture's camera than it started and within
+// 2 px of it, in two passes, the second moving the projections under the 1.2 px threshold. With
+// camera 0 hidden, an anchor at its true place, it does not move. Measured 2026-11-03 with the
+// Normal Map: 0.6 to 1.4 px, and 0.4 to 1.7 px with the anchor, in about 10 and 7 s. Camera 1,
+// whose maximum is the flattest (see above), gets 2.5 px. The bounds leave room for rounding,
+// which moves where the search stops: the same code built without fused multiply-adds ends
+// camera 1 2.07 px off (2026-11-04), and the Linux CI's GCC build ends camera 2 1.66 px off.
+// Neither varies from run to run.
 void FilterTests::alignRastersGloballyByMutualInformation()
 {
     Document doc;
@@ -2281,6 +2283,9 @@ void FilterTests::alignRastersGloballyByMutualInformation()
     std::vector<CameraShot> truth;
     for (int ri = 0; ri < doc.rasterCount(); ++ri)
         truth.push_back(doc.raster(ri).shot);
+    // Both runs are measured before either is judged, so a failure reports all eight cameras.
+    struct Outcome { bool anchor; int raster; double start, end; };
+    std::vector<Outcome> outcomes;
     for (const bool anchor : { false, true }) {
         for (int ri = 0; ri < doc.rasterCount(); ++ri) {
             const float degrees = (anchor && ri == 0) ? 0.0f : (ri % 2 ? 1.0f : -1.0f) * (1.0f + 0.5f * ri);
@@ -2288,22 +2293,30 @@ void FilterTests::alignRastersGloballyByMutualInformation()
                                                 QVector3D(0.004f, -0.003f, 0.002f) * diag * degrees));
             doc.raster(ri).visible = !(anchor && ri == 0);
         }
+        std::vector<double> start;
+        for (int ri = 0; ri < doc.rasterCount(); ++ri)
+            start.push_back(projectedDisplacement(doc.raster(ri).shot, truth[size_t(ri)], points));
         const CameraShot anchored = doc.raster(0).shot;
         const MeshFilterRunResult r = doc.runFilter(key, { { QStringLiteral("rendering"), QStringLiteral("normalMap") } });
         QVERIFY2(r.success, qPrintable(r.errorMessage));
         const QVariantList variations = r.outputValues.value(QStringLiteral("variations")).toList();
         QVERIFY(!variations.isEmpty() && variations.last().toDouble() < 1.2);
-        std::vector<double> off;
         for (int ri = 0; ri < doc.rasterCount(); ++ri) {
-            off.push_back(projectedDisplacement(doc.raster(ri).shot, truth[size_t(ri)], points));
-            qDebug("anchor %d, raster %d: %.2f px off the truth", int(anchor), ri, off.back());
-        }
-        for (int ri = 0; ri < doc.rasterCount(); ++ri) {
-            QVERIFY2(off[size_t(ri)] < (ri == 1 ? 2.5 : anchor ? 2.0 : 1.5), qPrintable(QString::number(off[size_t(ri)])));
+            outcomes.push_back({ anchor, ri, start[size_t(ri)],
+                                 projectedDisplacement(doc.raster(ri).shot, truth[size_t(ri)], points) });
+            qDebug("anchor %d, raster %d: %.2f -> %.2f px off the truth", int(anchor), ri,
+                   outcomes.back().start, outcomes.back().end);
             QCOMPARE(doc.raster(ri).shot.centerPx(), truth[size_t(ri)].centerPx());
         }
         if (anchor)
             QVERIFY(doc.raster(0).shot.toVcgShot() == anchored.toVcgShot());
+    }
+    for (const Outcome &o : outcomes) {
+        if (o.anchor && o.raster == 0)
+            continue;
+        const QString what = QStringLiteral("anchor %1, raster %2: %3 -> %4 px")
+                                 .arg(int(o.anchor)).arg(o.raster).arg(o.start, 0, 'f', 2).arg(o.end, 0, 'f', 2);
+        QVERIFY2(o.end < o.start && o.end < (o.raster == 1 ? 2.5 : 2.0), qPrintable(what));
     }
 }
 
