@@ -179,9 +179,8 @@ float faceWeight(const VCGMesh &mesh, VCGFace &f,
     float w = 1.0f;
 
     if (weightMask & W_ORIENTATION) {
-        vcg::Point3f fn = f.cN();
-        if (fn == vcg::Point3f(0, 0, 0))
-            fn = ((f.cP(1) - f.cP(0)) ^ (f.cP(2) - f.cP(0))).Normalize();
+        // Computed for this run: the descriptor asks for FNorm.
+        const vcg::Point3f fn = f.cN();
         const QVector3D toCamera = rc.shot->directionToCamera(QVector3D(wcP[0], wcP[1], wcP[2]));
         w *= toCamera.x() * fn[0] + toCamera.y() * fn[1] + toCamera.z() * fn[2];
     }

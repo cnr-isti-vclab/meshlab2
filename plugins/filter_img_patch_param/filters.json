@@ -14,7 +14,7 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "inputPrepare": ["FF", "VF", "WT"],
+      "inputPrepare": ["FF", "VF", "WT", "FNorm"],
       "outputModifies": ["WT"],
       "preRunCleanup": ["VF", "FF"],
       "postRunCleanup": ["VF", "FF"],
@@ -105,7 +105,7 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "inputPrepare": ["FF", "VF", "WT"],
+      "inputPrepare": ["FF", "VF", "WT", "FNorm"],
       "outputModifies": ["WT", "TX"],
       "preRunCleanup": ["VF", "FF"],
       "postRunCleanup": ["VF", "FF"],

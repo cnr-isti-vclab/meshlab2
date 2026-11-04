@@ -10372,6 +10372,11 @@ void FilterTests::faceScalarFromRastersMeasuresTheViews()
     // best resolution: textured from the same rasters, both measured on their own must divide to it.
     r = run(doc, QStringLiteral("textureToPhotoRatio"), 1.0);
     QVERIFY(!r.success);
+    // The gargoyle brings vertex normals, so loading computes no face normals and leaves
+    // whatever the memory held; the texturing weighs faces by theirs and must ask for them
+    // (FNorm). Not-a-number here, as uninitialized memory can hold, leaves no face its photo.
+    for (auto &f : doc.mesh(0).mesh.face)
+        f.N() = vcg::Point3f(std::nanf(""), std::nanf(""), std::nanf(""));
     r = doc.runFilter(filterKeyForId(doc, QStringLiteral("parametrize_from_registered_rasters_with_texture")),
                       { { QStringLiteral("textureSize"), 512 } });
     QVERIFY2(r.success, qPrintable(r.errorMessage));
