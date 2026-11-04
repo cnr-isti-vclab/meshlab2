@@ -783,7 +783,7 @@ ApproxMean uses the radius of the fitted sphere as an approximation of the mean 
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_curvature_discrete">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_curvature_discrete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_curvature_discrete" title="Link to this definition">¶</a></dt>
-<dd><p>Compute discrete curvature and store it in vertex quality. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization. It is computed with the discrete operators of Meyer et al.</p>
+<dd><p>Compute discrete curvature and store it in vertex quality. Whatever the chosen type, the mean and the Gaussian curvature are also kept in the per-vertex custom attributes <code class="docutils literal notranslate"><span class="pre">KH</span></code> and <code class="docutils literal notranslate"><span class="pre">KG</span></code> (float), for expressions and scripts. Vertex normals are recomputed from the faces. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization. It is computed with the discrete operators of Meyer et al.</p>
 <p><strong>References:</strong></p>
 <ul class="simple">
 <li><p>Mark Meyer, Mathieu Desbrun, Peter Schröder, Alan H. Barr. <strong>Discrete Differential-Geometry Operators for Triangulated 2-Manifolds</strong>. <em>Visualization and Mathematics III</em> (2003). <a class="reference external" href="https://doi.org/10.1007/978-3-662-05105-4_2">DOI</a></p></li>
@@ -1640,7 +1640,7 @@ Insert three function each one for quality of the three vertex of a face</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.compute_harmonic_scalar_field">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_harmonic_scalar_field</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_harmonic_scalar_field" title="Link to this definition">¶</a></dt>
-<dd><p>Generates a scalar harmonic field over the mesh. Input scalar values must be assigned to two vertices as Dirichlet boundary conditions. Applying the filter, a discrete Laplace operator generates the harmonic field values for all the mesh vertices, which are stored in the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex attribute</a> of the mesh.</p>
+<dd><p>Generates a scalar harmonic field over the mesh. Input scalar values must be assigned to two vertices as Dirichlet boundary conditions. Applying the filter, a discrete Laplace operator generates the harmonic field values for all the mesh vertices, which are stored in the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex attribute</a> of the mesh, and also in the per-vertex custom attribute <code class="docutils literal notranslate"><span class="pre">harmonic</span></code> (float), which keeps the field when a later filter overwrites the scalar.</p>
 <p><strong>References:</strong></p>
 <ul class="simple">
 <li><p>Kai Xu, Hao Zhang, Daniel Cohen-Or, Yueshan Xiong. <strong>Dynamic harmonic fields for surface processing</strong>. <em>Computers &amp; Graphics</em> (2009). <a class="reference external" href="https://doi.org/10.1016/j.cag.2009.03.022">DOI</a></p></li>
@@ -1651,7 +1651,6 @@ Insert three function each one for quality of the three vertex of a face</p>
 <li><p><strong>point2</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[1.0,</span> <span class="pre">1.0,</span> <span class="pre">1.0]</span></code>) — A vertex on the mesh representing the other harmonic field boundary condition.</p></li>
 <li><p><strong>value1</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Harmonic field value assigned to the first constrained vertex.</p></li>
 <li><p><strong>value2</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Harmonic field value assigned to the second constrained vertex.</p></li>
-<li><p><strong>colorize</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also write a per-vertex color ramp after computing the harmonic field. Disabled by default because MeshLab automatically switches to vertex-quality visualization.</p></li>
 </ul>
 </dd></dl>
 
@@ -5552,7 +5551,7 @@ You can change x,y,z for every vertex according to the function specified.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.estimate_radius_from_density">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">estimate_radius_from_density</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.estimate_radius_from_density" title="Link to this definition">¶</a></dt>
-<dd><p>Estimate the local point spacing (aka radius) around each vertex using a basic estimate of the local density.</p>
+<dd><p>Estimate the local point spacing (aka radius) around each vertex using a basic estimate of the local density. The estimate is stored in the per-vertex custom attribute <code class="docutils literal notranslate"><span class="pre">radius</span></code> (float), which the MLS filters read.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>NbNeighbors</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">16</span></code>) — Number of neighbors used to estimate the local density. Larger values lead to smoother variations.</p></li>
@@ -8513,7 +8512,7 @@ The filter visits a mesh face to face, reorienting any unvisited face so that it
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.select_outliers">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_outliers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_outliers" title="Link to this definition">¶</a></dt>
-<dd><p>Select the vertex classified as outlier using the Local Outlier Probability (LoOP) measure of Kriegel et al.</p>
+<dd><p>Select the vertex classified as outlier using the Local Outlier Probability (LoOP) measure of Kriegel et al. The probability of each vertex, from 0 to 1, is kept in the per-vertex custom attribute <code class="docutils literal notranslate"><span class="pre">outlierScore</span></code> (float), so that another threshold can be applied by an expression without recomputing it.</p>
 <p><strong>References:</strong></p>
 <ul class="simple">
 <li><p>Hans-Peter Kriegel, Peer Kröger, Erich Schubert, Arthur Zimek. <strong>LoOP: Local Outlier Probabilities</strong>. <em>Proceedings of the 18th ACM conference on Information and knowledge management</em> (2009). <a class="reference external" href="https://doi.org/10.1145/1645953.1646195">DOI</a></p></li>

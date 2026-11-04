@@ -359,6 +359,11 @@ up front, or with a `success = false` result that says why.
   seconds of deep copy. **This makes `outputModifies` load-bearing:** the delta
   does not capture geometry, so a filter that declares `VC` but also moves a
   vertex will not have the movement undone. Declare everything you change.
+  That includes custom attributes: a filter that leaves a named attribute declares `VA`
+  or `FA`, and documents its name, type and meaning in the long description, since
+  expressions and scripts read it by name. Remove scratch attributes before returning,
+  including the named ones vcglib leaves behind (see
+  [Data Model](data_model.md#undoredo-model)).
 - **Input preparation**: declare `inputPrepare` codes instead of computing
   adjacency, normals or flags by hand — the framework enables the OCF
   components, runs the vcglib update in dependency order, and disables them

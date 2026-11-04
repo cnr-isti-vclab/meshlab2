@@ -693,7 +693,7 @@ Compute discrete curvature and store it in vertex quality.
 ```{py:function} ms.compute_curvature_discrete(**params)
 :module: _meshlab
 
-Compute discrete curvature and store it in vertex quality. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization. It is computed with the discrete operators of Meyer et al.
+Compute discrete curvature and store it in vertex quality. Whatever the chosen type, the mean and the Gaussian curvature are also kept in the per-vertex custom attributes `KH` and `KG` (float), for expressions and scripts. Vertex normals are recomputed from the faces. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization. It is computed with the discrete operators of Meyer et al.
 
 **References:**
 
@@ -1758,7 +1758,7 @@ Compute a harmonic scalar field over the mesh.
 ```{py:function} ms.compute_harmonic_scalar_field(**params)
 :module: _meshlab
 
-Generates a scalar harmonic field over the mesh. Input scalar values must be assigned to two vertices as Dirichlet boundary conditions. Applying the filter, a discrete Laplace operator generates the harmonic field values for all the mesh vertices, which are stored in the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex attribute</a> of the mesh.
+Generates a scalar harmonic field over the mesh. Input scalar values must be assigned to two vertices as Dirichlet boundary conditions. Applying the filter, a discrete Laplace operator generates the harmonic field values for all the mesh vertices, which are stored in the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex attribute</a> of the mesh, and also in the per-vertex custom attribute `harmonic` (float), which keeps the field when a later filter overwrites the scalar.
 
 **References:**
 
@@ -1770,7 +1770,6 @@ Generates a scalar harmonic field over the mesh. Input scalar values must be ass
 - **point2** (*point3f*, default: `[1.0, 1.0, 1.0]`) — A vertex on the mesh representing the other harmonic field boundary condition.
 - **value1** (*double*, default: `0.0`) — Harmonic field value assigned to the first constrained vertex.
 - **value2** (*double*, default: `1.0`) — Harmonic field value assigned to the second constrained vertex.
-- **colorize** (*bool*, default: `False`) — Also write a per-vertex color ramp after computing the harmonic field. Disabled by default because MeshLab automatically switches to vertex-quality visualization.
 ```
 
 ---
@@ -6691,7 +6690,7 @@ Estimate local point spacing for each vertex.
 ```{py:function} ms.estimate_radius_from_density(**params)
 :module: _meshlab
 
-Estimate the local point spacing (aka radius) around each vertex using a basic estimate of the local density.
+Estimate the local point spacing (aka radius) around each vertex using a basic estimate of the local density. The estimate is stored in the per-vertex custom attribute `radius` (float), which the MLS filters read.
 
 **Parameters:**
 
@@ -10436,7 +10435,7 @@ Select outlier vertices using LoOP.
 ```{py:function} ms.select_outliers(**params)
 :module: _meshlab
 
-Select the vertex classified as outlier using the Local Outlier Probability (LoOP) measure of Kriegel et al.
+Select the vertex classified as outlier using the Local Outlier Probability (LoOP) measure of Kriegel et al. The probability of each vertex, from 0 to 1, is kept in the per-vertex custom attribute `outlierScore` (float), so that another threshold can be applied by an expression without recomputing it.
 
 **References:**
 

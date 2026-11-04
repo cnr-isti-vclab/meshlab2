@@ -581,7 +581,12 @@ uses the cheap attribute-delta undo, which stores just those attributes
 instead of a full snapshot. That matters on large meshes, where snapshotting is
 seconds of deep copy. <strong>This makes <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> load-bearing:</strong> the delta
 does not capture geometry, so a filter that declares <code class="docutils literal notranslate"><span class="pre">VC</span></code> but also moves a
-vertex will not have the movement undone. Declare everything you change.</p></li>
+vertex will not have the movement undone. Declare everything you change.
+That includes custom attributes: a filter that leaves a named attribute declares <code class="docutils literal notranslate"><span class="pre">VA</span></code>
+or <code class="docutils literal notranslate"><span class="pre">FA</span></code>, and documents its name, type and meaning in the long description, since
+expressions and scripts read it by name. Remove scratch attributes before returning,
+including the named ones vcglib leaves behind (see
+<a class="reference internal" href="data_model.html#undoredo-model"><span class="std std-ref">Data Model</span></a>).</p></li>
 <li><p><strong>Input preparation</strong>: declare <code class="docutils literal notranslate"><span class="pre">inputPrepare</span></code> codes instead of computing
 adjacency, normals or flags by hand — the framework enables the OCF
 components, runs the vcglib update in dependency order, and disables them
