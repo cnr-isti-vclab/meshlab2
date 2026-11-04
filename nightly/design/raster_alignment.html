@@ -319,9 +319,14 @@ again, until a round gains nothing.</p>
 <p>Mutual information compares the photo with a rendering made <strong>on the CPU</strong>, so it is
 deterministic and runs in <code class="docutils literal notranslate"><span class="pre">ctest</span></code> and <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> without a GPU:</p>
 <ul class="simple">
-<li><p><strong>The rasterizer.</strong> <code class="docutils literal notranslate"><span class="pre">rasterizeTriangleDepth</span></code> (<code class="docutils literal notranslate"><span class="pre">src/core/softdepthbuffer.h</span></code>) calls back
-each pixel a triangle wins the depth test. The renderer shades there, with
-perspective-correct barycentrics, as the GPU interpolates.</p></li>
+<li><p><strong>The rasterizer.</strong> <code class="docutils literal notranslate"><span class="pre">rasterizeTriangle</span></code> (<code class="docutils literal notranslate"><span class="pre">src/core/softdepthbuffer.h</span></code>) calls back each
+pixel a triangle covers, and the renderer shades where the triangle wins its depth test,
+with perspective-correct barycentrics, as the GPU interpolates.</p></li>
+<li><p><strong>Threads.</strong> The faces are drawn by the threads of the global pool, each into buffers of
+its own, which are then merged. A pixel keeps the nearest face and, among faces equally
+near, the first in layer and face order, in each thread and in the merge, as a serial
+drawing does. So the image, and with it every result, is the same bit for bit whatever the
+number of threads.</p></li>
 <li><p><strong>What is rendered.</strong> Every visible layer with faces, at a working resolution whose
 longest side is <code class="docutils literal notranslate"><span class="pre">resolution</span></code> (800). The photo is scaled to the same size and turned to grey
 as 0.3 R + 0.59 G + 0.11 B.</p></li>
@@ -342,8 +347,9 @@ normal map.</p></li>
 <li><p>the photo’s transparent pixels, such as an undistorted photo’s corners, do not count.</p></li>
 </ul>
 </li>
-<li><p><strong>Cost.</strong> About 3.8 ms a rendering on 20k faces at 750 × 502, and 50 ms on 3.2 M faces at
-800 px. A refinement takes 100 to 300 renderings.</p></li>
+<li><p><strong>Cost.</strong> About 3.5 ms a rendering on 20k faces at 750 × 502, and 13 ms on 3.2 M faces at
+800 px, on 16 threads of an M3 Max (54 ms on one). A refinement takes 100 to 300
+renderings.</p></li>
 </ul>
 <p><strong>The rendering decides whether the method works</strong> on a given photo. On a real colored scan
 the <em>Normal Map</em> has a higher maximum 13 to 19 px away from the right camera, while <em>Vertex

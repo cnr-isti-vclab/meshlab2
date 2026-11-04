@@ -562,6 +562,14 @@ Snapshot-to-raster paths reuse the same view capture mechanics but add the resul
 
 Programmatic snapshots use the same render-state JSON contract. Embedded `mlgui.render_snapshot(...)` and `mlgui.save_snapshot(...)` render through the live active `RenderWidget`; standalone `pymeshlab2.MeshSet.render_snapshot(...)` uses `HeadlessRenderContext`, which owns a hidden `RenderWidget`/QRhi lifecycle for offscreen and batch rendering.
 
+For documentation images that must show the entire application, `MeshLab --capture-window
+<mesh-or-project> <output.png>` opens the input in a 1440×900 main window, waits for
+its first frames, saves `MainWindow::grab()` as PNG, then exits. This captures the Qt
+window content (including docks and the render view), not the operating system's title
+bar. Run it with a real window server and GPU, as for the render probes below. The
+window's dock layout comes from the current MeshLab settings; use a clean profile or
+arrange it before capture when a repeatable presentation matters.
+
 ## Verifying the Render Path
 
 The render path lives in the `MeshLab` executable, not a library, so a Qt test cannot link
