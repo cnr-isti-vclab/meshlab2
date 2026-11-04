@@ -564,9 +564,10 @@ Programmatic snapshots use the same render-state JSON contract. Embedded `mlgui.
 
 For documentation images that must show the entire application, `MeshLab --capture-window
 <mesh-or-project> <output.png>` opens the input in a 1440×900 main window, waits for
-its first frames, saves `MainWindow::grab()` as PNG, then exits. This captures the Qt
-window content (including docks and the render view), not the operating system's title
-bar. Run it with a real window server and GPU, as for the render probes below. The
+its first frames, saves `MainWindow::grab()` in a simple frame bearing the actual
+`windowTitle()`, then exits. This captures the Qt window content (including docks and
+the render view); the frame is drawn by MeshLab because Qt omits macOS window
+decorations from `QWidget::grab()`. Run it with a real window server and GPU, as for the render probes below. The
 window's dock layout comes from the current MeshLab settings; use a clean profile or
 arrange it before capture when a repeatable presentation matters.
 
