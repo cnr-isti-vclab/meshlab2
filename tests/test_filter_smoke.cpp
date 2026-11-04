@@ -420,6 +420,7 @@ private:
         bool success = false;
         bool refused = false; // the filter itself declined, and said why
         QString error;
+        QString undoError;    // it ran, but undo or redo lost a custom attribute
     };
     Attempt attempt(Fixture f, const QString &filterId);
 
@@ -484,6 +485,26 @@ FilterSmokeTests::Attempt FilterSmokeTests::attempt(Fixture f, const QString &fi
         m_outputDomainById.value(filterId, MeshFilterOutputDomain::Information);
 
     std::unique_ptr<Document> doc = buildDocument(f);
+    // Custom attributes live in the mesh but outside its elements, so neither the attribute
+    // delta nor a snapshot whose cache key did not move sees them: undo has to take them
+    // away and redo bring them back, which needs VA/FA declared and a type deepCopyMesh carries.
+    doc->setSuppressUndo(false);
+    const auto attributeNames = [&doc] {
+        QStringList names;
+        for (int i = 0; i < doc->meshCount(); ++i) {
+            const VCGMesh &m = doc->mesh(i).mesh;
+            for (const auto *set : {&m.vert_attr, &m.face_attr, &m.edge_attr, &m.mesh_attr}) {
+                const char kind = set == &m.vert_attr ? 'V' : set == &m.face_attr ? 'F'
+                                : set == &m.edge_attr ? 'E' : 'M';
+                for (const vcg::PointerToAttribute &a : *set)
+                    if (!a._name.empty())
+                        names << QStringLiteral("%1:%2:%3").arg(i).arg(QLatin1Char(kind))
+                                     .arg(QString::fromStdString(a._name));
+            }
+        }
+        return names.join(QLatin1Char(' '));
+    };
+    const QString attributesBefore = attributeNames();
     const int currentBefore = doc->currentMeshIndex();
     const int verticesBefore = (currentBefore >= 0 && currentBefore < doc->meshCount())
         ? doc->mesh(currentBefore).mesh.VN()
@@ -534,6 +555,17 @@ FilterSmokeTests::Attempt FilterSmokeTests::attempt(Fixture f, const QString &fi
     }
 
     out.success = true;
+    const QString attributesAfter = attributeNames();
+    if (attributesAfter != attributesBefore) {
+        doc->undo();
+        const QString undone = attributeNames();
+        doc->redo();
+        const QString redone = attributeNames();
+        if (undone != attributesBefore || redone != attributesAfter)
+            out.undoError = QStringLiteral("custom attributes before [%1], after the run [%2], "
+                                           "after undo [%3], after redo [%4]")
+                                .arg(attributesBefore, attributesAfter, undone, redone);
+    }
     return out;
 }
 
@@ -557,6 +589,9 @@ void FilterSmokeTests::runsOrRefuses()
         if (a.success) {
             m_ladderReport << QStringLiteral("%1\t%2").arg(fixtureName(f), filterId);
             ++m_ran;
+            QVERIFY2(a.undoError.isEmpty(),
+                     qPrintable(QStringLiteral("%1 on the '%2' fixture: %3")
+                                    .arg(filterId, fixtureName(f), a.undoError)));
             // A filter listed as un-runnable that now runs means the table is stale.
             QVERIFY2(!expectedRefusals().contains(filterId),
                      qPrintable(QStringLiteral("%1 is listed in kExpectedRefusals (\"%2\") but "

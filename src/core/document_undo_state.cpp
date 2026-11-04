@@ -39,11 +39,12 @@ UndoState Document::captureUndoState() const
         snap.pluginData         = entry->pluginData;
 
         // Attempt to reuse an already-interned geometry object.
-        // Key: (meshId, geometryRevision, selectionRevision) — the full content
-        // identity. As long as those revisions haven't changed since the last
+        // Key: (meshId, geometryRevision, selectionRevision, materialRevision) — the full
+        // content identity. As long as those revisions haven't changed since the last
         // capture, every subsequent checkpoint shares the same VCGMesh allocation
-        // — zero extra deep-copy cost for actions that touch neither.
-        const auto key = std::make_tuple(entry->meshId, entry->geometryRevision, entry->selectionRevision);
+        // — zero extra deep-copy cost for actions that touch none of them.
+        const auto key = std::make_tuple(entry->meshId, entry->geometryRevision,
+                                         entry->selectionRevision, entry->materialRevision);
         auto it = m_undoManager->geometryCache().find(key);
         if (it != m_undoManager->geometryCache().end())
             snap.geometry = it->second.lock(); // null if all checkpoints were evicted
@@ -111,7 +112,8 @@ void Document::restoreUndoState(const UndoState &state)
     // pruned nodes.
     for (const auto &snap : state.meshes) {
         auto it = m_undoManager->geometryCache().lower_bound(
-            std::make_tuple(snap.meshId, snap.geometryRevision, snap.selectionRevision + 1));
+            std::make_tuple(snap.meshId, snap.geometryRevision, snap.selectionRevision,
+                            snap.materialRevision + 1));
         while (it != m_undoManager->geometryCache().end() && std::get<0>(it->first) == snap.meshId)
             it = m_undoManager->geometryCache().erase(it);
     }

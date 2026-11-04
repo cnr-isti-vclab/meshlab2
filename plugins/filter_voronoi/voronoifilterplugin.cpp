@@ -145,6 +145,15 @@ void ensureVoronoiBaseAttributes(VCGMesh &mesh)
         std::string("area"));
 }
 
+// The names vcglib's Voronoi functions pass state to one another by, geod being the geodesic
+// visit's mailbox. None is a result: sources holds pointers into this very vertex array and
+// area is zero unless the relaxation was restricted, so they go once the diagram is built.
+void removeVoronoiAttributes(VCGMesh &mesh)
+{
+    for (const char *name : {"sources", "fixed", "area", "geod"})
+        vcg::tri::Allocator<VCGMesh>::DeletePerVertexAttribute(mesh, name);
+}
+
 MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc)
 {
     const int meshIndex = doc.currentMeshIndex();
@@ -310,6 +319,7 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
             voronoiPoly,
             seedVertices,
             vpp);
+        removeVoronoiAttributes(mesh);
 
         vcg::tri::UpdateSelection<VCGMesh>::VertexClear(mesh);
         for (VCGMesh::VertexPointer seed : seedVertices) {

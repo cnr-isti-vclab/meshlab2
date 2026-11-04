@@ -12,7 +12,6 @@
 #include <vcg/complex/algorithms/harmonic.h>
 #include <vcg/complex/algorithms/smooth.h>
 #include <vcg/complex/algorithms/update/bounding.h>
-#include <vcg/complex/algorithms/update/color.h>
 #include <vcg/complex/algorithms/update/flag.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/algorithms/update/selection.h>
@@ -581,11 +580,6 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
             vi->Q() = handle[vi];
         }
         entry.ioMask |= Mask::IOM_VERTQUALITY;
-        if (params.getBool(QStringLiteral("colorize"))) {
-            vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh);
-            entry.ioMask |= Mask::IOM_VERTCOLOR;
-            markMaterial(QObject::tr("Computed harmonic field colors for '%1'.").arg(meshName(entry, meshIndex)));
-        }
         markGeometry(QObject::tr("Computed scalar harmonic field for '%1'.").arg(meshName(entry, meshIndex)));
         doc.finishFilterProgress(true, QObject::tr("Done."));
         MeshFilterRunResult result = successResult();

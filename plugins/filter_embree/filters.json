@@ -160,7 +160,8 @@
       ],
       "outputModifies": [
         "FQ",
-        "VQ"
+        "VQ",
+        "FA"
       ]
     },
     {
@@ -259,7 +260,8 @@
         }
       ],
       "outputModifies": [
-        "VQ"
+        "VQ",
+        "VA"
       ]
     },
     {

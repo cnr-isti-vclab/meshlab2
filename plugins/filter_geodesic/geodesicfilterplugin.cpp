@@ -65,6 +65,13 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
     using Mask = vcg::tri::io::Mask;
     VCGMesh &mesh = doc.mesh(meshIndex).mesh;
     const QString &meshName = doc.mesh(meshIndex).name;
+    // Geodesic::Visit keeps its mailbox in the per-vertex attribute geod, so that a second
+    // visit skips a linear reset. No filter here visits twice and it is no result of theirs,
+    // so it goes on every way out.
+    struct DropGeodesicMailbox {
+        VCGMesh &mesh;
+        ~DropGeodesicMailbox() { vcg::tri::Allocator<VCGMesh>::DeletePerVertexAttribute(mesh, "geod"); }
+    } dropMailbox{mesh};
 
     if (filterId == QString::fromLatin1(kFilterBorderGeodesic)) {
         const bool hasBorder = vcg::tri::Geodesic<VCGMesh>::DistanceFromBorder(mesh);

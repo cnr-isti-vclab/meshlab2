@@ -421,8 +421,8 @@ public:
     void refreshMeshPolygonFaceCount(int index, bool fauxEdgesModified = false);
     void markMeshMaterialChanged(int index, const QString &contextMessage = {});
     // Selection is stored in per-vertex/per-face BitFlags, which are captured by the
-    // undo geometry snapshot.  Changes to selection must therefore bump geometryRevision
-    // so the undo cache produces a fresh deep-copy for the "after" checkpoint.
+    // undo geometry snapshot.  Changes to selection must therefore bump selectionRevision,
+    // part of the undo cache key, so the "after" checkpoint gets a fresh deep copy.
     void markMeshSelectionChanged(int index, const QString &contextMessage = {});
     MeshAttributeDelta captureAttributeDelta(int meshIndex, std::uint32_t kinds) const;
     void applyAttributeDelta(const MeshAttributeDelta &delta);

@@ -1124,7 +1124,7 @@
       "name": "Select Outliers",
       "pythonName": "select_outliers",
       "shortDescription": "Select outlier vertices using LoOP.",
-      "longDescriptionMarkdown": "Select the vertex classified as outlier using the Local Outlier Probability (LoOP) measure of Kriegel et al.",
+      "longDescriptionMarkdown": "Select the vertex classified as outlier using the Local Outlier Probability (LoOP) measure of Kriegel et al. The probability of each vertex, from 0 to 1, is kept in the per-vertex custom attribute `outlierScore` (float), so that another threshold can be applied by an expression without recomputing it.",
       "tags": [
         "selection",
         "outlier",
@@ -1160,7 +1160,8 @@
         }
       ],
       "outputModifies": [
-        "VS"
+        "VS",
+        "VA"
       ]
     },
     {

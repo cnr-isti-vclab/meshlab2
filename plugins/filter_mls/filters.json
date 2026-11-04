@@ -664,7 +664,7 @@
       "name": "Estimate Radius from Density",
       "pythonName": "estimate_radius_from_density",
       "shortDescription": "Estimate local point spacing for each vertex.",
-      "longDescriptionMarkdown": "Estimate the local point spacing (aka radius) around each vertex using a basic estimate of the local density.",
+      "longDescriptionMarkdown": "Estimate the local point spacing (aka radius) around each vertex using a basic estimate of the local density. The estimate is stored in the per-vertex custom attribute `radius` (float), which the MLS filters read.",
       "tags": [
         "mls",
         "radius",

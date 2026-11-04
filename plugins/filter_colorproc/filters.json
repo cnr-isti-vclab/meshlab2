@@ -465,7 +465,7 @@
       "name": "Compute Curvature (Discrete)",
       "pythonName": "compute_curvature_discrete",
       "shortDescription": "Compute discrete curvature and store it in vertex quality.",
-      "longDescriptionMarkdown": "Compute discrete curvature and store it in vertex quality. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization. It is computed with the discrete operators of Meyer et al.",
+      "longDescriptionMarkdown": "Compute discrete curvature and store it in vertex quality. Whatever the chosen type, the mean and the Gaussian curvature are also kept in the per-vertex custom attributes `KH` and `KG` (float), for expressions and scripts. Vertex normals are recomputed from the faces. The filter does not bake colors; after it runs MeshLab switches the view to vertex-quality color visualization. It is computed with the discrete operators of Meyer et al.",
       "tags": ["curvature", "quality", "vertex", "bibliography"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
@@ -490,7 +490,7 @@
           ]
         }
       ],
-      "outputModifies": ["VQ"]
+      "outputModifies": ["VQ", "VN", "VA"]
     },
     {
       "id": "compute_face_scalar_from_geometry",

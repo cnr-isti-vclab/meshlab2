@@ -1009,7 +1009,7 @@
       "name": "Compute Harmonic Scalar Field",
       "pythonName": "compute_harmonic_scalar_field",
       "shortDescription": "Compute a harmonic scalar field over the mesh.",
-      "longDescriptionMarkdown": "Generates a scalar harmonic field over the mesh. Input scalar values must be assigned to two vertices as Dirichlet boundary conditions. Applying the filter, a discrete Laplace operator generates the harmonic field values for all the mesh vertices, which are stored in the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex attribute</a> of the mesh.",
+      "longDescriptionMarkdown": "Generates a scalar harmonic field over the mesh. Input scalar values must be assigned to two vertices as Dirichlet boundary conditions. Applying the filter, a discrete Laplace operator generates the harmonic field values for all the mesh vertices, which are stored in the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex attribute</a> of the mesh, and also in the per-vertex custom attribute `harmonic` (float), which keeps the field when a later filter overwrites the scalar.",
       "tags": [
         "smoothing",
         "harmonic",
@@ -1070,18 +1070,11 @@
           "min": 0.0,
           "max": 1.0,
           "decimals": 6
-        },
-        {
-          "id": "colorize",
-          "label": "Also Bake To Color",
-          "help": "Also write a per-vertex color ramp after computing the harmonic field. Disabled by default because MeshLab automatically switches to vertex-quality visualization.",
-          "group": "advanced",
-          "type": "bool",
-          "default": false
         }
       ],
       "outputModifies": [
-        "VQ"
+        "VQ",
+        "VA"
       ],
       "inputPrepare": [
         "FF",
