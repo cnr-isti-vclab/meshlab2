@@ -213,12 +213,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
     // retain deleted elements in storage.
     compactMeshStorageInvariant(entry->mesh);
     vcg::tri::UpdateBounding<VCGMesh>::Box(entry->mesh);
-    const bool hasImportedVertexNormals = (loadMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
-    if (!hasImportedVertexNormals && entry->mesh.FN() > 0) {
-        // Preserve imported vertex normals exactly as provided by the file.
-        // Generate smooth normals only when they are missing.
-        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(entry->mesh);
-    }
+    computeMissingNormals(entry->mesh, loadMask);
     entry->ioMask = loadMask;
     entry->meshId = m_nextMeshId++;
     entry->geometryRevision = m_nextGeometryRevision++;
@@ -454,12 +449,7 @@ int Document::reloadMesh(int index)
     // retain deleted elements in storage.
     compactMeshStorageInvariant(reloadedMesh);
     vcg::tri::UpdateBounding<VCGMesh>::Box(reloadedMesh);
-    const bool hasImportedVertexNormals = (loadMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
-    if (!hasImportedVertexNormals && reloadedMesh.FN() > 0) {
-        // Preserve imported vertex normals exactly as provided by the file.
-        // Generate smooth normals only when they are missing.
-        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(reloadedMesh);
-    }
+    computeMissingNormals(reloadedMesh, loadMask);
 
     QStringList declaredTextureNames;
     QStringList resolvedTexturePaths;

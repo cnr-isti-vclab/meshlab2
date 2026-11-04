@@ -375,6 +375,20 @@ void compactMeshStorageInvariant(VCGMesh &mesh)
     vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
 }
 
+// Framework invariant: every mesh entering the document from IO has valid face normals.
+// Imported vertex normals are kept exactly as the file gives them and smooth ones are
+// generated only when missing; face normals are computed whenever the file has none,
+// since filters, closest-point queries and the Python API read them without asking.
+void computeMissingNormals(VCGMesh &mesh, int loadMask)
+{
+    if (mesh.FN() == 0)
+        return;
+    if (!(loadMask & vcg::tri::io::Mask::IOM_VERTNORMAL))
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+    else if (!(loadMask & vcg::tri::io::Mask::IOM_FACENORMAL))
+        vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
+}
+
 void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &dst)
 {
     dst.meshId = src.meshId;

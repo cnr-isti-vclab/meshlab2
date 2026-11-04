@@ -135,6 +135,9 @@ QString buildLoopSurface(const VCGMesh &poly, const QMatrix4x4 &toSurface, VCGMe
 
     // 3. Their gradients: the surface normal there, or across the loop, in the surface and
     //    perpendicular to it. Their orientation only has to be consistent along the loop.
+    // The closest-point query reads face normals; a filter run on the surface since
+    // loading may have left them stale, and preparation reaches only the polyline.
+    vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(surface);
     vcg::GridStaticPtr<VCGFace, float> grid;
     grid.Set(surface.face.begin(), surface.face.end());
     std::vector<vcg::Point3d> normals;

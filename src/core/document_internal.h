@@ -118,6 +118,7 @@ QString rasterEntryDisplayName(const Document::RasterEntry &entry, int fallbackI
 void normalizeRasterEntry(Document::RasterEntry &entry, int fallbackIndex);
 bool meshNeedsCompaction(const VCGMesh &mesh);
 void compactMeshStorageInvariant(VCGMesh &mesh);
+void computeMissingNormals(VCGMesh &mesh, int loadMask);
 void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &dst);
 void deepCopyMesh(const VCGMesh &src, VCGMesh &dst);
 

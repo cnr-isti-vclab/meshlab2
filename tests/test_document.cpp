@@ -72,6 +72,7 @@ private slots:
     void layerDataKeyMustBeNamespaced();
     void layerDataIsCountedInTheMemoryReport();
     void loadMeshAddsLayerAndEmitsSignal();
+    void loadComputesFaceNormalsAndKeepsImportedVertexNormals();
     void planarPolygonTessellationHandlesConcavity();
     void planarContoursTessellateToConstrainedDelaunayOnRequest();
     void planarRefinementReachesTheMinimumAngle();
@@ -1013,6 +1014,37 @@ void DocumentTests::loadMeshAddsLayerAndEmitsSignal()
     QVERIFY(!log.empty());
 }
 
+void DocumentTests::loadComputesFaceNormalsAndKeepsImportedVertexNormals()
+{
+    // A file with vertex normals and no face normals used to leave the face normals as
+    // whatever the memory held; filters, closest-point queries and Python read them.
+    // The vertex normals here are deliberately not the geometric ones: they must survive.
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("tilted_normals.ply"));
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+    file.write("ply\nformat ascii 1.0\n"
+               "element vertex 4\nproperty float x\nproperty float y\nproperty float z\n"
+               "property float nx\nproperty float ny\nproperty float nz\n"
+               "element face 2\nproperty list uchar int vertex_indices\nend_header\n"
+               "0 0 0 1 0 0\n2 0 0 1 0 0\n0 2 0 1 0 0\n0 0 2 1 0 0\n"
+               "3 0 1 2\n3 0 3 1\n");
+    file.close();
+
+    Document doc;
+    QCOMPARE(doc.loadMesh(path), 0);
+    for (int pass = 0; pass < 2; ++pass) {
+        const VCGMesh &mesh = doc.mesh(0).mesh;
+        for (const auto &v : mesh.vert)
+            QCOMPARE(v.cN(), vcg::Point3f(1, 0, 0));
+        QCOMPARE(mesh.face[0].cN(), vcg::Point3f(0, 0, 1));
+        QCOMPARE(mesh.face[1].cN(), vcg::Point3f(0, 1, 0));
+        if (pass == 0)
+            QCOMPARE(doc.reloadMesh(0), 0);
+    }
+}
+
 void DocumentTests::planarPolygonTessellationHandlesConcavity()
 {
     const std::vector<std::vector<vcg::Point3d>> polygons = {
@@ -1388,13 +1420,21 @@ void DocumentTests::fileDialogsRememberWhereYouWere()
     QVERIFY(other.isValid());
 
     // QSettings is process-wide, so give this test its own application name and put it back
-    // afterwards rather than trampling whatever the rest of the suite relies on.
+    // afterwards rather than trampling whatever the rest of the suite relies on. Its own
+    // organization too: on macOS a missing key falls back to the organization's settings,
+    // and the case-insensitive file system maps that onto the live app's own plist.
     const QString savedApp = QCoreApplication::applicationName();
+    const QString savedOrganization = QCoreApplication::organizationName();
+    const QString savedDomain = QCoreApplication::organizationDomain();
+    QCoreApplication::setOrganizationName(QStringLiteral("MeshLab2Test"));
+    QCoreApplication::setOrganizationDomain(QStringLiteral("test.meshlab.net"));
     QCoreApplication::setApplicationName(QStringLiteral("MeshLabFileDialogDirectoryTest"));
     const auto restore = qScopeGuard([&] {
         QSettings settings;
         settings.clear();
         QCoreApplication::setApplicationName(savedApp);
+        QCoreApplication::setOrganizationDomain(savedDomain);
+        QCoreApplication::setOrganizationName(savedOrganization);
     });
     { QSettings settings; settings.clear(); }
 

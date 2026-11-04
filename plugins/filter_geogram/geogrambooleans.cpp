@@ -63,6 +63,9 @@ public:
         , m_inverse(entry.transform.inverted())
         , m_maxDist(m_mesh.bbox.Diag())
     {
+        // The closest-point query and the barycentrics below read face normals, and a
+        // filter run since loading may have left this operand's stale.
+        vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(m_mesh);
         m_grid.Set(m_mesh.face.begin(), m_mesh.face.end());
     }
 
