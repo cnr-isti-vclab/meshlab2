@@ -11,6 +11,7 @@
 #include "clipplane.h"
 #include "renderoverlaypanel.h"
 #include "viewaxisgizmo.h"
+#include "lightgizmo.h"
 #include "viewgridlayout.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/algorithms/clean.h>
@@ -1903,6 +1904,7 @@ void RenderWidget::createOverlayButtons()
     connect(m_axisGizmo, &ViewAxisGizmo::orbitBegan, this, &RenderWidget::beginGizmoOrbit);
     connect(m_axisGizmo, &ViewAxisGizmo::orbitMoved, this, &RenderWidget::updateGizmoOrbit);
     connect(m_axisGizmo, &ViewAxisGizmo::orbitEnded, this, &RenderWidget::endGizmoOrbit);
+    m_lightGizmo = new LightGizmo(this);
     auto makeCornerLabel = [this](const QColor &textColor) {
         auto *label = new QLabel(this);
         label->setVisible(false);
@@ -2512,6 +2514,10 @@ void RenderWidget::layoutOverlayButtons()
     // The gizmo takes the top-right corner, so everything else on that side
     // starts below it rather than underneath it.
     int rightColumnTop = kOverlayMargin;
+    // Bottom left, clear of the tool strip in the bottom centre.
+    if (m_lightGizmo)
+        m_lightGizmo->move(kOverlayMargin, height() - m_lightGizmo->height() - kOverlayMargin);
+
     if (m_axisGizmo) {
         // Position on the intended visibility, not isVisible(): before the view
         // is first shown isVisible() is still false, so gating on it left the
@@ -2535,6 +2541,12 @@ void RenderWidget::layoutOverlayButtons()
     }
     layoutUvTextureGroupUi();
     updateTileOverlays();
+}
+
+void RenderWidget::showLightGizmo()
+{
+    m_lightGizmo->setLight(m_lightRotation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f)),
+                           renderModeForMesh(m_doc ? m_doc->currentMeshIndex() : -1).fillBackLighting);
 }
 
 // The gizmo drag is fed through the same ViewTrackball arcball as a viewport
@@ -3853,6 +3865,7 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
         && (e->modifiers() & Qt::ControlModifier)) {
         m_lightDragActive = true;
         m_lightDragLastPos = e->position();
+        showLightGizmo();
         showInteractionStatusOverlay(tr("Rotating light — Ctrl+Shift+drag"));
         e->accept();
         return;
@@ -3986,6 +3999,7 @@ void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
     }
     if (m_lightDragActive && e && e->buttons() == Qt::NoButton) {
         m_lightDragActive = false;
+        m_lightGizmo->fadeOut();
         update();
     }
     if (m_clipPlaneDragActive && e && e->buttons() == Qt::NoButton) {
@@ -4068,13 +4082,16 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
                 const float r = float(qMin(qMax(1, width()), qMax(1, height()))) * 0.5f;
                 const float dx = float(delta.x()) / r;
                 const float dy = float(delta.y()) / r;
-                // Rotation axis is perpendicular to delta, in view space
-                QVector3D axis(-dy, dx, 0.0f);
+                // Rotation axis is perpendicular to delta, in view space (y up, so the pixel
+                // dy changes sign): the light follows the cursor, as the trackball turns the
+                // model under it.
+                QVector3D axis(dy, dx, 0.0f);
                 const float angle = axis.length() * 90.0f; // degrees
                 if (angle > 1e-5f) {
                     axis.normalize();
                     const QQuaternion delta3d = QQuaternion::fromAxisAndAngle(axis, angle);
                     m_lightRotation = (delta3d * m_lightRotation).normalized();
+                    showLightGizmo();
                     update();
                 }
             }

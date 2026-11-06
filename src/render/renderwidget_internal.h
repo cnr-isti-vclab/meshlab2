@@ -96,8 +96,6 @@ inline constexpr int kDecoratorSlotCount = 8;
 inline constexpr int kGridUbufSize = 192; // mat4 mvp + eight vec4: two axes, centre+radius, levels, two axis colours, strengths+axis width, line colour
 inline constexpr int kTrackballGizmoUbufSize = 96; // mat4 mvp + vec4(center.xyz, radius) + vec4(camera.xyz, backShade)
 inline constexpr int kTrackballGizmoSteps = 96;
-inline constexpr int kLightGizmoUbufSize = 96;  // mat4 mvp + vec4 lightDir + vec4 params
-inline constexpr int kLightGizmoSteps = 64;
 inline constexpr float kPi = 3.14159265358979323846f;
 inline constexpr float kImageViewMinZoom = 0.05f;
 inline constexpr float kImageViewMaxZoom = 5000.0f;
@@ -505,52 +503,6 @@ inline std::vector<float> buildTrackballGizmoVertices()
 inline const std::vector<float> &trackballGizmoVertices()
 {
     static const std::vector<float> kVerts = buildTrackballGizmoVertices();
-    return kVerts;
-}
-
-// Light gizmo geometry: rim circle + radial arrow toward projected light position.
-// Vertex format: [x, y, z, r, g, b]  (Lines topology, 2 verts per segment)
-//   z == 0 : rim circle, (x,y) on the unit circle
-//   z == 1 : arrow, x = perpendicular offset, y = scale along L2 (0 = center, 1 = tip)
-//            The shader multiplies y by L2 (= lightDir.xy, not normalised), so the
-//            tip lands at the projected light position inside the rim circle.
-inline std::vector<float> buildLightGizmoVertices()
-{
-    std::vector<float> v;
-    const int N = kLightGizmoSteps;
-    v.reserve((N + 4) * 2 * 6);
-
-    auto append = [&v](const QVector3D &p, const QVector3D &c) {
-        v.push_back(p.x()); v.push_back(p.y()); v.push_back(p.z());
-        v.push_back(c.x()); v.push_back(c.y()); v.push_back(c.z());
-    };
-
-    // Rim circle (z = 0)
-    const QVector3D rimColor(1.0f, 0.85f, 0.1f);
-    for (int i = 0; i < N; ++i) {
-        const float t0 = float(i)     * 2.0f * kPi / float(N);
-        const float t1 = float(i + 1) * 2.0f * kPi / float(N);
-        append(QVector3D(std::cos(t0), std::sin(t0), 0.0f), rimColor);
-        append(QVector3D(std::cos(t1), std::sin(t1), 0.0f), rimColor);
-    }
-
-    // Arrow shaft: from center (y=0) to tip (y=1) along L2  (z = 1)
-    const QVector3D arrowColor(1.0f, 0.5f, 0.0f);
-    append(QVector3D(0.0f,  0.0f, 1.0f), arrowColor);   // centre of circle
-    append(QVector3D(0.0f,  1.0f, 1.0f), arrowColor);   // projected light position
-
-    // Arrowhead wings: perp offsets at y=0.75 toward the tip
-    append(QVector3D(0.0f, 1.0f, 1.0f), arrowColor);
-    append(QVector3D(-0.2f, 0.75f, 1.0f), arrowColor);
-    append(QVector3D(0.0f, 1.0f, 1.0f), arrowColor);
-    append(QVector3D( 0.2f, 0.75f, 1.0f), arrowColor);
-
-    return v;
-}
-
-inline const std::vector<float> &lightGizmoVertices()
-{
-    static const std::vector<float> kVerts = buildLightGizmoVertices();
     return kVerts;
 }
 

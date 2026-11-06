@@ -564,36 +564,6 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             gizmoData);
     }
 
-    // Light gizmo UBO (always update so light dir is current)
-    if (m_lightGizmoUbuf && m_lightGizmoVbuf) {
-        if (!u)
-            u = m_rhi->nextResourceUpdateBatch();
-        // Upload vertex data once (dynamic buffer, upload every frame is fine)
-        const auto &lgVerts = lightGizmoVertices();
-        u->updateDynamicBuffer(
-            m_lightGizmoVbuf.get(),
-            0,
-            int(lgVerts.size() * sizeof(float)),
-            lgVerts.data());
-
-        const QVector3D lightDir = m_lightRotation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f));
-        // UBO layout: mat4 (64 bytes unused/padding) + vec4 lightDir + vec4 params
-        float lgData[kLightGizmoUbufSize / sizeof(float)] = {};
-        // [0..15] = padding (mat4 not used by this shader but keeps struct aligned)
-        lgData[16] = lightDir.x();
-        lgData[17] = lightDir.y();
-        lgData[18] = lightDir.z();
-        lgData[19] = 0.0f;
-        // params: x=radius(NDC), y=anchor NDC X, z=anchor NDC Y, w=aspect(w/h)
-        const float gizmoR = 0.12f;
-        const float anchorX = -1.0f + gizmoR * 1.5f;
-        const float anchorY = -1.0f + gizmoR * 1.5f * (float(sz.width()) / float(qMax(1, sz.height())));
-        lgData[20] = gizmoR;
-        lgData[21] = anchorX;
-        lgData[22] = anchorY;
-        lgData[23] = float(sz.width()) / float(qMax(1, sz.height())); // aspect w/h
-        u->updateDynamicBuffer(m_lightGizmoUbuf.get(), 0, kLightGizmoUbufSize, lgData);
-    }
     const QVector3D frameLightDir =
         m_lightRotation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f));
     const bool depthPickPendingAtFrameStart = m_depthPickPending;
@@ -672,8 +642,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         anySceneDrawItems
         || drawCurrentMeshHighlight
         || drawTrackballGizmo
-        || depthPickPendingAtFrameStart
-        || m_lightDragActive;
+        || depthPickPendingAtFrameStart;
 
     renderRadianceScalingPrepass(cb, tilePlans);
 
@@ -776,16 +745,6 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         const QRhiCommandBuffer::VertexInput gv(m_trackballGizmoVbuf.get(), 0);
         cb->setVertexInput(0, 1, &gv);
         cb->draw(m_trackballGizmoVertexCount);
-    }
-
-    // Draw light gizmo during drag (and always when light is non-default, but at minimum during drag)
-    if (m_lightDragActive && m_lightGizmoPipeline && m_lightGizmoVbuf && m_lightGizmoSrb) {
-        cb->setGraphicsPipeline(m_lightGizmoPipeline.get());
-        cb->setShaderResources(m_lightGizmoSrb.get());
-        cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
-        const QRhiCommandBuffer::VertexInput lgv(m_lightGizmoVbuf.get(), 0);
-        cb->setVertexInput(0, 1, &lgv);
-        cb->draw(m_lightGizmoVertexCount);
     }
 
     if (!rasterMode && drawCurrentMeshHighlight)

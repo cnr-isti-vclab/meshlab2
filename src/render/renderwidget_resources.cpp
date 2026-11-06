@@ -682,11 +682,6 @@ void RenderWidget::ensureRenderResources()
         m_trackballGizmoSrb.reset();
         m_trackballGizmoPipeline.reset();
         m_trackballGizmoVertexCount = 0;
-        m_lightGizmoUbuf.reset();
-        m_lightGizmoVbuf.reset();
-        m_lightGizmoSrb.reset();
-        m_lightGizmoPipeline.reset();
-        m_lightGizmoVertexCount = 0;
         m_rsGradPointsPipeline.reset();
         m_rsGradPipeline.reset();
         m_rsGradSrb.reset();
@@ -2500,82 +2495,6 @@ void RenderWidget::ensureRenderResources()
             if (!m_trackballGizmoPipeline->create()) {
                 qWarning("Failed to create trackball gizmo pipeline");
                 m_trackballGizmoPipeline.reset();
-            }
-        }
-    }
-
-    // Light gizmo resources (always created; drawn only during light drag)
-    if (!m_lightGizmoUbuf) {
-        m_lightGizmoUbuf.reset(
-            m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kLightGizmoUbufSize));
-        if (!m_lightGizmoUbuf || !m_lightGizmoUbuf->create())
-            m_lightGizmoUbuf.reset();
-    }
-
-    if (!m_lightGizmoVbuf) {
-        const auto &verts = lightGizmoVertices();
-        m_lightGizmoVbuf.reset(
-            m_rhi->newBuffer(
-                QRhiBuffer::Dynamic,
-                QRhiBuffer::VertexBuffer,
-                static_cast<quint32>(verts.size() * sizeof(float))));
-        if (!m_lightGizmoVbuf || !m_lightGizmoVbuf->create()) {
-            m_lightGizmoVbuf.reset();
-            m_lightGizmoVertexCount = 0;
-        } else {
-            m_lightGizmoVertexCount = int(verts.size() / 6);
-        }
-    }
-
-    if (!m_lightGizmoSrb && m_lightGizmoUbuf) {
-        m_lightGizmoSrb.reset(m_rhi->newShaderResourceBindings());
-        m_lightGizmoSrb->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(
-                0,
-                QRhiShaderResourceBinding::VertexStage,
-                m_lightGizmoUbuf.get())
-        });
-        if (!m_lightGizmoSrb->create())
-            m_lightGizmoSrb.reset();
-    }
-
-    if (!m_lightGizmoPipeline && m_lightGizmoSrb) {
-        m_lightGizmoPipeline.reset(m_rhi->newGraphicsPipeline());
-        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_light_gizmo.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_light_gizmo.frag.qsb"));
-        if (!vs.isValid() || !fs.isValid()) {
-            qWarning("Failed to load light gizmo shaders");
-            m_lightGizmoPipeline.reset();
-        } else {
-            m_lightGizmoPipeline->setShaderStages({
-                { QRhiShaderStage::Vertex, vs },
-                { QRhiShaderStage::Fragment, fs }
-            });
-            m_lightGizmoPipeline->setTopology(QRhiGraphicsPipeline::Lines);
-            m_lightGizmoPipeline->setDepthTest(false);
-            m_lightGizmoPipeline->setDepthWrite(false);
-            m_lightGizmoPipeline->setCullMode(QRhiGraphicsPipeline::None);
-            QRhiGraphicsPipeline::TargetBlend blend;
-            blend.enable = true;
-            blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
-            blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
-            blend.opColor = QRhiGraphicsPipeline::Add;
-            blend.srcAlpha = QRhiGraphicsPipeline::One;
-            blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
-            blend.opAlpha = QRhiGraphicsPipeline::Add;
-            m_lightGizmoPipeline->setTargetBlends({ blend });
-            QRhiVertexInputLayout layout;
-            layout.setBindings({ { 6 * sizeof(float) } });
-            layout.setAttributes({
-                { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
-                { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) }
-            });
-            m_lightGizmoPipeline->setVertexInputLayout(layout);
-            m_lightGizmoPipeline->setShaderResourceBindings(m_lightGizmoSrb.get());
-            m_lightGizmoPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
-            if (!m_lightGizmoPipeline->create()) {
-                qWarning("Failed to create light gizmo pipeline");
-                m_lightGizmoPipeline.reset();
             }
         }
     }

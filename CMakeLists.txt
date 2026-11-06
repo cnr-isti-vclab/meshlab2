@@ -245,6 +245,7 @@ add_library(MeshLab2Core STATIC
     src/render/clipplane.h src/render/clipplane.cpp
     src/render/viewsplitterlayout.h src/render/viewsplitterlayout.cpp
     src/render/viewaxisgizmo.h src/render/viewaxisgizmo.cpp
+    src/render/lightgizmo.h src/render/lightgizmo.cpp
     src/render/viewtrackball.h src/render/viewtrackball.cpp
 )
 
@@ -532,8 +533,6 @@ qt_add_shaders(MeshLab2 "shaders"
         shaders/overlay_trackball_gizmo.frag
         shaders/grid.vert
         shaders/grid.frag
-        shaders/overlay_light_gizmo.vert
-        shaders/overlay_light_gizmo.frag
         shaders/selection_mask.vert
         shaders/selection_mask.frag
         shaders/depth_pick.vert
