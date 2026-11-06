@@ -1,6 +1,6 @@
 # Texture Consolidation
 
-**Status: Phase 1 implemented, not yet packaged (2026-10-29).** Integrating Liu, Wang, Kim and
+**Status: implemented and packaged (2026-11-06); the upstream pull requests are pending.** Integrating Liu, Wang, Kim and
 Kazhdan, *Texture Consolidation of Generated Multi-View Renderings* (arXiv 2610.36098,
 2026) — code at [hliuw/TextureConsolidation](https://github.com/hliuw/TextureConsolidation)
 — as a second implementation of *Transfer Color from Visible Rasters to Texture*.
@@ -143,6 +143,8 @@ and which to ship is open:
 | Source Smoothing | `--sDiffusion` | 3e-4 | **0.002** | advanced |
 | Flow Smoothness | `--sWeight` | 0.5 | **0.2** generated, 0.1 RGB-D | advanced |
 | Per-level Factor | `--factor` | 0.5 | 0.5 | advanced |
+| Anchor Weight | `--anchorWeight` | 1 | — (added upstream after the paper, `3a27d41`) | advanced |
+| Anchor Decay | `--anchorDecay` | 0.7 | — (same) | advanced |
 | Normalization Extent | `--normalization` | 1e-3 | 1e-3 | advanced |
 | Subdivisions | `--sub` | 1 | one 1-to-4 pass to ~20 K vertices | advanced |
 | Gradient Weight | `TextureDomainStitching --gWeight` | 0.01 | 0.01 | advanced |
@@ -262,20 +264,16 @@ Not needed, because the code already does it: error exit codes in `BackProjectio
 in Misha would also help a packager, since GitHub reports its licence as unknown even
 though every header is BSD-3-Clause. That is the authors' own call.
 
-**Status, 2026-10-29.** Four forks carry the changes, each on its default branch, and
+**Status, 2026-11-06.** Four forks carry the changes, each on its default branch, and
 TextureConsolidation's `.gitmodules` points at the other three:
-
-| Fork | Commits beyond upstream | What they contain |
-|---|---|---|
-| [cignoni/TextureConsolidation](https://github.com/cignoni/TextureConsolidation) (on upstream `557829d`) | `f42e50f`, `3598fe7`, `d52ce2a`, `7ff6379` | integration-only: submodule URLs and gitlinks |
-| | `4efb2e6` | `EIGEN_HAS_STD_RESULT_OF=0` (Eigen 3.3.7 under C++20 and libc++); the stitcher built through the `MK_ERROR_OUT`-to-throw wrapper (change 1: 48 instantiations of `MishaK::ErrorOut` before, none after); the guard against an all-NaN overlap in `TextureRegistration.inl` |
-| | `e5104a9` | advected confidence zeroed outside the atlas; `BackProjection` variance summed in order |
-| [cignoni/Misha](https://github.com/cignoni/Misha) (on `ee14cb8`) | `bcc2065` | `MishaK::Polynomial::NumCoefficients<…>` qualified, which Apple clang 21 needs. Misha PR #7 does not contain it |
-| | `b8199a8` | nearest-simplex ties broken by index (`Texels.inl`) |
-| [cignoni/TextureSignalProcessing](https://github.com/cignoni/TextureSignalProcessing) (on `daa6f7b`) | `b7d2d65` | the clipping guard (`PolygonClipping.h`) |
-| | `8c6f35a` | scheduling-independent hierarchy, operators, quadrature and components. *Its message says "bit depth"; the content is this* |
-| | `baa775b` | `TextureStitching.cpp` and `ImageIO.h`: the bit-depth refactor, the cell-confidence padding fix and the ordered scatter, together |
-| [cignoni/PhongRodriguesVF](https://github.com/cignoni/PhongRodriguesVF) (on `fa305af`) | `2b96675` | deterministic system assembly and tangent frames. The block-bounded assembly is not committed yet |
+[cignoni/TextureConsolidation](https://github.com/cignoni/TextureConsolidation),
+[cignoni/Misha](https://github.com/cignoni/Misha),
+[cignoni/PhongRodriguesVF](https://github.com/cignoni/PhongRodriguesVF) and
+[cignoni/TextureSignalProcessing](https://github.com/cignoni/TextureSignalProcessing).
+Which commits each carries beyond upstream, and what they contain, is kept in one place,
+[`plugins/filter_texture_consolidation/UPSTREAM.md`](../../../plugins/filter_texture_consolidation/UPSTREAM.md).
+The TextureConsolidation fork has also merged upstream's own later commit `3a27d41`, the
+flow anchoring.
 
 **Upstream does not build on macOS** without the first two fixes (its README claims Ubuntu
 with GCC 13, and MSVC): Eigen's `std::result_of`, and Misha's `Polynomial.h:105`, where
@@ -290,9 +288,9 @@ submodule returns to `hliuw/TextureConsolidation`.
 **How this fits the third-party rule.** The submodule would point at the fork while the
 pull requests are open, and back at upstream once they merge; that is a URL change in
 `.gitmodules`. MeshLab's tree still carries no patch, so it is still the "pinned,
-unmodified submodule" case. `UPSTREAM.md` and `external/README.md` must say that it is a
-fork, which commits it carries beyond upstream, and that the goal is to have none. A fork
-that stops being proposed upstream would become a vendored tree in all but name.
+unmodified submodule" case. `UPSTREAM.md` and `external/README.md` say that it is a fork,
+which commits it carries beyond upstream, and that the goal is to have none. A fork that
+stops being proposed upstream would become a vendored tree in all but name.
 
 ## Phases
 
@@ -311,11 +309,12 @@ tests above.
 workflows, `libomp` on macOS, the About entry, `UPSTREAM.md`, and the `external/README.md`
 paragraph saying why it is a submodule and not a port.
 
-**Possibly later:** the paper's drift mitigation (registering to a *stationary* coarse
-texture, Fig. 15b), if the programs expose it — the README lists no such option; and lens
-undistortion, so that distorted rasters can be used instead of refused.
+**Possibly later:** lens undistortion, so that distorted rasters can be used instead of
+refused. The other item once here, the paper's drift mitigation (Fig. 15b), arrived
+upstream as `TextureFlow --anchorWeight` and `--anchorDecay` (`3a27d41`), on by default and
+exposed as *Anchor Weight* and *Anchor Decay*.
 
-## Status, 2026-10-29 (Phase 1 done; Phase 2 not started)
+## Status, 2026-11-06 (Phases 0–2 done)
 
 **Phase 0.** The authors' vase example (`texture_consolidation_vase` in
 `tests/datasets/datasets.json`, licence unresolved, not used in CI) runs end to end
@@ -352,10 +351,11 @@ Tests, all on the gargoyle raster fixture:
   `Shot::Project` on every visible vertex within 0.05 px, gives the same pixel index as
   MeshLab's raster sampling, and is unchanged by world scale;
 - `textureConsolidationBuildsTextureFromRasters`: xatlas atlas, then 1024² at 3 levels; a
-  1024×1024 texture is attached and covers more than 20% of it (99.8% since the fixes).
-  The whole filter then runs again and must give the same pixels. Also asserts the
-  refusals for no atlas and for fewer than two rasters. The 20% threshold no longer
-  separates a good texture from a black one, and should be raised;
+  1024×1024 texture is attached, more than 90% of its texels colored and fewer than 1%
+  pure red (99.8%, and 3 texels, in practice). The thresholds are set against the two old
+  failures: black charts, where the padding alone came to 29%, and charts filled red. The
+  whole filter then runs again and must give the same pixels. Also asserts the refusals
+  for no atlas and for fewer than two rasters;
 - the smoke tier lists the filter in `expectedRefusals()`: no rung has both a real atlas
   and rasters.
 
@@ -439,15 +439,13 @@ stays off: `--jitter 0` seeds from the clock.
 
 **Not done:**
 
-- committing the block-bounded assembly in PhongRodriguesVF;
 - splitting TextureSignalProcessing's commits into separable pull requests, and the pull
   requests themselves, to `hliuw/TextureConsolidation`, `mkazhdan/Misha`,
   `mkazhdan/TextureSignalProcessing` and `mkazhdan/PhongRodriguesVF`;
-- bundling the helpers into the three packages (Phase 2), with `libomp` on macOS, and the
-  plugin back on in the DMG;
-- `UPSTREAM.md` for the plugin and the `external/README.md` paragraph;
-- a coverage test that measures the charts rather than the whole image;
-- running the vase through the filter itself, and the seam-discrepancy comparison test.
+- shipping the licence notices of Misha, PhongRodriguesVF and TextureSignalProcessing
+  with the helpers: the packages carry only TextureConsolidation's (see `UPSTREAM.md`);
+- running the vase through the filter itself, and the seam-discrepancy comparison test;
+- a licence for the vase dataset, which would make it a CI fixture of real photographs.
 
 **For the authors:** the three memory errors and the scheduling-dependent paths above,
 each with its fix on the forks; the compile cost and the bit-depth refactor; and, from

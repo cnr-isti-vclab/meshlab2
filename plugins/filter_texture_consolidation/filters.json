@@ -192,6 +192,28 @@
           "decimals": 3
         },
         {
+          "id": "anchorWeight",
+          "label": "Anchor Weight",
+          "help": "Weight of the term that ties each registered texture to the blend of the unregistered ones, so that the consolidated texture does not drift away from where the rasters put it. Higher values keep the textures closer to their original places, possibly at the cost of a weaker registration; 0 turns the anchoring off.",
+          "group": "advanced",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 100.0,
+          "decimals": 3
+        },
+        {
+          "id": "anchorDecay",
+          "label": "Anchor Decay",
+          "help": "Factor applied to the anchor weight from one level to the next, coarse to fine. Lower values loosen the anchoring at the finer levels, where the fine detail is registered.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.7,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 3
+        },
+        {
           "id": "normalizationExtent",
           "label": "Normalization Extent",
           "help": "Extent of the local mean and scale used to normalize each view's colors before the flow.",

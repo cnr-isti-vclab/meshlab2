@@ -6917,18 +6917,25 @@ void FilterTests::textureConsolidationBuildsTextureFromRasters()
     QCOMPARE(entry.textureAssets.front().name, QStringLiteral("consolidated.png"));
     QVERIFY(entry.textureAssets.front().sourcePath.isEmpty());
 
-    int colored = 0;
+    // The thresholds are what tells a texture from the two ways the stitcher used to fail:
+    // charts left black, where the grey padding alone came to 29% colored, and charts filled
+    // solid red. A good run colors 99.8% of the texels and leaves a handful red.
+    int colored = 0, red = 0;
     for (int y = 0; y < texture.height(); ++y) {
         for (int x = 0; x < texture.width(); ++x) {
             const QRgb c = texture.pixel(x, y);
             if (qRed(c) + qGreen(c) + qBlue(c) > 30)
                 ++colored;
+            if (qRed(c) > 200 && qGreen(c) < 30 && qBlue(c) < 30)
+                ++red;
         }
     }
-    const double coverage = double(colored) / double(texture.width() * texture.height());
-    qDebug("texture consolidation on the gargoyle: %.1f%% of texels colored | %s", 100.0 * coverage,
-           qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
-    QVERIFY2(coverage > 0.2, qPrintable(QStringLiteral("only %1% of the texture is colored").arg(100.0 * coverage)));
+    const double texels = double(texture.width() * texture.height());
+    const double coverage = double(colored) / texels;
+    qDebug("texture consolidation on the gargoyle: %.1f%% of texels colored, %d pure red | %s", 100.0 * coverage,
+           red, qPrintable(result.infoMessages.join(QStringLiteral(" | "))));
+    QVERIFY2(coverage > 0.9, qPrintable(QStringLiteral("only %1% of the texture is colored").arg(100.0 * coverage)));
+    QVERIFY2(red < 0.01 * texels, qPrintable(QStringLiteral("%1 texels are pure red").arg(red)));
 
     // Run the same parallel pipeline again. A fixed seed alone cannot catch
     // schedule-dependent texel choices, reductions, or uninitialized confidence.

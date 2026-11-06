@@ -323,6 +323,8 @@ MeshFilterRunResult TextureConsolidationFilterPlugin::runFilter(
         QStringLiteral("--sDiffusion"), QString::number(params.getDouble(QStringLiteral("sourceSmoothing")), 'g', 17),
         QStringLiteral("--sWeight"), QString::number(params.getDouble(QStringLiteral("flowSmoothness")), 'g', 17),
         QStringLiteral("--factor"), QString::number(params.getDouble(QStringLiteral("levelFactor")), 'g', 17),
+        QStringLiteral("--anchorWeight"), QString::number(params.getDouble(QStringLiteral("anchorWeight")), 'g', 17),
+        QStringLiteral("--anchorDecay"), QString::number(params.getDouble(QStringLiteral("anchorDecay")), 'g', 17),
         QStringLiteral("--normalization"), QString::number(params.getDouble(QStringLiteral("normalizationExtent")), 'g', 17),
         QStringLiteral("--sub"), QString::number(params.getInt(QStringLiteral("subdivisions"))),
         QStringLiteral("--verbose")};

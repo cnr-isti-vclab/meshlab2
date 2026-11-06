@@ -72,6 +72,28 @@ Initialize it after cloning with:
 git submodule update --init --recursive external/quadwild-bimdf
 ```
 
+## TextureConsolidation
+
+MeshLab runs the three command-line programs of
+[TextureConsolidation](https://github.com/hliuw/TextureConsolidation) (BSD-3-Clause) from
+the pinned, recursive `external/texture-consolidation` submodule, which brings Misha,
+PhongRodriguesVF and TextureSignalProcessing with it. They are built in an isolated CMake
+project and bundled as helper programs; nothing of theirs is linked into the application.
+No vcpkg port exists, and the code is research code that changes as its authors work on
+it.
+
+**The submodule and its three nested ones point at forks** (`cignoni/*`) carrying build,
+memory and determinism fixes proposed upstream. MeshLab's tree carries no patch, and the
+goal is forks with nothing beyond upstream. Which commits they carry, and the update
+procedure, are in
+[`plugins/filter_texture_consolidation/UPSTREAM.md`](../plugins/filter_texture_consolidation/UPSTREAM.md).
+
+Initialize it after cloning with:
+
+```sh
+git submodule update --init --recursive external/texture-consolidation
+```
+
 ## TrueForm
 
 MeshLab uses the header-only [TrueForm](https://github.com/polydera/trueform)
