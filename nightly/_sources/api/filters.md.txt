@@ -11476,6 +11476,8 @@ The defaults are those of the released code; the paper reports somewhat differen
 - **sourceSmoothing** (*double*, default: `0.0003`) — Smoothing of the colors the flow compares at the first level, reduced at each later level by the per-level factor.
 - **flowSmoothness** (*double*, default: `0.5`) — Weight of the smoothness term of the flow at the first level, reduced at each later level by the per-level factor.
 - **levelFactor** (*double*, default: `0.5`) — Factor applied to the source smoothing and the flow smoothness from one level to the next.
+- **anchorWeight** (*double*, default: `1.0`) — Weight of the term that ties each registered texture to the blend of the unregistered ones, so that the consolidated texture does not drift away from where the rasters put it. Higher values keep the textures closer to their original places, possibly at the cost of a weaker registration; 0 turns the anchoring off.
+- **anchorDecay** (*double*, default: `0.7`) — Factor applied to the anchor weight from one level to the next, coarse to fine. Lower values loosen the anchoring at the finer levels, where the fine detail is registered.
 - **normalizationExtent** (*double*, default: `0.001`) — Extent of the local mean and scale used to normalize each view's colors before the flow.
 - **subdivisions** (*int*, default: `1`) — One-to-four subdivisions applied to the mesh for the flow computation only; the output keeps the original mesh.
 - **gradientWeight** (*double*, default: `0.01`) — Weight of the gradient-fitting term in the stitching. Larger values follow the registered colors' detail more closely and remove less of their discontinuities.
