@@ -65,6 +65,27 @@
       "max": 256
     },
     {
+      "id": "view.lightGizmoSize",
+      "label": "Light gizmo size",
+      "help": "Diameter in pixels of the ball that shows the light direction while you drag the light (Ctrl+Shift+left drag).",
+      "group": "view",
+      "type": "int",
+      "default": 80,
+      "min": 40,
+      "max": 240
+    },
+    {
+      "id": "view.lightGizmoLinger",
+      "label": "Light gizmo linger",
+      "help": "Seconds the light gizmo stays after you release the light, the first half at full strength and the second fading out. 0 hides it at once.",
+      "group": "view",
+      "type": "double",
+      "default": 1.2,
+      "min": 0.0,
+      "max": 10.0,
+      "decimals": 1
+    },
+    {
       "id": "view.referenceGrid",
       "label": "Reference grid on new views",
       "help": "The grid a new 3D view starts with: **None**, or a plane through the origin ruled in powers of ten with the world axes in red (X), green (Y) and blue (Z). **XY** is the floor of a scene that stands on Z, **XZ** of one that stands on Y. A view can be switched from View Settings at any time; File > New puts it back to this. An orthographic view looking straight down an axis shows the plane across its line of sight whatever this says.",
