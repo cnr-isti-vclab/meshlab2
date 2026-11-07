@@ -11,7 +11,7 @@ Renderings* (arXiv 2610.36098). MeshLab pins it as the recursive submodule
 | Repository | Licence | Submodule URL now |
 |---|---|---|
 | TextureConsolidation | BSD-3-Clause (`LICENSE`) | `cignoni/TextureConsolidation` |
-| Misha | BSD-3-Clause, in every header; the repository has no `LICENSE` file | `cignoni/Misha` |
+| Misha | BSD-3-Clause, in every header; the repository has no `LICENSE` file. Except Greg Turk's PLY reader (`PlyFile.h`, `PlyFile.inl`): Stanford's 1994 notice, which forbids selling it | `cignoni/Misha` |
 | PhongRodriguesVF | BSD-3-Clause (`LICENSE`) | `cignoni/PhongRodriguesVF` |
 | TextureSignalProcessing | MIT (`LICENSE`) | `cignoni/TextureSignalProcessing` |
 
@@ -45,7 +45,7 @@ code therefore stops a helper, not the application. The adapter's own code is
 
 TextureSignalProcessing's commits mix three proposals and want splitting before their
 pull request. The measurements behind each change are in
-[texture_consolidation.md](../../docs/design/proposals/texture_consolidation.md).
+[texture_consolidation.md](../../docs/design/history/texture_consolidation.md).
 
 ## Building and shipping
 
@@ -60,9 +60,28 @@ pull request. The measurements behind each change are in
   `Contents/Helpers/texture-consolidation/` in the macOS bundle and to
   `texture-consolidation/bin/` beside the executable elsewhere. The DMG script repoints them
   at the bundled `libomp`.
-- **Licence notices: incomplete.** Only TextureConsolidation's `LICENSE` is copied into the
-  packages. BSD-3-Clause and MIT both require the notice to accompany binaries, so Misha's,
-  PhongRodriguesVF's and TextureSignalProcessing's notices have to be shipped too.
+- **Licence notices.** The packages ship one `LICENSE.txt` beside the helpers, generated at
+  configure time (`TEXTURE_CONSOLIDATION_LICENSE`) from the four codebases: the licence
+  files of TextureConsolidation, PhongRodriguesVF and TextureSignalProcessing; Misha's
+  header notice, its copyright lines gathered and its terms taken once; and Stanford's PLY
+  notice, whole. The DMG, the ZIP, the AppImage and the wheels all take that file.
+
+## Still open
+
+- **The no-sale clause.** Stanford's notice on Misha's PLY reader permits use "provided
+  … that you do not sell the software". Nothing else MeshLab ships carries it (vcglib's
+  PLY code credits Turk's work but is its own). The helpers are separate programs, not
+  linked into MeshLab, but anyone selling a MeshLab package would be selling them too.
+  A ruling is needed; the alternative is asking Misha Kazhdan whether his PLY reader can
+  be replaced, or relicensed, upstream.
+- **The upstream pull requests**, and splitting TextureSignalProcessing's commits first
+  (see the table above); then the end-of-life steps under *Updating*.
+- **The vase dataset** (`texture_consolidation_vase` in `tests/datasets/datasets.json`)
+  has no licence yet. Its README credits Paolo Cignoni and Marco Callieri; with a licence
+  stated it becomes a CI fixture of real photographs.
+- **Not yet measured:** the vase run through the filter itself, and the comparison
+  against *Transfer Color from Visible Rasters to Texture* with *Measure Texture Seam Color
+  Discrepancy*, which is the claim the method makes.
 
 ## Updating
 

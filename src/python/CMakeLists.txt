@@ -40,8 +40,8 @@ if(MESHLAB2_PYTHON_WHEEL)
         endif()
         install(PROGRAMS ${TEXTURE_CONSOLIDATION_EXECUTABLES}
             DESTINATION pymeshlab2/texture-consolidation/bin COMPONENT pymeshlab2)
-        install(FILES "${MESHLAB2_SOURCE_DIR}/external/texture-consolidation/LICENSE"
-            DESTINATION pymeshlab2/texture-consolidation RENAME LICENSE.txt COMPONENT pymeshlab2)
+        install(FILES "${TEXTURE_CONSOLIDATION_LICENSE}"
+            DESTINATION pymeshlab2/texture-consolidation COMPONENT pymeshlab2)
     endif()
 
     # Loaded by leaf name at runtime, never linked, so wheel repair cannot find it

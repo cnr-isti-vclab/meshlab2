@@ -72,6 +72,62 @@ set(TEXTURE_CONSOLIDATION_EXECUTABLES
     "${TEXTURE_CONSOLIDATION_BIN_DIR}/TextureDomainStitching${CMAKE_EXECUTABLE_SUFFIX}"
     CACHE INTERNAL "TextureConsolidation helper programs")
 
+# The helpers are built from four codebases, and every one's licence (BSD-3-Clause, and MIT
+# for TextureSignalProcessing) requires its notice to accompany the binaries. The packages
+# ship one LICENSE.txt beside the helpers, so it carries all four. Misha has no licence file:
+# its notice is the comment every header opens with, the same terms under several copyright
+# lines, so those lines are gathered and the terms taken once -- except Greg Turk's PLY code
+# (PlyFile.h, PlyFile.inl), which carries Stanford's own, different notice, kept whole.
+file(READ "${TEXTURE_CONSOLIDATION_ROOT}/LICENSE" _tc_notice)
+file(READ "${TEXTURE_CONSOLIDATION_ROOT}/extern/PhongRodriguesVF/LICENSE" _phong_notice)
+file(READ "${TEXTURE_CONSOLIDATION_ROOT}/extern/TextureSignalProcessing/LICENSE" _tsp_notice)
+file(GLOB_RECURSE _misha_sources
+    "${TEXTURE_CONSOLIDATION_ROOT}/extern/Misha/Misha/*.h"
+    "${TEXTURE_CONSOLIDATION_ROOT}/extern/Misha/Misha/*.inl")
+set(_misha_copyrights "")
+foreach(_source IN LISTS _misha_sources)
+    file(STRINGS "${_source}" _line REGEX "^Copyright \\(c\\)" LIMIT_COUNT 1)
+    list(APPEND _misha_copyrights ${_line})
+endforeach()
+list(FILTER _misha_copyrights EXCLUDE REGEX "Stanford")
+list(REMOVE_DUPLICATES _misha_copyrights)
+list(SORT _misha_copyrights)
+list(JOIN _misha_copyrights "\n" _misha_copyrights)
+file(READ "${TEXTURE_CONSOLIDATION_ROOT}/extern/Misha/Misha/Geometry.h" _misha_header)
+string(FIND "${_misha_header}" "Redistribution and use" _terms_begin)
+string(FIND "${_misha_header}" "*/" _terms_end)
+math(EXPR _terms_length "${_terms_end} - ${_terms_begin}")
+string(SUBSTRING "${_misha_header}" ${_terms_begin} ${_terms_length} _misha_terms)
+file(READ "${TEXTURE_CONSOLIDATION_ROOT}/extern/Misha/Misha/PlyFile.h" _ply_header)
+string(FIND "${_ply_header}" "Copyright (c) 1994" _ply_begin)
+string(SUBSTRING "${_ply_header}" ${_ply_begin} -1 _ply_notice)
+string(FIND "${_ply_notice}" "*/" _ply_end)
+string(SUBSTRING "${_ply_notice}" 0 ${_ply_end} _ply_notice)
+set(TEXTURE_CONSOLIDATION_LICENSE "${CMAKE_CURRENT_BINARY_DIR}/LICENSE.txt"
+    CACHE INTERNAL "Licence notices of the TextureConsolidation helper programs")
+file(CONFIGURE OUTPUT "${TEXTURE_CONSOLIDATION_LICENSE}" @ONLY CONTENT
+"The TextureConsolidation helper programs (BackProjection, TextureFlow and
+TextureDomainStitching) are built from the four codebases below.
+
+=== TextureConsolidation (https://github.com/hliuw/TextureConsolidation) ===
+
+${_tc_notice}
+=== PhongRodriguesVF (https://github.com/mkazhdan/PhongRodriguesVF) ===
+
+${_phong_notice}
+=== TextureSignalProcessing (https://github.com/mkazhdan/TextureSignalProcessing) ===
+
+${_tsp_notice}
+=== Misha (https://github.com/mkazhdan/Misha) ===
+
+${_misha_copyrights}
+All rights reserved.
+
+${_misha_terms}
+=== Misha's PLY reader (Misha/PlyFile.h, PlyFile.inl), by Greg Turk ===
+
+${_ply_notice}")
+
 if(_texture_consolidation_cached)
     message(STATUS "filter_texture_consolidation: using the cached helpers in ${TEXTURE_CONSOLIDATION_BIN_DIR}")
 else()
@@ -175,7 +231,7 @@ function(meshlab2_bundle_texture_consolidation target)
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
             ${TEXTURE_CONSOLIDATION_EXECUTABLES} "${_helper_dir}/"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-            "${MESHLAB2_SOURCE_DIR}/external/texture-consolidation/LICENSE" "${_resource_dir}/LICENSE.txt"
+            "${TEXTURE_CONSOLIDATION_LICENSE}" "${_resource_dir}/LICENSE.txt"
         COMMENT "Bundling the TextureConsolidation helpers"
         VERBATIM
     )

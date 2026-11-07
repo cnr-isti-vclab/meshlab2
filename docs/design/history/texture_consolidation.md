@@ -1,6 +1,6 @@
 # Texture Consolidation
 
-**Status: implemented and packaged (2026-11-06); the upstream pull requests are pending.** Integrating Liu, Wang, Kim and
+**A record, completed 2026-11-07: implemented, packaged, and shipped on all three platforms.** What is still open, the upstream pull requests among it, is kept in [`plugins/filter_texture_consolidation/UPSTREAM.md`](../../../plugins/filter_texture_consolidation/UPSTREAM.md). Integrating Liu, Wang, Kim and
 Kazhdan, *Texture Consolidation of Generated Multi-View Renderings* (arXiv 2610.36098,
 2026) — code at [hliuw/TextureConsolidation](https://github.com/hliuw/TextureConsolidation)
 — as a second implementation of *Transfer Color from Visible Rasters to Texture*.
