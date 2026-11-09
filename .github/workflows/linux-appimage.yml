@@ -222,16 +222,20 @@ jobs:
           # cancelled two runs mid-build with no error: memory, exhausted (exit 137) when
           # the helpers are not in the cache and build beside MeshLab. Remove it once a
           # build with a cold helper cache has passed.
+          # (The first source file in the arguments: GCC 13 ends them with -dumpbase-ext .cpp.)
           ( while sleep 60; do
               free -m | awk -v t="$(date -u +%H:%M)" '/Mem:/{m=$3"/"$2" MB used, "$7" available"} /Swap:/{s=$3" MB swap"} END{print "[mem] " t " " m ", " s}'
               df -h / | awk 'NR==2{print "[mem]   disk " $3 " used, " $4 " free"}'
-              ps -eo rss=,etime=,args= --sort=-rss | head -3 | awk '{f=$3; for(i=4;i<=NF;i++) if($i ~ /\.(c|cpp|cc)$/) f=$i; printf "[mem]   %6d MB %10s %s\n", $1/1024, $2, f}'
+              ps -eo rss=,etime=,args= --sort=-rss | head -3 | awk '{f=$3; for(i=4;i<=NF;i++) if($i ~ /\.(c|cpp|cc)$/){f=$i; break} printf "[mem]   %6d MB %10s %s\n", $1/1024, $2, f}'
             done ) &
-          # The helper sets are nested builds, which Ninja runs at its own default
-          # parallelism, cores + 2, while the outer build goes on compiling MeshLab: with
-          # translation units of 2 to 5 GB, ten at once overran the runner's 16 GB. The
-          # nested builds read CMAKE_BUILD_PARALLEL_LEVEL; the outer one's -j overrides it.
-          export CMAKE_BUILD_PARALLEL_LEVEL=2
+          # The helper sets first, on their own: MeshLab's heaviest translation units, four
+          # at a time, take nearly all of the runner's 16 GB by themselves, so a helper set
+          # building beside them runs it out of memory. A set restored from the cache has no
+          # target, hence the lookup. The nested builds read CMAKE_BUILD_PARALLEL_LEVEL.
+          helpers="$(ninja -C "$BUILD_DIR" -t targets all | grep -o '^MeshLab2[A-Za-z]*Helpers' | sort -u)"
+          if [ -n "$helpers" ]; then
+            CMAKE_BUILD_PARALLEL_LEVEL="$(nproc)" cmake --build "$BUILD_DIR" --target $helpers
+          fi
           cmake --build "$BUILD_DIR" -j"$(nproc)"
 
       - name: Save the helper programs
