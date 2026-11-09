@@ -72,6 +72,10 @@ jobs:
             libxkbcommon-devel fontconfig-devel dbus-devel dejavu-sans-fonts \
             xcb-util-cursor xcb-util-wm xcb-util-image xcb-util-keysyms \
             xcb-util-renderutil libxkbcommon-x11
+          # The checkout belongs to the runner's user and this container runs as root, so
+          # git refuses to work in it, and in the submodules, unless they are marked safe.
+          # actions/checkout marks it only in a home of its own, which later steps do not see.
+          git config --global --add safe.directory '*'
           # In a container job the github.workspace context is the runner's path, not the one
           # mounted here, so the paths below the checkout are set from $GITHUB_WORKSPACE.
           echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> "$GITHUB_ENV"
