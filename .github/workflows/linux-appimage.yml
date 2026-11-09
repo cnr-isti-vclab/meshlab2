@@ -101,6 +101,9 @@ jobs:
           arch: ${{ env.QT_ARCH }}
           # Its dependencies are apt packages; the step above installed theirs.
           install-deps: 'false'
+          # And it would fetch a Python built for GitHub's Ubuntu images, which needs a newer
+          # glibc than this container's; aqtinstall runs on the container's own Python 3.9.
+          setup-python: 'false'
           # qtimageformats carries the tga/tiff/webp image plugins; see macos-dmg.yml.
           modules: qtshadertools qtimageformats
           cache: true
