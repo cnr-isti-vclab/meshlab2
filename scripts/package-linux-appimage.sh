@@ -9,7 +9,8 @@
 # everything under DIR/AppDir, so the build tree itself is never touched.
 #
 # The result runs on any system with a glibc and libstdc++ at least as new as the ones this
-# was built against: build on the oldest distribution you mean to support.
+# was built against: build on the oldest distribution you mean to support. On an older one
+# it says so and stops, rather than leaving the loader to list missing symbol versions.
 #
 set -euo pipefail
 
@@ -98,6 +99,32 @@ Categories=Graphics;3DGraphics;Viewer;
 Terminal=false
 EOF
 cp img/MeshLab_Icon_512x512.png "$BUILD_DIR/MeshLab.png"
+
+# Nothing bundled here can need a newer glibc than the one it was built on, so that one is
+# the floor. linuxdeploy's AppRun sources every script in apprun-hooks/ before it starts
+# MeshLab; this one stops it on an older glibc with a message, in a dialog too when there is
+# a display to show one on, where the loader would print a list of missing symbol versions.
+GLIBC_BUILT="$(getconf GNU_LIBC_VERSION | awk '{print $2}')"
+mkdir -p "$APPDIR/apprun-hooks"
+cat > "$APPDIR/apprun-hooks/meshlab-check-glibc.sh" <<EOF
+# Written by scripts/package-linux-appimage.sh: this AppImage was built against glibc $GLIBC_BUILT.
+needed=$GLIBC_BUILT
+EOF
+cat >> "$APPDIR/apprun-hooks/meshlab-check-glibc.sh" <<'EOF'
+found="$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{print $2}')"
+if [ -n "$found" ] && [ "$(printf '%s\n%s\n' "$needed" "$found" | sort -V | head -n1)" != "$needed" ]; then
+    message="MeshLab needs a Linux with glibc $needed or newer, and this system has glibc $found. Please use a newer distribution."
+    echo "$message" >&2
+    if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+        if command -v zenity >/dev/null; then
+            zenity --error --title=MeshLab --text="$message" 2>/dev/null || true
+        elif command -v kdialog >/dev/null; then
+            kdialog --title MeshLab --error "$message" 2>/dev/null || true
+        fi
+    fi
+    exit 1
+fi
+EOF
 
 # linuxdeploy follows the executables' dependencies with ldd, so the libraries the build
 # tree reaches through rpath have to be findable now too.

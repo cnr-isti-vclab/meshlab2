@@ -50,7 +50,7 @@ pull request. The measurements behind each change are in
 ## Building and shipping
 
 - **C++20, and OpenMP required**, as upstream builds them. GCC needs version 13 or later,
-  which is why the AppImage builds on Ubuntu 24.04; Apple clang needs an OpenMP runtime
+  which is why the AppImage builds with AlmaLinux 9's `gcc-toolset-13` (GCC 13.3); Apple clang needs an OpenMP runtime
   (`OpenMP_ROOT`, or Homebrew's `libomp`), and without one the plugin is skipped.
 - **`libpng` and `libjpeg-turbo`** come from MeshLab's vcpkg tree, passed as a prefix path.
 - **The stitcher dominates the build**: one translation unit, about a minute and 2.6 GB with

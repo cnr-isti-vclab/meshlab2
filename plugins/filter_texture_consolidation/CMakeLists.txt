@@ -132,7 +132,7 @@ if(_texture_consolidation_cached)
     message(STATUS "filter_texture_consolidation: using the cached helpers in ${TEXTURE_CONSOLIDATION_BIN_DIR}")
 else()
     # The helpers use MeshLab's own compiler. Upstream is C++20 and tested with GCC 13.3, which
-    # is why the Linux release builds on Ubuntu 24.04 (GCC 13) rather than 22.04 (GCC 11).
+    # is why the Linux release builds with gcc-toolset-13 rather than AlmaLinux 9's GCC 11.
     set(_texture_consolidation_cmake_args "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
     if(_texture_consolidation_openmp_root)
         list(APPEND _texture_consolidation_cmake_args "-DOpenMP_ROOT=${_texture_consolidation_openmp_root}")

@@ -3,7 +3,7 @@ description: >
   Keeps the QuadWild and TextureConsolidation helper programs between runs: they are
   separate executables that MeshLab runs as processes, built from submodules that change
   rarely, and they take as long to build as the rest of the application. Each set is a
-  cache entry of its own, keyed on the runner image, its submodule commit and its plugin's
+  cache entry of its own, keyed on the build image, its submodule commit and its plugin's
   CMakeLists.txt. Run it with `mode: restore` before configuring, which points
   MESHLAB2_HELPERS_CACHE_DIR at the cache directory, and with `mode: save` after the
   build: the plugins use the helpers they find there and copy in the ones they had to
@@ -24,7 +24,9 @@ runs:
       shell: bash
       run: |
         dir="$RUNNER_TEMP/meshlab2-helpers"
-        base="helpers-${ImageOS:-$RUNNER_OS}-$RUNNER_ARCH-${MACOSX_DEPLOYMENT_TARGET:-native}"
+        # MESHLAB2_BUILD_IMAGE names the container a job builds in, where ImageOS would name
+        # the runner around it.
+        base="helpers-${MESHLAB2_BUILD_IMAGE:-${ImageOS:-$RUNNER_OS}}-$RUNNER_ARCH-${MACOSX_DEPLOYMENT_TARGET:-native}"
         qw="$(git rev-parse HEAD:external/quadwild-bimdf)"
         tc="$(git rev-parse HEAD:external/texture-consolidation)"
         echo "dir=$dir" >> "$GITHUB_OUTPUT"

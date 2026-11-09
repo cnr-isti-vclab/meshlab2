@@ -28,13 +28,20 @@ jobs:
   build-test:
     name: Build and test (Linux x86_64)
     # An AppImage runs on anything with a glibc and libstdc++ at least as new as the
-    # ones it was built against, so this image sets the oldest Linux it supports. 24.04,
-    # not 22.04: its GCC 13 is what TextureConsolidation's helpers are tested with, and
-    # 22.04 leaves standard support in April 2027. See docs/design/release_process.md.
-    # The image is also in the vcpkg cache key below; change both together.
+    # ones it was built against, so the container sets the oldest Linux it supports.
+    # AlmaLinux 9, glibc 2.34, is as old as it can go: the Qt binaries installed below
+    # were built on RHEL 9 and need 2.34 themselves. That takes in Ubuntu 22.04, Debian
+    # 12, RHEL 9 and what derives from them. GCC 13, which TextureConsolidation's helpers
+    # are tested with, comes from gcc-toolset-13: it links the parts of libstdc++ newer
+    # than the system's GCC 11 into the binaries, so they need no newer libstdc++ than Qt
+    # does. See docs/design/release_process.md.
     runs-on: ubuntu-24.04
+    container: almalinux:9
     timeout-minutes: 150
     env:
+      # The build image, in the vcpkg and helper cache keys: what one image built does
+      # not run on an older one. Change it with the container above.
+      MESHLAB2_BUILD_IMAGE: almalinux9
       BUILD_DIR: build-release
       QT_VERSION: 6.11.2
       QT_ARCH: linux_gcc_64
@@ -46,24 +53,38 @@ jobs:
       QT_QPA_PLATFORM: offscreen
 
     steps:
+      # Before the checkout, which needs git to make a repository rather than unpack a
+      # tarball. The container is bare where a GitHub runner image is not, so this also
+      # brings what the runner had without asking: the archivers the caches and vcpkg
+      # use, perl for OpenSSL, bison and flex, fonts for the offscreen tests.
+      - name: Install build dependencies
+        run: |
+          dnf -y install dnf-plugins-core epel-release
+          dnf config-manager --set-enabled crb
+          # The autotools are for ports vcpkg builds with configure (GMP, Python). The
+          # GL/xkb/fontconfig/dbus headers are what Qt's CMake config looks for when it is
+          # linked into a program. The xcb-util libraries are for linuxdeploy, which bundles
+          # what libqxcb.so links to, but only those it finds here.
+          dnf -y install --setopt=install_weak_deps=False \
+            git curl zip unzip tar gzip zstd file findutils procps-ng \
+            gcc-toolset-13 ninja-build cmake make pkgconf-pkg-config \
+            autoconf autoconf-archive automake libtool perl kernel-headers bison flex \
+            python3 python3-pip \
+            mesa-libGL-devel mesa-libEGL-devel mesa-libGLU-devel mesa-dri-drivers \
+            libxkbcommon-devel fontconfig-devel dbus-devel dejavu-sans-fonts \
+            xcb-util-cursor xcb-util-wm xcb-util-image xcb-util-keysyms \
+            xcb-util-renderutil libxkbcommon-x11
+          # First on PATH, for CMake, vcpkg and the configure scripts alike.
+          echo /opt/rh/gcc-toolset-13/root/usr/bin >> "$GITHUB_PATH"
+          echo "CC=/opt/rh/gcc-toolset-13/root/usr/bin/gcc" >> "$GITHUB_ENV"
+          echo "CXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v7
 
       # Recursively and retrying, with QuadWild's RWTH-hosted submodules from the cache.
       - name: Fetch submodules
         uses: ./.github/actions/fetch-submodules
-
-      - name: Install build dependencies
-        run: |
-          # The autotools are for ports vcpkg builds with configure (GMP, Python).
-          # The GL/xkb/fontconfig/dbus headers are what Qt's CMake config looks for
-          # when it is linked into a program.
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            ninja-build \
-            autoconf autoconf-archive automake libtool \
-            libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev \
-            libxkbcommon-dev libfontconfig1-dev libdbus-1-dev
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -72,6 +93,8 @@ jobs:
           host: linux
           target: desktop
           arch: ${{ env.QT_ARCH }}
+          # Its dependencies are apt packages; the step above installed theirs.
+          install-deps: 'false'
           # qtimageformats carries the tga/tiff/webp image plugins; see macos-dmg.yml.
           modules: qtshadertools qtimageformats
           cache: true
@@ -104,10 +127,10 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/vcpkg/archives
-          key: linux-vcpkg-ubuntu24-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
+          key: linux-vcpkg-${{ env.MESHLAB2_BUILD_IMAGE }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
           restore-keys: |
-            linux-vcpkg-ubuntu24-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-
-            linux-vcpkg-ubuntu24-${{ runner.arch }}-
+            linux-vcpkg-${{ env.MESHLAB2_BUILD_IMAGE }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-
+            linux-vcpkg-${{ env.MESHLAB2_BUILD_IMAGE }}-${{ runner.arch }}-
 
       - name: Install vcpkg dependencies
         id: vcpkg-install
@@ -142,7 +165,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ~/.cache/vcpkg/archives
-          key: linux-vcpkg-ubuntu24-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
+          key: linux-vcpkg-${{ env.MESHLAB2_BUILD_IMAGE }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}-${{ github.run_id }}
 
       - name: Upload vcpkg failure logs
         if: failure()
@@ -200,13 +223,6 @@ jobs:
           # instead of reporting a green run with zero tests. The large datasets are
           # not fetched: tests that need them skip when they are absent.
           ctest --output-on-failure --no-tests=error
-
-      # linuxdeploy bundles the libraries libqxcb.so links to, but only those it finds here.
-      - name: Install AppImage runtime libraries
-        run: |
-          sudo apt-get install -y --no-install-recommends \
-            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
-            libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1 libxkbcommon-x11-0
 
       # Pinned releases, checked against their SHA-256: the continuous builds move.
       - name: Download linuxdeploy
@@ -274,12 +290,11 @@ jobs:
           retention-days: 14
 
       # QtTest names the test function that crashed but not where, and a runner cannot
-      # be attached to. The binaries are not stripped, so the backtrace has function
+      # be attached to; gcc-toolset-13 brings gdb. The binaries are not stripped, so the backtrace has function
       # names; -g1 would add line numbers but made the build run out of resources.
       - name: Backtrace of failed tests
         if: failure()
         run: |
-          sudo apt-get install -y --no-install-recommends gdb
           cd "$BUILD_DIR"
           for t in $(sed 's/^[0-9]*://' Testing/Temporary/LastTestsFailed.log); do
             exe="$(ctest -R "^${t}$" --show-only=json-v1 |
