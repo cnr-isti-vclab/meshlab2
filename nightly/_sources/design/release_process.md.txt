@@ -144,13 +144,20 @@ objects, so the inner build recompiles everything.
 - Linux: `linux-appimage.yml` builds, tests and packages an AppImage on `devel` pushes,
   and `release.yml` attaches it to a release. It packages and passes a headless smoke test
   (no unresolved libraries; the bundled interpreter and `_meshlab` start); it has not yet
-  been tried on a real desktop. It is built on `ubuntu-24.04`, so it needs a glibc (2.39)
-  and libstdc++ at least that new: Ubuntu 22.04 and its derivatives (Mint 21, Pop!_OS
-  22.04) and Debian 12 cannot run it, and RHEL 9 and its rebuilds never could. It moved
-  from 22.04 in 2026-10: 24.04's GCC 13 is what TextureConsolidation's helpers are tested
-  with, where 22.04 would have needed a second compiler from a PPA, and 22.04 leaves
-  standard support in April 2027. The file has to be made executable after download
-  (`chmod +x`). Flatpak later for discoverability, and for the older systems.
+  been tried on a real desktop. It needs a glibc at least as new as the one it was built
+  against, so it is built in an `almalinux:9` container (glibc 2.34) and runs on Ubuntu
+  22.04, Debian 12, RHEL 9 and their derivatives, and anything newer. That is as old as
+  it can go: Qt's own Linux binaries, which it bundles, were built on RHEL 9 and need
+  glibc 2.34 and `GLIBCXX_3.4.29` themselves. GCC 13, which TextureConsolidation's helpers
+  are tested with, comes from `gcc-toolset-13`, whose libstdc++ links what is newer than
+  the system's GCC 11 into the binaries, so nothing needs a libstdc++ newer than Qt's
+  floor. On an older system an `AppRun` hook written by `scripts/package-linux-appimage.sh`
+  says which glibc is needed (in a dialog too, through zenity or kdialog) instead of the
+  loader's list of missing symbol versions. History: built on `ubuntu-22.04`, then on
+  `ubuntu-24.04` from 2026-10 for its GCC 13, which shut out 22.04 (glibc 2.39) until a
+  user report on 22.04 brought it to AlmaLinux 9 in 2026-11. The file has to be made
+  executable after download (`chmod +x`). Flatpak later for discoverability, and for
+  systems older than glibc 2.34.
 - Nightly and beta channels as public GitHub pre-releases: designed, not built. Actions
   artifacts need a GitHub login, so testers cannot use them.
 - `tests.yml` is manual on purpose: it restores the packaging job's vcpkg cache and the
