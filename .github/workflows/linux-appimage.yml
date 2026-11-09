@@ -45,9 +45,7 @@ jobs:
       BUILD_DIR: build-release
       QT_VERSION: 6.11.2
       QT_ARCH: linux_gcc_64
-      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
       VCPKG_TARGET_TRIPLET: x64-linux-release
-      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/ci/vcpkg-triplets
       # No window server on a runner. Right for the ctest suite, wrong for the render
       # probes, which need a GPU and are not run here -- see docs/design/rendering.md.
       QT_QPA_PLATFORM: offscreen
@@ -66,7 +64,7 @@ jobs:
           # linked into a program. The xcb-util libraries are for linuxdeploy, which bundles
           # what libqxcb.so links to, but only those it finds here.
           dnf -y install --setopt=install_weak_deps=False \
-            git curl zip unzip tar gzip zstd file findutils procps-ng \
+            git zip unzip tar gzip zstd file findutils procps-ng \
             gcc-toolset-13 ninja-build cmake make pkgconf-pkg-config \
             autoconf autoconf-archive automake libtool perl kernel-headers bison flex \
             python3 python3-pip \
@@ -74,6 +72,10 @@ jobs:
             libxkbcommon-devel fontconfig-devel dbus-devel dejavu-sans-fonts \
             xcb-util-cursor xcb-util-wm xcb-util-image xcb-util-keysyms \
             xcb-util-renderutil libxkbcommon-x11
+          # In a container job the github.workspace context is the runner's path, not the one
+          # mounted here, so the paths below the checkout are set from $GITHUB_WORKSPACE.
+          echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> "$GITHUB_ENV"
+          echo "VCPKG_OVERLAY_TRIPLETS=$GITHUB_WORKSPACE/ci/vcpkg-triplets" >> "$GITHUB_ENV"
           # First on PATH, for CMake, vcpkg and the configure scripts alike.
           echo /opt/rh/gcc-toolset-13/root/usr/bin >> "$GITHUB_PATH"
           echo "CC=/opt/rh/gcc-toolset-13/root/usr/bin/gcc" >> "$GITHUB_ENV"
@@ -173,7 +175,7 @@ jobs:
         with:
           name: meshlab-linux-vcpkg-logs
           path: |
-            ${{ github.workspace }}/vcpkg-install.log
+            vcpkg-install.log
             ${{ env.VCPKG_ROOT }}/buildtrees/**/*.log
             ${{ env.VCPKG_ROOT }}/buildtrees/**/*.txt
           if-no-files-found: warn
@@ -284,7 +286,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.release-metadata.outputs.artifact_stem }}
-          path: ${{ github.workspace }}/${{ env.BUILD_DIR }}/${{ steps.release-metadata.outputs.artifact_stem }}.AppImage
+          path: ${{ env.BUILD_DIR }}/${{ steps.release-metadata.outputs.artifact_stem }}.AppImage
           if-no-files-found: error
           # Every push builds one of these; see macos-dmg.yml.
           retention-days: 14
