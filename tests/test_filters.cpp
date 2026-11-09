@@ -11715,14 +11715,17 @@ struct ScopeVertexData
 };
 
 // What the contract compares: vertex positions and the attributes a scoped filter writes
-// (not normals, which follow from moved neighbours and are recomputed everywhere), face and
-// edge attributes, and the selection itself.
+// (not vertex normals, which follow from moved neighbours and are recomputed everywhere), face
+// and edge attributes, the direction of face normals -- their length is a convention that
+// recomputing them may change, but a face whose corners stay put keeps its direction -- and
+// the selection itself.
 struct ScopeSnapshot
 {
     std::vector<ScopeVertexData> vert;
     std::vector<bool> vertSel;
     std::vector<ScopeTriangle> faceTri;
     std::vector<std::pair<vcg::Color4b, float>> faceData;
+    std::vector<vcg::Point3f> faceNormal;
     std::vector<bool> faceSel;
     std::vector<std::pair<vcg::Color4b, float>> edgeData;
     std::vector<bool> edgeSel;
@@ -11751,6 +11754,7 @@ ScopeSnapshot scopeSnapshot(const VCGMesh &mesh)
             continue;
         s.faceTri.push_back(scopeTriangle(f));
         s.faceData.push_back({ f.cC(), f.cQ() });
+        s.faceNormal.push_back(f.cN());
         s.faceSel.push_back(f.IsS());
     }
     for (const auto &e : mesh.edge) {
@@ -11829,6 +11833,14 @@ QString scopeViolations(const ScopeSnapshot &before, const ScopeSnapshot &after,
                     ++attrs;
             if (attrs)
                 out << QStringLiteral("%1 unselected faces changed color or scalar").arg(attrs);
+            int turned = 0;
+            for (size_t i = 0; i < before.faceNormal.size(); ++i)
+                if (!before.faceSel[i]
+                    && (vcg::Point3f(before.faceNormal[i]).Normalize()
+                        - vcg::Point3f(after.faceNormal[i]).Normalize()).Norm() > 1e-5f)
+                    ++turned;
+            if (turned)
+                out << QStringLiteral("%1 unselected faces changed normal").arg(turned);
         }
     }
     if (scope == SelectionScope::Edges) {

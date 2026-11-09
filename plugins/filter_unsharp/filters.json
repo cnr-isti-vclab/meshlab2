@@ -551,6 +551,7 @@
         "scalar field"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true,
@@ -574,6 +575,7 @@
         "faces"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
@@ -596,6 +598,7 @@
         "enhancement"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
@@ -660,6 +663,7 @@
         "geometry"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true,
@@ -719,6 +723,7 @@
         "quality"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true,
@@ -777,6 +782,7 @@
         "color"
       ],
       "inputDomain": "SingleMesh",
+      "selectionScope": "vertices",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true,

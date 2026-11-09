@@ -105,6 +105,23 @@ size_t selectedVertexCountFromFaces(VCGMesh &mesh)
     return vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceStrict(mesh);
 }
 
+// FaceNormalLaplacianFF and PerFaceNormalized rewrite every face normal, selected or not:
+// kept before them, these put the unselected faces' normals back afterwards.
+std::vector<Point> faceNormals(const VCGMesh &mesh)
+{
+    std::vector<Point> normals(mesh.face.size());
+    for (size_t i = 0; i < mesh.face.size(); ++i)
+        normals[i] = mesh.face[i].cN();
+    return normals;
+}
+
+void restoreUnselectedFaceNormals(VCGMesh &mesh, const std::vector<Point> &normals)
+{
+    for (size_t i = 0; i < mesh.face.size(); ++i)
+        if (!mesh.face[i].IsS())
+            mesh.face[i].N() = normals[i];
+}
+
 QString firstPointAttributeName(const VCGMesh &mesh)
 {
     if (mesh.vert_attr.empty())
@@ -226,7 +243,11 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterFaceNormalSmooth)) {
         VCGMeshFFAdjScope _ffAdj(mesh);
         prepareFaceFaceNormalsSmoothing(mesh);
-        vcg::tri::Smooth<VCGMesh>::FaceNormalLaplacianFF(mesh);
+        const bool selected = params.getBool(QStringLiteral("selectedOnly"));
+        const std::vector<Point> kept = selected ? faceNormals(mesh) : std::vector<Point>();
+        vcg::tri::Smooth<VCGMesh>::FaceNormalLaplacianFF(mesh, 1, selected);
+        if (selected)
+            restoreUnselectedFaceNormals(mesh, kept);
         entry.ioMask |= Mask::IOM_FACENORMAL;
         markGeometry(QObject::tr("Smoothed face normals of '%1'.").arg(meshName(entry, meshIndex)));
         return successResult();
@@ -234,7 +255,7 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kFilterVertexQualitySmooth)) {
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromNone(mesh);
-        vcg::tri::Smooth<VCGMesh>::VertexQualityLaplacian(mesh);
+        vcg::tri::Smooth<VCGMesh>::VertexQualityLaplacian(mesh, 1, params.getBool(QStringLiteral("selectedOnly")));
         entry.ioMask |= Mask::IOM_VERTQUALITY;
         markGeometry(QObject::tr("Smoothed vertex quality of '%1'.").arg(meshName(entry, meshIndex)));
         return successResult();
@@ -422,17 +443,21 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
         const Scalar alpha = Scalar(params.getDouble(QStringLiteral("weight")));
         const Scalar alphaOrig = Scalar(params.getDouble(QStringLiteral("weightOrig")));
         const int smoothIter = params.getInt(QStringLiteral("iterations"));
+        const bool selected = params.getBool(QStringLiteral("selectedOnly"));
+        const std::vector<Point> kept = selected ? faceNormals(mesh) : std::vector<Point>();
         if (params.getBool(QStringLiteral("recalc")))
             vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
         std::vector<Point> normalOrig(size_t(mesh.fn));
         for (int i = 0; i < mesh.fn; ++i)
             normalOrig[size_t(i)] = mesh.face[size_t(i)].cN();
         for (int i = 0; i < smoothIter; ++i)
-            vcg::tri::Smooth<VCGMesh>::FaceNormalLaplacianFF(mesh);
+            vcg::tri::Smooth<VCGMesh>::FaceNormalLaplacianFF(mesh, 1, selected);
         for (int i = 0; i < mesh.fn; ++i) {
             mesh.face[size_t(i)].N() =
                 normalOrig[size_t(i)] * alphaOrig + (normalOrig[size_t(i)] - mesh.face[size_t(i)].N()) * alpha;
         }
+        if (selected)
+            restoreUnselectedFaceNormals(mesh, kept);
         entry.ioMask |= Mask::IOM_FACENORMAL;
         markGeometry(QObject::tr("Applied unsharp masking to face normals of '%1'.").arg(meshName(entry, meshIndex)));
         return successResult();
@@ -443,11 +468,16 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
         const Scalar alpha = Scalar(params.getDouble(QStringLiteral("weight")));
         const Scalar alphaOrig = Scalar(params.getDouble(QStringLiteral("weightOrig")));
         const int smoothIter = params.getInt(QStringLiteral("iterations"));
+        const bool selected = params.getBool(QStringLiteral("selectedOnly"));
+        if (selected)
+            selectedVertexCountFromFaces(mesh);
         std::vector<Point> geomOrig(size_t(mesh.vn));
         for (int i = 0; i < mesh.vn; ++i)
             geomOrig[size_t(i)] = mesh.vert[size_t(i)].cP();
-        vcg::tri::Smooth<VCGMesh>::VertexCoordLaplacian(mesh, smoothIter);
+        vcg::tri::Smooth<VCGMesh>::VertexCoordLaplacian(mesh, smoothIter, selected);
         for (int i = 0; i < mesh.vn; ++i) {
+            if (selected && !mesh.vert[size_t(i)].IsS())
+                continue;
             mesh.vert[size_t(i)].P() =
                 geomOrig[size_t(i)] * alphaOrig + (geomOrig[size_t(i)] - mesh.vert[size_t(i)].P()) * alpha;
         }
@@ -465,8 +495,11 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
         std::vector<vcg::Color4f> colorOrig(size_t(mesh.vn));
         for (int i = 0; i < mesh.vn; ++i)
             colorOrig[size_t(i)].Import(mesh.vert[size_t(i)].C());
-        vcg::tri::Smooth<VCGMesh>::VertexColorLaplacian(mesh, smoothIter);
+        const bool selected = params.getBool(QStringLiteral("selectedOnly"));
+        vcg::tri::Smooth<VCGMesh>::VertexColorLaplacian(mesh, smoothIter, selected);
         for (int i = 0; i < mesh.vn; ++i) {
+            if (selected && !mesh.vert[size_t(i)].IsS())
+                continue;
             vcg::Color4f colorDelta = colorOrig[size_t(i)] - vcg::Color4f::Construct(mesh.vert[size_t(i)].C());
             vcg::Color4f newColor = colorOrig[size_t(i)] * alphaOrig + colorDelta * alpha;
             vcg::Clamp(newColor);
@@ -485,8 +518,11 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
         std::vector<float> qualityOrig(size_t(mesh.vn));
         for (int i = 0; i < mesh.vn; ++i)
             qualityOrig[size_t(i)] = mesh.vert[size_t(i)].Q();
-        vcg::tri::Smooth<VCGMesh>::VertexQualityLaplacian(mesh, smoothIter);
+        const bool selected = params.getBool(QStringLiteral("selectedOnly"));
+        vcg::tri::Smooth<VCGMesh>::VertexQualityLaplacian(mesh, smoothIter, selected);
         for (int i = 0; i < mesh.vn; ++i) {
+            if (selected && !mesh.vert[size_t(i)].IsS())
+                continue;
             const float qualityDelta = qualityOrig[size_t(i)] - mesh.vert[size_t(i)].Q();
             mesh.vert[size_t(i)].Q() = qualityOrig[size_t(i)] * alphaOrig + qualityDelta * alpha;
         }
