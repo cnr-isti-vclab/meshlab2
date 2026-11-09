@@ -67,7 +67,7 @@ jobs:
             git zip unzip tar gzip zstd file findutils procps-ng \
             gcc-toolset-13 ninja-build cmake make pkgconf-pkg-config \
             autoconf autoconf-archive automake libtool perl kernel-headers bison flex \
-            python3 python3-pip \
+            python3 python3.12 python3.12-pip \
             mesa-libGL-devel mesa-libEGL-devel mesa-libGLU-devel mesa-dri-drivers \
             libxkbcommon-devel fontconfig-devel dbus-devel dejavu-sans-fonts \
             xcb-util-cursor xcb-util-wm xcb-util-image xcb-util-keysyms \
@@ -92,25 +92,28 @@ jobs:
       - name: Fetch submodules
         uses: ./.github/actions/fetch-submodules
 
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
+      # aqtinstall itself rather than install-qt-action, which is made for GitHub's runner
+      # images: its dependencies are apt packages, the Python it fetches is built for Ubuntu,
+      # and the py7zr it pins needs a newer Python than the container's 3.9.
+      - name: Restore Qt
+        id: qt-cache
+        uses: actions/cache@v6
         with:
-          version: ${{ env.QT_VERSION }}
-          host: linux
-          target: desktop
-          arch: ${{ env.QT_ARCH }}
-          # Its dependencies are apt packages; the step above installed theirs.
-          install-deps: 'false'
-          # And it would fetch a Python built for GitHub's Ubuntu images, which needs a newer
-          # glibc than this container's; aqtinstall runs on the container's own Python 3.9.
-          setup-python: 'false'
+          path: /opt/qt
+          key: qt-${{ env.MESHLAB2_BUILD_IMAGE }}-${{ env.QT_VERSION }}-${{ env.QT_ARCH }}-shadertools-imageformats
+
+      - name: Install Qt
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        run: |
+          python3.12 -m venv "$RUNNER_TEMP/aqt"
+          "$RUNNER_TEMP/aqt/bin/pip" install --no-cache-dir "aqtinstall==3.3.*"
           # qtimageformats carries the tga/tiff/webp image plugins; see macos-dmg.yml.
-          modules: qtshadertools qtimageformats
-          cache: true
-          cache-key-prefix: meshlab-qt-linux-imgfmt
+          "$RUNNER_TEMP/aqt/bin/aqt" install-qt linux desktop "$QT_VERSION" "$QT_ARCH" \
+            --modules qtshadertools qtimageformats --outputdir /opt/qt
 
       - name: Expose Qt tools
         run: |
+          QT_ROOT_DIR="/opt/qt/$QT_VERSION/gcc_64"
           echo "$QT_ROOT_DIR/bin" >> "$GITHUB_PATH"
           echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR" >> "$GITHUB_ENV"
           echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> "$GITHUB_ENV"
@@ -274,9 +277,6 @@ jobs:
         env:
           RELEASE_ARTIFACT_STEM: ${{ steps.release-metadata.outputs.artifact_stem }}
         run: |
-          # The Qt install action points these at the runner's own Qt; with them set, both
-          # checks below would pass by borrowing it, and prove nothing about the bundle.
-          unset LD_LIBRARY_PATH QT_ROOT_DIR
           cd "$BUILD_DIR"
           chmod +x "$RELEASE_ARTIFACT_STEM.AppImage"
           "./$RELEASE_ARTIFACT_STEM.AppImage" --appimage-extract > /dev/null
