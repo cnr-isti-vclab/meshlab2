@@ -14,6 +14,14 @@
 #include <QPainterPath>
 #include <QPixmap>
 #include <QSaveFile>
+#include <QtMath>
+
+#include <vcg/space/distance3.h>
+#include <vcg/space/triangle3.h>
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
 
 namespace {
 constexpr const char *kAlignKey =
@@ -29,6 +37,43 @@ const Document::RasterEntry *alignableRaster(const RenderWidget *view)
     if (ri < 0 || ri >= doc->rasterCount() || !doc->raster(ri).shot.isValid())
         return nullptr;
     return &doc->raster(ri);
+}
+
+const QColor kPhotoColor(255, 140, 0);
+const QColor kMeshColor(80, 220, 255);
+
+// The normal of the face nearest to a world point, in world space: of layer meshIndex, or of
+// any layer when it is -1. Null when there is no face. The pick gives a position only, and a
+// scan of the faces, once per pick, costs less than an index kept up to date for it.
+QVector3D surfaceNormal(const Document &doc, int meshIndex, const QVector3D &world)
+{
+    float best = std::numeric_limits<float>::max();
+    QVector3D normal;
+    for (int i = meshIndex < 0 ? 0 : meshIndex; i < (meshIndex < 0 ? doc.meshCount() : meshIndex + 1); ++i) {
+        const Document::MeshEntry &entry = doc.mesh(i);
+        bool invertible = false;
+        const QVector3D local = entry.transform.inverted(&invertible).map(world);
+        if (!invertible)
+            continue;
+        const vcg::Point3f q(local.x(), local.y(), local.z());
+        for (const auto &f : entry.mesh.face) {
+            if (f.IsD())
+                continue;
+            const vcg::Triangle3<float> t(f.cP(0), f.cP(1), f.cP(2));
+            float distance = 0.0f;
+            vcg::Point3f closest;
+            vcg::TrianglePointDistance(t, q, distance, closest);
+            if (distance < best) {
+                best = distance;
+                // Of the face as it stands in the world, which the layer's transform may shear
+                const auto corner = [&](int k) {
+                    return entry.transform.map(QVector3D(f.cP(k)[0], f.cP(k)[1], f.cP(k)[2]));
+                };
+                normal = QVector3D::crossProduct(corner(1) - corner(0), corner(2) - corner(0));
+            }
+        }
+    }
+    return normal.normalized();
 }
 } // namespace
 
@@ -213,15 +258,106 @@ const std::vector<RasterAlignTool::Pair> *RasterAlignTool::currentPairs() const
 
 void RasterAlignTool::ends(const Pair &pair, QPointF &onMesh, QPointF &onPhoto) const
 {
+    const QSizeF size(alignableRaster(m_view)->shot.viewportPx());
+    onMesh = toWidget(pair.point);
+    onPhoto = m_view->rasterImageToWidget(QPointF(pair.pixel.x() / size.width(), pair.pixel.y() / size.height()));
+}
+
+QPointF RasterAlignTool::toWidget(const QVector3D &world) const
+{
     const CameraShot &shot = alignableRaster(m_view)->shot;
     const QSizeF size(shot.viewportPx());
-    const auto toWidget = [&](const QPointF &pixel) {
-        return m_view->rasterImageToWidget(QPointF(pixel.x() / size.width(), pixel.y() / size.height()));
-    };
     // vcg's pixels are y up
-    const QVector2D projected = shot.project(pair.point);
-    onMesh = toWidget(QPointF(projected.x(), size.height() - projected.y()));
-    onPhoto = toWidget(pair.pixel);
+    const QVector2D projected = shot.project(world);
+    return m_view->rasterImageToWidget(QPointF(projected.x() / size.width(), 1.0 - projected.y() / size.height()));
+}
+
+// Dark under the colour, so the markers read on light and dark photos alike.
+void RasterAlignTool::drawPhotoMarker(QPainter &painter, const QPointF &at, bool hovered) const
+{
+    // The cross stops short of the square, so the two read apart, as a sight
+    const double half = hovered ? 12.75 : 9.75;
+    const double arm = half - 4.5;
+    const QRectF square(at - QPointF(half, half), at + QPointF(half, half));
+    painter.setBrush(Qt::NoBrush);
+    // The cross thinner than the square, as the hairline it aims with
+    for (const auto &[color, width] : { std::pair{ QColor(0, 0, 0, 200), 2.0 },
+                                        std::pair{ hovered ? QColor(Qt::white) : kPhotoColor, 0.0 } }) {
+        painter.setPen(QPen(color, 1.5 + width));
+        painter.drawRect(square);
+        painter.setPen(QPen(color, 1.0 + width * 0.75));
+        painter.drawLine(at - QPointF(arm, 0), at + QPointF(arm, 0));
+        painter.drawLine(at - QPointF(0, arm), at + QPointF(0, arm));
+    }
+}
+
+// A disc on the surface, projected through the raster's camera, so it shows as an ellipse that
+// tilts with the surface, and a short normal from its centre. Its size is fixed on screen:
+// the largest radius of the ellipse. Seen from behind, it is drawn faint.
+void RasterAlignTool::drawMeshMarker(QPainter &painter, const Pair &pair, const QPointF &at, bool hovered) const
+{
+    const double radius = hovered ? 12.0 : 9.0;
+    const QColor color = hovered ? QColor(Qt::white) : kMeshColor;
+    QPolygonF disc;
+    QPointF normalTip = at;
+    const QVector3D &n = pair.normal;
+    if (!n.isNull()) {
+        // The screen images of a small step along two tangents and the normal: a linear map
+        // from the disc's plane, scaled so that its longest axis is `radius` pixels.
+        const CameraShot &shot = alignableRaster(m_view)->shot;
+        const float step = 1e-3f * std::max(shot.depth(pair.point), 1e-6f);
+        const QVector3D u = QVector3D::crossProduct(n, std::abs(n.x()) < 0.9f ? QVector3D(1, 0, 0)
+                                                                              : QVector3D(0, 1, 0)).normalized();
+        const QVector3D v = QVector3D::crossProduct(n, u);
+        const QPointF du = toWidget(pair.point + step * u) - at;
+        const QPointF dv = toWidget(pair.point + step * v) - at;
+        // The largest singular value of [du dv]
+        const double a = QPointF::dotProduct(du, du), b = QPointF::dotProduct(du, dv), c = QPointF::dotProduct(dv, dv);
+        const double largest = std::sqrt(0.5 * (a + c + std::sqrt((a - c) * (a - c) + 4 * b * b)));
+        if (largest > 1e-9) {
+            const double scale = radius / largest;
+            for (int i = 0; i < 32; ++i) {
+                const double angle = 2 * M_PI * i / 32;
+                disc << at + scale * (std::cos(angle) * du + std::sin(angle) * dv);
+            }
+            normalTip = at + 1.4 * scale * (toWidget(pair.point + step * n) - at);
+        }
+    }
+    if (disc.isEmpty()) {   // no normal: a disc facing the camera
+        for (int i = 0; i < 32; ++i) {
+            const double angle = 2 * M_PI * i / 32;
+            disc << at + radius * QPointF(std::cos(angle), std::sin(angle));
+        }
+    }
+    const bool behind = !n.isNull()
+        && QVector3D::dotProduct(n, alignableRaster(m_view)->shot.directionToCamera(pair.point)) < 0.0f;
+    // Each part whole, outline and colour, before the next, so that a later one hides an earlier
+    // one where they cross. The rim lies in the surface's plane and the normal wholly on one side
+    // of it: towards the camera it is in front of the rim, away from it behind.
+    const QColor outline(0, 0, 0, 200);
+    const auto drawRim = [&] {
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(QPen(outline, 3.5));
+        painter.drawPolygon(disc);
+        painter.setPen(QPen(color, 1.5));
+        painter.drawPolygon(disc);
+    };
+    const auto drawNormal = [&] {   // thinner than the rim
+        painter.setPen(QPen(outline, 2.5, Qt::SolidLine, Qt::RoundCap));
+        painter.drawLine(at, normalTip);
+        painter.setPen(QPen(color, 1.0, Qt::SolidLine, Qt::RoundCap));
+        painter.drawLine(at, normalTip);
+    };
+    painter.save();
+    painter.setOpacity(painter.opacity() * (behind ? 0.45 : 1.0));
+    if (behind) {
+        drawNormal();
+        drawRim();
+    } else {
+        drawRim();
+        drawNormal();
+    }
+    painter.restore();
 }
 
 // The photo ends first: after a fit the two ends of a pair coincide, and its pixel is what one
@@ -319,7 +455,9 @@ void RasterAlignTool::onSurfacePicked(const SurfacePick &result)
     if (m_drag == Drag::MoveMesh && m_released) {
         std::vector<Pair> *pairs = currentPairs();
         if (result.hit && pairs && m_handle.index < int(pairs->size())) {
-            (*pairs)[size_t(m_handle.index)].point = result.worldPos;
+            Pair &pair = (*pairs)[size_t(m_handle.index)];
+            pair.point = result.worldPos;
+            pair.normal = surfaceNormal(*m_view->document(), result.meshIndex, result.worldPos);
             m_lastFit.clear();
         } else if (m_view && m_view->document()) {
             m_view->document()->writeLog(QObject::tr("Raster alignment: no mesh under the release, so the pair "
@@ -334,6 +472,8 @@ void RasterAlignTool::onSurfacePicked(const SurfacePick &result)
     m_pickReported = true;
     m_pickHit = result.hit;
     m_pickPoint = result.worldPos;
+    if (m_pickHit && m_view && m_view->document())
+        m_pickNormal = surfaceNormal(*m_view->document(), result.meshIndex, result.worldPos);
     if (!m_pickHit) {
         if (m_view && m_view->document())
             m_view->document()->writeLog(QObject::tr("Raster alignment: no mesh under the press, so no pair."),
@@ -354,7 +494,7 @@ void RasterAlignTool::addPairIfComplete()
     if (raster && pairs && m_pickHit) {
         const QSize size = raster->shot.viewportPx();
         pairs->push_back({ m_pickPoint, QPointF(m_releaseImage.x() * size.width(),
-                                                m_releaseImage.y() * size.height()) });
+                                                m_releaseImage.y() * size.height()), m_pickNormal });
         m_lastFit.clear();
     }
     m_drag = Drag::None;
@@ -464,8 +604,9 @@ void RasterAlignTool::loadPairs()
             loaded.clear();
             break;
         }
-        loaded.push_back({ QVector3D(float(point[0].toDouble()), float(point[1].toDouble()), float(point[2].toDouble())),
-                           QPointF(pixel[0].toDouble(), pixel[1].toDouble()) });
+        const QVector3D world(float(point[0].toDouble()), float(point[1].toDouble()), float(point[2].toDouble()));
+        // The file has no normals, nor says which layer a point is on: the nearest face of any
+        loaded.push_back({ world, QPointF(pixel[0].toDouble(), pixel[1].toDouble()), surfaceNormal(*doc, -1, world) });
     }
     if (loaded.empty()) {
         doc->writeLog(QObject::tr("'%1' holds no correspondences: a JSON array of "
@@ -484,8 +625,6 @@ void RasterAlignTool::paintOverlay(QPainter &painter)
     if (!alignableRaster(m_view) || m_view->viewMode() != RenderWidget::ViewMode::RasterImage)
         return;
     painter.setRenderHint(QPainter::Antialiasing);
-    const QColor photoColor(255, 140, 0);
-    const QColor meshColor(80, 220, 255);
     if (const std::vector<Pair> *pairs = currentPairs()) {
         for (int i = 0; i < int(pairs->size()); ++i) {
             // Where the camera puts the point now, and its pixel: the line between them is
@@ -501,21 +640,20 @@ void RasterAlignTool::paintOverlay(QPainter &painter)
             } else {
                 painter.setPen(QPen(Qt::white, hovered ? 2.5 : 1.5));
             }
-            painter.drawLine(onMesh, onPhoto);
-            const double grow = (hovered && !m_hover.photo) ? 2.0 : 0.0;
-            painter.setPen(QPen(meshColor, 2 + grow / 2));
-            painter.drawLine(onMesh - QPointF(4 + grow, 4 + grow), onMesh + QPointF(4 + grow, 4 + grow));
-            painter.drawLine(onMesh - QPointF(4 + grow, -4 - grow), onMesh + QPointF(4 + grow, -4 - grow));
-            const double radius = (hovered && m_hover.photo) ? 5.5 : 3.5;
-            painter.setPen(QPen(hovered ? Qt::white : Qt::black, 1));
-            painter.setBrush(photoColor);
-            painter.drawEllipse(onPhoto, radius, radius);
+            // From marker edge to marker edge, so neither shows the line inside it
+            const QPointF along = onPhoto - onMesh;
+            const double length = std::hypot(along.x(), along.y());
+            constexpr double kTrim = 10.0;
+            if (length > 2 * kTrim)
+                painter.drawLine(onMesh + along * (kTrim / length), onPhoto - along * (kTrim / length));
+            drawMeshMarker(painter, (*pairs)[size_t(i)], onMesh, hovered && !m_hover.photo);
+            drawPhotoMarker(painter, onPhoto, hovered && m_hover.photo);
         }
     }
     if (m_drag == Drag::NewPair) {
         painter.setPen(QPen(Qt::white, 1.5, Qt::DashLine));
         painter.drawLine(m_pressPos, m_cursorPos);
-        painter.setPen(QPen(meshColor, 2));
+        painter.setPen(QPen(kMeshColor, 2));
         painter.setBrush(Qt::NoBrush);
         painter.drawEllipse(m_pressPos, 4, 4);
     }

@@ -51,6 +51,7 @@ private:
     struct Pair {
         QVector3D point;   // world space
         QPointF pixel;     // in the camera's viewport, from the top-left corner, y down
+        QVector3D normal;  // the surface's at the point, world space, unit; drawn only
     };
 
     // The pairs of the current raster, which needs a camera; null when there is none.
@@ -67,6 +68,11 @@ private:
     static QByteArray toJson(const std::vector<Pair> &pairs, bool compact);
     // Where a pair's ends are drawn, in widget pixels: the projection of its point, and its pixel
     void ends(const Pair &pair, QPointF &onMesh, QPointF &onPhoto) const;
+    QPointF toWidget(const QVector3D &world) const;   // through the raster's camera
+    // The two ends as markers that say which is which: the photo's a cross in a square, flat on
+    // the image; the mesh's a disc lying on the surface, its normal standing out of it
+    void drawPhotoMarker(QPainter &painter, const QPointF &at, bool hovered) const;
+    void drawMeshMarker(QPainter &painter, const Pair &pair, const QPointF &at, bool hovered) const;
     Handle handleAt(const QPointF &widgetPos) const;
     QPointF toPixel(const QPointF &widgetPos) const;   // in the camera's viewport
     void addPairIfComplete();
@@ -91,6 +97,7 @@ private:
     bool m_pickReported = false;
     bool m_pickHit = false;
     QVector3D m_pickPoint;
+    QVector3D m_pickNormal;
     QPointF m_pressPos;
     QPointF m_cursorPos;
     QPointF m_releaseImage;   // in [0, 1] over the image, y down
