@@ -217,21 +217,11 @@ jobs:
 
       - name: Build
         run: |
-          # Memory, disk and the largest processes once a minute, printed outside Ninja,
-          # which holds back its own output while a helper build runs. It showed what had
-          # cancelled two runs mid-build with no error: memory, exhausted (exit 137) when
-          # the helpers are not in the cache and build beside MeshLab. Remove it once a
-          # build with a cold helper cache has passed.
-          # (The first source file in the arguments: GCC 13 ends them with -dumpbase-ext .cpp.)
-          ( while sleep 60; do
-              free -m | awk -v t="$(date -u +%H:%M)" '/Mem:/{m=$3"/"$2" MB used, "$7" available"} /Swap:/{s=$3" MB swap"} END{print "[mem] " t " " m ", " s}'
-              df -h / | awk 'NR==2{print "[mem]   disk " $3 " used, " $4 " free"}'
-              ps -eo rss=,etime=,args= --sort=-rss | head -3 | awk '{f=$3; for(i=4;i<=NF;i++) if($i ~ /\.(c|cpp|cc)$/){f=$i; break} printf "[mem]   %6d MB %10s %s\n", $1/1024, $2, f}'
-            done ) &
           # The helper sets first, on their own: MeshLab's heaviest translation units, four
-          # at a time, take nearly all of the runner's 16 GB by themselves, so a helper set
-          # building beside them runs it out of memory. A set restored from the cache has no
-          # target, hence the lookup. The nested builds read CMAKE_BUILD_PARALLEL_LEVEL.
+          # at a time, take nearly all of the runner's 16 GB by themselves (14.7 GB at the
+          # peak, measured 2026-11-09), so a helper set building beside them runs it out of
+          # memory, which the runner reports only as exit 137. A set restored from the cache
+          # has no target, hence the lookup. The nested builds read CMAKE_BUILD_PARALLEL_LEVEL.
           helpers="$(ninja -C "$BUILD_DIR" -t targets all | grep -o '^MeshLab2[A-Za-z]*Helpers' | sort -u)"
           if [ -n "$helpers" ]; then
             CMAKE_BUILD_PARALLEL_LEVEL="$(nproc)" cmake --build "$BUILD_DIR" --target $helpers

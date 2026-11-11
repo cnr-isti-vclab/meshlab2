@@ -141,6 +141,17 @@ set(CGAL_DISABLE_GMP OFF CACHE BOOL "Use GMP/MPFR for CGAL's exact number types"
 set(CGAL_CMAKE_EXACT_NT_BACKEND "Default" CACHE STRING
     "CGAL exact number type backend (Default picks GMP/GMPXX once available)" FORCE)
 
+# Qt6::Gui hands OpenGL::GL to everything that links it, and FindOpenGL resolves that to
+# libglvnd's split libOpenGL.so.0 and libGLX.so.0 when it can. MeshLab calls no GL
+# function itself, but the GNU linker keeps both as dependencies anyway, so the AppImage
+# built on AlmaLinux 9 would not start without libOpenGL.so.0 (Ubuntu's libopengl0),
+# which Qt's own libraries never use: they need libGL.so.1 and libEGL.so.1.
+# LEGACY links libGL.so.1 too, so MeshLab asks for nothing beyond what Qt already does.
+# Read by FindOpenGL, so it must precede the find_package(Qt6) that calls it.
+if(UNIX AND NOT APPLE)
+    set(OpenGL_GL_PREFERENCE LEGACY)
+endif()
+
 find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets GuiPrivate ShaderTools Test)
 
 if(MESHLAB2_MATH_HELP)
