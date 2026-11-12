@@ -85,10 +85,8 @@ Texture*.
 **Memory is the main cost, and it is all in setup.** In `SetExteriorTexels`, building the
 `GradientDomain` takes the time and the memory. Factoring and solving take under 0.05 s.
 Memory grows with the image's side, not its area (2.1, 4.5, 9.1 GB for 512², 1024²,
-2048² on the same 20k-face mesh). Extrapolating, a 4096² texture would need about 18 GB.
-That figure is extrapolated, not measured. Where the memory goes is not yet known, and
-it should be found before any filter ships (see [Open questions](#open-questions)). It
-may be an upstream fix like the ones already merged.
+2048² on the same 20k-face mesh). [Stage 0](#stage-0-memory-and-robustness) found where
+it goes: about three quarters is the divergence operator, which these filters do not use.
 
 **Seams.** Two checks:
 
@@ -121,6 +119,97 @@ xatlas's default `padding` is 0, so at 512² neighbouring charts can share texel
 the default, 148 of the 3,515 seam edges disagree by more than 0.1; with `padding 2`, 2
 do. Any texel-space filter should refuse such an atlas, or warn about it. *Select
 Overlapping UV Faces* already finds the faces involved.
+
+## Stage 0: memory and robustness
+
+Measured 2026-11-12. The method: an instrumented copy of TSP's `include/Src`, kept in the
+scratchpad and placed ahead of the submodule's on the include path. It prints the process's
+current and peak physical footprint (`task_info`, the figure `/usr/bin/time -l` reports)
+between the steps of `GradientDomain`'s construction. AddressSanitizer builds were used for
+the crashes.
+
+### Where the memory goes
+
+All of it is in `OperatorInitializer::Initialize`: the hierarchy before it peaks at 0.9 GB
+of the 9.1 GB at 2048². Within it, the largest single step is
+`InitializeBoundaryCoarseToFineBoundaryOneFormProlongation` (`EdgeIndexing.h`). At 2048² it
+builds 58 million triplets over 4.5 million fine boundary edges and adds 3.6 GB. Building the
+divergence matrix after it adds another 1.4 GB. Both, and the edge indexing before them,
+exist **only for the divergence operator**. `GradientDomain` always builds that operator,
+but `SetExteriorTexels`, `TextureDilation` and uniform smoothing never use it.
+`OperatorInitializer` already has an overload without it, used by `LineIntegralConvolution`.
+
+Switching `GradientDomain` to that overload, with `SetExteriorTexels` (images byte-identical
+in every row):
+
+| Atlas | Texture | Peak with divergence | Peak without | Time with / without |
+| --- | --- | --- | --- | --- |
+| xatlas gargoyle, 20k faces | 512² | 2.07 GB | 0.58 GB | — |
+| same | 1024² | 4.28 GB | 1.15 GB | — |
+| same | 2048² | 9.20 GB | 2.61 GB | — |
+| `gargo3M_good.ply`, 3M faces, 1,961 charts (see below) | 4096² | **44.5 GB** | **15.8 GB** | 58 s / 23 s |
+
+The memory follows the number of **fine boundary edges**: the edges of the quadratic
+elements made by clipping mesh triangles to the texels a chart boundary crosses. These are
+4.5 million for the 20k-face mesh at 2048², and 32.7 million for the 3M-face mesh at 4096².
+That count is why memory tracks the image's side rather than its area. It also means memory
+tracks how much chart boundary the atlas has, so a fragmented photogrammetry atlas costs far
+more than xatlas's 300 charts.
+
+Two smaller savings were tried and are not worth proposing. In `_Initialize` and the
+one-form merge, per-chart and per-thread buffers are copied into one while the originals
+stay alive. Releasing each one as it is copied keeps the order and the output, but lowers
+the peak by only about 5% (9.20 → 8.75 GB, 2.61 → 2.45 GB at 2048²; 15.8 → 12.4 GB at
+4096² without divergence, with the robustness fixes below).
+
+**Conclusion:** the memory is inherent to TSP's boundary representation, not a leak. It can
+be cut by about 3.5× by not building an operator these filters do not use, an upstream
+change: a constructor flag on `GradientDomain`, with the current behaviour as the default.
+With it, a 4096² texture on a 3M-face scan needs about 12–16 GB, which a desktop has but
+a filter running inside MeshLab should not take silently. Stage 1 therefore keeps the in-process plan,
+and the filter reports its estimate before it runs (see open question 1).
+
+### TSP does not run on the real 3M-face atlas
+
+`tests/local/COLOR_gargoyle/gargo3M_good.ply` with its 4096² texture crashes TSP before
+memory becomes a question. That happens in the unmodified programs too, not only in the
+instrumented copy. Under AddressSanitizer, one fault at a time:
+
+1. **A chart-vertex indexing bug** (`AtlasCharts.inl`, `getCharts`). The map from atlas
+   vertex to chart vertex is one array shared by all charts. A UV vertex used by two charts
+   that touch only at that vertex gets, in the second chart, an index into the *first*
+   chart's array. On this atlas, 167 vertices (249 corners) are shared that way. 129 of the
+   corners read past the array, which is the crash (heap corruption, reported by the
+   allocator in `InitializeGridChartsActiveNodes`). The other 120 silently take a vertex
+   from the wrong chart. The xatlas atlas has none. **This is a bug independent of the
+   input's validity.** The fix keeps a per-chart owner, with a map for the rare other
+   charts. It is verified byte-identical on the xatlas atlas.
+2. **Zero-area UV triangles** (30,085 on this atlas, 1%). One clipping function reads index
+   −1 of an emptied polygon: `ClipIndexedIntersectionPolygonToIndexedIntersectionEdge`,
+   the sibling of the function fixed in mkazhdan/TextureSignalProcessing#19, with the same
+   guard as the fix. Then `GetTriangulation` is handed a polygon with no vertices, and
+   reports that through `MK_ERROR_OUT`: the program **exits with status 0**, the failure
+   mode the error hook above is for. With both of these guarded, the run still faults
+   later, in `IndexConverter::combinedToBoundary`. Not fixed.
+3. **Flipped UV triangles** (1,211 on this atlas). These fault in `_InitializeChart`
+   (`Operators.inl:1132`). TSP's README requires a valid mapping, and the programs'
+   `--sanityCheck` exists to test for one.
+
+The patches for 1 and 2 are kept in `.reference/texture-consolidation-patches/tsp-stage0/`.
+They are not upstream. The 4096² figures above are on this atlas with its zero-area and
+flipped faces removed (2,968,618 faces left), using the fix for 1.
+
+What this means for the filters:
+
+- **Fix 1 belongs upstream, as a pull request like #19.**
+- **For the other two, the adapter should keep zero-area UV triangles out of what it
+  hands TSP.** They cover no texels, so leaving them out changes nothing in texel space.
+  Upstream may prefer a fix, which can follow.
+- **Flipped triangles are a different matter.** They do cover texels. Left out, those
+  texels would count as outside every chart, and *Repair Texture Seams* would overwrite
+  them. The filter should refuse an atlas with flipped or overlapping faces and point to
+  *Select Folded UV Faces* and *Select Overlapping UV Faces*, as the padding rule does for
+  shared texels.
 
 ## Which programs are worth a filter
 
@@ -161,9 +250,10 @@ functors that a `CMeshO` with wedge UVs answers directly.
 (*Texture Signal Processing Filters*: one dependency, one plugin, as in
 [Filter Organization](../filter_organization.md)). The adapter does three things: it
 pads the grid, it wraps errors, and it converts between `CMeshO`/`QImage` and TSP's
-functors and arrays. The memory finding is the one thing that could reverse this choice:
-if 4096² really needs about 18 GB, a helper process would at least keep that out of
-MeshLab's own memory. So the memory investigation comes before stage 1.
+functors and arrays. The memory finding was the one thing that could reverse this
+choice. [Stage 0](#stage-0-memory-and-robustness) showed it is inherent, and about 3.5×
+smaller without the divergence operator. A helper process would not reduce it; it would
+only keep it out of MeshLab's address space. So the choice stands.
 
 ### Where the sources come from
 
@@ -178,11 +268,11 @@ ever need different versions, B can be adopted then.
 
 ## Staging
 
-0. **Memory.** Find where `GradientDomain` construction spends 4.5 GB at 1024² on a
-   20k-face mesh, and whether it is inherent. Measure 4096² on `tests/local/COLOR_gargoyle/
-   gargo3M_good.ply` (3M faces, a real 4096² atlas). Upstream any fix. This decides
-   whether the recommendation stands.
-1. **Plugin and adapter, two filters.** *Repair Texture Seams* (`SetExteriorTexels`) and
+0. **Memory.** Done 2026-11-12; see [Stage 0](#stage-0-memory-and-robustness).
+   Left from it are two upstream pull requests: the chart-vertex fix, and a
+   `GradientDomain` flag to skip the divergence operator.
+1. **Plugin and adapter, two filters.** The adapter keeps zero-area UV triangles out of
+   TSP's input, and refuses atlases with flipped or overlapping faces. *Repair Texture Seams* (`SetExteriorTexels`) and
    *Dilate Texture across Seams* (`TextureDilation`). Tests:
    - a smoke row for each;
    - a behavioural test asserting that *Measure Texture Seam Color Discrepancy* drops
@@ -216,14 +306,18 @@ ever need different versions, B can be adopted then.
 
 ## Open questions
 
-1. **Memory** (stage 0). The cause of the 2.1/4.5/9.1 GB, and whether Misha's thread
-   pool, quadrature buffers or the boundary polygons account for it.
-2. **The Stanford PLY notice.** Moving it from the helpers into the application makes the
+1. **Memory in the filter.** Stage 0 explained the memory: it follows the fine boundary
+   edge count. The filter should still say what it is about to take. Two options: estimate it
+   from a cheap pass over the boundary cells and ask before running, or document the figures
+   and run. Which one is the user's call.
+2. **The remaining zero-area fault** (`combinedToBoundary`), for an upstream fix rather than
+   the adapter's workaround, if mkazhdan prefers one.
+3. **The Stanford PLY notice.** Moving it from the helpers into the application makes the
    existing open item in `UPSTREAM.md` more pressing. Alternatively, the adapter could
    avoid `PlyFile.h`, if TSP's headers can be included without it. That has not been
    tried.
-3. **Reaction-diffusion's reaction term** (stage 3): keep the quadrature
+4. **Reaction-diffusion's reaction term** (stage 3): keep the quadrature
    (`ScalarIntegrator`, lower-level API) or approximate it.
-4. **Multigrid or direct.** At 512² the direct solve is faster than enough V-cycles to
+5. **Multigrid or direct.** At 512² the direct solve is faster than enough V-cycles to
    match it (2.5 s against 7.5 s for 100). Whether this holds at 2048² and above has not
    been measured.
