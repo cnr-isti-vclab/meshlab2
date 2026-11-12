@@ -184,13 +184,24 @@ instrumented copy. Under AddressSanitizer, one fault at a time:
    from the wrong chart. The xatlas atlas has none. **This is a bug independent of the
    input's validity.** The fix keeps a per-chart owner, with a map for the rare other
    charts. It is verified byte-identical on the xatlas atlas.
-2. **Zero-area UV triangles** (30,085 on this atlas, 1%). One clipping function reads index
-   −1 of an emptied polygon: `ClipIndexedIntersectionPolygonToIndexedIntersectionEdge`,
-   the sibling of the function fixed in mkazhdan/TextureSignalProcessing#19, with the same
-   guard as the fix. Then `GetTriangulation` is handed a polygon with no vertices, and
-   reports that through `MK_ERROR_OUT`: the program **exits with status 0**, the failure
-   mode the error hook above is for. With both of these guarded, the run still faults
-   later, in `IndexConverter::combinedToBoundary`. Not fixed.
+2. **Empty clipped polygons.** One clipping function reads index −1 of an emptied polygon:
+   `ClipIndexedIntersectionPolygonToIndexedIntersectionEdge`, the sibling of the function
+   fixed in mkazhdan/TextureSignalProcessing#19. Or, when the last of the triangle's
+   edges empties it, `GetTriangulation` is handed a polygon with no vertices and reports
+   that through `MK_ERROR_OUT`: the program **exits with status 0**, the failure mode the
+   error hook above is for.
+
+   Two inputs empty a polygon:
+   - **The 30,085 zero-area UV triangles** (1%). They have no inside. With them still in,
+     the run faults later, in `IndexConverter::combinedToBoundary`. Not fixed.
+   - **A valid triangle that only touches a boundary cell.** Upstream's rasterizer reports
+     every cell the closed triangle meets, but the clip keeps only what is strictly inside.
+     So an edge through a texel centre, which float UVs can hit exactly, leaves nothing.
+     Even with the zero-area triangles removed, exactly one triangle on this atlas does
+     this, so stage 0's runs completed only because they carried the guards. A square
+     split along its diagonal reproduces it at 64². This is upstream's bug whatever the
+     input, and a pull request skips the empty cell at both call sites, as TSP's
+     quadrature code already does.
 3. **Flipped UV triangles** (1,211 on this atlas). These fault in `_InitializeChart`
    (`Operators.inl:1132`). TSP's README requires a valid mapping, and the programs'
    `--sanityCheck` exists to test for one.
@@ -201,7 +212,12 @@ flipped faces removed (2,968,618 faces left), using the fix for 1.
 
 What this means for the filters:
 
-- **Fix 1 belongs upstream, as a pull request like #19.**
+- **Fix 1 and the touching-triangle half of fix 2 belong upstream**, and both pull
+  requests were prepared on 2026-11-12 (files in
+  `.reference/texture-consolidation-patches/tsp-chart-vertex/` and `tsp-clip-graze/`).
+  Fix 1 is #20. An earlier PR, #17, fixes the same bug by overwriting the vertex's owner.
+  On this atlas that adds 89 vertices a second time to a chart that already had them,
+  and the texture differs from #20's at 228 texels, by up to 54/255.
 - **For the other two, the adapter should keep zero-area UV triangles out of what it
   hands TSP.** They cover no texels, so leaving them out changes nothing in texel space.
   Upstream may prefer a fix, which can follow.
@@ -269,8 +285,8 @@ ever need different versions, B can be adopted then.
 ## Staging
 
 0. **Memory.** Done 2026-11-12; see [Stage 0](#stage-0-memory-and-robustness).
-   Left from it are two upstream pull requests: the chart-vertex fix, and a
-   `GradientDomain` flag to skip the divergence operator.
+   Left from it are three upstream pull requests: the chart-vertex fix (#20), the
+   touching-triangle clip, and a `GradientDomain` flag to skip the divergence operator.
 1. **Plugin and adapter, two filters.** The adapter keeps zero-area UV triangles out of
    TSP's input, and refuses atlases with flipped or overlapping faces. *Repair Texture Seams* (`SetExteriorTexels`) and
    *Dilate Texture across Seams* (`TextureDilation`). Tests:
