@@ -2,7 +2,8 @@
 
 ## Provenance and boundary
 
-*Repair Texture Seams* and *Dilate Texture across Seams* run the code of Prada, Kazhdan,
+*Repair Texture Seams*, *Dilate Texture across Seams*, *Smooth Texture*, *Sharpen Texture*,
+*Inpaint Texture on Selected Faces* and *Transfer Texture Detail* run the code of Prada, Kazhdan,
 Chuang and Hoppe, *Gradient-Domain Processing within a Texture Atlas* (SIGGRAPH 2018), from
 [`mkazhdan/TextureSignalProcessing`](https://github.com/mkazhdan/TextureSignalProcessing)
 (TSP), in process. The design, and the measurements behind it, are in
@@ -80,14 +81,34 @@ If upstream merges #17 instead of #20, check the 3M-face atlas first (see the pr
 - **Localized filtering** (only selected faces) builds the divergence operator and scales the edge
   differences by the mean of their ends' factors, a node being selected when the triangle nearest
   its texel is; only selected nodes are written. With every face selected the result is the
-  uniform one exactly.
+  uniform one exactly. The nearest triangle comes from Misha's candidate lists
+  (`GetSupportedTexelInfo` with `UseVector`), whose ties are broken by index: the other path keeps
+  whichever supporting triangle a thread wrote last, so the edge of a selection moved from run to
+  run (20 texels of 31,000 on a 20k-face atlas).
+- **Alpha is left as it was** by smoothing, sharpening, inpainting and detail transfer, as in the
+  programs, which read color only. The adapter used to solve it as a fourth channel, and the
+  transparent gutter of a projected texture bled into the islands: smoothing left 162,929 of
+  162,932 opaque texels partly transparent. The repair and the dilation still write it, which
+  makes the gutter they fill opaque.
+- **Inpainting** is `SeamStitcher`'s mask mode, the mask being the texels whose nearest face is
+  selected: the repair's solve, with the region freed instead of the exterior texels. The exterior
+  texels outside the region are freed as well, and not written: held, the background of the gutter
+  bled into the fill as a boundary value. Only the texels coupled less than 1e-3 of the median take
+  the repair's pull towards their current value; on every exterior texel, it added up along the
+  seams and held a large region back towards what was there (the comment at `kWeak` has the sweep).
+- **Detail transfer** is `TextureFiltering --inLow`: the values held to the base texture, the
+  gradients taken from the detail texture, which the plugin resamples to the base's size when it
+  has another (the program refuses it).
+- **Object-space normal maps** (`TextureFiltering --colorAsNormal`) need no decoding, since the
+  solves commute with an affine change of the values; the texels written are renormalized.
 - **Refused or left out:** faces folded over their own UV island are refused for the repair
   (they fault in `_InitializeChart`); faces with no UV area are left out of both.
 
 ## Updating
 
-1. Move the submodule, rebuild, and run the plugin's tests (`FilterTests` rows for both
-   filters, and the smoke rows).
+1. Move the submodule, rebuild, and run the plugin's tests (the three `textureSignalProcessing`
+   rows of `FilterTests`, and the smoke rows).
 2. Re-run the symbol check above.
-3. If TSP changed `SetExteriorTexels.cpp` or `TextureDilation.cpp`, compare the adapter's two
-   functions with them: the adapter reproduces their computation and nothing else.
+3. If TSP changed `SetExteriorTexels.cpp`, `TextureDilation.cpp`, `TextureFiltering.cpp` or
+   `SeamStitcher.cpp`, compare the adapter's functions with them: the adapter reproduces their
+   computation, with the differences listed above, and nothing else.

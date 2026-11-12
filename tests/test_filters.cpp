@@ -516,6 +516,7 @@ private slots:
     void textureConsolidationBuildsTextureFromRasters();
     void textureSignalProcessingRepairsAndDilatesSeams();
     void textureSignalProcessingSmoothsAndSharpens();
+    void textureSignalProcessingInpaintsTransfersAndRenormalizes();
     void open3dFeatureMatchingCanUseAllVisibleLayersAsReference();
     void open3dFeatureMatchingCanEstimateItsQualityWithIcp();
     void open3dFastGlobalRegistrationCanUseAllVisibleLayersAsReference();
@@ -7058,7 +7059,7 @@ void FilterTests::textureSignalProcessingRepairsAndDilatesSeams()
 // horizontally adjacent texels: smoothing lowers it, sharpening raises it, and smoothing also brings
 // the two sides of the seams closer, since the texels across a seam are neighbors on the surface.
 // Confined to the faces west of the median, only part of what the uniform run changes is changed,
-// and with every face selected the result is the uniform one exactly.
+// and with every face selected the result is the uniform one exactly. Alpha is left as it was.
 void FilterTests::textureSignalProcessingSmoothsAndSharpens()
 {
     Document probe;
@@ -7097,6 +7098,12 @@ void FilterTests::textureSignalProcessingSmoothsAndSharpens()
     const MeshFilterRunResult smoothed = doc.runFilter(smoothKey, uniform);
     QVERIFY2(smoothed.success, qPrintable(smoothed.errorMessage));
     const QImage smoothImage = image();
+    // Alpha is the projection's coverage, transparent outside the islands, and is left alone: once
+    // filtered with the color, the gutter made the islands transparent.
+    QVERIFY(input.hasAlphaChannel());
+    for (int y = 0; y < input.height(); ++y)
+        for (int x = 0; x < input.width(); ++x)
+            QCOMPARE(qAlpha(smoothImage.pixel(x, y)), qAlpha(input.pixel(x, y)));
     const double smoothRoughness = roughness(smoothImage), smoothDiscrepancy = discrepancy();
     qDebug("smooth texture: roughness %.2f -> %.2f, seam discrepancy %.2f -> %.2f | %s", inputRoughness,
            smoothRoughness, inputDiscrepancy, smoothDiscrepancy, qPrintable(smoothed.infoMessages.join(QStringLiteral(" | "))));
@@ -7141,10 +7148,168 @@ void FilterTests::textureSignalProcessingSmoothsAndSharpens()
     qDebug("smooth texture on the west half: %d texels changed, against %d for the whole texture", westChanged, allChanged);
     QVERIFY(westChanged > allChanged / 5);
     QVERIFY(westChanged < 4 * allChanged / 5);
+    int strays = 0;
     for (int y = 0; y < input.height(); ++y)
         for (int x = 0; x < input.width(); ++x)
-            if (smoothImage.pixel(x, y) == input.pixel(x, y))
-                QVERIFY(image().pixel(x, y) == input.pixel(x, y));
+            strays += smoothImage.pixel(x, y) == input.pixel(x, y) && image().pixel(x, y) != input.pixel(x, y);
+    // A texel the uniform run happens to round back to its input value can still change when the
+    // run is confined: a few, not a region.
+    QVERIFY2(strays < westChanged / 1000, qPrintable(QStringLiteral("%1 texels changed only by the confined run").arg(strays)));
+}
+
+// Inpainting, detail transfer and the normal-map option, on the photo texture.
+// - Inpainting fills the region under the selected faces from around it, whatever was there: a
+//   region painted magenta comes back close to the photo, and texels outside it are left alone.
+//   With no face selected it refuses.
+// - Detail transfer with the photo as both textures returns the photo, and from a smoothed base
+//   restores most of the photo's roughness.
+// - With the normal-map option every texel written decodes to a unit vector.
+void FilterTests::textureSignalProcessingInpaintsTransfersAndRenormalizes()
+{
+    Document probe;
+    const QString inpaintKey = filterKeyForId(probe, QStringLiteral("inpaint_texture_on_selected_faces"));
+    const QString transferKey = filterKeyForId(probe, QStringLiteral("transfer_texture_detail"));
+    const QString smoothKey = filterKeyForId(probe, QStringLiteral("smooth_texture"));
+    if (inpaintKey.isEmpty() || transferKey.isEmpty() || smoothKey.isEmpty())
+        QSKIP("TextureSignalProcessing plugin is not available in this build.");
+
+    Document doc;
+    const QString fixture = makePhotoTexturedGargoyle(doc);
+    QVERIFY2(fixture.isEmpty(), qPrintable(fixture));
+    Document::MeshEntry &entry = doc.mesh(0);
+    // The projection's alpha marks the texels inside the islands, the ones a rendering shows.
+    const QImage projected = entry.textureAssets.front().image;
+    const QImage input = projected.convertToFormat(QImage::Format_RGB32);
+    auto opaque = [&](int x, int y) { return qAlpha(projected.pixel(x, y)) == 255; };
+    auto image = [&]() -> QImage & { return entry.textureAssets.front().image; };
+    auto difference = [](QRgb a, QRgb b) {
+        return std::max({ std::abs(qRed(a) - qRed(b)), std::abs(qGreen(a) - qGreen(b)), std::abs(qBlue(a) - qBlue(b)) });
+    };
+    auto roughness = [](const QImage &im) {
+        double sum = 0;
+        for (int y = 0; y < im.height(); ++y)
+            for (int x = 1; x < im.width(); ++x) {
+                const QRgb a = im.pixel(x - 1, y), b = im.pixel(x, y);
+                sum += std::abs(qRed(a) - qRed(b)) + std::abs(qGreen(a) - qGreen(b)) + std::abs(qBlue(a) - qBlue(b));
+            }
+        return sum / (3.0 * im.height() * (im.width() - 1));
+    };
+    auto rms = [&](const QImage &a, const QImage &b) {
+        double sum = 0;
+        for (int y = 0; y < a.height(); ++y)
+            for (int x = 0; x < a.width(); ++x) {
+                const QRgb p = a.pixel(x, y), q = b.pixel(x, y);
+                sum += std::pow(qRed(p) - qRed(q), 2) + std::pow(qGreen(p) - qGreen(q), 2) + std::pow(qBlue(p) - qBlue(q), 2);
+            }
+        return std::sqrt(sum / (3.0 * a.width() * a.height()));
+    };
+
+    // Inpainting, the west fifth of the faces selected.
+    VCGMesh &mesh = entry.mesh;
+    std::vector<float> xs;
+    for (const VCGFace &f : mesh.face)
+        if (!f.IsD())
+            xs.push_back(f.cP(0).X() + f.cP(1).X() + f.cP(2).X());
+    std::nth_element(xs.begin(), xs.begin() + xs.size() / 5, xs.end());
+    const float fifth = xs[xs.size() / 5];
+    for (VCGFace &f : mesh.face)
+        if (!f.IsD() && f.cP(0).X() + f.cP(1).X() + f.cP(2).X() < fifth)
+            f.SetS();
+    const MeshFilterRunResult first = doc.runFilter(inpaintKey, {});
+    QVERIFY2(first.success, qPrintable(first.errorMessage));
+    const QImage filled = image().convertToFormat(QImage::Format_RGB32);
+    // The region is what the first run changed; paint it magenta, and inpaint again.
+    QImage painted = input;
+    int region = 0;
+    for (int y = 0; y < input.height(); ++y)
+        for (int x = 0; x < input.width(); ++x)
+            if (filled.pixel(x, y) != input.pixel(x, y)) {
+                painted.setPixel(x, y, qRgb(255, 0, 255));
+                ++region;
+            }
+    QVERIFY(region > 1000);
+    image() = painted;
+    const MeshFilterRunResult second = doc.runFilter(inpaintKey, {});
+    QVERIFY2(second.success, qPrintable(second.errorMessage));
+    const QImage repainted = image().convertToFormat(QImage::Format_RGB32);
+    int magenta = 0, outside = 0, inside = 0, gutterMagenta = 0, gutterOutside = 0;
+    double paintedError = 0, repaintedError = 0;
+    for (int y = 0; y < input.height(); ++y)
+        for (int x = 0; x < input.width(); ++x) {
+            const bool region = painted.pixel(x, y) == qRgb(255, 0, 255);
+            if (!opaque(x, y)) {
+                gutterMagenta += region && difference(repainted.pixel(x, y), qRgb(255, 0, 255)) < 64;
+                gutterOutside = std::max(gutterOutside, region ? 0 : difference(repainted.pixel(x, y), input.pixel(x, y)));
+            } else if (region) {
+                ++inside;
+                magenta += difference(repainted.pixel(x, y), qRgb(255, 0, 255)) < 64;
+                paintedError += std::pow(difference(painted.pixel(x, y), input.pixel(x, y)), 2);
+                repaintedError += std::pow(difference(repainted.pixel(x, y), input.pixel(x, y)), 2);
+            } else {
+                outside = std::max(outside, difference(repainted.pixel(x, y), input.pixel(x, y)));
+            }
+        }
+    qDebug("inpaint texture: %d texels in the region, %d inside the islands, %d of them still near magenta "
+           "(%d in the gutter); rms against the photo %.2f, painted %.2f; largest change outside %d (%d in the gutter) | %s",
+           region, inside, magenta, gutterMagenta, std::sqrt(repaintedError / inside), std::sqrt(paintedError / inside),
+           outside, gutterOutside, qPrintable(second.infoMessages.join(QStringLiteral(" | "))));
+    QVERIFY(magenta < inside / 100);
+    QVERIFY(repaintedError < 0.0625 * paintedError);
+    // Not painted means the first run left the texel as it was, which a texel of the region can
+    // also do; the few barely coupled texels still near magenta then move it by a few levels.
+    QVERIFY2(outside <= 8, qPrintable(QStringLiteral("a texel outside the region changed by %1").arg(outside)));
+    vcg::tri::UpdateSelection<VCGMesh>::FaceClear(mesh);
+
+    // Detail transfer: the photo as a second texture, read through the first one's UVs.
+    MeshFilterParameterValues uniform;
+    uniform.insert(QStringLiteral("selectedOnly"), false);
+    image() = input;
+    QVERIFY(doc.runFilter(smoothKey, uniform).success);
+    const QImage smoothed = image().convertToFormat(QImage::Format_RGB32);
+    entry.textureAssets.push_back(TextureAssociationUtils::makeTextureAssetFromImage(input, QStringLiteral("detail.png")));
+    TextureAssociationUtils::rebuildLegacyTextureAssociation(entry);
+    MeshFilterParameterValues transfer;
+    transfer.insert(QStringLiteral("texture"), 1);
+    transfer.insert(QStringLiteral("detailTexture"), 2);
+    const MeshFilterRunResult restored = doc.runFilter(transferKey, transfer);
+    QVERIFY2(restored.success, qPrintable(restored.errorMessage));
+    const QImage restoredImage = image().convertToFormat(QImage::Format_RGB32);
+    qDebug("transfer texture detail: roughness %.2f, smoothed %.2f, transferred %.2f; rms against the photo "
+           "smoothed %.2f, transferred %.2f | %s", roughness(input), roughness(smoothed), roughness(restoredImage),
+           rms(smoothed, input), rms(restoredImage, input), qPrintable(restored.infoMessages.join(QStringLiteral(" | "))));
+    QVERIFY(roughness(restoredImage) > 0.9 * roughness(input));
+    QVERIFY(rms(restoredImage, input) < 0.5 * rms(smoothed, input));
+    image() = input;
+    QVERIFY(doc.runFilter(transferKey, transfer).success);
+    int largest = 0;
+    for (int y = 0; y < input.height(); ++y)
+        for (int x = 0; x < input.width(); ++x)
+            largest = std::max(largest, difference(image().pixel(x, y), input.pixel(x, y)));
+    QVERIFY2(largest <= 1, qPrintable(QStringLiteral("the photo as base and detail changed a texel by %1").arg(largest)));
+
+    // The normal-map option: whatever the colors meant, what is written is a unit vector.
+    image() = input;
+    MeshFilterParameterValues normals = uniform;
+    normals.insert(QStringLiteral("objectSpaceNormals"), true);
+    QVERIFY(doc.runFilter(smoothKey, normals).success);
+    int written = 0, off = 0;
+    for (int y = 0; y < input.height(); ++y)
+        for (int x = 0; x < input.width(); ++x) {
+            const QRgb p = image().pixel(x, y);
+            if (p == input.pixel(x, y))
+                continue;
+            ++written;
+            const double length = std::sqrt(std::pow(qRed(p) / 127.5 - 1, 2) + std::pow(qGreen(p) / 127.5 - 1, 2)
+                                            + std::pow(qBlue(p) / 127.5 - 1, 2));
+            off += std::abs(length - 1) > 0.02;
+        }
+    QVERIFY(written > 1000);
+    QCOMPARE(off, 0);
+
+    // Last, since a refused run puts the document back, and the references above with it.
+    const MeshFilterRunResult refused = doc.runFilter(inpaintKey, {});
+    QVERIFY(!refused.success);
+    QVERIFY2(refused.errorMessage.contains(QStringLiteral("No selected face")), qPrintable(refused.errorMessage));
 }
 
 // The CSG evaluator and the pairwise booleans must agree where they overlap, and the

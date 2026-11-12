@@ -175,6 +175,7 @@ const QHash<QString, QStringList> &searchAliases()
             { "separate detach", "split extract" },
             { "reorient", "orient" },
             { "fill patch cap", "close" },
+            { "fill heal retouch", "inpaint" },
             { "load read", "import" },
             { "save write", "export" },
             { "relabel", "rename" },

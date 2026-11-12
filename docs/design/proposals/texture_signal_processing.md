@@ -6,7 +6,9 @@ worth turning into MeshLab filters, and how to integrate them. It recommends doi
 process**, as Screened Poisson is, through TSP's header-only `GradientDomain` library, and
 **not** as helper programs, as TextureConsolidation is. **Stages 1 and 2 implemented 2026-11-12** (the
 plugin `filter_texture_signal_processing`, with *Repair Texture Seams*, *Dilate Texture across
-Seams*, *Smooth Texture* and *Sharpen Texture*; see its `UPSTREAM.md`); stage 3 is not. Every number below was measured for
+Seams*, *Smooth Texture* and *Sharpen Texture*; see its `UPSTREAM.md`); **stage 3 the same day**
+(*Inpaint Texture on Selected Faces*, *Transfer Texture Detail* and object-space normal maps); stage 4
+is not. Every number below was measured for
 this proposal.
 
 See also: [TextureConsolidation history](../history/texture_consolidation.md),
@@ -239,12 +241,12 @@ proposed names are drafts. Four of them need words the vocabulary does not have 
 | --- | --- | --- | --- | --- |
 | `SetExteriorTexels` (203 lines) | Sets the texels just outside each chart to the values that minimize the Dirichlet energy, given the covered ones, so bilinear lookups agree across seams | Nothing. *Measure Texture Seam Color Discrepancy* only measures the problem | *Repair Texture Seams* | **Stage 1.** Small, fast, useful on any atlas, measurable with a filter we ship |
 | `TextureDilation` (155 lines) | Fills gutter texels up to a radius by following the surface across the seam and sampling the neighbouring chart | The `pullpush` option of the transfer filters, which fills in image space with a blur | *Dilate Texture across Seams* | **Stage 1.** Does not need `GradientDomain`: 5 s to compile, 0.23 GB to run |
-| `TextureFiltering` (1,184 lines; the library example does the same in 120) | Smooths or sharpens a texture with a screened Poisson solve, across seams | Nothing for textures; *Smooth Vertex Color* and the unsharp-mask filters work per vertex | *Smooth Texture*, *Sharpen Texture* | **Stage 2.** Per-edge gradient scaling is computed by the caller, so a face selection could drive a localized version, which the program does only through its interactive viewer |
+| `TextureFiltering` (1,184 lines; the library example does the same in 120) | Smooths or sharpens a texture with a screened Poisson solve, across seams | Nothing for textures; *Smooth Vertex Color* and the unsharp-mask filters work per vertex | *Smooth Texture*, *Sharpen Texture* | **Stage 2.** Per-edge gradient scaling is computed by the caller, so a face selection could drive a localized version, which the program does only through its interactive viewer. **Stage 3** adds two of its options: `--inLow`, values from a second texture (*Transfer Texture Detail*), and `--colorAsNormal`, object-space normal maps |
 | `TextureStitching` (1,520 lines) | Blends several partial textures, or one composite with a source-id mask, in the gradient domain | Ships inside *Transfer Color from Visible Rasters to Texture (Texture Consolidation)*, as a helper | An option of the stage-2 smoothing: keep gradients only between texels from the same source | **Stage 3**, only if *Transfer Color from Visible Rasters to Texture* is changed to output, per texel, which raster its color came from |
 | `LineIntegralConvolution` (1,025 lines) | Draws a vector field as a streak texture by anisotropic diffusion along it | Field filters exist (principal curvature directions, two backends; the [Directional](directional_port.md) proposal), but nothing draws a field into a texture | *Render Vector Field to Texture (LIC)*, name to be decided | **Stage 3.** Uses the per-triangle metric form of the constructor, which the library supports |
 | `ReactionDiffusion` (918 lines) | Gray–Scott stripes or dots grown in texture space, optionally aligned to a vector field | Nothing | Name to be decided | **Stage 3.** Its reaction term is integrated with `ScalarIntegrator`, which is not part of `GradientDomain.h`. Either the adapter uses the lower-level API, or the term is approximated by applying the mass matrix to a per-texel value, which is a change in the method and needs Paolo's ruling |
 | `Geodesics` (816 lines) | Heat-method distance from a clicked point, at texel resolution | Five geodesic filters (vcglib, libigl, heat and exact), per vertex | — | **No.** The only new thing would be texel resolution |
-| `SeamStitcher` (260 lines) | Re-solves the texels at chart crossings, or the exterior texels, or masked ones, to minimize the Dirichlet energy | — | — | **No.** On a padded atlas its default mode has nothing to do: 0 degrees of freedom, output identical. `--exterior` overlaps `SetExteriorTexels` and ran for over 10 minutes. The mask mode is the stage-2 solve with a different right-hand side |
+| `SeamStitcher` (260 lines) | Re-solves the texels at chart crossings, or the exterior texels, or masked ones, to minimize the Dirichlet energy | — | — | **Mask mode: stage 3**, as *Inpaint Texture on Selected Faces*, with the selection as the mask. It frees the masked texels and holds the rest, which is the stage-1 repair's solve with a different set of free texels. The other two modes, no: on a padded atlas the default mode has nothing to do (0 degrees of freedom, output identical), and `--exterior` overlaps `SetExteriorTexels` and ran for over 10 minutes |
 | `TextureMasking` (320 lines) | Draws active, boundary and gutter texels and triangle IDs as an image | *Measure Texel Coverage*, *Select Overlapping UV Faces* ([TexMetro](texmetro.md)) | — | **No.** Diagnostic, and covered |
 
 ## Integration: in process, as Screened Poisson is
@@ -342,9 +344,66 @@ include. After it, an adapter-like file includes no PLY header and emits no PLY 
    On the 3M-face scan at 4096²: 3 minutes and 19 GB, 4 minutes and 47 GB with a selection. Found
    on the way: TSP jittered with `rand()`, so in the application every run differed from the last;
    #24 gives the jitter a generator of its own.
-3. **Line-integral convolution, reaction-diffusion, source-aware stitching.** Each needs
+3. **Inpainting, detail transfer and normal maps.** Proposed 2026-11-12; Paolo approved them
+   and their names the same day; **implemented the same day**, with the measured differences from
+   this plan listed after the three items. Three uses of what stages 1 and 2
+   built, each a few dozen lines in the adapter:
+   - ***Inpaint Texture on Selected Faces*** (`SeamStitcher --mask`). The texels whose nearest
+     face is selected, by stage 2's rule, exterior ones included, are freed; every other texel
+     is held. The freed texels take the values that minimize the Dirichlet energy on the
+     surface, which is the repair's solve, $(P^\top S P)\,y = -P^\top S\,x$, with a different $P$. The
+     fill is harmonic: smooth, continuous across seams, and meeting the surrounding colors at
+     the edge of the selection. That is right for markers, stains and small projection errors,
+     and blurry over large regions. The repair's pull towards the current values cannot be
+     reused: at 1e-2 of the median coupling it reaches about ten texels, so a stain would show
+     through. The system is only regularized, at 1e-8, so that a region with no held texel
+     around it (a whole connected piece of the surface selected) keeps its mean. The solve is
+     direct, like the repair's; its cost on a large selection is open question 6.
+   - ***Transfer Texture Detail*** (`TextureFiltering --inLow`). Two textures of one mesh,
+     both read through the UVs of the first. The result keeps the gradients of the *Detail
+     Texture*, scaled by *Gradient Scale* (default 1), while its values are held to the
+     *Base Texture* with weight *Fidelity*: $(w\,M + S)\,x = w\,M\,x_b + s\,S\,x_d$. For example, a sharp
+     texture from one capture and a color-correct but soft one from another. The result
+     replaces the base texture's image, the one the faces show. A detail texture of another size
+     is resampled to the base's size (the program refuses it). No selection: what scaling the gradients
+     outside it should mean has no obvious answer when they come from another texture.
+   - **Object-space normal maps** (`TextureFiltering --colorAsNormal`): an option on the
+     smoothing, sharpening, detail-transfer and inpainting filters. The colors are decoded as
+     vectors ($2c-1$), solved for, renormalized and encoded again. Object-space maps only:
+     a tangent-space map's frame changes across a seam, so treating its two sides as one
+     signal mixes frames. The help says so.
+
+   Tests: inpainting a patch overwritten with noise on the gargoyle leaves every unselected
+   texel unchanged and comes back close to the original; detail transfer with the same
+   texture as base and detail at scale 1 returns the input, and from a smoothed base restores
+   most of the original roughness; a normal-map run gives unit-length normals.
+
+   Measured while implementing, and changed from the plan:
+   - **The inpainting's pull.** Regularizing the region alone, as planned, sent the exterior
+     texels the energy barely reaches up to 4,300 levels out of range; the repair's pull on all
+     of them added up along the seams of a large region and held it back towards what was there
+     (15,022 of 34,090 texels of a region painted magenta stayed near magenta). Only the texels
+     coupled less than 1e-3 of the median take the pull: 89 stay near magenta, the error against
+     the photo is 27.8 levels against 26.4 with no pull at all, and 31 values come out of range
+     on the 3M-face scan, against 45.
+   - **The gutter around the region is freed**, and not written: held, its background bled into
+     the fill as a boundary value.
+   - **Alpha is left alone** by the four filters that solve for colors, as in the programs, which
+     read color only. This fixes stage 2 as well: solved as a fourth channel, the transparent gutter
+     of a projected texture left 162,929 of its 162,932 opaque texels partly transparent after
+     smoothing.
+   - **Which face is nearest** to a texel now comes from Misha's candidate lists, whose ties are
+     broken by index. The other path keeps whichever supporting triangle a thread wrote last, so
+     the edge of a selection moved from run to run; this fixes stage 2's localized filtering too.
+   - On the gargoyle test, inpainting a region of 34,090 texels painted magenta brings it back to
+     27.8 levels rms of the photo (157.6 painted); detail transfer from a smoothed base brings the
+     roughness from 5.08 back to 14.28 (the photo's is 14.17), and the error against the photo
+     from 31.2 to 5.6.
+4. **Line-integral convolution, reaction-diffusion, source-aware stitching.** Each needs
    its own decision first: the vocabulary for the first two, Paolo's ruling on the
-   reaction term, and a change to color projection for the third.
+   reaction term, and a change to color projection for the third. `ReactionDiffusion`'s
+   `--approximateIntegration` does not settle the ruling: it only chooses a cheaper
+   quadrature inside `ScalarIntegrator`, which still needs the lower-level interface.
 
 ## Naming
 
@@ -361,6 +420,13 @@ include. After it, an adapter-like file includes no PLY header and emits no PLY 
 - ***Dilate Texture across Seams***: `Dilate` is admitted only for selections. Widening
   it to images keeps its standard morphological meaning. The alternative, `Fill`, is
   rejected in the lexicon as a synonym of `Close`.
+- ***Inpaint Texture on Selected Faces*** (stage 3, approved 2026-11-12): admits `Inpaint` narrowly, for
+  filling a region of an image from its surroundings, as the image-processing term of art,
+  the way `Close` was admitted for holes. `Repair` would also fit its definition, but would
+  not tell this filter from *Repair Texture Seams*; `Fill` is rejected under `Close`.
+- ***Transfer Texture Detail*** (stage 3, approved 2026-11-12): `Transfer` as defined, data moving
+  between textures. Its parameters are *Base Texture* and *Detail Texture*.
+- **The normal-map option** (stage 3, approved 2026-11-12): *Texture Holds Object-Space Normals*.
 - **Line-integral convolution and reaction-diffusion** produce a new texture from no
   input texture. `Create` is reserved for layers, and `Render` means an image of the
   scene. To be decided with the stage-3 filters.
@@ -382,3 +448,7 @@ include. After it, an adapter-like file includes no PLY header and emits no PLY 
 5. **Multigrid or direct.** Answered with stage 2: at 512² the direct solve is faster than
    enough V-cycles to match it (2.5 s against 7.5 s for 100), but at 2048² it takes 63 s and
    5.7 GB to factor against 28 s of multigrid, and grows faster from there. Multigrid.
+6. **Inpainting cost** (stage 3). Answered: the direct solve is enough. Most of the cost is
+   building the operators, as for the repair: a second and 1.4 GB for 5% of a 20k-face mesh at
+   1024², 3 s and 1.7 GB for half; on the 3M-face scan at 4096², 22 s and 18 GB for 5% of the
+   faces, 96 s and 22 GB for half of them, far more than inpainting is for.

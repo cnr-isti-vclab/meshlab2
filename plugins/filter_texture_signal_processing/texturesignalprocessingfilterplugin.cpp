@@ -21,6 +21,8 @@ constexpr QLatin1StringView kFilterRepairSeams("repair_texture_seams");
 constexpr QLatin1StringView kFilterDilate("dilate_texture_across_seams");
 constexpr QLatin1StringView kFilterSmooth("smooth_texture");
 constexpr QLatin1StringView kFilterSharpen("sharpen_texture");
+constexpr QLatin1StringView kFilterInpaint("inpaint_texture_on_selected_faces");
+constexpr QLatin1StringView kFilterTransferDetail("transfer_texture_detail");
 
 using UvLayerUtils::UVMesh;
 
@@ -152,7 +154,7 @@ MeshFilterRunResult TextureSignalProcessingFilterPlugin::runFilter(
     const FilterParams &params,
     Document &doc) const
 {
-    enum class Kind { Repair, Dilate, Smooth, Sharpen };
+    enum class Kind { Repair, Dilate, Smooth, Sharpen, Inpaint, TransferDetail };
     Kind kind;
     if (filterId == QString::fromLatin1(kFilterRepairSeams))
         kind = Kind::Repair;
@@ -162,9 +164,14 @@ MeshFilterRunResult TextureSignalProcessingFilterPlugin::runFilter(
         kind = Kind::Smooth;
     else if (filterId == QString::fromLatin1(kFilterSharpen))
         kind = Kind::Sharpen;
+    else if (filterId == QString::fromLatin1(kFilterInpaint))
+        kind = Kind::Inpaint;
+    else if (filterId == QString::fromLatin1(kFilterTransferDetail))
+        kind = Kind::TransferDetail;
     else
         return fail(QObject::tr("Unknown filter: %1").arg(filterId));
-    const bool filtering = kind == Kind::Smooth || kind == Kind::Sharpen;
+    const bool filtering = kind == Kind::Smooth || kind == Kind::Sharpen || kind == Kind::TransferDetail;
+    const bool normals = params.getBool(QStringLiteral("objectSpaceNormals"), false);
 
     const int meshIndex = doc.currentMeshIndex();
     if (meshIndex < 0 || meshIndex >= doc.meshCount())
@@ -179,8 +186,23 @@ MeshFilterRunResult TextureSignalProcessingFilterPlugin::runFilter(
     if (!TextureAssociationUtils::loadAssociatedTextureImage(entry, texture, source, error))
         return fail(error);
 
+    // The texture whose gradients Transfer Texture Detail keeps, read through the UVs of `texture`,
+    // and resampled to its size if it has another: TSP takes the two as one grid of texels.
+    QImage detail;
+    int detailTexture = -1;
+    if (kind == Kind::TransferDetail) {
+        detailTexture = params.getTextureRef(QStringLiteral("detailTexture"), 1) - 1;
+        if (detailTexture < 0 || detailTexture >= Document::meshTextureAssociationCount(entry))
+            return fail(QObject::tr("'%1' has no texture %2.").arg(entry.name).arg(detailTexture + 1));
+        if (!TextureAssociationUtils::loadAssociatedTextureImage(entry, detailTexture, detail, error))
+            return fail(error);
+        if (detail.size() != source.size())
+            detail = detail.scaled(source.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    }
+
     static const char *const kProgress[] = { "Repairing texture seams", "Dilating texture across seams",
-                                             "Smoothing texture", "Sharpening texture" };
+                                             "Smoothing texture", "Sharpening texture", "Inpainting texture",
+                                             "Transferring texture detail" };
     vcg::CallBackPos *cb = doc.progressCallback();
     if (cb)
         cb(0, kProgress[int(kind)]);
@@ -189,8 +211,14 @@ MeshFilterRunResult TextureSignalProcessingFilterPlugin::runFilter(
     error = prepareAtlas(entry, texture, source.size(), kind != Kind::Dilate, prepared);
     if (!error.isEmpty())
         return fail(error);
+    if (kind == Kind::Inpaint && std::find(prepared.selected.begin(), prepared.selected.end(), 1) == prepared.selected.end())
+        return fail(QObject::tr("No selected face of '%1' uses texture %2: select the faces whose texture to inpaint.")
+                        .arg(entry.name).arg(texture + 1));
 
+    // The image solved for, which receives the result. Transfer Texture Detail takes its gradients
+    // from the detail texture instead.
     TspAdapter::Image image = toAdapterImage(source);
+    const TspAdapter::Image detailImage = kind == Kind::TransferDetail ? toAdapterImage(detail) : TspAdapter::Image();
     TspAdapter::FilterOutcome outcome;
     try {
         switch (kind) {
@@ -200,8 +228,12 @@ MeshFilterRunResult TextureSignalProcessingFilterPlugin::runFilter(
         case Kind::Dilate:
             outcome.texels = TspAdapter::dilate(prepared.atlas, image, unsigned(params.getInt(QStringLiteral("radius"))));
             break;
+        case Kind::Inpaint:
+            outcome.texels = TspAdapter::inpaint(prepared.atlas, image, prepared.selected, normals);
+            break;
         case Kind::Smooth:
-        case Kind::Sharpen: {
+        case Kind::Sharpen:
+        case Kind::TransferDetail: {
             const bool selectedOnly = params.getBool(QStringLiteral("selectedOnly"), false);
             // The operators are built in one call that cannot be interrupted; the V-cycles that follow
             // can, and the bar moves with them, though how many are needed is not known in advance.
@@ -209,6 +241,7 @@ MeshFilterRunResult TextureSignalProcessingFilterPlugin::runFilter(
             outcome = TspAdapter::filter(prepared.atlas, image, params.getDouble(QStringLiteral("fidelity")),
                                          params.getDouble(QStringLiteral("gradientScale")),
                                          selectedOnly ? &prepared.selected : nullptr,
+                                         kind == Kind::TransferDetail ? &detailImage : nullptr, normals,
                                          [cb, message](unsigned int cycles) {
                                              return !cb || cb(int(std::min(95u, 20 + cycles / 2)), message);
                                          });
@@ -234,7 +267,9 @@ MeshFilterRunResult TextureSignalProcessingFilterPlugin::runFilter(
     static const char *const kDone[] = { QT_TR_NOOP("Repaired the seams of texture '%1' of '%2'."),
                                          QT_TR_NOOP("Dilated texture '%1' of '%2' across its seams."),
                                          QT_TR_NOOP("Smoothed texture '%1' of '%2'."),
-                                         QT_TR_NOOP("Sharpened texture '%1' of '%2'.") };
+                                         QT_TR_NOOP("Sharpened texture '%1' of '%2'."),
+                                         QT_TR_NOOP("Inpainted texture '%1' of '%2' on the selected faces."),
+                                         QT_TR_NOOP("Transferred detail to texture '%1' of '%2'.") };
     doc.markMeshMaterialChanged(meshIndex, QObject::tr(kDone[int(kind)]).arg(textureName, entry.name));
 
     MeshFilterRunResult result;
@@ -244,8 +279,13 @@ MeshFilterRunResult TextureSignalProcessingFilterPlugin::runFilter(
         QT_TR_NOOP("Set %1 texels outside the UV islands of texture '%2'; saving the mesh writes it."),
         QT_TR_NOOP("Filled %1 texels outside the UV islands of texture '%2'; saving the mesh writes it."),
         QT_TR_NOOP("Smoothed %1 texels of texture '%2'; saving the mesh writes it."),
-        QT_TR_NOOP("Sharpened %1 texels of texture '%2'; saving the mesh writes it.") };
-    result.infoMessages << QObject::tr(kWritten[int(kind)]).arg(outcome.texels).arg(textureName);
+        QT_TR_NOOP("Sharpened %1 texels of texture '%2'; saving the mesh writes it."),
+        QT_TR_NOOP("Inpainted %1 texels of texture '%2' on the selected faces; saving the mesh writes it."),
+        QT_TR_NOOP("Wrote %1 texels of texture '%2', with the detail of texture '%3'; saving the mesh writes it.") };
+    QString written = QObject::tr(kWritten[int(kind)]).arg(outcome.texels).arg(textureName);
+    if (kind == Kind::TransferDetail)
+        written = written.arg(Document::meshTextureDisplayName(entry, detailTexture));
+    result.infoMessages << written;
     if (filtering) {
         result.infoMessages << (outcome.converged
             ? QObject::tr("The solver converged in %1 V-cycles.").arg(outcome.vCycles)

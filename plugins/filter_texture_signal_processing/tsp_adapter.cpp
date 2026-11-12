@@ -151,11 +151,19 @@ struct PaddedAtlas
 // covering it reads it (SetExteriorTexels writes every node back in turn, so there the last chart
 // wins, and can overwrite a covered texel); with `covered`, it takes the covering chart's. A texel
 // outside two charts takes the value of the last. Only the nodes `allowed` lets through are
-// written. Returns how many texels were.
+// written, renormalized with `normals` (see Image). Returns how many texels were.
 template<typename GD, typename Allowed>
 std::size_t writeBack(const GD &gd, const std::vector<Texel> &x, const PaddedAtlas &p, Image &image, bool covered,
-                      Allowed &&allowed)
+                      bool normals, Allowed &&allowed)
 {
+    auto renormalized = [](Texel t) {
+        Point<Real, 3> v(t[0] / 127.5 - 1, t[1] / 127.5 - 1, t[2] / 127.5 - 1);
+        const Real length = Point<Real, 3>::Length(v);
+        if (length > 0)
+            for (unsigned int c = 0; c < 3; ++c)
+                t[c] = (v[c] / length + 1) * 127.5;
+        return t;
+    };
     std::vector<char> coveredTexel(size_t(image.width) * size_t(image.height), 0);
     auto inImage = [&](size_t n, size_t &t) {
         const std::pair<unsigned int, unsigned int> node = gd.node(n);
@@ -170,7 +178,7 @@ std::size_t writeBack(const GD &gd, const std::vector<Texel> &x, const PaddedAtl
     std::vector<char> written(coveredTexel.size(), 0);
     auto write = [&](size_t n) {
         const std::pair<unsigned int, unsigned int> node = gd.node(n);
-        setTexel(image, int(node.first) - p.margin, int(node.second) - p.margin, x[n]);
+        setTexel(image, int(node.first) - p.margin, int(node.second) - p.margin, normals ? renormalized(x[n]) : x[n]);
         written[t] = 1;
     };
     for (size_t n = 0; n < gd.numNodes(); ++n)
@@ -183,13 +191,109 @@ std::size_t writeBack(const GD &gd, const std::vector<Texel> &x, const PaddedAtl
     return std::size_t(std::count(written.begin(), written.end(), 1));
 }
 
+// Whether each node is selected: whether the triangle nearest to its texel center is. Through the
+// lists of candidate triangles (UseVector): the other path rasterizes the triangles on several
+// threads and keeps, for a texel several of them support, whichever was written last, which is
+// neither the nearest nor the same from run to run, and at the edge of a selection decides which
+// side a texel is on (20 texels of 31,000 changed between runs, inpainting a 20k-face atlas). The
+// candidates' nearest is taken with ties broken by index, so the result is repeatable.
+template<typename GD>
+std::vector<char> selectedNodes(const GD &gd, const PaddedAtlas &p, const std::vector<char> &selectedTriangles)
+{
+    using TexelGrid = Texels<true, unsigned int>;
+    const unsigned int res[] = { unsigned(p.width), unsigned(p.height) };
+    const RegularGrid<2, TexelGrid::TexelInfo<2>> nearest = TexelGrid::GetSupportedTexelInfo<false, 2, true>(
+        p.atlas.triangles.size(),
+        [&](size_t s) {
+            Simplex<Real, 2, 2> simplex;
+            for (unsigned int k = 0; k < 3; ++k)
+                simplex[k] = p.padded(p.atlas.uv[3 * s + k]);
+            return simplex;
+        },
+        res, 2, false);
+    std::vector<char> selected(gd.numNodes(), 0);
+    for (size_t n = 0; n < gd.numNodes(); ++n) {
+        // The texel grid has its row 0 at the bottom, GradientDomain's nodes at the top.
+        const std::pair<unsigned int, unsigned int> node = gd.node(n);
+        const unsigned int s = nearest(node.first, unsigned(p.height) - 1 - node.second).sIdx;
+        selected[n] = s != static_cast<unsigned int>(-1) && selectedTriangles[s];
+    }
+    return selected;
+}
+
+// The node values that minimize the Dirichlet energy x^T S x of the texture on the surface over the
+// `free` nodes, the others held at their current values, as SetExteriorTexels and SeamStitcher do:
+// with P the prolongation from the free nodes to all of them and x the held values (zero at the free
+// nodes), minimize (x + P y)^T S (x + P y), which gives y = -(P^T S P)^{-1} P^T S x. Each free node n is
+// also pulled towards its current value, with a weight of pull(n, c) times the median coupling, c
+// being the node's own coupling relative to that median, which keeps the system regular where the
+// energy barely reaches a node, or does not reach it at all.
+template<typename GD, typename Pull>
+std::vector<Texel> minimizeDirichlet(const GD &gd, const PaddedAtlas &p, const std::vector<size_t> &free, Pull &&pull)
+{
+    using Solver = Eigen::SimplicialLDLT<Eigen::SparseMatrix<Real>>;
+    Eigen::SparseMatrix<Real> P(Eigen::Index(gd.numNodes()), Eigen::Index(free.size()));
+    {
+        std::vector<Eigen::Triplet<Real>> triplets;
+        triplets.reserve(free.size());
+        for (size_t f = 0; f < free.size(); ++f)
+            triplets.emplace_back(int(free[f]), int(f), Real(1));
+        P.setFromTriplets(triplets.begin(), triplets.end());
+    }
+    const Eigen::SparseMatrix<Real> RS = Eigen::SparseMatrix<Real>(P.transpose()) * gd.stiffness();
+    Eigen::SparseMatrix<Real> RSP = RS * P;
+
+    std::vector<Texel> x(gd.numNodes());
+    for (size_t n = 0; n < gd.numNodes(); ++n)
+        x[n] = p.nodeTexel(gd, n);
+    const std::vector<Texel> current = x;
+    for (size_t n : free)
+        x[n] = Texel();
+
+    const Eigen::VectorXd diagonal = RSP.diagonal().cwiseAbs();
+    Eigen::VectorXd coupling = diagonal;
+    std::nth_element(coupling.data(), coupling.data() + coupling.size() / 2, coupling.data() + coupling.size());
+    Real median = coupling[coupling.size() / 2];
+    if (!(median > 0))
+        median = std::max(coupling.maxCoeff(), Real(1));
+    Eigen::VectorXd weight(Eigen::Index(free.size()));
+    for (size_t f = 0; f < free.size(); ++f)
+        weight[Eigen::Index(f)] = pull(free[f], diagonal[Eigen::Index(f)] / median) * median;
+    {
+        Eigen::SparseMatrix<Real> diagonal(RSP.rows(), RSP.cols());
+        std::vector<Eigen::Triplet<Real>> triplets;
+        triplets.reserve(free.size());
+        for (size_t f = 0; f < free.size(); ++f)
+            triplets.emplace_back(int(f), int(f), weight[Eigen::Index(f)]);
+        diagonal.setFromTriplets(triplets.begin(), triplets.end());
+        RSP += diagonal;
+    }
+    Solver solver(RSP);
+    if (solver.info() != Eigen::Success)
+        throw std::runtime_error("The system for the texels to set could not be factored.");
+
+    Eigen::VectorXd channel(Eigen::Index(gd.numNodes()));
+    Eigen::VectorXd target(Eigen::Index(free.size()));
+    std::vector<Texel> solved(free.size());
+    for (unsigned int c = 0; c < 4; ++c) {
+        for (size_t n = 0; n < gd.numNodes(); ++n)
+            channel[Eigen::Index(n)] = x[n][c];
+        for (size_t f = 0; f < free.size(); ++f)
+            target[Eigen::Index(f)] = weight[Eigen::Index(f)] * current[free[f]][c];
+        const Eigen::VectorXd y = solver.solve(target - RS * channel);
+        for (size_t f = 0; f < free.size(); ++f)
+            solved[f][c] = y[Eigen::Index(f)];
+    }
+    for (size_t f = 0; f < free.size(); ++f)
+        x[free[f]] = solved[f];
+    return x;
+}
+
 } // namespace
 
 std::size_t repairSeams(const Atlas &atlas, Image &image)
 {
     return rethrown([&]() -> std::size_t {
-        using Solver = Eigen::SimplicialLDLT<Eigen::SparseMatrix<Real>>;
-
         const PaddedAtlas p(atlas, image);
         GradientDomain<Real> gd(
             kQuadratureSamples, atlas.triangles.size(), atlas.positions.size(), p.texture.vertices.size(),
@@ -199,32 +303,13 @@ std::size_t repairSeams(const Atlas &atlas, Image &image)
             false,  // sanityCheck
             false); // computeDivergence: only the stiffness matrix is used, and it is most of the memory
 
-        // As SetExteriorTexels: with P the prolongation from the exterior texels to all of them,
-        // minimize (x + P y)^T S (x + P y) over the exterior values y, the covered ones in x held
-        // fixed, which gives y = -(P^T S P)^{-1} P^T S x.
+        // As SetExteriorTexels: the exterior texels are solved for, the covered ones held.
         std::vector<size_t> exterior;
         for (size_t n = 0; n < gd.numNodes(); ++n)
             if (!gd.isCovered(n))
                 exterior.push_back(n);
         if (exterior.empty())
             return 0;
-        Eigen::SparseMatrix<Real> P(Eigen::Index(gd.numNodes()), Eigen::Index(exterior.size()));
-        {
-            std::vector<Eigen::Triplet<Real>> triplets;
-            triplets.reserve(exterior.size());
-            for (size_t e = 0; e < exterior.size(); ++e)
-                triplets.emplace_back(int(exterior[e]), int(e), Real(1));
-            P.setFromTriplets(triplets.begin(), triplets.end());
-        }
-        const Eigen::SparseMatrix<Real> RS = Eigen::SparseMatrix<Real>(P.transpose()) * gd.stiffness();
-        Eigen::SparseMatrix<Real> RSP = RS * P;
-
-        std::vector<Texel> x(gd.numNodes()), current(gd.numNodes());
-        for (size_t n = 0; n < gd.numNodes(); ++n) {
-            current[n] = p.nodeTexel(gd, n);
-            if (gd.isCovered(n))
-                x[n] = current[n];
-        }
 
         // The energy reaches some exterior texels only barely: one whose cells a triangle only
         // grazes, one beside an island too small to cover a texel center. Their values are then
@@ -240,33 +325,52 @@ std::size_t repairSeams(const Atlas &atlas, Image &image)
         // on the gargoyle test comes out lower, 28.03 against 28.26 (1e-4 gives 28.17 and 9,955
         // dots on the scan, 1e-1 28.11 and 1,149).
         constexpr Real kPull = 1e-2;
-        Eigen::VectorXd coupling = RSP.diagonal().cwiseAbs();
-        std::nth_element(coupling.data(), coupling.data() + coupling.size() / 2, coupling.data() + coupling.size());
-        Real regularization = kPull * coupling[coupling.size() / 2];
-        if (!(regularization > 0))
-            regularization = kPull * std::max(coupling.maxCoeff(), Real(1));
-        {
-            Eigen::SparseMatrix<Real> identity(RSP.rows(), RSP.cols());
-            identity.setIdentity();
-            RSP += regularization * identity;
-        }
-        Solver solver(RSP);
-        if (solver.info() != Eigen::Success)
-            throw std::runtime_error("The system for the exterior texels could not be factored.");
+        const std::vector<Texel> x = minimizeDirichlet(gd, p, exterior, [](size_t, Real) { return kPull; });
+        return writeBack(gd, x, p, image, false, false, [](size_t) { return true; });
+    });
+}
 
-        Eigen::VectorXd channel(Eigen::Index(gd.numNodes()));
-        Eigen::VectorXd pull(Eigen::Index(exterior.size()));
-        for (unsigned int c = 0; c < 4; ++c) {
-            for (size_t n = 0; n < gd.numNodes(); ++n)
-                channel[Eigen::Index(n)] = x[n][c];
-            for (size_t e = 0; e < exterior.size(); ++e)
-                pull[Eigen::Index(e)] = regularization * current[exterior[e]][c];
-            const Eigen::VectorXd y = solver.solve(pull - RS * channel);
-            for (size_t e = 0; e < exterior.size(); ++e)
-                x[exterior[e]][c] = y[Eigen::Index(e)];
-        }
+std::size_t inpaint(const Atlas &atlas, Image &image, const std::vector<char> &selectedTriangles, bool normals)
+{
+    return rethrown([&]() -> std::size_t {
+        const PaddedAtlas p(atlas, image);
+        GradientDomain<Real> gd(
+            kQuadratureSamples, atlas.triangles.size(), atlas.positions.size(), p.texture.vertices.size(),
+            p.surfaceCorner(), p.surfaceVertex(), p.textureCorner(), p.textureVertex(),
+            unsigned(p.width), unsigned(p.height),
+            true, false, false); // normalize, no sanity check, no divergence operator
 
-        return writeBack(gd, x, p, image, false, [](size_t) { return true; });
+        // The region is freed, and so are the exterior texels outside it, which are not written:
+        // held, the background of the gutter around the region would bleed into it as a boundary
+        // value. Free, they take the values the surface gives them, as in the repair.
+        const std::vector<char> selected = selectedNodes(gd, p, selectedTriangles);
+        std::vector<size_t> free;
+        for (size_t n = 0; n < gd.numNodes(); ++n)
+            if (selected[n] || !gd.isCovered(n))
+                free.push_back(n);
+        if (std::find(selected.begin(), selected.end(), 1) == selected.end())
+            return 0;
+
+        // Nothing in the region may be held back towards what was there (the stain being removed):
+        // the repair's pull, 1e-2 of the median coupling on every exterior texel, adds up along the
+        // seams of a large region and kept 15,022 of 34,090 texels of a region painted magenta near
+        // magenta on the gargoyle test. Without any pull, the texels the energy barely reaches come
+        // out far out of range (up to 1,150 levels on a 3M-face scan at 4096²). So only the texels
+        // coupled less than 1e-3 of the median take the repair's pull; the others are only
+        // regularized, which lets a region with no held texel around it, a whole connected piece of
+        // the surface selected, keep its mean. Measured, as threshold: magenta texels left on the
+        // test, rms against the photo there (26.4 with no pull), values out of range on the scan:
+        // 0: 0, 26.4, 45; 1e-4: 2, 26.4, 37; 1e-3: 89, 27.8, 31; 1e-2: 478, 38.1, 23.
+        constexpr Real kRegularization = 1e-8;
+        constexpr Real kWeak = 1e-3;
+        constexpr Real kPull = 1e-2;
+        std::vector<Texel> x = minimizeDirichlet(
+            gd, p, free, [&](size_t, Real coupling) { return coupling < kWeak ? kPull : kRegularization; });
+        // Alpha is coverage, not a signal to fill: the texels keep theirs, as in TSP's programs,
+        // which read color only. Solved with the rest, the transparent gutter would bleed into it.
+        for (size_t n = 0; n < gd.numNodes(); ++n)
+            x[n][3] = p.nodeTexel(gd, n)[3];
+        return writeBack(gd, x, p, image, true, normals, [&](size_t n) { return selected[n] != 0; });
     });
 }
 
@@ -326,7 +430,8 @@ std::size_t dilate(const Atlas &atlas, Image &image, unsigned int radius)
 }
 
 FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double gradientScale,
-                     const std::vector<char> *selectedTriangles, const std::function<bool(unsigned int)> &onVCycle)
+                     const std::vector<char> *selectedTriangles, const Image *detail, bool normals,
+                     const std::function<bool(unsigned int)> &onVCycle)
 {
     return rethrown([&]() -> FilterOutcome {
         using Solver = Eigen::SimplicialLDLT<Eigen::SparseMatrix<Real>>;
@@ -353,39 +458,26 @@ FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double g
             localized); // computeDivergence: only to scale the gradients texel by texel
         const size_t nodes = gd.numNodes();
 
-        std::vector<Texel> x0(nodes);
+        // held gives the values, x0 the gradients: the same texture unless a `detail` is given.
+        std::vector<Texel> held(nodes), x0(nodes);
         for (size_t n = 0; n < nodes; ++n)
-            x0[n] = p.nodeTexel(gd, n);
-
-        // A node is selected when the triangle nearest to its texel center is.
-        std::vector<char> selectedNode;
-        if (localized) {
-            using TexelGrid = Texels<true, unsigned int>;
-            const unsigned int res[] = { unsigned(p.width), unsigned(p.height) };
-            const RegularGrid<2, TexelGrid::TexelInfo<2>> nearest = TexelGrid::GetSupportedTexelInfo<false, 2, false>(
-                atlas.triangles.size(),
-                [&](size_t s) {
-                    Simplex<Real, 2, 2> simplex;
-                    for (unsigned int k = 0; k < 3; ++k)
-                        simplex[k] = p.padded(atlas.uv[3 * s + k]);
-                    return simplex;
-                },
-                res, 2, false);
-            selectedNode.resize(nodes, 0);
-            for (size_t n = 0; n < nodes; ++n) {
-                // The texel grid has its row 0 at the bottom, GradientDomain's nodes at the top.
-                const std::pair<unsigned int, unsigned int> node = gd.node(n);
-                const unsigned int s = nearest(node.first, unsigned(p.height) - 1 - node.second).sIdx;
-                selectedNode[n] = s != static_cast<unsigned int>(-1) && (*selectedTriangles)[s];
-            }
+            held[n] = p.nodeTexel(gd, n);
+        if (detail) {
+            const PaddedAtlas d(atlas, *detail);
+            for (size_t n = 0; n < nodes; ++n)
+                x0[n] = d.nodeTexel(gd, n);
+        } else {
+            x0 = held;
         }
 
-        // TextureFiltering's system: the values held to the input with weight `fidelity`, the
-        // gradients to the input's scaled by `gradientScale`. Uniformly scaled, the divergence of
+        const std::vector<char> selectedNode = localized ? selectedNodes(gd, p, *selectedTriangles) : std::vector<char>();
+
+        // TextureFiltering's system: the values held to the input (`held`) with weight `fidelity`, the
+        // gradients to the input's (x0's) scaled by `gradientScale`. Uniformly scaled, the divergence of
         // the target gradients is gradientScale S x0; scaled around the selection only, it is the
         // divergence of the edge differences, each scaled by the mean of its two ends' factors.
         std::vector<Texel> mass(nodes), gradients(nodes);
-        gd.mass(&x0[0], &mass[0]);
+        gd.mass(&held[0], &mass[0]);
         if (!localized) {
             gd.stiffness(&x0[0], &gradients[0]);
             for (Texel &g : gradients)
@@ -400,7 +492,7 @@ FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double g
             gd.divergence(&differences[0], &gradients[0]);
         }
         for (size_t n = 0; n < nodes; ++n) {
-            gd.x(n) = x0[n];
+            gd.x(n) = held[n];
             gd.b(n) = mass[n] * fidelity + gradients[n];
         }
         gd.updateSystem(fidelity, 1);
@@ -413,7 +505,7 @@ FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double g
             ++outcome.vCycles;
             Real change = 0;
             for (size_t n = 0; n < nodes; ++n)
-                for (unsigned int c = 0; c < 4; ++c)
+                for (unsigned int c = 0; c < 3; ++c) // alpha is not written back
                     change = std::max(change, std::abs(gd.x(n)[c] - previous[n][c]));
             outcome.converged = change < kConverged;
             if (onVCycle && !onVCycle(outcome.vCycles)) {
@@ -422,8 +514,13 @@ FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double g
             }
         }
 
-        const std::vector<Texel> x(gd.x(), gd.x() + nodes);
-        outcome.texels = writeBack(gd, x, p, image, true,
+        // Alpha is coverage, not a signal to filter: the texels keep theirs, as in TextureFiltering,
+        // which reads color only. Filtered with the rest, the transparent gutter of a projected
+        // texture bled into it: smoothing left 162,929 of 162,932 opaque texels partly transparent.
+        std::vector<Texel> x(gd.x(), gd.x() + nodes);
+        for (size_t n = 0; n < nodes; ++n)
+            x[n][3] = held[n][3];
+        outcome.texels = writeBack(gd, x, p, image, true, normals,
                                    [&](size_t n) { return !localized || selectedNode[n]; });
         return outcome;
     });
