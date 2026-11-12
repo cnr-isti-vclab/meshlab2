@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstddef>
+#include <functional>
 #include <vector>
 
 namespace TspAdapter {
@@ -40,5 +41,25 @@ std::size_t repairSeams(const Atlas &atlas, Image &image);
 // the input image, never from texels being filled, so the result does not depend on threading.
 // Returns how many texels it filled. Throws std::runtime_error with TSP's message if TSP fails.
 std::size_t dilate(const Atlas &atlas, Image &image, unsigned int radius);
+
+// TextureFiltering: the texture whose values stay close to the input and whose gradients on the
+// surface are the input's scaled by `gradientScale` (below 1 smooths, above 1 sharpens), solving
+// (w M + S) x = w M x0 + gradientScale S x0 with w = `fidelity`, the mesh area normalized to 1,
+// by multigrid until one more V-cycle changes no texel by more than a fiftieth of a level.
+// With `selectedTriangles` (one flag per triangle), the gradients are scaled only around the
+// selected triangles, and only the texels whose nearest triangle is selected are written; that
+// needs the divergence operator, 3.5 times the memory. `onVCycle`, if given, is called after each
+// V-cycle with how many have run, and stops the solve by returning false: the image is then left as
+// it was and `canceled` set. Throws std::runtime_error with TSP's message if TSP fails.
+struct FilterOutcome
+{
+    std::size_t texels = 0;  // written
+    unsigned int vCycles = 0;
+    bool converged = false;  // false if the cap on V-cycles was reached first
+    bool canceled = false;
+};
+FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double gradientScale,
+                     const std::vector<char> *selectedTriangles,
+                     const std::function<bool(unsigned int)> &onVCycle = {});
 
 } // namespace TspAdapter

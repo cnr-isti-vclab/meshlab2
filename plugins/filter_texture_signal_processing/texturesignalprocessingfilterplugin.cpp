@@ -11,6 +11,7 @@
 #include <vcg/complex/algorithms/parametrization/uv_utils.h>
 
 #include <QImage>
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
@@ -18,6 +19,8 @@ namespace {
 
 constexpr QLatin1StringView kFilterRepairSeams("repair_texture_seams");
 constexpr QLatin1StringView kFilterDilate("dilate_texture_across_seams");
+constexpr QLatin1StringView kFilterSmooth("smooth_texture");
+constexpr QLatin1StringView kFilterSharpen("sharpen_texture");
 
 using UvLayerUtils::UVMesh;
 
@@ -34,7 +37,8 @@ MeshFilterRunResult fail(const QString &message)
 struct PreparedAtlas
 {
     TspAdapter::Atlas atlas;
-    int leftOut = 0; // faces of the texture with no UV area
+    std::vector<char> selected; // per triangle of atlas: whether its face is selected
+    int leftOut = 0;            // faces of the texture with no UV area
 };
 
 // The faces that use `texture`, as TSP takes them. Coincident vertices are merged first, so that a
@@ -64,9 +68,17 @@ QString prepareAtlas(const Document::MeshEntry &entry, int texture, QSize size, 
                 .arg(entry.name).arg(folded);
     }
 
+    // buildUvLayer copies the layer's faces in order, deleted ones left out: the i-th face of
+    // the UV mesh is the i-th live face of the layer, whose selection it does not copy.
+    std::vector<char> faceSelected;
+    for (const VCGFace &face : entry.mesh.face)
+        if (!face.IsD())
+            faceSelected.push_back(face.IsS());
+
     std::vector<int> newIndex(um.vert.size(), -1);
     TspAdapter::Atlas &atlas = prepared.atlas;
-    for (const auto &f : um.face) {
+    for (size_t i = 0; i < um.face.size(); ++i) {
+        const auto &f = um.face[i];
         if (f.WT(0).N() != texture)
             continue;
         const vcg::Point2d a = f.cWT(0).P(), b = f.cWT(1).P(), c = f.cWT(2).P();
@@ -87,6 +99,7 @@ QString prepareAtlas(const Document::MeshEntry &entry, int texture, QSize size, 
             atlas.uv.push_back({ f.cWT(k).P()[0], f.cWT(k).P()[1] });
         }
         atlas.triangles.push_back(triangle);
+        prepared.selected.push_back(faceSelected[i]);
     }
     if (atlas.triangles.empty())
         return QObject::tr("No face of '%1' uses texture %2 with any UV area.").arg(entry.name).arg(texture + 1);
@@ -139,9 +152,19 @@ MeshFilterRunResult TextureSignalProcessingFilterPlugin::runFilter(
     const FilterParams &params,
     Document &doc) const
 {
-    const bool repair = filterId == QString::fromLatin1(kFilterRepairSeams);
-    if (!repair && filterId != QString::fromLatin1(kFilterDilate))
+    enum class Kind { Repair, Dilate, Smooth, Sharpen };
+    Kind kind;
+    if (filterId == QString::fromLatin1(kFilterRepairSeams))
+        kind = Kind::Repair;
+    else if (filterId == QString::fromLatin1(kFilterDilate))
+        kind = Kind::Dilate;
+    else if (filterId == QString::fromLatin1(kFilterSmooth))
+        kind = Kind::Smooth;
+    else if (filterId == QString::fromLatin1(kFilterSharpen))
+        kind = Kind::Sharpen;
+    else
         return fail(QObject::tr("Unknown filter: %1").arg(filterId));
+    const bool filtering = kind == Kind::Smooth || kind == Kind::Sharpen;
 
     const int meshIndex = doc.currentMeshIndex();
     if (meshIndex < 0 || meshIndex >= doc.meshCount())
@@ -156,19 +179,44 @@ MeshFilterRunResult TextureSignalProcessingFilterPlugin::runFilter(
     if (!TextureAssociationUtils::loadAssociatedTextureImage(entry, texture, source, error))
         return fail(error);
 
+    static const char *const kProgress[] = { "Repairing texture seams", "Dilating texture across seams",
+                                             "Smoothing texture", "Sharpening texture" };
     vcg::CallBackPos *cb = doc.progressCallback();
     if (cb)
-        cb(0, repair ? "Repairing texture seams" : "Dilating texture across seams");
+        cb(0, kProgress[int(kind)]);
     PreparedAtlas prepared;
-    error = prepareAtlas(entry, texture, source.size(), repair, prepared);
+    // Every filter but the dilation builds TSP's operators, which cannot take a folded face.
+    error = prepareAtlas(entry, texture, source.size(), kind != Kind::Dilate, prepared);
     if (!error.isEmpty())
         return fail(error);
 
     TspAdapter::Image image = toAdapterImage(source);
-    std::size_t written = 0;
+    TspAdapter::FilterOutcome outcome;
     try {
-        written = repair ? TspAdapter::repairSeams(prepared.atlas, image)
-                         : TspAdapter::dilate(prepared.atlas, image, unsigned(params.getInt(QStringLiteral("radius"))));
+        switch (kind) {
+        case Kind::Repair:
+            outcome.texels = TspAdapter::repairSeams(prepared.atlas, image);
+            break;
+        case Kind::Dilate:
+            outcome.texels = TspAdapter::dilate(prepared.atlas, image, unsigned(params.getInt(QStringLiteral("radius"))));
+            break;
+        case Kind::Smooth:
+        case Kind::Sharpen: {
+            const bool selectedOnly = params.getBool(QStringLiteral("selectedOnly"), false);
+            // The operators are built in one call that cannot be interrupted; the V-cycles that follow
+            // can, and the bar moves with them, though how many are needed is not known in advance.
+            const char *message = kProgress[int(kind)];
+            outcome = TspAdapter::filter(prepared.atlas, image, params.getDouble(QStringLiteral("fidelity")),
+                                         params.getDouble(QStringLiteral("gradientScale")),
+                                         selectedOnly ? &prepared.selected : nullptr,
+                                         [cb, message](unsigned int cycles) {
+                                             return !cb || cb(int(std::min(95u, 20 + cycles / 2)), message);
+                                         });
+            if (outcome.canceled)
+                return fail(QObject::tr("Operation canceled."));
+            break;
+        }
+        }
     } catch (const std::exception &e) {
         return fail(QObject::tr("TextureSignalProcessing failed: %1").arg(QString::fromLocal8Bit(e.what())));
     }
@@ -183,21 +231,31 @@ MeshFilterRunResult TextureSignalProcessingFilterPlugin::runFilter(
     asset->image = fromAdapterImage(image, source.hasAlphaChannel());
     TextureAssociationUtils::rebuildLegacyTextureAssociation(entry);
     const QString textureName = Document::meshTextureDisplayName(entry, texture);
-    doc.markMeshMaterialChanged(
-        meshIndex,
-        repair ? QObject::tr("Repaired the seams of texture '%1' of '%2'.").arg(textureName, entry.name)
-               : QObject::tr("Dilated texture '%1' of '%2' across its seams.").arg(textureName, entry.name));
+    static const char *const kDone[] = { QT_TR_NOOP("Repaired the seams of texture '%1' of '%2'."),
+                                         QT_TR_NOOP("Dilated texture '%1' of '%2' across its seams."),
+                                         QT_TR_NOOP("Smoothed texture '%1' of '%2'."),
+                                         QT_TR_NOOP("Sharpened texture '%1' of '%2'.") };
+    doc.markMeshMaterialChanged(meshIndex, QObject::tr(kDone[int(kind)]).arg(textureName, entry.name));
 
     MeshFilterRunResult result;
     result.success = true;
     result.documentModified = true;
-    result.infoMessages << (repair
-        ? QObject::tr("Set %1 texels outside the UV islands of texture '%2'; saving the mesh writes it.")
-        : QObject::tr("Filled %1 texels outside the UV islands of texture '%2'; saving the mesh writes it."))
-            .arg(written).arg(textureName);
+    static const char *const kWritten[] = {
+        QT_TR_NOOP("Set %1 texels outside the UV islands of texture '%2'; saving the mesh writes it."),
+        QT_TR_NOOP("Filled %1 texels outside the UV islands of texture '%2'; saving the mesh writes it."),
+        QT_TR_NOOP("Smoothed %1 texels of texture '%2'; saving the mesh writes it."),
+        QT_TR_NOOP("Sharpened %1 texels of texture '%2'; saving the mesh writes it.") };
+    result.infoMessages << QObject::tr(kWritten[int(kind)]).arg(outcome.texels).arg(textureName);
+    if (filtering) {
+        result.infoMessages << (outcome.converged
+            ? QObject::tr("The solver converged in %1 V-cycles.").arg(outcome.vCycles)
+            : QObject::tr("The solver stopped after %1 V-cycles without converging; the result may "
+                          "still be a little away from the solution.").arg(outcome.vCycles));
+        result.outputValues["v_cycles"] = int(outcome.vCycles);
+    }
     if (prepared.leftOut > 0)
         result.infoMessages << QObject::tr("Left out %1 face(s) with no UV area.").arg(prepared.leftOut);
-    result.outputValues["texels_written"] = qlonglong(written);
+    result.outputValues["texels_written"] = qlonglong(outcome.texels);
     return result;
 }
 

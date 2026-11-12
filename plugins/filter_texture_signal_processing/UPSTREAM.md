@@ -70,6 +70,23 @@ If upstream merges #17 instead of #20, check the 3M-face atlas first (see the pr
   same on every run. A one-line upstream fix has been offered (in #23's description).
 - **Texture coordinates are fused** on the key TSP's PLY reader uses (surface vertex, exact
   UV), since the library finds charts through shared texture vertices.
+- **`rand()` is reseeded before every build of the operators.** TSP jitters texture coordinates
+  on texel lines (`AtlasMesh::jitter`) and perturbs boundary points with Misha's `Random`, which
+  draws from the C library's `rand()`. A program runs once per process from the default seed; in
+  the application each run continued the sequence, so the same filter on the same texture gave a
+  different image every time (smoothing a 20k-face atlas: 800,000 values, up to 0.8 levels).
+  `std::srand(1)` before each build makes every run a program's first one. A deterministic jitter
+  upstream would be the real fix.
+- **Smoothing and sharpening** (`TextureFiltering`'s uniform mode) use `HierarchicalGradientDomain`,
+  TextureFiltering's four levels and three sweeps, without the divergence operator: with a uniform
+  gradient scale its right-hand side is `S x0`. The direct solver is not offered: it took 63 s and
+  5.7 GB to factor at 2048², against 28 s for multigrid to agree with it within one level. The
+  V-cycles run until one changes no texel by more than a fiftieth of a level (the change per cycle
+  understates the remaining error about 40 times on these atlases), and can be canceled.
+- **Localized filtering** (only selected faces) builds the divergence operator and scales the edge
+  differences by the mean of their ends' factors, a node being selected when the triangle nearest
+  its texel is; only selected nodes are written. With every face selected the result is the
+  uniform one exactly.
 - **Refused or left out:** faces folded over their own UV island are refused for the repair
   (they fault in `_InitializeChart`); faces with no UV area are left out of both.
 

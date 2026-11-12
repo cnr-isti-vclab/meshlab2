@@ -4,9 +4,9 @@ This document proposes which of the programs in Prada and Kazhdan's
 [TextureSignalProcessing](https://github.com/mkazhdan/TextureSignalProcessing) (TSP) are
 worth turning into MeshLab filters, and how to integrate them. It recommends doing so **in
 process**, as Screened Poisson is, through TSP's header-only `GradientDomain` library, and
-**not** as helper programs, as TextureConsolidation is. **Stage 1 implemented 2026-11-12** (the plugin
-`filter_texture_signal_processing`, with *Repair Texture Seams* and *Dilate Texture across
-Seams*; see its `UPSTREAM.md`); stages 2 and 3 are not. Every number below was measured for
+**not** as helper programs, as TextureConsolidation is. **Stages 1 and 2 implemented 2026-11-12** (the
+plugin `filter_texture_signal_processing`, with *Repair Texture Seams*, *Dilate Texture across
+Seams*, *Smooth Texture* and *Sharpen Texture*; see its `UPSTREAM.md`); stage 3 is not. Every number below was measured for
 this proposal.
 
 See also: [TextureConsolidation history](../history/texture_consolidation.md),
@@ -334,7 +334,14 @@ include. After it, an adapter-like file includes no PLY header and emits no PLY 
    - the xatlas gargoyle at its default settings, whose charts touch the image border:
      the adapter pads, so the filter must run rather than throw.
 2. ***Smooth Texture*, *Sharpen Texture***, with an optional face selection to localize
-   them.
+   them. **Implemented 2026-11-12.** Decided the same day: the two parameters are TSP's own
+   (*Fidelity*, its interpolation weight, default 1000; *Gradient Scale*, its modulation, 0 to
+   smooth and 2 to sharpen); the selection builds the divergence operator only when used; the
+   solver is multigrid until converged (open question 5: the direct solver took 63 s and 5.7 GB to
+   factor at 2048²). On the gargoyle test, smoothing takes the seam discrepancy from 33.9 to 2.9.
+   On the 3M-face scan at 4096²: 3 minutes and 19 GB, 4 minutes and 47 GB with a selection. Found
+   on the way: TSP jitters with `rand()`, so in the application every run differed from the last;
+   the adapter reseeds before each build.
 3. **Line-integral convolution, reaction-diffusion, source-aware stitching.** Each needs
    its own decision first: the vocabulary for the first two, Paolo's ruling on the
    reaction term, and a change to color projection for the third.
@@ -372,6 +379,6 @@ include. After it, an adapter-like file includes no PLY header and emits no PLY 
    tried.
 4. **Reaction-diffusion's reaction term** (stage 3): keep the quadrature
    (`ScalarIntegrator`, lower-level API) or approximate it.
-5. **Multigrid or direct.** At 512² the direct solve is faster than enough V-cycles to
-   match it (2.5 s against 7.5 s for 100). Whether this holds at 2048² and above has not
-   been measured.
+5. **Multigrid or direct.** Answered with stage 2: at 512² the direct solve is faster than
+   enough V-cycles to match it (2.5 s against 7.5 s for 100), but at 2048² it takes 63 s and
+   5.7 GB to factor against 28 s of multigrid, and grows faster from there. Multigrid.

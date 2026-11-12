@@ -92,6 +92,138 @@
       ],
       "outputModifies": ["TX"],
       "referenceIds": ["prada2018gradient"]
+    },
+    {
+      "id": "smooth_texture",
+      "categories": [
+        "Texture/Filtering"
+      ],
+      "name": "Smooth Texture",
+      "pythonName": "smooth_texture",
+      "shortDescription": "Smooth a texture on the surface, continuously across its seams.",
+      "longDescriptionMarkdown": "Smooths the texture as a signal on the surface rather than in the image: the texels on the two sides of a seam are neighbors, so the result is continuous across seams, and the islands' outlines in the image do not show up as edges. The texels are held to their input values with weight *Fidelity* while their gradients are held to the input's scaled by *Gradient Scale*: at 0 the gradients are pulled to zero, the strongest smoothing for a given fidelity; a smaller fidelity smooths over a larger area.\n\nIt is the method of Prada, Kazhdan, Chuang and Hoppe, through the `GradientDomain` library of their TextureSignalProcessing, as its `TextureFiltering` program does it, run inside MeshLab. The solution satisfies $$(w\\,M + S)\\,x = w\\,M\\,x_0 + s\\,S\\,x_0,$$ with $x_0$ the input texels, $M$ and $S$ the mass and stiffness of the texture on the surface (the mesh's area taken as 1), $w$ the *Fidelity* and $s$ the *Gradient Scale*. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The chosen texture's image is replaced: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\n**Only selected faces.** The gradients are then scaled only on the texels whose nearest face is selected, and only those texels are written: the rest of the texture is left exactly as it was, and the change fades in across the edge of the selection. This needs the library's divergence operator, which takes about 3.5 times the memory.\n\n**Time and memory** are spent mostly in building the operators, and grow with the length of the islands' boundaries in texels: about 10 s and 1.4 GB for a 20k-face mesh with a 1024² texture (4.7 GB with a selection), 28 s and 3.9 GB at 2048², and about 3 minutes and 19 GB for a 3M-face photogrammetry scan with 1,961 islands at 4096² (4 minutes and 47 GB with a selection). Building the operators cannot be interrupted; the solve that follows can be canceled.",
+      "tags": [
+        "texture",
+        "smooth",
+        "blur",
+        "denoise",
+        "seam",
+        "gradient domain",
+        "screened poisson"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireTextureCoordinates": true,
+        "requireTextures": true
+      },
+      "selectionScope": "faces",
+      "parameters": [
+        {
+          "id": "texture",
+          "label": "Texture",
+          "help": "The texture to smooth. Only the faces that use it take part, and its image is replaced; its file is left alone until the mesh is saved.",
+          "group": "main",
+          "type": "textureref",
+          "default": 1,
+          "allowAutomatic": false
+        },
+        {
+          "id": "gradientScale",
+          "label": "Gradient Scale",
+          "help": "The factor the texture's gradients are held to, from 0 (pulled to zero, the most smoothing) to below 1 (barely changed). TextureFiltering's gradient modulation.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 0.99,
+          "decimals": 2
+        },
+        {
+          "id": "fidelity",
+          "label": "Fidelity",
+          "help": "How strongly the texels are held to their input values, against the gradients being dampened: the larger, the less the texture changes. The mesh's area is taken as 1, so the same value acts at the same scale on any mesh. TextureFiltering's interpolation weight.",
+          "group": "main",
+          "type": "double",
+          "default": 1000.0,
+          "min": 1.0,
+          "max": 1000000.0,
+          "decimals": 0
+        }
+      ],
+      "outputModifies": [
+        "TX"
+      ],
+      "referenceIds": [
+        "prada2018gradient"
+      ]
+    },
+    {
+      "id": "sharpen_texture",
+      "categories": [
+        "Texture/Filtering"
+      ],
+      "name": "Sharpen Texture",
+      "pythonName": "sharpen_texture",
+      "shortDescription": "Sharpen a texture on the surface, continuously across its seams.",
+      "longDescriptionMarkdown": "Sharpens the texture as a signal on the surface rather than in the image: its gradients are amplified by *Gradient Scale* while the texels are held to their input values with weight *Fidelity*, and since the texels on the two sides of a seam are neighbors, the result is continuous across seams. A smaller fidelity lets the amplified gradients carry further, so the sharpening reaches larger features.\n\nIt is the method of Prada, Kazhdan, Chuang and Hoppe, through the `GradientDomain` library of their TextureSignalProcessing, as its `TextureFiltering` program does it, run inside MeshLab. The solution satisfies $$(w\\,M + S)\\,x = w\\,M\\,x_0 + s\\,S\\,x_0,$$ with $x_0$ the input texels, $M$ and $S$ the mass and stiffness of the texture on the surface (the mesh's area taken as 1), $w$ the *Fidelity* and $s$ the *Gradient Scale*. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The chosen texture's image is replaced: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\n**Only selected faces.** The gradients are then scaled only on the texels whose nearest face is selected, and only those texels are written: the rest of the texture is left exactly as it was, and the change fades in across the edge of the selection. This needs the library's divergence operator, which takes about 3.5 times the memory.\n\n**Time and memory** are spent mostly in building the operators, and grow with the length of the islands' boundaries in texels: about 10 s and 1.4 GB for a 20k-face mesh with a 1024² texture (4.7 GB with a selection), 28 s and 3.9 GB at 2048², and about 3 minutes and 19 GB for a 3M-face photogrammetry scan with 1,961 islands at 4096² (4 minutes and 47 GB with a selection). Building the operators cannot be interrupted; the solve that follows can be canceled.",
+      "tags": [
+        "texture",
+        "sharpen",
+        "enhance",
+        "detail",
+        "seam",
+        "gradient domain",
+        "screened poisson"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireTextureCoordinates": true,
+        "requireTextures": true
+      },
+      "selectionScope": "faces",
+      "parameters": [
+        {
+          "id": "texture",
+          "label": "Texture",
+          "help": "The texture to sharpen. Only the faces that use it take part, and its image is replaced; its file is left alone until the mesh is saved.",
+          "group": "main",
+          "type": "textureref",
+          "default": 1,
+          "allowAutomatic": false
+        },
+        {
+          "id": "gradientScale",
+          "label": "Gradient Scale",
+          "help": "The factor the texture's gradients are amplified by: above 1 sharpens, and the larger the stronger. TextureFiltering's gradient modulation.",
+          "group": "main",
+          "type": "double",
+          "default": 2.0,
+          "min": 1.01,
+          "max": 10.0,
+          "decimals": 2
+        },
+        {
+          "id": "fidelity",
+          "label": "Fidelity",
+          "help": "How strongly the texels are held to their input values, against the gradients being amplified: the larger, the less the texture changes. The mesh's area is taken as 1, so the same value acts at the same scale on any mesh. TextureFiltering's interpolation weight.",
+          "group": "main",
+          "type": "double",
+          "default": 1000.0,
+          "min": 1.0,
+          "max": 1000000.0,
+          "decimals": 0
+        }
+      ],
+      "outputModifies": [
+        "TX"
+      ],
+      "referenceIds": [
+        "prada2018gradient"
+      ]
     }
   ]
 }

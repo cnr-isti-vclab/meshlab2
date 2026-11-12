@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <stdexcept>
 #include <tuple>
 
@@ -101,6 +102,100 @@ auto rethrown(Function &&function)
     }
 }
 
+// The atlas as TSP is given it: the image grows by `margin` texels on every side, its edge texels
+// repeated, and the texture coordinates move with it. GradientDomain flips v itself, and a margin
+// equal on all sides commutes with that flip. Only the texels of the original image are written
+// back (writeBack).
+struct PaddedAtlas
+{
+    const Atlas &atlas;
+    const Image &image;
+    const int margin;
+    const int width;
+    const int height;
+    const FusedTexture texture;
+
+    PaddedAtlas(const Atlas &a, const Image &i)
+        : atlas(a), image(i), margin(marginFor(a, i.width, i.height)),
+          width(i.width + 2 * margin), height(i.height + 2 * margin), texture(fuseTextureCoordinates(a))
+    {
+    }
+
+    Point<Real, 2> padded(const std::array<double, 2> &t) const
+    {
+        return Point<Real, 2>((t[0] * image.width + margin) / width, (t[1] * image.height + margin) / height);
+    }
+    // The functors GradientDomain's constructors take.
+    auto surfaceCorner() const { return [this](size_t t, unsigned int k) { return size_t(atlas.triangles[t][k]); }; }
+    auto surfaceVertex() const
+    {
+        return [this](size_t v) { return Point<Real, 3>(atlas.positions[v][0], atlas.positions[v][1], atlas.positions[v][2]); };
+    }
+    auto textureCorner() const { return [this](size_t t, unsigned int k) { return size_t(texture.cornerVertex[3 * t + k]); }; }
+    auto textureVertex() const { return [this](size_t v) { return padded(texture.vertices[v]); }; }
+    // The value of a texel of the padded grid.
+    Texel texel(int x, int y) const
+    {
+        return texelOf(image, std::clamp(x - margin, 0, image.width - 1), std::clamp(y - margin, 0, image.height - 1));
+    }
+    template<typename GD>
+    Texel nodeTexel(const GD &gd, size_t n) const
+    {
+        const std::pair<unsigned int, unsigned int> node = gd.node(n);
+        return texel(int(node.first), int(node.second));
+    }
+};
+
+// TSP nudges texture coordinates that lie exactly on a texel line (AtlasMesh::jitter) and perturbs
+// points along the islands' boundaries, with Misha's Random, which draws from the C library's rand().
+// A program runs once per process, from rand()'s default seed, and gives the same result every
+// time; in the application each run would continue the sequence, and anything else calling rand()
+// would move it, so two runs of a filter on the same texture differed (on a 20k-face atlas,
+// smoothing changed 800,000 values by up to 0.8 levels from one run to the next). So the seed is set
+// back to the default before TSP builds its operators: every run is a program's first one.
+void reseedTsp()
+{
+    std::srand(1);
+}
+
+// Puts node values back into the image. TSP numbers the texels per chart, so a texel can be a node
+// of two charts: covered by one and just outside the other, where charts sit closer than two
+// texels. Such a texel never takes the value of the chart it lies outside, since the chart
+// covering it reads it (SetExteriorTexels writes every node back in turn, so there the last chart
+// wins, and can overwrite a covered texel); with `covered`, it takes the covering chart's. A texel
+// outside two charts takes the value of the last. Only the nodes `allowed` lets through are
+// written. Returns how many texels were.
+template<typename GD, typename Allowed>
+std::size_t writeBack(const GD &gd, const std::vector<Texel> &x, const PaddedAtlas &p, Image &image, bool covered,
+                      Allowed &&allowed)
+{
+    std::vector<char> coveredTexel(size_t(image.width) * size_t(image.height), 0);
+    auto inImage = [&](size_t n, size_t &t) {
+        const std::pair<unsigned int, unsigned int> node = gd.node(n);
+        const int px = int(node.first) - p.margin, py = int(node.second) - p.margin;
+        t = size_t(py) * size_t(image.width) + size_t(px);
+        return px >= 0 && py >= 0 && px < image.width && py < image.height;
+    };
+    size_t t = 0;
+    for (size_t n = 0; n < gd.numNodes(); ++n)
+        if (gd.isCovered(n) && inImage(n, t))
+            coveredTexel[t] = 1;
+    std::vector<char> written(coveredTexel.size(), 0);
+    auto write = [&](size_t n) {
+        const std::pair<unsigned int, unsigned int> node = gd.node(n);
+        setTexel(image, int(node.first) - p.margin, int(node.second) - p.margin, x[n]);
+        written[t] = 1;
+    };
+    for (size_t n = 0; n < gd.numNodes(); ++n)
+        if (!gd.isCovered(n) && allowed(n) && inImage(n, t) && !coveredTexel[t])
+            write(n);
+    if (covered)
+        for (size_t n = 0; n < gd.numNodes(); ++n)
+            if (gd.isCovered(n) && allowed(n) && inImage(n, t))
+                write(n);
+    return std::size_t(std::count(written.begin(), written.end(), 1));
+}
+
 } // namespace
 
 std::size_t repairSeams(const Atlas &atlas, Image &image)
@@ -108,28 +203,12 @@ std::size_t repairSeams(const Atlas &atlas, Image &image)
     return rethrown([&]() -> std::size_t {
         using Solver = Eigen::SimplicialLDLT<Eigen::SparseMatrix<Real>>;
 
-        // The image grows by `margin` texels on every side, its edge texels repeated, and the
-        // texture coordinates move with it; GradientDomain flips v itself, and a margin equal on
-        // all sides commutes with that flip. Only the texels of the original image are written back.
-        const int margin = marginFor(atlas, image.width, image.height);
-        const int paddedWidth = image.width + 2 * margin;
-        const int paddedHeight = image.height + 2 * margin;
-        const FusedTexture texture = fuseTextureCoordinates(atlas);
-
+        const PaddedAtlas p(atlas, image);
+        reseedTsp();
         GradientDomain<Real> gd(
-            kQuadratureSamples,
-            atlas.triangles.size(),
-            atlas.positions.size(),
-            texture.vertices.size(),
-            [&](size_t t, unsigned int k) { return size_t(atlas.triangles[t][k]); },
-            [&](size_t v) { return Point<Real, 3>(atlas.positions[v][0], atlas.positions[v][1], atlas.positions[v][2]); },
-            [&](size_t t, unsigned int k) { return size_t(texture.cornerVertex[3 * t + k]); },
-            [&](size_t v) {
-                return Point<Real, 2>((texture.vertices[v][0] * image.width + margin) / paddedWidth,
-                                      (texture.vertices[v][1] * image.height + margin) / paddedHeight);
-            },
-            unsigned(paddedWidth),
-            unsigned(paddedHeight),
+            kQuadratureSamples, atlas.triangles.size(), atlas.positions.size(), p.texture.vertices.size(),
+            p.surfaceCorner(), p.surfaceVertex(), p.textureCorner(), p.textureVertex(),
+            unsigned(p.width), unsigned(p.height),
             true,   // normalize
             false,  // sanityCheck
             false); // computeDivergence: only the stiffness matrix is used, and it is most of the memory
@@ -154,15 +233,9 @@ std::size_t repairSeams(const Atlas &atlas, Image &image)
         const Eigen::SparseMatrix<Real> RS = Eigen::SparseMatrix<Real>(P.transpose()) * gd.stiffness();
         Eigen::SparseMatrix<Real> RSP = RS * P;
 
-        auto paddedTexel = [&](int x, int y) {
-            return texelOf(image,
-                           std::clamp(x - margin, 0, image.width - 1),
-                           std::clamp(y - margin, 0, image.height - 1));
-        };
         std::vector<Texel> x(gd.numNodes()), current(gd.numNodes());
         for (size_t n = 0; n < gd.numNodes(); ++n) {
-            const std::pair<unsigned int, unsigned int> node = gd.node(n);
-            current[n] = paddedTexel(int(node.first), int(node.second));
+            current[n] = p.nodeTexel(gd, n);
             if (gd.isCovered(n))
                 x[n] = current[n];
         }
@@ -207,33 +280,7 @@ std::size_t repairSeams(const Atlas &atlas, Image &image)
                 x[exterior[e]][c] = y[Eigen::Index(e)];
         }
 
-        // TSP numbers the texels per chart, so a texel can be a node of two charts: covered by one
-        // and just outside the other, where charts sit closer than two texels. Such a texel keeps
-        // its value, since the chart covering it reads it. (SetExteriorTexels writes every node back
-        // in turn, so there the last chart wins, and can overwrite a covered texel.) A texel outside
-        // two charts takes the value of the last.
-        std::vector<char> coveredTexel(size_t(image.width) * size_t(image.height), 0);
-        auto inImage = [&](size_t n, int &px, int &py) {
-            const std::pair<unsigned int, unsigned int> node = gd.node(n);
-            px = int(node.first) - margin;
-            py = int(node.second) - margin;
-            return px >= 0 && py >= 0 && px < image.width && py < image.height;
-        };
-        int px = 0, py = 0;
-        for (size_t n = 0; n < gd.numNodes(); ++n)
-            if (gd.isCovered(n) && inImage(n, px, py))
-                coveredTexel[size_t(py) * size_t(image.width) + size_t(px)] = 1;
-        std::vector<char> written(coveredTexel.size(), 0);
-        for (const size_t n : exterior) {
-            if (!inImage(n, px, py))
-                continue;
-            const size_t t = size_t(py) * size_t(image.width) + size_t(px);
-            if (coveredTexel[t])
-                continue;
-            setTexel(image, px, py, x[n]);
-            written[t] = 1;
-        }
-        return std::size_t(std::count(written.begin(), written.end(), 1));
+        return writeBack(gd, x, p, image, false, [](size_t) { return true; });
     });
 }
 
@@ -289,6 +336,111 @@ std::size_t dilate(const Atlas &atlas, Image &image, unsigned int radius)
             ++filled;
         }
         return filled;
+    });
+}
+
+FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double gradientScale,
+                     const std::vector<char> *selectedTriangles, const std::function<bool(unsigned int)> &onVCycle)
+{
+    return rethrown([&]() -> FilterOutcome {
+        using Solver = Eigen::SimplicialLDLT<Eigen::SparseMatrix<Real>>;
+        using Hierarchy = HierarchicalGradientDomain<Real, Solver, Texel>;
+        // TextureFiltering's defaults: four levels, three Gauss-Seidel sweeps per level. The solve
+        // converges slowly on fragmented atlases, and the change per V-cycle understates the error
+        // left, by about 40 times at 2048² (cycle 40 changes a texel by 0.05 levels at most and is
+        // still 2 from the direct solve). So the cycles run until one changes no texel by more
+        // than a fiftieth of a level, which agreed with the direct solve within one level at 1024²
+        // (61 cycles) and 2048² (89); a 3M-face scan at 4096² takes about 160.
+        constexpr unsigned int kLevels = 4;
+        constexpr unsigned int kSweeps = 3;
+        constexpr unsigned int kMaxVCycles = 300;
+        constexpr Real kConverged = 0.02;
+
+        const bool localized = selectedTriangles != nullptr;
+        const PaddedAtlas p(atlas, image);
+        reseedTsp();
+        Hierarchy gd(
+            kQuadratureSamples, atlas.triangles.size(), atlas.positions.size(), p.texture.vertices.size(),
+            p.surfaceCorner(), p.surfaceVertex(), p.textureCorner(), p.textureVertex(),
+            unsigned(p.width), unsigned(p.height), kLevels,
+            true,       // normalize
+            false,      // sanityCheck
+            localized); // computeDivergence: only to scale the gradients texel by texel
+        const size_t nodes = gd.numNodes();
+
+        std::vector<Texel> x0(nodes);
+        for (size_t n = 0; n < nodes; ++n)
+            x0[n] = p.nodeTexel(gd, n);
+
+        // A node is selected when the triangle nearest to its texel center is.
+        std::vector<char> selectedNode;
+        if (localized) {
+            using TexelGrid = Texels<true, unsigned int>;
+            const unsigned int res[] = { unsigned(p.width), unsigned(p.height) };
+            const RegularGrid<2, TexelGrid::TexelInfo<2>> nearest = TexelGrid::GetSupportedTexelInfo<false, 2, false>(
+                atlas.triangles.size(),
+                [&](size_t s) {
+                    Simplex<Real, 2, 2> simplex;
+                    for (unsigned int k = 0; k < 3; ++k)
+                        simplex[k] = p.padded(atlas.uv[3 * s + k]);
+                    return simplex;
+                },
+                res, 2, false);
+            selectedNode.resize(nodes, 0);
+            for (size_t n = 0; n < nodes; ++n) {
+                // The texel grid has its row 0 at the bottom, GradientDomain's nodes at the top.
+                const std::pair<unsigned int, unsigned int> node = gd.node(n);
+                const unsigned int s = nearest(node.first, unsigned(p.height) - 1 - node.second).sIdx;
+                selectedNode[n] = s != static_cast<unsigned int>(-1) && (*selectedTriangles)[s];
+            }
+        }
+
+        // TextureFiltering's system: the values held to the input with weight `fidelity`, the
+        // gradients to the input's scaled by `gradientScale`. Uniformly scaled, the divergence of
+        // the target gradients is gradientScale S x0; scaled around the selection only, it is the
+        // divergence of the edge differences, each scaled by the mean of its two ends' factors.
+        std::vector<Texel> mass(nodes), gradients(nodes);
+        gd.mass(&x0[0], &mass[0]);
+        if (!localized) {
+            gd.stiffness(&x0[0], &gradients[0]);
+            for (Texel &g : gradients)
+                g *= gradientScale;
+        } else {
+            std::vector<Texel> differences(gd.numEdges());
+            for (size_t e = 0; e < gd.numEdges(); ++e) {
+                const std::pair<size_t, size_t> ends = gd.edge(e);
+                const Real scale = 1 + (gradientScale - 1) * (selectedNode[ends.first] + selectedNode[ends.second]) / 2.0;
+                differences[e] = (x0[ends.second] - x0[ends.first]) * scale;
+            }
+            gd.divergence(&differences[0], &gradients[0]);
+        }
+        for (size_t n = 0; n < nodes; ++n) {
+            gd.x(n) = x0[n];
+            gd.b(n) = mass[n] * fidelity + gradients[n];
+        }
+        gd.updateSystem(fidelity, 1);
+
+        FilterOutcome outcome;
+        std::vector<Texel> previous(nodes);
+        while (outcome.vCycles < kMaxVCycles && !outcome.converged) {
+            std::copy(gd.x(), gd.x() + nodes, previous.begin());
+            gd.vCycle(kSweeps);
+            ++outcome.vCycles;
+            Real change = 0;
+            for (size_t n = 0; n < nodes; ++n)
+                for (unsigned int c = 0; c < 4; ++c)
+                    change = std::max(change, std::abs(gd.x(n)[c] - previous[n][c]));
+            outcome.converged = change < kConverged;
+            if (onVCycle && !onVCycle(outcome.vCycles)) {
+                outcome.canceled = true;
+                return outcome;
+            }
+        }
+
+        const std::vector<Texel> x(gd.x(), gd.x() + nodes);
+        outcome.texels = writeBack(gd, x, p, image, true,
+                                   [&](size_t n) { return !localized || selectedNode[n]; });
+        return outcome;
     });
 }
 

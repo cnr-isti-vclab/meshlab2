@@ -515,6 +515,7 @@ private slots:
     void textureConsolidationCameraMatchesShotProjection();
     void textureConsolidationBuildsTextureFromRasters();
     void textureSignalProcessingRepairsAndDilatesSeams();
+    void textureSignalProcessingSmoothsAndSharpens();
     void open3dFeatureMatchingCanUseAllVisibleLayersAsReference();
     void open3dFeatureMatchingCanEstimateItsQualityWithIcp();
     void open3dFastGlobalRegistrationCanUseAllVisibleLayersAsReference();
@@ -6954,11 +6955,29 @@ void FilterTests::textureConsolidationBuildsTextureFromRasters()
     QVERIFY2(tooFew.errorMessage.contains(QStringLiteral("at least two")), qPrintable(tooFew.errorMessage));
 }
 
-// The two TextureSignalProcessing filters on a real photo texture: the gargoyle's four
-// photographs projected into an xatlas atlas, with no refill, so that the texels outside the
-// islands hold background and the seams show. xatlas at its defaults packs charts against the
-// image border, which the library cannot take unless the adapter pads the grid, so this also
-// covers the padding.
+// The TextureSignalProcessing filters' fixture, a real photo texture: the gargoyle's four
+// photographs projected into an xatlas atlas, at 512² and with no refill, so that the texels outside
+// the islands hold background and the seams show. xatlas at its defaults packs charts against the
+// image border, which the library cannot take unless the adapter pads the grid, so this also covers
+// the padding. Returns why it could not be made, or an empty string.
+static QString makePhotoTexturedGargoyle(Document &doc)
+{
+    if (doc.loadMeshLabProject(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")) != 0)
+        return QStringLiteral("could not load the gargoyle project");
+    doc.setCurrentMeshIndex(0);
+    const MeshFilterRunResult atlas = doc.runFilter(filterKeyForId(doc, QStringLiteral("parametrize_by_atlas_xatlas")), {});
+    if (!atlas.success)
+        return atlas.errorMessage;
+    MeshFilterParameterValues transfer;
+    transfer.insert(QStringLiteral("texsize"), 512);
+    transfer.insert(QStringLiteral("dorefill"), false);
+    const MeshFilterRunResult photo = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("transfer_color_from_visible_rasters_to_texture")), transfer);
+    if (!photo.success)
+        return photo.errorMessage;
+    return doc.mesh(0).textureAssets.size() == 1 ? QString() : QStringLiteral("expected one texture");
+}
+
 void FilterTests::textureSignalProcessingRepairsAndDilatesSeams()
 {
     Document probe;
@@ -6968,17 +6987,8 @@ void FilterTests::textureSignalProcessingRepairsAndDilatesSeams()
         QSKIP("TextureSignalProcessing plugin is not available in this build.");
 
     Document doc;
-    QCOMPARE(doc.loadMeshLabProject(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
-    doc.setCurrentMeshIndex(0);
-    const MeshFilterRunResult atlas = doc.runFilter(filterKeyForId(doc, QStringLiteral("parametrize_by_atlas_xatlas")), {});
-    QVERIFY2(atlas.success, qPrintable(atlas.errorMessage));
-    MeshFilterParameterValues transfer;
-    transfer.insert(QStringLiteral("texsize"), 512);
-    transfer.insert(QStringLiteral("dorefill"), false);
-    const MeshFilterRunResult photo = doc.runFilter(
-        filterKeyForId(doc, QStringLiteral("transfer_color_from_visible_rasters_to_texture")), transfer);
-    QVERIFY2(photo.success, qPrintable(photo.errorMessage));
-    QCOMPARE(int(doc.mesh(0).textureAssets.size()), 1);
+    const QString fixture = makePhotoTexturedGargoyle(doc);
+    QVERIFY2(fixture.isEmpty(), qPrintable(fixture));
     const QImage input = doc.mesh(0).textureAssets.front().image;
 
     const QString measureKey = filterKeyForId(doc, QStringLiteral("measure_texture_seam_discrepancy"));
@@ -7019,6 +7029,10 @@ void FilterTests::textureSignalProcessingRepairsAndDilatesSeams()
     qDebug("repair texture seams on the gargoyle: seam discrepancy %.2f -> %.2f, %d texels changed | %s",
            before, after, changedTexels(repairedImage), qPrintable(repaired.infoMessages.join(QStringLiteral(" | "))));
     QVERIFY2(after < 0.9 * before, qPrintable(QStringLiteral("discrepancy %1 -> %2").arg(before).arg(after)));
+    // TSP jitters with the C library's rand(), so a second run in the same process used to differ.
+    doc.mesh(0).textureAssets.front().image = input;
+    QVERIFY(doc.runFilter(repairKey, {}).success);
+    QVERIFY2(doc.mesh(0).textureAssets.front().image == repairedImage, "Repairing the same texture twice gave two images.");
 
     // A PLY names its texture by a TextureFile comment, so the layer it loads into holds the
     // texture as a file, with no image of its own to replace: the filter must still write it.
@@ -7037,6 +7051,99 @@ void FilterTests::textureSignalProcessingRepairsAndDilatesSeams()
     QVERIFY2(TextureAssociationUtils::loadAssociatedTextureImage(reloaded.mesh(0), 0, written, error), qPrintable(error));
     QVERIFY2(written.convertToFormat(QImage::Format_ARGB32) == dilatedImage.convertToFormat(QImage::Format_ARGB32),
              "Dilating a texture loaded from its file gave another image.");
+}
+
+// Smoothing and sharpening on the photo texture. Roughness is the mean difference between
+// horizontally adjacent texels: smoothing lowers it, sharpening raises it, and smoothing also brings
+// the two sides of the seams closer, since the texels across a seam are neighbors on the surface.
+// Confined to the faces west of the median, only part of what the uniform run changes is changed,
+// and with every face selected the result is the uniform one exactly.
+void FilterTests::textureSignalProcessingSmoothsAndSharpens()
+{
+    Document probe;
+    const QString smoothKey = filterKeyForId(probe, QStringLiteral("smooth_texture"));
+    const QString sharpenKey = filterKeyForId(probe, QStringLiteral("sharpen_texture"));
+    if (smoothKey.isEmpty() || sharpenKey.isEmpty())
+        QSKIP("TextureSignalProcessing plugin is not available in this build.");
+
+    Document doc;
+    const QString fixture = makePhotoTexturedGargoyle(doc);
+    QVERIFY2(fixture.isEmpty(), qPrintable(fixture));
+    const QImage input = doc.mesh(0).textureAssets.front().image;
+    auto image = [&]() -> QImage & { return doc.mesh(0).textureAssets.front().image; };
+    auto roughness = [](const QImage &im) {
+        double sum = 0;
+        for (int y = 0; y < im.height(); ++y)
+            for (int x = 1; x < im.width(); ++x) {
+                const QRgb a = im.pixel(x - 1, y), b = im.pixel(x, y);
+                sum += std::abs(qRed(a) - qRed(b)) + std::abs(qGreen(a) - qGreen(b)) + std::abs(qBlue(a) - qBlue(b));
+            }
+        return sum / (3.0 * im.height() * (im.width() - 1));
+    };
+    auto changed = [&](const QImage &im) {
+        int count = 0;
+        for (int y = 0; y < input.height(); ++y)
+            for (int x = 0; x < input.width(); ++x)
+                count += im.pixel(x, y) != input.pixel(x, y);
+        return count;
+    };
+    const QString measureKey = filterKeyForId(doc, QStringLiteral("measure_texture_seam_discrepancy"));
+    auto discrepancy = [&]() { return doc.runFilter(measureKey, {}).outputValues.value(QStringLiteral("seam_discrepancy_avg")).toDouble(); };
+    MeshFilterParameterValues uniform;
+    uniform.insert(QStringLiteral("selectedOnly"), false);
+
+    const double inputRoughness = roughness(input), inputDiscrepancy = discrepancy();
+    const MeshFilterRunResult smoothed = doc.runFilter(smoothKey, uniform);
+    QVERIFY2(smoothed.success, qPrintable(smoothed.errorMessage));
+    const QImage smoothImage = image();
+    const double smoothRoughness = roughness(smoothImage), smoothDiscrepancy = discrepancy();
+    qDebug("smooth texture: roughness %.2f -> %.2f, seam discrepancy %.2f -> %.2f | %s", inputRoughness,
+           smoothRoughness, inputDiscrepancy, smoothDiscrepancy, qPrintable(smoothed.infoMessages.join(QStringLiteral(" | "))));
+    QVERIFY(smoothRoughness < 0.8 * inputRoughness);
+    QVERIFY(smoothDiscrepancy < 0.9 * inputDiscrepancy);
+
+    image() = input;
+    const MeshFilterRunResult sharpened = doc.runFilter(sharpenKey, uniform);
+    QVERIFY2(sharpened.success, qPrintable(sharpened.errorMessage));
+    const double sharpRoughness = roughness(image());
+    qDebug("sharpen texture: roughness %.2f -> %.2f | %s", inputRoughness, sharpRoughness,
+           qPrintable(sharpened.infoMessages.join(QStringLiteral(" | "))));
+    QVERIFY(sharpRoughness > 1.1 * inputRoughness);
+
+    // Every face selected: the uniform result.
+    VCGMesh &mesh = doc.mesh(0).mesh;
+    image() = input;
+    vcg::tri::UpdateSelection<VCGMesh>::FaceAll(mesh);
+    MeshFilterParameterValues confined;
+    confined.insert(QStringLiteral("selectedOnly"), true);
+    QVERIFY(doc.runFilter(smoothKey, confined).success);
+    QVERIFY2(image() == smoothImage, "Smoothing with every face selected differs from the uniform run.");
+
+    // The west half selected: part of the uniform change, and nothing where the uniform run changed nothing.
+    image() = input;
+    std::vector<float> xs;
+    for (const VCGFace &f : mesh.face)
+        if (!f.IsD())
+            xs.push_back(f.cP(0).X() + f.cP(1).X() + f.cP(2).X());
+    std::nth_element(xs.begin(), xs.begin() + xs.size() / 2, xs.end());
+    const float median = xs[xs.size() / 2];
+    for (VCGFace &f : mesh.face)
+        if (!f.IsD()) {
+            if (f.cP(0).X() + f.cP(1).X() + f.cP(2).X() < median)
+                f.SetS();
+            else
+                f.ClearS();
+        }
+    const MeshFilterRunResult west = doc.runFilter(smoothKey, confined);
+    QVERIFY2(west.success, qPrintable(west.errorMessage));
+    const int westChanged = changed(image()), allChanged = changed(smoothImage);
+    qDebug("smooth texture on the west half: %d texels changed, against %d for the whole texture", westChanged, allChanged);
+    QVERIFY(westChanged > allChanged / 5);
+    QVERIFY(westChanged < 4 * allChanged / 5);
+    for (int y = 0; y < input.height(); ++y)
+        for (int x = 0; x < input.width(); ++x)
+            if (smoothImage.pixel(x, y) == input.pixel(x, y))
+                QVERIFY(image().pixel(x, y) == input.pixel(x, y));
 }
 
 // The CSG evaluator and the pairwise booleans must agree where they overlap, and the
@@ -12023,6 +12130,9 @@ const QHash<QString, QString> &scopeTestUnrunnable()
           QStringLiteral("needs a calibrated raster") },
         { QStringLiteral("transfer_color_from_visible_rasters_to_vertex"),
           QStringLiteral("needs calibrated rasters") },
+        // FilterTests::textureSignalProcessingSmoothsAndSharpens drives the selection on a texture.
+        { QStringLiteral("smooth_texture"), QStringLiteral("needs a texture") },
+        { QStringLiteral("sharpen_texture"), QStringLiteral("needs a texture") },
     };
     return table;
 }
