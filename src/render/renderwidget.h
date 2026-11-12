@@ -186,11 +186,10 @@ public:
     QPointF rasterImageToWidget(const QPointF &imagePos) const;
     // Where the raster view draws the active tool's loupes (InteractiveTool::loupes), in
     // widget pixels and in the same order: squares side by side in the top-right corner of the
-    // scene, or the top-left while the pointer is over that corner. Empty outside the raster
-    // view, and while the pointer is out of the view with no gesture under way.
+    // scene, or the top-left while the pointer is over that corner, view.loupeSize pixels
+    // across. Empty outside the raster view, and while the pointer is out of the view with no
+    // gesture under way. How much they magnify is view.loupeMagnification.
     std::vector<QRect> toolLoupeRects() const;
-    // How much larger a loupe shows the raster view than the view itself does.
-    static constexpr float kToolLoupeMagnification = 4.0f;
     // Whether the active tool gets input and draws in this view as it is now: all tools in
     // the 3D scene, those that opt in in the UV and raster views, none in a grid of tiles.
     bool toolAllowedInCurrentMode() const;

@@ -2,6 +2,7 @@
 #include "document.h"
 #include "renderwidget_internal.h"
 #include "interactivetool.h"
+#include "preferences.h"
 #include <QCursor>
 #include <QImage>
 #include <QSet>
@@ -100,8 +101,9 @@ std::vector<QRect> RenderWidget::toolLoupeRects() const
         return {};
     constexpr int kMargin = 12;
     constexpr int kGap = 8;
-    // A third of the height, so that two fit side by side in any reasonable view
-    const int side = std::clamp(height() / 3, 96, 260);
+    // The preference's size, or smaller in a view that cannot hold them side by side
+    const int fit = std::min(height() - 2 * kMargin, (width() - 2 * kMargin - (count - 1) * kGap) / count);
+    const int side = std::max(16, std::min(Preferences::instance().intValue(QStringLiteral("view.loupeSize")), fit));
     const int band = count * side + (count - 1) * kGap;
     const QRect right(width() - kMargin - band, kMargin, band, side);
     const QPoint pointer = mapFromGlobal(QCursor::pos());

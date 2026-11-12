@@ -650,13 +650,15 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         const std::vector<QRect> rects = toolLoupeRects();
         const float toDevice = float(sz.width()) / float(qMax(1, width()));
         const QVector4D fitView = fitImageRectNdc(rasterImageSize, sz);
+        const float magnification =
+            float(Preferences::instance().doubleValue(QStringLiteral("view.loupeMagnification")));
         for (size_t i = 0; i < std::min(loupes.size(), rects.size()); ++i) {
             const QRect rect(qRound(rects[i].x() * toDevice), qRound(rects[i].y() * toDevice),
                              qRound(rects[i].width() * toDevice), qRound(rects[i].height() * toDevice));
             // The view's image pixels per screen pixel, times the magnification, centred on the
             // image point under the focus
             const QVector4D fitLoupe = fitImageRectNdc(rasterImageSize, rect.size());
-            const float zoom = kToolLoupeMagnification * m_rasterZoom * (fitView.z() * float(sz.width()))
+            const float zoom = magnification * m_rasterZoom * (fitView.z() * float(sz.width()))
                 / qMax(1e-6f, fitLoupe.z() * float(rect.width()));
             const QPointF focus = widgetToRasterImage(loupes[i].focus);
             const QVector2D pan(float(focus.x()), float(focus.y()));

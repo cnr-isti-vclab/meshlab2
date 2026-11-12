@@ -86,6 +86,27 @@
       "decimals": 1
     },
     {
+      "id": "view.loupeSize",
+      "label": "Loupe size",
+      "help": "Edge length in pixels of the magnifying insets a tool shows in the corner of the raster view, such as the Raster Alignment Tool's 3D and 2D loupes. A view too small to hold them side by side at this size gets smaller ones.",
+      "group": "view",
+      "type": "int",
+      "default": 220,
+      "min": 64,
+      "max": 800
+    },
+    {
+      "id": "view.loupeMagnification",
+      "label": "Loupe magnification",
+      "help": "How many times larger a tool's loupes show the raster view than the view itself does. It follows the view's own zoom, so zooming the view in zooms the loupes too.",
+      "group": "view",
+      "type": "double",
+      "default": 4.0,
+      "min": 1.0,
+      "max": 32.0,
+      "decimals": 1
+    },
+    {
       "id": "view.referenceGrid",
       "label": "Reference grid on new views",
       "help": "The grid a new 3D view starts with: **None**, or a plane through the origin ruled in powers of ten with the world axes in red (X), green (Y) and blue (Z). **XY** is the floor of a scene that stands on Z, **XZ** of one that stands on Y. A view can be switched from View Settings at any time; File > New puts it back to this. An orthographic view looking straight down an axis shows the plane across its line of sight whatever this says.",
