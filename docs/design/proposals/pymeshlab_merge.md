@@ -5,11 +5,12 @@ carries MeshLab as a git submodule. This document proposes moving that build her
 and retiring the separate repository, and records the mapping table required by
 `AGENTS.md` before anything moves.
 
-**Status (2026-11-03):** both tables approved. The in-app facade rename is done,
-and so are steps 2 and 3: `pip wheel .` builds `pymeshlab2` from this tree, the
-wheel exposes the same 405 filters as the application, and `pytest` runs green
-against it. Step 4 (CI) is written but not yet proven: it needs a push. Steps 5–6
-(tag, archive) have not started.
+**Status (2026-11-12):** both tables approved; the in-app facade rename and steps
+2–4 are done. `pip wheel .` builds `pymeshlab2` from this tree, the wheel exposes
+the same 405 filters as the application, and `wheels.yml` builds and tests the
+wheels on `devel` (macOS arm64 and Windows x64, CPython 3.10–3.14; first green run
+2026-11-03, `0ac8d6e8`). Steps 5–6 (tag, archive) have not started: no release has
+been tagged yet.
 
 See also: [LLM Integration](llm_integration.md) (why wheel/app convergence came up),
 [Branches and Releases](../release_process.md) (the release machinery this would join),
@@ -215,12 +216,14 @@ independent of the wheel move and can land first, as its own commit.
   CPython 3.12 to 3.13 recompiled only nanobind, `_meshlab` and `MeshLab2Core` —
   23 seconds — where the sibling's fresh directory per wheel rebuilt every plugin
   five times over. The cp312 wheel built that way passes `python/tests` too.
-- **Texture Consolidation stays on in the wheels**, unlike the DMG, which turns it
-  off on the 7 GB macOS runner because its stitcher alone compiles for an hour.
-  Turning it off would make the wheel's filter set differ from the descriptors and
-  fail `test_wheel_exposes_every_declared_filter`; the wheels run on tags, by hand
-  and on binding changes only, so the hour is paid rarely. Its helper programs are
-  not bundled into the wheel yet, as they are not into the DMG.
+- **Texture Consolidation stays on in the wheels**: turning it off would make the
+  wheel's filter set differ from the descriptors and fail
+  `test_wheel_exposes_every_declared_filter`. Its three helper programs ship in the
+  wheel under `pymeshlab2/texture-consolidation/bin` (`9e386700`), as they do in the
+  DMG, ZIP and AppImage (`db1dca4f`), and CI caches them (`0ac8d6e8`), so the hour
+  their stitcher takes to compile is paid only when the helpers change.
+  `wheel_smoke.py` runs the filter, which is the only proof the vendored libraries
+  load.
 - **PyPI upload is not automated.** The wheels go on the draft GitHub Release. The
   trusted-publisher route is described under Open items in
   [Branches and Releases](../release_process.md).
@@ -240,7 +243,8 @@ independent of the wheel move and can land first, as its own commit.
 4. CI: row 9, plus a `wheels` job in `release.yml`. Prove green on `devel`.
    *Written*: `wheels.yml` (on `devel` pushes touching the bindings or packaging, by
    hand, and from `release.yml`, which attaches the wheels to the draft release).
-   Not yet proven: that takes a push.
+   *Proven*: green on `devel` since 2026-11-03 (`0ac8d6e8`, `9e386700`, `65d5212d`,
+   and by hand on `460c4d84`).
 5. Tag a release; confirm the wheel builds from the tag.
 6. Only then archive `cignoni/pymeshlab2`.
 
