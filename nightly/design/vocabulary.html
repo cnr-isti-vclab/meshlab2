@@ -991,31 +991,35 @@ validate them: across current descriptors <code class="docutils literal notransl
 <td><p>Grow or shrink the selection by one ring of adjacent elements; for <code class="docutils literal notranslate"><span class="pre">Dilate</span></code>, also grow the filled region of an image outwards (2026-11-12, for <em>Dilate Texture across Seams</em>)</p></td>
 <td><p>The standard morphological pair, which means the same on an image; <code class="docutils literal notranslate"><span class="pre">Select</span></code> names the act of selecting, not these two operations on an existing selection</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Close</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Inpaint</span></code></p></td>
+<td><p>Fill a region of an image from its surroundings (2026-11-12, for <em>Inpaint Texture on Selected Faces</em>)</p></td>
+<td><p>Admitted <strong>narrowly</strong>, as the image-processing term of art. <code class="docutils literal notranslate"><span class="pre">Repair</span></code> would fit, but would not tell it from <em>Repair Texture Seams</em>; <code class="docutils literal notranslate"><span class="pre">Fill</span></code> stays rejected under <code class="docutils literal notranslate"><span class="pre">Close</span></code>; also <code class="docutils literal notranslate"><span class="pre">Retouch</span></code>, <code class="docutils literal notranslate"><span class="pre">Heal</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Close</span></code></p></td>
 <td><p>Fill a boundary loop with new faces</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Fill</span></code>, <code class="docutils literal notranslate"><span class="pre">Patch</span></code>, <code class="docutils literal notranslate"><span class="pre">Cap</span></code> — <em>close a hole</em> is the established term of art, and <code class="docutils literal notranslate"><span class="pre">Repair</span></code> is too coarse to separate it from the other <code class="docutils literal notranslate"><span class="pre">Repair/*</span></code> filters</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Import</span></code>, <code class="docutils literal notranslate"><span class="pre">Export</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Import</span></code>, <code class="docutils literal notranslate"><span class="pre">Export</span></code></p></td>
 <td><p>Read or write data in a file outside the document</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Load</span></code>, <code class="docutils literal notranslate"><span class="pre">Save</span></code> — those are the File menu’s document-level operations, and a filter that writes a camera rig or a multiresolution build beside the mesh is not saving the document; also <code class="docutils literal notranslate"><span class="pre">Read</span></code>, <code class="docutils literal notranslate"><span class="pre">Write</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Rename</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Rename</span></code></p></td>
 <td><p>Change the label of a layer or raster, or the name of a texture (the file name it is saved under)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Relabel</span></code>. <code class="docutils literal notranslate"><span class="pre">Set</span></code> would have covered it and matches the ids, but <em>rename</em> is the word a user searches for</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Render</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Render</span></code></p></td>
 <td><p>Produce an image from the scene</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Draw</span></code>, <code class="docutils literal notranslate"><span class="pre">Snapshot</span></code>, <code class="docutils literal notranslate"><span class="pre">Screenshot</span></code> — and not <code class="docutils literal notranslate"><span class="pre">Create</span></code>, which produces a layer</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Defragment</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Defragment</span></code></p></td>
 <td><p>Reduce the fragmentation of a texture atlas by merging compatible charts and resampling</p></td>
 <td><p>Admitted <strong>narrowly</strong>, for that alone. It is the term of the paper the filter implements (Maggiordomo et al. 2021); <code class="docutils literal notranslate"><span class="pre">Merge</span></code> describes only half of it, and <code class="docutils literal notranslate"><span class="pre">Pack</span></code> means arranging charts rather than merging them</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Embed</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Embed</span></code></p></td>
 <td><p>Make a curve part of a surface’s tessellation, so that its segments become mesh edges (2026-10-05, for <em>Embed Polyline in Surface</em>)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Insert</span></code>, <code class="docutils literal notranslate"><span class="pre">Imprint</span></code>, <code class="docutils literal notranslate"><span class="pre">Conform</span></code>, <code class="docutils literal notranslate"><span class="pre">Project</span></code> (which moves vertices onto a surface without retriangulating it)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Estimate</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Estimate</span></code></p></td>
 <td><p>Report a result that is explicitly statistical or approximate, where the approximation is something the user needs to know about</p></td>
 <td><p>Admitted <strong>narrowly</strong>. <code class="docutils literal notranslate"><span class="pre">Compute</span></code> wins wherever the result is exact; the footnote below states the same rule and is where the ratified set ends</p></td>
 </tr>

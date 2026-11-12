@@ -252,7 +252,9 @@ worth turning into MeshLab filters, and how to integrate them. It recommends doi
 process</strong>, as Screened Poisson is, through TSP’s header-only <code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code> library, and
 <strong>not</strong> as helper programs, as TextureConsolidation is. <strong>Stages 1 and 2 implemented 2026-11-12</strong> (the
 plugin <code class="docutils literal notranslate"><span class="pre">filter_texture_signal_processing</span></code>, with <em>Repair Texture Seams</em>, <em>Dilate Texture across
-Seams</em>, <em>Smooth Texture</em> and <em>Sharpen Texture</em>; see its <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code>); stage 3 is not. Every number below was measured for
+Seams</em>, <em>Smooth Texture</em> and <em>Sharpen Texture</em>; see its <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code>); <strong>stage 3 the same day</strong>
+(<em>Inpaint Texture on Selected Faces</em>, <em>Transfer Texture Detail</em> and object-space normal maps); stage 4
+is not. Every number below was measured for
 this proposal.</p>
 <p>See also: <a class="reference internal" href="../history/texture_consolidation.html"><span class="std std-doc">TextureConsolidation history</span></a>,
 <code class="docutils literal notranslate"><span class="pre">plugins/filter_texture_consolidation/UPSTREAM.md</span></code>, <code class="docutils literal notranslate"><span class="pre">plugins/filter_screened_poisson/UPSTREAM.md</span></code>,
@@ -618,7 +620,7 @@ proposed names are drafts. Four of them need words the vocabulary does not have 
 <td><p>Smooths or sharpens a texture with a screened Poisson solve, across seams</p></td>
 <td><p>Nothing for textures; <em>Smooth Vertex Color</em> and the unsharp-mask filters work per vertex</p></td>
 <td><p><em>Smooth Texture</em>, <em>Sharpen Texture</em></p></td>
-<td><p><strong>Stage 2.</strong> Per-edge gradient scaling is computed by the caller, so a face selection could drive a localized version, which the program does only through its interactive viewer</p></td>
+<td><p><strong>Stage 2.</strong> Per-edge gradient scaling is computed by the caller, so a face selection could drive a localized version, which the program does only through its interactive viewer. <strong>Stage 3</strong> adds two of its options: <code class="docutils literal notranslate"><span class="pre">--inLow</span></code>, values from a second texture (<em>Transfer Texture Detail</em>), and <code class="docutils literal notranslate"><span class="pre">--colorAsNormal</span></code>, object-space normal maps</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">TextureStitching</span></code> (1,520 lines)</p></td>
 <td><p>Blends several partial textures, or one composite with a source-id mask, in the gradient domain</p></td>
@@ -648,7 +650,7 @@ proposed names are drafts. Four of them need words the vocabulary does not have 
 <td><p>Re-solves the texels at chart crossings, or the exterior texels, or masked ones, to minimize the Dirichlet energy</p></td>
 <td><p>—</p></td>
 <td><p>—</p></td>
-<td><p><strong>No.</strong> On a padded atlas its default mode has nothing to do: 0 degrees of freedom, output identical. <code class="docutils literal notranslate"><span class="pre">--exterior</span></code> overlaps <code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code> and ran for over 10 minutes. The mask mode is the stage-2 solve with a different right-hand side</p></td>
+<td><p><strong>Mask mode: stage 3</strong>, as <em>Inpaint Texture on Selected Faces</em>, with the selection as the mask. It frees the masked texels and holds the rest, which is the stage-1 repair’s solve with a different set of free texels. The other two modes, no: on a padded atlas the default mode has nothing to do (0 degrees of freedom, output identical), and <code class="docutils literal notranslate"><span class="pre">--exterior</span></code> overlaps <code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code> and ran for over 10 minutes</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">TextureMasking</span></code> (320 lines)</p></td>
 <td><p>Draws active, boundary and gutter texels and triangle IDs as an image</p></td>
@@ -805,9 +807,69 @@ factor at 2048²). On the gargoyle test, smoothing takes the seam discrepancy fr
 On the 3M-face scan at 4096²: 3 minutes and 19 GB, 4 minutes and 47 GB with a selection. Found
 on the way: TSP jittered with <code class="docutils literal notranslate"><span class="pre">rand()</span></code>, so in the application every run differed from the last;
 #24 gives the jitter a generator of its own.</p></li>
+<li><p><strong>Inpainting, detail transfer and normal maps.</strong> Proposed 2026-11-12; Paolo approved them
+and their names the same day; <strong>implemented the same day</strong>, with the measured differences from
+this plan listed after the three items. Three uses of what stages 1 and 2
+built, each a few dozen lines in the adapter:</p>
+<ul class="simple">
+<li><p><em><strong>Inpaint Texture on Selected Faces</strong></em> (<code class="docutils literal notranslate"><span class="pre">SeamStitcher</span> <span class="pre">--mask</span></code>). The texels whose nearest
+face is selected, by stage 2’s rule, exterior ones included, are freed; every other texel
+is held. The freed texels take the values that minimize the Dirichlet energy on the
+surface, which is the repair’s solve, <span class="math notranslate nohighlight">\((P^\top S P)\,y = -P^\top S\,x\)</span>, with a different <span class="math notranslate nohighlight">\(P\)</span>. The
+fill is harmonic: smooth, continuous across seams, and meeting the surrounding colors at
+the edge of the selection. That is right for markers, stains and small projection errors,
+and blurry over large regions. The repair’s pull towards the current values cannot be
+reused: at 1e-2 of the median coupling it reaches about ten texels, so a stain would show
+through. The system is only regularized, at 1e-8, so that a region with no held texel
+around it (a whole connected piece of the surface selected) keeps its mean. The solve is
+direct, like the repair’s; its cost on a large selection is open question 6.</p></li>
+<li><p><em><strong>Transfer Texture Detail</strong></em> (<code class="docutils literal notranslate"><span class="pre">TextureFiltering</span> <span class="pre">--inLow</span></code>). Two textures of one mesh,
+both read through the UVs of the first. The result keeps the gradients of the <em>Detail
+Texture</em>, scaled by <em>Gradient Scale</em> (default 1), while its values are held to the
+<em>Base Texture</em> with weight <em>Fidelity</em>: <span class="math notranslate nohighlight">\((w\,M + S)\,x = w\,M\,x_b + s\,S\,x_d\)</span>. For example, a sharp
+texture from one capture and a color-correct but soft one from another. The result
+replaces the base texture’s image, the one the faces show. A detail texture of another size
+is resampled to the base’s size (the program refuses it). No selection: what scaling the gradients
+outside it should mean has no obvious answer when they come from another texture.</p></li>
+<li><p><strong>Object-space normal maps</strong> (<code class="docutils literal notranslate"><span class="pre">TextureFiltering</span> <span class="pre">--colorAsNormal</span></code>): an option on the
+smoothing, sharpening, detail-transfer and inpainting filters. The colors are decoded as
+vectors (<span class="math notranslate nohighlight">\(2c-1\)</span>), solved for, renormalized and encoded again. Object-space maps only:
+a tangent-space map’s frame changes across a seam, so treating its two sides as one
+signal mixes frames. The help says so.</p></li>
+</ul>
+<p>Tests: inpainting a patch overwritten with noise on the gargoyle leaves every unselected
+texel unchanged and comes back close to the original; detail transfer with the same
+texture as base and detail at scale 1 returns the input, and from a smoothed base restores
+most of the original roughness; a normal-map run gives unit-length normals.</p>
+<p>Measured while implementing, and changed from the plan:</p>
+<ul class="simple">
+<li><p><strong>The inpainting’s pull.</strong> Regularizing the region alone, as planned, sent the exterior
+texels the energy barely reaches up to 4,300 levels out of range; the repair’s pull on all
+of them added up along the seams of a large region and held it back towards what was there
+(15,022 of 34,090 texels of a region painted magenta stayed near magenta). Only the texels
+coupled less than 1e-3 of the median take the pull: 89 stay near magenta, the error against
+the photo is 27.8 levels against 26.4 with no pull at all, and 31 values come out of range
+on the 3M-face scan, against 45.</p></li>
+<li><p><strong>The gutter around the region is freed</strong>, and not written: held, its background bled into
+the fill as a boundary value.</p></li>
+<li><p><strong>Alpha is left alone</strong> by the four filters that solve for colors, as in the programs, which
+read color only. This fixes stage 2 as well: solved as a fourth channel, the transparent gutter
+of a projected texture left 162,929 of its 162,932 opaque texels partly transparent after
+smoothing.</p></li>
+<li><p><strong>Which face is nearest</strong> to a texel now comes from Misha’s candidate lists, whose ties are
+broken by index. The other path keeps whichever supporting triangle a thread wrote last, so
+the edge of a selection moved from run to run; this fixes stage 2’s localized filtering too.</p></li>
+<li><p>On the gargoyle test, inpainting a region of 34,090 texels painted magenta brings it back to
+27.8 levels rms of the photo (157.6 painted); detail transfer from a smoothed base brings the
+roughness from 5.08 back to 14.28 (the photo’s is 14.17), and the error against the photo
+from 31.2 to 5.6.</p></li>
+</ul>
+</li>
 <li><p><strong>Line-integral convolution, reaction-diffusion, source-aware stitching.</strong> Each needs
 its own decision first: the vocabulary for the first two, Paolo’s ruling on the
-reaction term, and a change to color projection for the third.</p></li>
+reaction term, and a change to color projection for the third. <code class="docutils literal notranslate"><span class="pre">ReactionDiffusion</span></code>’s
+<code class="docutils literal notranslate"><span class="pre">--approximateIntegration</span></code> does not settle the ruling: it only chooses a cheaper
+quadrature inside <code class="docutils literal notranslate"><span class="pre">ScalarIntegrator</span></code>, which still needs the lower-level interface.</p></li>
 </ol>
 </section>
 <section id="naming">
@@ -825,6 +887,13 @@ Vertex Color</em>). The vocabulary should say so.</p></li>
 <li><p><em><strong>Dilate Texture across Seams</strong></em>: <code class="docutils literal notranslate"><span class="pre">Dilate</span></code> is admitted only for selections. Widening
 it to images keeps its standard morphological meaning. The alternative, <code class="docutils literal notranslate"><span class="pre">Fill</span></code>, is
 rejected in the lexicon as a synonym of <code class="docutils literal notranslate"><span class="pre">Close</span></code>.</p></li>
+<li><p><em><strong>Inpaint Texture on Selected Faces</strong></em> (stage 3, approved 2026-11-12): admits <code class="docutils literal notranslate"><span class="pre">Inpaint</span></code> narrowly, for
+filling a region of an image from its surroundings, as the image-processing term of art,
+the way <code class="docutils literal notranslate"><span class="pre">Close</span></code> was admitted for holes. <code class="docutils literal notranslate"><span class="pre">Repair</span></code> would also fit its definition, but would
+not tell this filter from <em>Repair Texture Seams</em>; <code class="docutils literal notranslate"><span class="pre">Fill</span></code> is rejected under <code class="docutils literal notranslate"><span class="pre">Close</span></code>.</p></li>
+<li><p><em><strong>Transfer Texture Detail</strong></em> (stage 3, approved 2026-11-12): <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> as defined, data moving
+between textures. Its parameters are <em>Base Texture</em> and <em>Detail Texture</em>.</p></li>
+<li><p><strong>The normal-map option</strong> (stage 3, approved 2026-11-12): <em>Texture Holds Object-Space Normals</em>.</p></li>
 <li><p><strong>Line-integral convolution and reaction-diffusion</strong> produce a new texture from no
 input texture. <code class="docutils literal notranslate"><span class="pre">Create</span></code> is reserved for layers, and <code class="docutils literal notranslate"><span class="pre">Render</span></code> means an image of the
 scene. To be decided with the stage-3 filters.</p></li>
@@ -848,6 +917,10 @@ tried.</p></li>
 <li><p><strong>Multigrid or direct.</strong> Answered with stage 2: at 512² the direct solve is faster than
 enough V-cycles to match it (2.5 s against 7.5 s for 100), but at 2048² it takes 63 s and
 5.7 GB to factor against 28 s of multigrid, and grows faster from there. Multigrid.</p></li>
+<li><p><strong>Inpainting cost</strong> (stage 3). Answered: the direct solve is enough. Most of the cost is
+building the operators, as for the repair: a second and 1.4 GB for 5% of a 20k-face mesh at
+1024², 3 s and 1.7 GB for half; on the 3M-face scan at 4096², 22 s and 18 GB for 5% of the
+faces, 96 s and 22 GB for half of them, far more than inpainting is for.</p></li>
 </ol>
 </section>
 </section>
@@ -926,5 +999,7 @@ enough V-cycles to match it (2.5 s against 7.5 s for 100), but at 2048² it take
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
     </body>
 </html>

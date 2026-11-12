@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 409 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 411 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -11234,6 +11234,43 @@ It needs far less than *Repair Texture Seams*: 0.6 s and 0.2 GB for a 20k-face m
 
 ---
 
+(filter-inpaint-texture-on-selected-faces)=
+
+## Inpaint Texture on Selected Faces
+
+**Categories:** `Texture/Filtering`
+
+**Plugin:** meshlab2.filter.texture_signal_processing
+
+Fill the texture under the selected faces smoothly from around them, continuously across seams.
+
+```{py:function} ms.inpaint_texture_on_selected_faces(**params)
+:module: _meshlab
+
+Replaces the texels under the selected faces with the smoothest values that meet the texture around them: the values that minimize the Dirichlet energy of the texture on the surface, every other texel held. Since the texels on the two sides of a seam are neighbors on the surface, the fill is continuous across seams, and a selection that spans several islands is filled as one region. Use it to remove markers, stains, specular highlights or a small badly projected patch: select the faces over it and run. The fill is smooth, so it suits small regions; a large one comes out blurred, since nothing inside it is kept.
+
+A texel belongs to the region when the face nearest to it is selected, the texels just outside the islands included, and only those texels are written: the rest of the texture is left exactly as it was. A region with nothing held around it, a whole connected piece of the surface selected, takes its mean color.
+
+It is the mask mode of the `SeamStitcher` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, run inside MeshLab with the selection as the mask. The chosen texture's image is replaced, its alpha channel left as it was: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).
+
+**Time and memory** grow with the number of texels in the region, whose system is solved directly: about a second and 1.4 GB for a few percent of a 20k-face mesh at 1024², 3 s and 1.7 GB for half of it; on a 3M-face scan at 4096², 22 s and 18 GB for 5% of the faces, 96 s and 22 GB for half of them. Most of it is building the operators, as for *Repair Texture Seams*.
+
+**Upstream:** [TextureSignalProcessing](https://github.com/mkazhdan/TextureSignalProcessing)
+
+**License:** MIT
+
+**References:**
+
+- Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. **Gradient-domain Processing within a Texture Atlas**. *ACM Transactions on Graphics* (2018). [DOI](https://doi.org/10.1145/3197517.3201317)
+
+**Parameters:**
+
+- **texture** (*textureref*, default: `1`) — The texture to inpaint. Only the faces that use it take part, and the selected ones among them mark the region; its image is replaced, and its file is left alone until the mesh is saved.
+- **objectSpaceNormals** (*bool*, default: `False`) — Treat the texture as an object-space normal map: its colors encode unit vectors, which come out renormalized. Tangent-space normal maps are not supported: their frame changes across a seam, so the two sides cannot be processed as one signal.
+```
+
+---
+
 (filter-repair-texture-seams)=
 
 ## Repair Texture Seams
@@ -11285,7 +11322,7 @@ Sharpen a texture on the surface, continuously across its seams.
 
 Sharpens the texture as a signal on the surface rather than in the image: its gradients are amplified by *Gradient Scale* while the texels are held to their input values with weight *Fidelity*, and since the texels on the two sides of a seam are neighbors, the result is continuous across seams. A smaller fidelity lets the amplified gradients carry further, so the sharpening reaches larger features.
 
-It is the method of Prada, Kazhdan, Chuang and Hoppe, through the `GradientDomain` library of their TextureSignalProcessing, as its `TextureFiltering` program does it, run inside MeshLab. The solution satisfies $$(w\,M + S)\,x = w\,M\,x_0 + s\,S\,x_0,$$ with $x_0$ the input texels, $M$ and $S$ the mass and stiffness of the texture on the surface (the mesh's area taken as 1), $w$ the *Fidelity* and $s$ the *Gradient Scale*. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The chosen texture's image is replaced: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).
+It is the method of Prada, Kazhdan, Chuang and Hoppe, through the `GradientDomain` library of their TextureSignalProcessing, as its `TextureFiltering` program does it, run inside MeshLab. The solution satisfies $$(w\,M + S)\,x = w\,M\,x_0 + s\,S\,x_0,$$ with $x_0$ the input texels, $M$ and $S$ the mass and stiffness of the texture on the surface (the mesh's area taken as 1), $w$ the *Fidelity* and $s$ the *Gradient Scale*. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The chosen texture's image is replaced, its alpha channel left as it was: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).
 
 **Only selected faces.** The gradients are then scaled only on the texels whose nearest face is selected, and only those texels are written: the rest of the texture is left exactly as it was, and the change fades in across the edge of the selection. This needs the library's divergence operator, which takes about 3.5 times the memory.
 
@@ -11304,6 +11341,7 @@ It is the method of Prada, Kazhdan, Chuang and Hoppe, through the `GradientDomai
 - **texture** (*textureref*, default: `1`) — The texture to sharpen. Only the faces that use it take part, and its image is replaced; its file is left alone until the mesh is saved.
 - **gradientScale** (*double*, default: `2.0`) — The factor the texture's gradients are amplified by: above 1 sharpens, and the larger the stronger. TextureFiltering's gradient modulation.
 - **fidelity** (*double*, default: `1000.0`) — How strongly the texels are held to their input values, against the gradients being amplified: the larger, the less the texture changes. The mesh's area is taken as 1, so the same value acts at the same scale on any mesh. TextureFiltering's interpolation weight.
+- **objectSpaceNormals** (*bool*, default: `False`) — Treat the texture as an object-space normal map: its colors encode unit vectors, which come out renormalized. Tangent-space normal maps are not supported: their frame changes across a seam, so the two sides cannot be processed as one signal.
 ```
 
 ---
@@ -11323,7 +11361,7 @@ Smooth a texture on the surface, continuously across its seams.
 
 Smooths the texture as a signal on the surface rather than in the image: the texels on the two sides of a seam are neighbors, so the result is continuous across seams, and the islands' outlines in the image do not show up as edges. The texels are held to their input values with weight *Fidelity* while their gradients are held to the input's scaled by *Gradient Scale*: at 0 the gradients are pulled to zero, the strongest smoothing for a given fidelity; a smaller fidelity smooths over a larger area.
 
-It is the method of Prada, Kazhdan, Chuang and Hoppe, through the `GradientDomain` library of their TextureSignalProcessing, as its `TextureFiltering` program does it, run inside MeshLab. The solution satisfies $$(w\,M + S)\,x = w\,M\,x_0 + s\,S\,x_0,$$ with $x_0$ the input texels, $M$ and $S$ the mass and stiffness of the texture on the surface (the mesh's area taken as 1), $w$ the *Fidelity* and $s$ the *Gradient Scale*. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The chosen texture's image is replaced: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).
+It is the method of Prada, Kazhdan, Chuang and Hoppe, through the `GradientDomain` library of their TextureSignalProcessing, as its `TextureFiltering` program does it, run inside MeshLab. The solution satisfies $$(w\,M + S)\,x = w\,M\,x_0 + s\,S\,x_0,$$ with $x_0$ the input texels, $M$ and $S$ the mass and stiffness of the texture on the surface (the mesh's area taken as 1), $w$ the *Fidelity* and $s$ the *Gradient Scale*. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The chosen texture's image is replaced, its alpha channel left as it was: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).
 
 **Only selected faces.** The gradients are then scaled only on the texels whose nearest face is selected, and only those texels are written: the rest of the texture is left exactly as it was, and the change fades in across the edge of the selection. This needs the library's divergence operator, which takes about 3.5 times the memory.
 
@@ -11342,6 +11380,47 @@ It is the method of Prada, Kazhdan, Chuang and Hoppe, through the `GradientDomai
 - **texture** (*textureref*, default: `1`) — The texture to smooth. Only the faces that use it take part, and its image is replaced; its file is left alone until the mesh is saved.
 - **gradientScale** (*double*, default: `0.0`) — The factor the texture's gradients are held to, from 0 (pulled to zero, the most smoothing) to below 1 (barely changed). TextureFiltering's gradient modulation.
 - **fidelity** (*double*, default: `1000.0`) — How strongly the texels are held to their input values, against the gradients being dampened: the larger, the less the texture changes. The mesh's area is taken as 1, so the same value acts at the same scale on any mesh. TextureFiltering's interpolation weight.
+- **objectSpaceNormals** (*bool*, default: `False`) — Treat the texture as an object-space normal map: its colors encode unit vectors, which come out renormalized. Tangent-space normal maps are not supported: their frame changes across a seam, so the two sides cannot be processed as one signal.
+```
+
+---
+
+(filter-transfer-texture-detail)=
+
+## Transfer Texture Detail
+
+**Categories:** `Texture/Filtering`
+
+**Plugin:** meshlab2.filter.texture_signal_processing
+
+Give a texture the detail of another, keeping its own colors, continuously across seams.
+
+```{py:function} ms.transfer_texture_detail(**params)
+:module: _meshlab
+
+Combines two textures laid out on the same UVs: the result takes its fine detail, its gradients on the surface, from the *Detail Texture*, scaled by *Gradient Scale*, and keeps the colors of the *Base Texture* with weight *Fidelity*. For example, a sharp texture from one capture and a soft but color-correct one from another, or a texture whose detail was lost in a correction. At a scale of 1 the detail is kept as it is; below 1 it is softened and above 1 strengthened. A smaller fidelity takes more of the detail texture's coarser variation as well. The texels on the two sides of a seam are neighbors, so the result is continuous across seams.
+
+Both textures are read through the UVs of the faces that use the base texture, which receives the result. A detail texture of another size is resampled to the base texture's size first.
+
+It is the low-frequency input (`--inLow`) of the `TextureFiltering` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, run inside MeshLab. The solution satisfies $$(w\,M + S)\,x = w\,M\,x_b + s\,S\,x_d,$$ with $x_b$ and $x_d$ the base and detail texels, $M$ and $S$ the mass and stiffness of the texture on the surface (the mesh's area taken as 1), $w$ the *Fidelity* and $s$ the *Gradient Scale*. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The base texture's image is replaced, its alpha channel left as it was: its file is left alone, and saving the mesh writes the result. Faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).
+
+**Time and memory** are those of *Smooth Texture*: about 10 s and 1.4 GB on a 20k-face mesh at 1024², 28 s and 3.9 GB at 2048², and about 3 minutes and 19 GB on a 3M-face scan at 4096².
+
+**Upstream:** [TextureSignalProcessing](https://github.com/mkazhdan/TextureSignalProcessing)
+
+**License:** MIT
+
+**References:**
+
+- Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. **Gradient-domain Processing within a Texture Atlas**. *ACM Transactions on Graphics* (2018). [DOI](https://doi.org/10.1145/3197517.3201317)
+
+**Parameters:**
+
+- **texture** (*textureref*, default: `1`) — The texture whose colors the result keeps, and which receives it. Only the faces that use it take part; its file is left alone until the mesh is saved.
+- **detailTexture** (*textureref*, default: `2`) — The texture whose detail the result takes, read through the base texture's UVs, and resampled to its size if it has another.
+- **gradientScale** (*double*, default: `1.0`) — The factor the detail texture's gradients are taken with: 1 keeps the detail as it is, below 1 softens it and above 1 strengthens it. TextureFiltering's gradient modulation.
+- **fidelity** (*double*, default: `1000.0`) — How strongly the result is held to the base texture's colors: the larger, the more closely it keeps them, and the less of the detail texture's coarser variation it takes. The mesh's area is taken as 1, so the same value acts at the same scale on any mesh. TextureFiltering's interpolation weight.
+- **objectSpaceNormals** (*bool*, default: `False`) — Treat the texture as an object-space normal map: its colors encode unit vectors, which come out renormalized. Tangent-space normal maps are not supported: their frame changes across a seam, so the two sides cannot be processed as one signal.
 ```
 
 ---
