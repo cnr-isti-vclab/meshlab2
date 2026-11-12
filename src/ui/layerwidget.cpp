@@ -33,6 +33,8 @@
 #include <QQuaternion>
 #include <QMatrix3x3>
 #include <QPainter>
+#include <QPixmap>
+#include <QRegion>
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QStyledItemDelegate>
@@ -210,12 +212,58 @@ public:
             painter->fillRect(option.rect, shade);
         }
         // A layer's visibility is the style's own small check mark; the eye is above the list.
-        QStyledItemDelegate::paint(painter, option, index);
+        QStyleOptionViewItem opt = option;
+        initStyleOption(&opt, index);
+        if (!(opt.features & QStyleOptionViewItem::HasCheckIndicator)) {
+            QStyledItemDelegate::paint(painter, option, index);
+            return;
+        }
+        // Qt 6.12.0's macOS style draws a check box only once per paint into a widget: the first
+        // row's appears, a little left of its place, and the others are blank, though a click
+        // still toggles them. Drawn into a pixmap of its own each time, it is right, so each state
+        // is drawn once into a pixmap and the pixmap is painted in every row. The item is still
+        // drawn with its check indicator, so that the icon and the text keep their places, but
+        // clipped out of the strip up to the end of the check box, whose background is drawn
+        // first. Any style draws the same this way.
+        const QWidget *widget = opt.widget;
+        QStyle *style = widget ? widget->style() : QApplication::style();
+        const QRect checkRect = style->subElementRect(QStyle::SE_ItemViewItemCheckIndicator, &opt, widget);
+        const Qt::CheckState checkState = opt.checkState;
+        style->drawPrimitive(QStyle::PE_PanelItemViewItem, &opt, painter, widget);
+        painter->save();
+        QRegion clip(opt.rect);
+        clip -= QRect(opt.rect.left(), opt.rect.top(), checkRect.right() + 1 - opt.rect.left(), opt.rect.height());
+        painter->setClipRegion(clip, Qt::IntersectClip);
+        style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, widget);
+        painter->restore();
+
+        const qreal dpr = painter->device()->devicePixelRatioF();
+        const bool enabled = opt.state & QStyle::State_Enabled;
+        const QString key = QStringLiteral("%1/%2x%3/%4/%5/%6")
+                                .arg(int(checkState)).arg(checkRect.width()).arg(checkRect.height())
+                                .arg(dpr).arg(opt.palette.cacheKey()).arg(enabled);
+        QPixmap &pixmap = m_checkPixmaps[key];
+        if (pixmap.isNull()) {
+            pixmap = QPixmap(checkRect.size() * dpr);
+            pixmap.setDevicePixelRatio(dpr);
+            pixmap.fill(Qt::transparent);
+            QPainter pixmapPainter(&pixmap);
+            QStyleOptionViewItem check = opt;
+            check.rect = QRect(QPoint(0, 0), checkRect.size());
+            check.state &= ~(QStyle::State_HasFocus | QStyle::State_Selected | QStyle::State_On
+                             | QStyle::State_Off | QStyle::State_NoChange);
+            check.state |= checkState == Qt::Checked     ? QStyle::State_On
+                         : checkState == Qt::Unchecked   ? QStyle::State_Off
+                                                         : QStyle::State_NoChange;
+            style->drawPrimitive(QStyle::PE_IndicatorItemViewItemCheck, &check, &pixmapPainter, widget);
+        }
+        painter->drawPixmap(checkRect.topLeft(), pixmap);
     }
 
 private:
     ModifierCallback m_modifierCb;
     bool m_modifierPressed = false;
+    mutable QHash<QString, QPixmap> m_checkPixmaps;
 };
 
 template<typename T>
