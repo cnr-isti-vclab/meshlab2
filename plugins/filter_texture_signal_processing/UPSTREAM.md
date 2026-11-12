@@ -52,8 +52,15 @@ If upstream merges #17 instead of #20, check the 3M-face atlas first (see the pr
 - **Padding.** The library needs charts at least a texel or two from the image border. The
   adapter grows the grid by a margin, the edge texels repeated, only when the coordinates come
   within two texels of the border, and crops afterwards. A margin changes results at texels
-  whose centers lie on an edge, so an atlas that does not need one gets none and is
-  byte-identical to `SetExteriorTexels`.
+  whose centers lie on an edge, so an atlas that does not need one gets none.
+- **A pull towards the current values**, the one change to the method. Exterior texels that
+  a triangle only grazes are barely determined by the energy, and `SetExteriorTexels` drives
+  them far out of range, which shows as white and black dots along the islands (and an
+  uncoupled one leaves the system singular). Each exterior texel is pulled towards its current
+  value with a weight of 1e-2 of the median coupling: the dots drop from 22,220 to 2,628 on a
+  3M-face scan, and the seam discrepancy on the gargoyle test comes out slightly lower (28.03
+  against 28.26). Without the pull, and on an atlas needing no margin, the adapter was
+  byte-identical to the program; the comment at `kPull` has the sweep.
 - **Covered texels are never written.** TSP numbers texels per chart, so where charts sit
   closer than two texels one texel can be covered by one chart and outside another.
   `SetExteriorTexels` writes the nodes back in turn and can overwrite a covered texel (34 on a

@@ -167,23 +167,33 @@ std::size_t repairSeams(const Atlas &atlas, Image &image)
                 x[n] = current[n];
         }
 
-        // The energy does not reach every exterior texel: one whose cells a triangle only
-        // touches gets nothing from it, and an island too small to cover a texel center holds
-        // no fixed value at all. Either leaves the system singular (every one-triangle island of
-        // a per-triangle layout does). Only then is a pull of relative weight 1e-10 towards each
-        // texel's current value added, which leaves such a texel as it is and moves the others
-        // by far less than a level: so the common case is exactly SetExteriorTexels.
-        Real regularization = 0;
-        Solver solver(RSP);
-        if (solver.info() != Eigen::Success) {
-            regularization = 1e-10 * RSP.diagonal().cwiseAbs().maxCoeff();
+        // The energy reaches some exterior texels only barely: one whose cells a triangle only
+        // grazes, one beside an island too small to cover a texel center. Their values are then
+        // hardly determined, and the solve takes them far out of range (on a 3M-face scan, 10% of
+        // the texels coupled less than 1e-6 of the median came out beyond [-10, 265], clamped to
+        // white or black dots along the islands), or, coupled not at all, leaves the system
+        // singular (every island of a per-triangle layout). So each exterior texel is also pulled
+        // towards its current value, with a weight of 1e-2 of the median coupling: a texel the
+        // energy barely reaches keeps about its value, and the others move by little. This is the
+        // one change to SetExteriorTexels' method. Measured against no pull, as texels more than
+        // 64 levels from the median of their 3x3 neighbors: 22,220 -> 2,628 on the 3M-face scan
+        // at 4096², 5,452 -> 1,041 on a 20k-face xatlas atlas at 1024²; and the seam discrepancy
+        // on the gargoyle test comes out lower, 28.03 against 28.26 (1e-4 gives 28.17 and 9,955
+        // dots on the scan, 1e-1 28.11 and 1,149).
+        constexpr Real kPull = 1e-2;
+        Eigen::VectorXd coupling = RSP.diagonal().cwiseAbs();
+        std::nth_element(coupling.data(), coupling.data() + coupling.size() / 2, coupling.data() + coupling.size());
+        Real regularization = kPull * coupling[coupling.size() / 2];
+        if (!(regularization > 0))
+            regularization = kPull * std::max(coupling.maxCoeff(), Real(1));
+        {
             Eigen::SparseMatrix<Real> identity(RSP.rows(), RSP.cols());
             identity.setIdentity();
             RSP += regularization * identity;
-            solver.compute(RSP);
-            if (solver.info() != Eigen::Success)
-                throw std::runtime_error("The system for the exterior texels could not be factored.");
         }
+        Solver solver(RSP);
+        if (solver.info() != Eigen::Success)
+            throw std::runtime_error("The system for the exterior texels could not be factored.");
 
         Eigen::VectorXd channel(Eigen::Index(gd.numNodes()));
         Eigen::VectorXd pull(Eigen::Index(exterior.size()));

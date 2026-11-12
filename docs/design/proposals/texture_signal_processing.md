@@ -310,13 +310,15 @@ include. After it, an adapter-like file includes no PLY header and emits no PLY 
    differences from the plan: TSP is its own submodule (above); the adapter pads only atlases
    that come within two texels of the border, since a margin changes the result where texel
    centers lie on an edge; it never writes a texel another chart covers, which
-   `SetExteriorTexels` can; it fuses texture coordinates as TSP's reader does; and when the
-   exterior system is singular (every island of a per-triangle layout) it adds a pull of
-   relative weight 1e-10 towards each texel's value. Overlapping atlases are not refused, since
-   they do not fault. In the application, on the 3M-face scan at 4096², the repair takes 20 s and
-   17 GB, the dilation 7 s and 5 GB. Open: the exterior texels a triangle only grazes are barely
-   determined, and about 0.15% of them come out far out of range, clamped to white or black dots
-   along the chart boundaries; `SetExteriorTexels` does the same. The adapter keeps zero-area UV triangles out of
+   `SetExteriorTexels` can; it fuses texture coordinates as TSP's reader does; and it pulls
+   each exterior texel towards its current value with a weight of 1e-2 of the median coupling
+   (decided 2026-11-12). Without it, the exterior texels a triangle only grazes are barely
+   determined and come out far out of range, white and black dots along the chart boundaries,
+   as `SetExteriorTexels` gives them; with it the dots drop from 22,220 to 2,628 on the 3M-face
+   scan, the seam discrepancy on the gargoyle test is slightly lower (28.03 against 28.26), and
+   a per-triangle layout no longer makes the system singular. Overlapping atlases are not
+   refused, since they do not fault. In the application, on the 3M-face scan at 4096², the
+   repair takes 20 s and 17 GB, the dilation 7 s and 5 GB. The adapter keeps zero-area UV triangles out of
    TSP's input, and refuses atlases with flipped or overlapping faces. *Repair Texture Seams* (`SetExteriorTexels`) and
    *Dilate Texture across Seams* (`TextureDilation`). Decided 2026-11-12:
    - both names, the subcategory `Texture/Filtering`, and widening `Dilate` to images;
