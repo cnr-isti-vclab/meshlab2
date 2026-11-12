@@ -54,7 +54,7 @@ struct View
     int width = 0, height = 0;
     CameraShot shot;
     std::vector<uchar> grey;
-    std::vector<bool> valid;
+    std::vector<uchar> valid;   // not a vector<bool>: it is read for every pixel of every rendering
 };
 
 QString makeView(Document &doc, int ri, int resolution, View &view)
@@ -87,7 +87,7 @@ QString makeView(Document &doc, int ri, int resolution, View &view)
             const uchar *rgba = line + 4 * x;
             const size_t i = size_t(view.height - 1 - row) * size_t(view.width) + size_t(x);
             view.grey[i] = uchar(0.3f * rgba[0] + 0.59f * rgba[1] + 0.11f * rgba[2]);
-            view.valid[i] = rgba[3] > 0;
+            view.valid[i] = rgba[3] > 0 ? 1 : 0;
         }
     }
     return {};
@@ -326,14 +326,27 @@ private:
 // 1 / backgroundWeight as much as the others, as old MeshLab weighed it.
 double mutualInformation(const View &view, const std::vector<uchar> &image, double backgroundWeight)
 {
-    std::vector<double> joint(size_t(kBins) * kBins, 0.0);
+    // The pixels are counted in integers, by chunks, each into a histogram of its own, and the
+    // chunks summed: the same counts whichever thread takes which chunk
+    constexpr size_t kGrain = 32 * 1024;
+    constexpr size_t kCells = size_t(kBins) * kBins;
+    const size_t pixels = view.grey.size();
+    const size_t chunks = std::max<size_t>(1, (pixels + kGrain - 1) / kGrain);
+    std::vector<uint32_t> counts(chunks * kCells, 0);
+    parallelFor(pixels, [&](size_t first, size_t last) {
+        uint32_t *count = counts.data() + first / kGrain * kCells;
+        for (size_t i = first; i < last; ++i)
+            if (view.valid[i])
+                ++count[(view.grey[i] >> 1) + kBins * (image[i] >> 1)];
+    }, kGrain);
+    for (size_t k = 1; k < chunks; ++k)
+        for (size_t cell = 0; cell < kCells; ++cell)
+            counts[cell] += counts[k * kCells + cell];
+    // The image's darkest bin is the first row of cells
     const double background = backgroundWeight > 0 ? 1.0 / backgroundWeight : 0.0;
-    for (size_t i = 0; i < view.grey.size(); ++i) {
-        if (!view.valid[i])
-            continue;
-        const int a = view.grey[i] >> 1, b = image[i] >> 1;
-        joint[size_t(a + kBins * b)] += b == 0 ? background : 1.0;
-    }
+    std::vector<double> joint(kCells);
+    for (size_t cell = 0; cell < kCells; ++cell)
+        joint[cell] = cell < size_t(kBins) ? counts[cell] * background : double(counts[cell]);
     double histoA[kBins] = {}, histoB[kBins] = {}, n = 0;
     for (int b = 0; b < kBins; ++b)
         for (int a = 0; a < kBins; ++a) {

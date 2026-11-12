@@ -86,10 +86,13 @@ deterministic and runs in `ctest` and `pymeshlab2` without a GPU:
 - **Mutual information** is computed over a 128 × 128 joint histogram, in bits:
   - the rendering's darkest bin, which holds the background, counts 1 / `backgroundWeight`
     (default 2);
-  - the photo's transparent pixels, such as an undistorted photo's corners, do not count.
-- **Cost.** About 1.7 ms a rendering on 59k faces and 5.3 ms on 3M faces, at 800 × 535 on
-  16 threads of an M3 Max, measured 2026-11-12. A refinement takes 100 to 300 renderings:
-  0.2 and 0.7 s for these two meshes, from 2.2 and 2.8 s before the single buffer.
+  - the photo's transparent pixels, such as an undistorted photo's corners, do not count;
+  - the pixels are counted in integers by the threads, a histogram per chunk of pixels,
+    summed afterwards, and weighed once counted.
+- **Cost.** About 1.2 ms a rendering and its information on 59k faces and 4.9 ms on 3M
+  faces, at 800 × 535 on 16 threads of an M3 Max, measured 2026-11-12; the information
+  is 0.2 ms of it. A refinement takes 100 to 300 renderings: 0.16 and 0.65 s for these two
+  meshes, from 2.2 and 2.8 s before the single buffer and the threaded histogram.
 
 **The rendering decides whether the method works** on a given photo. On a real colored scan
 the *Normal Map* has a higher maximum 13 to 19 px away from the right camera, while *Vertex
