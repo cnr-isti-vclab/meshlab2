@@ -3,6 +3,7 @@
 #include <QColor>
 #include <QCursor>
 #include <QList>
+#include <QPointF>
 #include <QString>
 #include <QVector3D>
 
@@ -113,6 +114,14 @@ public:
     // Optional screen-space overlay, in the view's widget pixels; RenderWidget::projectToWidget
     // places a world point in them as the scene is drawn.
     virtual void paintOverlay(QPainter &painter) { (void)painter; }
+    // Magnified insets the raster view draws in a corner, in this order, for placing a point
+    // precisely: each shows the layers alone, or the photo alone, around a point of the view
+    // (widget pixels). RenderWidget::toolLoupeRects says where they are drawn.
+    struct Loupe {
+        QPointF focus;
+        bool photo = false;
+    };
+    virtual std::vector<Loupe> loupes() const { return {}; }
     // World-space segments drawn with the standard depth cue: dotted where
     // occluded by scene geometry and solid where visible.
     virtual std::vector<ToolLineSegment> depthCuedLines() const { return {}; }

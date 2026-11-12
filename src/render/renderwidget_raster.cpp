@@ -1,6 +1,8 @@
 #include "renderwidget.h"
 #include "document.h"
 #include "renderwidget_internal.h"
+#include "interactivetool.h"
+#include <QCursor>
 #include <QImage>
 #include <QSet>
 #include <algorithm>
@@ -86,6 +88,38 @@ QPointF RenderWidget::rasterImageToWidget(const QPointF &imagePos) const
     const double ndcX = rect.x() + (imagePos.x() - 0.5) * 2.0 * rect.z();
     const double ndcY = rect.y() - (imagePos.y() - 0.5) * 2.0 * rect.w();
     return QPointF((ndcX + 1.0) * 0.5 * size.width(), (1.0 - ndcY) * 0.5 * size.height());
+}
+
+std::vector<QRect> RenderWidget::toolLoupeRects() const
+{
+    if (m_viewMode != ViewMode::RasterImage || !m_activeTool || !toolAllowedInCurrentMode()
+        || (!underMouse() && !m_activeTool->gestureInFlight()))
+        return {};
+    const int count = int(m_activeTool->loupes().size());
+    if (count == 0)
+        return {};
+    constexpr int kMargin = 12;
+    constexpr int kGap = 8;
+    // A third of the height, so that two fit side by side in any reasonable view
+    const int side = std::clamp(height() / 3, 96, 260);
+    const int band = count * side + (count - 1) * kGap;
+    const QRect right(width() - kMargin - band, kMargin, band, side);
+    const QPoint pointer = mapFromGlobal(QCursor::pos());
+    const QRect band2 = right.adjusted(-kMargin, -kMargin, kMargin, kMargin).contains(pointer)
+        ? right.translated(kMargin - right.left(), 0)
+        : right;
+    std::vector<QRect> rects;
+    for (int i = 0; i < count; ++i)
+        rects.emplace_back(band2.left() + i * (side + kGap), band2.top(), side, side);
+    return rects;
+}
+
+void RenderWidget::leaveEvent(QEvent *e)
+{
+    // A tool's loupes follow the pointer, and go when it leaves
+    if (m_activeTool && m_viewMode == ViewMode::RasterImage)
+        update();
+    QRhiWidget::leaveEvent(e);
 }
 
 void RenderWidget::resetRasterView()
@@ -335,10 +369,11 @@ void RenderWidget::ensureRasterResources(
                 return;
             gpu.backplateSrb.reset(m_rhi->newShaderResourceBindings());
             gpu.backplateSrb->setBindings({
-                QRhiShaderResourceBinding::uniformBuffer(
+                QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
                     0,
                     QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-                    m_rasterBackplateUbuf.get()),
+                    m_rasterBackplateUbuf.get(),
+                    kRasterBackplateUbufSize),
                 QRhiShaderResourceBinding::sampledTexture(
                     1,
                     QRhiShaderResourceBinding::FragmentStage,
@@ -474,15 +509,16 @@ void RenderWidget::renderSceneRasterBackplates(
         ubuf[3] = rect.w();
         ubuf[4] = std::clamp(plan.rasterOpacity, 0.0f, 1.0f);
 
+        const quint32 offset = allocateDynamicUbufOffset(m_rasterBackplateUbufAllocator, "raster-backplate");
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(
             m_rasterBackplateUbuf.get(),
-            0,
+            offset,
             kRasterBackplateUbufSize,
             ubuf);
         cb->resourceUpdate(u);
 
-        cb->setShaderResources(item.srb);
+        setShaderResourcesWithOffset(cb, item.srb, offset);
         cb->draw(6);
     }
 }

@@ -8,6 +8,7 @@
 #include "viewaxisgizmo.h"
 #include <QLabel>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -117,6 +118,7 @@ void RenderWidget::resetDynamicUbufAllocators()
 {
     m_mainUbufAllocator.nextOffset = 0;
     m_rasterProjectedUbufAllocator.nextOffset = 0;
+    m_rasterBackplateUbufAllocator.nextOffset = 0;
     m_selectionUbufAllocator.nextOffset = 0;
     m_decoratorFatUbufAllocator.nextOffset = 0;
     for (DynamicUbufAllocator &allocator : m_decoratorUbufAllocators)
@@ -403,6 +405,10 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     QMatrix4x4 proj;
     QMatrix4x4 view;
     QMatrix4x4 vp;
+    // The raster's own projection and image size, before the view's pan and zoom: what a
+    // tool's loupe pans and zooms differently
+    QMatrix4x4 rasterShotProj;
+    QSize rasterImageSize;
     FrameGrid frameGrid;
     // Before the projection, because in trackball mode the far plane is opened up to hold
     // the result: a peer frustum routinely reaches past this view's own far plane, and
@@ -476,6 +482,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 const QSize rasterSize = !plane->image.isNull()
                     ? plane->image.size()
                     : rasterEntry->shot.viewportPx();
+                rasterShotProj = proj;
+                rasterImageSize = rasterSize;
                 proj = rasterViewClipMatrix(rasterSize, sz, m_rasterZoom, m_rasterPan) * proj;
             }
             view = rasterEntry->shot.viewMatrix();
@@ -634,6 +642,45 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         tilePlans.push_back(buildRenderFramePlan(frameRequest));
     }
 
+    // The active tool's loupes: the raster view again, magnified about a point and drawn in a
+    // square of its own, with the layers alone or the photo alone. Never in a capture.
+    std::vector<RenderFramePlan> loupePlans;
+    if (rasterMode && !rasterImageSize.isEmpty() && m_activeTool && !m_offscreenCaptureActive) {
+        const std::vector<InteractiveTool::Loupe> loupes = m_activeTool->loupes();
+        const std::vector<QRect> rects = toolLoupeRects();
+        const float toDevice = float(sz.width()) / float(qMax(1, width()));
+        const QVector4D fitView = fitImageRectNdc(rasterImageSize, sz);
+        for (size_t i = 0; i < std::min(loupes.size(), rects.size()); ++i) {
+            const QRect rect(qRound(rects[i].x() * toDevice), qRound(rects[i].y() * toDevice),
+                             qRound(rects[i].width() * toDevice), qRound(rects[i].height() * toDevice));
+            // The view's image pixels per screen pixel, times the magnification, centred on the
+            // image point under the focus
+            const QVector4D fitLoupe = fitImageRectNdc(rasterImageSize, rect.size());
+            const float zoom = kToolLoupeMagnification * m_rasterZoom * (fitView.z() * float(sz.width()))
+                / qMax(1e-6f, fitLoupe.z() * float(rect.width()));
+            const QPointF focus = widgetToRasterImage(loupes[i].focus);
+            const QVector2D pan(float(focus.x()), float(focus.y()));
+            RenderFrameRequest request;
+            request.viewMode = m_viewMode;
+            request.pixelSize = rect.size();
+            request.viewportRect = rect;
+            request.targetPixelSize = sz;
+            request.proj = rasterViewClipMatrix(rasterImageSize, rect.size(), zoom, pan) * rasterShotProj;
+            request.view = view;
+            request.lightDir = frameLightDir;
+            request.rasterOpacity = 1.0f;
+            request.rasterZoom = zoom;
+            request.rasterPan = pan;
+            if (loupes[i].photo) {
+                request.passes.rasterBackplates = framePassRequests.rasterBackplates;
+            } else {
+                request.passes = framePassRequests;
+                request.passes.rasterBackplates.clear();
+            }
+            loupePlans.push_back(buildRenderFramePlan(request));
+        }
+    }
+
     bool anySceneDrawItems = false;
     for (const RenderFramePlan &plan : tilePlans)
         anySceneDrawItems = anySceneDrawItems || plan.hasSceneDrawItems();
@@ -644,7 +691,10 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         || drawTrackballGizmo
         || depthPickPendingAtFrameStart;
 
-    renderRadianceScalingPrepass(cb, tilePlans);
+    // The loupes last, so that where they overlap the view their gradients are the ones kept
+    std::vector<RenderFramePlan> prepassPlans = tilePlans;
+    prepassPlans.insert(prepassPlans.end(), loupePlans.begin(), loupePlans.end());
+    renderRadianceScalingPrepass(cb, prepassPlans);
 
     if (!rasterMode)
         prepareToolDepthCuedLines(u, vp, referenceViewport);
@@ -677,36 +727,64 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     //
     // Clearing to alpha 0 is not enough on its own for a transparent capture: drawing the
     // quad would paint the backdrop straight back over the cleared buffer.
+    //
+    // The backdrop also sets the depth of what it covers to the far plane (the viewport's depth
+    // range is [1, 1] whatever the triangle's z), which changes nothing here, where the depth was
+    // just cleared, and is what lets a loupe start afresh over a view already drawn.
+    const auto drawBackdrop = [&](QRhiViewport viewport) {
+        const std::array<float, 4> area = viewport.viewport();
+        cb->setViewport(QRhiViewport(area[0], area[1], area[2], area[3], 1.0f, 1.0f));
+        cb->draw(3);
+    };
     if (!m_captureTransparentBackground && m_sceneBackgroundPipeline && m_sceneBackgroundSrb) {
         cb->setGraphicsPipeline(m_sceneBackgroundPipeline.get());
         cb->setShaderResources(m_sceneBackgroundSrb.get());
-        for (const RenderFramePlan &plan : tilePlans) {
-            cb->setViewport(framed
-                    ? plan.rhiViewport()
-                    : QRhiViewport(0, 0, float(sz.width()), float(sz.height())));
-            cb->draw(3);
-        }
+        for (const RenderFramePlan &plan : tilePlans)
+            drawBackdrop(framed ? plan.rhiViewport() : QRhiViewport(0, 0, float(sz.width()), float(sz.height())));
     }
 
     // Each stage runs across every tile before the next one starts, which keeps the draw
     // order of a single tile exactly what it was before the view could be split.
-    for (const RenderFramePlan &plan : tilePlans) {
-        if (plan.hasFillPass())
-            renderSceneFillPass(cb, plan);
-    }
-    // After every fill, because the cap is depth-tested against the whole scene.
-    for (const RenderFramePlan &plan : tilePlans) {
-        if (plan.hasFillPass())
-            renderSceneSolidCut(cb, plan);
-    }
-    for (const RenderFramePlan &plan : tilePlans)
-        renderSceneBufferItems(cb, plan, plan.wireItems);
-    for (const RenderFramePlan &plan : tilePlans)
-        renderSceneBufferItems(cb, plan, plan.edgeItems);
-    for (const RenderFramePlan &plan : tilePlans)
-        renderSceneBufferItems(cb, plan, plan.boundingBoxItems);
-    for (const RenderFramePlan &plan : tilePlans)
-        renderScenePointItems(cb, plan);
+    const auto drawLayers = [&](const std::vector<RenderFramePlan> &plans) {
+        for (const RenderFramePlan &plan : plans) {
+            if (plan.hasFillPass())
+                renderSceneFillPass(cb, plan);
+        }
+        // After every fill, because the cap is depth-tested against the whole scene.
+        for (const RenderFramePlan &plan : plans) {
+            if (plan.hasFillPass())
+                renderSceneSolidCut(cb, plan);
+        }
+        for (const RenderFramePlan &plan : plans)
+            renderSceneBufferItems(cb, plan, plan.wireItems);
+        for (const RenderFramePlan &plan : plans)
+            renderSceneBufferItems(cb, plan, plan.edgeItems);
+        for (const RenderFramePlan &plan : plans)
+            renderSceneBufferItems(cb, plan, plan.boundingBoxItems);
+        for (const RenderFramePlan &plan : plans)
+            renderScenePointItems(cb, plan);
+    };
+    const auto drawProjectedAndDecorators = [&](const std::vector<RenderFramePlan> &plans) {
+        for (const RenderFramePlan &plan : plans) {
+            if (plan.hasRasterProjectedPass())
+                renderSceneRasterProjected(cb, plan);
+        }
+        for (const RenderFramePlan &plan : plans)
+            renderSceneDecoratorItems(cb, plan);
+    };
+    // In RasterImage mode the raster must be a screen-space overlay over the
+    // 3D scene (no depth test), controlled by raster opacity.
+    const auto drawBackplates = [&](const std::vector<RenderFramePlan> &plans) {
+        for (const RenderFramePlan &plan : plans) {
+            if (plan.hasRasterBackplatePass())
+                renderSceneRasterBackplates(cb, plan);
+        }
+    };
+    const auto drawSelections = [&](const std::vector<RenderFramePlan> &plans) {
+        for (const RenderFramePlan &plan : plans)
+            renderSceneSelectionItems(cb, plan);
+    };
+    drawLayers(tilePlans);
     // Under the layers where they are in front of it, over them where they are behind: tested
     // against the depth of everything drawn so far, writing none of its own. One tile, as the
     // trackball gizmo: the camera is shared.
@@ -718,24 +796,14 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         cb->setVertexInput(0, 1, &gridInput);
         cb->draw(4);
     }
-    for (const RenderFramePlan &plan : tilePlans) {
-        if (plan.hasRasterProjectedPass())
-            renderSceneRasterProjected(cb, plan);
-    }
-    for (const RenderFramePlan &plan : tilePlans)
-        renderSceneDecoratorItems(cb, plan);
+    drawProjectedAndDecorators(tilePlans);
     if (!rasterMode) {
         cb->setViewport(
             RenderWidgetInternal::rhiViewportFor(referenceTile.rect, sz));
         drawToolDepthCuedLines(cb);
     }
 
-    // In RasterImage mode the raster must be a screen-space overlay over the
-    // 3D scene (no depth test), controlled by raster opacity.
-    for (const RenderFramePlan &plan : tilePlans) {
-        if (plan.hasRasterBackplatePass())
-            renderSceneRasterBackplates(cb, plan);
-    }
+    drawBackplates(tilePlans);
 
     if (drawTrackballGizmo && m_trackballGizmoPipeline && m_trackballGizmoVbuf && m_trackballGizmoSrb) {
         cb->setGraphicsPipeline(m_trackballGizmoPipeline.get());
@@ -750,11 +818,25 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (!rasterMode && drawCurrentMeshHighlight)
         drawCurrentMeshOutline(cb, sz);
 
-    for (const RenderFramePlan &plan : tilePlans)
-        renderSceneSelectionItems(cb, plan);
+    drawSelections(tilePlans);
 
     if (!rasterMode && needMvpForFrame) {
         updateBoundingBoxCornersOverlayPlacement(vp, view, referenceTile.rect);
+    }
+
+    // Each loupe over the finished view: its backdrop, which also resets the depth there, then
+    // what its plan holds, in the order the view draws it
+    for (const RenderFramePlan &plan : loupePlans) {
+        if (m_sceneBackgroundPipeline && m_sceneBackgroundSrb) {
+            cb->setGraphicsPipeline(m_sceneBackgroundPipeline.get());
+            cb->setShaderResources(m_sceneBackgroundSrb.get());
+            drawBackdrop(plan.rhiViewport());
+        }
+        const std::vector<RenderFramePlan> one{ plan };
+        drawLayers(one);
+        drawProjectedAndDecorators(one);
+        drawBackplates(one);
+        drawSelections(one);
     }
 
     cb->endPass();

@@ -980,8 +980,11 @@ void RenderWidget::ensureRenderResources()
                 { QRhiShaderStage::Vertex, vs },
                 { QRhiShaderStage::Fragment, fs }
             });
-            m_sceneBackgroundPipeline->setDepthTest(false);
-            m_sceneBackgroundPipeline->setDepthWrite(false);
+            // Writes the far plane's depth wherever it draws (the frame sets a [1, 1] depth
+            // range), so that a tool's loupe can be drawn over a view already drawn
+            m_sceneBackgroundPipeline->setDepthTest(true);
+            m_sceneBackgroundPipeline->setDepthOp(QRhiGraphicsPipeline::Always);
+            m_sceneBackgroundPipeline->setDepthWrite(true);
             m_sceneBackgroundPipeline->setCullMode(QRhiGraphicsPipeline::None);
             QRhiVertexInputLayout layout;
             m_sceneBackgroundPipeline->setVertexInputLayout(layout);
@@ -995,11 +998,15 @@ void RenderWidget::ensureRenderResources()
     }
 
     if (!m_rasterBackplateUbuf) {
+        // The view's backplate and a loupe's, with room to spare
+        constexpr int kRasterBackplateSlots = 8;
+        m_rasterBackplateUbufAllocator.stride = quint32(m_rhi->ubufAligned(kRasterBackplateUbufSize));
+        m_rasterBackplateUbufAllocator.capacity = kRasterBackplateSlots;
         m_rasterBackplateUbuf.reset(
             m_rhi->newBuffer(
                 QRhiBuffer::Dynamic,
                 QRhiBuffer::UniformBuffer,
-                kRasterBackplateUbufSize));
+                m_rasterBackplateUbufAllocator.byteSize()));
         if (!m_rasterBackplateUbuf || !m_rasterBackplateUbuf->create())
             m_rasterBackplateUbuf.reset();
     }
@@ -1010,10 +1017,11 @@ void RenderWidget::ensureRenderResources()
         && m_fallbackTexture) {
         m_rasterBackplateFallbackSrb.reset(m_rhi->newShaderResourceBindings());
         m_rasterBackplateFallbackSrb->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(
+            QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
                 0,
                 QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-                m_rasterBackplateUbuf.get()),
+                m_rasterBackplateUbuf.get(),
+                kRasterBackplateUbufSize),
             QRhiShaderResourceBinding::sampledTexture(
                 1,
                 QRhiShaderResourceBinding::FragmentStage,

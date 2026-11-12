@@ -184,6 +184,13 @@ public:
     // back, with the image from (0, 0) at its top-left corner to (1, 1), as panned and zoomed.
     QPointF widgetToRasterImage(const QPointF &widgetPos) const;
     QPointF rasterImageToWidget(const QPointF &imagePos) const;
+    // Where the raster view draws the active tool's loupes (InteractiveTool::loupes), in
+    // widget pixels and in the same order: squares side by side in the top-right corner of the
+    // scene, or the top-left while the pointer is over that corner. Empty outside the raster
+    // view, and while the pointer is out of the view with no gesture under way.
+    std::vector<QRect> toolLoupeRects() const;
+    // How much larger a loupe shows the raster view than the view itself does.
+    static constexpr float kToolLoupeMagnification = 4.0f;
     // Whether the active tool gets input and draws in this view as it is now: all tools in
     // the 3D scene, those that opt in in the UV and raster views, none in a grid of tiles.
     bool toolAllowedInCurrentMode() const;
@@ -205,6 +212,7 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
+    void leaveEvent(QEvent *e) override;
     void wheelEvent(QWheelEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
     void keyReleaseEvent(QKeyEvent *e) override;
@@ -825,6 +833,9 @@ struct SceneRasterProjectedDrawItem {
     std::unique_ptr<QRhiGraphicsPipeline> m_rasterBackplatePipeline;
     std::unique_ptr<QRhiBuffer> m_rasterProjectedUbuf;
     DynamicUbufAllocator m_rasterProjectedUbufAllocator;
+    // One slot per backplate draw: the view and a tool's loupe draw the same photo with
+    // different framing in one frame, and a single slot would give both the last one's
+    DynamicUbufAllocator m_rasterBackplateUbufAllocator;
     std::unique_ptr<QRhiShaderResourceBindings> m_rasterProjectedFallbackSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_rasterProjectedPipeline;
     struct RasterGpu {

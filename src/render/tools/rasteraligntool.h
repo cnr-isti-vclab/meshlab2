@@ -46,6 +46,7 @@ public:
     void cancelGesture() override;
     bool gestureInFlight() const override { return m_drag != Drag::None; }
     void paintOverlay(QPainter &painter) override;
+    std::vector<Loupe> loupes() const override;
 
 private:
     struct Pair {
@@ -73,6 +74,7 @@ private:
     // the image; the mesh's a disc lying on the surface, its normal standing out of it
     void drawPhotoMarker(QPainter &painter, const QPointF &at, bool hovered) const;
     void drawMeshMarker(QPainter &painter, const Pair &pair, const QPointF &at, bool hovered) const;
+    void drawLoupeFrame(QPainter &painter, const QRectF &rect, bool photo) const;
     Handle handleAt(const QPointF &widgetPos) const;
     QPointF toPixel(const QPointF &widgetPos) const;   // in the camera's viewport
     void addPairIfComplete();
@@ -100,5 +102,6 @@ private:
     QVector3D m_pickNormal;
     QPointF m_pressPos;
     QPointF m_cursorPos;
+    QPointF m_hoverPos;   // the pointer while no drag is under way
     QPointF m_releaseImage;   // in [0, 1] over the image, y down
 };

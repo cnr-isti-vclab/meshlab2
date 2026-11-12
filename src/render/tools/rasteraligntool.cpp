@@ -13,6 +13,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
+#include <QRegion>
 #include <QSaveFile>
 #include <QtMath>
 
@@ -412,9 +413,9 @@ bool RasterAlignTool::mouseMove(QMouseEvent *e)
     if (m_drag == Drag::None) {
         // Hovering: the handle under the cursor is highlighted, and Delete removes its pair
         const Handle hover = handleAt(e->position());
-        const bool changed = hover.index != m_hover.index || hover.photo != m_hover.photo;
         m_hover = hover;
-        return changed;
+        m_hoverPos = e->position();
+        return true;   // the loupe follows the pointer
     }
     if (!m_released)
         m_cursorPos = e->position();
@@ -620,11 +621,43 @@ void RasterAlignTool::loadPairs()
                   Document::LogSource::Application);
 }
 
+// The mesh end's loupe first, the photo end's second: while hovering, where a press would pick
+// the surface; during a drag, the end being placed under the pointer and the other end of the
+// same pair beside it, to compare the two.
+std::vector<InteractiveTool::Loupe> RasterAlignTool::loupes() const
+{
+    if (!m_view || !alignableRaster(m_view))
+        return {};
+    const std::vector<Pair> *pairs = currentPairs();
+    QPointF onMesh, onPhoto;
+    if ((m_drag == Drag::MovePhoto || m_drag == Drag::MoveMesh) && pairs && m_handle.index < int(pairs->size()))
+        ends((*pairs)[size_t(m_handle.index)], onMesh, onPhoto);
+    switch (m_drag) {
+    case Drag::None:
+        return { { m_hoverPos, false } };
+    case Drag::NewPair:
+        return { { m_pressPos, false }, { m_cursorPos, true } };
+    case Drag::MovePhoto:
+        return { { onMesh, false }, { m_cursorPos, true } };
+    case Drag::MoveMesh:
+        return { { m_cursorPos, false }, { onPhoto, true } };
+    }
+    return {};
+}
+
 void RasterAlignTool::paintOverlay(QPainter &painter)
 {
     if (!alignableRaster(m_view) || m_view->viewMode() != RenderWidget::ViewMode::RasterImage)
         return;
     painter.setRenderHint(QPainter::Antialiasing);
+    // The loupes are drawn by the view; the markers stay off them, their frames go on them
+    const std::vector<QRect> loupeRects = m_view->toolLoupeRects();
+    const std::vector<Loupe> loupeList = loupes();
+    QRegion outsideLoupes(m_view->rect());
+    for (const QRect &rect : loupeRects)
+        outsideLoupes -= rect;
+    painter.save();
+    painter.setClipRegion(outsideLoupes);
     if (const std::vector<Pair> *pairs = currentPairs()) {
         for (int i = 0; i < int(pairs->size()); ++i) {
             // Where the camera puts the point now, and its pixel: the line between them is
@@ -657,4 +690,31 @@ void RasterAlignTool::paintOverlay(QPainter &painter)
         painter.setBrush(Qt::NoBrush);
         painter.drawEllipse(m_pressPos, 4, 4);
     }
+    painter.restore();
+    for (size_t i = 0; i < std::min(loupeRects.size(), loupeList.size()); ++i)
+        drawLoupeFrame(painter, QRectF(loupeRects[i]), loupeList[i].photo);
+}
+
+// A frame in the colour of the end it places, a label, and a sight at the centre: the point the
+// loupe magnifies, which is what lands under the pointer. Open in the middle, so the pixel it
+// aims at stays visible.
+void RasterAlignTool::drawLoupeFrame(QPainter &painter, const QRectF &rect, bool photo) const
+{
+    const QColor color = photo ? kPhotoColor : kMeshColor;
+    const QPointF c = rect.center();
+    painter.setBrush(Qt::NoBrush);
+    for (const auto &[pen, width] : { std::pair{ QColor(0, 0, 0, 200), 3.0 }, std::pair{ color, 1.0 } }) {
+        painter.setPen(QPen(pen, width + 1.0));
+        painter.drawRect(rect.adjusted(0.5, 0.5, -0.5, -0.5));
+        painter.setPen(QPen(pen, width));
+        for (const QPointF &d : { QPointF(1, 0), QPointF(-1, 0), QPointF(0, 1), QPointF(0, -1) })
+            painter.drawLine(c + 5 * d, c + 14 * d);
+    }
+    QFont font = painter.font();
+    font.setPixelSize(11);
+    font.setBold(true);
+    QPainterPath text;
+    text.addText(rect.topLeft() + QPointF(6, 15), font, photo ? QStringLiteral("2D") : QStringLiteral("3D"));
+    painter.strokePath(text, QPen(QColor(0, 0, 0, 200), 2.5));
+    painter.fillPath(text, color);
 }
