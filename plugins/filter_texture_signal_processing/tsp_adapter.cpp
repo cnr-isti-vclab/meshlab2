@@ -19,7 +19,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
 #include <stdexcept>
 #include <tuple>
 
@@ -146,18 +145,6 @@ struct PaddedAtlas
     }
 };
 
-// TSP nudges texture coordinates that lie exactly on a texel line (AtlasMesh::jitter) and perturbs
-// points along the islands' boundaries, with Misha's Random, which draws from the C library's rand().
-// A program runs once per process, from rand()'s default seed, and gives the same result every
-// time; in the application each run would continue the sequence, and anything else calling rand()
-// would move it, so two runs of a filter on the same texture differed (on a 20k-face atlas,
-// smoothing changed 800,000 values by up to 0.8 levels from one run to the next). So the seed is set
-// back to the default before TSP builds its operators: every run is a program's first one.
-void reseedTsp()
-{
-    std::srand(1);
-}
-
 // Puts node values back into the image. TSP numbers the texels per chart, so a texel can be a node
 // of two charts: covered by one and just outside the other, where charts sit closer than two
 // texels. Such a texel never takes the value of the chart it lies outside, since the chart
@@ -204,7 +191,6 @@ std::size_t repairSeams(const Atlas &atlas, Image &image)
         using Solver = Eigen::SimplicialLDLT<Eigen::SparseMatrix<Real>>;
 
         const PaddedAtlas p(atlas, image);
-        reseedTsp();
         GradientDomain<Real> gd(
             kQuadratureSamples, atlas.triangles.size(), atlas.positions.size(), p.texture.vertices.size(),
             p.surfaceCorner(), p.surfaceVertex(), p.textureCorner(), p.textureVertex(),
@@ -358,7 +344,6 @@ FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double g
 
         const bool localized = selectedTriangles != nullptr;
         const PaddedAtlas p(atlas, image);
-        reseedTsp();
         Hierarchy gd(
             kQuadratureSamples, atlas.triangles.size(), atlas.positions.size(), p.texture.vertices.size(),
             p.surfaceCorner(), p.surfaceVertex(), p.textureCorner(), p.textureVertex(),

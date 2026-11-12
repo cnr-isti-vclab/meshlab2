@@ -7029,7 +7029,8 @@ void FilterTests::textureSignalProcessingRepairsAndDilatesSeams()
     qDebug("repair texture seams on the gargoyle: seam discrepancy %.2f -> %.2f, %d texels changed | %s",
            before, after, changedTexels(repairedImage), qPrintable(repaired.infoMessages.join(QStringLiteral(" | "))));
     QVERIFY2(after < 0.9 * before, qPrintable(QStringLiteral("discrepancy %1 -> %2").arg(before).arg(after)));
-    // TSP jitters with the C library's rand(), so a second run in the same process used to differ.
+    // TSP's jitter drew from the C library's rand() before its #24, so a second run in the same
+    // process differed from the first.
     doc.mesh(0).textureAssets.front().image = input;
     QVERIFY(doc.runFilter(repairKey, {}).success);
     QVERIFY2(doc.mesh(0).textureAssets.front().image == repairedImage, "Repairing the same texture twice gave two images.");

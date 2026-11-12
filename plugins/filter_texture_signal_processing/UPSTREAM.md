@@ -29,8 +29,8 @@ it out of everything the adapter includes: compiled, the adapter has no `PLY::` 
 
 ## The fork
 
-The submodule points at a fork because the plugin needs four changes upstream has not merged.
-Each is a pull request of its own, from a branch of the fork; `meshlab` merges all four onto
+The submodule points at a fork because the plugin needs five changes upstream has not merged.
+Each is a pull request of its own, from a branch of the fork; `meshlab` merges all five onto
 upstream's `adfb89e`.
 
 | # | Pull request | Without it |
@@ -39,11 +39,12 @@ upstream's `adfb89e`.
 | 2 | [#21](https://github.com/mkazhdan/TextureSignalProcessing/pull/21) Boundary cells: skip a triangle that only touches the cell | An out-of-bounds read, or the library calling `exit(0)`, when a triangle edge passes exactly through a texel center |
 | 3 | [#22](https://github.com/mkazhdan/TextureSignalProcessing/pull/22) GradientDomain: let a caller skip the divergence operator | 3.5 times the memory: 44.5 GB instead of 15.6 GB on that atlas at 4096² |
 | 4 | [#23](https://github.com/mkazhdan/TextureSignalProcessing/pull/23) Keep the PLY library out of code that does not read or write meshes | The no-sale PLY code linked into MeshLab |
+| 5 | [#24](https://github.com/mkazhdan/TextureSignalProcessing/pull/24) Draw the atlas jitter from a generator of its own, not `rand()` | Every run of a filter in the application gives a different image: the jitter continued the `rand()` sequence (smoothing a 20k-face atlas at 1024², 2.2 million values differed between runs, by up to 0.73 levels) |
 
 #17 (jdumas) fixes the same bug as #20 by overwriting the owner, which adds 89 vertices a second
 time to a chart on that atlas; either one going in closes 1.
 
-**When all four are merged:** point `.gitmodules` back at `mkazhdan/TextureSignalProcessing`,
+**When all five are merged:** point `.gitmodules` back at `mkazhdan/TextureSignalProcessing`,
 drop `branch = meshlab`, move the gitlink to upstream's merge commit, and delete this section.
 If upstream merges #17 instead of #20, check the 3M-face atlas first (see the proposal).
 
@@ -70,13 +71,6 @@ If upstream merges #17 instead of #20, check the 3M-face atlas first (see the pr
   same on every run. A one-line upstream fix has been offered (in #23's description).
 - **Texture coordinates are fused** on the key TSP's PLY reader uses (surface vertex, exact
   UV), since the library finds charts through shared texture vertices.
-- **`rand()` is reseeded before every build of the operators.** TSP jitters texture coordinates
-  on texel lines (`AtlasMesh::jitter`) and perturbs boundary points with Misha's `Random`, which
-  draws from the C library's `rand()`. A program runs once per process from the default seed; in
-  the application each run continued the sequence, so the same filter on the same texture gave a
-  different image every time (smoothing a 20k-face atlas: 800,000 values, up to 0.8 levels).
-  `std::srand(1)` before each build makes every run a program's first one. A deterministic jitter
-  upstream would be the real fix.
 - **Smoothing and sharpening** (`TextureFiltering`'s uniform mode) use `HierarchicalGradientDomain`,
   TextureFiltering's four levels and three sweeps, without the divergence operator: with a uniform
   gradient scale its right-hand side is `S x0`. The direct solver is not offered: it took 63 s and

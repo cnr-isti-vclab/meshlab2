@@ -105,9 +105,9 @@ since TSP's own copy under `third_party/` does not compile with Apple clang. No 
 exists.
 
 **The submodule points at a fork** (`cignoni/TextureSignalProcessing`, branch `meshlab`)
-that merges four fixes proposed upstream and not yet merged, without which the library
-crashes on real atlases, links code under a no-sale licence into the application, or takes
-3.5 times the memory. MeshLab's tree carries no patch. Which commits, and the way back to
+that merges five fixes proposed upstream and not yet merged, without which the library
+crashes on real atlases, links code under a no-sale licence into the application, takes
+3.5 times the memory, or gives a different result each time a filter runs. MeshLab's tree carries no patch. Which commits, and the way back to
 upstream, are in
 [`plugins/filter_texture_signal_processing/UPSTREAM.md`](../plugins/filter_texture_signal_processing/UPSTREAM.md).
 
