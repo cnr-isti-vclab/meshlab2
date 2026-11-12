@@ -340,8 +340,8 @@ include. After it, an adapter-like file includes no PLY header and emits no PLY 
    solver is multigrid until converged (open question 5: the direct solver took 63 s and 5.7 GB to
    factor at 2048²). On the gargoyle test, smoothing takes the seam discrepancy from 33.9 to 2.9.
    On the 3M-face scan at 4096²: 3 minutes and 19 GB, 4 minutes and 47 GB with a selection. Found
-   on the way: TSP jitters with `rand()`, so in the application every run differed from the last;
-   the adapter reseeds before each build.
+   on the way: TSP jittered with `rand()`, so in the application every run differed from the last;
+   #24 gives the jitter a generator of its own.
 3. **Line-integral convolution, reaction-diffusion, source-aware stitching.** Each needs
    its own decision first: the vocabulary for the first two, Paolo's ruling on the
    reaction term, and a change to color projection for the third.
