@@ -250,11 +250,12 @@
 carries MeshLab as a git submodule. This document proposes moving that build here
 and retiring the separate repository, and records the mapping table required by
 <code class="docutils literal notranslate"><span class="pre">AGENTS.md</span></code> before anything moves.</p>
-<p><strong>Status (2026-11-03):</strong> both tables approved. The in-app facade rename is done,
-and so are steps 2 and 3: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">wheel</span> <span class="pre">.</span></code> builds <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> from this tree, the
-wheel exposes the same 405 filters as the application, and <code class="docutils literal notranslate"><span class="pre">pytest</span></code> runs green
-against it. Step 4 (CI) is written but not yet proven: it needs a push. Steps 5–6
-(tag, archive) have not started.</p>
+<p><strong>Status (2026-11-12):</strong> both tables approved; the in-app facade rename and steps
+2–4 are done. <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">wheel</span> <span class="pre">.</span></code> builds <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> from this tree, the wheel exposes
+the same 405 filters as the application, and <code class="docutils literal notranslate"><span class="pre">wheels.yml</span></code> builds and tests the
+wheels on <code class="docutils literal notranslate"><span class="pre">devel</span></code> (macOS arm64 and Windows x64, CPython 3.10–3.14; first green run
+2026-11-03, <code class="docutils literal notranslate"><span class="pre">0ac8d6e8</span></code>). Steps 5–6 (tag, archive) have not started: no release has
+been tagged yet.</p>
 <p>See also: <a class="reference internal" href="llm_integration.html"><span class="std std-doc">LLM Integration</span></a> (why wheel/app convergence came up),
 <a class="reference internal" href="../release_process.html"><span class="std std-doc">Branches and Releases</span></a> (the release machinery this would join),
 <a class="reference internal" href="../../python_scripting.html"><span class="std std-doc">Python Scripting</span></a> (the API the wheel exposes).</p>
@@ -650,12 +651,14 @@ without default features, and hands it over through <code class="docutils litera
 CPython 3.12 to 3.13 recompiled only nanobind, <code class="docutils literal notranslate"><span class="pre">_meshlab</span></code> and <code class="docutils literal notranslate"><span class="pre">MeshLab2Core</span></code> —
 23 seconds — where the sibling’s fresh directory per wheel rebuilt every plugin
 five times over. The cp312 wheel built that way passes <code class="docutils literal notranslate"><span class="pre">python/tests</span></code> too.</p></li>
-<li><p><strong>Texture Consolidation stays on in the wheels</strong>, unlike the DMG, which turns it
-off on the 7 GB macOS runner because its stitcher alone compiles for an hour.
-Turning it off would make the wheel’s filter set differ from the descriptors and
-fail <code class="docutils literal notranslate"><span class="pre">test_wheel_exposes_every_declared_filter</span></code>; the wheels run on tags, by hand
-and on binding changes only, so the hour is paid rarely. Its helper programs are
-not bundled into the wheel yet, as they are not into the DMG.</p></li>
+<li><p><strong>Texture Consolidation stays on in the wheels</strong>: turning it off would make the
+wheel’s filter set differ from the descriptors and fail
+<code class="docutils literal notranslate"><span class="pre">test_wheel_exposes_every_declared_filter</span></code>. Its three helper programs ship in the
+wheel under <code class="docutils literal notranslate"><span class="pre">pymeshlab2/texture-consolidation/bin</span></code> (<code class="docutils literal notranslate"><span class="pre">9e386700</span></code>), as they do in the
+DMG, ZIP and AppImage (<code class="docutils literal notranslate"><span class="pre">db1dca4f</span></code>), and CI caches them (<code class="docutils literal notranslate"><span class="pre">0ac8d6e8</span></code>), so the hour
+their stitcher takes to compile is paid only when the helpers change.
+<code class="docutils literal notranslate"><span class="pre">wheel_smoke.py</span></code> runs the filter, which is the only proof the vendored libraries
+load.</p></li>
 <li><p><strong>PyPI upload is not automated.</strong> The wheels go on the draft GitHub Release. The
 trusted-publisher route is described under Open items in
 <a class="reference internal" href="../release_process.html"><span class="std std-doc">Branches and Releases</span></a>.</p></li>
@@ -677,7 +680,8 @@ installed: <code class="docutils literal notranslate"><span class="pre">python</
 <li><p>CI: row 9, plus a <code class="docutils literal notranslate"><span class="pre">wheels</span></code> job in <code class="docutils literal notranslate"><span class="pre">release.yml</span></code>. Prove green on <code class="docutils literal notranslate"><span class="pre">devel</span></code>.
 <em>Written</em>: <code class="docutils literal notranslate"><span class="pre">wheels.yml</span></code> (on <code class="docutils literal notranslate"><span class="pre">devel</span></code> pushes touching the bindings or packaging, by
 hand, and from <code class="docutils literal notranslate"><span class="pre">release.yml</span></code>, which attaches the wheels to the draft release).
-Not yet proven: that takes a push.</p></li>
+<em>Proven</em>: green on <code class="docutils literal notranslate"><span class="pre">devel</span></code> since 2026-11-03 (<code class="docutils literal notranslate"><span class="pre">0ac8d6e8</span></code>, <code class="docutils literal notranslate"><span class="pre">9e386700</span></code>, <code class="docutils literal notranslate"><span class="pre">65d5212d</span></code>,
+and by hand on <code class="docutils literal notranslate"><span class="pre">460c4d84</span></code>).</p></li>
 <li><p>Tag a release; confirm the wheel builds from the tag.</p></li>
 <li><p>Only then archive <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>.</p></li>
 </ol>

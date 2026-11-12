@@ -1,0 +1,921 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>Texture Signal Processing Filters - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../texture_metrics.html">Texture and UV measures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/proposals/texture_signal_processing.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="texture-signal-processing-filters">
+<h1>Texture Signal Processing Filters<a class="headerlink" href="#texture-signal-processing-filters" title="Link to this heading">¶</a></h1>
+<p>This document proposes which of the programs in Prada and Kazhdan’s
+<a class="reference external" href="https://github.com/mkazhdan/TextureSignalProcessing">TextureSignalProcessing</a> (TSP) are
+worth turning into MeshLab filters, and how to integrate them. It recommends doing so <strong>in
+process</strong>, as Screened Poisson is, through TSP’s header-only <code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code> library, and
+<strong>not</strong> as helper programs, as TextureConsolidation is. <strong>Stage 1 implemented 2026-11-12</strong> (the plugin
+<code class="docutils literal notranslate"><span class="pre">filter_texture_signal_processing</span></code>, with <em>Repair Texture Seams</em> and <em>Dilate Texture across
+Seams</em>; see its <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code>); stages 2 and 3 are not. Every number below was measured for
+this proposal.</p>
+<p>See also: <a class="reference internal" href="../history/texture_consolidation.html"><span class="std std-doc">TextureConsolidation history</span></a>,
+<code class="docutils literal notranslate"><span class="pre">plugins/filter_texture_consolidation/UPSTREAM.md</span></code>, <code class="docutils literal notranslate"><span class="pre">plugins/filter_screened_poisson/UPSTREAM.md</span></code>,
+<a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>, <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>,
+<a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a>, <a class="reference internal" href="texmetro.html"><span class="std std-doc">TexMetro</span></a>.</p>
+<section id="what-tsp-is">
+<h2>What TSP is<a class="headerlink" href="#what-tsp-is" title="Link to this heading">¶</a></h2>
+<p>TSP solves gradient-domain problems <strong>on the texels of a texture atlas</strong>. It builds mass
+and stiffness matrices over the active texels and couples texels across chart seams
+through the surface, so a filtered signal is continuous on the surface even where it
+jumps in the image. This is the method of <a class="reference external" href="http://www.cs.jhu.edu/~misha/MyPapers/SIG18.pdf">Prada, Kazhdan, Chuang and Hoppe, SIGGRAPH
+2018</a>. It is MIT-licensed and builds on
+Kazhdan’s <code class="docutils literal notranslate"><span class="pre">Misha</span></code> utility library (BSD-3-Clause). MeshLab already builds both, as
+submodules of <code class="docutils literal notranslate"><span class="pre">external/texture-consolidation</span></code>, at upstream commits that include our
+fixes (mkazhdan/TextureSignalProcessing#19, mkazhdan/Misha#8).</p>
+<p>The repository has nine programs, plus a header-only library,
+<code class="docutils literal notranslate"><span class="pre">include/Src/GradientDomain.h</span></code>. The library’s constructor takes <strong>functors</strong>: corner to
+surface vertex, vertex to position, corner to texture vertex, texture vertex to UV, and
+the image size. In return it gives the active texels, the texel graph’s edges and whether
+an edge crosses a chart, and the mass, stiffness and divergence operators, both as Eigen
+matrices and as direct operators on a texel array. <code class="docutils literal notranslate"><span class="pre">HierarchicalGradientDomain</span></code> adds a
+multigrid solver.</p>
+</section>
+<section id="evidence">
+<h2>Evidence<a class="headerlink" href="#evidence" title="Link to this heading">¶</a></h2>
+<p>All on 2026-11-12, on this Mac (16 cores: 12 performance, 4 efficiency), Release builds,
+Apple clang, OpenMP from Homebrew’s libomp. The probes and builds were kept in the session
+scratchpad, not committed. The test mesh is <code class="docutils literal notranslate"><span class="pre">tests/sample_mesh/gargoyle_small/gargoyle.ply</span></code>
+(20k faces) parametrized with <em>Parametrize by Atlas (xatlas)</em>. The real texture is
+1024², made from the fixture’s four photos by <em>Transfer Color from Visible Rasters to
+Texture</em>.</p>
+<section id="building">
+<h3>Building<a class="headerlink" href="#building" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>What</p></th>
+<th class="head"><p>Compile time</p></th>
+<th class="head"><p>Peak compiler memory</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GradientDomain.example.cpp</span></code></p></td>
+<td><p>14 s</p></td>
+<td><p>0.9 GB</p></td>
+<td><p>the library’s own direct-solver example</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">HierarchicalGradientDomain.example.cpp</span></code></p></td>
+<td><p>16 s</p></td>
+<td><p>1.0 GB</p></td>
+<td><p>the multigrid example</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SetExteriorTexels.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">SeamStitcher.cpp</span></code></p></td>
+<td><p>14 s each</p></td>
+<td><p>—</p></td>
+<td><p>both use the library</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">TextureDilation.cpp</span></code></p></td>
+<td><p>5 s</p></td>
+<td><p>—</p></td>
+<td><p>uses <code class="docutils literal notranslate"><span class="pre">Misha/Texels.h</span></code>, not the library</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ReactionDiffusion.cpp</span></code></p></td>
+<td><p>35 s</p></td>
+<td><p>—</p></td>
+<td><p>with its GLUT viewer; it has no switch to build without one</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul class="simple">
+<li><p><strong>Eigen.</strong> MeshLab compiles against <code class="docutils literal notranslate"><span class="pre">vcglib/eigenlib</span></code>, Eigen 5.0.1, and TSP vendors
+Eigen 3.3.7. Both library examples compile against Eigen 5.0.1, and <strong>their output
+images are byte-identical</strong> to the builds with TSP’s own Eigen. One Eigen in the
+binary is therefore possible, and it has to be one: two versions of Eigen’s templates
+in one process would break C++’s one-definition rule.</p></li>
+<li><p><strong>Misha.</strong> TSP carries its own copy of Misha under <code class="docutils literal notranslate"><span class="pre">third_party/include/Misha</span></code>, and <strong>it
+does not compile with Apple clang</strong> (<code class="docutils literal notranslate"><span class="pre">Polynomial.h</span></code>: “declaration of ‘Degree’ shadows
+template parameter”). The Misha repository does compile. TSP therefore needs both
+repositories, as TextureConsolidation already arranges.</p></li>
+<li><p><strong>Names.</strong> Misha’s code is in <code class="docutils literal notranslate"><span class="pre">namespace</span> <span class="pre">MishaK</span></code>, and no plugin in the application uses
+it today. Screened Poisson’s vendored copy is in <code class="docutils literal notranslate"><span class="pre">namespace</span> <span class="pre">PoissonRecon</span></code>. The two can
+link into one binary.</p></li>
+<li><p><strong>What an adapter would include.</strong> A file including only <code class="docutils literal notranslate"><span class="pre">Src/PreProcessing.h</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Src/GradientDomain.h</span></code> and <code class="docutils literal notranslate"><span class="pre">Misha/Texels.h</span></code> pulls in <strong>28 TSP headers (11,874
+lines) and 41 Misha headers (22,121 lines)</strong>, nothing from <code class="docutils literal notranslate"><span class="pre">third_party/</span></code>. Among them
+is Misha’s <code class="docutils literal notranslate"><span class="pre">PlyFile.h</span></code>, which carries the Stanford PLY notice. Its no-sale clause is
+already an open item in <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code>, and in process it would be in the application
+itself, not only in a helper.</p></li>
+</ul>
+</section>
+<section id="running">
+<h3>Running<a class="headerlink" href="#running" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Program</p></th>
+<th class="head"><p>Input</p></th>
+<th class="head"><p>Time</p></th>
+<th class="head"><p>Peak memory</p></th>
+<th class="head"><p>Result</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code></p></td>
+<td><p>photo texture, 1024²</p></td>
+<td><p>2.8 s</p></td>
+<td><p>4.5 GB</p></td>
+<td><p>61,916 texels changed</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code></p></td>
+<td><p>same texture, rescaled to 512² / 2048²</p></td>
+<td><p>1.6 s / 5.6 s</p></td>
+<td><p>2.1 / 9.1 GB</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SeamStitcher</span></code> (default)</p></td>
+<td><p>photo texture, 1024²</p></td>
+<td><p>2.7 s</p></td>
+<td><p>4.5 GB</p></td>
+<td><p><strong>no texels changed</strong> (0 degrees of freedom)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SeamStitcher</span> <span class="pre">--exterior</span></code></p></td>
+<td><p>photo texture, 1024²</p></td>
+<td><p>&gt; 10 min, one core</p></td>
+<td><p>3.5 GB</p></td>
+<td><p>stopped by hand</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">TextureDilation</span> <span class="pre">--radius</span> <span class="pre">8</span></code></p></td>
+<td><p>photo texture, 1024²</p></td>
+<td><p>0.64 s</p></td>
+<td><p>0.23 GB</p></td>
+<td><p>421,800 gutter texels rewritten</p></td>
+</tr>
+<tr class="row-odd"><td><p>Library example, direct solver (smoothing)</p></td>
+<td><p>stripes, 512²</p></td>
+<td><p>2.5 s</p></td>
+<td><p>2.1 GB</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="row-even"><td><p>Library example, multigrid, 5 / 20 / 100 V-cycles</p></td>
+<td><p>stripes, 512²</p></td>
+<td><p>2.1 / 3.0 / 7.5 s</p></td>
+<td><p>2.1 GB</p></td>
+<td><p>36 / 16 / 0.3 levels (of 255) from the direct solve</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ReactionDiffusion</span></code>, stripes, 1000 steps</p></td>
+<td><p>512² / 1024²</p></td>
+<td><p>44 s / 88 s</p></td>
+<td><p>1.3 / 2.5 GB</p></td>
+<td><p>continuous across seams (below)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Memory is the main cost, and it is all in setup.</strong> In <code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code>, building the
+<code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code> takes the time and the memory. Factoring and solving take under 0.05 s.
+Memory grows with the image’s side, not its area (2.1, 4.5, 9.1 GB for 512², 1024²,
+2048² on the same 20k-face mesh). <a class="reference internal" href="#stage-0-memory-and-robustness"><span class="xref myst">Stage 0</span></a> found where
+it goes: about three quarters is the divergence operator, which these filters do not use.</p>
+<p><strong>Seams.</strong> Two checks:</p>
+<ul class="simple">
+<li><p><strong>Reaction-diffusion.</strong> Sampling the 512² stripe texture on both sides of all 3,515
+seam edges gives a mean difference of 0.004, against 0.075 for one texel’s step
+inside a chart. Rendered on the mesh, no seam shows.</p></li>
+<li><p><strong>Real texture.</strong> <em>Measure Texture Seam Color Discrepancy</em> on the photo texture drops
+from a mean of 26.4 (max 164) to 20.5 (max 120) after <code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code>. What remains
+is real color disagreement between the photos on the two sides of a seam, which this
+program does not touch by design. It only makes bilinear lookups agree.</p></li>
+</ul>
+</section>
+<section id="two-preconditions-of-the-library">
+<h3>Two preconditions of the library<a class="headerlink" href="#two-preconditions-of-the-library" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p><strong>No chart may come near the image border.</strong> On the xatlas atlas, whose charts come
+within 0.4 texel of the edge, the library throws “Could not factor node index”
+(<code class="docutils literal notranslate"><span class="pre">BoundaryQuadraticElements.inl</span></code>, <code class="docutils literal notranslate"><span class="pre">GetBoundaryPolygons</span></code>). With the UVs pulled 4 texels
+in from the edge, it runs. The <em>programs</em> avoid this by enlarging the grid with
+<code class="docutils literal notranslate"><span class="pre">Src/Padding.h</span></code> and cropping afterwards. The adapter has to do the same, rather than
+change the user’s UVs.</p></li>
+<li><p><strong>Some errors call <code class="docutils literal notranslate"><span class="pre">exit()</span></code>.</strong> Misha’s <code class="docutils literal notranslate"><span class="pre">MK_ERROR_OUT</span></code> prints a message and calls
+<code class="docutils literal notranslate"><span class="pre">exit(0)</span></code>. Three library headers use it: <code class="docutils literal notranslate"><span class="pre">SimpleTriangleMesh.inl</span></code>,
+<code class="docutils literal notranslate"><span class="pre">HierarchyConstruction.inl</span></code> and <code class="docutils literal notranslate"><span class="pre">MultiIndex.h</span></code>. In process, that would close MeshLab.
+The fix is the one-line redefinition TextureConsolidation’s wrapper already uses,
+<code class="docutils literal notranslate"><span class="pre">#define</span> <span class="pre">MK_ERROR_OUT(</span> <span class="pre">...</span> <span class="pre">)</span> <span class="pre">MK_THROW(</span> <span class="pre">__VA_ARGS__</span> <span class="pre">)</span></code> placed before anything
+includes Misha. It turns the exit into a <code class="docutils literal notranslate"><span class="pre">MishaK::Exception</span></code> for the filter to catch.</p></li>
+</ol>
+</section>
+<section id="padding-is-a-separate-user-facing-condition">
+<h3>Padding is a separate, user-facing condition<a class="headerlink" href="#padding-is-a-separate-user-facing-condition" title="Link to this heading">¶</a></h3>
+<p>xatlas’s default <code class="docutils literal notranslate"><span class="pre">padding</span></code> is 0, so at 512² neighbouring charts can share texels. With
+the default, 148 of the 3,515 seam edges disagree by more than 0.1; with <code class="docutils literal notranslate"><span class="pre">padding</span> <span class="pre">2</span></code>, 2
+do. Any texel-space filter should refuse such an atlas, or warn about it. <em>Select
+Overlapping UV Faces</em> already finds the faces involved.</p>
+</section>
+</section>
+<section id="stage-0-memory-and-robustness">
+<h2>Stage 0: memory and robustness<a class="headerlink" href="#stage-0-memory-and-robustness" title="Link to this heading">¶</a></h2>
+<p>Measured 2026-11-12. The method: an instrumented copy of TSP’s <code class="docutils literal notranslate"><span class="pre">include/Src</span></code>, kept in the
+scratchpad and placed ahead of the submodule’s on the include path. It prints the process’s
+current and peak physical footprint (<code class="docutils literal notranslate"><span class="pre">task_info</span></code>, the figure <code class="docutils literal notranslate"><span class="pre">/usr/bin/time</span> <span class="pre">-l</span></code> reports)
+between the steps of <code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code>’s construction. AddressSanitizer builds were used for
+the crashes.</p>
+<section id="where-the-memory-goes">
+<h3>Where the memory goes<a class="headerlink" href="#where-the-memory-goes" title="Link to this heading">¶</a></h3>
+<p>All of it is in <code class="docutils literal notranslate"><span class="pre">OperatorInitializer::Initialize</span></code>: the hierarchy before it peaks at 0.9 GB
+of the 9.1 GB at 2048². Within it, the largest single step is
+<code class="docutils literal notranslate"><span class="pre">InitializeBoundaryCoarseToFineBoundaryOneFormProlongation</span></code> (<code class="docutils literal notranslate"><span class="pre">EdgeIndexing.h</span></code>). At 2048² it
+builds 58 million triplets over 4.5 million fine boundary edges and adds 3.6 GB. Building the
+divergence matrix after it adds another 1.4 GB. Both, and the edge indexing before them,
+exist <strong>only for the divergence operator</strong>. <code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code> always builds that operator,
+but <code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code>, <code class="docutils literal notranslate"><span class="pre">TextureDilation</span></code> and uniform smoothing never use it.
+<code class="docutils literal notranslate"><span class="pre">OperatorInitializer</span></code> already has an overload without it, used by <code class="docutils literal notranslate"><span class="pre">LineIntegralConvolution</span></code>.</p>
+<p>Switching <code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code> to that overload, with <code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code> (images byte-identical
+in every row):</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Atlas</p></th>
+<th class="head"><p>Texture</p></th>
+<th class="head"><p>Peak with divergence</p></th>
+<th class="head"><p>Peak without</p></th>
+<th class="head"><p>Time with / without</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>xatlas gargoyle, 20k faces</p></td>
+<td><p>512²</p></td>
+<td><p>2.07 GB</p></td>
+<td><p>0.58 GB</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="row-odd"><td><p>same</p></td>
+<td><p>1024²</p></td>
+<td><p>4.28 GB</p></td>
+<td><p>1.15 GB</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="row-even"><td><p>same</p></td>
+<td><p>2048²</p></td>
+<td><p>9.20 GB</p></td>
+<td><p>2.61 GB</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gargo3M_good.ply</span></code>, 3M faces, 1,961 charts (see below)</p></td>
+<td><p>4096²</p></td>
+<td><p><strong>44.5 GB</strong></p></td>
+<td><p><strong>15.8 GB</strong></p></td>
+<td><p>58 s / 23 s</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The memory follows the number of <strong>fine boundary edges</strong>: the edges of the quadratic
+elements made by clipping mesh triangles to the texels a chart boundary crosses. These are
+4.5 million for the 20k-face mesh at 2048², and 32.7 million for the 3M-face mesh at 4096².
+That count is why memory tracks the image’s side rather than its area. It also means memory
+tracks how much chart boundary the atlas has, so a fragmented photogrammetry atlas costs far
+more than xatlas’s 300 charts.</p>
+<p>Two smaller savings were tried and are not worth proposing. In <code class="docutils literal notranslate"><span class="pre">_Initialize</span></code> and the
+one-form merge, per-chart and per-thread buffers are copied into one while the originals
+stay alive. Releasing each one as it is copied keeps the order and the output, but lowers
+the peak by only about 5% (9.20 → 8.75 GB, 2.61 → 2.45 GB at 2048²; 15.8 → 12.4 GB at
+4096² without divergence, with the robustness fixes below).</p>
+<p><strong>Conclusion:</strong> the memory is inherent to TSP’s boundary representation, not a leak. It can
+be cut by about 3.5× by not building an operator these filters do not use, an upstream
+change: a constructor flag on <code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code>, with the current behaviour as the default.
+With it, a 4096² texture on a 3M-face scan needs about 12–16 GB, which a desktop has but
+a filter running inside MeshLab should not take silently. Stage 1 therefore keeps the in-process plan,
+and the filter reports its estimate before it runs (see open question 1).</p>
+</section>
+<section id="tsp-does-not-run-on-the-real-3m-face-atlas">
+<h3>TSP does not run on the real 3M-face atlas<a class="headerlink" href="#tsp-does-not-run-on-the-real-3m-face-atlas" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">tests/local/COLOR_gargoyle/gargo3M_good.ply</span></code> with its 4096² texture crashes TSP before
+memory becomes a question. That happens in the unmodified programs too, not only in the
+instrumented copy. Under AddressSanitizer, one fault at a time:</p>
+<ol class="arabic">
+<li><p><strong>A chart-vertex indexing bug</strong> (<code class="docutils literal notranslate"><span class="pre">AtlasCharts.inl</span></code>, <code class="docutils literal notranslate"><span class="pre">getCharts</span></code>). The map from atlas
+vertex to chart vertex is one array shared by all charts. A UV vertex used by two charts
+that touch only at that vertex gets, in the second chart, an index into the <em>first</em>
+chart’s array. On this atlas, 167 vertices (249 corners) are shared that way. 129 of the
+corners read past the array, which is the crash (heap corruption, reported by the
+allocator in <code class="docutils literal notranslate"><span class="pre">InitializeGridChartsActiveNodes</span></code>). The other 120 silently take a vertex
+from the wrong chart. The xatlas atlas has none. <strong>This is a bug independent of the
+input’s validity.</strong> The fix keeps a per-chart owner, with a map for the rare other
+charts. It is verified byte-identical on the xatlas atlas.</p></li>
+<li><p><strong>Empty clipped polygons.</strong> One clipping function reads index −1 of an emptied polygon:
+<code class="docutils literal notranslate"><span class="pre">ClipIndexedIntersectionPolygonToIndexedIntersectionEdge</span></code>, the sibling of the function
+fixed in mkazhdan/TextureSignalProcessing#19. Or, when the last of the triangle’s
+edges empties it, <code class="docutils literal notranslate"><span class="pre">GetTriangulation</span></code> is handed a polygon with no vertices and reports
+that through <code class="docutils literal notranslate"><span class="pre">MK_ERROR_OUT</span></code>: the program <strong>exits with status 0</strong>, the failure mode the
+error hook above is for.</p>
+<p>Two inputs empty a polygon:</p>
+<ul class="simple">
+<li><p><strong>The 30,085 zero-area UV triangles</strong> (1%). They have no inside. With them still in,
+the run faults later, in <code class="docutils literal notranslate"><span class="pre">IndexConverter::combinedToBoundary</span></code>. Not fixed.</p></li>
+<li><p><strong>A valid triangle that only touches a boundary cell.</strong> Upstream’s rasterizer reports
+every cell the closed triangle meets, but the clip keeps only what is strictly inside.
+So an edge through a texel centre, which float UVs can hit exactly, leaves nothing.
+Even with the zero-area triangles removed, exactly one triangle on this atlas does
+this, so stage 0’s runs completed only because they carried the guards. A square
+split along its diagonal reproduces it at 64². This is upstream’s bug whatever the
+input, and a pull request skips the empty cell at both call sites, as TSP’s
+quadrature code already does.</p></li>
+</ul>
+</li>
+<li><p><strong>Flipped UV triangles</strong> (1,211 on this atlas). These fault in <code class="docutils literal notranslate"><span class="pre">_InitializeChart</span></code>
+(<code class="docutils literal notranslate"><span class="pre">Operators.inl:1132</span></code>). TSP’s README requires a valid mapping, and the programs’
+<code class="docutils literal notranslate"><span class="pre">--sanityCheck</span></code> exists to test for one.</p></li>
+</ol>
+<p>The patches for 1 and 2 are kept in <code class="docutils literal notranslate"><span class="pre">.reference/texture-consolidation-patches/tsp-stage0/</span></code>.
+They are not upstream. The 4096² figures above are on this atlas with its zero-area and
+flipped faces removed (2,968,618 faces left), using the fix for 1.</p>
+<p>What this means for the filters:</p>
+<ul class="simple">
+<li><p><strong>Fix 1 and the touching-triangle half of fix 2 belong upstream</strong>, and both pull
+requests were prepared on 2026-11-12 (files in
+<code class="docutils literal notranslate"><span class="pre">.reference/texture-consolidation-patches/tsp-chart-vertex/</span></code> and <code class="docutils literal notranslate"><span class="pre">tsp-clip-graze/</span></code>).
+Fix 1 is #20. An earlier PR, #17, fixes the same bug by overwriting the vertex’s owner.
+On this atlas that adds 89 vertices a second time to a chart that already had them,
+and the texture differs from #20’s at 228 texels, by up to 54/255.</p></li>
+<li><p><strong>For the other two, the adapter should keep zero-area UV triangles out of what it
+hands TSP.</strong> They cover no texels, so leaving them out changes nothing in texel space.
+Upstream may prefer a fix, which can follow.</p></li>
+<li><p><strong>Flipped triangles are a different matter.</strong> They do cover texels. Left out, those
+texels would count as outside every chart, and <em>Repair Texture Seams</em> would overwrite
+them. The filter should refuse an atlas with flipped or overlapping faces and point to
+<em>Select Folded UV Faces</em> and <em>Select Overlapping UV Faces</em>, as the padding rule does for
+shared texels.</p></li>
+</ul>
+</section>
+</section>
+<section id="which-programs-are-worth-a-filter">
+<h2>Which programs are worth a filter<a class="headerlink" href="#which-programs-are-worth-a-filter" title="Link to this heading">¶</a></h2>
+<p>Overlap with an existing filter is context, not an objection (see <code class="docutils literal notranslate"><span class="pre">AGENTS.md</span></code>). The
+proposed names are drafts. Four of them need words the vocabulary does not have yet; see
+<a class="reference internal" href="#naming"><span class="xref myst">Naming</span></a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>TSP program</p></th>
+<th class="head"><p>What it does</p></th>
+<th class="head"><p>In MeshLab today</p></th>
+<th class="head"><p>Proposed filter</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code> (203 lines)</p></td>
+<td><p>Sets the texels just outside each chart to the values that minimize the Dirichlet energy, given the covered ones, so bilinear lookups agree across seams</p></td>
+<td><p>Nothing. <em>Measure Texture Seam Color Discrepancy</em> only measures the problem</p></td>
+<td><p><em>Repair Texture Seams</em></p></td>
+<td><p><strong>Stage 1.</strong> Small, fast, useful on any atlas, measurable with a filter we ship</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">TextureDilation</span></code> (155 lines)</p></td>
+<td><p>Fills gutter texels up to a radius by following the surface across the seam and sampling the neighbouring chart</p></td>
+<td><p>The <code class="docutils literal notranslate"><span class="pre">pullpush</span></code> option of the transfer filters, which fills in image space with a blur</p></td>
+<td><p><em>Dilate Texture across Seams</em></p></td>
+<td><p><strong>Stage 1.</strong> Does not need <code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code>: 5 s to compile, 0.23 GB to run</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">TextureFiltering</span></code> (1,184 lines; the library example does the same in 120)</p></td>
+<td><p>Smooths or sharpens a texture with a screened Poisson solve, across seams</p></td>
+<td><p>Nothing for textures; <em>Smooth Vertex Color</em> and the unsharp-mask filters work per vertex</p></td>
+<td><p><em>Smooth Texture</em>, <em>Sharpen Texture</em></p></td>
+<td><p><strong>Stage 2.</strong> Per-edge gradient scaling is computed by the caller, so a face selection could drive a localized version, which the program does only through its interactive viewer</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">TextureStitching</span></code> (1,520 lines)</p></td>
+<td><p>Blends several partial textures, or one composite with a source-id mask, in the gradient domain</p></td>
+<td><p>Ships inside <em>Transfer Color from Visible Rasters to Texture (Texture Consolidation)</em>, as a helper</p></td>
+<td><p>An option of the stage-2 smoothing: keep gradients only between texels from the same source</p></td>
+<td><p><strong>Stage 3</strong>, only if <em>Transfer Color from Visible Rasters to Texture</em> is changed to output, per texel, which raster its color came from</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">LineIntegralConvolution</span></code> (1,025 lines)</p></td>
+<td><p>Draws a vector field as a streak texture by anisotropic diffusion along it</p></td>
+<td><p>Field filters exist (principal curvature directions, two backends; the <a class="reference internal" href="directional_port.html"><span class="std std-doc">Directional</span></a> proposal), but nothing draws a field into a texture</p></td>
+<td><p><em>Render Vector Field to Texture (LIC)</em>, name to be decided</p></td>
+<td><p><strong>Stage 3.</strong> Uses the per-triangle metric form of the constructor, which the library supports</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ReactionDiffusion</span></code> (918 lines)</p></td>
+<td><p>Gray–Scott stripes or dots grown in texture space, optionally aligned to a vector field</p></td>
+<td><p>Nothing</p></td>
+<td><p>Name to be decided</p></td>
+<td><p><strong>Stage 3.</strong> Its reaction term is integrated with <code class="docutils literal notranslate"><span class="pre">ScalarIntegrator</span></code>, which is not part of <code class="docutils literal notranslate"><span class="pre">GradientDomain.h</span></code>. Either the adapter uses the lower-level API, or the term is approximated by applying the mass matrix to a per-texel value, which is a change in the method and needs Paolo’s ruling</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Geodesics</span></code> (816 lines)</p></td>
+<td><p>Heat-method distance from a clicked point, at texel resolution</p></td>
+<td><p>Five geodesic filters (vcglib, libigl, heat and exact), per vertex</p></td>
+<td><p>—</p></td>
+<td><p><strong>No.</strong> The only new thing would be texel resolution</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SeamStitcher</span></code> (260 lines)</p></td>
+<td><p>Re-solves the texels at chart crossings, or the exterior texels, or masked ones, to minimize the Dirichlet energy</p></td>
+<td><p>—</p></td>
+<td><p>—</p></td>
+<td><p><strong>No.</strong> On a padded atlas its default mode has nothing to do: 0 degrees of freedom, output identical. <code class="docutils literal notranslate"><span class="pre">--exterior</span></code> overlaps <code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code> and ran for over 10 minutes. The mask mode is the stage-2 solve with a different right-hand side</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">TextureMasking</span></code> (320 lines)</p></td>
+<td><p>Draws active, boundary and gutter texels and triangle IDs as an image</p></td>
+<td><p><em>Measure Texel Coverage</em>, <em>Select Overlapping UV Faces</em> (<a class="reference internal" href="texmetro.html"><span class="std std-doc">TexMetro</span></a>)</p></td>
+<td><p>—</p></td>
+<td><p><strong>No.</strong> Diagnostic, and covered</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="integration-in-process-as-screened-poisson-is">
+<h2>Integration: in process, as Screened Poisson is<a class="headerlink" href="#integration-in-process-as-screened-poisson-is" title="Link to this heading">¶</a></h2>
+<p>TextureConsolidation runs as helper programs because its programs are whole command-line
+pipelines (back-projection, optical flow, stitching) that read and write files. TSP’s
+library is a different case. It is built for being called, and it is called with
+functors that a <code class="docutils literal notranslate"><span class="pre">CMeshO</span></code> with wedge UVs answers directly.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>Helper programs (as TextureConsolidation)</p></th>
+<th class="head"><p>In process (as Screened Poisson)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Data</p></td>
+<td><p>Write a PLY and a PNG, run a program, read a PNG back</p></td>
+<td><p>Functors over <code class="docutils literal notranslate"><span class="pre">CMeshO</span></code> wedge UVs, the texture as a <code class="docutils literal notranslate"><span class="pre">QImage</span></code>; the result returned through <code class="docutils literal notranslate"><span class="pre">textureoutputref</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Per filter</p></td>
+<td><p>One executable each, plus its install, signing, packaging and helper-cache entry. <code class="docutils literal notranslate"><span class="pre">ReactionDiffusion</span></code>, <code class="docutils literal notranslate"><span class="pre">LineIntegralConvolution</span></code> and <code class="docutils literal notranslate"><span class="pre">Geodesics</span></code> need a patch even to build without their GLUT viewer</p></td>
+<td><p>One adapter file with a <code class="docutils literal notranslate"><span class="pre">filters.json</span></code> entry</p></td>
+</tr>
+<tr class="row-even"><td><p>Compile</p></td>
+<td><p>Not part of the main build; cached by <code class="docutils literal notranslate"><span class="pre">.github/actions/helper-cache</span></code></p></td>
+<td><p>About 15 s per adapter file, about 1 GB of compiler memory. For comparison, before its fix the stitcher alone took 68 minutes on the macOS runner</p></td>
+</tr>
+<tr class="row-odd"><td><p>Memory (GB, measured above)</p></td>
+<td><p>In the helper’s process, freed when it exits</p></td>
+<td><p>In MeshLab’s process. Freed when the <code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code> is destroyed, but the peak is shared with whatever the document holds</p></td>
+</tr>
+<tr class="row-even"><td><p>Errors</p></td>
+<td><p>Exit status, plus the existing <code class="docutils literal notranslate"><span class="pre">MK_ERROR_OUT</span></code> wrapper</p></td>
+<td><p>The same <code class="docutils literal notranslate"><span class="pre">#define</span></code>, then <code class="docutils literal notranslate"><span class="pre">catch</span> <span class="pre">(const</span> <span class="pre">MishaK::Exception</span> <span class="pre">&amp;)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Cancel</p></td>
+<td><p>Kill the process</p></td>
+<td><p>Not possible during setup and solve. Acceptable for the stage-1 and stage-2 filters (seconds); reaction-diffusion’s step loop belongs to the adapter, so it can check for cancellation between steps</p></td>
+</tr>
+<tr class="row-even"><td><p>Threads</p></td>
+<td><p>The program’s own thread pool and OpenMP</p></td>
+<td><p>The same, inside the app; OpenMP is already linked for Screened Poisson</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Recommendation: in process</strong>, in a new plugin <code class="docutils literal notranslate"><span class="pre">filter_texture_signal_processing</span></code>
+(<em>Texture Signal Processing Filters</em>: one dependency, one plugin, as in
+<a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a>). The adapter does three things: it
+pads the grid, it wraps errors, and it converts between <code class="docutils literal notranslate"><span class="pre">CMeshO</span></code>/<code class="docutils literal notranslate"><span class="pre">QImage</span></code> and TSP’s
+functors and arrays. The memory finding was the one thing that could reverse this
+choice. <a class="reference internal" href="#stage-0-memory-and-robustness"><span class="xref myst">Stage 0</span></a> showed it is inherent, and about 3.5×
+smaller without the divergence operator. A helper process would not reduce it; it would
+only keep it out of MeshLab’s address space. So the choice stands.</p>
+<section id="where-the-sources-come-from">
+<h3>Where the sources come from<a class="headerlink" href="#where-the-sources-come-from" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Option</p></th>
+<th class="head"><p>How</p></th>
+<th class="head"><p>Cost</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>A. Reuse the existing checkouts</strong></p></td>
+<td><p>Include from <code class="docutils literal notranslate"><span class="pre">external/texture-consolidation/extern/{TextureSignalProcessing,Misha}</span></code></p></td>
+<td><p>No new submodule. TSP’s version moves only when TextureConsolidation’s pin moves. Today that pin is upstream’s own master, so the coupling is in <em>when</em> it moves, not <em>what</em> is used</p></td>
+</tr>
+<tr class="row-odd"><td><p>B. Separate top-level submodules</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">external/TextureSignalProcessing</span></code>, <code class="docutils literal notranslate"><span class="pre">external/Misha</span></code></p></td>
+<td><p>Independent pins, but a second checkout of the same two repositories</p></td>
+</tr>
+<tr class="row-even"><td><p>C. Vendor, as <code class="docutils literal notranslate"><span class="pre">filter_screened_poisson/Src</span></code></p></td>
+<td><p>Copy the 69 headers (34k lines) into the plugin</p></td>
+<td><p>No submodule, but a copy that does not track upstream, the opposite of what the upstream pull requests were for</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Recommendation: A.</strong> It is the least new code and tracks upstream. If the two plugins
+ever need different versions, B can be adopted then.</p>
+<p><strong>Decided 2026-11-12: B for TSP, A for Misha.</strong> The plugin needs four upstream pull requests
+(#20 to #23) that are not merged yet. TextureConsolidation’s pin can’t carry them: its own
+pull request to hliuw is opened from the fork’s <code class="docutils literal notranslate"><span class="pre">main</span></code>, so moving its TSP gitlink there
+would change that pull request. So TSP becomes a top-level submodule,
+<code class="docutils literal notranslate"><span class="pre">external/TextureSignalProcessing</span></code>, on <code class="docutils literal notranslate"><span class="pre">cignoni/TextureSignalProcessing</span></code> at a branch merging
+the four. It goes back to <code class="docutils literal notranslate"><span class="pre">mkazhdan</span></code> once they are merged. Misha needs no fix, so it still
+comes from <code class="docutils literal notranslate"><span class="pre">external/texture-consolidation/extern/Misha</span></code>.</p>
+<p><strong>The Stanford PLY notice (open question 3), decided the same day.</strong> In process, it was a
+licence conflict, not a packaging question. <code class="docutils literal notranslate"><span class="pre">SimpleTriangleMesh.h</span></code> included Misha’s PLY
+reader, and <code class="docutils literal notranslate"><span class="pre">Ply.inl</span></code>’s namespace-scope <code class="docutils literal notranslate"><span class="pre">PLY::EdgeProps</span></code> array was emitted into any object
+including <code class="docutils literal notranslate"><span class="pre">GradientDomain.h</span></code>, even at <code class="docutils literal notranslate"><span class="pre">-O2</span></code>. That would have linked “do not sell” code into
+GPLv3 MeshLab. #23 moves the three mesh I/O members into <code class="docutils literal notranslate"><span class="pre">MeshIO.h</span></code>, which only the programs
+include. After it, an adapter-like file includes no PLY header and emits no PLY symbol.</p>
+</section>
+</section>
+<section id="staging">
+<h2>Staging<a class="headerlink" href="#staging" title="Link to this heading">¶</a></h2>
+<ol class="arabic" start="0">
+<li><p><strong>Memory.</strong> Done 2026-11-12; see <a class="reference internal" href="#stage-0-memory-and-robustness"><span class="xref myst">Stage 0</span></a>.
+Left from it are three upstream pull requests: the chart-vertex fix (#20), the
+touching-triangle clip (#21), and a <code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code> flag, <code class="docutils literal notranslate"><span class="pre">computeDivergence</span></code>, to skip
+the divergence operator. With the flag, <code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code> peaks at 15.6 GB instead of
+44.5 GB on the 3M-face atlas at 4096², with byte-identical output.</p></li>
+<li><p><strong>Plugin and adapter, two filters. Implemented 2026-11-12</strong>, with these measured
+differences from the plan: TSP is its own submodule (above); the adapter pads only atlases
+that come within two texels of the border, since a margin changes the result where texel
+centers lie on an edge; it never writes a texel another chart covers, which
+<code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code> can; it fuses texture coordinates as TSP’s reader does; and when the
+exterior system is singular (every island of a per-triangle layout) it adds a pull of
+relative weight 1e-10 towards each texel’s value. Overlapping atlases are not refused, since
+they do not fault. In the application, on the 3M-face scan at 4096², the repair takes 20 s and
+17 GB, the dilation 7 s and 5 GB. Open: the exterior texels a triangle only grazes are barely
+determined, and about 0.15% of them come out far out of range, clamped to white or black dots
+along the chart boundaries; <code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code> does the same. The adapter keeps zero-area UV triangles out of
+TSP’s input, and refuses atlases with flipped or overlapping faces. <em>Repair Texture Seams</em> (<code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code>) and
+<em>Dilate Texture across Seams</em> (<code class="docutils literal notranslate"><span class="pre">TextureDilation</span></code>). Decided 2026-11-12:</p>
+<ul class="simple">
+<li><p>both names, the subcategory <code class="docutils literal notranslate"><span class="pre">Texture/Filtering</span></code>, and widening <code class="docutils literal notranslate"><span class="pre">Dilate</span></code> to images;</p></li>
+<li><p>memory is documented in the descriptions, and the filters just run (open question 1);</p></li>
+<li><p>the dilation samples the input image and writes a separate output. <code class="docutils literal notranslate"><span class="pre">TextureDilation</span></code>’s
+own <code class="docutils literal notranslate"><span class="pre">main</span></code> samples the image it is writing, which makes its output differ from run to
+run when threaded. Sampling a copy makes it repeatable.</p></li>
+</ul>
+<p>Tests:</p>
+<ul class="simple">
+<li><p>a smoke row for each;</p></li>
+<li><p>a behavioural test asserting that <em>Measure Texture Seam Color Discrepancy</em> drops
+on the gargoyle photo texture;</p></li>
+<li><p>the xatlas gargoyle at its default settings, whose charts touch the image border:
+the adapter pads, so the filter must run rather than throw.</p></li>
+</ul>
+</li>
+<li><p><strong><em>Smooth Texture</em>, <em>Sharpen Texture</em></strong>, with an optional face selection to localize
+them.</p></li>
+<li><p><strong>Line-integral convolution, reaction-diffusion, source-aware stitching.</strong> Each needs
+its own decision first: the vocabulary for the first two, Paolo’s ruling on the
+reaction term, and a change to color projection for the third.</p></li>
+</ol>
+</section>
+<section id="naming">
+<h2>Naming<a class="headerlink" href="#naming" title="Link to this heading">¶</a></h2>
+<p><a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a> has no subcategory for processing an existing image.
+<code class="docutils literal notranslate"><span class="pre">Texture</span></code> has <code class="docutils literal notranslate"><span class="pre">Assignment</span></code>, <code class="docutils literal notranslate"><span class="pre">Conversion</span></code> and <code class="docutils literal notranslate"><span class="pre">Packing</span></code>. Proposed:</p>
+<ul class="simple">
+<li><p><strong>A subcategory <code class="docutils literal notranslate"><span class="pre">Texture/Filtering</span></code></strong>, for filters that change a texture’s texels from
+its own texels. All stage-1 and stage-2 filters go there.</p></li>
+<li><p><em><strong>Repair Texture Seams</strong></em>: <code class="docutils literal notranslate"><span class="pre">Repair</span></code> (“fix a defect while preserving intent”) fits as
+defined.</p></li>
+<li><p><strong><em>Smooth Texture</em>, <em>Sharpen Texture</em></strong>: <code class="docutils literal notranslate"><span class="pre">Sharpen</span></code> is admitted for attributes;
+<code class="docutils literal notranslate"><span class="pre">Smooth</span></code> is defined for positions and normals but already used for colors (<em>Smooth
+Vertex Color</em>). The vocabulary should say so.</p></li>
+<li><p><em><strong>Dilate Texture across Seams</strong></em>: <code class="docutils literal notranslate"><span class="pre">Dilate</span></code> is admitted only for selections. Widening
+it to images keeps its standard morphological meaning. The alternative, <code class="docutils literal notranslate"><span class="pre">Fill</span></code>, is
+rejected in the lexicon as a synonym of <code class="docutils literal notranslate"><span class="pre">Close</span></code>.</p></li>
+<li><p><strong>Line-integral convolution and reaction-diffusion</strong> produce a new texture from no
+input texture. <code class="docutils literal notranslate"><span class="pre">Create</span></code> is reserved for layers, and <code class="docutils literal notranslate"><span class="pre">Render</span></code> means an image of the
+scene. To be decided with the stage-3 filters.</p></li>
+</ul>
+</section>
+<section id="open-questions">
+<h2>Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Memory in the filter.</strong> Stage 0 explained the memory: it follows the fine boundary
+edge count. The filter should still say what it is about to take. Two options: estimate it
+from a cheap pass over the boundary cells and ask before running, or document the figures
+and run. Which one is the user’s call.</p></li>
+<li><p><strong>The remaining zero-area fault</strong> (<code class="docutils literal notranslate"><span class="pre">combinedToBoundary</span></code>), for an upstream fix rather than
+the adapter’s workaround, if mkazhdan prefers one.</p></li>
+<li><p><strong>The Stanford PLY notice.</strong> Moving it from the helpers into the application makes the
+existing open item in <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code> more pressing. Alternatively, the adapter could
+avoid <code class="docutils literal notranslate"><span class="pre">PlyFile.h</span></code>, if TSP’s headers can be included without it. That has not been
+tried.</p></li>
+<li><p><strong>Reaction-diffusion’s reaction term</strong> (stage 3): keep the quadrature
+(<code class="docutils literal notranslate"><span class="pre">ScalarIntegrator</span></code>, lower-level API) or approximate it.</p></li>
+<li><p><strong>Multigrid or direct.</strong> At 512² the direct solve is faster than enough V-cycles to
+match it (2.5 s against 7.5 s for 100). Whether this holds at 2048² and above has not
+been measured.</p></li>
+</ol>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Texture Signal Processing Filters</a><ul>
+<li><a class="reference internal" href="#what-tsp-is">What TSP is</a></li>
+<li><a class="reference internal" href="#evidence">Evidence</a><ul>
+<li><a class="reference internal" href="#building">Building</a></li>
+<li><a class="reference internal" href="#running">Running</a></li>
+<li><a class="reference internal" href="#two-preconditions-of-the-library">Two preconditions of the library</a></li>
+<li><a class="reference internal" href="#padding-is-a-separate-user-facing-condition">Padding is a separate, user-facing condition</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#stage-0-memory-and-robustness">Stage 0: memory and robustness</a><ul>
+<li><a class="reference internal" href="#where-the-memory-goes">Where the memory goes</a></li>
+<li><a class="reference internal" href="#tsp-does-not-run-on-the-real-3m-face-atlas">TSP does not run on the real 3M-face atlas</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#which-programs-are-worth-a-filter">Which programs are worth a filter</a></li>
+<li><a class="reference internal" href="#integration-in-process-as-screened-poisson-is">Integration: in process, as Screened Poisson is</a><ul>
+<li><a class="reference internal" href="#where-the-sources-come-from">Where the sources come from</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#staging">Staging</a></li>
+<li><a class="reference internal" href="#naming">Naming</a></li>
+<li><a class="reference internal" href="#open-questions">Open questions</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

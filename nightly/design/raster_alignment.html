@@ -322,11 +322,14 @@ deterministic and runs in <code class="docutils literal notranslate"><span class
 <li><p><strong>The rasterizer.</strong> <code class="docutils literal notranslate"><span class="pre">rasterizeTriangle</span></code> (<code class="docutils literal notranslate"><span class="pre">src/core/softdepthbuffer.h</span></code>) calls back each
 pixel a triangle covers, and the renderer shades where the triangle wins its depth test,
 with perspective-correct barycentrics, as the GPU interpolates.</p></li>
-<li><p><strong>Threads.</strong> The faces are drawn by the threads of the global pool, each into buffers of
-its own, which are then merged. A pixel keeps the nearest face and, among faces equally
-near, the first in layer and face order, in each thread and in the merge, as a serial
-drawing does. So the image, and with it every result, is the same bit for bit whatever the
-number of threads.</p></li>
+<li><p><strong>Threads.</strong> The faces are drawn by the threads of the global pool into one buffer that
+keeps, per pixel, the least key of depth and drawing order, by an atomic minimum; each
+pixel is then shaded once, from the face that won it, with the weights the rasterizer
+drew it with (<code class="docutils literal notranslate"><span class="pre">triangleWeights</span></code>). A pixel thus keeps the nearest face and, among faces
+equally near, the first in layer and face order, as a serial drawing does. So the image,
+and with it every result, is the same bit for bit whatever the number of threads. (Buffers
+per thread merged after the drawing, as it first was, took four fifths of each rendering
+whatever the mesh.)</p></li>
 <li><p><strong>What is rendered.</strong> Every visible layer with faces, at a working resolution whose
 longest side is <code class="docutils literal notranslate"><span class="pre">resolution</span></code> (800). The photo is scaled to the same size and turned to grey
 as 0.3 R + 0.59 G + 0.11 B.</p></li>
@@ -344,12 +347,15 @@ normal map.</p></li>
 <ul>
 <li><p>the rendering’s darkest bin, which holds the background, counts 1 / <code class="docutils literal notranslate"><span class="pre">backgroundWeight</span></code>
 (default 2);</p></li>
-<li><p>the photo’s transparent pixels, such as an undistorted photo’s corners, do not count.</p></li>
+<li><p>the photo’s transparent pixels, such as an undistorted photo’s corners, do not count;</p></li>
+<li><p>the pixels are counted in integers by the threads, a histogram per chunk of pixels,
+summed afterwards, and weighed once counted.</p></li>
 </ul>
 </li>
-<li><p><strong>Cost.</strong> About 3.5 ms a rendering on 20k faces at 750 × 502, and 13 ms on 3.2 M faces at
-800 px, on 16 threads of an M3 Max (54 ms on one). A refinement takes 100 to 300
-renderings.</p></li>
+<li><p><strong>Cost.</strong> About 1.2 ms a rendering and its information on 59k faces and 4.9 ms on 3M
+faces, at 800 × 535 on 16 threads of an M3 Max, measured 2026-11-12; the information
+is 0.2 ms of it. A refinement takes 100 to 300 renderings: 0.16 and 0.65 s for these two
+meshes, from 2.2 and 2.8 s before the single buffer and the threaded histogram.</p></li>
 </ul>
 <p><strong>The rendering decides whether the method works</strong> on a given photo. On a real colored scan
 the <em>Normal Map</em> has a higher maximum 13 to 19 px away from the right camera, while <em>Vertex

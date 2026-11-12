@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 405 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 407 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -11199,6 +11199,77 @@ Converts an object-space normal map into a tangent-space normal map using the cu
 
 ---
 
+(filter-dilate-texture-across-seams)=
+
+## Dilate Texture across Seams
+
+**Categories:** `Texture/Filtering`
+
+**Plugin:** meshlab2.filter.texture_signal_processing
+
+Fill the texels around each UV island with the colors the surface has beyond its seams.
+
+```{py:function} ms.dilate_texture_across_seams(**params)
+:module: _meshlab
+
+Fills the texels up to *Radius* outside each UV island, so that lookups near the edge of an island, and the smaller levels of a mipmap, do not read background. Each such texel is placed on the surface: from the nearest face of the island it follows the surface in the direction of the texel, across the seam if it meets one, and takes the color the texture has at the point it reaches, on whichever island that point belongs to. Where an image-space fill (the *pull-push* option of the transfer filters) blurs the island's own border outwards, this continues the texture of the neighboring island, so the gutter holds what the surface really has there.
+
+It is the `TextureDilation` program of Prada and Kazhdan's TextureSignalProcessing library, run inside MeshLab. The colors are sampled from the texture as it was before the run, so the result does not depend on the order the texels are filled in, as it does in the program. The chosen texture's image is replaced: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, and faces with no UV area are left out. Texels covered by an island are never changed.
+
+It needs far less than *Repair Texture Seams*: 0.6 s and 0.2 GB for a 20k-face mesh with a 1024² texture and a radius of 8, and 7 s and 5 GB for a 3M-face scan at 4096².
+
+**Upstream:** [TextureSignalProcessing](https://github.com/mkazhdan/TextureSignalProcessing)
+
+**License:** MIT
+
+**References:**
+
+- Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. **Gradient-domain Processing within a Texture Atlas**. *ACM Transactions on Graphics* (2018). [DOI](https://doi.org/10.1145/3197517.3201317)
+
+**Parameters:**
+
+- **texture** (*textureref*, default: `1`) — The texture to dilate. Only the faces that use it take part, and its image is replaced; its file is left alone until the mesh is saved.
+- **radius** (*int*, default: `8`) — How far outside each island to fill, in texels. Texels farther from every island are left as they are.
+```
+
+---
+
+(filter-repair-texture-seams)=
+
+## Repair Texture Seams
+
+**Categories:** `Texture/Filtering`
+
+**Plugin:** meshlab2.filter.texture_signal_processing
+
+Set the texels just outside the UV islands so that the texture reads the same on both sides of every seam.
+
+```{py:function} ms.repair_texture_seams(**params)
+:module: _meshlab
+
+Where a seam cuts the surface, its two sides are read from two places of the texture, and a bilinear lookup near the edge of an island blends in the texels just outside it. If those texels hold background, or a color unrelated to the other side, the seam shows as a line. This sets every texel just outside an island (the texels a lookup inside it can reach) to the values that make the texture as smooth as possible on the surface, the texels inside the islands held fixed. The texture then varies continuously across the seams wherever the colors of the two sides allow it: what this does not change is a real difference between those colors, as between two photographs.
+
+It is the method of Prada, Kazhdan, Chuang and Hoppe, through the `SetExteriorTexels` program of their TextureSignalProcessing library, run inside MeshLab. The chosen texture's image is replaced: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part. *Measure Texture Seam Color Discrepancy* measures the effect.
+
+**What the atlas needs.** Faces whose UV triangles are folded over their own island are refused, since the library cannot process them: *Select Folded UV Faces* shows them. Faces with no UV area are left out, since they cover no texel. Islands that share texels (an atlas packed with no padding, or overlapping islands) give a poorer result where they meet, and a texel that one island covers is never changed for another: *Select Overlapping UV Faces* shows where.
+
+**Time and memory** grow with the length of the islands' boundaries in texels rather than with the image's area, and are spent building the operators, not solving: about 1.1 GB and 1.4 s for a 20k-face mesh with a 1024² texture, 2.6 GB at 2048², and 17 GB and 20 s for a 3M-face photogrammetry scan with 1,961 islands at 4096². The run cannot be canceled once it has started.
+
+**Upstream:** [TextureSignalProcessing](https://github.com/mkazhdan/TextureSignalProcessing)
+
+**License:** MIT
+
+**References:**
+
+- Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. **Gradient-domain Processing within a Texture Atlas**. *ACM Transactions on Graphics* (2018). [DOI](https://doi.org/10.1145/3197517.3201317)
+
+**Parameters:**
+
+- **texture** (*textureref*, default: `1`) — The texture to repair. Only the faces that use it take part, and its image is replaced; its file is left alone until the mesh is saved.
+```
+
+---
+
 (filter-pack-texture-images)=
 
 ## Pack Texture Images
@@ -11464,7 +11535,7 @@ The defaults are those of the released code; the paper reports somewhat differen
 **References:**
 
 - Hongyi Liu, Yifan Wang, Vladimir G. Kim, Misha Kazhdan. **Texture Consolidation of Generated Multi-View Renderings**. *arXiv:2610.36098* (2026). [Web](https://arxiv.org/abs/2610.36098)
-- Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. **Gradient-domain Processing within a Texture Atlas**. *ACM Transactions on Graphics* (2018).
+- Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. **Gradient-domain Processing within a Texture Atlas**. *ACM Transactions on Graphics* (2018). [DOI](https://doi.org/10.1145/3197517.3201317)
 
 **Parameters:**
 

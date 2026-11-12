@@ -377,8 +377,8 @@ validates against; this table mirrors it and must be updated together with it.</
 <td><p>Creates or edits texture coordinates and atlas layout</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Assignment</span></code> · <code class="docutils literal notranslate"><span class="pre">Conversion</span></code> · <code class="docutils literal notranslate"><span class="pre">Packing</span></code></p></td>
-<td><p>Creates or edits texture images</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Assignment</span></code> · <code class="docutils literal notranslate"><span class="pre">Conversion</span></code> · <code class="docutils literal notranslate"><span class="pre">Packing</span></code> · <code class="docutils literal notranslate"><span class="pre">Filtering</span></code></p></td>
+<td><p>Creates or edits texture images. <code class="docutils literal notranslate"><span class="pre">Filtering</span></code> changes an image’s texels from its own texels (2026-11-12, for the TextureSignalProcessing filters)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Between</span> <span class="pre">Layers</span></code> · <code class="docutils literal notranslate"><span class="pre">From</span> <span class="pre">Rasters</span></code></p></td>
@@ -988,8 +988,8 @@ validate them: across current descriptors <code class="docutils literal notransl
 <td><p>Admitted <strong>narrowly</strong>; still rejected for producing a layer, where <code class="docutils literal notranslate"><span class="pre">Create</span></code> wins</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Dilate</span></code>, <code class="docutils literal notranslate"><span class="pre">Erode</span></code></p></td>
-<td><p>Grow or shrink the selection by one ring of adjacent elements</p></td>
-<td><p>The standard morphological pair; <code class="docutils literal notranslate"><span class="pre">Select</span></code> names the act of selecting, not these two operations on an existing selection</p></td>
+<td><p>Grow or shrink the selection by one ring of adjacent elements; for <code class="docutils literal notranslate"><span class="pre">Dilate</span></code>, also grow the filled region of an image outwards (2026-11-12, for <em>Dilate Texture across Seams</em>)</p></td>
+<td><p>The standard morphological pair, which means the same on an image; <code class="docutils literal notranslate"><span class="pre">Select</span></code> names the act of selecting, not these two operations on an existing selection</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Close</span></code></p></td>
 <td><p>Fill a boundary loop with new faces</p></td>

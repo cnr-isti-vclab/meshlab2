@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 405 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 407 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="filter-add-noise-to-vertex-color">
 <span id="add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#filter-add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -9099,6 +9099,58 @@ Angle between face normal is considered signed according to convexity/concavity.
 
 <hr class="docutils" />
 </section>
+<section id="filter-dilate-texture-across-seams">
+<span id="dilate-texture-across-seams"></span><h2>Dilate Texture across Seams<a class="headerlink" href="#filter-dilate-texture-across-seams" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Filtering</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.texture_signal_processing</p>
+<p>Fill the texels around each UV island with the colors the surface has beyond its seams.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.dilate_texture_across_seams">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">dilate_texture_across_seams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.dilate_texture_across_seams" title="Link to this definition">¶</a></dt>
+<dd><p>Fills the texels up to <em>Radius</em> outside each UV island, so that lookups near the edge of an island, and the smaller levels of a mipmap, do not read background. Each such texel is placed on the surface: from the nearest face of the island it follows the surface in the direction of the texel, across the seam if it meets one, and takes the color the texture has at the point it reaches, on whichever island that point belongs to. Where an image-space fill (the <em>pull-push</em> option of the transfer filters) blurs the island’s own border outwards, this continues the texture of the neighboring island, so the gutter holds what the surface really has there.</p>
+<p>It is the <code class="docutils literal notranslate"><span class="pre">TextureDilation</span></code> program of Prada and Kazhdan’s TextureSignalProcessing library, run inside MeshLab. The colors are sampled from the texture as it was before the run, so the result does not depend on the order the texels are filled in, as it does in the program. The chosen texture’s image is replaced: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, and faces with no UV area are left out. Texels covered by an island are never changed.</p>
+<p>It needs far less than <em>Repair Texture Seams</em>: 0.6 s and 0.2 GB for a 20k-face mesh with a 1024² texture and a radius of 8, and 7 s and 5 GB for a 3M-face scan at 4096².</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/mkazhdan/TextureSignalProcessing">TextureSignalProcessing</a></p>
+<p><strong>License:</strong> MIT</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. <strong>Gradient-domain Processing within a Texture Atlas</strong>. <em>ACM Transactions on Graphics</em> (2018). <a class="reference external" href="https://doi.org/10.1145/3197517.3201317">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>texture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — The texture to dilate. Only the faces that use it take part, and its image is replaced; its file is left alone until the mesh is saved.</p></li>
+<li><p><strong>radius</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — How far outside each island to fill, in texels. Texels farther from every island are left as they are.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-repair-texture-seams">
+<span id="repair-texture-seams"></span><h2>Repair Texture Seams<a class="headerlink" href="#filter-repair-texture-seams" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Filtering</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.texture_signal_processing</p>
+<p>Set the texels just outside the UV islands so that the texture reads the same on both sides of every seam.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.repair_texture_seams">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">repair_texture_seams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.repair_texture_seams" title="Link to this definition">¶</a></dt>
+<dd><p>Where a seam cuts the surface, its two sides are read from two places of the texture, and a bilinear lookup near the edge of an island blends in the texels just outside it. If those texels hold background, or a color unrelated to the other side, the seam shows as a line. This sets every texel just outside an island (the texels a lookup inside it can reach) to the values that make the texture as smooth as possible on the surface, the texels inside the islands held fixed. The texture then varies continuously across the seams wherever the colors of the two sides allow it: what this does not change is a real difference between those colors, as between two photographs.</p>
+<p>It is the method of Prada, Kazhdan, Chuang and Hoppe, through the <code class="docutils literal notranslate"><span class="pre">SetExteriorTexels</span></code> program of their TextureSignalProcessing library, run inside MeshLab. The chosen texture’s image is replaced: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part. <em>Measure Texture Seam Color Discrepancy</em> measures the effect.</p>
+<p><strong>What the atlas needs.</strong> Faces whose UV triangles are folded over their own island are refused, since the library cannot process them: <em>Select Folded UV Faces</em> shows them. Faces with no UV area are left out, since they cover no texel. Islands that share texels (an atlas packed with no padding, or overlapping islands) give a poorer result where they meet, and a texel that one island covers is never changed for another: <em>Select Overlapping UV Faces</em> shows where.</p>
+<p><strong>Time and memory</strong> grow with the length of the islands’ boundaries in texels rather than with the image’s area, and are spent building the operators, not solving: about 1.1 GB and 1.4 s for a 20k-face mesh with a 1024² texture, 2.6 GB at 2048², and 17 GB and 20 s for a 3M-face photogrammetry scan with 1,961 islands at 4096². The run cannot be canceled once it has started.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/mkazhdan/TextureSignalProcessing">TextureSignalProcessing</a></p>
+<p><strong>License:</strong> MIT</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. <strong>Gradient-domain Processing within a Texture Atlas</strong>. <em>ACM Transactions on Graphics</em> (2018). <a class="reference external" href="https://doi.org/10.1145/3197517.3201317">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>texture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — The texture to repair. Only the faces that use it take part, and its image is replaced; its file is left alone until the mesh is saved.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="filter-pack-texture-images">
 <span id="pack-texture-images"></span><h2>Pack Texture Images<a class="headerlink" href="#filter-pack-texture-images" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Packing</span></code>, <code class="docutils literal notranslate"><span class="pre">Parametrization/Atlas</span> <span class="pre">Packing</span></code></p>
@@ -9307,7 +9359,7 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <p><strong>References:</strong></p>
 <ul class="simple">
 <li><p>Hongyi Liu, Yifan Wang, Vladimir G. Kim, Misha Kazhdan. <strong>Texture Consolidation of Generated Multi-View Renderings</strong>. <em>arXiv:2610.36098</em> (2026). <a class="reference external" href="https://arxiv.org/abs/2610.36098">Web</a></p></li>
-<li><p>Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. <strong>Gradient-domain Processing within a Texture Atlas</strong>. <em>ACM Transactions on Graphics</em> (2018).</p></li>
+<li><p>Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. <strong>Gradient-domain Processing within a Texture Atlas</strong>. <em>ACM Transactions on Graphics</em> (2018). <a class="reference external" href="https://doi.org/10.1145/3197517.3201317">DOI</a></p></li>
 </ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -11071,6 +11123,14 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#filter-convert-object-space-normal-map-to-tangent-space">Convert Object-Space Normal Map to Tangent Space</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.convert_object_space_normal_map_to_tangent_space"><code class="docutils literal notranslate"><span class="pre">ms.convert_object_space_normal_map_to_tangent_space()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-dilate-texture-across-seams">Dilate Texture across Seams</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.dilate_texture_across_seams"><code class="docutils literal notranslate"><span class="pre">ms.dilate_texture_across_seams()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-repair-texture-seams">Repair Texture Seams</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.repair_texture_seams"><code class="docutils literal notranslate"><span class="pre">ms.repair_texture_seams()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#filter-pack-texture-images">Pack Texture Images</a><ul>
