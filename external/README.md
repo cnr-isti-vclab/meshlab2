@@ -94,6 +94,29 @@ Initialize it after cloning with:
 git submodule update --init --recursive external/texture-consolidation
 ```
 
+## TextureSignalProcessing
+
+MeshLab compiles the header-only `GradientDomain` library and the texel utilities of
+[TextureSignalProcessing](https://github.com/mkazhdan/TextureSignalProcessing) (MIT) into
+the application, for *Repair Texture Seams* and *Dilate Texture across Seams*, from the
+pinned `external/TextureSignalProcessing` submodule. Only one file of the plugin includes
+it. Misha, the library it is written on, comes from TextureConsolidation's checkout above,
+since TSP's own copy under `third_party/` does not compile with Apple clang. No vcpkg port
+exists.
+
+**The submodule points at a fork** (`cignoni/TextureSignalProcessing`, branch `meshlab`)
+that merges four fixes proposed upstream and not yet merged, without which the library
+crashes on real atlases, links code under a no-sale licence into the application, or takes
+3.5 times the memory. MeshLab's tree carries no patch. Which commits, and the way back to
+upstream, are in
+[`plugins/filter_texture_signal_processing/UPSTREAM.md`](../plugins/filter_texture_signal_processing/UPSTREAM.md).
+
+Initialize it after cloning with:
+
+```sh
+git submodule update --init external/TextureSignalProcessing
+```
+
 ## TrueForm
 
 MeshLab uses the header-only [TrueForm](https://github.com/polydera/trueform)

@@ -4,8 +4,10 @@ This document proposes which of the programs in Prada and Kazhdan's
 [TextureSignalProcessing](https://github.com/mkazhdan/TextureSignalProcessing) (TSP) are
 worth turning into MeshLab filters, and how to integrate them. It recommends doing so **in
 process**, as Screened Poisson is, through TSP's header-only `GradientDomain` library, and
-**not** as helper programs, as TextureConsolidation is. **Not implemented.** Every number
-below was measured for this proposal. None of the code has been committed.
+**not** as helper programs, as TextureConsolidation is. **Stage 1 implemented 2026-11-12** (the plugin
+`filter_texture_signal_processing`, with *Repair Texture Seams* and *Dilate Texture across
+Seams*; see its `UPSTREAM.md`); stages 2 and 3 are not. Every number below was measured for
+this proposal.
 
 See also: [TextureConsolidation history](../history/texture_consolidation.md),
 `plugins/filter_texture_consolidation/UPSTREAM.md`, `plugins/filter_screened_poisson/UPSTREAM.md`,
@@ -282,14 +284,48 @@ only keep it out of MeshLab's address space. So the choice stands.
 **Recommendation: A.** It is the least new code and tracks upstream. If the two plugins
 ever need different versions, B can be adopted then.
 
+**Decided 2026-11-12: B for TSP, A for Misha.** The plugin needs four upstream pull requests
+(#20 to #23) that are not merged yet. TextureConsolidation's pin can't carry them: its own
+pull request to hliuw is opened from the fork's `main`, so moving its TSP gitlink there
+would change that pull request. So TSP becomes a top-level submodule,
+`external/TextureSignalProcessing`, on `cignoni/TextureSignalProcessing` at a branch merging
+the four. It goes back to `mkazhdan` once they are merged. Misha needs no fix, so it still
+comes from `external/texture-consolidation/extern/Misha`.
+
+**The Stanford PLY notice (open question 3), decided the same day.** In process, it was a
+licence conflict, not a packaging question. `SimpleTriangleMesh.h` included Misha's PLY
+reader, and `Ply.inl`'s namespace-scope `PLY::EdgeProps` array was emitted into any object
+including `GradientDomain.h`, even at `-O2`. That would have linked "do not sell" code into
+GPLv3 MeshLab. #23 moves the three mesh I/O members into `MeshIO.h`, which only the programs
+include. After it, an adapter-like file includes no PLY header and emits no PLY symbol.
+
 ## Staging
 
 0. **Memory.** Done 2026-11-12; see [Stage 0](#stage-0-memory-and-robustness).
    Left from it are three upstream pull requests: the chart-vertex fix (#20), the
-   touching-triangle clip, and a `GradientDomain` flag to skip the divergence operator.
-1. **Plugin and adapter, two filters.** The adapter keeps zero-area UV triangles out of
+   touching-triangle clip (#21), and a `GradientDomain` flag, `computeDivergence`, to skip
+   the divergence operator. With the flag, `SetExteriorTexels` peaks at 15.6 GB instead of
+   44.5 GB on the 3M-face atlas at 4096², with byte-identical output.
+1. **Plugin and adapter, two filters. Implemented 2026-11-12**, with these measured
+   differences from the plan: TSP is its own submodule (above); the adapter pads only atlases
+   that come within two texels of the border, since a margin changes the result where texel
+   centers lie on an edge; it never writes a texel another chart covers, which
+   `SetExteriorTexels` can; it fuses texture coordinates as TSP's reader does; and when the
+   exterior system is singular (every island of a per-triangle layout) it adds a pull of
+   relative weight 1e-10 towards each texel's value. Overlapping atlases are not refused, since
+   they do not fault. In the application, on the 3M-face scan at 4096², the repair takes 20 s and
+   17 GB, the dilation 7 s and 5 GB. Open: the exterior texels a triangle only grazes are barely
+   determined, and about 0.15% of them come out far out of range, clamped to white or black dots
+   along the chart boundaries; `SetExteriorTexels` does the same. The adapter keeps zero-area UV triangles out of
    TSP's input, and refuses atlases with flipped or overlapping faces. *Repair Texture Seams* (`SetExteriorTexels`) and
-   *Dilate Texture across Seams* (`TextureDilation`). Tests:
+   *Dilate Texture across Seams* (`TextureDilation`). Decided 2026-11-12:
+   - both names, the subcategory `Texture/Filtering`, and widening `Dilate` to images;
+   - memory is documented in the descriptions, and the filters just run (open question 1);
+   - the dilation samples the input image and writes a separate output. `TextureDilation`'s
+     own `main` samples the image it is writing, which makes its output differ from run to
+     run when threaded. Sampling a copy makes it repeatable.
+
+   Tests:
    - a smoke row for each;
    - a behavioural test asserting that *Measure Texture Seam Color Discrepancy* drops
      on the gargoyle photo texture;

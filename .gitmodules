@@ -21,3 +21,7 @@
 [submodule "external/texture-consolidation"]
 	path = external/texture-consolidation
 	url = https://github.com/cignoni/TextureConsolidation.git
+[submodule "external/TextureSignalProcessing"]
+	path = external/TextureSignalProcessing
+	url = https://github.com/cignoni/TextureSignalProcessing.git
+	branch = meshlab

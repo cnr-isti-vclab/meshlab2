@@ -33,7 +33,7 @@ const std::vector<Root> &ontology()
                                QStringLiteral("Segmentation"), QStringLiteral("Atlas Packing"),
                                QStringLiteral("Defragmentation") } },
         { "Texture",         { QStringLiteral("Assignment"), QStringLiteral("Conversion"),
-                               QStringLiteral("Packing") } },
+                               QStringLiteral("Packing"), QStringLiteral("Filtering") } },
         { "Transfer",        { QStringLiteral("Within a Mesh"), QStringLiteral("Between Layers"),
                                QStringLiteral("From Rasters") } },
         { "Measurement",     { QStringLiteral("Geometric"), QStringLiteral("Topological"),

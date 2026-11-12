@@ -418,6 +418,34 @@ int ensureTextureListed(Document::MeshEntry &entry, const QString &path)
     return int(entry.textureAssets.size()) - 1;
 }
 
+MeshIOTextureAsset *writableTextureAsset(Document::MeshEntry &entry, int textureIndex)
+{
+    const auto asset = [&](int i) { return const_cast<MeshIOTextureAsset *>(Document::meshTextureAsset(entry, i)); };
+    if (MeshIOTextureAsset *found = asset(textureIndex))
+        return found;
+    const int count = Document::meshTextureAssociationCount(entry);
+    if (textureIndex < 0 || textureIndex >= count || Document::meshTextureSourcePath(entry, textureIndex).isEmpty())
+        return nullptr;
+    // Without slots a texture's asset is the one at its own index, so the file-only textures can
+    // only become assets in order when there are none yet.
+    const bool hasSlots = !entry.materialSet.entries.empty();
+    if (!hasSlots && !entry.textureAssets.empty())
+        return nullptr;
+
+    // The files first: making an asset rebuilds the legacy path lists that name the others.
+    std::vector<QString> paths(static_cast<size_t>(count));
+    for (int i = 0; i < count; ++i)
+        paths[size_t(i)] = Document::meshTextureSourcePath(entry, i);
+    for (int i = 0; i < count; ++i) {
+        if (asset(i) || paths[size_t(i)].isEmpty())
+            continue;
+        const int assetIndex = ensureTextureListed(entry, paths[size_t(i)]);
+        if (hasSlots && i < int(entry.materialSet.entries.size()))
+            entry.materialSet.entries[size_t(i)].baseColorTexture.assetIndex = assetIndex;
+    }
+    return asset(textureIndex);
+}
+
 int removeTextureAsset(Document::MeshEntry &entry, int textureIndex)
 {
     if (textureIndex < 0 || textureIndex >= int(entry.textureAssets.size()))

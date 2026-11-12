@@ -46,6 +46,7 @@ const QHash<QString, QString> &aboutName()
         { QStringLiteral("external/qslim"),               QStringLiteral("QSlim") },
         { QStringLiteral("external/quadwild-bimdf"),      QStringLiteral("QuadWild-BiMDF") },
         { QStringLiteral("external/texture-consolidation"), QStringLiteral("TextureConsolidation") },
+        { QStringLiteral("external/TextureSignalProcessing"), QStringLiteral("TextureSignalProcessing") },
         // vcpkg dependencies (vcpkg.json)
         { QStringLiteral("cgal"),                         QStringLiteral("CGAL") },
         { QStringLiteral("libigl"),                       QStringLiteral("libigl") },

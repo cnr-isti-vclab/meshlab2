@@ -50,6 +50,9 @@
 #if MESHLAB2_PLUGIN_FILTER_IGL_ENABLED
 #include "plugins/filter_igl/iglfilterplugin.h"
 #endif
+#if MESHLAB2_PLUGIN_FILTER_TEXTURE_SIGNAL_PROCESSING_ENABLED
+#include "plugins/filter_texture_signal_processing/texturesignalprocessingfilterplugin.h"
+#endif
 #if MESHLAB2_PLUGIN_FILTER_SCREENED_POISSON_ENABLED
 #include "plugins/filter_screened_poisson/screenedpoissonfilterplugin.h"
 #endif
@@ -163,6 +166,9 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if MESHLAB2_PLUGIN_FILTER_TEXTURE_CONSOLIDATION_ENABLED
     registerTextureConsolidationFilterPlugin(pluginManager);
+#endif
+#if MESHLAB2_PLUGIN_FILTER_TEXTURE_SIGNAL_PROCESSING_ENABLED
+    registerTextureSignalProcessingFilterPlugin(pluginManager);
 #endif
 #if MESHLAB2_PLUGIN_FILTER_IGL_ENABLED
     registerIglFilterPlugin(pluginManager);

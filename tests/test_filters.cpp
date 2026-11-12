@@ -514,6 +514,7 @@ private slots:
     void open3dVoxelDownsamplingKeepsNormalsUnitLength();
     void textureConsolidationCameraMatchesShotProjection();
     void textureConsolidationBuildsTextureFromRasters();
+    void textureSignalProcessingRepairsAndDilatesSeams();
     void open3dFeatureMatchingCanUseAllVisibleLayersAsReference();
     void open3dFeatureMatchingCanEstimateItsQualityWithIcp();
     void open3dFastGlobalRegistrationCanUseAllVisibleLayersAsReference();
@@ -6951,6 +6952,91 @@ void FilterTests::textureConsolidationBuildsTextureFromRasters()
     const MeshFilterRunResult tooFew = doc.runFilter(key, values);
     QVERIFY(!tooFew.success);
     QVERIFY2(tooFew.errorMessage.contains(QStringLiteral("at least two")), qPrintable(tooFew.errorMessage));
+}
+
+// The two TextureSignalProcessing filters on a real photo texture: the gargoyle's four
+// photographs projected into an xatlas atlas, with no refill, so that the texels outside the
+// islands hold background and the seams show. xatlas at its defaults packs charts against the
+// image border, which the library cannot take unless the adapter pads the grid, so this also
+// covers the padding.
+void FilterTests::textureSignalProcessingRepairsAndDilatesSeams()
+{
+    Document probe;
+    const QString repairKey = filterKeyForId(probe, QStringLiteral("repair_texture_seams"));
+    const QString dilateKey = filterKeyForId(probe, QStringLiteral("dilate_texture_across_seams"));
+    if (repairKey.isEmpty() || dilateKey.isEmpty())
+        QSKIP("TextureSignalProcessing plugin is not available in this build.");
+
+    Document doc;
+    QCOMPARE(doc.loadMeshLabProject(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/gargoyle_small/gargoyle.mlp")), 0);
+    doc.setCurrentMeshIndex(0);
+    const MeshFilterRunResult atlas = doc.runFilter(filterKeyForId(doc, QStringLiteral("parametrize_by_atlas_xatlas")), {});
+    QVERIFY2(atlas.success, qPrintable(atlas.errorMessage));
+    MeshFilterParameterValues transfer;
+    transfer.insert(QStringLiteral("texsize"), 512);
+    transfer.insert(QStringLiteral("dorefill"), false);
+    const MeshFilterRunResult photo = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("transfer_color_from_visible_rasters_to_texture")), transfer);
+    QVERIFY2(photo.success, qPrintable(photo.errorMessage));
+    QCOMPARE(int(doc.mesh(0).textureAssets.size()), 1);
+    const QImage input = doc.mesh(0).textureAssets.front().image;
+
+    const QString measureKey = filterKeyForId(doc, QStringLiteral("measure_texture_seam_discrepancy"));
+    auto discrepancy = [&]() {
+        const MeshFilterRunResult r = doc.runFilter(measureKey, {});
+        return r.success ? r.outputValues.value(QStringLiteral("seam_discrepancy_avg")).toDouble() : -1.0;
+    };
+    auto changedTexels = [&](const QImage &image) {
+        int changed = 0;
+        for (int y = 0; y < input.height(); ++y)
+            for (int x = 0; x < input.width(); ++x)
+                changed += image.pixel(x, y) != input.pixel(x, y);
+        return changed;
+    };
+    const double before = discrepancy();
+    QVERIFY(before > 0);
+
+    // Dilation fills texels around the islands, and gives the same image twice from the same input.
+    MeshFilterParameterValues radius;
+    radius.insert(QStringLiteral("radius"), 4);
+    const MeshFilterRunResult dilated = doc.runFilter(dilateKey, radius);
+    QVERIFY2(dilated.success, qPrintable(dilated.errorMessage));
+    const QImage dilatedImage = doc.mesh(0).textureAssets.front().image;
+    QVERIFY(changedTexels(dilatedImage) > 1000);
+    QVERIFY(changedTexels(dilatedImage) <= dilated.outputValues.value(QStringLiteral("texels_written")).toInt());
+    doc.mesh(0).textureAssets.front().image = input;
+    QVERIFY2(doc.runFilter(dilateKey, radius).success, "second dilation failed");
+    QVERIFY2(doc.mesh(0).textureAssets.front().image == dilatedImage, "Dilation changed texels on identical inputs.");
+
+    // Repairing the seams brings the two sides of each seam closer. What remains is the real
+    // difference between the photographs on either side, which it does not touch.
+    doc.mesh(0).textureAssets.front().image = input;
+    const MeshFilterRunResult repaired = doc.runFilter(repairKey, {});
+    QVERIFY2(repaired.success, qPrintable(repaired.errorMessage));
+    const QImage repairedImage = doc.mesh(0).textureAssets.front().image;
+    QVERIFY(changedTexels(repairedImage) > 1000);
+    const double after = discrepancy();
+    qDebug("repair texture seams on the gargoyle: seam discrepancy %.2f -> %.2f, %d texels changed | %s",
+           before, after, changedTexels(repairedImage), qPrintable(repaired.infoMessages.join(QStringLiteral(" | "))));
+    QVERIFY2(after < 0.9 * before, qPrintable(QStringLiteral("discrepancy %1 -> %2").arg(before).arg(after)));
+
+    // A PLY names its texture by a TextureFile comment, so the layer it loads into holds the
+    // texture as a file, with no image of its own to replace: the filter must still write it.
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    doc.mesh(0).textureAssets.front().image = input;
+    QCOMPARE(doc.saveMesh(0, dir.filePath(QStringLiteral("gargoyle.ply"))), 0);
+    Document reloaded;
+    QVERIFY(reloaded.loadMesh(dir.filePath(QStringLiteral("gargoyle.ply"))) >= 0);
+    reloaded.setCurrentMeshIndex(0);
+    const MeshFilterRunResult fromFile = reloaded.runFilter(dilateKey, radius);
+    QVERIFY2(fromFile.success, qPrintable(fromFile.errorMessage));
+    QCOMPARE(Document::meshTextureAssociationCount(reloaded.mesh(0)), 1);
+    QImage written;
+    QString error;
+    QVERIFY2(TextureAssociationUtils::loadAssociatedTextureImage(reloaded.mesh(0), 0, written, error), qPrintable(error));
+    QVERIFY2(written.convertToFormat(QImage::Format_ARGB32) == dilatedImage.convertToFormat(QImage::Format_ARGB32),
+             "Dilating a texture loaded from its file gave another image.");
 }
 
 // The CSG evaluator and the pairwise booleans must agree where they overlap, and the

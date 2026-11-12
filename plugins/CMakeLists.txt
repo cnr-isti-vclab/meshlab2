@@ -131,6 +131,12 @@ if (TARGET MeshLab2PluginFilterTextureConsolidation)
     target_compile_definitions(MeshLab2Plugins PRIVATE MESHLAB2_PLUGIN_FILTER_TEXTURE_CONSOLIDATION_ENABLED=1)
 endif()
 
+add_subdirectory(filter_texture_signal_processing)
+if (TARGET MeshLab2PluginFilterTextureSignalProcessing)
+    target_link_libraries(MeshLab2Plugins PUBLIC MeshLab2PluginFilterTextureSignalProcessing)
+    target_compile_definitions(MeshLab2Plugins PRIVATE MESHLAB2_PLUGIN_FILTER_TEXTURE_SIGNAL_PROCESSING_ENABLED=1)
+endif()
+
 add_subdirectory(filter_open3d)
 if (TARGET MeshLab2PluginFilterOpen3D)
     target_link_libraries(MeshLab2Plugins PUBLIC MeshLab2PluginFilterOpen3D)

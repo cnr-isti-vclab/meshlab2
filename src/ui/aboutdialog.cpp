@@ -121,6 +121,9 @@ const ThirdPartyEntry kFocusedPackages[] = {
     { "TextureConsolidation", "https://github.com/hliuw/TextureConsolidation",
       QT_TR_NOOP("Seamless textures from photographs or generated renderings, by optical-flow "
                  "registration on the surface and gradient-domain stitching.") },
+    { "TextureSignalProcessing", "https://github.com/mkazhdan/TextureSignalProcessing",
+      QT_TR_NOOP("Gradient-domain processing on the texels of a texture atlas, continuous "
+                 "across its seams: repairing and dilating textures.") },
     { "xatlas", "https://github.com/jpcy/xatlas",
       QT_TR_NOOP("Automatic UV atlas generation and packing.") },
     { "BPA", "https://github.com/bernhardmgruber/bpa",

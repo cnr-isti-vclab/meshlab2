@@ -74,6 +74,12 @@ void appendTextureAssociations(
     const std::vector<MeshIOTextureAsset> &assets);
 void ensureMaterialSlotCount(Document::MeshEntry &entry, int count);
 int ensureTextureListed(Document::MeshEntry &entry, const QString &path);
+// The asset that holds texture `textureIndex`'s image, for a filter that replaces the image.
+// A texture known only by its file -- a PLY's TextureFile comment, a material slot that names
+// its image by path -- has none, so then every such texture of the layer becomes an asset, in
+// order, each slot bound to its own: the indices of the other textures stay as they were.
+// nullptr, with nothing changed, if the texture has neither an asset nor a file.
+MeshIOTextureAsset *writableTextureAsset(Document::MeshEntry &entry, int textureIndex);
 // Removes the layer's texture image `textureIndex`. The material slots stop referring to it,
 // by index or by path, and a slot left with no image at all goes as well: the faces that used
 // it lose their texture (index -1) and those of the slots after it move down one. Returns how
