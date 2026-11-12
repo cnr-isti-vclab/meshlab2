@@ -250,9 +250,9 @@
 <a class="reference external" href="https://github.com/mkazhdan/TextureSignalProcessing">TextureSignalProcessing</a> (TSP) are
 worth turning into MeshLab filters, and how to integrate them. It recommends doing so <strong>in
 process</strong>, as Screened Poisson is, through TSP’s header-only <code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code> library, and
-<strong>not</strong> as helper programs, as TextureConsolidation is. <strong>Stage 1 implemented 2026-11-12</strong> (the plugin
-<code class="docutils literal notranslate"><span class="pre">filter_texture_signal_processing</span></code>, with <em>Repair Texture Seams</em> and <em>Dilate Texture across
-Seams</em>; see its <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code>); stages 2 and 3 are not. Every number below was measured for
+<strong>not</strong> as helper programs, as TextureConsolidation is. <strong>Stages 1 and 2 implemented 2026-11-12</strong> (the
+plugin <code class="docutils literal notranslate"><span class="pre">filter_texture_signal_processing</span></code>, with <em>Repair Texture Seams</em>, <em>Dilate Texture across
+Seams</em>, <em>Smooth Texture</em> and <em>Sharpen Texture</em>; see its <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code>); stage 3 is not. Every number below was measured for
 this proposal.</p>
 <p>See also: <a class="reference internal" href="../history/texture_consolidation.html"><span class="std std-doc">TextureConsolidation history</span></a>,
 <code class="docutils literal notranslate"><span class="pre">plugins/filter_texture_consolidation/UPSTREAM.md</span></code>, <code class="docutils literal notranslate"><span class="pre">plugins/filter_screened_poisson/UPSTREAM.md</span></code>,
@@ -797,7 +797,14 @@ the adapter pads, so the filter must run rather than throw.</p></li>
 </ul>
 </li>
 <li><p><strong><em>Smooth Texture</em>, <em>Sharpen Texture</em></strong>, with an optional face selection to localize
-them.</p></li>
+them. <strong>Implemented 2026-11-12.</strong> Decided the same day: the two parameters are TSP’s own
+(<em>Fidelity</em>, its interpolation weight, default 1000; <em>Gradient Scale</em>, its modulation, 0 to
+smooth and 2 to sharpen); the selection builds the divergence operator only when used; the
+solver is multigrid until converged (open question 5: the direct solver took 63 s and 5.7 GB to
+factor at 2048²). On the gargoyle test, smoothing takes the seam discrepancy from 33.9 to 2.9.
+On the 3M-face scan at 4096²: 3 minutes and 19 GB, 4 minutes and 47 GB with a selection. Found
+on the way: TSP jitters with <code class="docutils literal notranslate"><span class="pre">rand()</span></code>, so in the application every run differed from the last;
+the adapter reseeds before each build.</p></li>
 <li><p><strong>Line-integral convolution, reaction-diffusion, source-aware stitching.</strong> Each needs
 its own decision first: the vocabulary for the first two, Paolo’s ruling on the
 reaction term, and a change to color projection for the third.</p></li>
@@ -838,9 +845,9 @@ avoid <code class="docutils literal notranslate"><span class="pre">PlyFile.h</sp
 tried.</p></li>
 <li><p><strong>Reaction-diffusion’s reaction term</strong> (stage 3): keep the quadrature
 (<code class="docutils literal notranslate"><span class="pre">ScalarIntegrator</span></code>, lower-level API) or approximate it.</p></li>
-<li><p><strong>Multigrid or direct.</strong> At 512² the direct solve is faster than enough V-cycles to
-match it (2.5 s against 7.5 s for 100). Whether this holds at 2048² and above has not
-been measured.</p></li>
+<li><p><strong>Multigrid or direct.</strong> Answered with stage 2: at 512² the direct solve is faster than
+enough V-cycles to match it (2.5 s against 7.5 s for 100), but at 2048² it takes 63 s and
+5.7 GB to factor against 28 s of multigrid, and grows faster from there. Multigrid.</p></li>
 </ol>
 </section>
 </section>

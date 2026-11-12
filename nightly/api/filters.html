@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 407 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 409 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="filter-add-noise-to-vertex-color">
 <span id="add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#filter-add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -9151,6 +9151,62 @@ Angle between face normal is considered signed according to convexity/concavity.
 
 <hr class="docutils" />
 </section>
+<section id="filter-sharpen-texture">
+<span id="sharpen-texture"></span><h2>Sharpen Texture<a class="headerlink" href="#filter-sharpen-texture" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Filtering</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.texture_signal_processing</p>
+<p>Sharpen a texture on the surface, continuously across its seams.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.sharpen_texture">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">sharpen_texture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.sharpen_texture" title="Link to this definition">¶</a></dt>
+<dd><p>Sharpens the texture as a signal on the surface rather than in the image: its gradients are amplified by <em>Gradient Scale</em> while the texels are held to their input values with weight <em>Fidelity</em>, and since the texels on the two sides of a seam are neighbors, the result is continuous across seams. A smaller fidelity lets the amplified gradients carry further, so the sharpening reaches larger features.</p>
+<p>It is the method of Prada, Kazhdan, Chuang and Hoppe, through the <code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code> library of their TextureSignalProcessing, as its <code class="docutils literal notranslate"><span class="pre">TextureFiltering</span></code> program does it, run inside MeshLab. The solution satisfies $<span class="math notranslate nohighlight">\((w\,M + S)\,x = w\,M\,x_0 + s\,S\,x_0,\)</span><span class="math notranslate nohighlight">\( with \)</span>x_0<span class="math notranslate nohighlight">\( the input texels, \)</span>M<span class="math notranslate nohighlight">\( and \)</span>S<span class="math notranslate nohighlight">\( the mass and stiffness of the texture on the surface (the mesh's area taken as 1), \)</span>w<span class="math notranslate nohighlight">\( the *Fidelity* and \)</span>s$ the <em>Gradient Scale</em>. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The chosen texture’s image is replaced: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (<em>Select Folded UV Faces</em> shows them).</p>
+<p><strong>Only selected faces.</strong> The gradients are then scaled only on the texels whose nearest face is selected, and only those texels are written: the rest of the texture is left exactly as it was, and the change fades in across the edge of the selection. This needs the library’s divergence operator, which takes about 3.5 times the memory.</p>
+<p><strong>Time and memory</strong> are spent mostly in building the operators, and grow with the length of the islands’ boundaries in texels: about 10 s and 1.4 GB for a 20k-face mesh with a 1024² texture (4.7 GB with a selection), 28 s and 3.9 GB at 2048², and about 3 minutes and 19 GB for a 3M-face photogrammetry scan with 1,961 islands at 4096² (4 minutes and 47 GB with a selection). Building the operators cannot be interrupted; the solve that follows can be canceled.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/mkazhdan/TextureSignalProcessing">TextureSignalProcessing</a></p>
+<p><strong>License:</strong> MIT</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. <strong>Gradient-domain Processing within a Texture Atlas</strong>. <em>ACM Transactions on Graphics</em> (2018). <a class="reference external" href="https://doi.org/10.1145/3197517.3201317">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>texture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — The texture to sharpen. Only the faces that use it take part, and its image is replaced; its file is left alone until the mesh is saved.</p></li>
+<li><p><strong>gradientScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — The factor the texture’s gradients are amplified by: above 1 sharpens, and the larger the stronger. TextureFiltering’s gradient modulation.</p></li>
+<li><p><strong>fidelity</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1000.0</span></code>) — How strongly the texels are held to their input values, against the gradients being amplified: the larger, the less the texture changes. The mesh’s area is taken as 1, so the same value acts at the same scale on any mesh. TextureFiltering’s interpolation weight.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-smooth-texture">
+<span id="smooth-texture"></span><h2>Smooth Texture<a class="headerlink" href="#filter-smooth-texture" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Filtering</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.texture_signal_processing</p>
+<p>Smooth a texture on the surface, continuously across its seams.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.smooth_texture">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">smooth_texture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.smooth_texture" title="Link to this definition">¶</a></dt>
+<dd><p>Smooths the texture as a signal on the surface rather than in the image: the texels on the two sides of a seam are neighbors, so the result is continuous across seams, and the islands’ outlines in the image do not show up as edges. The texels are held to their input values with weight <em>Fidelity</em> while their gradients are held to the input’s scaled by <em>Gradient Scale</em>: at 0 the gradients are pulled to zero, the strongest smoothing for a given fidelity; a smaller fidelity smooths over a larger area.</p>
+<p>It is the method of Prada, Kazhdan, Chuang and Hoppe, through the <code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code> library of their TextureSignalProcessing, as its <code class="docutils literal notranslate"><span class="pre">TextureFiltering</span></code> program does it, run inside MeshLab. The solution satisfies $<span class="math notranslate nohighlight">\((w\,M + S)\,x = w\,M\,x_0 + s\,S\,x_0,\)</span><span class="math notranslate nohighlight">\( with \)</span>x_0<span class="math notranslate nohighlight">\( the input texels, \)</span>M<span class="math notranslate nohighlight">\( and \)</span>S<span class="math notranslate nohighlight">\( the mass and stiffness of the texture on the surface (the mesh's area taken as 1), \)</span>w<span class="math notranslate nohighlight">\( the *Fidelity* and \)</span>s$ the <em>Gradient Scale</em>. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The chosen texture’s image is replaced: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (<em>Select Folded UV Faces</em> shows them).</p>
+<p><strong>Only selected faces.</strong> The gradients are then scaled only on the texels whose nearest face is selected, and only those texels are written: the rest of the texture is left exactly as it was, and the change fades in across the edge of the selection. This needs the library’s divergence operator, which takes about 3.5 times the memory.</p>
+<p><strong>Time and memory</strong> are spent mostly in building the operators, and grow with the length of the islands’ boundaries in texels: about 10 s and 1.4 GB for a 20k-face mesh with a 1024² texture (4.7 GB with a selection), 28 s and 3.9 GB at 2048², and about 3 minutes and 19 GB for a 3M-face photogrammetry scan with 1,961 islands at 4096² (4 minutes and 47 GB with a selection). Building the operators cannot be interrupted; the solve that follows can be canceled.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/mkazhdan/TextureSignalProcessing">TextureSignalProcessing</a></p>
+<p><strong>License:</strong> MIT</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. <strong>Gradient-domain Processing within a Texture Atlas</strong>. <em>ACM Transactions on Graphics</em> (2018). <a class="reference external" href="https://doi.org/10.1145/3197517.3201317">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>texture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — The texture to smooth. Only the faces that use it take part, and its image is replaced; its file is left alone until the mesh is saved.</p></li>
+<li><p><strong>gradientScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — The factor the texture’s gradients are held to, from 0 (pulled to zero, the most smoothing) to below 1 (barely changed). TextureFiltering’s gradient modulation.</p></li>
+<li><p><strong>fidelity</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1000.0</span></code>) — How strongly the texels are held to their input values, against the gradients being dampened: the larger, the less the texture changes. The mesh’s area is taken as 1, so the same value acts at the same scale on any mesh. TextureFiltering’s interpolation weight.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="filter-pack-texture-images">
 <span id="pack-texture-images"></span><h2>Pack Texture Images<a class="headerlink" href="#filter-pack-texture-images" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Packing</span></code>, <code class="docutils literal notranslate"><span class="pre">Parametrization/Atlas</span> <span class="pre">Packing</span></code></p>
@@ -11131,6 +11187,14 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#filter-repair-texture-seams">Repair Texture Seams</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.repair_texture_seams"><code class="docutils literal notranslate"><span class="pre">ms.repair_texture_seams()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-sharpen-texture">Sharpen Texture</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.sharpen_texture"><code class="docutils literal notranslate"><span class="pre">ms.sharpen_texture()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-smooth-texture">Smooth Texture</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.smooth_texture"><code class="docutils literal notranslate"><span class="pre">ms.smooth_texture()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#filter-pack-texture-images">Pack Texture Images</a><ul>
