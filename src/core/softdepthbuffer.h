@@ -33,6 +33,30 @@ inline QVector3D transformPoint(const QMatrix4x4 &m, const vcg::Point3f &p)
     return m.map(QVector3D(p[0], p[1], p[2]));
 }
 
+// The barycentric weights of point (px, py) in a screen triangle, as rasterizeTriangle computes
+// them for the pixel centres it visits: a pixel shaded later from the face that covered it
+// gets the very weights it was drawn with.
+inline float triangleArea2(const QVector2D &p0, const QVector2D &p1, const QVector2D &p2)
+{
+    return (p1.x() - p0.x()) * (p2.y() - p0.y()) - (p1.y() - p0.y()) * (p2.x() - p0.x());
+}
+
+inline void triangleWeights(const QVector2D &p0, const QVector2D &p1, const QVector2D &p2, float invArea,
+                            float px, float py, float &bw0, float &bw1, float &bw2)
+{
+    const float f12 = (p2.x() - p1.x()) * (py - p1.y()) - (p2.y() - p1.y()) * (px - p1.x());
+    const float f20 = (p0.x() - p2.x()) * (py - p2.y()) - (p0.y() - p2.y()) * (px - p2.x());
+    bw0 = f12 * invArea;
+    bw1 = f20 * invArea;
+    bw2 = 1.0f - bw0 - bw1;
+}
+
+inline void triangleWeights(const QVector2D &p0, const QVector2D &p1, const QVector2D &p2,
+                            float px, float py, float &bw0, float &bw1, float &bw2)
+{
+    triangleWeights(p0, p1, p2, 1.0f / triangleArea2(p0, p1, p2), px, py, bw0, bw1, bw2);
+}
+
 // The pixels a triangle covers: covered(index, depth, b0, b1, b2) is called for each pixel whose
 // centre lies inside the triangle and in front of the camera, with the pixel's index, the
 // depth there and its barycentric weights. The depth test is the caller's, so that it can
@@ -49,8 +73,7 @@ inline void rasterizeTriangle(
     // at a near plane; it only happens when a camera sits inside the model, and there it
     // turned a depth buffer from 0.2 s into a minute.
     if (d0 <= 0.0f || d1 <= 0.0f || d2 <= 0.0f) return;
-    const float area = (p1.x() - p0.x()) * (p2.y() - p0.y()) -
-                       (p1.y() - p0.y()) * (p2.x() - p0.x());
+    const float area = triangleArea2(p0, p1, p2);
     if (std::abs(area) < 1e-8f) return;
     const float invArea = 1.0f / area;
 
@@ -68,14 +91,8 @@ inline void rasterizeTriangle(
         for (int ix = ixMin; ix <= ixMax; ++ix) {
             const float px = float(ix) + 0.5f;
             const float py = float(iy) + 0.5f;
-            const float f12 = (p2.x() - p1.x()) * (py - p1.y()) -
-                              (p2.y() - p1.y()) * (px - p1.x());
-            const float f20 = (p0.x() - p2.x()) * (py - p2.y()) -
-                              (p0.y() - p2.y()) * (px - p2.x());
-
-            const float bw0 = f12 * invArea;
-            const float bw1 = f20 * invArea;
-            const float bw2 = 1.0f - bw0 - bw1;
+            float bw0, bw1, bw2;
+            triangleWeights(p0, p1, p2, invArea, px, py, bw0, bw1, bw2);
             if (bw0 < -1e-5f || bw1 < -1e-5f || bw2 < -1e-5f) continue;
             const float d = bw0 * d0 + bw1 * d1 + bw2 * d2;
             if (d <= 0.0f) continue;
