@@ -516,6 +516,7 @@ private slots:
     void textureConsolidationBuildsTextureFromRasters();
     void textureSignalProcessingRepairsAndDilatesSeams();
     void textureSignalProcessingSmoothsAndSharpens();
+    void textureSignalProcessingDetailSizeIsTheCrossover();
     void textureSignalProcessingInpaintsTransfersAndRenormalizes();
     void principalCurvatureDirectionsPerFaceAndTransfers();
     void textureSignalProcessingColorizesByPrincipalDirections();
@@ -7458,6 +7459,64 @@ static void makeUvGridMesh(VCGMesh &m, bool cylinder, float inset)
                 f->K2() = 0;
             }
         }
+}
+
+// The Detail Size is the wavelength at which Smooth and Sharpen Texture are halfway between keeping
+// the input and scaling it by the Gradient Scale: a sinusoid of that wavelength on a flat grid comes
+// out with (1 + s) / 2 of its amplitude. Measured 0.502 for smoothing (s = 0) and 1.501 for
+// sharpening (s = 2), a wavelength of 74 texels; the input's amplitude leaves room for the
+// sharpening, which a wave clipped at 0 and 255 measured as 1.40.
+void FilterTests::textureSignalProcessingDetailSizeIsTheCrossover()
+{
+    Document probe;
+    const QString smoothKey = filterKeyForId(probe, QStringLiteral("smooth_texture"));
+    const QString sharpenKey = filterKeyForId(probe, QStringLiteral("sharpen_texture"));
+    if (smoothKey.isEmpty() || sharpenKey.isEmpty())
+        QSKIP("TextureSignalProcessing plugin is not available in this build.");
+
+    const int N = 512;
+    const float inset = 0.05f;
+    const double wavelength = 2 * M_PI / 5; // five periods across the 2π-wide grid
+    VCGMesh grid;
+    makeUvGridMesh(grid, false, inset);
+    auto surfaceX = [&](int i) { return ((i + 0.5) / N - inset) / (1 - 2 * inset) * 2 * M_PI; };
+    QImage wave(N, N, QImage::Format_ARGB32);
+    for (int y = 0; y < N; ++y)
+        for (int x = 0; x < N; ++x) {
+            const int v = int(std::lround(128 + 50 * std::sin(2 * M_PI * surfaceX(x) / wavelength))); // unclipped at 1.5 times
+            wave.setPixel(x, y, qRgba(v, v, v, 255));
+        }
+    // The amplitude over the middle three periods and the middle half of the rows, fitted to the
+    // sine and cosine of the input's phase.
+    auto amplitude = [&](const QImage &im) {
+        double a = 0, b = 0;
+        int count = 0;
+        for (int y = N / 4; y < 3 * N / 4; ++y)
+            for (int x = 0; x < N; ++x) {
+                const double t = surfaceX(x);
+                if (t < wavelength || t > 4 * wavelength)
+                    continue;
+                const double phase = 2 * M_PI * t / wavelength, v = qRed(im.pixel(x, y)) - 128.0;
+                a += v * std::sin(phase);
+                b += v * std::cos(phase);
+                ++count;
+            }
+        return 2 * std::sqrt(a * a + b * b) / count / 50;
+    };
+    for (const auto &[key, scale] : { std::pair<QString, double>(smoothKey, 0.0), std::pair<QString, double>(sharpenKey, 2.0) }) {
+        Document doc;
+        QVERIFY(doc.addMesh(grid, QStringLiteral("grid"), vcg::tri::io::Mask::IOM_WEDGTEXCOORD) >= 0);
+        doc.setCurrentMeshIndex(0);
+        TextureAssociationUtils::replaceTextureAssociations(doc.mesh(0), { TextureAssociationUtils::makeTextureAssetFromImage(wave, QStringLiteral("wave.png")) });
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("detailSize"), wavelength);
+        params.insert(QStringLiteral("gradientScale"), scale);
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        const double gain = amplitude(doc.mesh(0).textureAssets.front().image), expected = (1 + scale) / 2;
+        qDebug("gradient scale %.0f at the Detail Size: gain %.3f, %.3f expected", scale, gain, expected);
+        QVERIFY(std::abs(gain - expected) < 0.03 * (1 + scale));
+    }
 }
 
 // A layout whose vertices sit on the texel grid puts edges exactly through texel centers and along the

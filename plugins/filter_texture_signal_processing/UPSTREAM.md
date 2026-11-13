@@ -78,6 +78,11 @@ drop `branch = meshlab`, move the gitlink to upstream's merge commit, and delete
   5.7 GB to factor at 2048², against 28 s for multigrid to agree with it within one level. The
   V-cycles run until one changes no texel by more than a fiftieth of a level (the change per cycle
   understates the remaining error about 40 times on these atlases), and can be canceled.
+- **The weights are lengths.** TextureFiltering's interpolation weight w, and the weights of the
+  LIC sharpening and of the normal smoothing, are set from the filters' *Detail Size* D, in the
+  mesh's units, as w = A (2π / D)², A the surface's area (`weightForDetailSize`): D is the
+  wavelength at which the solve is halfway between the input and its effect. The proposal records
+  the measurement.
 - **Localized filtering** (only selected faces) builds the divergence operator and scales the edge
   differences by the mean of their ends' factors, a node being selected when the triangle nearest
   its texel is; only selected nodes are written. With every face selected the result is the

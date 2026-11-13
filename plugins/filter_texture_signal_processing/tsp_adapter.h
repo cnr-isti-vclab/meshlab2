@@ -60,8 +60,10 @@ std::size_t inpaint(const Atlas &atlas, Image &image, const std::vector<char> &s
 
 // TextureFiltering: the texture whose values stay close to the input and whose gradients on the
 // surface are the input's scaled by `gradientScale` (below 1 smooths, above 1 sharpens), solving
-// (w M + S) x = w M x0 + gradientScale S x0 with w = `fidelity`, the mesh area normalized to 1,
-// by multigrid until one more V-cycle changes no texel by more than a fiftieth of a level. With
+// (w M + S) x = w M x0 + gradientScale S x0, the mesh area normalized to 1, with w set so that
+// `detailSize`, in the mesh's units, is the crossover: details smaller than it get the gradient
+// scale, larger ones keep the input (weightForDetailSize in the source has the formula). Solved by
+// multigrid until one more V-cycle changes no texel by more than a fiftieth of a level. With
 // `detail` (an image of the same size), the gradients come from it instead, and the values are held
 // to `image`'s: TextureFiltering's low-frequency input (--inLow) is `image`. Alpha is left as it was.
 // With `selectedTriangles` (one flag per triangle), the gradients are scaled only around the
@@ -76,7 +78,7 @@ struct FilterOutcome
     bool converged = false;  // false if the cap on V-cycles was reached first
     bool canceled = false;
 };
-FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double gradientScale,
+FilterOutcome filter(const Atlas &atlas, Image &image, double detailSize, double gradientScale,
                      const std::vector<char> *selectedTriangles, const Image *detail, bool normals,
                      const std::function<bool(unsigned int)> &onVCycle = {});
 
@@ -86,20 +88,20 @@ FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double g
 // white, or a random gray), is diffused under a metric stretched across the field,
 // (w M_a + S_a) x = w M_a n, solved directly, with the program's weight w set from `streakLength`, in
 // the mesh's units (lineIntegralConvolution's comment says how), and the result sharpened by filter() with
-// `sharpenFidelity` and `sharpenScale`, whose outcome this returns. Writes every texel of the
+// `sharpenDetailSize` and `sharpenScale`, whose outcome this returns. Writes every texel of the
 // atlas into `image`, opaque. `onVCycle` is also called once, with 0, once the streak system is
 // factored, so the run can be canceled there. Throws std::runtime_error with TSP's message if TSP
 // fails.
 enum class Noise { Hue, BlackAndWhite, Gray };
 FilterOutcome lineIntegralConvolution(const Atlas &atlas, Image &image, const std::vector<std::array<double, 3>> &field,
-                                      double streakLength, double sharpenFidelity, double sharpenScale,
+                                      double streakLength, double sharpenDetailSize, double sharpenScale,
                                       double anisotropyExponent, Noise noise, unsigned int seed,
                                       const std::function<bool(unsigned int)> &onVCycle = {});
 
 // TSP's principal curvature per triangle (InitializePrincipalCurvatureDirection): the shape operator
 // of each triangle from the differences of its vertex normals, after LineIntegralConvolution's
-// smoothing of those normals (`smoothingIterations` rounds, `smoothingWeight` its interpolation
-// weight, the surface's area taken as 1). Directions are unit vectors, curvatures in the surface's
+// smoothing of those normals (`smoothingIterations` rounds, each a screened Poisson solve whose
+// crossover is `smoothingSize`, in the surface's units, as `filter`'s `detailSize`). Directions are unit vectors, curvatures in the surface's
 // units, the maximal first. Throws std::runtime_error with TSP's message if TSP fails.
 struct TriangleCurvature
 {
@@ -107,6 +109,6 @@ struct TriangleCurvature
     double maxCurvature = 0, minCurvature = 0;
 };
 std::vector<TriangleCurvature> principalCurvature(const Surface &surface, unsigned int smoothingIterations,
-                                                  double smoothingWeight);
+                                                  double smoothingSize);
 
 } // namespace TspAdapter

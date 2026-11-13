@@ -178,7 +178,7 @@ MeshFilterRunResult computeCurvature(const FilterParams &params, Document &doc)
     std::vector<TspAdapter::TriangleCurvature> curvature;
     try {
         curvature = TspAdapter::principalCurvature(surface, unsigned(params.getInt(QStringLiteral("smoothingIterations"))),
-                                                   params.getDouble(QStringLiteral("smoothingWeight")));
+                                                   params.getDouble(QStringLiteral("smoothingSize")));
     } catch (const std::exception &e) {
         return fail(QObject::tr("TextureSignalProcessing failed: %1").arg(QString::fromLocal8Bit(e.what())));
     }
@@ -290,7 +290,7 @@ MeshFilterRunResult colorizeByDirections(const FilterParams &params, Document &d
         try {
             outcome = TspAdapter::lineIntegralConvolution(
                 prepared.atlas, image, field, params.getDouble(QStringLiteral("streakLength")),
-                params.getDouble(QStringLiteral("sharpenFidelity")), params.getDouble(QStringLiteral("sharpenScale")),
+                params.getDouble(QStringLiteral("sharpenDetailSize")), params.getDouble(QStringLiteral("sharpenScale")),
                 params.getDouble(QStringLiteral("anisotropyExponent")), noise, seed + unsigned(slot), progress);
         } catch (const std::exception &e) {
             return fail(QObject::tr("TextureSignalProcessing failed: %1").arg(QString::fromLocal8Bit(e.what())));
@@ -445,7 +445,7 @@ MeshFilterRunResult TextureSignalProcessingFilterPlugin::runFilter(
             // The operators are built in one call that cannot be interrupted; the V-cycles that follow
             // can, and the bar moves with them, though how many are needed is not known in advance.
             const char *message = kProgress[int(kind)];
-            outcome = TspAdapter::filter(prepared.atlas, image, params.getDouble(QStringLiteral("fidelity")),
+            outcome = TspAdapter::filter(prepared.atlas, image, params.getDouble(QStringLiteral("detailSize")),
                                          params.getDouble(QStringLiteral("gradientScale")),
                                          selectedOnly ? &prepared.selected : nullptr,
                                          kind == Kind::TransferDetail ? &detailImage : nullptr, normals,

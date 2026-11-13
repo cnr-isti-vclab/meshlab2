@@ -101,7 +101,7 @@
       "name": "Smooth Texture",
       "pythonName": "smooth_texture",
       "shortDescription": "Smooth a texture on the surface, continuously across its seams.",
-      "longDescriptionMarkdown": "Smooths the texture as a signal on the surface rather than in the image: the texels on the two sides of a seam are neighbors, so the result is continuous across seams, and the islands' outlines in the image do not show up as edges. The texels are held to their input values with weight *Fidelity* while their gradients are held to the input's scaled by *Gradient Scale*: at 0 the gradients are pulled to zero, the strongest smoothing for a given fidelity; a smaller fidelity smooths over a larger area.\n\nIt is the method of Prada, Kazhdan, Chuang and Hoppe, through the `GradientDomain` library of their TextureSignalProcessing, as its `TextureFiltering` program does it, run inside MeshLab. The solution satisfies $$(w\\,M + S)\\,x = w\\,M\\,x_0 + s\\,S\\,x_0,$$ with $x_0$ the input texels, $M$ and $S$ the mass and stiffness of the texture on the surface (the mesh's area taken as 1), $w$ the *Fidelity* and $s$ the *Gradient Scale*. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The chosen texture's image is replaced, its alpha channel left as it was: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\n**Only selected faces.** The gradients are then scaled only on the texels whose nearest face is selected, and only those texels are written: the rest of the texture is left exactly as it was, and the change fades in across the edge of the selection. This needs the library's divergence operator, which takes about 3.5 times the memory.\n\n**Time and memory** are spent mostly in building the operators, and grow with the length of the islands' boundaries in texels: about 10 s and 1.4 GB for a 20k-face mesh with a 1024² texture (4.7 GB with a selection), 28 s and 3.9 GB at 2048², and about 3 minutes and 19 GB for a 3M-face photogrammetry scan with 1,961 islands at 4096² (4 minutes and 47 GB with a selection). Building the operators cannot be interrupted; the solve that follows can be canceled.",
+      "longDescriptionMarkdown": "Smooths the texture as a signal on the surface rather than in the image: the texels on the two sides of a seam are neighbors, so the result is continuous across seams, and the islands' outlines in the image do not show up as edges. Patterns smaller than the *Detail Size* are scaled by the *Gradient Scale*, larger ones are kept: at a scale of 0 the small ones are removed, the strongest smoothing, and a larger Detail Size smooths over a larger area.\n\nIt is the method of Prada, Kazhdan, Chuang and Hoppe, through the `GradientDomain` library of their TextureSignalProcessing, as its `TextureFiltering` program does it, run inside MeshLab. The solution satisfies $$(w\\,M + S)\\,x = w\\,M\\,x_0 + s\\,S\\,x_0,$$ with $x_0$ the input texels, $M$ and $S$ the mass and stiffness of the texture on the surface scaled to unit area, $s$ the *Gradient Scale* and $w = A\\,(2\\pi/D)^2$, $A$ the mesh's area and $D$ the *Detail Size*: a pattern of wavelength $L$ comes out scaled by $(w + s\\,k^2)/(w + k^2)$, $k = 2\\pi\\sqrt{A}/L$, halfway at $L = D$. The program's default $w = 1000$ is a Detail Size of $0.199\\sqrt{A}$. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The chosen texture's image is replaced, its alpha channel left as it was: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\n**Only selected faces.** The gradients are then scaled only on the texels whose nearest face is selected, and only those texels are written: the rest of the texture is left exactly as it was, and the change fades in across the edge of the selection. This needs the library's divergence operator, which takes about 3.5 times the memory.\n\n**Time and memory** are spent mostly in building the operators, and grow with the length of the islands' boundaries in texels: about 10 s and 1.4 GB for a 20k-face mesh with a 1024² texture (4.7 GB with a selection), 28 s and 3.9 GB at 2048², and about 3 minutes and 19 GB for a 3M-face photogrammetry scan with 1,961 islands at 4096² (4 minutes and 47 GB with a selection). Building the operators cannot be interrupted; the solve that follows can be canceled.",
       "tags": [
         "texture",
         "smooth",
@@ -132,7 +132,7 @@
         {
           "id": "gradientScale",
           "label": "Gradient Scale",
-          "help": "The factor the texture's gradients are held to, from 0 (pulled to zero, the most smoothing) to below 1 (barely changed). TextureFiltering's gradient modulation.",
+          "help": "The factor the details much smaller than the Detail Size are scaled by, from 0 (removed, the most smoothing) to below 1 (barely changed); at the Detail Size the scaling is halfway, and larger patterns are kept. TextureFiltering's gradient modulation.",
           "group": "main",
           "type": "double",
           "default": 0.0,
@@ -141,15 +141,15 @@
           "decimals": 2
         },
         {
-          "id": "fidelity",
-          "label": "Fidelity",
-          "help": "How strongly the texels are held to their input values, against the gradients being dampened: the larger, the less the texture changes. The mesh's area is taken as 1, so the same value acts at the same scale on any mesh. TextureFiltering's interpolation weight.",
+          "id": "detailSize",
+          "label": "Detail Size",
+          "help": "The size, on the surface, below which the texture is smoothed: a pattern whose wavelength is this size is scaled halfway by the Gradient Scale, smaller ones fully, and larger ones are barely changed. The default, a fifth of the bounding box diagonal, is about the program's default interpolation weight of 1000 on a compact mesh, whose square root of area is close to its diagonal. TextureFiltering's interpolation weight w is A (2π / size)², A the mesh's area.",
           "group": "main",
-          "type": "double",
-          "default": 1000.0,
-          "min": 1.0,
-          "max": 1000000.0,
-          "decimals": 0
+          "type": "absperc",
+          "default": "@bboxDiagFifth",
+          "min": 0.0,
+          "max": "@bboxDiag5x",
+          "decimals": 6
         },
         {
           "id": "objectSpaceNormals",
@@ -175,7 +175,7 @@
       "name": "Sharpen Texture",
       "pythonName": "sharpen_texture",
       "shortDescription": "Sharpen a texture on the surface, continuously across its seams.",
-      "longDescriptionMarkdown": "Sharpens the texture as a signal on the surface rather than in the image: its gradients are amplified by *Gradient Scale* while the texels are held to their input values with weight *Fidelity*, and since the texels on the two sides of a seam are neighbors, the result is continuous across seams. A smaller fidelity lets the amplified gradients carry further, so the sharpening reaches larger features.\n\nIt is the method of Prada, Kazhdan, Chuang and Hoppe, through the `GradientDomain` library of their TextureSignalProcessing, as its `TextureFiltering` program does it, run inside MeshLab. The solution satisfies $$(w\\,M + S)\\,x = w\\,M\\,x_0 + s\\,S\\,x_0,$$ with $x_0$ the input texels, $M$ and $S$ the mass and stiffness of the texture on the surface (the mesh's area taken as 1), $w$ the *Fidelity* and $s$ the *Gradient Scale*. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The chosen texture's image is replaced, its alpha channel left as it was: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\n**Only selected faces.** The gradients are then scaled only on the texels whose nearest face is selected, and only those texels are written: the rest of the texture is left exactly as it was, and the change fades in across the edge of the selection. This needs the library's divergence operator, which takes about 3.5 times the memory.\n\n**Time and memory** are spent mostly in building the operators, and grow with the length of the islands' boundaries in texels: about 10 s and 1.4 GB for a 20k-face mesh with a 1024² texture (4.7 GB with a selection), 28 s and 3.9 GB at 2048², and about 3 minutes and 19 GB for a 3M-face photogrammetry scan with 1,961 islands at 4096² (4 minutes and 47 GB with a selection). Building the operators cannot be interrupted; the solve that follows can be canceled.",
+      "longDescriptionMarkdown": "Sharpens the texture as a signal on the surface rather than in the image: patterns smaller than the *Detail Size* are amplified by the *Gradient Scale*, larger ones are kept, and since the texels on the two sides of a seam are neighbors, the result is continuous across seams. A larger Detail Size makes the sharpening reach larger features.\n\nIt is the method of Prada, Kazhdan, Chuang and Hoppe, through the `GradientDomain` library of their TextureSignalProcessing, as its `TextureFiltering` program does it, run inside MeshLab. The solution satisfies $$(w\\,M + S)\\,x = w\\,M\\,x_0 + s\\,S\\,x_0,$$ with $x_0$ the input texels, $M$ and $S$ the mass and stiffness of the texture on the surface scaled to unit area, $s$ the *Gradient Scale* and $w = A\\,(2\\pi/D)^2$, $A$ the mesh's area and $D$ the *Detail Size*: a pattern of wavelength $L$ comes out scaled by $(w + s\\,k^2)/(w + k^2)$, $k = 2\\pi\\sqrt{A}/L$, halfway at $L = D$. The program's default $w = 1000$ is a Detail Size of $0.199\\sqrt{A}$. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The chosen texture's image is replaced, its alpha channel left as it was: its file is left alone, and saving the mesh writes the result. Only the faces that use that texture take part, faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\n**Only selected faces.** The gradients are then scaled only on the texels whose nearest face is selected, and only those texels are written: the rest of the texture is left exactly as it was, and the change fades in across the edge of the selection. This needs the library's divergence operator, which takes about 3.5 times the memory.\n\n**Time and memory** are spent mostly in building the operators, and grow with the length of the islands' boundaries in texels: about 10 s and 1.4 GB for a 20k-face mesh with a 1024² texture (4.7 GB with a selection), 28 s and 3.9 GB at 2048², and about 3 minutes and 19 GB for a 3M-face photogrammetry scan with 1,961 islands at 4096² (4 minutes and 47 GB with a selection). Building the operators cannot be interrupted; the solve that follows can be canceled.",
       "tags": [
         "texture",
         "sharpen",
@@ -206,7 +206,7 @@
         {
           "id": "gradientScale",
           "label": "Gradient Scale",
-          "help": "The factor the texture's gradients are amplified by: above 1 sharpens, and the larger the stronger. TextureFiltering's gradient modulation.",
+          "help": "The factor the details much smaller than the Detail Size are amplified by: above 1 sharpens, and the larger the stronger; at the Detail Size they get half the gain, and larger patterns are kept. TextureFiltering's gradient modulation.",
           "group": "main",
           "type": "double",
           "default": 2.0,
@@ -215,15 +215,15 @@
           "decimals": 2
         },
         {
-          "id": "fidelity",
-          "label": "Fidelity",
-          "help": "How strongly the texels are held to their input values, against the gradients being amplified: the larger, the less the texture changes. The mesh's area is taken as 1, so the same value acts at the same scale on any mesh. TextureFiltering's interpolation weight.",
+          "id": "detailSize",
+          "label": "Detail Size",
+          "help": "The size, on the surface, below which the texture is sharpened: a pattern whose wavelength is this size gets half the gain, smaller ones the whole Gradient Scale, and larger ones are barely changed. The default, a fifth of the bounding box diagonal, is about the program's default interpolation weight of 1000 on a compact mesh, whose square root of area is close to its diagonal. TextureFiltering's interpolation weight w is A (2π / size)², A the mesh's area.",
           "group": "main",
-          "type": "double",
-          "default": 1000.0,
-          "min": 1.0,
-          "max": 1000000.0,
-          "decimals": 0
+          "type": "absperc",
+          "default": "@bboxDiagFifth",
+          "min": 0.0,
+          "max": "@bboxDiag5x",
+          "decimals": 6
         },
         {
           "id": "objectSpaceNormals",
@@ -301,7 +301,7 @@
       "name": "Transfer Texture Detail",
       "pythonName": "transfer_texture_detail",
       "shortDescription": "Give a texture the detail of another, keeping its own colors, continuously across seams.",
-      "longDescriptionMarkdown": "Combines two textures laid out on the same UVs: the result takes its fine detail, its gradients on the surface, from the *Detail Texture*, scaled by *Gradient Scale*, and keeps the colors of the *Base Texture* with weight *Fidelity*. For example, a sharp texture from one capture and a soft but color-correct one from another, or a texture whose detail was lost in a correction. At a scale of 1 the detail is kept as it is; below 1 it is softened and above 1 strengthened. A smaller fidelity takes more of the detail texture's coarser variation as well. The texels on the two sides of a seam are neighbors, so the result is continuous across seams.\n\nBoth textures are read through the UVs of the faces that use the base texture, which receives the result. A detail texture of another size is resampled to the base texture's size first.\n\nIt is the low-frequency input (`--inLow`) of the `TextureFiltering` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, run inside MeshLab. The solution satisfies $$(w\\,M + S)\\,x = w\\,M\\,x_b + s\\,S\\,x_d,$$ with $x_b$ and $x_d$ the base and detail texels, $M$ and $S$ the mass and stiffness of the texture on the surface (the mesh's area taken as 1), $w$ the *Fidelity* and $s$ the *Gradient Scale*. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The base texture's image is replaced, its alpha channel left as it was: its file is left alone, and saving the mesh writes the result. Faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\n**Time and memory** are those of *Smooth Texture*: about 10 s and 1.4 GB on a 20k-face mesh at 1024², 28 s and 3.9 GB at 2048², and about 3 minutes and 19 GB on a 3M-face scan at 4096².",
+      "longDescriptionMarkdown": "Combines two textures laid out on the same UVs: the result takes its fine detail, its gradients on the surface, from the *Detail Texture*, the patterns smaller than the *Detail Size*, scaled by *Gradient Scale*, and keeps the colors of the *Base Texture* at larger sizes. For example, a sharp texture from one capture and a soft but color-correct one from another, or a texture whose detail was lost in a correction. At a scale of 1 the detail is kept as it is; below 1 it is softened and above 1 strengthened. A larger Detail Size takes more of the detail texture's coarser variation as well. The texels on the two sides of a seam are neighbors, so the result is continuous across seams.\n\nBoth textures are read through the UVs of the faces that use the base texture, which receives the result. A detail texture of another size is resampled to the base texture's size first.\n\nIt is the low-frequency input (`--inLow`) of the `TextureFiltering` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, run inside MeshLab. The solution satisfies $$(w\\,M + S)\\,x = w\\,M\\,x_b + s\\,S\\,x_d,$$ with $x_b$ and $x_d$ the base and detail texels, $M$ and $S$ the mass and stiffness of the texture on the surface scaled to unit area, $s$ the *Gradient Scale* and $w = A\\,(2\\pi/D)^2$, $A$ the mesh's area and $D$ the *Detail Size*, as in *Smooth Texture*. It is solved by multigrid, until one more V-cycle changes no texel by more than a fiftieth of a level; the log says how many it took. The base texture's image is replaced, its alpha channel left as it was: its file is left alone, and saving the mesh writes the result. Faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\n**Time and memory** are those of *Smooth Texture*: about 10 s and 1.4 GB on a 20k-face mesh at 1024², 28 s and 3.9 GB at 2048², and about 3 minutes and 19 GB on a 3M-face scan at 4096².",
       "tags": [
         "texture",
         "detail",
@@ -341,7 +341,7 @@
         {
           "id": "gradientScale",
           "label": "Gradient Scale",
-          "help": "The factor the detail texture's gradients are taken with: 1 keeps the detail as it is, below 1 softens it and above 1 strengthens it. TextureFiltering's gradient modulation.",
+          "help": "The factor the detail texture's details, those smaller than the Detail Size, are taken with: 1 keeps them as they are, below 1 softens them and above 1 strengthens them. TextureFiltering's gradient modulation.",
           "group": "main",
           "type": "double",
           "default": 1.0,
@@ -350,15 +350,15 @@
           "decimals": 2
         },
         {
-          "id": "fidelity",
-          "label": "Fidelity",
-          "help": "How strongly the result is held to the base texture's colors: the larger, the more closely it keeps them, and the less of the detail texture's coarser variation it takes. The mesh's area is taken as 1, so the same value acts at the same scale on any mesh. TextureFiltering's interpolation weight.",
+          "id": "detailSize",
+          "label": "Detail Size",
+          "help": "The size, on the surface, that divides the two textures: patterns smaller than it come from the detail texture, larger ones from the base texture, half and half at this size. The default, a fifth of the bounding box diagonal, is about the program's default interpolation weight of 1000 on a compact mesh, whose square root of area is close to its diagonal. TextureFiltering's interpolation weight w is A (2π / size)², A the mesh's area.",
           "group": "main",
-          "type": "double",
-          "default": 1000.0,
-          "min": 1.0,
-          "max": 1000000.0,
-          "decimals": 0
+          "type": "absperc",
+          "default": "@bboxDiagFifth",
+          "min": 0.0,
+          "max": "@bboxDiag5x",
+          "decimals": 6
         },
         {
           "id": "objectSpaceNormals",
@@ -384,7 +384,7 @@
       "name": "Compute Principal Curvature Directions per Face (TextureSignalProcessing)",
       "pythonName": "compute_principal_curvature_directions_per_face_texture_signal_processing",
       "shortDescription": "Compute each face's principal curvature directions and curvatures from the variation of the vertex normals across it.",
-      "longDescriptionMarkdown": "Computes, for every face, the two principal curvature directions and the two principal curvatures, and stores them in the faces, the maximal first. Unlike the other *Compute Principal Curvature Directions* filters, which fit a neighborhood around each vertex, this one reads the curvature of each face from how the vertex normals turn across it: the shape operator of the face, the change of the normal along its two edges, whose eigenvectors and eigenvalues are the principal directions and curvatures. It is local and fast, and only as good as the normals, so the normals are first smoothed on the surface: each round moves every normal within its tangent plane to make the normals vary less, held back by *Normal Smoothing Fidelity*.\n\nIt is the computation of the `LineIntegralConvolution` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, with its defaults: two rounds of smoothing at a fidelity of 1000, the surface's area taken as 1. The vertex normals are computed from the faces, area weighted, so the mesh's own normals are not used. Coincident vertices are merged first, so a mesh that repeats its vertices along a seam still has continuous normals there. Faces with no area get no directions.\n\nThe directions are drawn by the curvature decorator once they are on the vertices: *Transfer Curvature Directions from Face to Vertex* averages them there.",
+      "longDescriptionMarkdown": "Computes, for every face, the two principal curvature directions and the two principal curvatures, and stores them in the faces, the maximal first. Unlike the other *Compute Principal Curvature Directions* filters, which fit a neighborhood around each vertex, this one reads the curvature of each face from how the vertex normals turn across it: the shape operator of the face, the change of the normal along its two edges, whose eigenvectors and eigenvalues are the principal directions and curvatures. It is local and fast, and only as good as the normals, so the normals are first smoothed on the surface: each round moves every normal within its tangent plane to make the normals vary less, over about the *Normal Smoothing Size*.\n\nIt is the computation of the `LineIntegralConvolution` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, with about its defaults: two rounds of smoothing, each the solve of *Smooth Texture* on the normals with a gradient scale of 0, at the program's interpolation weight of 1000, a size of $0.199\\sqrt{A}$ for an area $A$, which the default of a fifth of the diagonal approximates on a compact mesh. The vertex normals are computed from the faces, area weighted, so the mesh's own normals are not used. Coincident vertices are merged first, so a mesh that repeats its vertices along a seam still has continuous normals there. Faces with no area get no directions.\n\nThe directions are drawn by the curvature decorator once they are on the vertices: *Transfer Curvature Directions from Face to Vertex* averages them there.",
       "tags": [
         "curvature",
         "principal directions",
@@ -409,15 +409,15 @@
           "max": 20
         },
         {
-          "id": "smoothingWeight",
-          "label": "Normal Smoothing Fidelity",
-          "help": "How strongly each round holds the normals to their values: the smaller, the more each round smooths. The surface's area is taken as 1, so the same value acts at the same scale on any mesh.",
+          "id": "smoothingSize",
+          "label": "Normal Smoothing Size",
+          "help": "The size, on the surface, over which each round smooths the normals: their variations smaller than it are evened out, by half at this size, and larger ones kept, as with the Detail Size of Smooth Texture. The default, a fifth of the bounding box diagonal, is about the program's interpolation weight of 1000 on a compact mesh.",
           "group": "advanced",
-          "type": "double",
-          "default": 1000.0,
-          "min": 1.0,
-          "max": 1000000.0,
-          "decimals": 0
+          "type": "absperc",
+          "default": "@bboxDiagFifth",
+          "min": 0.0,
+          "max": "@bboxDiag5x",
+          "decimals": 6
         }
       ],
       "outputModifies": [
@@ -436,7 +436,7 @@
       "name": "Colorize Texture by Principal Directions (Line Integral Convolution)",
       "pythonName": "colorize_texture_by_principal_directions_line_integral_convolution",
       "shortDescription": "Draw the mesh's principal curvature directions into a texture as colored streaks, continuous across seams.",
-      "longDescriptionMarkdown": "Fills a texture with streaks that run along the mesh's maximal or minimal principal curvature directions: random noise, one value per texel (a color of random hue, black or white, or a random gray: *Noise*), is smeared along the directions on the surface, and the streaks are then sharpened for contrast. Since the texels on the two sides of a seam are neighbors on the surface, the streaks run on across seams, and the islands' outlines do not show.\n\n**The directions** come from the mesh: from its faces when they have principal directions (*Compute Principal Curvature Directions per Face (TextureSignalProcessing)*, or *Transfer Curvature Directions from Vertex to Face*), otherwise from its vertices (the other *Compute Principal Curvature Directions* filters), interpolated into each face as the transfer does, without storing them. Each face's direction is weighted by how different its two curvatures are, which matters only with an *Anisotropy Exponent* above 0: then the streaks fade where the surface curves alike in every direction, where the directions mean little.\n\n**The texture.** The streaks go into a new square texture of the size asked, laid out by the faces' texture coordinates, which need no image: a mesh that has only been parametrized works. It is added after the mesh's textures, which stay, and the faces are switched to it, so it shows at once; saving the mesh writes it. A mesh whose faces use several textures gets one new texture for each. Faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\nIt is the method of the `LineIntegralConvolution` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, run inside MeshLab with about its defaults. The noise $n$ is diffused under a metric stretched across the field, $(w\\,M_a + S_a)\\,x = w\\,M_a\\,n$, solved directly, as the program does with `--useDirectSolver` (multigrid does not converge under this anisotropy). The weight comes from the *Streak Length* $L$, as $w = A\\sqrt{1+10^5}\\,(3.357/L)^2$ with $A$ the area: the metric shortens lengths along the field by $(1+10^5)^{1/4}$, so the noise is averaged over a decay length $L/3.357$, and the program's default $w = 10^4$ is a length of $0.60\\sqrt{A}$;  the streaks $x$ are then sharpened by the solve of *Sharpen Texture*, with the *Sharpening Fidelity* and *Sharpening Gradient Scale*.\n\n**Time and memory:** about 14 s and 3 GB for a 20k-face mesh at 1024², 85 s and 8 GB at 2048².",
+      "longDescriptionMarkdown": "Fills a texture with streaks that run along the mesh's maximal or minimal principal curvature directions: random noise, one value per texel (a color of random hue, black or white, or a random gray: *Noise*), is smeared along the directions on the surface, and the streaks are then sharpened for contrast. Since the texels on the two sides of a seam are neighbors on the surface, the streaks run on across seams, and the islands' outlines do not show.\n\n**The directions** come from the mesh: from its faces when they have principal directions (*Compute Principal Curvature Directions per Face (TextureSignalProcessing)*, or *Transfer Curvature Directions from Vertex to Face*), otherwise from its vertices (the other *Compute Principal Curvature Directions* filters), interpolated into each face as the transfer does, without storing them. Each face's direction is weighted by how different its two curvatures are, which matters only with an *Anisotropy Exponent* above 0: then the streaks fade where the surface curves alike in every direction, where the directions mean little.\n\n**The texture.** The streaks go into a new square texture of the size asked, laid out by the faces' texture coordinates, which need no image: a mesh that has only been parametrized works. It is added after the mesh's textures, which stay, and the faces are switched to it, so it shows at once; saving the mesh writes it. A mesh whose faces use several textures gets one new texture for each. Faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\nIt is the method of the `LineIntegralConvolution` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, run inside MeshLab with about its defaults. The noise $n$ is diffused under a metric stretched across the field, $(w\\,M_a + S_a)\\,x = w\\,M_a\\,n$, solved directly, as the program does with `--useDirectSolver` (multigrid does not converge under this anisotropy). The weight comes from the *Streak Length* $L$, as $w = A\\sqrt{1+10^5}\\,(3.357/L)^2$ with $A$ the area: the metric shortens lengths along the field by $(1+10^5)^{1/4}$, so the noise is averaged over a decay length $L/3.357$, and the program's default $w = 10^4$ is a length of $0.60\\sqrt{A}$;  the streaks $x$ are then sharpened by the solve of *Sharpen Texture*, with the *Sharpening Detail Size* and *Sharpening Gradient Scale*.\n\n**Time and memory:** about 14 s and 3 GB for a 20k-face mesh at 1024², 85 s and 8 GB at 2048².",
       "tags": [
         "texture",
         "curvature",
@@ -524,15 +524,15 @@
           "decimals": 6
         },
         {
-          "id": "sharpenFidelity",
-          "label": "Sharpening Fidelity",
-          "help": "The fidelity of the sharpening that follows, as in Sharpen Texture. The program's sharpening interpolation weight.",
+          "id": "sharpenDetailSize",
+          "label": "Sharpening Detail Size",
+          "help": "The Detail Size of the sharpening that follows, as in Sharpen Texture: the streaks' variations smaller than it are amplified by the Sharpening Gradient Scale, for contrast. The default, 5% of the bounding box diagonal, is about the program's sharpening interpolation weight of 10000 on a compact mesh.",
           "group": "advanced",
-          "type": "double",
-          "default": 10000.0,
-          "min": 1.0,
-          "max": 1000000.0,
-          "decimals": 0
+          "type": "absperc",
+          "default": "@bboxDiag005",
+          "min": 0.0,
+          "max": "@bboxDiag5x",
+          "decimals": 6
         },
         {
           "id": "sharpenScale",

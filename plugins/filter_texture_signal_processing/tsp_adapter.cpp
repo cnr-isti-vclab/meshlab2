@@ -468,14 +468,37 @@ bool runVCycles(Hierarchy &gd, FilterOutcome &outcome, const std::function<bool(
     return true;
 }
 
+// The weight w of a screened Poisson solve on the surface scaled to unit area, (w M + S) x =
+// w M x0 + s S x0, that makes `size`, in the mesh's units, its crossover: a sinusoid of wavelength
+// L on the surface comes out scaled by (w + s k^2) / (w + k^2), k = 2 pi sqrt(A) / L and A the
+// surface's area, so halfway between kept (1) and scaled (s) where k^2 = w, that is
+// w = A (2 pi / size)^2. Measured with Smooth and Sharpen Texture on a flat grid, a sinusoid of the
+// size's wavelength: 0.502 for 0.5 and 1.501 for 1.5 (s = 2)
+// (FilterTests::textureSignalProcessingDetailSizeIsTheCrossover).
+double weightForDetailSize(const Surface &surface, double size)
+{
+    if (!(size > 0))
+        throw std::runtime_error("The detail size must be positive.");
+    double area = 0;
+    for (const std::array<unsigned int, 3> &t : surface.triangles) {
+        const std::array<double, 3> &a = surface.positions[t[0]], &b = surface.positions[t[1]], &c = surface.positions[t[2]];
+        const double u[] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] }, v[] = { c[0] - a[0], c[1] - a[1], c[2] - a[2] };
+        const double n[] = { u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0] };
+        area += std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) / 2;
+    }
+    const double k = 2 * M_PI / size;
+    return area * k * k;
+}
+
 } // namespace
 
-FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double gradientScale,
+FilterOutcome filter(const Atlas &atlas, Image &image, double detailSize, double gradientScale,
                      const std::vector<char> *selectedTriangles, const Image *detail, bool normals,
                      const std::function<bool(unsigned int)> &onVCycle)
 {
     return rethrown([&]() -> FilterOutcome {
         const bool localized = selectedTriangles != nullptr;
+        const double fidelity = weightForDetailSize(atlas, detailSize);
         const PaddedAtlas p(atlas, image);
         Hierarchy gd(
             kQuadratureSamples, atlas.triangles.size(), atlas.positions.size(), p.texture.vertices.size(),
@@ -542,7 +565,7 @@ FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double g
 }
 
 FilterOutcome lineIntegralConvolution(const Atlas &atlas, Image &image, const std::vector<std::array<double, 3>> &field,
-                                      double streakLength, double sharpenFidelity, double sharpenScale,
+                                      double streakLength, double sharpenDetailSize, double sharpenScale,
                                       double anisotropyExponent, Noise noise, unsigned int seed,
                                       const std::function<bool(unsigned int)> &onVCycle)
 {
@@ -657,14 +680,15 @@ FilterOutcome lineIntegralConvolution(const Atlas &atlas, Image &image, const st
         } // the anisotropic operators are released before the sharpening builds its own
 
         // The program's sharpening of the streaks, the stage-2 solve.
-        return filter(atlas, image, sharpenFidelity, sharpenScale, nullptr, nullptr, false, onVCycle);
+        return filter(atlas, image, sharpenDetailSize, sharpenScale, nullptr, nullptr, false, onVCycle);
     });
 }
 
 std::vector<TriangleCurvature> principalCurvature(const Surface &surface, unsigned int smoothingIterations,
-                                                  double smoothingWeight)
+                                                  double smoothingSize)
 {
     return rethrown([&]() -> std::vector<TriangleCurvature> {
+        const double smoothingWeight = smoothingIterations > 0 ? weightForDetailSize(surface, smoothingSize) : 0;
         TexturedTriangleMesh<Real> mesh;
         for (const std::array<double, 3> &p : surface.positions)
             mesh.surface.vertices.emplace_back(p[0], p[1], p[2]);

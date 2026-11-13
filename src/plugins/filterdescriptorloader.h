@@ -88,6 +88,7 @@ class Document;
 // @bboxDiag001 is 0.1%. Read the line, not the name.
 //   @bboxDiag01            - bboxDiag * 0.01  (alias)
 //   @bboxDiagTenth         - bboxDiag * 0.1
+//   @bboxDiagFifth         - bboxDiag * 0.2
 //   @bboxDiagHalf          - bboxDiag * 0.5
 //   @bboxDiag5x            - bboxDiag * 5.0
 //   @documentUnit          - the document's unit, as LengthUnits::scriptId() spells it

@@ -380,6 +380,7 @@ QVariant resolveToken(const QVariant &v, double bboxDiag,
     if (token == QStringLiteral("bboxDiag003"))        return bboxDiag * 0.03;
     if (token == QStringLiteral("bboxDiag005"))        return bboxDiag * 0.05;
     if (token == QStringLiteral("bboxDiagTenth"))      return bboxDiag * 0.1;
+    if (token == QStringLiteral("bboxDiagFifth"))      return bboxDiag * 0.2;
     if (token == QStringLiteral("bboxDiagHalf"))       return bboxDiag * 0.5;
     if (token == QStringLiteral("bboxDiag5x"))         return bboxDiag * 5.0;
     if (token == QStringLiteral("negBboxDiag"))        return -bboxDiag;
