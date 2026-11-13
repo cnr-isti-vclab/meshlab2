@@ -58,24 +58,6 @@ MeshFilterRunResult fail(const QString &message)
     return r;
 }
 
-// Gives every corner of a textured face the face's slot, and returns how many slots the faces
-// use. A face with no texture (index -1, as on the cap of a plane cut) is left without one.
-int ensureTextureSlotIndices(VCGMesh &mesh)
-{
-    int maxSlot = -1;
-    for (auto &face : mesh.face) {
-        const int faceSlot = face.WT(0).N();
-        if (faceSlot < 0)
-            continue;
-        for (int k = 0; k < 3; ++k) {
-            if (face.WT(k).N() < 0)
-                face.WT(k).N() = faceSlot;
-            maxSlot = std::max(maxSlot, int(face.WT(k).N()));
-        }
-    }
-    return maxSlot + 1;
-}
-
 // Overwriting keeps each slot's texture name and replaces its image. The file it came from is
 // left alone and stays the texture's path, so the texture shows changed; saving the mesh
 // writes the new image beside it under a free name.
@@ -98,18 +80,6 @@ void keepOverwrittenTexturePaths(const Document::MeshEntry &entry, std::vector<M
 int textureAssociationCount(const Document::MeshEntry &entry)
 {
     return Document::meshTextureAssociationCount(entry);
-}
-
-void offsetTextureSlotIndices(VCGMesh &mesh, int slotOffset)
-{
-    if (slotOffset == 0)
-        return;
-    for (VCGFace &face : mesh.face) {
-        for (int k = 0; k < 3; ++k) {
-            if (face.WT(k).N() >= 0)
-                face.WT(k).N() = short(face.WT(k).N() + slotOffset);
-        }
-    }
 }
 
 template<class Scalar>
@@ -1001,20 +971,20 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         if ((entry.ioMask & Mask::IOM_VERTCOLOR) == 0)
             return fail(QObject::tr("Current mesh does not have per-vertex color."));
 
-        const int textW = params.getInt(QStringLiteral("textW"));
-        const int textH = params.getInt(QStringLiteral("textH"));
+        const int textW = params.getInt(QStringLiteral("textureSize"));
+        const int textH = textW;
         const bool overwrite = params.getBool(QStringLiteral("overwrite"));
         const bool pullPush = params.getBool(QStringLiteral("pullpush"));
         const QString requestedName = params.getString(QStringLiteral("textureName")).trimmed();
 
         if (textW <= 0)
-            return fail(QObject::tr("Texture Width has an incorrect value."));
-        if (textH <= 0)
-            return fail(QObject::tr("Texture Height has an incorrect value."));
+            return fail(QObject::tr("Texture Size has an incorrect value."));
         if (overwrite && !Document::hasMeshTextureAssociation(entry))
             return fail(QObject::tr("Mesh has no associated texture to overwrite."));
 
-        const int slotCount = std::max(1, ensureTextureSlotIndices(mesh));
+        // New textures go one to each texture the faces use; overwriting keeps the indices of the old.
+        const int usedSlots = Tex::ensureTextureSlotIndices(mesh);
+        const int slotCount = std::max(1, overwrite ? usedSlots : Tex::compactTextureSlotIndices(mesh));
         const int previousTextureCount = textureAssociationCount(entry);
         const QStringList outputNames = overwrite
             ? overwriteTextureNames(entry, slotCount)
@@ -1061,7 +1031,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
 
         const bool appendNewTextures = !overwrite && previousTextureCount > 0;
         if (appendNewTextures) {
-            offsetTextureSlotIndices(entry.mesh, previousTextureCount);
+            Tex::offsetTextureSlotIndices(entry.mesh, previousTextureCount);
             Tex::appendTextureAssociations(entry, outputAssets);
             ++entry.materialRevision;
             doc.markMeshGeometryChanged(
@@ -1087,6 +1057,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                               "saving the mesh writes them.").arg(slotCount)
                 : QObject::tr("Made %1 texture image(s); saving the mesh writes them.").arg(slotCount)
         };
+        result.visualizationHints.push_back({ meshIndex, MeshFilterVisualizationAttribute::Texture });
         return result;
     }
 
@@ -1188,15 +1159,13 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         if (!mode)
             return fail(QObject::tr("Unsupported source attribute mode '%1'.").arg(attributeModeId));
 
-        const int textW = params.getInt(QStringLiteral("textW"));
-        const int textH = params.getInt(QStringLiteral("textH"));
+        const int textW = params.getInt(QStringLiteral("textureSize"));
+        const int textH = textW;
         const bool overwrite = params.getBool(QStringLiteral("overwrite"));
         const bool pullPush = params.getBool(QStringLiteral("pullpush"));
         const QString requestedName = params.getString(QStringLiteral("textureName")).trimmed();
         if (textW <= 0)
-            return fail(QObject::tr("Texture Width has an incorrect value."));
-        if (textH <= 0)
-            return fail(QObject::tr("Texture Height has an incorrect value."));
+            return fail(QObject::tr("Texture Size has an incorrect value."));
 
         const Document::MeshEntry &sourceEntry = doc.mesh(sourceMeshIndex);
         Document::MeshEntry &targetEntry = doc.mesh(targetMeshIndex);
@@ -1240,9 +1209,9 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             }
         }
 
-        if (!Document::hasMeshTextureAssociation(targetEntry))
-            ensureTextureSlotIndices(targetEntry.mesh);
-        const int targetSlotCount = std::max(1, ensureTextureSlotIndices(targetEntry.mesh));
+        // New textures go one to each texture the faces use; overwriting keeps the indices of the old.
+        const int usedTargetSlots = Tex::ensureTextureSlotIndices(targetEntry.mesh);
+        const int targetSlotCount = std::max(1, overwrite ? usedTargetSlots : Tex::compactTextureSlotIndices(targetEntry.mesh));
         const int previousTextureCount = textureAssociationCount(targetEntry);
         const QStringList outputNames = overwrite
             ? overwriteTextureNames(targetEntry, targetSlotCount)
@@ -1260,7 +1229,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
 
         std::unique_ptr<VCGMesh> sourceWorldMesh = makeWorldMesh(sourceEntry, true);
         std::unique_ptr<VCGMesh> targetWorldMesh = makeWorldMesh(targetEntry, false);
-        ensureTextureSlotIndices(*targetWorldMesh);
+        Tex::ensureTextureSlotIndices(*targetWorldMesh);
 
         if (samplingFromTexture) {
             const int requestedTextureSlot = params.getTextureRef(QStringLiteral("sourceTexture"), 0);
@@ -1337,7 +1306,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         attributeLabel.replace(QLatin1Char('_'), QLatin1Char(' '));
         const bool appendNewTextures = !overwrite && previousTextureCount > 0;
         if (appendNewTextures) {
-            offsetTextureSlotIndices(targetEntry.mesh, previousTextureCount);
+            Tex::offsetTextureSlotIndices(targetEntry.mesh, previousTextureCount);
             Tex::appendTextureAssociations(targetEntry, outputAssets);
             ++targetEntry.materialRevision;
             doc.markMeshGeometryChanged(
@@ -1369,6 +1338,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                       .arg(targetSlotCount)
                       .arg(targetEntry.name)
         };
+        result.visualizationHints.push_back({ targetMeshIndex, MeshFilterVisualizationAttribute::Texture });
         return result;
     }
 
@@ -1445,26 +1415,9 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             targetImage.height(),
             false);
 
-        // The result is a texture with no file, overwriting a slot's image or added as a new
-        // one; saving the mesh writes it. An overwritten slot keeps its name and the path of
-        // the file it came from, which is left alone (overwriteTextureNames).
-        int associatedIndex = -1;
-        if (outputTarget.overwriteExisting) {
-            associatedIndex = outputTarget.textureSlot;
-            if (associatedIndex >= 0 && associatedIndex < int(entry.textureAssets.size())) {
-                MeshIOTextureAsset &asset = entry.textureAssets[size_t(associatedIndex)];
-                asset.image = targetImage;
-                if (asset.name.trimmed().isEmpty())
-                    asset.name = Tex::outputTextureNames(entry, {}, QStringLiteral("tangent_normal"), 1).front();
-                Tex::rebuildLegacyTextureAssociation(entry);
-            }
-        } else {
-            entry.textureAssets.push_back(Tex::makeTextureAssetFromImage(
-                targetImage,
-                Tex::outputTextureNames(entry, outputTarget.name, QStringLiteral("tangent_normal"), 1).front()));
-            Tex::rebuildLegacyTextureAssociation(entry);
-            associatedIndex = int(entry.textureAssets.size()) - 1;
-        }
+        const int associatedIndex = Tex::storeOutputTexture(entry, outputTarget, targetImage, QStringLiteral("tangent_normal"));
+        if (associatedIndex < 0)
+            return fail(QObject::tr("Selected output texture slot has no image to overwrite."));
 
         if (bindToPbr) {
             Tex::ensureMaterialSlotCount(entry, selectedSlot + 1);

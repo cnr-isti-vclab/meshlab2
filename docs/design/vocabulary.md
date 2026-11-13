@@ -522,6 +522,7 @@ display name leads with a word that is not here.
 | Confining a filter to the selection (UI label, 2026-09-28) | `Only selected vertices` / `Only selected faces` / `Only selected edges` — always naming the kind, since vertex and face selections are separate | `Only on selection`, `Affect only selection`, `Selection only`, `Selected Only`, `Affect only selected faces` |
 | Where a transform filter's matrix goes (UI label, 2026-09-29) | `Result`: `Assign matrix` / `Bake positions` — two choices that each say what happens, set by the framework for every filter that leaves a matrix on a layer | `Freeze Matrix` as a toggle (one verb, and nothing said about the other choice), `Freeze`, `Apply matrix` |
 | Edge of a grid cell that reduces points to one per cell (UI label, 2026-10-16) | `Cell Size`, as *Simplify by Vertex Clustering* and *Sample Vertices by Clustering* already say; qualified by what the grid is for when a dialog holds several lengths: `Downsampling Cell Size` (the matching step of the Open3D aligners) | `Matching Voxel Size`, `Registration Voxel Size` — they name the stage the number serves, not what it controls, and `voxel` implies a volume. `Voxel Size` stays where the filter's own name says voxel grid (*Sample Point Cloud by Voxel Grid*) or builds a volume |
+| Size of a texture a filter makes (UI label and id, 2026-11-13) | `Texture Size`, id `textureSize`: one side, in texels, of a square texture; the help says the unit, the label does not. Width and height stay only where the size describes images that already exist (the UV measures, where 0 means each image's own). See [Texture size](#texture-size-2026-11-13) | a width and height pair for a new texture (`textW`/`textH`), `texsize`, `Texture size (px)`, `Texture Size (px)`, `Atlas size (pixels)` |
 | Normal vector | `normal` | `normals direction` |
 | Layer matrix | `matrix` | `transformation matrix` (verbose), `xform` |
 | 1D abstraction of a shape | `curve skeleton` | `skeleton` alone, `morphological skeleton`, `medial axis`, `centerline` |
@@ -548,6 +549,35 @@ Each rejected synonym names something else:
   *surface*, not a curve, and a curve skeleton only approximates part of it. A filter
   that really computed it would call it that.
 - **`centerline`** usually means one path through a tube, with no branching.
+
+### Texture size (2026-11-13)
+
+A texture a filter makes is **square**, and its size is one number: `textureSize`,
+labelled `Texture Size`, the side in texels. That was already what most of these
+filters asked; three transfers asked for a width and a height instead, and the labels
+spelled the unit three ways. A width and height pair stays where the numbers describe
+images that exist, of any shape: *Measure UV Mapping*, *Measure Texel Coverage* and
+*Select Overlapping UV Faces* take `textureWidth`/`textureHeight`, 0 for each image's own
+size.
+
+*Colorize Texture by Principal Directions (Line Integral Convolution)* follows the rule
+from its first commit. The other filters moved as below (approved and applied
+2026-11-13); the parameter ids are also pymeshlab2's keyword arguments, renamed outright
+with no alias. The helps now say the unit, texels.
+
+| Filter | Current id · label | Target id · label | Evidence | Verdict |
+|---|---|---|---|---|
+| *Transfer Color from Vertex to Texture* | `textW`, `textH` · `Texture width (px)`, `Texture height (px)` | `textureSize` · `Texture Size` | `filter_texture/filters.json`; `texturefilterplugin.cpp` built `QImage(QSize(textW, textH))` | id and label |
+| *Transfer Vertex Attributes to Texture by Closest Point* | same | same | same file and code path | id and label |
+| *Transfer Texture to Texture by Closest Point* | same | same | same file and code path | id and label |
+| *Transfer Color from Visible Rasters to Texture* | `texsize` · `Texture size (px)` | `textureSize` · `Texture Size` | `filter_color_projection`, `colorprojectionfilterplugin.cpp:306`; also set by the test fixture `makePhotoTexturedGargoyle` | id and label |
+| *Parametrize from Registered Rasters with Texture* | `textureSize` · `Texture size` | `textureSize` · `Texture Size` | `filter_img_patch_param`, `imgpatchparamfilterplugin.cpp:1240` | label |
+| *Transfer Color from Visible Rasters to Texture (Texture Consolidation)* | `textureSize` · `Texture Size (px)` | `textureSize` · `Texture Size` | `filter_texture_consolidation/filters.json` | label |
+| *Set Texture* and *Parametrize by Atlas (xatlas)* | `dummy_img_size` · `Dummy size` | unchanged id · `Dummy Texture Size` | both make a square placeholder image (`makeDummyTexture(imageSize, …)`); the id belongs to the `dummy_*` group with `dummy_check_size` and `dummy_type`, which a rename of its own would move together | label |
+| *Create Atlased Mesh from Abstract Domain* and *Pack UV Charts (vcglib)* | `textureSize` · `Atlas size (pixels)` | `textureSize` · `Atlas Size` | no texture is made: the side of the square grid the charts are packed on (`layout.packing.textureSize`; Pack UV Charts' placeholder image only feeds the packer) | label |
+| *Measure UV Mapping*, *Measure Texel Coverage*, *Select Overlapping UV Faces* | `textureWidth`, `textureHeight` · `Texture Width`, `Texture Height` | unchanged | existing images, 0 = each image's own size | none |
+
+Totals: 11 filters; 4 change ids (6 ids become 4), 6 change labels only, 3 stay.
 
 ### Why `scalar`, not `quality`
 

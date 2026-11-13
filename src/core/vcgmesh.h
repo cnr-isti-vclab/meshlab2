@@ -54,7 +54,9 @@ class VCGEdge : public vcg::Edge<VCGUsedTypes,
 
 // Fixed (always allocated): VertexRef, Normal, Color, Quality, BitFlags
 // OCF storable (allocated when data is loaded/computed, preserved in undo):
-//   WedgeTexCoordfOcf
+//   WedgeTexCoordfOcf, CurvatureDirfOcf (principal curvature directions per face, as some
+//   methods compute them; the Transfer Curvature Directions filters convert to and from the
+//   vertex ones)
 // OCF ancillary (allocated on demand by algorithms, discarded after use):
 //   FFAdjOcf, VFAdjOcf, MarkOcf
 class VCGFace : public vcg::Face<VCGUsedTypes,
@@ -65,6 +67,7 @@ class VCGFace : public vcg::Face<VCGUsedTypes,
     vcg::face::Qualityf,
     vcg::face::BitFlags,
     vcg::face::WedgeTexCoordfOcf,
+    vcg::face::CurvatureDirfOcf,
     vcg::face::FFAdjOcf,
     vcg::face::VFAdjOcf,
     vcg::face::MarkOcf> {};

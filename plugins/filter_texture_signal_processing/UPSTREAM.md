@@ -3,8 +3,10 @@
 ## Provenance and boundary
 
 *Repair Texture Seams*, *Dilate Texture across Seams*, *Smooth Texture*, *Sharpen Texture*,
-*Inpaint Texture on Selected Faces* and *Transfer Texture Detail* run the code of Prada, Kazhdan,
-Chuang and Hoppe, *Gradient-Domain Processing within a Texture Atlas* (SIGGRAPH 2018), from
+*Inpaint Texture on Selected Faces*, *Transfer Texture Detail*, *Colorize Texture by Principal
+Directions (Line Integral Convolution)* and *Compute Principal Curvature Directions per Face
+(TextureSignalProcessing)* run the code of Prada, Kazhdan, Chuang and Hoppe, *Gradient-Domain
+Processing within a Texture Atlas* (SIGGRAPH 2018), from
 [`mkazhdan/TextureSignalProcessing`](https://github.com/mkazhdan/TextureSignalProcessing)
 (TSP), in process. The design, and the measurements behind it, are in
 [`docs/design/proposals/texture_signal_processing.md`](../../docs/design/proposals/texture_signal_processing.md).
@@ -30,9 +32,10 @@ it out of everything the adapter includes: compiled, the adapter has no `PLY::` 
 
 ## The fork
 
-The submodule points at a fork because the plugin needs five changes upstream has not merged.
-Each is a pull request of its own, from a branch of the fork; `meshlab` merges all five onto
-upstream's `adfb89e`.
+The submodule points at a fork because the plugin needed changes upstream had not merged.
+Each is a pull request of its own, from a branch of the fork, and `meshlab` merges them onto
+upstream's `adfb89e`. Upstream merged the first five (#20 to #24) by 2026-11-13, with jdumas's
+#18 (`4563bbf`, a fix in `ConstrainedTriangulation.h`) after them; the sixth is still open.
 
 | # | Pull request | Without it |
 |---|---|---|
@@ -41,13 +44,10 @@ upstream's `adfb89e`.
 | 3 | [#22](https://github.com/mkazhdan/TextureSignalProcessing/pull/22) GradientDomain: let a caller skip the divergence operator | 3.5 times the memory: 44.5 GB instead of 15.6 GB on that atlas at 4096² |
 | 4 | [#23](https://github.com/mkazhdan/TextureSignalProcessing/pull/23) Keep the PLY library out of code that does not read or write meshes | The no-sale PLY code linked into MeshLab |
 | 5 | [#24](https://github.com/mkazhdan/TextureSignalProcessing/pull/24) Draw the atlas jitter from a generator of its own, not `rand()` | Every run of a filter in the application gives a different image: the jitter continued the `rand()` sequence (smoothing a 20k-face atlas at 1024², 2.2 million values differed between runs, by up to 0.73 levels) |
+| 6 | (to open) Jitter every atlas vertex, not only those on a line of texel centers | A crash in `_InitializeChart`, or a coarse level failing to factor, on a layout whose vertices sit on the texel grid, such as a regular grid of UVs whose spacing is a whole number of texels: a texel center on an edge two triangles share was covered by neither, since each triangle computes the edge's crossing in Misha's rasterizer on its own (`FilterTests::textureSignalProcessingTakesUvsAlignedWithTheTexels`) |
 
-#17 (jdumas) fixes the same bug as #20 by overwriting the owner, which adds 89 vertices a second
-time to a chart on that atlas; either one going in closes 1.
-
-**When all five are merged:** point `.gitmodules` back at `mkazhdan/TextureSignalProcessing`,
+**When the sixth is merged:** point `.gitmodules` back at `mkazhdan/TextureSignalProcessing`,
 drop `branch = meshlab`, move the gitlink to upstream's merge commit, and delete this section.
-If upstream merges #17 instead of #20, check the 3M-face atlas first (see the proposal).
 
 ## What the adapter does that the programs do not
 
@@ -101,14 +101,32 @@ If upstream merges #17 instead of #20, check the 3M-face atlas first (see the pr
   has another (the program refuses it).
 - **Object-space normal maps** (`TextureFiltering --colorAsNormal`) need no decoding, since the
   solves commute with an affine change of the values; the texels written are renormalized.
+- **Line-integral convolution** takes its field from the mesh's principal directions, the faces'
+  if they have them, the vertices' otherwise, rather than computing curvature itself, scaled by
+  k1 - k2 as the program scales its own. The program's metric construction is reproduced (the
+  embedding metric at unit area, the field at unit root-mean-square length,
+  `InitializeVectorFieldMetric`) and passed to `GradientDomain`'s metric constructor. The streaks are
+  **solved directly**, as with `--useDirectSolver`: under the 1e5 anisotropy multigrid does not
+  converge (300 V-cycles left texels up to 862 levels from the direct solution on a 20k-face atlas
+  at 1024², still changing by 9 per cycle), and the direct solve took less time. Without that
+  flag, the program's batch output runs ten V-cycles of each solve (two sweeps per level) and
+  stops there. The program's weight w is set from the filter's *Streak Length* L, in the
+  mesh's units: w = A √(1 + 1e5) (3.357 / L)², A the area (`lineIntegralConvolution` derives it,
+  and the proposal records the measurement). The noise comes from a `std::mt19937` seeded by the
+  filter's `randomSeed`, as the program's random hue or as black and white or random gray. The
+  sharpening is `filter()`, the stage-2 solve.
+- **Curvature per face** is `InitializePrincipalCurvatureDirection`, after `LineIntegralConvolution`'s
+  normal smoothing, which is in the program rather than the library and is ported into the adapter
+  (`principalCurvature`), on Eigen matrices. TSP measures on the surface scaled to unit area, so its
+  curvatures are multiplied back by the square root of the area.
 - **Refused or left out:** faces folded over their own UV island are refused for the repair
   (they fault in `_InitializeChart`); faces with no UV area are left out of both.
 
 ## Updating
 
-1. Move the submodule, rebuild, and run the plugin's tests (the three `textureSignalProcessing`
-   rows of `FilterTests`, and the smoke rows).
+1. Move the submodule, rebuild, and run the plugin's tests (the `textureSignalProcessing` and
+   `principalCurvatureDirections` rows of `FilterTests`, and the smoke rows).
 2. Re-run the symbol check above.
-3. If TSP changed `SetExteriorTexels.cpp`, `TextureDilation.cpp`, `TextureFiltering.cpp` or
-   `SeamStitcher.cpp`, compare the adapter's functions with them: the adapter reproduces their
+3. If TSP changed `SetExteriorTexels.cpp`, `TextureDilation.cpp`, `TextureFiltering.cpp`,
+   `SeamStitcher.cpp` or `LineIntegralConvolution.cpp`, compare the adapter's functions with them: the adapter reproduces their
    computation, with the differences listed above, and nothing else.

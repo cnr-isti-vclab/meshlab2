@@ -287,13 +287,13 @@
         },
         {
           "id": "textureSize",
-          "label": "Atlas size (pixels)",
+          "label": "Atlas Size",
           "type": "int",
           "group": "main",
           "default": 2048,
           "min": 16,
           "max": 16384,
-          "help": "Side of the square atlas the charts are packed into. The UVs come back normalized either way; this sets the resolution the packer works at, and so what the gutter is worth. A domain has many small charts, and the gutter is what costs atlas area: on a 1.2k sphere, 291 charts at 1024 with a 4-pixel gutter cover 56% of the atlas, and the same run at 2048 covers 67%."
+          "help": "Side, in texels, of the square atlas the charts are packed into. The UVs come back normalized either way; this sets the resolution the packer works at, and so what the gutter is worth. A domain has many small charts, and the gutter is what costs atlas area: on a 1.2k sphere, 291 charts at 1024 with a 4-pixel gutter cover 56% of the atlas, and the same run at 2048 covers 67%."
         },
         {
           "id": "gutterWidth",

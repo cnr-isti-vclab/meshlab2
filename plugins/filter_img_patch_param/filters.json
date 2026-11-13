@@ -112,8 +112,8 @@
       "parameters": [
         {
           "id": "textureSize",
-          "label": "Texture size",
-          "help": "Specifies the dimension of the generated texture.",
+          "label": "Texture Size",
+          "help": "The side of the generated texture, which is square, in texels.",
           "group": "main",
           "type": "int",
           "default": 1024,

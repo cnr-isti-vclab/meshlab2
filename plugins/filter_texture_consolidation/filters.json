@@ -120,8 +120,8 @@
         },
         {
           "id": "textureSize",
-          "label": "Texture Size (px)",
-          "help": "Width and height of the texture image produced.",
+          "label": "Texture Size",
+          "help": "The side of the texture produced, which is square, in texels.",
           "group": "main",
           "type": "int",
           "default": 1024,

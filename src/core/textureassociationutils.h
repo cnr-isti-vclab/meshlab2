@@ -1,6 +1,7 @@
 #pragma once
 
 #include "document.h"
+#include "filterparam.h"
 #include "meshioplugin.h"
 #include <QImage>
 #include <QString>
@@ -72,6 +73,17 @@ void replaceTextureAssociations(
 void appendTextureAssociations(
     Document::MeshEntry &entry,
     const std::vector<MeshIOTextureAsset> &assets);
+// Gives every corner of a textured face the face's texture index, and returns how many textures
+// the faces use. A face with no texture (index -1, as on the cap of a plane cut) is left without one.
+int ensureTextureSlotIndices(VCGMesh &mesh);
+// Renumbers the faces' texture indices 0, 1, ... in the order of the indices they had, dropping those
+// no face uses, and returns how many remain. A filter that makes one new texture for each texture the
+// faces use calls it first: numbered by the old indices, it would also make one for every index no face
+// uses, and since appending moves the faces past the old textures, one more on every run.
+int compactTextureSlotIndices(VCGMesh &mesh);
+// Moves every face's texture index by `slotOffset`, faces with none left alone: after
+// appendTextureAssociations, it gives each face the new texture made for its old one.
+void offsetTextureSlotIndices(VCGMesh &mesh, int slotOffset);
 void ensureMaterialSlotCount(Document::MeshEntry &entry, int count);
 int ensureTextureListed(Document::MeshEntry &entry, const QString &path);
 // The asset that holds texture `textureIndex`'s image, for a filter that replaces the image.
@@ -80,6 +92,13 @@ int ensureTextureListed(Document::MeshEntry &entry, const QString &path);
 // order, each slot bound to its own: the indices of the other textures stay as they were.
 // nullptr, with nothing changed, if the texture has neither an asset nor a file.
 MeshIOTextureAsset *writableTextureAsset(Document::MeshEntry &entry, int textureIndex);
+// Puts a filter's result where a `textureoutputref` parameter asks: over the image of an existing
+// texture, whose file is left alone and whose name is kept (made from `role`, as for a new one, if
+// it had none), or into a new texture, named as asked or after the layer and `role`
+// (outputTextureNames). Saving the mesh writes it. Returns the texture's index, or -1, with nothing
+// changed, if the texture to overwrite does not exist.
+int storeOutputTexture(Document::MeshEntry &entry, const TextureOutputRefValue &target, const QImage &image,
+                       const QString &role);
 // Removes the layer's texture image `textureIndex`. The material slots stop referring to it,
 // by index or by path, and a slot left with no image at all goes as well: the faces that used
 // it lose their texture (index -1) and those of the slots after it move down one. Returns how

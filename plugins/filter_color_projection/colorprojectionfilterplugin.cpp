@@ -303,7 +303,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
     // --- multi texture ---
     if (fid == QString::fromLatin1(kFilterMultiTexture)) {
         float eta = float(p.getDouble(QStringLiteral("deptheta"), 0.5));
-        int ts = p.getInt(QStringLiteral("texsize"), 1024);
+        int ts = p.getInt(QStringLiteral("textureSize"), 1024);
         bool dr = p.getBool(QStringLiteral("dorefill"), true);
         bool ua = p.getBool(QStringLiteral("useangle"), true);
         bool ud = p.getBool(QStringLiteral("usedistance"), true);

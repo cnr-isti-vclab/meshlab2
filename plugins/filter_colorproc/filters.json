@@ -719,6 +719,69 @@
         { "id": "areaWeight", "label": "Area Weighted", "help": "If true the vertex quality is computed according to the surface of the involved faces.", "group": "main", "type": "bool", "default": true }
       ],
       "outputModifies": ["VQ"]
+    },
+    {
+      "id": "transfer_curvature_directions_from_vertex_to_face",
+      "categories": [
+        "Transfer/Within a Mesh",
+        "Attribute/Curvature"
+      ],
+      "name": "Transfer Curvature Directions from Vertex to Face",
+      "pythonName": "transfer_curvature_directions_from_vertex_to_face",
+      "shortDescription": "Interpolate the vertices' principal curvature directions and curvatures into their faces.",
+      "longDescriptionMarkdown": "Gives each face the principal curvature directions and curvatures of its three vertices, interpolated at its center in the plane of the face, for methods that work per face, such as *Colorize Texture by Principal Directions (Line Integral Convolution)*. The vertices must have directions, from one of the *Compute Principal Curvature Directions* filters.\n\nThe conversion is vcglib's for cross fields (`vcg::tri::CrossField`): the two directions are interpolated together as a cross, rotated between the tangent planes by the normals, and each curvature goes with the direction it belongs to. The pair is then ordered so that the first direction is the maximal curvature's, as MeshLab keeps it and the curvature decorator draws it.",
+      "tags": [
+        "curvature",
+        "principal directions",
+        "cross field",
+        "transfer",
+        "vertex",
+        "face"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "FNorm"
+      ],
+      "parameters": [],
+      "outputModifies": [
+        "FA"
+      ]
+    },
+    {
+      "id": "transfer_curvature_directions_from_face_to_vertex",
+      "categories": [
+        "Transfer/Within a Mesh",
+        "Attribute/Curvature"
+      ],
+      "name": "Transfer Curvature Directions from Face to Vertex",
+      "pythonName": "transfer_curvature_directions_from_face_to_vertex",
+      "shortDescription": "Average the faces' principal curvature directions and curvatures into their vertices.",
+      "longDescriptionMarkdown": "Gives each vertex the principal curvature directions and curvatures of the faces around it, averaged in the vertex's tangent plane, so that directions computed per face, as by *Compute Principal Curvature Directions per Face (TextureSignalProcessing)*, can be drawn by the curvature decorator and used by the filters that read vertex directions. A vertex with no face keeps what it had.\n\nThe conversion is vcglib's for cross fields (`vcg::tri::CrossField`): the two directions are interpolated together as a cross, rotated between the tangent planes by the normals, and each curvature goes with the direction it belongs to. The pair is then ordered so that the first direction is the maximal curvature's, as MeshLab keeps it and the curvature decorator draws it.",
+      "tags": [
+        "curvature",
+        "principal directions",
+        "cross field",
+        "transfer",
+        "face",
+        "vertex"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "VF",
+        "FNorm"
+      ],
+      "parameters": [],
+      "outputModifies": [
+        "VA"
+      ]
     }
   ]
 }

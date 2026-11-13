@@ -375,6 +375,205 @@
       "referenceIds": [
         "prada2018gradient"
       ]
+    },
+    {
+      "id": "compute_principal_curvature_directions_per_face_texture_signal_processing",
+      "categories": [
+        "Attribute/Curvature"
+      ],
+      "name": "Compute Principal Curvature Directions per Face (TextureSignalProcessing)",
+      "pythonName": "compute_principal_curvature_directions_per_face_texture_signal_processing",
+      "shortDescription": "Compute each face's principal curvature directions and curvatures from the variation of the vertex normals across it.",
+      "longDescriptionMarkdown": "Computes, for every face, the two principal curvature directions and the two principal curvatures, and stores them in the faces, the maximal first. Unlike the other *Compute Principal Curvature Directions* filters, which fit a neighborhood around each vertex, this one reads the curvature of each face from how the vertex normals turn across it: the shape operator of the face, the change of the normal along its two edges, whose eigenvectors and eigenvalues are the principal directions and curvatures. It is local and fast, and only as good as the normals, so the normals are first smoothed on the surface: each round moves every normal within its tangent plane to make the normals vary less, held back by *Normal Smoothing Fidelity*.\n\nIt is the computation of the `LineIntegralConvolution` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, with its defaults: two rounds of smoothing at a fidelity of 1000, the surface's area taken as 1. The vertex normals are computed from the faces, area weighted, so the mesh's own normals are not used. Coincident vertices are merged first, so a mesh that repeats its vertices along a seam still has continuous normals there. Faces with no area get no directions.\n\nThe directions are drawn by the curvature decorator once they are on the vertices: *Transfer Curvature Directions from Face to Vertex* averages them there.",
+      "tags": [
+        "curvature",
+        "principal directions",
+        "shape operator",
+        "normals",
+        "face"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireFaces": true
+      },
+      "parameters": [
+        {
+          "id": "smoothingIterations",
+          "label": "Normal Smoothing Rounds",
+          "help": "How many times the vertex normals are smoothed before the curvature is read from them; 0 uses them as they are. The program's default is 2.",
+          "group": "main",
+          "type": "int",
+          "default": 2,
+          "min": 0,
+          "max": 20
+        },
+        {
+          "id": "smoothingWeight",
+          "label": "Normal Smoothing Fidelity",
+          "help": "How strongly each round holds the normals to their values: the smaller, the more each round smooths. The surface's area is taken as 1, so the same value acts at the same scale on any mesh.",
+          "group": "advanced",
+          "type": "double",
+          "default": 1000.0,
+          "min": 1.0,
+          "max": 1000000.0,
+          "decimals": 0
+        }
+      ],
+      "outputModifies": [
+        "FA"
+      ],
+      "referenceIds": [
+        "prada2018gradient"
+      ]
+    },
+    {
+      "id": "colorize_texture_by_principal_directions_line_integral_convolution",
+      "categories": [
+        "Texture",
+        "Attribute/Curvature"
+      ],
+      "name": "Colorize Texture by Principal Directions (Line Integral Convolution)",
+      "pythonName": "colorize_texture_by_principal_directions_line_integral_convolution",
+      "shortDescription": "Draw the mesh's principal curvature directions into a texture as colored streaks, continuous across seams.",
+      "longDescriptionMarkdown": "Fills a texture with streaks that run along the mesh's maximal or minimal principal curvature directions: random noise, one value per texel (a color of random hue, black or white, or a random gray: *Noise*), is smeared along the directions on the surface, and the streaks are then sharpened for contrast. Since the texels on the two sides of a seam are neighbors on the surface, the streaks run on across seams, and the islands' outlines do not show.\n\n**The directions** come from the mesh: from its faces when they have principal directions (*Compute Principal Curvature Directions per Face (TextureSignalProcessing)*, or *Transfer Curvature Directions from Vertex to Face*), otherwise from its vertices (the other *Compute Principal Curvature Directions* filters), interpolated into each face as the transfer does, without storing them. Each face's direction is weighted by how different its two curvatures are, which matters only with an *Anisotropy Exponent* above 0: then the streaks fade where the surface curves alike in every direction, where the directions mean little.\n\n**The texture.** The streaks go into a new square texture of the size asked, laid out by the faces' texture coordinates, which need no image: a mesh that has only been parametrized works. It is added after the mesh's textures, which stay, and the faces are switched to it, so it shows at once; saving the mesh writes it. A mesh whose faces use several textures gets one new texture for each. Faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\nIt is the method of the `LineIntegralConvolution` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, run inside MeshLab with about its defaults. The noise $n$ is diffused under a metric stretched across the field, $(w\\,M_a + S_a)\\,x = w\\,M_a\\,n$, solved directly, as the program does with `--useDirectSolver` (multigrid does not converge under this anisotropy). The weight comes from the *Streak Length* $L$, as $w = A\\sqrt{1+10^5}\\,(3.357/L)^2$ with $A$ the area: the metric shortens lengths along the field by $(1+10^5)^{1/4}$, so the noise is averaged over a decay length $L/3.357$, and the program's default $w = 10^4$ is a length of $0.60\\sqrt{A}$;  the streaks $x$ are then sharpened by the solve of *Sharpen Texture*, with the *Sharpening Fidelity* and *Sharpening Gradient Scale*.\n\n**Time and memory:** about 14 s and 3 GB for a 20k-face mesh at 1024², 85 s and 8 GB at 2048².",
+      "tags": [
+        "texture",
+        "curvature",
+        "principal directions",
+        "line integral convolution",
+        "LIC",
+        "streaks",
+        "vector field",
+        "visualization"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireTextureCoordinates": true
+      },
+      "inputPrepare": [
+        "FNorm"
+      ],
+      "parameters": [
+        {
+          "id": "textureSize",
+          "label": "Texture Size",
+          "help": "The side of the new texture, which is square, in texels.",
+          "group": "main",
+          "type": "int",
+          "default": 1024,
+          "min": 16,
+          "max": 16384
+        },
+        {
+          "id": "direction",
+          "label": "Direction",
+          "help": "Which principal direction the streaks follow.",
+          "group": "main",
+          "type": "enum",
+          "default": "maximal",
+          "enumOptions": [
+            {
+              "id": "maximal",
+              "label": "Maximal Curvature",
+              "help": "Across the ridges and valleys."
+            },
+            {
+              "id": "minimal",
+              "label": "Minimal Curvature",
+              "help": "Along the ridges and valleys."
+            }
+          ]
+        },
+        {
+          "id": "noise",
+          "label": "Noise",
+          "help": "The random texture whose texels are smeared into streaks, one value per texel.",
+          "group": "main",
+          "type": "enum",
+          "default": "hue",
+          "enumOptions": [
+            {
+              "id": "hue",
+              "label": "Random Hue",
+              "help": "A fully saturated color of random hue, as the program draws: streaks of color."
+            },
+            {
+              "id": "black_and_white",
+              "label": "Black and White",
+              "help": "Black or white at random, the classic noise of line-integral convolution: gray streaks of strong contrast."
+            },
+            {
+              "id": "gray",
+              "label": "Random Gray",
+              "help": "A gray of random level: gray streaks of softer contrast."
+            }
+          ]
+        },
+        {
+          "id": "streakLength",
+          "label": "Streak Length",
+          "help": "How long the streaks are along the directions: the distance over which the texels along a streak stay correlated by at least half. The sharpening that follows makes them about a fifth shorter, and a field that turns ends them sooner. The default, half the bounding box diagonal, is about the program's default on a compact mesh, whose square root of area is close to its diagonal.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiagHalf",
+          "min": 0.0,
+          "max": "@bboxDiag5x",
+          "decimals": 6
+        },
+        {
+          "id": "sharpenFidelity",
+          "label": "Sharpening Fidelity",
+          "help": "The fidelity of the sharpening that follows, as in Sharpen Texture. The program's sharpening interpolation weight.",
+          "group": "advanced",
+          "type": "double",
+          "default": 10000.0,
+          "min": 1.0,
+          "max": 1000000.0,
+          "decimals": 0
+        },
+        {
+          "id": "sharpenScale",
+          "label": "Sharpening Gradient Scale",
+          "help": "How much the sharpening amplifies the streaks' gradients, for contrast; 1 leaves them as they are. The program's sharpening modulation.",
+          "group": "advanced",
+          "type": "double",
+          "default": 100.0,
+          "min": 1.0,
+          "max": 1000.0,
+          "decimals": 1
+        },
+        {
+          "id": "anisotropyExponent",
+          "label": "Anisotropy Exponent",
+          "help": "How the streaks depend on how different the two curvatures are: 0 makes them equally strong wherever there is a direction; above 0 they fade where the surface curves alike in every direction. The program's anisotropy exponent.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 4.0,
+          "decimals": 2
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the noise, and so the streaks, exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
+        }
+      ],
+      "outputModifies": [
+        "WT",
+        "TX"
+      ],
+      "referenceIds": [
+        "prada2018gradient"
+      ]
     }
   ]
 }

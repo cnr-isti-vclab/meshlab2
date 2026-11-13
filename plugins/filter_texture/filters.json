@@ -312,8 +312,8 @@
         },
         {
           "id": "dummy_img_size",
-          "label": "Dummy size",
-          "help": "Size in pixel of the square dummy texture.",
+          "label": "Dummy Texture Size",
+          "help": "The side of the dummy texture, which is square, in texels.",
           "group": "main",
           "type": "int",
           "default": 512,
@@ -466,19 +466,9 @@
           "default": ""
         },
         {
-          "id": "textW",
-          "label": "Texture width (px)",
-          "help": "The texture width.",
-          "group": "main",
-          "type": "int",
-          "default": 1024,
-          "min": 1,
-          "max": 32768
-        },
-        {
-          "id": "textH",
-          "label": "Texture height (px)",
-          "help": "The texture height.",
+          "id": "textureSize",
+          "label": "Texture Size",
+          "help": "The side of each new texture, which is square, in texels.",
           "group": "main",
           "type": "int",
           "default": 1024,
@@ -632,19 +622,9 @@
           "default": ""
         },
         {
-          "id": "textW",
-          "label": "Texture width (px)",
-          "help": "The texture width.",
-          "group": "main",
-          "type": "int",
-          "default": 1024,
-          "min": 1,
-          "max": 32768
-        },
-        {
-          "id": "textH",
-          "label": "Texture height (px)",
-          "help": "The texture height.",
+          "id": "textureSize",
+          "label": "Texture Size",
+          "help": "The side of each new texture, which is square, in texels.",
           "group": "main",
           "type": "int",
           "default": 1024,
@@ -732,19 +712,9 @@
           "default": ""
         },
         {
-          "id": "textW",
-          "label": "Texture width (px)",
-          "help": "The texture width.",
-          "group": "main",
-          "type": "int",
-          "default": 1024,
-          "min": 1,
-          "max": 32768
-        },
-        {
-          "id": "textH",
-          "label": "Texture height (px)",
-          "help": "The texture height.",
+          "id": "textureSize",
+          "label": "Texture Size",
+          "help": "The side of each new texture, which is square, in texels.",
           "group": "main",
           "type": "int",
           "default": 1024,

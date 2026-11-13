@@ -394,6 +394,55 @@ void appendTextureAssociations(
     }
 }
 
+int ensureTextureSlotIndices(VCGMesh &mesh)
+{
+    int maxSlot = -1;
+    for (auto &face : mesh.face) {
+        const int faceSlot = face.WT(0).N();
+        if (faceSlot < 0)
+            continue;
+        for (int k = 0; k < 3; ++k) {
+            if (face.WT(k).N() < 0)
+                face.WT(k).N() = faceSlot;
+            maxSlot = std::max(maxSlot, int(face.WT(k).N()));
+        }
+    }
+    return maxSlot + 1;
+}
+
+int compactTextureSlotIndices(VCGMesh &mesh)
+{
+    std::vector<int> rank;
+    for (const VCGFace &face : mesh.face)
+        for (int k = 0; k < 3; ++k)
+            if (face.cWT(k).N() >= 0) {
+                if (int(rank.size()) <= face.cWT(k).N())
+                    rank.resize(size_t(face.cWT(k).N()) + 1, -1);
+                rank[size_t(face.cWT(k).N())] = 0;
+            }
+    int used = 0;
+    for (int &r : rank)
+        if (r == 0)
+            r = used++;
+    for (VCGFace &face : mesh.face)
+        for (int k = 0; k < 3; ++k)
+            if (face.WT(k).N() >= 0)
+                face.WT(k).N() = short(rank[size_t(face.WT(k).N())]);
+    return used;
+}
+
+void offsetTextureSlotIndices(VCGMesh &mesh, int slotOffset)
+{
+    if (slotOffset == 0)
+        return;
+    for (VCGFace &face : mesh.face) {
+        for (int k = 0; k < 3; ++k) {
+            if (face.WT(k).N() >= 0)
+                face.WT(k).N() = short(face.WT(k).N() + slotOffset);
+        }
+    }
+}
+
 void ensureMaterialSlotCount(Document::MeshEntry &entry, int count)
 {
     if (count <= 0)
@@ -444,6 +493,24 @@ MeshIOTextureAsset *writableTextureAsset(Document::MeshEntry &entry, int texture
             entry.materialSet.entries[size_t(i)].baseColorTexture.assetIndex = assetIndex;
     }
     return asset(textureIndex);
+}
+
+int storeOutputTexture(Document::MeshEntry &entry, const TextureOutputRefValue &target, const QImage &image,
+                       const QString &role)
+{
+    if (target.overwriteExisting) {
+        MeshIOTextureAsset *asset = writableTextureAsset(entry, target.textureSlot);
+        if (!asset)
+            return -1;
+        asset->image = image;
+        if (asset->name.trimmed().isEmpty())
+            asset->name = outputTextureNames(entry, {}, role, 1).front();
+        rebuildLegacyTextureAssociation(entry);
+        return target.textureSlot;
+    }
+    entry.textureAssets.push_back(makeTextureAssetFromImage(image, outputTextureNames(entry, target.name, role, 1).front()));
+    rebuildLegacyTextureAssociation(entry);
+    return int(entry.textureAssets.size()) - 1;
 }
 
 int removeTextureAsset(Document::MeshEntry &entry, int textureIndex)

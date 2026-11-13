@@ -350,13 +350,13 @@
         },
         {
           "id": "textureSize",
-          "label": "Atlas size (pixels)",
+          "label": "Atlas Size",
           "type": "int",
           "group": "main",
           "default": 1024,
           "min": 16,
           "max": 16384,
-          "help": "Side of the square atlas the charts are packed into."
+          "help": "Side, in texels, of the square atlas the charts are packed into."
         },
         {
           "id": "gutterWidth",

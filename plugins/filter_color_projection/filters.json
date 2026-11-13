@@ -156,9 +156,9 @@
           "default": ""
         },
         {
-          "id": "texsize",
-          "label": "Texture size (px)",
-          "help": "Square texture image size in pixels. Should be a power of 2.",
+          "id": "textureSize",
+          "label": "Texture Size",
+          "help": "The side of the new texture, which is square, in texels. A power of 2 is usual, not required.",
           "group": "main",
           "type": "int",
           "default": 1024,

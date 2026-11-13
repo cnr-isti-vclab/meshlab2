@@ -94,6 +94,14 @@ texture, replace its image and keep its name and `sourcePath`: the file is left 
 texture shows changed, and the next save writes the new image beside the mesh. See
 [project_persistence.md](history/project_persistence.md).
 
+A filter that makes **one new texture for each texture the faces use** and moves the faces onto
+them, as *Transfer Color from Vertex to Texture* and *Colorize Texture by Principal Directions
+(Line Integral Convolution)* do, numbers them with `compactTextureSlotIndices` (the indices the
+faces use, renumbered 0, 1, ...), appends them with `appendTextureAssociations`, and moves the
+faces past the old ones with `offsetTextureSlotIndices`. Numbering by the old indices would also
+make a texture for every index no face uses -- after one such run, the old textures' indices.
+It then asks the view to show the texture, with a `Texture` visualization hint.
+
 An `absperc` is a **length**, as an absolute value or as a percentage of its range
 (`@bboxDiag` and the other bound tokens). Its absolute half is labelled with the
 document's unit (`Document::unit()`, "mm", "m", ...) once the user has set one, and

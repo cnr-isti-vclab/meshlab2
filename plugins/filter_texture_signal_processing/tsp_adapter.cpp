@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <random>
 #include <stdexcept>
 #include <tuple>
 
@@ -429,24 +430,51 @@ std::size_t dilate(const Atlas &atlas, Image &image, unsigned int radius)
     });
 }
 
+namespace {
+
+using Hierarchy = HierarchicalGradientDomain<Real, Eigen::SimplicialLDLT<Eigen::SparseMatrix<Real>>, Texel>;
+
+// TextureFiltering's defaults: four levels, three Gauss-Seidel sweeps per level. The solve converges
+// slowly on fragmented atlases, and the change per V-cycle understates the error left, by about 40
+// times at 2048² (cycle 40 changes a texel by 0.05 levels at most and is still 2 from the direct
+// solve). So the cycles run until one changes no texel by more than a fiftieth of a level, which
+// agreed with the direct solve within one level at 1024² (61 cycles) and 2048² (89); a 3M-face scan
+// at 4096² takes about 160.
+constexpr unsigned int kLevels = 4;
+constexpr unsigned int kSweeps = 3;
+constexpr unsigned int kMaxVCycles = 300;
+constexpr Real kConverged = 0.02;
+
+// Runs V-cycles on the system set up in `gd` until converged, or until the cap. Returns false if
+// `onVCycle` stopped it, with `outcome.canceled` set.
+bool runVCycles(Hierarchy &gd, FilterOutcome &outcome, const std::function<bool(unsigned int)> &onVCycle)
+{
+    const size_t nodes = gd.numNodes();
+    std::vector<Texel> previous(nodes);
+    while (outcome.vCycles < kMaxVCycles && !outcome.converged) {
+        std::copy(gd.x(), gd.x() + nodes, previous.begin());
+        gd.vCycle(kSweeps);
+        ++outcome.vCycles;
+        Real change = 0;
+        for (size_t n = 0; n < nodes; ++n)
+            for (unsigned int c = 0; c < 3; ++c) // alpha is not written back
+                change = std::max(change, std::abs(gd.x(n)[c] - previous[n][c]));
+        outcome.converged = change < kConverged;
+        if (onVCycle && !onVCycle(outcome.vCycles)) {
+            outcome.canceled = true;
+            return false;
+        }
+    }
+    return true;
+}
+
+} // namespace
+
 FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double gradientScale,
                      const std::vector<char> *selectedTriangles, const Image *detail, bool normals,
                      const std::function<bool(unsigned int)> &onVCycle)
 {
     return rethrown([&]() -> FilterOutcome {
-        using Solver = Eigen::SimplicialLDLT<Eigen::SparseMatrix<Real>>;
-        using Hierarchy = HierarchicalGradientDomain<Real, Solver, Texel>;
-        // TextureFiltering's defaults: four levels, three Gauss-Seidel sweeps per level. The solve
-        // converges slowly on fragmented atlases, and the change per V-cycle understates the error
-        // left, by about 40 times at 2048² (cycle 40 changes a texel by 0.05 levels at most and is
-        // still 2 from the direct solve). So the cycles run until one changes no texel by more
-        // than a fiftieth of a level, which agreed with the direct solve within one level at 1024²
-        // (61 cycles) and 2048² (89); a 3M-face scan at 4096² takes about 160.
-        constexpr unsigned int kLevels = 4;
-        constexpr unsigned int kSweeps = 3;
-        constexpr unsigned int kMaxVCycles = 300;
-        constexpr Real kConverged = 0.02;
-
         const bool localized = selectedTriangles != nullptr;
         const PaddedAtlas p(atlas, image);
         Hierarchy gd(
@@ -498,21 +526,8 @@ FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double g
         gd.updateSystem(fidelity, 1);
 
         FilterOutcome outcome;
-        std::vector<Texel> previous(nodes);
-        while (outcome.vCycles < kMaxVCycles && !outcome.converged) {
-            std::copy(gd.x(), gd.x() + nodes, previous.begin());
-            gd.vCycle(kSweeps);
-            ++outcome.vCycles;
-            Real change = 0;
-            for (size_t n = 0; n < nodes; ++n)
-                for (unsigned int c = 0; c < 3; ++c) // alpha is not written back
-                    change = std::max(change, std::abs(gd.x(n)[c] - previous[n][c]));
-            outcome.converged = change < kConverged;
-            if (onVCycle && !onVCycle(outcome.vCycles)) {
-                outcome.canceled = true;
-                return outcome;
-            }
-        }
+        if (!runVCycles(gd, outcome, onVCycle))
+            return outcome;
 
         // Alpha is coverage, not a signal to filter: the texels keep theirs, as in TextureFiltering,
         // which reads color only. Filtered with the rest, the transparent gutter of a projected
@@ -523,6 +538,221 @@ FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double g
         outcome.texels = writeBack(gd, x, p, image, true, normals,
                                    [&](size_t n) { return !localized || selectedNode[n]; });
         return outcome;
+    });
+}
+
+FilterOutcome lineIntegralConvolution(const Atlas &atlas, Image &image, const std::vector<std::array<double, 3>> &field,
+                                      double streakLength, double sharpenFidelity, double sharpenScale,
+                                      double anisotropyExponent, Noise noise, unsigned int seed,
+                                      const std::function<bool(unsigned int)> &onVCycle)
+{
+    return rethrown([&]() -> FilterOutcome {
+        {
+            const PaddedAtlas p(atlas, image);
+            const size_t triangles = atlas.triangles.size();
+
+            // As LineIntegralConvolution: each triangle's metric, the Gram matrix of its two edges from
+            // its first corner on the surface scaled to unit area, and the field in that basis, scaled
+            // to unit root-mean-square length.
+            ExplicitIndexVector<AtlasMeshTriangleIndex, SquareMatrix<Real, 2>> metric(triangles), anisotropic;
+            ExplicitIndexVector<AtlasMeshTriangleIndex, Point2D<Real>> vf(triangles);
+            Real area = 0;
+            for (size_t t = 0; t < triangles; ++t) {
+                const AtlasMeshTriangleIndex i(static_cast<unsigned int>(t));
+                Point3D<Real> v[3];
+                for (unsigned int k = 0; k < 3; ++k) {
+                    const std::array<double, 3> &q = atlas.positions[atlas.triangles[t][k]];
+                    v[k] = Point3D<Real>(q[0], q[1], q[2]);
+                }
+                const Point3D<Real> d[] = { v[1] - v[0], v[2] - v[0] };
+                const Point3D<Real> f(field[t][0], field[t][1], field[t][2]);
+                for (unsigned int j = 0; j < 2; ++j)
+                    for (unsigned int k = 0; k < 2; ++k)
+                        metric[i](j, k) = Point3D<Real>::Dot(d[j], d[k]);
+                vf[i] = metric[i].inverse() * Point2D<Real>(Point3D<Real>::Dot(d[0], f), Point3D<Real>::Dot(d[1], f));
+                area += Point3D<Real>::Length(Point3D<Real>::CrossProduct(d[0], d[1])) / 2;
+            }
+            Real norm = 0, total = 0;
+            for (size_t t = 0; t < triangles; ++t) {
+                const AtlasMeshTriangleIndex i(static_cast<unsigned int>(t));
+                metric[i] /= area;
+                const Real a = std::sqrt(metric[i].determinant()) / 2;
+                norm += Point2D<Real>::Dot(vf[i], metric[i] * vf[i]) * a;
+                total += a;
+            }
+            norm = std::sqrt(norm / total);
+            if (norm > 0)
+                for (size_t t = 0; t < triangles; ++t)
+                    vf[AtlasMeshTriangleIndex(static_cast<unsigned int>(t))] /= norm;
+            // The metric stretched across the field, so that diffusion runs along it: the program's
+            // anisotropy, |v|^aExp * 1e5 across the field, none where the field vanishes.
+            InitializeVectorFieldMetric(metric, vf, [&](Real length) { return Real(std::pow(length, anisotropyExponent) * 1e5); },
+                                        true, anisotropic);
+
+            // The weight that gives streaks of `streakLength`. The anisotropic metric, rescaled to unit
+            // area, shortens lengths along the field by s = (1 + 1e5)^(1/4), so the solve averages the
+            // noise along the field over a decay length l = s sqrt(A) / sqrt(w), A the surface's area
+            // in the mesh's units: the screened Poisson kernel falls as exp(-d / l). The correlation of
+            // noise so averaged falls to half at 1.678 l on either side, (1 + x) e^(-x) = 1/2, and the
+            // streak's length is taken as that whole width, 3.357 l. Measured on a cylinder whose
+            // field runs around it, black and white noise, sharpening off: half the correlation at
+            // 1.70 l at w = 1e4 and 1.88 l at w = 1e5, as the texels grow coarse against l; the
+            // default sharpening shortens it to 1.30 l and 1.38 l. The program's default w = 1e4 is
+            // a length of 0.60 sqrt(A). With an anisotropy exponent above 0, it holds where the field
+            // has its root-mean-square length.
+            if (!(streakLength > 0))
+                throw std::runtime_error("The streak length must be positive.");
+            const double decay = streakLength / (2 * 1.6783);
+            const double streakFidelity = area * std::sqrt(1 + 1e5) / (decay * decay);
+
+            GradientDomain<Real> gd(
+                kQuadratureSamples, triangles, atlas.positions.size(), p.texture.vertices.size(),
+                p.surfaceCorner(), [&](size_t t) { return anisotropic[AtlasMeshTriangleIndex(static_cast<unsigned int>(t))]; },
+                p.textureCorner(), p.textureVertex(), unsigned(p.width), unsigned(p.height),
+                true, false, false); // normalize, no sanity check, no divergence operator
+            const size_t nodes = gd.numNodes();
+
+            // The noise, one value per texel drawn from a generator of its own so that the seed decides
+            // it: the program's random hue at full saturation and value, or black or white, or a random
+            // gray, the classic noises of line-integral convolution. Then it is diffused along the field,
+            // (w M_a + S_a) x = w M_a n, solved directly, as the program does with --useDirectSolver.
+            // Multigrid does not converge under this anisotropy: on a 20k-face atlas at 1024², 300
+            // V-cycles still changed texels by 9 levels and left them up to 862 from the direct
+            // solution, which took less time (15 s with the sharpening, against 49 s).
+            std::mt19937 generator(seed);
+            std::vector<Texel> signal(nodes), mass(nodes);
+            for (Texel &t : signal) {
+                const double u = double(generator()) / double(std::mt19937::max());
+                if (noise == Noise::Hue) {
+                    const double hsv[] = { u * 2 * M_PI, 1, 1 };
+                    double rgb[3];
+                    Miscellany::HSVtoRGB(hsv, rgb);
+                    t = Texel(rgb[0] * 255, rgb[1] * 255, rgb[2] * 255, 255);
+                } else {
+                    const double v = noise == Noise::BlackAndWhite ? (u < 0.5 ? 0 : 255) : u * 255;
+                    t = Texel(v, v, v, 255);
+                }
+            }
+            gd.mass(&signal[0], &mass[0]);
+            Eigen::SimplicialLDLT<Eigen::SparseMatrix<Real>> solver(gd.mass() * Real(streakFidelity) + gd.stiffness());
+            if (solver.info() != Eigen::Success)
+                throw std::runtime_error("The system for the streaks could not be factored.");
+            if (onVCycle && !onVCycle(0)) {
+                FilterOutcome canceled;
+                canceled.canceled = true;
+                return canceled;
+            }
+            std::vector<Texel> x(nodes);
+            Eigen::VectorXd b(static_cast<Eigen::Index>(nodes));
+            for (unsigned int c = 0; c < 3; ++c) {
+                for (size_t n = 0; n < nodes; ++n)
+                    b[Eigen::Index(n)] = mass[n][c] * streakFidelity;
+                const Eigen::VectorXd y = solver.solve(b);
+                for (size_t n = 0; n < nodes; ++n)
+                    x[n][c] = y[Eigen::Index(n)];
+            }
+            for (Texel &t : x)
+                t[3] = 255;
+            writeBack(gd, x, p, image, true, false, [](size_t) { return true; });
+        } // the anisotropic operators are released before the sharpening builds its own
+
+        // The program's sharpening of the streaks, the stage-2 solve.
+        return filter(atlas, image, sharpenFidelity, sharpenScale, nullptr, nullptr, false, onVCycle);
+    });
+}
+
+std::vector<TriangleCurvature> principalCurvature(const Surface &surface, unsigned int smoothingIterations,
+                                                  double smoothingWeight)
+{
+    return rethrown([&]() -> std::vector<TriangleCurvature> {
+        TexturedTriangleMesh<Real> mesh;
+        for (const std::array<double, 3> &p : surface.positions)
+            mesh.surface.vertices.emplace_back(p[0], p[1], p[2]);
+        for (const std::array<unsigned int, 3> &t : surface.triangles)
+            mesh.surface.triangles.emplace_back(t[0], t[1], t[2]);
+        const size_t vertices = mesh.surface.vertices.size();
+
+        // As LineIntegralConvolution: the vertex normals, area weighted, then smoothed. Each round
+        // moves every normal n_i by offsets o_i along two tangents T_i, solving the program's
+        // (T^t (w M + S) T) o = -T^t S n on the surface of unit area, w the smoothing weight: the
+        // offsets are held small by the mass term and make the normals vary less by the stiffness.
+        std::vector<Point3D<Real>> normals(vertices);
+        for (unsigned int t = 0; t < mesh.numTriangles(); ++t) {
+            const Point3D<Real> n = mesh.surfaceTriangle(t).normal();
+            for (unsigned int k = 0; k < 3; ++k)
+                normals[mesh.surface.triangles[t][k]] += n;
+        }
+        auto normalize = [](Point3D<Real> &n) {
+            const Real length = Point3D<Real>::Length(n);
+            if (length > 0)
+                n /= length;
+        };
+        for (Point3D<Real> &n : normals)
+            normalize(n);
+        if (smoothingIterations > 0) {
+            FEM::RiemannianMesh<Real, unsigned int> rMesh(GetPointer(mesh.surface.triangles), mesh.surface.triangles.size());
+            rMesh.setMetricFromEmbedding(GetPointer(mesh.surface.vertices));
+            rMesh.makeUnitArea();
+            const Eigen::SparseMatrix<Real> stiffness = rMesh.template stiffnessMatrix<FEM::BASIS_0_WHITNEY, true>();
+            const Eigen::SparseMatrix<Real> system =
+                rMesh.template massMatrix<FEM::BASIS_0_WHITNEY, true>() * Real(smoothingWeight) + stiffness;
+            std::vector<Point3D<Real>> tangents(2 * vertices);
+            for (unsigned int iteration = 0; iteration < smoothingIterations; ++iteration) {
+                for (size_t i = 0; i < vertices; ++i) {
+                    Point3D<Real> v(1, 0, 0);
+                    if (std::abs(Point3D<Real>::Dot(v, normals[i])) > 0.99)
+                        v = Point3D<Real>(0, 1, 0);
+                    tangents[2 * i] = Point3D<Real>::CrossProduct(normals[i], v);
+                    normalize(tangents[2 * i]);
+                    tangents[2 * i + 1] = Point3D<Real>::CrossProduct(normals[i], tangents[2 * i]);
+                    normalize(tangents[2 * i + 1]);
+                }
+                std::vector<Eigen::Triplet<Real>> triplets;
+                for (int i = 0; i < system.outerSize(); ++i)
+                    for (Eigen::SparseMatrix<Real>::InnerIterator it(system, i); it; ++it)
+                        for (int a = 0; a < 2; ++a)
+                            for (int b = 0; b < 2; ++b)
+                                triplets.emplace_back(int(2 * it.row() + a), int(2 * it.col() + b),
+                                                      it.value() * Point3D<Real>::Dot(tangents[2 * it.row() + a], tangents[2 * it.col() + b]));
+                Eigen::SparseMatrix<Real> A(Eigen::Index(2 * vertices), Eigen::Index(2 * vertices));
+                A.setFromTriplets(triplets.begin(), triplets.end());
+                Eigen::VectorXd rhs = Eigen::VectorXd::Zero(Eigen::Index(2 * vertices));
+                for (int i = 0; i < stiffness.outerSize(); ++i)
+                    for (Eigen::SparseMatrix<Real>::InnerIterator it(stiffness, i); it; ++it)
+                        for (int a = 0; a < 2; ++a)
+                            rhs[2 * it.row() + a] -= it.value() * Point3D<Real>::Dot(normals[it.col()], tangents[2 * it.row() + a]);
+                Eigen::SimplicialLDLT<Eigen::SparseMatrix<Real>> solver(A);
+                if (solver.info() != Eigen::Success)
+                    throw std::runtime_error("The normal smoothing system could not be factored.");
+                const Eigen::VectorXd o = solver.solve(rhs);
+                for (size_t i = 0; i < vertices; ++i) {
+                    normals[i] += tangents[2 * i] * o[Eigen::Index(2 * i)] + tangents[2 * i + 1] * o[Eigen::Index(2 * i + 1)];
+                    normalize(normals[i]);
+                }
+            }
+        }
+
+        std::vector<PrincipalCurvature<Real>> curvatures;
+        InitializePrincipalCurvatureDirection(mesh, normals, curvatures);
+        // TSP measures the triangles of the surface scaled to unit area (NORMALIZE_SURFACE_EMBEDDING
+        // in Src/Metric.inl), so its curvatures are the surface's divided by the square root of its
+        // area. Its directions are in the basis of each triangle's two edges from its first corner,
+        // of unit length; its values ascend, so index 1 is the maximal.
+        const Real scale = std::sqrt(mesh.surface.area());
+        std::vector<TriangleCurvature> out(mesh.numTriangles());
+        for (unsigned int t = 0; t < mesh.numTriangles(); ++t) {
+            const Simplex<Real, 3, 2> s = mesh.surfaceTriangle(t);
+            auto direction = [&](const Point2D<Real> &d) {
+                Point3D<Real> v = (s[1] - s[0]) * d[0] + (s[2] - s[0]) * d[1];
+                normalize(v);
+                return std::array<double, 3>{ v[0], v[1], v[2] };
+            };
+            out[t].maxDirection = direction(curvatures[t].dirs[1]);
+            out[t].minDirection = direction(curvatures[t].dirs[0]);
+            out[t].maxCurvature = curvatures[t].values[1] * scale;
+            out[t].minCurvature = curvatures[t].values[0] * scale;
+        }
+        return out;
     });
 }
 

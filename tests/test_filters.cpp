@@ -517,6 +517,11 @@ private slots:
     void textureSignalProcessingRepairsAndDilatesSeams();
     void textureSignalProcessingSmoothsAndSharpens();
     void textureSignalProcessingInpaintsTransfersAndRenormalizes();
+    void principalCurvatureDirectionsPerFaceAndTransfers();
+    void textureSignalProcessingColorizesByPrincipalDirections();
+    void textureSignalProcessingDrawsStreaksOfTheLengthAsked();
+    void textureSignalProcessingTakesUvsAlignedWithTheTexels();
+    void filtersMakingTexturesAddOneOnEachRun();
     void open3dFeatureMatchingCanUseAllVisibleLayersAsReference();
     void open3dFeatureMatchingCanEstimateItsQualityWithIcp();
     void open3dFastGlobalRegistrationCanUseAllVisibleLayersAsReference();
@@ -6970,7 +6975,7 @@ static QString makePhotoTexturedGargoyle(Document &doc)
     if (!atlas.success)
         return atlas.errorMessage;
     MeshFilterParameterValues transfer;
-    transfer.insert(QStringLiteral("texsize"), 512);
+    transfer.insert(QStringLiteral("textureSize"), 512);
     transfer.insert(QStringLiteral("dorefill"), false);
     const MeshFilterRunResult photo = doc.runFilter(
         filterKeyForId(doc, QStringLiteral("transfer_color_from_visible_rasters_to_texture")), transfer);
@@ -7310,6 +7315,396 @@ void FilterTests::textureSignalProcessingInpaintsTransfersAndRenormalizes()
     const MeshFilterRunResult refused = doc.runFilter(inpaintKey, {});
     QVERIFY(!refused.success);
     QVERIFY2(refused.errorMessage.contains(QStringLiteral("No selected face")), qPrintable(refused.errorMessage));
+}
+
+// TSP's per-face principal curvature on an ellipsoid three times as long as it is wide, and the
+// transfers between faces and vertices. Around the middle, where the surface is a circle of radius 1
+// across and nearly flat along the long axis, the curvatures are 1 and 1/9, and the minimal direction
+// runs along the axis. Going to the vertices and back keeps them, with the maximal curvature first.
+void FilterTests::principalCurvatureDirectionsPerFaceAndTransfers()
+{
+    Document doc;
+    const QString curvatureKey = filterKeyForId(doc, QStringLiteral("compute_principal_curvature_directions_per_face_texture_signal_processing"));
+    const QString toVertexKey = filterKeyForId(doc, QStringLiteral("transfer_curvature_directions_from_face_to_vertex"));
+    const QString toFaceKey = filterKeyForId(doc, QStringLiteral("transfer_curvature_directions_from_vertex_to_face"));
+    if (curvatureKey.isEmpty())
+        QSKIP("TextureSignalProcessing plugin is not available in this build.");
+    QVERIFY(!toVertexKey.isEmpty() && !toFaceKey.isEmpty());
+
+    VCGMesh ellipsoid;
+    vcg::tri::Sphere(ellipsoid, 5);
+    for (VCGVertex &v : ellipsoid.vert)
+        v.P().X() *= 3;
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(ellipsoid);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(ellipsoid);
+    const int meshIndex = doc.addMesh(ellipsoid, QStringLiteral("ellipsoid"));
+    QVERIFY(meshIndex >= 0);
+    doc.setCurrentMeshIndex(meshIndex);
+    VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+
+    // The vertex to face transfer needs vertex directions first.
+    const MeshFilterRunResult early = doc.runFilter(toFaceKey, {});
+    QVERIFY(!early.success);
+    QVERIFY2(early.errorMessage.contains(QStringLiteral("no curvature directions")), qPrintable(early.errorMessage));
+
+    const MeshFilterRunResult computed = doc.runFilter(curvatureKey, {});
+    QVERIFY2(computed.success, qPrintable(computed.errorMessage));
+    VCGMesh &m = doc.mesh(meshIndex).mesh;
+    QVERIFY(m.face.IsCurvatureDirEnabled());
+    auto middle = [](const vcg::Point3f &p) { return std::abs(p.X()) < 0.3f; };
+    double k1 = 0, k2 = 0, along = 0;
+    int count = 0;
+    for (const VCGFace &f : m.face) {
+        if (f.IsD() || !middle(vcg::Barycenter(f)))
+            continue;
+        QVERIFY(f.cK1() >= f.cK2());
+        k1 += f.cK1(), k2 += f.cK2(), along += std::abs(f.cPD2().X()) / f.cPD2().Norm();
+        ++count;
+    }
+    QVERIFY(count > 50);
+    qDebug("per-face curvature around the middle of the ellipsoid: k1 %.3f, k2 %.3f, |minimal direction . axis| %.3f over %d faces",
+           k1 / count, k2 / count, along / count, count);
+    QVERIFY(std::abs(k1 / count - 1) < 0.1);
+    QVERIFY(std::abs(k2 / count - 1.0 / 9) < 0.05);
+    QVERIFY(along / count > 0.95);
+
+    // To the vertices: the same curvatures, the maximal first.
+    const MeshFilterRunResult toVertices = doc.runFilter(toVertexKey, {});
+    QVERIFY2(toVertices.success, qPrintable(toVertices.errorMessage));
+    QVERIFY(m.vert.IsCurvatureDirEnabled());
+    double vk1 = 0, vk2 = 0;
+    int vcount = 0;
+    for (const VCGVertex &v : m.vert) {
+        if (v.IsD())
+            continue;
+        QVERIFY(v.cK1() >= v.cK2());
+        if (middle(v.cP()))
+            vk1 += v.cK1(), vk2 += v.cK2(), ++vcount;
+    }
+    QVERIFY(vcount > 20);
+    QVERIFY(std::abs(vk1 / vcount - k1 / count) < 0.05);
+    QVERIFY(std::abs(vk2 / vcount - k2 / count) < 0.05);
+
+    // And back to the faces: close to what TSP computed.
+    std::vector<float> before;
+    for (const VCGFace &f : m.face)
+        if (!f.IsD())
+            before.push_back(f.cK1());
+    const MeshFilterRunResult toFaces = doc.runFilter(toFaceKey, {});
+    QVERIFY2(toFaces.success, qPrintable(toFaces.errorMessage));
+    double difference = 0, size = 0;
+    size_t i = 0;
+    for (const VCGFace &f : doc.mesh(meshIndex).mesh.face)
+        if (!f.IsD()) {
+            QVERIFY(f.cK1() >= f.cK2());
+            difference += std::abs(f.cK1() - before[i]), size += std::abs(before[i]);
+            ++i;
+        }
+    qDebug("faces -> vertices -> faces: maximal curvature off by %.3f relative", difference / size);
+    QVERIFY(difference / size < 0.1);
+
+    // Undo and redo carry the faces' directions, which the snapshot copies.
+    std::vector<float> transferred;
+    for (const VCGFace &f : doc.mesh(meshIndex).mesh.face)
+        if (!f.IsD())
+            transferred.push_back(f.cK1());
+    QVERIFY(doc.undo());
+    QVERIFY(doc.mesh(meshIndex).mesh.face.IsCurvatureDirEnabled());
+    i = 0;
+    for (const VCGFace &f : doc.mesh(meshIndex).mesh.face)
+        if (!f.IsD())
+            QCOMPARE(f.cK1(), before[i++]);
+    QVERIFY(doc.redo());
+    i = 0;
+    for (const VCGFace &f : doc.mesh(meshIndex).mesh.face)
+        if (!f.IsD())
+            QCOMPARE(f.cK1(), transferred[i++]);
+}
+
+// Line-integral convolution on the photo-textured gargoyle, from vertex directions and then from
+// face directions: a new texture of streaks, the same for the same seed and different for
+// another, and over an existing texture when asked. Streaks have one orientation locally, which the
+// coherence of the image gradients measures: higher than for the noise barely smeared.
+// A 64x64 grid of quads, each split in two, laid out over the unit square inset by `inset` on every side:
+// flat (2 pi by 2 pi), or a cylinder of radius 1 and height 2 pi whose layout is cut along a generator.
+// Each face holds principal curvature directions, the maximal around the cylinder (along u).
+static void makeUvGridMesh(VCGMesh &m, bool cylinder, float inset)
+{
+    const int nu = 64, nv = 64;
+    m.face.EnableWedgeTexCoord();
+    m.face.EnableCurvatureDir();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(m, (nu + 1) * (nv + 1));
+    for (int j = 0; j <= nv; ++j)
+        for (int i = 0; i <= nu; ++i) {
+            const double t = 2 * M_PI * i / nu, h = 2 * M_PI * j / nv;
+            m.vert[size_t(j * (nu + 1) + i)].P() = cylinder ? vcg::Point3f(float(std::cos(t)), float(std::sin(t)), float(h))
+                                                            : vcg::Point3f(float(t), float(h), 0);
+        }
+    auto V = [&](int i, int j) { return &m.vert[size_t(j * (nu + 1) + i)]; };
+    for (int j = 0; j < nv; ++j)
+        for (int i = 0; i < nu; ++i) {
+            const int q[2][3][2] = { { { i, j }, { i + 1, j }, { i + 1, j + 1 } }, { { i, j }, { i + 1, j + 1 }, { i, j + 1 } } };
+            for (const auto &tri : q) {
+                auto f = vcg::tri::Allocator<VCGMesh>::AddFace(m, V(tri[0][0], tri[0][1]), V(tri[1][0], tri[1][1]), V(tri[2][0], tri[2][1]));
+                for (int k = 0; k < 3; ++k) {
+                    f->WT(k).P() = vcg::Point2f(inset + (1 - 2 * inset) * float(tri[k][0]) / nu, inset + (1 - 2 * inset) * float(tri[k][1]) / nv);
+                    f->WT(k).N() = 0;
+                }
+                const vcg::Point3f c = vcg::Barycenter(*f);
+                const float t = std::atan2(c[1], c[0]);
+                f->PD1() = cylinder ? vcg::Point3f(-std::sin(t), std::cos(t), 0) : vcg::Point3f(1, 0, 0);
+                f->PD2() = cylinder ? vcg::Point3f(0, 0, 1) : vcg::Point3f(0, 1, 0);
+                f->K1() = 1;
+                f->K2() = 0;
+            }
+        }
+}
+
+// A layout whose vertices sit on the texel grid puts edges exactly through texel centers and along the
+// lines between them. TSP's jitter moved only the vertices on a line of texel centers, and such a grid
+// crashed it at some sizes (384, 500, 512) and made it fail to factor at others (128), by rounding.
+void FilterTests::textureSignalProcessingTakesUvsAlignedWithTheTexels()
+{
+    Document probe;
+    const QString smoothKey = filterKeyForId(probe, QStringLiteral("smooth_texture"));
+    const QString licKey = filterKeyForId(probe, QStringLiteral("colorize_texture_by_principal_directions_line_integral_convolution"));
+    if (smoothKey.isEmpty() || licKey.isEmpty())
+        QSKIP("TextureSignalProcessing plugin is not available in this build.");
+    VCGMesh grid;
+    makeUvGridMesh(grid, false, 0);
+    for (int size : { 128, 384, 500, 512 }) {
+        Document doc;
+        QVERIFY(doc.addMesh(grid, QStringLiteral("grid"), vcg::tri::io::Mask::IOM_WEDGTEXCOORD) >= 0);
+        doc.setCurrentMeshIndex(0);
+        QImage ramp(size, size, QImage::Format_ARGB32);
+        for (int y = 0; y < size; ++y)
+            for (int x = 0; x < size; ++x)
+                ramp.setPixel(x, y, qRgba(x * 255 / size, y * 255 / size, 128, 255));
+        TextureAssociationUtils::replaceTextureAssociations(doc.mesh(0), { TextureAssociationUtils::makeTextureAssetFromImage(ramp, QStringLiteral("ramp.png")) });
+        const MeshFilterRunResult smooth = doc.runFilter(smoothKey, {});
+        QVERIFY2(smooth.success, qPrintable(QStringLiteral("%1: %2").arg(size).arg(smooth.errorMessage)));
+        MeshFilterParameterValues lic;
+        lic.insert(QStringLiteral("textureSize"), size);
+        const MeshFilterRunResult streaks = doc.runFilter(licKey, lic);
+        QVERIFY2(streaks.success, qPrintable(QStringLiteral("%1: %2").arg(size).arg(streaks.errorMessage)));
+    }
+}
+
+// A filter that makes a new texture for each texture the faces use, and moves the faces onto it, must
+// add one texture per run, however many textures the earlier runs left: numbering the new textures by
+// the faces' old indices made the third run of the line-integral convolution refuse (no face used
+// texture 1), and gave the transfers an unused texture more on every run.
+void FilterTests::filtersMakingTexturesAddOneOnEachRun()
+{
+    Document probe;
+    const QString licKey = filterKeyForId(probe, QStringLiteral("colorize_texture_by_principal_directions_line_integral_convolution"));
+    const QString bakeKey = filterKeyForId(probe, QStringLiteral("transfer_color_from_vertex_to_texture"));
+    QVERIFY(!bakeKey.isEmpty());
+    VCGMesh grid;
+    makeUvGridMesh(grid, false, 0.05f);
+    for (VCGVertex &v : grid.vert)
+        v.C() = vcg::Color4b(255, 128, 0, 255);
+    for (const QString &key : { licKey, bakeKey }) {
+        if (key.isEmpty())
+            continue;
+        Document doc;
+        QVERIFY(doc.addMesh(grid, QStringLiteral("grid"), vcg::tri::io::Mask::IOM_WEDGTEXCOORD | vcg::tri::io::Mask::IOM_VERTCOLOR) >= 0);
+        doc.setCurrentMeshIndex(0);
+        MeshFilterParameterValues small;
+        if (key == licKey)
+            small.insert(QStringLiteral("textureSize"), 128);
+        else
+            small.insert(QStringLiteral("textureSize"), 128);
+        for (int run = 1; run <= 3; ++run) {
+            const MeshFilterRunResult r = doc.runFilter(key, small);
+            QVERIFY2(r.success, qPrintable(QStringLiteral("run %1: %2").arg(run).arg(r.errorMessage)));
+            QCOMPARE(int(doc.mesh(0).textureAssets.size()), run);
+            QSet<int> used;
+            for (const VCGFace &f : doc.mesh(0).mesh.face)
+                used.insert(f.cWT(0).N());
+            QCOMPARE(used, QSet<int>{ run - 1 });
+            QCOMPARE(int(r.visualizationHints.size()), 1);
+            QVERIFY(r.visualizationHints.front().attribute == MeshFilterVisualizationAttribute::Texture);
+        }
+    }
+}
+
+// Streak Length is the length of the streaks: on a cylinder of radius 1 whose field runs around it,
+// laid out as one rectangle, the correlation along the field must fall to half at about half the
+// length asked, and across it within a texel or so.
+void FilterTests::textureSignalProcessingDrawsStreaksOfTheLengthAsked()
+{
+    Document probe;
+    const QString licKey = filterKeyForId(probe, QStringLiteral("colorize_texture_by_principal_directions_line_integral_convolution"));
+    if (licKey.isEmpty())
+        QSKIP("TextureSignalProcessing plugin is not available in this build.");
+
+    // A margin around the layout, so that the streaks are measured away from its sides.
+    VCGMesh m;
+    makeUvGridMesh(m, true, 0.05f);
+    Document doc;
+    QVERIFY(doc.addMesh(m, QStringLiteral("cylinder"), vcg::tri::io::Mask::IOM_WEDGTEXCOORD) >= 0);
+    doc.setCurrentMeshIndex(0);
+
+    const int N = 256, lo = int(0.06 * N), hi = int(0.94 * N);
+    const double texel = 2 * M_PI / (0.9 * N); // the circumference and the height are both 2 pi
+    // The lag, in the mesh's units, at which the correlation of the luminance falls to half.
+    auto halfCorrelation = [&](const QImage &im, bool along) {
+        std::vector<double> L(size_t(N * N));
+        double mean = 0, var = 0;
+        int count = 0;
+        for (int y = lo; y < hi; ++y)
+            for (int x = lo; x < hi; ++x)
+                mean += L[size_t(y * N + x)] = qGray(im.pixel(x, y)), ++count;
+        mean /= count;
+        for (int y = lo; y < hi; ++y)
+            for (int x = lo; x < hi; ++x)
+                var += std::pow(L[size_t(y * N + x)] -= mean, 2);
+        var /= count;
+        double previous = 1;
+        for (int r = 1; r < hi - lo; ++r) {
+            double c = 0;
+            int n = 0;
+            for (int y = lo; y + (along ? 0 : r) < hi; ++y)
+                for (int x = lo; x + (along ? r : 0) < hi; ++x, ++n)
+                    c += L[size_t(y * N + x)] * L[size_t((along ? y : y + r) * N + (along ? x + r : x))];
+            c /= n * var;
+            if (c < 0.5)
+                return (r - 1 + (previous - 0.5) / (previous - c)) * texel;
+            previous = c;
+        }
+        return -1.0;
+    };
+    for (double length : { 1.0, 2.0 }) {
+        MeshFilterParameterValues lic;
+        lic.insert(QStringLiteral("textureSize"), N);
+        lic.insert(QStringLiteral("noise"), QStringLiteral("black_and_white"));
+        lic.insert(QStringLiteral("randomSeed"), 3);
+        lic.insert(QStringLiteral("streakLength"), length);
+        lic.insert(QStringLiteral("sharpenScale"), 1.0); // no sharpening, which shortens them by a fifth
+        const MeshFilterRunResult r = doc.runFilter(licKey, lic);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        const QImage streaks = doc.mesh(0).textureAssets.back().image;
+        const double along = 2 * halfCorrelation(streaks, true), across = 2 * halfCorrelation(streaks, false);
+        qDebug("streak length %.1f asked: %.3f along, %.3f across (a texel is %.3f)", length, along, across, texel);
+        QVERIFY(std::abs(along / length - 1) < 0.15);
+        QVERIFY(across < 2 * texel);
+        QVERIFY(doc.undo());
+    }
+}
+
+void FilterTests::textureSignalProcessingColorizesByPrincipalDirections()
+{
+    Document probe;
+    const QString licKey = filterKeyForId(probe, QStringLiteral("colorize_texture_by_principal_directions_line_integral_convolution"));
+    if (licKey.isEmpty())
+        QSKIP("TextureSignalProcessing plugin is not available in this build.");
+
+    Document doc;
+    const QString fixture = makePhotoTexturedGargoyle(doc);
+    QVERIFY2(fixture.isEmpty(), qPrintable(fixture));
+    const QImage photo = doc.mesh(0).textureAssets.front().image;
+
+    MeshFilterParameterValues lic;
+    lic.insert(QStringLiteral("textureSize"), 256);
+    lic.insert(QStringLiteral("randomSeed"), 7);
+    const MeshFilterRunResult none = doc.runFilter(licKey, lic);
+    QVERIFY(!none.success);
+    QVERIFY2(none.errorMessage.contains(QStringLiteral("no principal curvature directions")), qPrintable(none.errorMessage));
+
+    QVERIFY(doc.runFilter(filterKeyForId(doc, QStringLiteral("compute_principal_curvature_directions_vcglib")), {}).success);
+    const MeshFilterRunResult fromVertices = doc.runFilter(licKey, lic);
+    QVERIFY2(fromVertices.success, qPrintable(fromVertices.errorMessage));
+    qDebug("colorize by principal directions: %s", qPrintable(fromVertices.infoMessages.join(QStringLiteral(" | "))));
+    QVERIFY(fromVertices.infoMessages.join(QLatin1Char(' ')).contains(QStringLiteral("from its vertices")));
+    // Always a new texture, which the faces now show; the photo stays.
+    auto faceTextures = [&doc] {
+        QSet<int> used;
+        for (const VCGFace &f : doc.mesh(0).mesh.face)
+            if (!f.IsD())
+                used.insert(f.cWT(0).N());
+        return used;
+    };
+    QCOMPARE(int(doc.mesh(0).textureAssets.size()), 2);
+    QCOMPARE(fromVertices.outputValues.value(QStringLiteral("texture")).toInt(), 2);
+    QVERIFY(doc.mesh(0).textureAssets.front().image == photo);
+    QCOMPARE(faceTextures(), QSet<int>{ 1 });
+    const QImage streaks = doc.mesh(0).textureAssets.back().image;
+    QCOMPARE(streaks.size(), QSize(256, 256));
+    int colored = 0;
+    for (int y = 0; y < streaks.height(); ++y)
+        for (int x = 0; x < streaks.width(); ++x)
+            colored += streaks.pixel(x, y) != qRgb(0, 0, 0);
+    QVERIFY(colored > 256 * 256 / 4);
+    QVERIFY(doc.undo());
+    QCOMPARE(int(doc.mesh(0).textureAssets.size()), 1);
+    QCOMPARE(faceTextures(), QSet<int>{ 0 });
+
+    // Coherence (l1 - l2) / (l1 + l2) of the structure tensor of the luminance gradients, averaged
+    // over the 8x8 blocks with no background texel: 1 where the gradients share one orientation.
+    auto coherence = [](const QImage &im) {
+        auto lum = [&](int x, int y) { return double(qGray(im.pixel(x, y))); };
+        double sum = 0;
+        int blocks = 0;
+        for (int by = 1; by + 9 < im.height(); by += 8)
+            for (int bx = 1; bx + 9 < im.width(); bx += 8) {
+                double xx = 0, yy = 0, xy = 0;
+                bool inside = true;
+                for (int y = by; y < by + 8 && inside; ++y)
+                    for (int x = bx; x < bx + 8; ++x) {
+                        if (im.pixel(x, y) == qRgb(0, 0, 0)) {
+                            inside = false;
+                            break;
+                        }
+                        const double gx = lum(x + 1, y) - lum(x - 1, y), gy = lum(x, y + 1) - lum(x, y - 1);
+                        xx += gx * gx, yy += gy * gy, xy += gx * gy;
+                    }
+                if (!inside || xx + yy <= 0)
+                    continue;
+                sum += std::sqrt((xx - yy) * (xx - yy) + 4 * xy * xy) / (xx + yy);
+                ++blocks;
+            }
+        return blocks ? sum / blocks : 0.0;
+    };
+    MeshFilterParameterValues barely = lic;
+    barely.insert(QStringLiteral("streakLength"), 12.7); // the program's weight 1e6 on this gargoyle
+    QVERIFY(doc.runFilter(licKey, barely).success);
+    const double streakCoherence = coherence(streaks), noiseCoherence = coherence(doc.mesh(0).textureAssets.back().image);
+    qDebug("gradient coherence: streaks %.3f, noise barely smeared %.3f", streakCoherence, noiseCoherence);
+    QVERIFY(streakCoherence > noiseCoherence + 0.2);
+    QVERIFY(doc.undo());
+
+    // The same seed draws the same streaks; another seed, others.
+    QVERIFY(doc.runFilter(licKey, lic).success);
+    QVERIFY2(doc.mesh(0).textureAssets.back().image == streaks, "The same seed drew other streaks.");
+    QVERIFY(doc.undo());
+    lic.insert(QStringLiteral("randomSeed"), 8);
+    QVERIFY(doc.runFilter(licKey, lic).success);
+    QVERIFY(doc.mesh(0).textureAssets.back().image != streaks);
+    QVERIFY(doc.undo());
+
+    // Black and white noise smears into gray streaks, every channel solved alike.
+    MeshFilterParameterValues blackAndWhite = lic;
+    blackAndWhite.insert(QStringLiteral("noise"), QStringLiteral("black_and_white"));
+    QVERIFY(doc.runFilter(licKey, blackAndWhite).success);
+    const QImage grayStreaks = doc.mesh(0).textureAssets.back().image;
+    QSet<int> levels;
+    for (int y = 0; y < grayStreaks.height(); ++y)
+        for (int x = 0; x < grayStreaks.width(); ++x) {
+            const QRgb c = grayStreaks.pixel(x, y);
+            QVERIFY(qRed(c) == qGreen(c) && qGreen(c) == qBlue(c));
+            levels.insert(qRed(c));
+        }
+    QVERIFY(levels.size() > 64);
+    QVERIFY(doc.undo());
+
+    // From the faces' directions.
+    QVERIFY(doc.runFilter(filterKeyForId(doc, QStringLiteral("compute_principal_curvature_directions_per_face_texture_signal_processing")), {}).success);
+    const MeshFilterRunResult fromFaces = doc.runFilter(licKey, lic);
+    QVERIFY2(fromFaces.success, qPrintable(fromFaces.errorMessage));
+    QVERIFY(fromFaces.infoMessages.join(QLatin1Char(' ')).contains(QStringLiteral("from its faces")));
+    QCOMPARE(int(doc.mesh(0).textureAssets.size()), 2);
+    QVERIFY(doc.mesh(0).textureAssets.back().image != streaks);
 }
 
 // The CSG evaluator and the pairwise booleans must agree where they overlap, and the
@@ -10483,8 +10878,7 @@ void FilterTests::textureFiltersWriteNoFile()
     const QString key = filterKeyForId(doc, QStringLiteral("transfer_color_from_vertex_to_texture"));
     QVERIFY(!key.isEmpty());
     MeshFilterParameterValues small;
-    small.insert(QStringLiteral("textW"), 16);
-    small.insert(QStringLiteral("textH"), 16);
+    small.insert(QStringLiteral("textureSize"), 16);
     small.insert(QStringLiteral("overwrite"), false);
     MeshFilterRunResult r = doc.runFilter(key, small);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
@@ -10625,7 +11019,7 @@ void FilterTests::closestPointTransfersWriteTheCurrentLayer()
     QCOMPARE(doc.mesh(to).mesh.vert[4].C(), vcg::Color4b(0, 0, 255, 255));
 
     // Vertex color to a texture of the current layer: red.
-    MeshFilterParameterValues small{ { QStringLiteral("textW"), 32 }, { QStringLiteral("textH"), 32 } };
+    MeshFilterParameterValues small{ { QStringLiteral("textureSize"), 32 } };
     MeshFilterParameterValues attributes = small;
     attributes.insert(QStringLiteral("AttributeEnum"), QStringLiteral("vertex_color"));
     r = run(QStringLiteral("transfer_vertex_attributes_to_texture_by_closest_point"), attributes);

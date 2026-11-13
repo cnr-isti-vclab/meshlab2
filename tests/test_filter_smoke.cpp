@@ -356,6 +356,11 @@ const QHash<QString, QString> &expectedRefusals()
         {QStringLiteral("transfer_color_from_visible_rasters_to_texture_texture_consolidation"), QStringLiteral("needs rasters and a chart-based atlas; the raster rung's per-triangle UVs are refused (FilterTests::textureConsolidationBuildsTextureFromRasters drives it)")},
         {QStringLiteral("trim_point_cloud_by_plane"),                      QStringLiteral("needs a point cloud; every rung has faces (FilterTests::trimPointCloudByPlaneDropsThePointsBehindIt drives it)")},
 
+        // Needs principal curvature directions, which no rung stores: another filter computes them.
+        {QStringLiteral("transfer_curvature_directions_from_vertex_to_face"), QStringLiteral("needs vertex curvature directions (FilterTests::principalCurvatureDirectionsPerFaceAndTransfers drives it)")},
+        {QStringLiteral("transfer_curvature_directions_from_face_to_vertex"), QStringLiteral("needs face curvature directions (FilterTests::principalCurvatureDirectionsPerFaceAndTransfers drives it)")},
+        {QStringLiteral("colorize_texture_by_principal_directions_line_integral_convolution"), QStringLiteral("needs curvature directions and texture coordinates together (FilterTests::textureSignalProcessingColorizesByPrincipalDirections drives it)")},
+
         // Needs a parameter no default can give.
         {QStringLiteral("rename_texture"),                                 QStringLiteral("needs the new name, which has no sensible default (FilterTests::textureFiltersWriteNoFile drives it)")},
 

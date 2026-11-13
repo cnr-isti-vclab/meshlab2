@@ -11,15 +11,20 @@
 
 namespace TspAdapter {
 
+// A surface: positions, and triangles into them.
+struct Surface
+{
+    std::vector<std::array<double, 3>> positions;
+    std::vector<std::array<unsigned int, 3>> triangles; // into positions
+};
+
 // The faces of one texture, as TSP takes them: the surface, with coincident vertices merged so
 // that the two sides of a seam share their vertices, and three texture coordinates per face, in
 // the unit square with v up. Faces whose texture coordinates have no area are left out by the
 // caller: they cover no texel, and TSP cannot process them.
-struct Atlas
+struct Atlas : Surface
 {
-    std::vector<std::array<double, 3>> positions;
-    std::vector<std::array<unsigned int, 3>> triangles; // into positions
-    std::vector<std::array<double, 2>> uv;              // 3 per triangle
+    std::vector<std::array<double, 2>> uv; // 3 per triangle
 };
 
 // A texture, row 0 at the top as QImage stores it, four channels on the 0-255 scale.
@@ -74,5 +79,34 @@ struct FilterOutcome
 FilterOutcome filter(const Atlas &atlas, Image &image, double fidelity, double gradientScale,
                      const std::vector<char> *selectedTriangles, const Image *detail, bool normals,
                      const std::function<bool(unsigned int)> &onVCycle = {});
+
+// LineIntegralConvolution: a texture of streaks along `field`, one vector per triangle on the surface,
+// whose length drives the anisotropy with `anisotropyExponent` (0: the same everywhere it is not
+// zero). Noise drawn from `seed`, one value per texel (a random hue, as the program draws, black or
+// white, or a random gray), is diffused under a metric stretched across the field,
+// (w M_a + S_a) x = w M_a n, solved directly, with the program's weight w set from `streakLength`, in
+// the mesh's units (lineIntegralConvolution's comment says how), and the result sharpened by filter() with
+// `sharpenFidelity` and `sharpenScale`, whose outcome this returns. Writes every texel of the
+// atlas into `image`, opaque. `onVCycle` is also called once, with 0, once the streak system is
+// factored, so the run can be canceled there. Throws std::runtime_error with TSP's message if TSP
+// fails.
+enum class Noise { Hue, BlackAndWhite, Gray };
+FilterOutcome lineIntegralConvolution(const Atlas &atlas, Image &image, const std::vector<std::array<double, 3>> &field,
+                                      double streakLength, double sharpenFidelity, double sharpenScale,
+                                      double anisotropyExponent, Noise noise, unsigned int seed,
+                                      const std::function<bool(unsigned int)> &onVCycle = {});
+
+// TSP's principal curvature per triangle (InitializePrincipalCurvatureDirection): the shape operator
+// of each triangle from the differences of its vertex normals, after LineIntegralConvolution's
+// smoothing of those normals (`smoothingIterations` rounds, `smoothingWeight` its interpolation
+// weight, the surface's area taken as 1). Directions are unit vectors, curvatures in the surface's
+// units, the maximal first. Throws std::runtime_error with TSP's message if TSP fails.
+struct TriangleCurvature
+{
+    std::array<double, 3> maxDirection, minDirection;
+    double maxCurvature = 0, minCurvature = 0;
+};
+std::vector<TriangleCurvature> principalCurvature(const Surface &surface, unsigned int smoothingIterations,
+                                                  double smoothingWeight);
 
 } // namespace TspAdapter

@@ -13,6 +13,7 @@
 #include <vcg/complex/algorithms/bitquad_support.h>
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/parametrization/distortion.h>
+#include <vcg/complex/algorithms/parametrization/tangent_field_operators.h>
 #include <vcg/complex/algorithms/polygon_support.h>
 #include <vcg/complex/algorithms/smooth.h>
 #include <vcg/complex/algorithms/stat.h>
@@ -68,6 +69,8 @@ constexpr QLatin1StringView kFilterRandomFace("set_random_face_color");
 constexpr QLatin1StringView kFilterRandomConnected("set_random_component_color");
 constexpr QLatin1StringView kFilterVertexToFaceQuality("transfer_scalar_from_vertex_to_face");
 constexpr QLatin1StringView kFilterFaceToVertexQuality("transfer_scalar_from_face_to_vertex");
+constexpr QLatin1StringView kFilterVertexToFaceCurvature("transfer_curvature_directions_from_vertex_to_face");
+constexpr QLatin1StringView kFilterFaceToVertexCurvature("transfer_curvature_directions_from_face_to_vertex");
 
 using Mask = vcg::tri::io::Mask;
 namespace Tex = TextureAssociationUtils;
@@ -142,6 +145,18 @@ MeshFilterRunResult fail(const QString &message)
     result.documentModified = false;
     result.errorMessage = message;
     return result;
+}
+
+// MeshLab keeps PD1 and K1 the maximal curvature, as the libigl filter writes them and the
+// curvature decorator draws them. vcglib's cross-field conversion carries each curvature with its
+// direction, but can hand back the two directions in either order, so the pair is put back.
+template <typename Element>
+void orderPrincipalCurvature(Element &e)
+{
+    if (e.K1() < e.K2()) {
+        std::swap(e.PD1(), e.PD2());
+        std::swap(e.K1(), e.K2());
+    }
 }
 
 MeshFilterRunResult success(const QStringList &info = {})
@@ -925,6 +940,35 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         ensureVertexQuality(entry);
         markGeometry(doc, meshIndex, QObject::tr("Transferred face quality to vertices on '%1'").arg(meshLabel(entry, meshIndex)));
         return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::VertexQuality);
+    }
+
+    // Principal curvature directions between vertices and faces, through vcglib's cross-field
+    // conversion (vcg::tri::CrossField), which interpolates the two directions as a cross field
+    // and carries the curvatures with them.
+    if (filterId == QString::fromLatin1(kFilterVertexToFaceCurvature)) {
+        if (!mesh.vert.IsCurvatureDirEnabled())
+            return fail(QObject::tr("'%1' has no curvature directions on its vertices: compute them first, for "
+                                    "example with Compute Principal Curvature Directions (vcglib).").arg(meshLabel(entry, meshIndex)));
+        mesh.face.EnableCurvatureDir();
+        vcg::tri::CrossField<VCGMesh>::SetFaceCrossVectorFromVert(mesh);
+        for (VCGFace &f : mesh.face)
+            if (!f.IsD())
+                orderPrincipalCurvature(f);
+        markGeometry(doc, meshIndex, QObject::tr("Transferred curvature directions from vertices to faces on '%1'").arg(meshLabel(entry, meshIndex)));
+        return success({ QObject::tr("Transferred the principal curvature directions of '%1' from its vertices to its faces.").arg(meshLabel(entry, meshIndex)) });
+    }
+
+    if (filterId == QString::fromLatin1(kFilterFaceToVertexCurvature)) {
+        if (!mesh.face.IsCurvatureDirEnabled())
+            return fail(QObject::tr("'%1' has no curvature directions on its faces: compute them first, for "
+                                    "example with Compute Principal Curvature Directions per Face (TextureSignalProcessing).").arg(meshLabel(entry, meshIndex)));
+        mesh.vert.EnableCurvatureDir();
+        vcg::tri::CrossField<VCGMesh>::SetVertCrossVectorFromFace(mesh);
+        for (VCGVertex &v : mesh.vert)
+            if (!v.IsD())
+                orderPrincipalCurvature(v);
+        markGeometry(doc, meshIndex, QObject::tr("Transferred curvature directions from faces to vertices on '%1'").arg(meshLabel(entry, meshIndex)));
+        return success({ QObject::tr("Transferred the principal curvature directions of '%1' from its faces to its vertices.").arg(meshLabel(entry, meshIndex)) });
     }
 
     return fail(QObject::tr("Unknown filter id: %1").arg(filterId));

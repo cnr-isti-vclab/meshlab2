@@ -75,8 +75,8 @@
         },
         {
           "id": "dummy_img_size",
-          "label": "Dummy size",
-          "help": "Size in pixels of the generated dummy texture. Common values are `512`, `1024`, and `2048`.",
+          "label": "Dummy Texture Size",
+          "help": "The side of the generated dummy texture, which is square, in texels. Common values are `512`, `1024`, and `2048`.",
           "group": "main",
           "type": "int",
           "default": 1024,
