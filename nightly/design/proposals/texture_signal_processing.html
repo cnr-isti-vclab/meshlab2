@@ -955,6 +955,128 @@ transfer moved there too.)</p>
 </li>
 </ol>
 </section>
+<section id="fidelity-as-a-length-approved-and-applied-2026-11-13">
+<h2>Fidelity as a length (approved and applied 2026-11-13)<a class="headerlink" href="#fidelity-as-a-length-approved-and-applied-2026-11-13" title="Link to this heading">¶</a></h2>
+<p>Every <em>Fidelity</em> the TSP filters take is the program’s screening weight w, with no unit of its
+own: the surface is scaled to area 1, so the same w acts at the same relative scale on any
+mesh, and nobody can say what scale that is. The solve is (w M + S) x = w M x₀ + s S x₀ (a
+detail texture in place of x₀ on the right for <em>Transfer Texture Detail</em>), so a pattern of
+wavenumber k on the surface keeps (w + s k²) / (w + k²) of its amplitude: the input’s below the
+<strong>crossover wavelength λ = 2π √(A / w)</strong>, A the surface’s area, and s times it above. It is the
+one length that says what the weight does in every filter: details smaller than λ are the ones
+smoothed away, sharpened or transferred.</p>
+<p><strong>Measured</strong> on a flat 2π × 2π grid laid out over 0.9 of a 512² texture, with sinusoids along
+u, amplitude fitted over the middle half (the gain, measured against theory):</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter (s)</p></th>
+<th class="head"><p>w</p></th>
+<th class="head"><p>λ / 2</p></th>
+<th class="head"><p>λ</p></th>
+<th class="head"><p>2 λ</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Smooth (0)</p></td>
+<td><p>1e3</p></td>
+<td><p>0.202 / 0.200</p></td>
+<td><p>0.477 / 0.500</p></td>
+<td><p>0.788 / 0.800</p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth (0)</p></td>
+<td><p>1e4</p></td>
+<td><p>0.198 / 0.200</p></td>
+<td><p>0.496 / 0.500</p></td>
+<td><p>0.795 / 0.800</p></td>
+</tr>
+<tr class="row-even"><td><p>Sharpen (2)</p></td>
+<td><p>1e3</p></td>
+<td><p>1.816 / 1.800</p></td>
+<td><p>1.430 / 1.500</p></td>
+<td><p>1.182 / 1.200</p></td>
+</tr>
+<tr class="row-odd"><td><p>Sharpen (2)</p></td>
+<td><p>1e4</p></td>
+<td><p>1.798 / 1.800</p></td>
+<td><p>1.487 / 1.500</p></td>
+<td><p>1.191 / 1.200</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The gap grows with the wavelength against the 460-texel layout (at w = 100, 145 texels for λ/2,
+smoothing gave 0.184 against 0.200): the layout’s border, where the solve has no neighbors,
+is near. The test that now pins the Detail Size, a 74-texel wavelength fitted over three whole
+periods, measures 0.502 and 1.501 at λ; the probe fitted over the middle half of the layout,
+not whole periods, which probably accounts for its larger gap there. The program’s default w = 1000 is λ = 0.199 √A, close to 20% of the bounding box
+diagonal on a compact mesh (√A is 212 against a diagonal of 198 on the gargoyle).</p>
+<p><strong>Mapping</strong>, each a length (<code class="docutils literal notranslate"><span class="pre">absperc</span></code>), w = A (2π / λ)² computed in the adapter
+(<code class="docutils literal notranslate"><span class="pre">weightForDetailSize</span></code>). The ids are pymeshlab2’s keyword arguments, renamed with no alias. The
+two rows marked derived were approved on the shared equation, without a measurement of their own:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Current id · label · default</p></th>
+<th class="head"><p>Target id · label · default</p></th>
+<th class="head"><p>Evidence</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><em>Smooth Texture</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fidelity</span></code> · <code class="docutils literal notranslate"><span class="pre">Fidelity</span></code> · 1000</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">detailSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Detail</span> <span class="pre">Size</span></code> · 20% of the diagonal</p></td>
+<td><p>measured above</p></td>
+<td><p>id, label, type</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Sharpen Texture</em></p></td>
+<td><p>same</p></td>
+<td><p>same</p></td>
+<td><p>measured above</p></td>
+<td><p>id, label, type</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Transfer Texture Detail</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fidelity</span></code> · <code class="docutils literal notranslate"><span class="pre">Fidelity</span></code> · 1000</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">detailSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Detail</span> <span class="pre">Size</span></code> · 20%: details smaller come from the detail texture</p></td>
+<td><p>the same operator, gain s k² / (w + k²) on the detail texture; derived, not measured</p></td>
+<td><p>id, label, type</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Colorize Texture by Principal Directions (LIC)</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sharpenFidelity</span></code> · <code class="docutils literal notranslate"><span class="pre">Sharpening</span> <span class="pre">Fidelity</span></code> · 1e4 (advanced)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sharpenDetailSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Sharpening</span> <span class="pre">Detail</span> <span class="pre">Size</span></code> · 5% (λ = 0.063 √A at the program’s 1e4)</p></td>
+<td><p>the stage-2 solve, measured above</p></td>
+<td><p>id, label, type</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Compute Principal Curvature Directions per Face (TSP)</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smoothingWeight</span></code> · <code class="docutils literal notranslate"><span class="pre">Normal</span> <span class="pre">Smoothing</span> <span class="pre">Fidelity</span></code> · 1000 (advanced)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smoothingSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Normal</span> <span class="pre">Smoothing</span> <span class="pre">Size</span></code> · 20%, per round</p></td>
+<td><p>the same screened operator on the normals; derived, not measured</p></td>
+<td><p>id, label, type</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Smooth</em>, <em>Sharpen</em>, <em>Transfer Texture Detail</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gradientScale</span></code></p></td>
+<td><p>unchanged; the help says it is the gain on details well below the Detail Size, and the Detail Size where it is half applied</p></td>
+<td><p>dimensionless already</p></td>
+<td><p>help only</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Dilate Texture across Seams</em> · <em>LIC</em> · <em>Curvature</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">radius</span></code> (texels) · <code class="docutils literal notranslate"><span class="pre">anisotropyExponent</span></code> · <code class="docutils literal notranslate"><span class="pre">smoothingIterations</span></code></p></td>
+<td><p>unchanged</p></td>
+<td><p>a length in texels, an exponent, a count</p></td>
+<td><p>none</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Totals: 5 filters change an id, 3 more a help; 3 parameters stay. The default 20% is a new bound
+token, <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiagFifth</span></code>, named like <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiagTenth</span></code> and <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiagHalf</span></code>: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag02</span></code> would
+read as 2% beside <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>. 5% is <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag005</span></code>. <em>Detail Size</em> is in the
+<a class="reference internal" href="../vocabulary.html"><span class="std std-doc">vocabulary</span></a>: the wavelength at which a gradient-domain filter is halfway
+between the input and its effect. <code class="docutils literal notranslate"><span class="pre">FilterTests::textureSignalProcessingDetailSizeIsTheCrossover</span></code>
+holds Smooth and Sharpen Texture to it.</p>
+</section>
 <section id="naming">
 <h2>Naming<a class="headerlink" href="#naming" title="Link to this heading">¶</a></h2>
 <p><a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a> has no subcategory for processing an existing image.
@@ -1068,6 +1190,7 @@ faces, 96 s and 22 GB for half of them, far more than inpainting is for.</p></li
 </ul>
 </li>
 <li><a class="reference internal" href="#staging">Staging</a></li>
+<li><a class="reference internal" href="#fidelity-as-a-length-approved-and-applied-2026-11-13">Fidelity as a length (approved and applied 2026-11-13)</a></li>
 <li><a class="reference internal" href="#naming">Naming</a></li>
 <li><a class="reference internal" href="#open-questions">Open questions</a></li>
 </ul>

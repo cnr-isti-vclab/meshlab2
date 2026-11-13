@@ -1203,23 +1203,27 @@ display name leads with a word that is not here.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span></code>, id <code class="docutils literal notranslate"><span class="pre">textureSize</span></code>: one side, in texels, of a square texture; the help says the unit, the label does not. Width and height stay only where the size describes images that already exist (the UV measures, where 0 means each image’s own). See <a class="reference internal" href="#texture-size-2026-11-13"><span class="xref myst">Texture size</span></a></p></td>
 <td><p>a width and height pair for a new texture (<code class="docutils literal notranslate"><span class="pre">textW</span></code>/<code class="docutils literal notranslate"><span class="pre">textH</span></code>), <code class="docutils literal notranslate"><span class="pre">texsize</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">size</span> <span class="pre">(px)</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span> <span class="pre">(px)</span></code>, <code class="docutils literal notranslate"><span class="pre">Atlas</span> <span class="pre">size</span> <span class="pre">(pixels)</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Normal vector</p></td>
+<tr class="row-odd"><td><p>Scale a gradient-domain (screened Poisson) filter acts at (UI label and id, 2026-11-13)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Detail</span> <span class="pre">Size</span></code>, id <code class="docutils literal notranslate"><span class="pre">detailSize</span></code>, a length on the surface (<code class="docutils literal notranslate"><span class="pre">absperc</span></code>): the wavelength at which the filter is halfway between keeping the input and acting on it, smaller patterns being smoothed, sharpened or transferred and larger ones kept. Qualified by what is filtered when a dialog has another (<code class="docutils literal notranslate"><span class="pre">Sharpening</span> <span class="pre">Detail</span> <span class="pre">Size</span></code>, <code class="docutils literal notranslate"><span class="pre">Normal</span> <span class="pre">Smoothing</span> <span class="pre">Size</span></code>). See <a class="reference internal" href="proposals/texture_signal_processing.html#fidelity-as-a-length-approved-and-applied-2026-11-13"><span class="std std-ref">Fidelity as a length</span></a></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Fidelity</span></code>, <code class="docutils literal notranslate"><span class="pre">Interpolation</span> <span class="pre">Weight</span></code>, <code class="docutils literal notranslate"><span class="pre">Screening</span> <span class="pre">Weight</span></code> — the solver’s weight, unitless on a surface scaled to unit area, which no one can relate to the mesh</p></td>
+</tr>
+<tr class="row-even"><td><p>Normal vector</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normal</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normals</span> <span class="pre">direction</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Layer matrix</p></td>
+<tr class="row-odd"><td><p>Layer matrix</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">matrix</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">transformation</span> <span class="pre">matrix</span></code> (verbose), <code class="docutils literal notranslate"><span class="pre">xform</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>1D abstraction of a shape</p></td>
+<tr class="row-even"><td><p>1D abstraction of a shape</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">skeleton</span></code> alone, <code class="docutils literal notranslate"><span class="pre">morphological</span> <span class="pre">skeleton</span></code>, <code class="docutils literal notranslate"><span class="pre">medial</span> <span class="pre">axis</span></code>, <code class="docutils literal notranslate"><span class="pre">centerline</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Graph of the level-set components of a scalar field</p></td>
+<tr class="row-odd"><td><p>Graph of the level-set components of a scalar field</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Reeb</span> <span class="pre">graph</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">contour</span> <span class="pre">tree</span></code> (the special case of a simply connected domain, which has no cycles)</p></td>
 </tr>
-<tr class="row-odd"><td><p>Loops around a handle / around a tunnel of a closed surface</p></td>
+<tr class="row-even"><td><p>Loops around a handle / around a tunnel of a closed surface</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">handle</span> <span class="pre">loop</span></code>, <code class="docutils literal notranslate"><span class="pre">tunnel</span> <span class="pre">loop</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meridian</span></code>, <code class="docutils literal notranslate"><span class="pre">longitude</span></code> (torus-only), <code class="docutils literal notranslate"><span class="pre">generator</span></code> (any basis loop, not classified)</p></td>
 </tr>

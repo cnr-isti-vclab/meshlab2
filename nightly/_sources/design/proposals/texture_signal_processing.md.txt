@@ -489,6 +489,55 @@ include. After it, an adapter-like file includes no PLY header and emits no PLY 
       Space* to `TextureAssociationUtils::storeOutputTexture`, and the slot helpers of that
       transfer moved there too.)
 
+## Fidelity as a length (approved and applied 2026-11-13)
+
+Every *Fidelity* the TSP filters take is the program's screening weight w, with no unit of its
+own: the surface is scaled to area 1, so the same w acts at the same relative scale on any
+mesh, and nobody can say what scale that is. The solve is (w M + S) x = w M x₀ + s S x₀ (a
+detail texture in place of x₀ on the right for *Transfer Texture Detail*), so a pattern of
+wavenumber k on the surface keeps (w + s k²) / (w + k²) of its amplitude: the input's below the
+**crossover wavelength λ = 2π √(A / w)**, A the surface's area, and s times it above. It is the
+one length that says what the weight does in every filter: details smaller than λ are the ones
+smoothed away, sharpened or transferred.
+
+**Measured** on a flat 2π × 2π grid laid out over 0.9 of a 512² texture, with sinusoids along
+u, amplitude fitted over the middle half (the gain, measured against theory):
+
+| Filter (s) | w | λ / 2 | λ | 2 λ |
+|---|---|---|---|---|
+| Smooth (0) | 1e3 | 0.202 / 0.200 | 0.477 / 0.500 | 0.788 / 0.800 |
+| Smooth (0) | 1e4 | 0.198 / 0.200 | 0.496 / 0.500 | 0.795 / 0.800 |
+| Sharpen (2) | 1e3 | 1.816 / 1.800 | 1.430 / 1.500 | 1.182 / 1.200 |
+| Sharpen (2) | 1e4 | 1.798 / 1.800 | 1.487 / 1.500 | 1.191 / 1.200 |
+
+The gap grows with the wavelength against the 460-texel layout (at w = 100, 145 texels for λ/2,
+smoothing gave 0.184 against 0.200): the layout's border, where the solve has no neighbors,
+is near. The test that now pins the Detail Size, a 74-texel wavelength fitted over three whole
+periods, measures 0.502 and 1.501 at λ; the probe fitted over the middle half of the layout,
+not whole periods, which probably accounts for its larger gap there. The program's default w = 1000 is λ = 0.199 √A, close to 20% of the bounding box
+diagonal on a compact mesh (√A is 212 against a diagonal of 198 on the gargoyle).
+
+**Mapping**, each a length (`absperc`), w = A (2π / λ)² computed in the adapter
+(`weightForDetailSize`). The ids are pymeshlab2's keyword arguments, renamed with no alias. The
+two rows marked derived were approved on the shared equation, without a measurement of their own:
+
+| Filter | Current id · label · default | Target id · label · default | Evidence | Verdict |
+|---|---|---|---|---|
+| *Smooth Texture* | `fidelity` · `Fidelity` · 1000 | `detailSize` · `Detail Size` · 20% of the diagonal | measured above | id, label, type |
+| *Sharpen Texture* | same | same | measured above | id, label, type |
+| *Transfer Texture Detail* | `fidelity` · `Fidelity` · 1000 | `detailSize` · `Detail Size` · 20%: details smaller come from the detail texture | the same operator, gain s k² / (w + k²) on the detail texture; derived, not measured | id, label, type |
+| *Colorize Texture by Principal Directions (LIC)* | `sharpenFidelity` · `Sharpening Fidelity` · 1e4 (advanced) | `sharpenDetailSize` · `Sharpening Detail Size` · 5% (λ = 0.063 √A at the program's 1e4) | the stage-2 solve, measured above | id, label, type |
+| *Compute Principal Curvature Directions per Face (TSP)* | `smoothingWeight` · `Normal Smoothing Fidelity` · 1000 (advanced) | `smoothingSize` · `Normal Smoothing Size` · 20%, per round | the same screened operator on the normals; derived, not measured | id, label, type |
+| *Smooth*, *Sharpen*, *Transfer Texture Detail* | `gradientScale` | unchanged; the help says it is the gain on details well below the Detail Size, and the Detail Size where it is half applied | dimensionless already | help only |
+| *Dilate Texture across Seams* · *LIC* · *Curvature* | `radius` (texels) · `anisotropyExponent` · `smoothingIterations` | unchanged | a length in texels, an exponent, a count | none |
+
+Totals: 5 filters change an id, 3 more a help; 3 parameters stay. The default 20% is a new bound
+token, `@bboxDiagFifth`, named like `@bboxDiagTenth` and `@bboxDiagHalf`: `@bboxDiag02` would
+read as 2% beside `@bboxDiag002`. 5% is `@bboxDiag005`. *Detail Size* is in the
+[vocabulary](../vocabulary.md): the wavelength at which a gradient-domain filter is halfway
+between the input and its effect. `FilterTests::textureSignalProcessingDetailSizeIsTheCrossover`
+holds Smooth and Sharpen Texture to it.
+
 ## Naming
 
 [Vocabulary](../vocabulary.md) has no subcategory for processing an existing image.
