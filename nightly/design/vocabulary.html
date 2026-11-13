@@ -1199,23 +1199,27 @@ display name leads with a word that is not here.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Cell</span> <span class="pre">Size</span></code>, as <em>Simplify by Vertex Clustering</em> and <em>Sample Vertices by Clustering</em> already say; qualified by what the grid is for when a dialog holds several lengths: <code class="docutils literal notranslate"><span class="pre">Downsampling</span> <span class="pre">Cell</span> <span class="pre">Size</span></code> (the matching step of the Open3D aligners)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Matching</span> <span class="pre">Voxel</span> <span class="pre">Size</span></code>, <code class="docutils literal notranslate"><span class="pre">Registration</span> <span class="pre">Voxel</span> <span class="pre">Size</span></code> — they name the stage the number serves, not what it controls, and <code class="docutils literal notranslate"><span class="pre">voxel</span></code> implies a volume. <code class="docutils literal notranslate"><span class="pre">Voxel</span> <span class="pre">Size</span></code> stays where the filter’s own name says voxel grid (<em>Sample Point Cloud by Voxel Grid</em>) or builds a volume</p></td>
 </tr>
-<tr class="row-even"><td><p>Normal vector</p></td>
+<tr class="row-even"><td><p>Size of a texture a filter makes (UI label and id, 2026-11-13)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span></code>, id <code class="docutils literal notranslate"><span class="pre">textureSize</span></code>: one side, in texels, of a square texture; the help says the unit, the label does not. Width and height stay only where the size describes images that already exist (the UV measures, where 0 means each image’s own). See <a class="reference internal" href="#texture-size-2026-11-13"><span class="xref myst">Texture size</span></a></p></td>
+<td><p>a width and height pair for a new texture (<code class="docutils literal notranslate"><span class="pre">textW</span></code>/<code class="docutils literal notranslate"><span class="pre">textH</span></code>), <code class="docutils literal notranslate"><span class="pre">texsize</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">size</span> <span class="pre">(px)</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span> <span class="pre">(px)</span></code>, <code class="docutils literal notranslate"><span class="pre">Atlas</span> <span class="pre">size</span> <span class="pre">(pixels)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Normal vector</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normal</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normals</span> <span class="pre">direction</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Layer matrix</p></td>
+<tr class="row-even"><td><p>Layer matrix</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">matrix</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">transformation</span> <span class="pre">matrix</span></code> (verbose), <code class="docutils literal notranslate"><span class="pre">xform</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>1D abstraction of a shape</p></td>
+<tr class="row-odd"><td><p>1D abstraction of a shape</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">skeleton</span></code> alone, <code class="docutils literal notranslate"><span class="pre">morphological</span> <span class="pre">skeleton</span></code>, <code class="docutils literal notranslate"><span class="pre">medial</span> <span class="pre">axis</span></code>, <code class="docutils literal notranslate"><span class="pre">centerline</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Graph of the level-set components of a scalar field</p></td>
+<tr class="row-even"><td><p>Graph of the level-set components of a scalar field</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Reeb</span> <span class="pre">graph</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">contour</span> <span class="pre">tree</span></code> (the special case of a simply connected domain, which has no cycles)</p></td>
 </tr>
-<tr class="row-even"><td><p>Loops around a handle / around a tunnel of a closed surface</p></td>
+<tr class="row-odd"><td><p>Loops around a handle / around a tunnel of a closed surface</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">handle</span> <span class="pre">loop</span></code>, <code class="docutils literal notranslate"><span class="pre">tunnel</span> <span class="pre">loop</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meridian</span></code>, <code class="docutils literal notranslate"><span class="pre">longitude</span></code> (torus-only), <code class="docutils literal notranslate"><span class="pre">generator</span></code> (any basis loop, not classified)</p></td>
 </tr>
@@ -1242,6 +1246,89 @@ image-morphology operation (erosions and openings on a binary image).</p></li>
 that really computed it would call it that.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">centerline</span></code></strong> usually means one path through a tube, with no branching.</p></li>
 </ul>
+</section>
+<section id="texture-size-2026-11-13">
+<h3>Texture size (2026-11-13)<a class="headerlink" href="#texture-size-2026-11-13" title="Link to this heading">¶</a></h3>
+<p>A texture a filter makes is <strong>square</strong>, and its size is one number: <code class="docutils literal notranslate"><span class="pre">textureSize</span></code>,
+labelled <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span></code>, the side in texels. That was already what most of these
+filters asked; three transfers asked for a width and a height instead, and the labels
+spelled the unit three ways. A width and height pair stays where the numbers describe
+images that exist, of any shape: <em>Measure UV Mapping</em>, <em>Measure Texel Coverage</em> and
+<em>Select Overlapping UV Faces</em> take <code class="docutils literal notranslate"><span class="pre">textureWidth</span></code>/<code class="docutils literal notranslate"><span class="pre">textureHeight</span></code>, 0 for each image’s own
+size.</p>
+<p><em>Colorize Texture by Principal Directions (Line Integral Convolution)</em> follows the rule
+from its first commit. The other filters moved as below (approved and applied
+2026-11-13); the parameter ids are also pymeshlab2’s keyword arguments, renamed outright
+with no alias. The helps now say the unit, texels.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Current id · label</p></th>
+<th class="head"><p>Target id · label</p></th>
+<th class="head"><p>Evidence</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><em>Transfer Color from Vertex to Texture</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textW</span></code>, <code class="docutils literal notranslate"><span class="pre">textH</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">width</span> <span class="pre">(px)</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">height</span> <span class="pre">(px)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_texture/filters.json</span></code>; <code class="docutils literal notranslate"><span class="pre">texturefilterplugin.cpp</span></code> built <code class="docutils literal notranslate"><span class="pre">QImage(QSize(textW,</span> <span class="pre">textH))</span></code></p></td>
+<td><p>id and label</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Transfer Vertex Attributes to Texture by Closest Point</em></p></td>
+<td><p>same</p></td>
+<td><p>same</p></td>
+<td><p>same file and code path</p></td>
+<td><p>id and label</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Transfer Texture to Texture by Closest Point</em></p></td>
+<td><p>same</p></td>
+<td><p>same</p></td>
+<td><p>same file and code path</p></td>
+<td><p>id and label</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Transfer Color from Visible Rasters to Texture</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texsize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">size</span> <span class="pre">(px)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_color_projection</span></code>, <code class="docutils literal notranslate"><span class="pre">colorprojectionfilterplugin.cpp:306</span></code>; also set by the test fixture <code class="docutils literal notranslate"><span class="pre">makePhotoTexturedGargoyle</span></code></p></td>
+<td><p>id and label</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Parametrize from Registered Rasters with Texture</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">size</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_img_patch_param</span></code>, <code class="docutils literal notranslate"><span class="pre">imgpatchparamfilterplugin.cpp:1240</span></code></p></td>
+<td><p>label</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Transfer Color from Visible Rasters to Texture (Texture Consolidation)</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span> <span class="pre">(px)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_texture_consolidation/filters.json</span></code></p></td>
+<td><p>label</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Set Texture</em> and <em>Parametrize by Atlas (xatlas)</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">dummy_img_size</span></code> · <code class="docutils literal notranslate"><span class="pre">Dummy</span> <span class="pre">size</span></code></p></td>
+<td><p>unchanged id · <code class="docutils literal notranslate"><span class="pre">Dummy</span> <span class="pre">Texture</span> <span class="pre">Size</span></code></p></td>
+<td><p>both make a square placeholder image (<code class="docutils literal notranslate"><span class="pre">makeDummyTexture(imageSize,</span> <span class="pre">…)</span></code>); the id belongs to the <code class="docutils literal notranslate"><span class="pre">dummy_*</span></code> group with <code class="docutils literal notranslate"><span class="pre">dummy_check_size</span></code> and <code class="docutils literal notranslate"><span class="pre">dummy_type</span></code>, which a rename of its own would move together</p></td>
+<td><p>label</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Create Atlased Mesh from Abstract Domain</em> and <em>Pack UV Charts (vcglib)</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Atlas</span> <span class="pre">size</span> <span class="pre">(pixels)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Atlas</span> <span class="pre">Size</span></code></p></td>
+<td><p>no texture is made: the side of the square grid the charts are packed on (<code class="docutils literal notranslate"><span class="pre">layout.packing.textureSize</span></code>; Pack UV Charts’ placeholder image only feeds the packer)</p></td>
+<td><p>label</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Measure UV Mapping</em>, <em>Measure Texel Coverage</em>, <em>Select Overlapping UV Faces</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureWidth</span></code>, <code class="docutils literal notranslate"><span class="pre">textureHeight</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Width</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Height</span></code></p></td>
+<td><p>unchanged</p></td>
+<td><p>existing images, 0 = each image’s own size</p></td>
+<td><p>none</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Totals: 11 filters; 4 change ids (6 ids become 4), 6 change labels only, 3 stay.</p>
 </section>
 <section id="why-scalar-not-quality">
 <h3>Why <code class="docutils literal notranslate"><span class="pre">scalar</span></code>, not <code class="docutils literal notranslate"><span class="pre">quality</span></code><a class="headerlink" href="#why-scalar-not-quality" title="Link to this heading">¶</a></h3>
@@ -1679,6 +1766,7 @@ no tag contains a comma or bracket, and that <code class="docutils literal notra
 <li><a class="reference internal" href="#verb-lexicon">3. Verb lexicon</a></li>
 <li><a class="reference internal" href="#element-and-data-nouns">4. Element and data nouns</a><ul>
 <li><a class="reference internal" href="#why-curve-skeleton-2026-09-27">Why <code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code> (2026-09-27)</a></li>
+<li><a class="reference internal" href="#texture-size-2026-11-13">Texture size (2026-11-13)</a></li>
 <li><a class="reference internal" href="#why-scalar-not-quality">Why <code class="docutils literal notranslate"><span class="pre">scalar</span></code>, not <code class="docutils literal notranslate"><span class="pre">quality</span></code></a></li>
 <li><a class="reference internal" href="#the-view-s-pass-bar-2026-09-29">The view’s pass bar (2026-09-29)</a></li>
 <li><a class="reference internal" href="#search-aliases-2026-10-30">Search aliases (2026-10-30)</a></li>

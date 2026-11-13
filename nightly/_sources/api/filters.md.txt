@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 411 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 415 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -841,6 +841,41 @@ Estimates the two principal curvatures and their tangent directions using libigl
 - **neighborhood_radius** (*int*, default: `5`) — Neighborhood size passed to libigl. With K-ring mode it is the number of adjacent vertex rings; otherwise it is relative to average edge length.
 - **use_k_ring** (*bool*, default: `True`) — Use a topological K-ring neighborhood. Disable it to use libigl's metric ball neighborhood.
 - **quality_mapping** (*enum*, default: `mean`) — Choose the curvature value also stored in vertex scalar and shown after completion.
+```
+
+---
+
+(filter-compute-principal-curvature-directions-per-face-texture-signal-processing)=
+
+## Compute Principal Curvature Directions per Face (TextureSignalProcessing)
+
+**Categories:** `Attribute/Curvature`
+
+**Plugin:** meshlab2.filter.texture_signal_processing
+
+Compute each face's principal curvature directions and curvatures from the variation of the vertex normals across it.
+
+```{py:function} ms.compute_principal_curvature_directions_per_face_texture_signal_processing(**params)
+:module: _meshlab
+
+Computes, for every face, the two principal curvature directions and the two principal curvatures, and stores them in the faces, the maximal first. Unlike the other *Compute Principal Curvature Directions* filters, which fit a neighborhood around each vertex, this one reads the curvature of each face from how the vertex normals turn across it: the shape operator of the face, the change of the normal along its two edges, whose eigenvectors and eigenvalues are the principal directions and curvatures. It is local and fast, and only as good as the normals, so the normals are first smoothed on the surface: each round moves every normal within its tangent plane to make the normals vary less, held back by *Normal Smoothing Fidelity*.
+
+It is the computation of the `LineIntegralConvolution` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, with its defaults: two rounds of smoothing at a fidelity of 1000, the surface's area taken as 1. The vertex normals are computed from the faces, area weighted, so the mesh's own normals are not used. Coincident vertices are merged first, so a mesh that repeats its vertices along a seam still has continuous normals there. Faces with no area get no directions.
+
+The directions are drawn by the curvature decorator once they are on the vertices: *Transfer Curvature Directions from Face to Vertex* averages them there.
+
+**Upstream:** [TextureSignalProcessing](https://github.com/mkazhdan/TextureSignalProcessing)
+
+**License:** MIT
+
+**References:**
+
+- Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. **Gradient-domain Processing within a Texture Atlas**. *ACM Transactions on Graphics* (2018). [DOI](https://doi.org/10.1145/3197517.3201317)
+
+**Parameters:**
+
+- **smoothingIterations** (*int*, default: `2`) — How many times the vertex normals are smoothed before the curvature is read from them; 0 uses them as they are. The program's default is 2.
+- **smoothingWeight** (*double*, default: `1000.0`) — How strongly each round holds the normals to their values: the smaller, the more each round smooths. The surface's area is taken as 1, so the same value acts at the same scale on any mesh.
 ```
 
 ---
@@ -8692,7 +8727,7 @@ The *Try chart permutations* option is worth knowing about. The rasterized packe
 **Parameters:**
 
 - **algorithm** (*enum*, default: `rasterized_scaled`) — Which vcglib packer lays the charts out.
-- **textureSize** (*int*, default: `1024`) — Side of the square atlas the charts are packed into.
+- **textureSize** (*int*, default: `1024`) — Side, in texels, of the square atlas the charts are packed into.
 - **gutterWidth** (*int*, default: `4`) — Padding kept around each chart, so bilinear filtering cannot bleed between neighbours.
 - **rotationNum** (*int*, default: `4`) — How many orientations each chart is tried at, rounded to the nearest multiple of four -- the packer derives four slots from every base rasterization, so only multiples of four are usable. Rasterized packers only.
 - **permutations** (*bool*, default: `False`) — Retry the layout with reshuffled chart orders. Costs five packing passes per similarly sized chart, so on a uniform atlas it is five per chart and it dominates the run. Rasterized packers only.
@@ -8914,7 +8949,7 @@ The square patches and the half-star partition are the paper's; the merged hexag
 - **mergeIrregularStars** (*bool*, default: `False`) — Star charts normally merge only around regular domain vertices, the ones with exactly six triangles. With this on, vertices with five or seven triangles are merged too. Far more diamonds get absorbed -- on a 1.2k sphere, 266 of 291 against 176 -- at the cost of some stretch, since those triangles have to open to 72 degrees or close to 51 to make the ring meet. Ignored unless the chart shape is Star.
 - **borderSize** (*double*, default: `0.1`) — How far a face may stray outside its diamond before it is split in two. Smaller values cut the mesh more finely and keep the charts tighter to the domain, which also lets more diamonds join a hexagonal chart. The gutter between packed charts is set separately.
 - **packingAlgorithm** (*enum*, default: `rasterized_scaled`) — Which vcglib packer lays the charts out in the atlas.
-- **textureSize** (*int*, default: `2048`) — Side of the square atlas the charts are packed into. The UVs come back normalized either way; this sets the resolution the packer works at, and so what the gutter is worth. A domain has many small charts, and the gutter is what costs atlas area: on a 1.2k sphere, 291 charts at 1024 with a 4-pixel gutter cover 56% of the atlas, and the same run at 2048 covers 67%.
+- **textureSize** (*int*, default: `2048`) — Side, in texels, of the square atlas the charts are packed into. The UVs come back normalized either way; this sets the resolution the packer works at, and so what the gutter is worth. A domain has many small charts, and the gutter is what costs atlas area: on a 1.2k sphere, 291 charts at 1024 with a 4-pixel gutter cover 56% of the atlas, and the same run at 2048 covers 67%.
 - **gutterWidth** (*int*, default: `2`) — Padding kept around each chart, so bilinear filtering cannot bleed between neighbours.
 - **rotationNum** (*int*, default: `4`) — How many orientations each chart is tried at, rounded to the nearest multiple of four -- the packer derives four slots from every base rasterization, so only multiples of four are usable. Rasterized packers only.
 - **permutations** (*bool*, default: `False`) — Retry the layout with reshuffled chart orders. Costs five packing passes per similarly sized chart, so on a uniform atlas it is five per chart and it dominates the run. Rasterized packers only.
@@ -9103,7 +9138,7 @@ Practical tuning notes:
 - **resolution** (*int*, default: `0`) — If `0`, xatlas chooses a single-atlas size automatically. If greater than `0`, xatlas tries to match this atlas resolution. Large requested resolutions, especially with high texels-per-unit or padding, can force xatlas to create multiple atlases. Common values are `512`, `1024`, `2048`, and `4096`.
 - **bruteForce** (*bool*, default: `False`) — Use the slower but higher-quality chart packing strategy. This is the main option to try when you want more aggressive packing and better atlas utilization.
 - **use_dummy_texture** (*bool*, default: `False`) — If enabled, also attach a generated dummy base-color texture to the mesh after the xatlas UVs are created, so the result is immediately visible in textured and UV views.
-- **dummy_img_size** (*int*, default: `1024`) — Size in pixels of the generated dummy texture. Common values are `512`, `1024`, and `2048`.
+- **dummy_img_size** (*int*, default: `1024`) — The side of the generated dummy texture, which is square, in texels. Common values are `512`, `1024`, and `2048`.
 - **dummy_check_size** (*int*, default: `32`) — Size of the check or grid cells in pixels. A practical range is usually `8..128` depending on texture resolution.
 - **dummy_type** (*enum*, default: `checkerboard`) — Choose between a checkerboard, a line grid, and a UV grid whose lines along U are red and along V blue, for the generated dummy texture.
 - **bilinear** (*bool*, default: `True`) — Leave space around charts for texels that would be sampled by bilinear filtering. Keep this enabled for safer baked textures; disabling it can improve packing density slightly but increases artifact risk.
@@ -9433,7 +9468,7 @@ Requires at least one visible raster with a valid camera and a 2-manifold mesh.
 
 **Parameters:**
 
-- **textureSize** (*int*, default: `1024`) — Specifies the dimension of the generated texture.
+- **textureSize** (*int*, default: `1024`) — The side of the generated texture, which is square, in texels.
 - **textureName** (*string*, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.
 - **colorCorrection** (*bool*, default: `True`) — If true, the final texture is corrected to ensure seamless transitions between adjacent patches.
 - **colorCorrectionFilterSize** (*int*, default: `1`) — Radius (in pixels) of the kernel used to compute the difference between corresponding texels in different rasters. Default of 1 generates a 3x3 kernel. Higher values increase robustness for strong misalignments.
@@ -11092,6 +11127,51 @@ The selection is **added** to the current one; clear it first for an exact resul
 
 ---
 
+(filter-colorize-texture-by-principal-directions-line-integral-convolution)=
+
+## Colorize Texture by Principal Directions (Line Integral Convolution)
+
+**Categories:** `Texture`, `Attribute/Curvature`
+
+**Plugin:** meshlab2.filter.texture_signal_processing
+
+Draw the mesh's principal curvature directions into a texture as colored streaks, continuous across seams.
+
+```{py:function} ms.colorize_texture_by_principal_directions_line_integral_convolution(**params)
+:module: _meshlab
+
+Fills a texture with streaks that run along the mesh's maximal or minimal principal curvature directions: random noise, one value per texel (a color of random hue, black or white, or a random gray: *Noise*), is smeared along the directions on the surface, and the streaks are then sharpened for contrast. Since the texels on the two sides of a seam are neighbors on the surface, the streaks run on across seams, and the islands' outlines do not show.
+
+**The directions** come from the mesh: from its faces when they have principal directions (*Compute Principal Curvature Directions per Face (TextureSignalProcessing)*, or *Transfer Curvature Directions from Vertex to Face*), otherwise from its vertices (the other *Compute Principal Curvature Directions* filters), interpolated into each face as the transfer does, without storing them. Each face's direction is weighted by how different its two curvatures are, which matters only with an *Anisotropy Exponent* above 0: then the streaks fade where the surface curves alike in every direction, where the directions mean little.
+
+**The texture.** The streaks go into a new square texture of the size asked, laid out by the faces' texture coordinates, which need no image: a mesh that has only been parametrized works. It is added after the mesh's textures, which stay, and the faces are switched to it, so it shows at once; saving the mesh writes it. A mesh whose faces use several textures gets one new texture for each. Faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).
+
+It is the method of the `LineIntegralConvolution` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, run inside MeshLab with about its defaults. The noise $n$ is diffused under a metric stretched across the field, $(w\,M_a + S_a)\,x = w\,M_a\,n$, solved directly, as the program does with `--useDirectSolver` (multigrid does not converge under this anisotropy). The weight comes from the *Streak Length* $L$, as $w = A\sqrt{1+10^5}\,(3.357/L)^2$ with $A$ the area: the metric shortens lengths along the field by $(1+10^5)^{1/4}$, so the noise is averaged over a decay length $L/3.357$, and the program's default $w = 10^4$ is a length of $0.60\sqrt{A}$;  the streaks $x$ are then sharpened by the solve of *Sharpen Texture*, with the *Sharpening Fidelity* and *Sharpening Gradient Scale*.
+
+**Time and memory:** about 14 s and 3 GB for a 20k-face mesh at 1024², 85 s and 8 GB at 2048².
+
+**Upstream:** [TextureSignalProcessing](https://github.com/mkazhdan/TextureSignalProcessing)
+
+**License:** MIT
+
+**References:**
+
+- Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. **Gradient-domain Processing within a Texture Atlas**. *ACM Transactions on Graphics* (2018). [DOI](https://doi.org/10.1145/3197517.3201317)
+
+**Parameters:**
+
+- **textureSize** (*int*, default: `1024`) — The side of the new texture, which is square, in texels.
+- **direction** (*enum*, default: `maximal`) — Which principal direction the streaks follow.
+- **noise** (*enum*, default: `hue`) — The random texture whose texels are smeared into streaks, one value per texel.
+- **streakLength** (*absperc*, default: `@bboxDiagHalf`) — How long the streaks are along the directions: the distance over which the texels along a streak stay correlated by at least half. The sharpening that follows makes them about a fifth shorter, and a field that turns ends them sooner. The default, half the bounding box diagonal, is about the program's default on a compact mesh, whose square root of area is close to its diagonal.
+- **sharpenFidelity** (*double*, default: `10000.0`) — The fidelity of the sharpening that follows, as in Sharpen Texture. The program's sharpening interpolation weight.
+- **sharpenScale** (*double*, default: `100.0`) — How much the sharpening amplifies the streaks' gradients, for contrast; 1 leaves them as they are. The program's sharpening modulation.
+- **anisotropyExponent** (*double*, default: `0.0`) — How the streaks depend on how different the two curvatures are: 0 makes them equally strong wherever there is a direction; above 0 they fade where the surface curves alike in every direction. The program's anisotropy exponent.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the noise, and so the streaks, exactly reproducible.
+```
+
+---
+
 (filter-remove-textures)=
 
 ## Remove Textures
@@ -11163,7 +11243,7 @@ Associates one texture with the current mesh UV parametrization, replacing its e
 
 - **use_dummy_texture** (*bool*, default: `True`) — If checked, generate a dummy texture instead of loading an image. Disable it to select an image using 'Texture file'.
 - **textName** (*fileopen*, default: ``) — Sets the given input image as unique texture of the mesh.
-- **dummy_img_size** (*int*, default: `512`) — Size in pixel of the square dummy texture.
+- **dummy_img_size** (*int*, default: `512`) — The side of the dummy texture, which is square, in texels.
 - **dummy_check_size** (*int*, default: `64`) — Size in pixel of the checkerboard or grid cell of the dummy texture.
 - **dummy_type** (*enum*, default: `checkerboard`) — Choose between a checkerboard, a line grid, and a UV grid whose lines along U are red and along V blue.
 ```
@@ -11531,8 +11611,7 @@ For each texel of the current mesh, finds its point on the surface and the close
 - **sourceTexture** (*textureref*, default: `0`) — Which texture of the source mesh to sample. Automatic follows the source's per-face texture assignment.
 - **upperBound** (*absperc*, default: `@bboxDiag002`) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.
 - **textureName** (*string*, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.
-- **textW** (*int*, default: `1024`) — The texture width.
-- **textH** (*int*, default: `1024`) — The texture height.
+- **textureSize** (*int*, default: `1024`) — The side of each new texture, which is square, in texels.
 - **overwrite** (*bool*, default: `False`) — If the current mesh has textures, replace their images instead of adding new textures. Their files are left alone.
 - **pullpush** (*bool*, default: `True`) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.
 ```
@@ -11593,8 +11672,7 @@ For each texel of the current mesh, finds its point on the surface and the close
 - **AttributeEnum** (*enum*, default: `vertex_color`) — The vertex attribute of the source mesh to write into the texture.
 - **upperBound** (*absperc*, default: `@bboxDiag002`) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.
 - **textureName** (*string*, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.
-- **textW** (*int*, default: `1024`) — The texture width.
-- **textH** (*int*, default: `1024`) — The texture height.
+- **textureSize** (*int*, default: `1024`) — The side of each new texture, which is square, in texels.
 - **overwrite** (*bool*, default: `False`) — If the current mesh has textures, replace their images instead of adding new textures. Their files are left alone.
 - **pullpush** (*bool*, default: `True`) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.
 ```
@@ -11644,7 +11722,7 @@ Projects color information from all visible and valid rasters onto a new texture
 **Parameters:**
 
 - **textureName** (*string*, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.
-- **texsize** (*int*, default: `1024`) — Square texture image size in pixels. Should be a power of 2.
+- **textureSize** (*int*, default: `1024`) — The side of the new texture, which is square, in texels. A power of 2 is usual, not required.
 - **dorefill** (*bool*, default: `True`) — If true, unfilled areas of the texture atlas are interpolated using PullPush to avoid visible seams when mipmapping.
 - **deptheta** (*double*, default: `0.5`) — Tolerance value for depth buffer comparison (shadow buffer).
 - **useangle** (*bool*, default: `True`) — If true, color contribution is weighted by the angle between the surface normal and the view direction.
@@ -11695,7 +11773,7 @@ The defaults are those of the released code; the paper reports somewhat differen
 **Parameters:**
 
 - **textureName** (*string*, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.
-- **textureSize** (*int*, default: `1024`) — Width and height of the texture image produced.
+- **textureSize** (*int*, default: `1024`) — The side of the texture produced, which is square, in texels.
 - **depthRadius** (*int*, default: `20`) — Distance from a depth discontinuity, in raster pixels, over which confidence rises from zero to one.
 - **confidenceCutoff** (*double*, default: `0.05`) — Back-projected confidences below this are set to zero.
 - **levels** (*int*, default: `6`) — Number of coarse-to-fine passes of the optical flow. More levels register finer detail and allow more oscillation in the deformation.
@@ -11840,10 +11918,53 @@ Fills the specified texture using per-vertex color data of the mesh.
 **Parameters:**
 
 - **textureName** (*string*, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.
-- **textW** (*int*, default: `1024`) — The texture width.
-- **textH** (*int*, default: `1024`) — The texture height.
+- **textureSize** (*int*, default: `1024`) — The side of each new texture, which is square, in texels.
 - **overwrite** (*bool*, default: `False`) — If current mesh has associated textures, overwrite them instead of creating new files.
 - **pullpush** (*bool*, default: `True`) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.
+```
+
+---
+
+(filter-transfer-curvature-directions-from-face-to-vertex)=
+
+## Transfer Curvature Directions from Face to Vertex
+
+**Categories:** `Transfer/Within a Mesh`, `Attribute/Curvature`
+
+**Plugin:** meshlab2.filter.colorproc
+
+Average the faces' principal curvature directions and curvatures into their vertices.
+
+```{py:function} ms.transfer_curvature_directions_from_face_to_vertex(**params)
+:module: _meshlab
+
+Gives each vertex the principal curvature directions and curvatures of the faces around it, averaged in the vertex's tangent plane, so that directions computed per face, as by *Compute Principal Curvature Directions per Face (TextureSignalProcessing)*, can be drawn by the curvature decorator and used by the filters that read vertex directions. A vertex with no face keeps what it had.
+
+The conversion is vcglib's for cross fields (`vcg::tri::CrossField`): the two directions are interpolated together as a cross, rotated between the tangent planes by the normals, and each curvature goes with the direction it belongs to. The pair is then ordered so that the first direction is the maximal curvature's, as MeshLab keeps it and the curvature decorator draws it.
+
+This filter has no parameters.
+```
+
+---
+
+(filter-transfer-curvature-directions-from-vertex-to-face)=
+
+## Transfer Curvature Directions from Vertex to Face
+
+**Categories:** `Transfer/Within a Mesh`, `Attribute/Curvature`
+
+**Plugin:** meshlab2.filter.colorproc
+
+Interpolate the vertices' principal curvature directions and curvatures into their faces.
+
+```{py:function} ms.transfer_curvature_directions_from_vertex_to_face(**params)
+:module: _meshlab
+
+Gives each face the principal curvature directions and curvatures of its three vertices, interpolated at its center in the plane of the face, for methods that work per face, such as *Colorize Texture by Principal Directions (Line Integral Convolution)*. The vertices must have directions, from one of the *Compute Principal Curvature Directions* filters.
+
+The conversion is vcglib's for cross fields (`vcg::tri::CrossField`): the two directions are interpolated together as a cross, rotated between the tangent planes by the normals, and each curvature goes with the direction it belongs to. The pair is then ordered so that the first direction is the maximal curvature's, as MeshLab keeps it and the curvature decorator draws it.
+
+This filter has no parameters.
 ```
 
 ---

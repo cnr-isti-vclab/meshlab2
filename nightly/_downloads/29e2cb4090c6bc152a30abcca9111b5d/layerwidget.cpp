@@ -495,6 +495,8 @@ QString meshDataSummary(const Document::MeshEntry &entry)
         tokens << QObject::tr("FQ");
     if (!entry.mesh.vert.empty() && entry.mesh.vert[0].IsCurvatureDirEnabled())
         tokens << QObject::tr("CD");
+    if (!entry.mesh.face.empty() && entry.mesh.face.IsCurvatureDirEnabled())
+        tokens << QObject::tr("FCD");
     if ((mask & Mask::IOM_EDGEINDEX) != 0 || entry.mesh.EN() > 0)
         tokens << QObject::tr("EI");
     if (attrs.vertexCount() > 0)

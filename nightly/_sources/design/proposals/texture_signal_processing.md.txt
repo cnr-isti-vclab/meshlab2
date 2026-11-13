@@ -7,8 +7,9 @@ process**, as Screened Poisson is, through TSP's header-only `GradientDomain` li
 **not** as helper programs, as TextureConsolidation is. **Stages 1 and 2 implemented 2026-11-12** (the
 plugin `filter_texture_signal_processing`, with *Repair Texture Seams*, *Dilate Texture across
 Seams*, *Smooth Texture* and *Sharpen Texture*; see its `UPSTREAM.md`); **stage 3 the same day**
-(*Inpaint Texture on Selected Faces*, *Transfer Texture Detail* and object-space normal maps); stage 4
-is not. Every number below was measured for
+(*Inpaint Texture on Selected Faces*, *Transfer Texture Detail* and object-space normal maps); **stage 4's
+line-integral convolution 2026-11-13**, with per-face principal curvature in MeshLab's data model; its
+reaction-diffusion and stitching are not. Every number below was measured for
 this proposal.
 
 See also: [TextureConsolidation history](../history/texture_consolidation.md),
@@ -399,11 +400,94 @@ include. After it, an adapter-like file includes no PLY header and emits no PLY 
      27.8 levels rms of the photo (157.6 painted); detail transfer from a smoothed base brings the
      roughness from 5.08 back to 14.28 (the photo's is 14.17), and the error against the photo
      from 31.2 to 5.6.
-4. **Line-integral convolution, reaction-diffusion, source-aware stitching.** Each needs
-   its own decision first: the vocabulary for the first two, Paolo's ruling on the
-   reaction term, and a change to color projection for the third. `ReactionDiffusion`'s
-   `--approximateIntegration` does not settle the ruling: it only chooses a cheaper
-   quadrature inside `ScalarIntegrator`, which still needs the lower-level interface.
+4. **Line-integral convolution, reaction-diffusion, source-aware stitching.** Line-integral
+   convolution first, planned 2026-11-13 below. The other two still need their decisions:
+   Paolo's ruling on the reaction term, and a change to color projection for the stitching.
+   `ReactionDiffusion`'s `--approximateIntegration` does not settle the ruling: it only chooses
+   a cheaper quadrature inside `ScalarIntegrator`, which still needs the lower-level interface.
+
+   **What `LineIntegralConvolution` does.** It takes a direction per triangle, by default the
+   maximal (or, with `--minimal`, the minimal) principal curvature direction scaled by
+   k_max − k_min, computed from vertex normals it first smooths twice. It normalizes the field
+   to unit root-mean-square length and makes the metric anisotropic along it
+   (`InitializeAnisotropicMetric`, the orthogonal direction weighted by |v|^aExp · 1e5, aExp 0 by
+   default). Random-hue noise, one color per texel, is diffused under that metric,
+   (w M_a + S_a) x = w M_a n with w = 1e4, which smears it into streaks along the field, and the
+   streaks are then sharpened by the stage-2 solve with fidelity 1e4 and gradient scale 100. The
+   library's constructor takes a 2×2 metric per triangle in place of positions, so the adapter
+   builds the anisotropic system without the lower-level interface. Two systems are built,
+   anisotropic and isotropic (the measured cost is below).
+
+   **Implemented 2026-11-13**, as planned below, with these measured differences:
+   - **The streaks are solved directly.** Multigrid does not converge under the 1e5 anisotropy: on
+     the 20k-face gargoyle atlas at 1024², 300 V-cycles left texels up to 862 levels from the direct
+     solution, still changing by 9 per cycle. The direct solve was faster too: 14 s and 3 GB in all
+     at 1024², against 49 s; 85 s and 8 GB at 2048². The anisotropic operators are released before
+     the sharpening builds its own, so the two never coexist.
+   - **vcglib's conversion returns the two directions in either order** (two thirds of the vertices
+     of an ellipsoid came back with the labels swapped), while carrying each curvature with its own
+     direction (2% off after vertex → face → vertex). So the transfer filters put each pair back
+     with the maximal curvature first, MeshLab's convention, and the line-integral convolution takes
+     the direction of the larger curvature, not `PD1`. The vcglib change factors the magnitude
+     matching out of `SetFaceCrossVectorFromVert` into `CrossMagnitudes`, uses it in
+     `SetVertCrossVectorFromFace`, and makes that skip a vertex with no face, which it used to read
+     past the end of an empty list for.
+   - **The streaks' length is a length.** The program's weight w (default 1e4) has no unit of
+     its own: the surface is scaled to unit area, and the anisotropic metric, rescaled to unit area
+     too, shortens lengths along the field by (1 + 1e5)^(1/4) ≈ 17.8, so the noise is averaged
+     along the field over a decay length l = 17.8 √A / √w. The filter asks instead for a *Streak
+     Length* L in the mesh's units (`absperc`, half the bounding box diagonal by default), the
+     whole width at which the correlation along a streak falls to half, 2 · 1.678 l, and sets
+     w = A √(1 + 1e5) (3.357 / L)². Measured on a cylinder whose field runs around it: half the
+     correlation at 1.70 l (w = 1e4) and 1.88 l (w = 1e5) against 1.678 in theory, and streaks of
+     1.07 and 2.10 for 1 and 2 asked; the default sharpening shortens them by about a fifth
+     (1.30 l and 1.38 l). Across the field they are a texel wide. The program's default is a
+     length of 0.60 √A, and √A is close to the bounding box diagonal on a compact mesh (212
+     against 198 on the gargoyle), hence the default. Asked by Paolo, 2026-11-13, with a single
+     `textureSize` ([vocabulary](../vocabulary.md#texture-size-2026-11-13)) and a choice of
+     noise.
+   - On an ellipsoid three times as long as wide, TSP's per-face curvatures come out 1.001 and 0.120
+     around the middle (exactly 1 and 1/9; the normal smoothing rounds the small one up), with the
+     minimal direction along the axis; through the vertices and back they move by 0.3%.
+
+   **Decided 2026-11-13** (Paolo): the filter takes its directions from the mesh, not from a
+   computation of its own; MeshLab gains **per-face** principal curvature directions, with
+   conversions both ways; TSP's per-face curvature becomes a curvature method of its own; the
+   result goes into an existing texture or a new one; the name is *Colorize Texture by Principal
+   Directions (Line Integral Convolution)*. In order:
+
+   a. **Per-face curvature directions in the data model.** vcglib already has the component,
+      `vcg::face::CurvatureDirfOcf` (PD1, PD2, K1, K2), and memory accounting already counts its
+      vector (`vcgFaceOcfBytes`). `VCGFace` gains it as a storable OCF component, like the vertex
+      one: `deepCopyMesh` copies it, so undo keeps it; the layer panel lists it. Left for later:
+      Python accessors, drawing it in the curvature decorator, and file formats (none carries it).
+   b. **vcglib: the magnitudes from faces to vertices.** `CrossField<Mesh>` already converts
+      both ways, treating the two directions as a cross field, which is right for principal
+      directions: `SetFaceCrossVectorFromVert` carries the curvatures K1 and K2 with them, but
+      `SetVertCrossVectorFromFace` sets only the directions. It is extended to carry them too,
+      the same way, so that PD1 stays the direction of K1. Commit in vcglib, push, and gitlink
+      bump by Paolo.
+   c. ***Transfer Curvature Directions from Vertex to Face*** and ***from Face to Vertex***
+      (`Transfer/Within a Mesh` and `Attribute/Curvature`, in `filter_colorproc` beside the color
+      and scalar transfers), thin adapters over (b).
+   d. ***Compute Principal Curvature Directions per Face (TextureSignalProcessing)***, in the
+      TSP plugin: `InitializePrincipalCurvatureDirection`, the shape operator of each triangle
+      from the differences of its vertex normals, after the program's normal smoothing (two
+      iterations, interpolation 1e3, ported from the program, since the library does not have
+      it). Stored per face, in the mesh's units: TSP computes on the mesh scaled to unit area.
+   e. ***Colorize Texture by Principal Directions (Line Integral Convolution)***: the maximal or
+      minimal direction, from the faces when they have directions, otherwise from the vertices
+      through (b)'s conversion to faces, on a copy. Parameters: the program's streak and
+      sharpening weights (the streaks' as a length, below) and its anisotropy exponent, the noise (the program's random hue, or
+      black and white or random gray, the classic noises), and `randomSeed` for it. The output
+      is always a new square texture of one side asked (`textureSize`, as most filters that
+      make a texture take it), one per texture the faces use, appended and
+      bound to the faces, as *Transfer Color from Vertex to Texture* does: there is no texture
+      parameter at all. (A first version took a `textureoutputref` and a separate texture
+      choosing the faces; Paolo found the two parameters confusing. The code that writes a
+      `textureoutputref` result still moved from *Convert Object-Space Normal Map to Tangent
+      Space* to `TextureAssociationUtils::storeOutputTexture`, and the slot helpers of that
+      transfer moved there too.)
 
 ## Naming
 
@@ -427,9 +511,12 @@ include. After it, an adapter-like file includes no PLY header and emits no PLY 
 - ***Transfer Texture Detail*** (stage 3, approved 2026-11-12): `Transfer` as defined, data moving
   between textures. Its parameters are *Base Texture* and *Detail Texture*.
 - **The normal-map option** (stage 3, approved 2026-11-12): *Texture Holds Object-Space Normals*.
-- **Line-integral convolution and reaction-diffusion** produce a new texture from no
-  input texture. `Create` is reserved for layers, and `Render` means an image of the
-  scene. To be decided with the stage-3 filters.
+- **Line-integral convolution** (stage 4, decided 2026-11-13): *Colorize Texture by Principal
+  Directions (Line Integral Convolution)*, `Colorize` as defined ("write color derived from other
+  data"), as *Colorize Vertices by Perlin Noise*. `Rasterize` was considered and not admitted:
+  it suggests scan-converting the field's lines, and the filters that do scan-convert attributes
+  into textures are `Transfer`.
+- **Reaction-diffusion** produces a new texture from no input texture too; to be named with it.
 
 ## Open questions
 

@@ -330,6 +330,13 @@ writes it. Take the name as a <code class="docutils literal notranslate"><span c
 texture, replace its image and keep its name and <code class="docutils literal notranslate"><span class="pre">sourcePath</span></code>: the file is left alone, the
 texture shows changed, and the next save writes the new image beside the mesh. See
 <a class="reference internal" href="history/project_persistence.html"><span class="std std-doc">project_persistence.md</span></a>.</p>
+<p>A filter that makes <strong>one new texture for each texture the faces use</strong> and moves the faces onto
+them, as <em>Transfer Color from Vertex to Texture</em> and <em>Colorize Texture by Principal Directions
+(Line Integral Convolution)</em> do, numbers them with <code class="docutils literal notranslate"><span class="pre">compactTextureSlotIndices</span></code> (the indices the
+faces use, renumbered 0, 1, …), appends them with <code class="docutils literal notranslate"><span class="pre">appendTextureAssociations</span></code>, and moves the
+faces past the old ones with <code class="docutils literal notranslate"><span class="pre">offsetTextureSlotIndices</span></code>. Numbering by the old indices would also
+make a texture for every index no face uses – after one such run, the old textures’ indices.
+It then asks the view to show the texture, with a <code class="docutils literal notranslate"><span class="pre">Texture</span></code> visualization hint.</p>
 <p>An <code class="docutils literal notranslate"><span class="pre">absperc</span></code> is a <strong>length</strong>, as an absolute value or as a percentage of its range
 (<code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code> and the other bound tokens). Its absolute half is labelled with the
 document’s unit (<code class="docutils literal notranslate"><span class="pre">Document::unit()</span></code>, “mm”, “m”, …) once the user has set one, and

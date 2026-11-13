@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 411 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 415 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="filter-add-noise-to-vertex-color">
 <span id="add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#filter-add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -916,6 +916,32 @@ ApproxMean uses the radius of the fitted sphere as an approximation of the mean 
 <li><p><strong>neighborhood_radius</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — Neighborhood size passed to libigl. With K-ring mode it is the number of adjacent vertex rings; otherwise it is relative to average edge length.</p></li>
 <li><p><strong>use_k_ring</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Use a topological K-ring neighborhood. Disable it to use libigl’s metric ball neighborhood.</p></li>
 <li><p><strong>quality_mapping</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">mean</span></code>) — Choose the curvature value also stored in vertex scalar and shown after completion.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-compute-principal-curvature-directions-per-face-texture-signal-processing">
+<span id="compute-principal-curvature-directions-per-face-texturesignalprocessing"></span><h2>Compute Principal Curvature Directions per Face (TextureSignalProcessing)<a class="headerlink" href="#filter-compute-principal-curvature-directions-per-face-texture-signal-processing" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.texture_signal_processing</p>
+<p>Compute each face’s principal curvature directions and curvatures from the variation of the vertex normals across it.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.compute_principal_curvature_directions_per_face_texture_signal_processing">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_principal_curvature_directions_per_face_texture_signal_processing</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_principal_curvature_directions_per_face_texture_signal_processing" title="Link to this definition">¶</a></dt>
+<dd><p>Computes, for every face, the two principal curvature directions and the two principal curvatures, and stores them in the faces, the maximal first. Unlike the other <em>Compute Principal Curvature Directions</em> filters, which fit a neighborhood around each vertex, this one reads the curvature of each face from how the vertex normals turn across it: the shape operator of the face, the change of the normal along its two edges, whose eigenvectors and eigenvalues are the principal directions and curvatures. It is local and fast, and only as good as the normals, so the normals are first smoothed on the surface: each round moves every normal within its tangent plane to make the normals vary less, held back by <em>Normal Smoothing Fidelity</em>.</p>
+<p>It is the computation of the <code class="docutils literal notranslate"><span class="pre">LineIntegralConvolution</span></code> program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, with its defaults: two rounds of smoothing at a fidelity of 1000, the surface’s area taken as 1. The vertex normals are computed from the faces, area weighted, so the mesh’s own normals are not used. Coincident vertices are merged first, so a mesh that repeats its vertices along a seam still has continuous normals there. Faces with no area get no directions.</p>
+<p>The directions are drawn by the curvature decorator once they are on the vertices: <em>Transfer Curvature Directions from Face to Vertex</em> averages them there.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/mkazhdan/TextureSignalProcessing">TextureSignalProcessing</a></p>
+<p><strong>License:</strong> MIT</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. <strong>Gradient-domain Processing within a Texture Atlas</strong>. <em>ACM Transactions on Graphics</em> (2018). <a class="reference external" href="https://doi.org/10.1145/3197517.3201317">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>smoothingIterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">2</span></code>) — How many times the vertex normals are smoothed before the curvature is read from them; 0 uses them as they are. The program’s default is 2.</p></li>
+<li><p><strong>smoothingWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1000.0</span></code>) — How strongly each round holds the normals to their values: the smaller, the more each round smooths. The surface’s area is taken as 1, so the same value acts at the same scale on any mesh.</p></li>
 </ul>
 </dd></dl>
 
@@ -7150,7 +7176,7 @@ Arguments accepted are first and second vertex attributes:</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>algorithm</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">rasterized_scaled</span></code>) — Which vcglib packer lays the charts out.</p></li>
-<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — Side of the square atlas the charts are packed into.</p></li>
+<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — Side, in texels, of the square atlas the charts are packed into.</p></li>
 <li><p><strong>gutterWidth</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">4</span></code>) — Padding kept around each chart, so bilinear filtering cannot bleed between neighbours.</p></li>
 <li><p><strong>rotationNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">4</span></code>) — How many orientations each chart is tried at, rounded to the nearest multiple of four – the packer derives four slots from every base rasterization, so only multiples of four are usable. Rasterized packers only.</p></li>
 <li><p><strong>permutations</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Retry the layout with reshuffled chart orders. Costs five packing passes per similarly sized chart, so on a uniform atlas it is five per chart and it dominates the run. Rasterized packers only.</p></li>
@@ -7359,7 +7385,7 @@ Although fast, it could lead to worst results.</p></li>
 <li><p><strong>mergeIrregularStars</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Star charts normally merge only around regular domain vertices, the ones with exactly six triangles. With this on, vertices with five or seven triangles are merged too. Far more diamonds get absorbed – on a 1.2k sphere, 266 of 291 against 176 – at the cost of some stretch, since those triangles have to open to 72 degrees or close to 51 to make the ring meet. Ignored unless the chart shape is Star.</p></li>
 <li><p><strong>borderSize</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.1</span></code>) — How far a face may stray outside its diamond before it is split in two. Smaller values cut the mesh more finely and keep the charts tighter to the domain, which also lets more diamonds join a hexagonal chart. The gutter between packed charts is set separately.</p></li>
 <li><p><strong>packingAlgorithm</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">rasterized_scaled</span></code>) — Which vcglib packer lays the charts out in the atlas.</p></li>
-<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">2048</span></code>) — Side of the square atlas the charts are packed into. The UVs come back normalized either way; this sets the resolution the packer works at, and so what the gutter is worth. A domain has many small charts, and the gutter is what costs atlas area: on a 1.2k sphere, 291 charts at 1024 with a 4-pixel gutter cover 56% of the atlas, and the same run at 2048 covers 67%.</p></li>
+<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">2048</span></code>) — Side, in texels, of the square atlas the charts are packed into. The UVs come back normalized either way; this sets the resolution the packer works at, and so what the gutter is worth. A domain has many small charts, and the gutter is what costs atlas area: on a 1.2k sphere, 291 charts at 1024 with a 4-pixel gutter cover 56% of the atlas, and the same run at 2048 covers 67%.</p></li>
 <li><p><strong>gutterWidth</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">2</span></code>) — Padding kept around each chart, so bilinear filtering cannot bleed between neighbours.</p></li>
 <li><p><strong>rotationNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">4</span></code>) — How many orientations each chart is tried at, rounded to the nearest multiple of four – the packer derives four slots from every base rasterization, so only multiples of four are usable. Rasterized packers only.</p></li>
 <li><p><strong>permutations</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Retry the layout with reshuffled chart orders. Costs five packing passes per similarly sized chart, so on a uniform atlas it is five per chart and it dominates the run. Rasterized packers only.</p></li>
@@ -7503,7 +7529,7 @@ Although fast, it could lead to worst results.</p></li>
 <li><p><strong>resolution</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — If <code class="docutils literal notranslate"><span class="pre">0</span></code>, xatlas chooses a single-atlas size automatically. If greater than <code class="docutils literal notranslate"><span class="pre">0</span></code>, xatlas tries to match this atlas resolution. Large requested resolutions, especially with high texels-per-unit or padding, can force xatlas to create multiple atlases. Common values are <code class="docutils literal notranslate"><span class="pre">512</span></code>, <code class="docutils literal notranslate"><span class="pre">1024</span></code>, <code class="docutils literal notranslate"><span class="pre">2048</span></code>, and <code class="docutils literal notranslate"><span class="pre">4096</span></code>.</p></li>
 <li><p><strong>bruteForce</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Use the slower but higher-quality chart packing strategy. This is the main option to try when you want more aggressive packing and better atlas utilization.</p></li>
 <li><p><strong>use_dummy_texture</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, also attach a generated dummy base-color texture to the mesh after the xatlas UVs are created, so the result is immediately visible in textured and UV views.</p></li>
-<li><p><strong>dummy_img_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — Size in pixels of the generated dummy texture. Common values are <code class="docutils literal notranslate"><span class="pre">512</span></code>, <code class="docutils literal notranslate"><span class="pre">1024</span></code>, and <code class="docutils literal notranslate"><span class="pre">2048</span></code>.</p></li>
+<li><p><strong>dummy_img_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The side of the generated dummy texture, which is square, in texels. Common values are <code class="docutils literal notranslate"><span class="pre">512</span></code>, <code class="docutils literal notranslate"><span class="pre">1024</span></code>, and <code class="docutils literal notranslate"><span class="pre">2048</span></code>.</p></li>
 <li><p><strong>dummy_check_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">32</span></code>) — Size of the check or grid cells in pixels. A practical range is usually <code class="docutils literal notranslate"><span class="pre">8..128</span></code> depending on texture resolution.</p></li>
 <li><p><strong>dummy_type</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">checkerboard</span></code>) — Choose between a checkerboard, a line grid, and a UV grid whose lines along U are red and along V blue, for the generated dummy texture.</p></li>
 <li><p><strong>bilinear</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Leave space around charts for texels that would be sampled by bilinear filtering. Keep this enabled for safer baked textures; disabling it can improve packing density slightly but increases artifact risk.</p></li>
@@ -7758,7 +7784,7 @@ Leave 0 for automatic calculation.</p></li>
 <p>Requires at least one visible raster with a valid camera and a 2-manifold mesh.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — Specifies the dimension of the generated texture.</p></li>
+<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The side of the generated texture, which is square, in texels.</p></li>
 <li><p><strong>textureName</strong> (<em>string</em>, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.</p></li>
 <li><p><strong>colorCorrection</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If true, the final texture is corrected to ensure seamless transitions between adjacent patches.</p></li>
 <li><p><strong>colorCorrectionFilterSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Radius (in pixels) of the kernel used to compute the difference between corresponding texels in different rasters. Default of 1 generates a 3x3 kernel. Higher values increase robustness for strong misalignments.</p></li>
@@ -9015,6 +9041,40 @@ Angle between face normal is considered signed according to convexity/concavity.
 
 <hr class="docutils" />
 </section>
+<section id="filter-colorize-texture-by-principal-directions-line-integral-convolution">
+<span id="colorize-texture-by-principal-directions-line-integral-convolution"></span><h2>Colorize Texture by Principal Directions (Line Integral Convolution)<a class="headerlink" href="#filter-colorize-texture-by-principal-directions-line-integral-convolution" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.texture_signal_processing</p>
+<p>Draw the mesh’s principal curvature directions into a texture as colored streaks, continuous across seams.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.colorize_texture_by_principal_directions_line_integral_convolution">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">colorize_texture_by_principal_directions_line_integral_convolution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.colorize_texture_by_principal_directions_line_integral_convolution" title="Link to this definition">¶</a></dt>
+<dd><p>Fills a texture with streaks that run along the mesh’s maximal or minimal principal curvature directions: random noise, one value per texel (a color of random hue, black or white, or a random gray: <em>Noise</em>), is smeared along the directions on the surface, and the streaks are then sharpened for contrast. Since the texels on the two sides of a seam are neighbors on the surface, the streaks run on across seams, and the islands’ outlines do not show.</p>
+<p><strong>The directions</strong> come from the mesh: from its faces when they have principal directions (<em>Compute Principal Curvature Directions per Face (TextureSignalProcessing)</em>, or <em>Transfer Curvature Directions from Vertex to Face</em>), otherwise from its vertices (the other <em>Compute Principal Curvature Directions</em> filters), interpolated into each face as the transfer does, without storing them. Each face’s direction is weighted by how different its two curvatures are, which matters only with an <em>Anisotropy Exponent</em> above 0: then the streaks fade where the surface curves alike in every direction, where the directions mean little.</p>
+<p><strong>The texture.</strong> The streaks go into a new square texture of the size asked, laid out by the faces’ texture coordinates, which need no image: a mesh that has only been parametrized works. It is added after the mesh’s textures, which stay, and the faces are switched to it, so it shows at once; saving the mesh writes it. A mesh whose faces use several textures gets one new texture for each. Faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (<em>Select Folded UV Faces</em> shows them).</p>
+<p>It is the method of the <code class="docutils literal notranslate"><span class="pre">LineIntegralConvolution</span></code> program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, run inside MeshLab with about its defaults. The noise <span class="math notranslate nohighlight">\(n\)</span> is diffused under a metric stretched across the field, <span class="math notranslate nohighlight">\((w\,M_a + S_a)\,x = w\,M_a\,n\)</span>, solved directly, as the program does with <code class="docutils literal notranslate"><span class="pre">--useDirectSolver</span></code> (multigrid does not converge under this anisotropy). The weight comes from the <em>Streak Length</em> <span class="math notranslate nohighlight">\(L\)</span>, as <span class="math notranslate nohighlight">\(w = A\sqrt{1+10^5}\,(3.357/L)^2\)</span> with <span class="math notranslate nohighlight">\(A\)</span> the area: the metric shortens lengths along the field by <span class="math notranslate nohighlight">\((1+10^5)^{1/4}\)</span>, so the noise is averaged over a decay length <span class="math notranslate nohighlight">\(L/3.357\)</span>, and the program’s default <span class="math notranslate nohighlight">\(w = 10^4\)</span> is a length of <span class="math notranslate nohighlight">\(0.60\sqrt{A}\)</span>;  the streaks <span class="math notranslate nohighlight">\(x\)</span> are then sharpened by the solve of <em>Sharpen Texture</em>, with the <em>Sharpening Fidelity</em> and <em>Sharpening Gradient Scale</em>.</p>
+<p><strong>Time and memory:</strong> about 14 s and 3 GB for a 20k-face mesh at 1024², 85 s and 8 GB at 2048².</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/mkazhdan/TextureSignalProcessing">TextureSignalProcessing</a></p>
+<p><strong>License:</strong> MIT</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. <strong>Gradient-domain Processing within a Texture Atlas</strong>. <em>ACM Transactions on Graphics</em> (2018). <a class="reference external" href="https://doi.org/10.1145/3197517.3201317">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The side of the new texture, which is square, in texels.</p></li>
+<li><p><strong>direction</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">maximal</span></code>) — Which principal direction the streaks follow.</p></li>
+<li><p><strong>noise</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">hue</span></code>) — The random texture whose texels are smeared into streaks, one value per texel.</p></li>
+<li><p><strong>streakLength</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiagHalf</span></code>) — How long the streaks are along the directions: the distance over which the texels along a streak stay correlated by at least half. The sharpening that follows makes them about a fifth shorter, and a field that turns ends them sooner. The default, half the bounding box diagonal, is about the program’s default on a compact mesh, whose square root of area is close to its diagonal.</p></li>
+<li><p><strong>sharpenFidelity</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">10000.0</span></code>) — The fidelity of the sharpening that follows, as in Sharpen Texture. The program’s sharpening interpolation weight.</p></li>
+<li><p><strong>sharpenScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">100.0</span></code>) — How much the sharpening amplifies the streaks’ gradients, for contrast; 1 leaves them as they are. The program’s sharpening modulation.</p></li>
+<li><p><strong>anisotropyExponent</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — How the streaks depend on how different the two curvatures are: 0 makes them equally strong wherever there is a direction; above 0 they fade where the surface curves alike in every direction. The program’s anisotropy exponent.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the noise, and so the streaks, exactly reproducible.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="filter-remove-textures">
 <span id="remove-textures"></span><h2>Remove Textures<a class="headerlink" href="#filter-remove-textures" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code></p>
@@ -9067,7 +9127,7 @@ Angle between face normal is considered signed according to convexity/concavity.
 <ul class="simple">
 <li><p><strong>use_dummy_texture</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If checked, generate a dummy texture instead of loading an image. Disable it to select an image using ‘Texture file’.</p></li>
 <li><p><strong>textName</strong> (<em>fileopen</em>, default: ``) — Sets the given input image as unique texture of the mesh.</p></li>
-<li><p><strong>dummy_img_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">512</span></code>) — Size in pixel of the square dummy texture.</p></li>
+<li><p><strong>dummy_img_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">512</span></code>) — The side of the dummy texture, which is square, in texels.</p></li>
 <li><p><strong>dummy_check_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Size in pixel of the checkerboard or grid cell of the dummy texture.</p></li>
 <li><p><strong>dummy_type</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">checkerboard</span></code>) — Choose between a checkerboard, a line grid, and a UV grid whose lines along U are red and along V blue.</p></li>
 </ul>
@@ -9345,8 +9405,7 @@ Angle between face normal is considered signed according to convexity/concavity.
 <li><p><strong>sourceTexture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Which texture of the source mesh to sample. Automatic follows the source’s per-face texture assignment.</p></li>
 <li><p><strong>upperBound</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.</p></li>
 <li><p><strong>textureName</strong> (<em>string</em>, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.</p></li>
-<li><p><strong>textW</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture width.</p></li>
-<li><p><strong>textH</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture height.</p></li>
+<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The side of each new texture, which is square, in texels.</p></li>
 <li><p><strong>overwrite</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If the current mesh has textures, replace their images instead of adding new textures. Their files are left alone.</p></li>
 <li><p><strong>pullpush</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.</p></li>
 </ul>
@@ -9397,8 +9456,7 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <li><p><strong>AttributeEnum</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">vertex_color</span></code>) — The vertex attribute of the source mesh to write into the texture.</p></li>
 <li><p><strong>upperBound</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.</p></li>
 <li><p><strong>textureName</strong> (<em>string</em>, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.</p></li>
-<li><p><strong>textW</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture width.</p></li>
-<li><p><strong>textH</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture height.</p></li>
+<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The side of each new texture, which is square, in texels.</p></li>
 <li><p><strong>overwrite</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If the current mesh has textures, replace their images instead of adding new textures. Their files are left alone.</p></li>
 <li><p><strong>pullpush</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.</p></li>
 </ul>
@@ -9438,7 +9496,7 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>textureName</strong> (<em>string</em>, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.</p></li>
-<li><p><strong>texsize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — Square texture image size in pixels. Should be a power of 2.</p></li>
+<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The side of the new texture, which is square, in texels. A power of 2 is usual, not required.</p></li>
 <li><p><strong>dorefill</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If true, unfilled areas of the texture atlas are interpolated using PullPush to avoid visible seams when mipmapping.</p></li>
 <li><p><strong>deptheta</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Tolerance value for depth buffer comparison (shadow buffer).</p></li>
 <li><p><strong>useangle</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If true, color contribution is weighted by the angle between the surface normal and the view direction.</p></li>
@@ -9479,7 +9537,7 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>textureName</strong> (<em>string</em>, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer.</p></li>
-<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — Width and height of the texture image produced.</p></li>
+<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The side of the texture produced, which is square, in texels.</p></li>
 <li><p><strong>depthRadius</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">20</span></code>) — Distance from a depth discontinuity, in raster pixels, over which confidence rises from zero to one.</p></li>
 <li><p><strong>confidenceCutoff</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.05</span></code>) — Back-projected confidences below this are set to zero.</p></li>
 <li><p><strong>levels</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">6</span></code>) — Number of coarse-to-fine passes of the optical flow. More levels register finer detail and allow more oscillation in the deformation.</p></li>
@@ -9591,11 +9649,40 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>textureName</strong> (<em>string</em>, default: ``) — Name of the new texture, which is also its file name when the mesh is saved. Leave it empty to name it after the layer. When the mesh uses more than one texture slot, numeric suffixes are added.</p></li>
-<li><p><strong>textW</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture width.</p></li>
-<li><p><strong>textH</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture height.</p></li>
+<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The side of each new texture, which is square, in texels.</p></li>
 <li><p><strong>overwrite</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If current mesh has associated textures, overwrite them instead of creating new files.</p></li>
 <li><p><strong>pullpush</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.</p></li>
 </ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-transfer-curvature-directions-from-face-to-vertex">
+<span id="transfer-curvature-directions-from-face-to-vertex"></span><h2>Transfer Curvature Directions from Face to Vertex<a class="headerlink" href="#filter-transfer-curvature-directions-from-face-to-vertex" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.colorproc</p>
+<p>Average the faces’ principal curvature directions and curvatures into their vertices.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.transfer_curvature_directions_from_face_to_vertex">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_curvature_directions_from_face_to_vertex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.transfer_curvature_directions_from_face_to_vertex" title="Link to this definition">¶</a></dt>
+<dd><p>Gives each vertex the principal curvature directions and curvatures of the faces around it, averaged in the vertex’s tangent plane, so that directions computed per face, as by <em>Compute Principal Curvature Directions per Face (TextureSignalProcessing)</em>, can be drawn by the curvature decorator and used by the filters that read vertex directions. A vertex with no face keeps what it had.</p>
+<p>The conversion is vcglib’s for cross fields (<code class="docutils literal notranslate"><span class="pre">vcg::tri::CrossField</span></code>): the two directions are interpolated together as a cross, rotated between the tangent planes by the normals, and each curvature goes with the direction it belongs to. The pair is then ordered so that the first direction is the maximal curvature’s, as MeshLab keeps it and the curvature decorator draws it.</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-transfer-curvature-directions-from-vertex-to-face">
+<span id="transfer-curvature-directions-from-vertex-to-face"></span><h2>Transfer Curvature Directions from Vertex to Face<a class="headerlink" href="#filter-transfer-curvature-directions-from-vertex-to-face" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.colorproc</p>
+<p>Interpolate the vertices’ principal curvature directions and curvatures into their faces.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.transfer_curvature_directions_from_vertex_to_face">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_curvature_directions_from_vertex_to_face</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.transfer_curvature_directions_from_vertex_to_face" title="Link to this definition">¶</a></dt>
+<dd><p>Gives each face the principal curvature directions and curvatures of its three vertices, interpolated at its center in the plane of the face, for methods that work per face, such as <em>Colorize Texture by Principal Directions (Line Integral Convolution)</em>. The vertices must have directions, from one of the <em>Compute Principal Curvature Directions</em> filters.</p>
+<p>The conversion is vcglib’s for cross fields (<code class="docutils literal notranslate"><span class="pre">vcg::tri::CrossField</span></code>): the two directions are interpolated together as a cross, rotated between the tangent planes by the normals, and each curvature goes with the direction it belongs to. The pair is then ordered so that the first direction is the maximal curvature’s, as MeshLab keeps it and the curvature decorator draws it.</p>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />
@@ -9814,6 +9901,10 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#filter-compute-principal-curvature-directions-libigl">Compute Principal Curvature Directions (libigl)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.compute_principal_curvature_directions_libigl"><code class="docutils literal notranslate"><span class="pre">ms.compute_principal_curvature_directions_libigl()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-compute-principal-curvature-directions-per-face-texture-signal-processing">Compute Principal Curvature Directions per Face (TextureSignalProcessing)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.compute_principal_curvature_directions_per_face_texture_signal_processing"><code class="docutils literal notranslate"><span class="pre">ms.compute_principal_curvature_directions_per_face_texture_signal_processing()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#filter-compute-principal-curvature-directions-vcglib">Compute Principal Curvature Directions (vcglib)</a><ul>
@@ -11224,6 +11315,10 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <li><a class="reference internal" href="#meshlab.ms.select_visible_vertices"><code class="docutils literal notranslate"><span class="pre">ms.select_visible_vertices()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#filter-colorize-texture-by-principal-directions-line-integral-convolution">Colorize Texture by Principal Directions (Line Integral Convolution)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.colorize_texture_by_principal_directions_line_integral_convolution"><code class="docutils literal notranslate"><span class="pre">ms.colorize_texture_by_principal_directions_line_integral_convolution()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#filter-remove-textures">Remove Textures</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.remove_textures"><code class="docutils literal notranslate"><span class="pre">ms.remove_textures()</span></code></a></li>
 </ul>
@@ -11322,6 +11417,14 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#filter-transfer-color-from-vertex-to-texture">Transfer Color from Vertex to Texture</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.transfer_color_from_vertex_to_texture"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_from_vertex_to_texture()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-transfer-curvature-directions-from-face-to-vertex">Transfer Curvature Directions from Face to Vertex</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.transfer_curvature_directions_from_face_to_vertex"><code class="docutils literal notranslate"><span class="pre">ms.transfer_curvature_directions_from_face_to_vertex()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-transfer-curvature-directions-from-vertex-to-face">Transfer Curvature Directions from Vertex to Face</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.transfer_curvature_directions_from_vertex_to_face"><code class="docutils literal notranslate"><span class="pre">ms.transfer_curvature_directions_from_vertex_to_face()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#filter-transfer-scalar-from-face-to-vertex">Transfer Scalar from Face to Vertex</a><ul>

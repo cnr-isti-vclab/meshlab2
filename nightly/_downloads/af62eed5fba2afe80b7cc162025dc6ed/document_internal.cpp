@@ -495,9 +495,11 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
     const bool copyVertTexCoord   = src.vert.IsTexCoordEnabled();
     const bool copyVertCurvDir    = src.vert.IsCurvatureDirEnabled();
     const bool copyFaceWedgeTex   = src.face.IsWedgeTexCoordEnabled();
+    const bool copyFaceCurvDir    = src.face.IsCurvatureDirEnabled();
     if (copyVertTexCoord)  dst.vert.EnableTexCoord();
     if (copyVertCurvDir)   dst.vert.EnableCurvatureDir();
     if (copyFaceWedgeTex)  dst.face.EnableWedgeTexCoord();
+    if (copyFaceCurvDir)   dst.face.EnableCurvatureDir();
 
     std::vector<int> vertexMap(src.vert.size(), -1);
     if (src.VN() > 0) {
@@ -550,6 +552,8 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
             df.C() = sf.cC();
             df.Q() = sf.cQ();
             df.Flags() = sf.Flags();
+            if (copyFaceCurvDir) { df.PD1() = sf.cPD1(); df.PD2() = sf.cPD2();
+                                   df.K1()  = sf.cK1();  df.K2()  = sf.cK2(); }
             ++dstFaceIndex;
         }
     }
