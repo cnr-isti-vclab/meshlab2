@@ -24,7 +24,6 @@ public:
 
     std::vector<FilterInfo> filterInfos(const Document &doc) const;
     std::optional<FilterInfo> filterInfo(const QString &filterKey, const Document &doc) const;
-    QStringList loadedPluginSummaries() const;
     bool validateFilterInvocation(
         const QString &filterKey,
         const MeshFilterParameterValues &parameters,

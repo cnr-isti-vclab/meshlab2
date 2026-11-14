@@ -2,18 +2,6 @@
 
 using namespace DocumentInternal;
 
-QStringList Document::loadedPluginSummaries() const
-{
-    return m_pluginManager->loadedPluginSummaries();
-}
-
-QStringList Document::loadedFilterPluginSummaries() const
-{
-    if (!m_filterPluginManager)
-        return {};
-    return m_filterPluginManager->loadedPluginSummaries();
-}
-
 std::optional<MeshFilterDescriptor> Document::filterDescriptor(const QString &filterKey) const
 {
     if (!m_filterPluginManager)

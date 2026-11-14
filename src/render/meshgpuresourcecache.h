@@ -158,7 +158,6 @@ public:
         bool rebuiltSelection = false;
         bool rebuiltDecoratorNormals = false;
         bool rebuiltDecoratorBoundaries = false;
-        bool uploadedResources = false;
         float elapsedMs = 0.0f;
 
         bool anyRebuilt() const

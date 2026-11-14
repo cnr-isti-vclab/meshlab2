@@ -132,15 +132,6 @@ QString MeshIOPluginManager::saveDialogFilter() const
     return filters.join(QStringLiteral(";;"));
 }
 
-QStringList MeshIOPluginManager::loadedPluginSummaries() const
-{
-    QStringList summaries;
-    for (const auto &plugin : m_plugins) {
-        summaries << QObject::tr("%1 - %2").arg(plugin->name(), plugin->filterString());
-    }
-    return summaries;
-}
-
 std::vector<MeshIOPluginManager::PluginInfo> MeshIOPluginManager::pluginInfos() const
 {
     std::vector<PluginInfo> infos;

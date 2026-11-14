@@ -87,19 +87,6 @@ void Document::restoreUndoState(const UndoState &state)
 {
     const bool prevRestoring = m_undoManager->isRestoring();
     m_undoManager->setRestoring(true);
-    {
-        qDebug() << "[STATE RESTORE] current=" << m_undoManager->currentNode()
-                 << " total nodes=" << static_cast<int>(m_undoManager->nodes().size());
-        for (int i = 0; i < static_cast<int>(m_undoManager->nodes().size()); ++i) {
-            const auto &n = m_undoManager->nodes()[static_cast<size_t>(i)];
-            qDebug() << "  node" << i
-                     << "parent=" << n.parentId
-                     << "prefChild=" << n.preferredChild
-                     << "children=" << QVector<int>(n.children.begin(), n.children.end())
-                     << (i == m_undoManager->currentNode() ? "<-- current" : "")
-                     << "label=" << (n.label.isEmpty() ? QStringLiteral("(root)") : n.label);
-        }
-    }
 
     // Evict geometry cache entries whose revision is strictly greater than the
     // revision we are about to restore.  Because m_nextGeometryRevision is a

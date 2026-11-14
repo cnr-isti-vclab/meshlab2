@@ -1958,10 +1958,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         stats.rebuiltDecoratorBoundaries =
             rebuildDecoratorBoundaries(meshCache.decoratorBoundaries);
 
-    if (updates) {
-        stats.uploadedResources = true;
+    if (updates)
         cb->resourceUpdate(updates);
-    }
 
     stats.elapsedMs = float(timer.nsecsElapsed() / 1000000.0);
     return stats;

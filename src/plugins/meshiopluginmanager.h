@@ -37,9 +37,6 @@ public:
     // Builds the combined Qt file dialog filter for save.
     QString saveDialogFilter() const;
 
-    // Returns one line per loaded plugin for diagnostics/UI.
-    QStringList loadedPluginSummaries() const;
-
     // Returns plugin metadata for UI.
     std::vector<PluginInfo> pluginInfos() const;
 

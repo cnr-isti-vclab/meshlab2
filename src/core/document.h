@@ -261,8 +261,6 @@ public:
     // operations test this (with isRestoringUndoRedo()) to decide whether they own the
     // step, so that a caller bracketing several of them collapses into one undo entry.
     bool undoStepActive() const;
-    QStringList undoHistoryLabels() const;
-    QStringList undoStackLabels() const;
     int undoCursorPosition() const;
     std::vector<UndoTreeNodeInfo> undoTreeInfo() const;
     std::vector<ScriptAction> undoNodeScriptActions(int nodeId) const;
@@ -486,8 +484,6 @@ public:
     QString openDialogFilter() const;
     QString saveDialogFilter() const;
     int saveMaskCapability(const QString &filename) const;
-    QStringList loadedPluginSummaries() const;
-    QStringList loadedFilterPluginSummaries() const;
     std::vector<ImportPluginInfo> importPluginInfos() const;
     std::vector<ExportPluginInfo> exportPluginInfos() const;
     std::vector<FilterInfo> filterInfos() const;

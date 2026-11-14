@@ -125,16 +125,6 @@ QString Document::redoText() const
     return m_undoManager->redoText();
 }
 
-QStringList Document::undoHistoryLabels() const
-{
-    return m_undoManager->undoHistoryLabels();
-}
-
-QStringList Document::undoStackLabels() const
-{
-    return m_undoManager->undoStackLabels();
-}
-
 int Document::undoCursorPosition() const
 {
     return m_undoManager->undoCursorPosition();

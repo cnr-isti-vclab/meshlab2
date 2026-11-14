@@ -41,8 +41,6 @@ public:
     UndoPruneResult pruneToMemoryBudget(qint64 maximumBytes);
     void handleMemoryPressure(bool critical);
 
-    QStringList undoHistoryLabels() const;
-    QStringList undoStackLabels() const;
     int undoCursorPosition() const;
     int currentNodeId() const { return m_undoCurrentNode; }
     std::vector<UndoTreeNodeInfo> undoTreeInfo() const;
@@ -63,7 +61,6 @@ public:
     UndoMemoryStats memoryStats() const;
 
     bool restoreCamera() const { return m_restoreCamera; }
-    bool suppressSignals() const { return m_suppressUndoRedoSignals; }
     void setRestoring(bool restoring) { m_restoringUndoRedo = restoring; }
     void emitStateChanged();
 

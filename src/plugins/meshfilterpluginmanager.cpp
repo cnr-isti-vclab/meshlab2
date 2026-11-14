@@ -977,16 +977,6 @@ bool MeshFilterPluginManager::validateFilterInvocation(
         errorMessage);
 }
 
-QStringList MeshFilterPluginManager::loadedPluginSummaries() const
-{
-    QStringList summaries;
-    summaries.reserve(static_cast<int>(m_plugins.size()));
-    for (const auto &plugin : m_plugins) {
-        summaries.push_back(QObject::tr("%1 (%2)").arg(plugin->name(), plugin->pluginId()));
-    }
-    return summaries;
-}
-
 MeshFilterRunResult MeshFilterPluginManager::runFilter(
     const QString &filterKey,
     const MeshFilterParameterValues &parameters,

@@ -2,12 +2,9 @@
 #include "document.h"
 #include "document_internal.h"
 
-#include <QDateTime>
-#include <QDebug>
 #include <QElapsedTimer>
 #include <QImage>
 #include <QObject>
-#include <QVector>
 
 #include <algorithm>
 #include <atomic>
@@ -244,26 +241,6 @@ QString DocumentUndoManager::redoText() const
     return m_undoNodes[static_cast<size_t>(preferred)].label;
 }
 
-QStringList DocumentUndoManager::undoHistoryLabels() const
-{
-    QStringList labels;
-    if (m_undoCurrentNode < 0)
-        return labels;
-    int id = m_undoCurrentNode;
-    while (id >= 0) {
-        const auto &node = m_undoNodes[static_cast<size_t>(id)];
-        if (!node.label.isEmpty())
-            labels.prepend(node.label);
-        id = node.parentId;
-    }
-    return labels;
-}
-
-QStringList DocumentUndoManager::undoStackLabels() const
-{
-    return undoHistoryLabels();
-}
-
 int DocumentUndoManager::undoCursorPosition() const
 {
     if (m_undoCurrentNode < 0 || m_undoCurrentNode >= static_cast<int>(m_undoNodes.size()))
@@ -364,20 +341,6 @@ bool DocumentUndoManager::jumpToNode(int nodeId, bool restoreCamera)
     if (lca < 0)
         return false;
 
-    {
-        std::vector<int> redoPreview;
-        for (int id : targetPath) {
-            if (id == lca) break;
-            redoPreview.push_back(id);
-        }
-        std::reverse(redoPreview.begin(), redoPreview.end());
-        qDebug() << "[JUMP] target=" << nodeId
-                 << "current=" << m_undoCurrentNode
-                 << "lca=" << lca
-                 << "undos=" << (m_undoCurrentNode != lca ? "yes" : "no")
-                 << "redoPath=" << QVector<int>(redoPreview.begin(), redoPreview.end());
-    }
-
     // Suppress per-step signals during the multi-step navigation so that
     // intermediate states don't trigger thumbnail capture (grabFramebuffer)
     // or other GUI refreshes that could interfere with the GPU/render state.
@@ -437,8 +400,6 @@ bool DocumentUndoManager::undo()
     const auto &node = m_undoNodes[static_cast<size_t>(m_undoCurrentNode)];
     const int parentId = node.parentId;
     const auto &target = m_undoNodes[static_cast<size_t>(parentId)];
-    qDebug() << "[UNDO]  from=" << m_undoCurrentNode << '(' << node.label << ')'
-             << "to=" << parentId << '(' << target.label << ')';
 
     if (node.storageKind == UndoStorageKind::Delta && node.beforeAttributes.has_value()) {
         // Delta undo: revert selection on live mesh, no full state restore.
@@ -480,10 +441,6 @@ bool DocumentUndoManager::redo()
     const int childId = node.preferredChild >= 0 ? node.preferredChild
                                                   : node.children.front();
     const auto &target = m_undoNodes[static_cast<size_t>(childId)];
-    qDebug() << "[REDO]  from=" << m_undoCurrentNode << '(' << node.label << ')'
-             << "to=" << childId << '(' << target.label << ')'
-             << "prefChild=" << node.preferredChild
-             << "children=" << QVector<int>(node.children.begin(), node.children.end());
     if (target.storageKind == UndoStorageKind::Delta && target.afterAttributes.has_value()) {
         // Delta redo: apply after-selection on live mesh, no full state restore.
         m_restoringUndoRedo = true;
@@ -919,14 +876,6 @@ void DocumentUndoManager::pushStep(const QString &label, UndoState &&before, Und
 
     m_undoCurrentNode = newId;
 
-    {
-        const auto &n = m_undoNodes[static_cast<size_t>(newId)];
-        qDebug() << "[STATE SAVED]" << QDateTime::currentDateTime().toString(Qt::ISODateWithMs)
-                 << "idx=" << newId
-                 << "parent=" << n.parentId
-                 << "label=" << n.label;
-    }
-
     pruneTreeToLimit();
     enforceConfiguredMemoryLimit();
     emitStateChanged();
@@ -967,15 +916,6 @@ void DocumentUndoManager::pushDeltaStep(
     parent.children.push_back(newId);
     parent.preferredChild = newId;
     m_undoCurrentNode = newId;
-
-    {
-        const auto &n = m_undoNodes[static_cast<size_t>(newId)];
-        qDebug() << "[STATE SAVED]" << QDateTime::currentDateTime().toString(Qt::ISODateWithMs)
-                 << "idx=" << newId
-                 << "parent=" << n.parentId
-                 << "label=" << n.label
-                 << "(selection delta)";
-    }
 
     pruneTreeToLimit();
     enforceConfiguredMemoryLimit();
@@ -1045,7 +985,6 @@ void DocumentUndoManager::pruneTreeToLimit()
 
     // Find the ancestor of m_undoCurrentNode that sits at depth m_undoLimit from
     // the current tip, i.e. the new root after pruning.
-    const int stepsToRemove = depth - 1 - m_undoLimit;
     int newRoot = m_undoCurrentNode;
     for (int i = 0; i < m_undoLimit; ++i)
         newRoot = m_undoNodes[static_cast<size_t>(newRoot)].parentId;
@@ -1087,7 +1026,6 @@ void DocumentUndoManager::pruneTreeToLimit()
     pruned[0].parentId = -1;  // new root has no parent
     m_undoCurrentNode = remap[m_undoCurrentNode];
     m_undoNodes = std::move(pruned);
-    (void)stepsToRemove;
 }
 
 void DocumentUndoManager::emitStateChanged()

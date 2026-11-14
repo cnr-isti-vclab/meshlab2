@@ -2083,7 +2083,7 @@ void MainWindow::newDocument()
 {
     const bool hasContent = (m_doc->meshCount() > 0)
         || (m_doc->rasterCount() > 0)
-        || !m_doc->undoStackLabels().isEmpty();
+        || m_doc->canUndo();
     if (hasContent) {
         const auto answer = QMessageBox::question(
             this,
@@ -3814,35 +3814,6 @@ void MainWindow::updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSu
         m_frameStatsLabel->setText(statsText);
     else
         statusBar()->showMessage(statsText);
-}
-
-QPixmap MainWindow::captureUndoHistoryThumbnail() const
-{
-    RenderWidget *view = currentRenderWidget();
-    if (!view)
-        return QPixmap();
-    const QImage frame = view->grabFramebuffer();
-    if (frame.isNull())
-        return QPixmap();
-    // Centre-crop to 2:1 aspect ratio, then scale to kThumbW × kThumbH.
-    return QPixmap::fromImage(
-        [&]{
-            const int fw = frame.width();
-            const int fh = frame.height();
-            // Crop to 2:1: pick the dimension that fits without stretching.
-            int cropW, cropH;
-            if (fw * 1 >= fh * 2) {   // frame is wider than 2:1 → crop width
-                cropH = fh;
-                cropW = fh * 2;
-            } else {                   // frame is taller than 2:1 → crop height
-                cropW = fw;
-                cropH = fw / 2;
-            }
-            const int ox = (fw - cropW) / 2;
-            const int oy = (fh - cropH) / 2;
-            const QImage cropped = frame.copy(ox, oy, cropW, std::max(1, cropH));
-            return cropped.scaled(96, 48, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-        }());
 }
 
 void MainWindow::jumpToUndoNode(int nodeId, bool withCamera)
