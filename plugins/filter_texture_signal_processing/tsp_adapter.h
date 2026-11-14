@@ -98,6 +98,23 @@ FilterOutcome lineIntegralConvolution(const Atlas &atlas, Image &image, const st
                                       double anisotropyExponent, Noise noise, unsigned int seed,
                                       const std::function<bool(unsigned int)> &onVCycle = {});
 
+// ReactionDiffusion: Gray-Scott reaction-diffusion grown on the surface in texture space, as the
+// program does it with --out: `steps` time steps of length `timeStep`, the diffusion rates scaled by
+// `diffusionScale`, the feed and kill rates and the share of seeded texels of the `pattern`, the
+// seeds drawn from `seed`. With `field` (one vector per triangle on the surface), the diffusion is
+// slowed across it by the metric stretched by |v|^anisotropyExponent * anisotropyScale, the field at
+// unit root-mean-square length, so the pattern lines up with it. The pattern's size is a number of
+// texels: the program scales the surface to an area of half the number of texels it covers. Writes
+// every texel of `image`, opaque: the second concentration as a gray, as the program writes it, and
+// 204 where there is no node. `onStep`, if given, is called after each step with how many have run,
+// and stops the run by returning false (`canceled`). `vCycles` is the number of steps. Throws
+// std::runtime_error with TSP's message if TSP fails.
+enum class Pattern { Stripes, Dots };
+FilterOutcome reactionDiffusion(const Atlas &atlas, Image &image, const std::vector<std::array<double, 3>> *field,
+                                double anisotropyScale, double anisotropyExponent, Pattern pattern, unsigned int steps,
+                                double timeStep, double diffusionScale, unsigned int seed,
+                                const std::function<bool(unsigned int)> &onStep = {});
+
 // TSP's principal curvature per triangle (InitializePrincipalCurvatureDirection): the shape operator
 // of each triangle from the differences of its vertex normals, after LineIntegralConvolution's
 // smoothing of those normals (`smoothingIterations` rounds, each a screened Poisson solve whose

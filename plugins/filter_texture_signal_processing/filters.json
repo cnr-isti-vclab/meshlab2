@@ -574,6 +574,163 @@
       "referenceIds": [
         "prada2018gradient"
       ]
+    },
+    {
+      "id": "colorize_texture_by_reaction_diffusion",
+      "categories": [
+        "Texture"
+      ],
+      "name": "Colorize Texture by Reaction-Diffusion",
+      "pythonName": "colorize_texture_by_reaction_diffusion",
+      "shortDescription": "Grow a Gray-Scott pattern of stripes or dots on the surface into a new texture, continuous across seams.",
+      "longDescriptionMarkdown": "Fills a new texture with the stripes or dots of a Gray-Scott reaction-diffusion grown on the surface: two chemicals spread at different rates and react, starting from scattered seeds, until they settle into a pattern of a characteristic width. Since the texels on the two sides of a seam are neighbors on the surface, the pattern runs on across seams, and the islands' outlines do not show. With a *Direction*, the chemicals spread more slowly across the mesh's principal curvature directions, and the stripes or rows of dots line up with them.\n\n**The pattern's size is a number of texels**, whatever the mesh: the surface is scaled to an area of half the number of texels the layout covers, as the program does, so a larger *Texture Size* gives more, not finer, stripes. *Diffusion Scale* changes it.\n\n**The directions**, when asked for, come from the mesh as for *Colorize Texture by Principal Directions (Line Integral Convolution)*: from its faces when they have principal directions, otherwise from its vertices.\n\n**The texture.** The pattern goes into a new square texture of the size asked, laid out by the faces' texture coordinates, which need no image: a mesh that has only been parametrized works. It is added after the mesh's textures, which stay, and the faces are switched to it, so it shows at once; saving the mesh writes it. A mesh whose faces use several textures gets one new texture for each. Faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\nIt is the `ReactionDiffusion` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, run inside MeshLab with its defaults. Each step of length $d$ solves $(M + d\\,D_a\\,S)\\,a' = M\\,a + d\\,R_a(a, b)$ and $(M + d\\,D_b\\,S)\\,b' = M\\,b + d\\,R_b(a, b)$, with $R_a = -a\\,b^2 + F\\,(1 - a)$ and $R_b = a\\,b^2 - (F + k)\\,b$ integrated over the triangles, $D_a = 0.1$ and $D_b = 0.05$ times the *Diffusion Scale*, by one multigrid V-cycle, as the program does. Stripes take $F = k = 0.062$ and seed a hundredth of the texels; dots $F = 0.0367$, $k = 0.0649$ and a thousandth. The texture is the second chemical as a gray, $0.75\\,(1 - 2b)$ clamped, as the program writes it: white-gray where there is none, black where it is strong.\n\n**Time and memory** grow with the steps and with the length of the islands' boundaries in texels: about 50 s and 1.5 GB for 1000 steps on a 20k-face mesh at 512², but over two minutes on a layout of a thousand one-triangle islands at the same size. The run can be canceled between steps.",
+      "tags": [
+        "texture",
+        "reaction-diffusion",
+        "Gray-Scott",
+        "pattern",
+        "stripes",
+        "dots",
+        "procedural",
+        "principal directions"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireTextureCoordinates": true
+      },
+      "inputPrepare": [
+        "FNorm"
+      ],
+      "parameters": [
+        {
+          "id": "textureSize",
+          "label": "Texture Size",
+          "help": "The side of the new texture, which is square, in texels. The pattern's width is a number of texels, so a larger texture holds more stripes or dots, not finer ones.",
+          "group": "main",
+          "type": "int",
+          "default": 512,
+          "min": 16,
+          "max": 16384
+        },
+        {
+          "id": "pattern",
+          "label": "Pattern",
+          "help": "The Gray-Scott feed and kill rates, and how many texels are seeded.",
+          "group": "main",
+          "type": "enum",
+          "default": "stripes",
+          "enumOptions": [
+            {
+              "id": "stripes",
+              "label": "Stripes",
+              "help": "Feed and kill 0.062, a hundredth of the texels seeded: winding stripes."
+            },
+            {
+              "id": "dots",
+              "label": "Dots",
+              "help": "Feed 0.0367 and kill 0.0649, a thousandth of the texels seeded: spots that multiply until they cover the surface, which can take more than the default Steps."
+            }
+          ]
+        },
+        {
+          "id": "direction",
+          "label": "Direction",
+          "help": "Which principal curvature direction the pattern lines up with, if any; the mesh needs principal directions for the other two.",
+          "group": "main",
+          "type": "enum",
+          "default": "none",
+          "enumOptions": [
+            {
+              "id": "none",
+              "label": "None",
+              "help": "The chemicals spread alike in every direction: the stripes wind freely."
+            },
+            {
+              "id": "maximal",
+              "label": "Maximal Curvature",
+              "help": "Along the direction across the ridges and valleys."
+            },
+            {
+              "id": "minimal",
+              "label": "Minimal Curvature",
+              "help": "Along the ridges and valleys."
+            }
+          ]
+        },
+        {
+          "id": "anisotropyScale",
+          "label": "Anisotropy Scale",
+          "help": "With a Direction, how much more slowly the chemicals spread across it than along it: lengths across the direction count sqrt(1 + scale) times longer. 0 makes no difference. The program's anisotropy scale.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1000.0,
+          "decimals": 2
+        },
+        {
+          "id": "steps",
+          "label": "Steps",
+          "help": "How many time steps the pattern grows for. It spreads from the seeds and fills the surface over the first few hundred, then slowly settles. The program's output steps.",
+          "group": "main",
+          "type": "int",
+          "default": 1000,
+          "min": 1,
+          "max": 100000
+        },
+        {
+          "id": "diffusionScale",
+          "label": "Diffusion Scale",
+          "help": "The factor on both chemicals' diffusion rates, which sets the pattern's width: larger spreads them further between reactions, and widens the stripes. The program's diffusion scale.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.01,
+          "max": 100.0,
+          "decimals": 2
+        },
+        {
+          "id": "anisotropyExponent",
+          "label": "Anisotropy Exponent",
+          "help": "With a Direction, how the anisotropy depends on how different the two curvatures are: 0 makes it the same wherever there is a direction; above 0 it fades where the surface curves alike in every direction. The program's anisotropy exponent.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 4.0,
+          "decimals": 2
+        },
+        {
+          "id": "timeStep",
+          "label": "Time Step",
+          "help": "The length of each step. Larger grows the pattern in fewer steps, until the explicit reaction term becomes unstable. The program's speed.",
+          "group": "advanced",
+          "type": "double",
+          "default": 10.0,
+          "min": 0.01,
+          "max": 100.0,
+          "decimals": 2
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value places the seeds, and so the pattern, exactly reproducibly.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
+        }
+      ],
+      "outputModifies": [
+        "WT",
+        "TX"
+      ],
+      "referenceIds": [
+        "prada2018gradient"
+      ]
     }
   ]
 }

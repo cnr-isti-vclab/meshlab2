@@ -522,6 +522,7 @@ private slots:
     void textureSignalProcessingColorizesByPrincipalDirections();
     void textureSignalProcessingDrawsStreaksOfTheLengthAsked();
     void textureSignalProcessingTakesUvsAlignedWithTheTexels();
+    void textureSignalProcessingGrowsReactionDiffusion();
     void filtersMakingTexturesAddOneOnEachRun();
     void open3dFeatureMatchingCanUseAllVisibleLayersAsReference();
     void open3dFeatureMatchingCanEstimateItsQualityWithIcp();
@@ -7437,7 +7438,8 @@ static void makeUvGridMesh(VCGMesh &m, bool cylinder, float inset)
     vcg::tri::Allocator<VCGMesh>::AddVertices(m, (nu + 1) * (nv + 1));
     for (int j = 0; j <= nv; ++j)
         for (int i = 0; i <= nu; ++i) {
-            const double t = 2 * M_PI * i / nu, h = 2 * M_PI * j / nv;
+            // The cylinder's last column is its first, exactly, so the cut is a seam of a closed tube.
+            const double t = 2 * M_PI * (cylinder ? i % nu : i) / nu, h = 2 * M_PI * j / nv;
             m.vert[size_t(j * (nu + 1) + i)].P() = cylinder ? vcg::Point3f(float(std::cos(t)), float(std::sin(t)), float(h))
                                                             : vcg::Point3f(float(t), float(h), 0);
         }
@@ -7517,6 +7519,94 @@ void FilterTests::textureSignalProcessingDetailSizeIsTheCrossover()
         qDebug("gradient scale %.0f at the Detail Size: gain %.3f, %.3f expected", scale, gain, expected);
         QVERIFY(std::abs(gain - expected) < 0.03 * (1 + scale));
     }
+}
+
+// Reaction-diffusion on the UV grids: a flat square and a cylinder whose UVs are cut along its
+// length, laid out over 0.9 of a 128² texture. The pattern's width is a number of texels (the program
+// scales the surface to half the number of texels), about 11 for the stripes, measured against the
+// program itself on a 20k-face atlas: the same period, 11.22 texels, and the same share of dark
+// texels, 0.44.
+// - The stripes fill the layout, and the same seed gives the same texture.
+// - Four times the Diffusion Scale makes them twice as wide (Gray-Scott's width goes as the square
+//   root of the diffusion): half the crossings between dark and light.
+// - On the cylinder, with the maximal direction (around it) and a strong anisotropy, they run
+//   around it: far fewer crossings around than along.
+// - Across the cut, the pattern runs on.
+void FilterTests::textureSignalProcessingGrowsReactionDiffusion()
+{
+    Document probe;
+    const QString key = filterKeyForId(probe, QStringLiteral("colorize_texture_by_reaction_diffusion"));
+    if (key.isEmpty())
+        QSKIP("TextureSignalProcessing plugin is not available in this build.");
+    const int N = 128;
+    const float inset = 0.05f;
+    const int lo = int(std::ceil(inset * N)) + 1, hi = int(std::floor((1 - inset) * N)) - 2; // inside the island
+    auto run = [&](bool cylinder, MeshFilterParameterValues params, QImage &out) -> bool {
+        VCGMesh grid;
+        makeUvGridMesh(grid, cylinder, inset);
+        Document doc;
+        if (doc.addMesh(grid, QStringLiteral("grid"), vcg::tri::io::Mask::IOM_WEDGTEXCOORD) < 0)
+            return false;
+        doc.setCurrentMeshIndex(0);
+        params.insert(QStringLiteral("textureSize"), N);
+        params.insert(QStringLiteral("randomSeed"), 5);
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        if (!r.success) {
+            qWarning("%s", qPrintable(r.errorMessage));
+            return false;
+        }
+        out = doc.mesh(0).textureAssets.back().image;
+        return true;
+    };
+    auto dark = [](const QImage &im, int x, int y) { return qRed(im.pixel(x, y)) < 96; };
+    // Crossings between dark and light, along the rows (`alongU`) or the columns, inside the island.
+    auto crossings = [&](const QImage &im, bool alongU) {
+        int count = 0;
+        for (int i = lo; i <= hi; ++i)
+            for (int j = lo + 1; j <= hi; ++j)
+                count += alongU ? dark(im, j, i) != dark(im, j - 1, i) : dark(im, i, j) != dark(im, i, j - 1);
+        return count;
+    };
+    auto darkShare = [&](const QImage &im) {
+        int count = 0;
+        for (int y = lo; y <= hi; ++y)
+            for (int x = lo; x <= hi; ++x)
+                count += dark(im, x, y);
+        return double(count) / double((hi - lo + 1) * (hi - lo + 1));
+    };
+
+    QImage stripes, again, wide;
+    QVERIFY(run(false, {}, stripes));
+    QVERIFY(run(false, {}, again));
+    MeshFilterParameterValues wider;
+    wider.insert(QStringLiteral("diffusionScale"), 4.0);
+    QVERIFY(run(false, wider, wide));
+    const double share = darkShare(stripes);
+    const int narrow = crossings(stripes, true) + crossings(stripes, false), broad = crossings(wide, true) + crossings(wide, false);
+    qDebug("reaction-diffusion: dark share %.3f; crossings %d, %d at four times the diffusion", share, narrow, broad);
+    QVERIFY(share > 0.3 && share < 0.6);
+    QVERIFY2(stripes == again, "The same seed gave two different textures.");
+    QVERIFY(double(narrow) / broad > 1.6 && double(narrow) / broad < 2.5);
+
+    QImage aligned;
+    MeshFilterParameterValues around;
+    around.insert(QStringLiteral("direction"), QStringLiteral("maximal"));
+    around.insert(QStringLiteral("anisotropyScale"), 100.0);
+    QVERIFY(run(true, around, aligned));
+    const int alongU = crossings(aligned, true), alongV = crossings(aligned, false);
+    // The cut: the texel columns 7 and 120 lie 1.1 texels on either side of it, 2.2 apart on the
+    // surface; compared with texels 2 apart inside. With the cut left open (the tube slit), they
+    // differed by 70 levels on average.
+    double cut = 0, inside = 0;
+    for (int y = lo; y <= hi; ++y) {
+        cut += std::abs(qRed(aligned.pixel(7, y)) - qRed(aligned.pixel(120, y)));
+        inside += std::abs(qRed(aligned.pixel(N / 2, y)) - qRed(aligned.pixel(N / 2 + 2, y)));
+    }
+    cut /= hi - lo + 1, inside /= hi - lo + 1;
+    qDebug("aligned around the cylinder: %d crossings around, %d along; across the cut %.1f levels, two texels apart %.1f",
+           alongU, alongV, cut, inside);
+    QVERIFY(alongU * 3 < alongV);
+    QVERIFY(cut < 3 * inside + 5);
 }
 
 // A layout whose vertices sit on the texel grid puts edges exactly through texel centers and along the

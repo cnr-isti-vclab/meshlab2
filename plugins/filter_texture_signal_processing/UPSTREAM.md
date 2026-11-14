@@ -4,8 +4,8 @@
 
 *Repair Texture Seams*, *Dilate Texture across Seams*, *Smooth Texture*, *Sharpen Texture*,
 *Inpaint Texture on Selected Faces*, *Transfer Texture Detail*, *Colorize Texture by Principal
-Directions (Line Integral Convolution)* and *Compute Principal Curvature Directions per Face
-(TextureSignalProcessing)* run the code of Prada, Kazhdan, Chuang and Hoppe, *Gradient-Domain
+Directions (Line Integral Convolution)*, *Colorize Texture by Reaction-Diffusion* and *Compute
+Principal Curvature Directions per Face (TextureSignalProcessing)* run the code of Prada, Kazhdan, Chuang and Hoppe, *Gradient-Domain
 Processing within a Texture Atlas* (SIGGRAPH 2018), from
 [`mkazhdan/TextureSignalProcessing`](https://github.com/mkazhdan/TextureSignalProcessing)
 (TSP), in process. The design, and the measurements behind it, are in
@@ -120,6 +120,14 @@ drop `branch = meshlab`, move the gitlink to upstream's merge commit, and delete
   and the proposal records the measurement). The noise comes from a `std::mt19937` seeded by the
   filter's `randomSeed`, as the program's random hue or as black and white or random gray. The
   sharpening is `filter()`, the stage-2 solve.
+- **Reaction-diffusion** reproduces `ReactionDiffusion`'s set-up and its steps without the viewer
+  (the lower-level API, since the reaction term needs the `ScalarIntegrator` the operator
+  initializer gives with the mass and stiffness), with three differences: the seeds come from a
+  `std::mt19937` seeded by the filter's `randomSeed` (the program's `rand()` on several threads
+  changes its output from run to run), the solve is in double precision (the program's default is
+  float), and the field is the mesh's principal directions, as for line-integral convolution. Against
+  the program on a 20k-face atlas, the same stripe period (11.22 texels) and share of dark texels
+  (0.44); the proposal has the comparison.
 - **Curvature per face** is `InitializePrincipalCurvatureDirection`, after `LineIntegralConvolution`'s
   normal smoothing, which is in the program rather than the library and is ported into the adapter
   (`principalCurvature`), on Eigen matrices. TSP measures on the surface scaled to unit area, so its
@@ -133,5 +141,5 @@ drop `branch = meshlab`, move the gitlink to upstream's merge commit, and delete
    `principalCurvatureDirections` rows of `FilterTests`, and the smoke rows).
 2. Re-run the symbol check above.
 3. If TSP changed `SetExteriorTexels.cpp`, `TextureDilation.cpp`, `TextureFiltering.cpp`,
-   `SeamStitcher.cpp` or `LineIntegralConvolution.cpp`, compare the adapter's functions with them: the adapter reproduces their
+   `SeamStitcher.cpp`, `LineIntegralConvolution.cpp` or `ReactionDiffusion.cpp`, compare the adapter's functions with them: the adapter reproduces their
    computation, with the differences listed above, and nothing else.

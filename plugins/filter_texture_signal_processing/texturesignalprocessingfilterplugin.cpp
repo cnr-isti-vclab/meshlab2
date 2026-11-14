@@ -26,6 +26,7 @@ constexpr QLatin1StringView kFilterSharpen("sharpen_texture");
 constexpr QLatin1StringView kFilterInpaint("inpaint_texture_on_selected_faces");
 constexpr QLatin1StringView kFilterTransferDetail("transfer_texture_detail");
 constexpr QLatin1StringView kFilterLic("colorize_texture_by_principal_directions_line_integral_convolution");
+constexpr QLatin1StringView kFilterReactionDiffusion("colorize_texture_by_reaction_diffusion");
 constexpr QLatin1StringView kFilterCurvature("compute_principal_curvature_directions_per_face_texture_signal_processing");
 
 using UvLayerUtils::UVMesh;
@@ -209,12 +210,14 @@ MeshFilterRunResult computeCurvature(const FilterParams &params, Document &doc)
     return result;
 }
 
-// Colorize Texture by Principal Directions (Line Integral Convolution): the faces of one texture
-// slot, the principal directions of the mesh as the field, the result where the output parameter
-// asks. The field is each face's direction scaled by k1 - k2, as LineIntegralConvolution scales
-// its own, from the faces' directions when they have them, otherwise interpolated from the
-// vertices' as Transfer Curvature Directions from Vertex to Face does, without storing them.
-MeshFilterRunResult colorizeByDirections(const FilterParams &params, Document &doc)
+// The two filters that fill new textures from no texture: Colorize Texture by Principal Directions
+// (Line Integral Convolution) and Colorize Texture by Reaction-Diffusion. One new texture for each
+// texture slot the faces use, appended after the layer's own, which stay; the faces are switched to
+// it. The field, which LIC needs and reaction-diffusion may follow, is each face's principal
+// direction scaled by k1 - k2, as LineIntegralConvolution scales its own, from the faces' directions
+// when they have them, otherwise interpolated from the vertices' as Transfer Curvature Directions
+// from Vertex to Face does, without storing them.
+MeshFilterRunResult colorizeNewTextures(const FilterParams &params, Document &doc, bool reaction)
 {
     namespace Tex = TextureAssociationUtils;
     const int meshIndex = doc.currentMeshIndex();
@@ -222,8 +225,11 @@ MeshFilterRunResult colorizeByDirections(const FilterParams &params, Document &d
         return fail(QObject::tr("No current mesh selected."));
     Document::MeshEntry &entry = doc.mesh(meshIndex);
     VCGMesh &mesh = entry.mesh;
+    const QString direction = params.getEnum(QStringLiteral("direction"));
+    const bool useField = !reaction || direction != QStringLiteral("none");
+    const bool maximal = direction != QStringLiteral("minimal");
     const bool fromFaces = mesh.face.IsCurvatureDirEnabled();
-    if (!fromFaces && !mesh.vert.IsCurvatureDirEnabled())
+    if (useField && !fromFaces && !mesh.vert.IsCurvatureDirEnabled())
         return fail(QObject::tr("'%1' has no principal curvature directions: compute them first, with one of the "
                                 "Compute Principal Curvature Directions filters.").arg(entry.name));
 
@@ -231,18 +237,12 @@ MeshFilterRunResult colorizeByDirections(const FilterParams &params, Document &d
     for (VCGFace &f : mesh.face)
         if (!f.IsD())
             live.push_back(&f);
-    const bool maximal = params.getEnum(QStringLiteral("direction")) != QStringLiteral("minimal");
     const int side = params.getInt(QStringLiteral("textureSize"));
     const QSize size(side, side);
-    const QString noiseId = params.getEnum(QStringLiteral("noise"));
-    const TspAdapter::Noise noise = noiseId == QStringLiteral("black_and_white") ? TspAdapter::Noise::BlackAndWhite
-                                    : noiseId == QStringLiteral("gray")          ? TspAdapter::Noise::Gray
-                                                                                 : TspAdapter::Noise::Hue;
     const unsigned int seed = params.getRandomSeed().value;
     vcg::CallBackPos *cb = doc.progressCallback();
+    const char *message = reaction ? "Colorizing texture by reaction-diffusion" : "Colorizing texture by principal directions";
 
-    // One new texture for each texture the faces use, since each lays its faces out over the whole
-    // unit square.
     Tex::ensureTextureSlotIndices(mesh);
     const int slotCount = std::max(1, Tex::compactTextureSlotIndices(mesh));
     std::vector<QImage> images;
@@ -260,38 +260,58 @@ MeshFilterRunResult colorizeByDirections(const FilterParams &params, Document &d
         leftOut += prepared.leftOut;
 
         std::vector<std::array<double, 3>> field;
-        field.reserve(prepared.face.size());
-        for (int i : prepared.face) {
-            VCGFace &f = *live[size_t(i)];
-            vcg::Point3f d1, d2;
-            float k1 = 0, k2 = 0;
-            if (fromFaces) {
-                d1 = f.cPD1(), d2 = f.cPD2(), k1 = f.cK1(), k2 = f.cK2();
-            } else {
-                using Cross = vcg::tri::CrossField<VCGMesh>;
-                d1 = Cross::InterpolateCrossField(f.cV(0)->cPD1(), f.cV(1)->cPD1(), f.cV(2)->cPD1(), f.cV(0)->cN(),
-                                                  f.cV(1)->cN(), f.cV(2)->cN(), f.cN(), vcg::Point3f(1.f / 3, 1.f / 3, 1.f / 3));
-                d1.Normalize();
-                d2 = (f.cN() ^ d1).Normalize();
-                std::vector<VCGVertex *> verts = { f.V(0), f.V(1), f.V(2) };
-                Cross::CrossMagnitudes(verts, f.cN(), d1, d2, k1, k2);
+        if (useField) {
+            field.reserve(prepared.face.size());
+            for (int i : prepared.face) {
+                VCGFace &f = *live[size_t(i)];
+                vcg::Point3f d1, d2;
+                float k1 = 0, k2 = 0;
+                if (fromFaces) {
+                    d1 = f.cPD1(), d2 = f.cPD2(), k1 = f.cK1(), k2 = f.cK2();
+                } else {
+                    using Cross = vcg::tri::CrossField<VCGMesh>;
+                    d1 = Cross::InterpolateCrossField(f.cV(0)->cPD1(), f.cV(1)->cPD1(), f.cV(2)->cPD1(), f.cV(0)->cN(),
+                                                      f.cV(1)->cN(), f.cV(2)->cN(), f.cN(), vcg::Point3f(1.f / 3, 1.f / 3, 1.f / 3));
+                    d1.Normalize();
+                    d2 = (f.cN() ^ d1).Normalize();
+                    std::vector<VCGVertex *> verts = { f.V(0), f.V(1), f.V(2) };
+                    Cross::CrossMagnitudes(verts, f.cN(), d1, d2, k1, k2);
+                }
+                // The maximal direction is the one of the larger curvature, whichever is first.
+                vcg::Point3f d = ((k1 >= k2) == maximal) ? d1 : d2;
+                d = d.Normalize() * std::abs(k1 - k2);
+                field.push_back({ d[0], d[1], d[2] });
             }
-            // The maximal direction is the one of the larger curvature, whichever is first.
-            vcg::Point3f d = ((k1 >= k2) == maximal) ? d1 : d2;
-            d = d.Normalize() * std::abs(k1 - k2);
-            field.push_back({ d[0], d[1], d[2] });
         }
 
         TspAdapter::Image image = toAdapterImage(black);
         TspAdapter::FilterOutcome outcome;
-        const auto progress = [cb, slot, slotCount](unsigned int cycles) {
-            return !cb || cb(int((100 * slot + std::min(95u, 40 + cycles)) / slotCount), "Colorizing texture by principal directions");
-        };
         try {
-            outcome = TspAdapter::lineIntegralConvolution(
-                prepared.atlas, image, field, params.getDouble(QStringLiteral("streakLength")),
-                params.getDouble(QStringLiteral("sharpenDetailSize")), params.getDouble(QStringLiteral("sharpenScale")),
-                params.getDouble(QStringLiteral("anisotropyExponent")), noise, seed + unsigned(slot), progress);
+            if (reaction) {
+                const unsigned int steps = unsigned(params.getInt(QStringLiteral("steps")));
+                const auto progress = [cb, slot, slotCount, steps, message](unsigned int step) {
+                    return !cb || cb(int((100 * slot + 10 + 90 * step / std::max(1u, steps)) / slotCount), message);
+                };
+                outcome = TspAdapter::reactionDiffusion(
+                    prepared.atlas, image, useField ? &field : nullptr, params.getDouble(QStringLiteral("anisotropyScale")),
+                    params.getDouble(QStringLiteral("anisotropyExponent")),
+                    params.getEnum(QStringLiteral("pattern")) == QStringLiteral("dots") ? TspAdapter::Pattern::Dots
+                                                                                       : TspAdapter::Pattern::Stripes,
+                    steps, params.getDouble(QStringLiteral("timeStep")), params.getDouble(QStringLiteral("diffusionScale")),
+                    seed + unsigned(slot), progress);
+            } else {
+                const QString noiseId = params.getEnum(QStringLiteral("noise"));
+                const TspAdapter::Noise noise = noiseId == QStringLiteral("black_and_white") ? TspAdapter::Noise::BlackAndWhite
+                                                : noiseId == QStringLiteral("gray")          ? TspAdapter::Noise::Gray
+                                                                                             : TspAdapter::Noise::Hue;
+                const auto progress = [cb, slot, slotCount, message](unsigned int cycles) {
+                    return !cb || cb(int((100 * slot + std::min(95u, 40 + cycles)) / slotCount), message);
+                };
+                outcome = TspAdapter::lineIntegralConvolution(
+                    prepared.atlas, image, field, params.getDouble(QStringLiteral("streakLength")),
+                    params.getDouble(QStringLiteral("sharpenDetailSize")), params.getDouble(QStringLiteral("sharpenScale")),
+                    params.getDouble(QStringLiteral("anisotropyExponent")), noise, seed + unsigned(slot), progress);
+            }
         } catch (const std::exception &e) {
             return fail(QObject::tr("TextureSignalProcessing failed: %1").arg(QString::fromLocal8Bit(e.what())));
         }
@@ -305,11 +325,12 @@ MeshFilterRunResult colorizeByDirections(const FilterParams &params, Document &d
     if (cb)
         cb(100, "Done");
 
-    // The faces show the new textures, appended after the layer's own, which stay.
-    const std::vector<MeshIOTextureAsset> assets =
-        Tex::makeTextureAssetsFromImages(Tex::outputTextureNames(entry, {}, QStringLiteral("lic"), slotCount), images);
+    const std::vector<MeshIOTextureAsset> assets = Tex::makeTextureAssetsFromImages(
+        Tex::outputTextureNames(entry, {}, reaction ? QStringLiteral("reaction_diffusion") : QStringLiteral("lic"), slotCount), images);
     const int previous = Document::meshTextureAssociationCount(entry);
-    const QString what = QObject::tr("Colorized %1 new texture(s) of '%2' by principal directions").arg(slotCount).arg(entry.name);
+    const QString what = reaction
+        ? QObject::tr("Colorized %1 new texture(s) of '%2' by reaction-diffusion").arg(slotCount).arg(entry.name)
+        : QObject::tr("Colorized %1 new texture(s) of '%2' by principal directions").arg(slotCount).arg(entry.name);
     if (previous > 0) {
         Tex::offsetTextureSlotIndices(mesh, previous);
         Tex::appendTextureAssociations(entry, assets);
@@ -323,14 +344,28 @@ MeshFilterRunResult colorizeByDirections(const FilterParams &params, Document &d
     MeshFilterRunResult result;
     result.success = true;
     result.documentModified = true;
-    result.infoMessages << QObject::tr("Drew the %1 principal directions of '%2', from its %3, into %4 texels of %5 new "
-                                       "texture(s), which its faces now show; saving the mesh writes them.")
-                               .arg(maximal ? QObject::tr("maximal") : QObject::tr("minimal"), entry.name,
-                                    fromFaces ? QObject::tr("faces") : QObject::tr("vertices"))
-                               .arg(texels).arg(slotCount);
-    result.infoMessages << (converged
-        ? QObject::tr("The sharpening converged in %1 V-cycles.").arg(vCycles)
-        : QObject::tr("The sharpening stopped after %1 V-cycles without converging.").arg(vCycles));
+    if (reaction) {
+        result.infoMessages << QObject::tr("Grew %1 over %2 steps on '%3'%4, into %5 texels of %6 new texture(s), which its "
+                                           "faces now show; saving the mesh writes them.")
+                                   .arg(params.getEnum(QStringLiteral("pattern")) == QStringLiteral("dots") ? QObject::tr("dots")
+                                                                                                            : QObject::tr("stripes"))
+                                   .arg(vCycles)
+                                   .arg(entry.name,
+                                        useField ? QObject::tr(", along its %1 principal directions from its %2")
+                                                       .arg(maximal ? QObject::tr("maximal") : QObject::tr("minimal"),
+                                                            fromFaces ? QObject::tr("faces") : QObject::tr("vertices"))
+                                                 : QString())
+                                   .arg(texels).arg(slotCount);
+    } else {
+        result.infoMessages << QObject::tr("Drew the %1 principal directions of '%2', from its %3, into %4 texels of %5 new "
+                                           "texture(s), which its faces now show; saving the mesh writes them.")
+                                   .arg(maximal ? QObject::tr("maximal") : QObject::tr("minimal"), entry.name,
+                                        fromFaces ? QObject::tr("faces") : QObject::tr("vertices"))
+                                   .arg(texels).arg(slotCount);
+        result.infoMessages << (converged
+            ? QObject::tr("The sharpening converged in %1 V-cycles.").arg(vCycles)
+            : QObject::tr("The sharpening stopped after %1 V-cycles without converging.").arg(vCycles));
+    }
     if (leftOut > 0)
         result.infoMessages << QObject::tr("Left out %1 face(s) with no UV area.").arg(leftOut);
     result.visualizationHints.push_back({ meshIndex, MeshFilterVisualizationAttribute::Texture });
@@ -359,7 +394,9 @@ MeshFilterRunResult TextureSignalProcessingFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterCurvature))
         return computeCurvature(params, doc);
     if (filterId == QString::fromLatin1(kFilterLic))
-        return colorizeByDirections(params, doc);
+        return colorizeNewTextures(params, doc, false);
+    if (filterId == QString::fromLatin1(kFilterReactionDiffusion))
+        return colorizeNewTextures(params, doc, true);
 
     enum class Kind { Repair, Dilate, Smooth, Sharpen, Inpaint, TransferDetail };
     Kind kind;

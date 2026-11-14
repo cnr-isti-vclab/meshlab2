@@ -8,8 +8,8 @@ process**, as Screened Poisson is, through TSP's header-only `GradientDomain` li
 plugin `filter_texture_signal_processing`, with *Repair Texture Seams*, *Dilate Texture across
 Seams*, *Smooth Texture* and *Sharpen Texture*; see its `UPSTREAM.md`); **stage 3 the same day**
 (*Inpaint Texture on Selected Faces*, *Transfer Texture Detail* and object-space normal maps); **stage 4's
-line-integral convolution 2026-11-13**, with per-face principal curvature in MeshLab's data model; its
-reaction-diffusion and stitching are not. Every number below was measured for
+line-integral convolution and reaction-diffusion 2026-11-13**, with per-face principal curvature in
+MeshLab's data model; its source-aware stitching is not. Every number below was measured for
 this proposal.
 
 See also: [TextureConsolidation history](../history/texture_consolidation.md),
@@ -245,7 +245,7 @@ proposed names are drafts. Four of them need words the vocabulary does not have 
 | `TextureFiltering` (1,184 lines; the library example does the same in 120) | Smooths or sharpens a texture with a screened Poisson solve, across seams | Nothing for textures; *Smooth Vertex Color* and the unsharp-mask filters work per vertex | *Smooth Texture*, *Sharpen Texture* | **Stage 2.** Per-edge gradient scaling is computed by the caller, so a face selection could drive a localized version, which the program does only through its interactive viewer. **Stage 3** adds two of its options: `--inLow`, values from a second texture (*Transfer Texture Detail*), and `--colorAsNormal`, object-space normal maps |
 | `TextureStitching` (1,520 lines) | Blends several partial textures, or one composite with a source-id mask, in the gradient domain | Ships inside *Transfer Color from Visible Rasters to Texture (Texture Consolidation)*, as a helper | An option of the stage-2 smoothing: keep gradients only between texels from the same source | **Stage 3**, only if *Transfer Color from Visible Rasters to Texture* is changed to output, per texel, which raster its color came from |
 | `LineIntegralConvolution` (1,025 lines) | Draws a vector field as a streak texture by anisotropic diffusion along it | Field filters exist (principal curvature directions, two backends; the [Directional](directional_port.md) proposal), but nothing draws a field into a texture | *Render Vector Field to Texture (LIC)*, name to be decided | **Stage 3.** Uses the per-triangle metric form of the constructor, which the library supports |
-| `ReactionDiffusion` (918 lines) | Gray–Scott stripes or dots grown in texture space, optionally aligned to a vector field | Nothing | Name to be decided | **Stage 3.** Its reaction term is integrated with `ScalarIntegrator`, which is not part of `GradientDomain.h`. Either the adapter uses the lower-level API, or the term is approximated by applying the mass matrix to a per-texel value, which is a change in the method and needs Paolo's ruling |
+| `ReactionDiffusion` (918 lines) | Gray–Scott stripes or dots grown in texture space, optionally aligned to a vector field | Nothing | *Colorize Texture by Reaction-Diffusion* | **Stage 4, implemented 2026-11-13.** Its reaction term is integrated with `ScalarIntegrator`, which is not part of `GradientDomain.h`; the adapter uses the lower-level API, as the program does (Paolo, 2026-11-13: keep the quadrature) |
 | `Geodesics` (816 lines) | Heat-method distance from a clicked point, at texel resolution | Five geodesic filters (vcglib, libigl, heat and exact), per vertex | — | **No.** The only new thing would be texel resolution |
 | `SeamStitcher` (260 lines) | Re-solves the texels at chart crossings, or the exterior texels, or masked ones, to minimize the Dirichlet energy | — | — | **Mask mode: stage 3**, as *Inpaint Texture on Selected Faces*, with the selection as the mask. It frees the masked texels and holds the rest, which is the stage-1 repair's solve with a different set of free texels. The other two modes, no: on a padded atlas the default mode has nothing to do (0 degrees of freedom, output identical), and `--exterior` overlaps `SetExteriorTexels` and ran for over 10 minutes |
 | `TextureMasking` (320 lines) | Draws active, boundary and gutter texels and triangle IDs as an image | *Measure Texel Coverage*, *Select Overlapping UV Faces* ([TexMetro](texmetro.md)) | — | **No.** Diagnostic, and covered |
@@ -401,10 +401,8 @@ include. After it, an adapter-like file includes no PLY header and emits no PLY 
      roughness from 5.08 back to 14.28 (the photo's is 14.17), and the error against the photo
      from 31.2 to 5.6.
 4. **Line-integral convolution, reaction-diffusion, source-aware stitching.** Line-integral
-   convolution first, planned 2026-11-13 below. The other two still need their decisions:
-   Paolo's ruling on the reaction term, and a change to color projection for the stitching.
-   `ReactionDiffusion`'s `--approximateIntegration` does not settle the ruling: it only chooses
-   a cheaper quadrature inside `ScalarIntegrator`, which still needs the lower-level interface.
+   convolution first, planned 2026-11-13 below; reaction-diffusion the same day, after it
+   (below). The stitching still needs a change to color projection.
 
    **What `LineIntegralConvolution` does.** It takes a direction per triangle, by default the
    maximal (or, with `--minimal`, the minimal) principal curvature direction scaled by
@@ -489,6 +487,54 @@ include. After it, an adapter-like file includes no PLY header and emits no PLY 
       Space* to `TextureAssociationUtils::storeOutputTexture`, and the slot helpers of that
       transfer moved there too.)
 
+### Reaction-diffusion (implemented 2026-11-13)
+
+**Decided 2026-11-13** (Paolo): keep the program's quadrature for the reaction term. The
+adapter's `reactionDiffusion` therefore cannot use `GradientDomain`, which builds the mass and
+stiffness but not the `ScalarIntegrator` of the same call, and builds the system the way the
+program's `InitializeSystem` does: the hierarchy (the program's multigrid blocks, 128 × 16, padded
+2 × 0), the metric, the surface's or anisotropic along a field, scaled to an area of half the
+number of nodes, the operators with 6 quadrature points per triangle and the integrator with 3,
+exact. Each step is `UpdateApproximateSolution`: the mass of each concentration plus the
+integrated reaction, one V-cycle of two sweeps per level for each, clamped at 0. The output is
+the program's gray, 0.75 (1 − 2b) clamped, 204 off the nodes. What differs:
+
+- **The seeds** are drawn by area from a `std::mt19937` seeded by `randomSeed`; the program
+  draws them with `rand()` on several threads, so its own output changes from run to run.
+- **Double precision.** The program solves in `float` unless given `--double`.
+- **The field** is the mesh's principal directions, as for line-integral convolution, through
+  the same conversion (`fieldInTriangleBases`, which LIC now shares), instead of a file.
+- **No viewer**, and so no seed picked with the mouse; the run can be canceled between steps.
+
+**Compared with the program** on the 20k-face gargoyle atlas at 512², 1000 steps, stripes
+(statistics over the 202,214 node texels; the seeds differ, so the texels cannot):
+
+| | Program | Filter |
+|---|---|---|
+| Mean gray | 112.8 | 112.1 |
+| Share darker than 96 | 0.437 | 0.444 |
+| 10th / 50th / 90th percentile | 42 / 114 / 182 | 42 / 112 / 182 |
+| Stripe period (power-weighted, texels) | 11.22 (another run 11.23) | 11.22 |
+| Time, peak memory | 38 s, 0.97 GB (float) | 51 s, 1.49 GB (double) |
+
+Dots grow from a thousandth of the texels and have not covered the surface by step 1000: the
+share left plain was 0.40 and 0.17 in two runs of the program, 0.30 for the filter.
+
+The pattern's width is a number of texels, about 11 for the stripes, because of the metric's
+scaling: a larger texture gives more stripes, not finer ones. `FilterTests::textureSignal-
+ProcessingGrowsReactionDiffusion` holds the filter to the program's dark share, to the width
+growing as the square root of the *Diffusion Scale* (2506 against 1176 crossings at four times
+it), to the stripes lining up with a field (128 crossings around a cylinder against 3,664 along
+it), and to the pattern running on across a seam. Writing that test showed that the test grid's
+cylinder was not closed: its last column of vertices sat at `cos(2π)`, `sin(2π)` in float, never
+merged with its first, so the cut was a slit (70 levels across it, against 5 once closed).
+
+**Parameters**: *Texture Size* (512, the program's), *Pattern* (stripes or dots, the program's
+two rate pairs and seed shares), *Direction* (none, maximal, minimal), *Anisotropy Scale* (1),
+*Steps* (1000), *Diffusion Scale* (1), and as advanced *Anisotropy Exponent* (0), *Time Step*
+(10, the program's speed) and `randomSeed`. *Diffusion Scale* is the program's; a width in texels
+would say more, and is a candidate for the same treatment as the Detail Size.
+
 ## Fidelity as a length (approved and applied 2026-11-13)
 
 Every *Fidelity* the TSP filters take is the program's screening weight w, with no unit of its
@@ -565,7 +611,8 @@ holds Smooth and Sharpen Texture to it.
   data"), as *Colorize Vertices by Perlin Noise*. `Rasterize` was considered and not admitted:
   it suggests scan-converting the field's lines, and the filters that do scan-convert attributes
   into textures are `Transfer`.
-- **Reaction-diffusion** produces a new texture from no input texture too; to be named with it.
+- **Reaction-diffusion** (stage 4, 2026-11-13): *Colorize Texture by Reaction-Diffusion*, `Colorize` as
+  for line-integral convolution, the hyphen of the term of art.
 
 ## Open questions
 
@@ -579,8 +626,8 @@ holds Smooth and Sharpen Texture to it.
    existing open item in `UPSTREAM.md` more pressing. Alternatively, the adapter could
    avoid `PlyFile.h`, if TSP's headers can be included without it. That has not been
    tried.
-4. **Reaction-diffusion's reaction term** (stage 3): keep the quadrature
-   (`ScalarIntegrator`, lower-level API) or approximate it.
+4. **Reaction-diffusion's reaction term.** Answered 2026-11-13 (Paolo): keep the quadrature,
+   through the lower-level API.
 5. **Multigrid or direct.** Answered with stage 2: at 512² the direct solve is faster than
    enough V-cycles to match it (2.5 s against 7.5 s for 100), but at 2048² it takes 63 s and
    5.7 GB to factor against 28 s of multigrid, and grows faster from there. Multigrid.

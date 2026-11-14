@@ -490,6 +490,52 @@ double weightForDetailSize(const Surface &surface, double size)
     return area * k * k;
 }
 
+// A field given in 3D, one vector per triangle, as LineIntegralConvolution and ReactionDiffusion
+// read theirs: each triangle's metric, the Gram matrix of its two edges from its first corner on the
+// surface scaled to unit area, and the field in that basis, scaled to unit root-mean-square length.
+struct TriangleField
+{
+    ExplicitIndexVector<AtlasMeshTriangleIndex, SquareMatrix<Real, 2>> metric;
+    ExplicitIndexVector<AtlasMeshTriangleIndex, Point2D<Real>> vf;
+    Real area = 0; // of the surface, in its own units
+};
+
+TriangleField fieldInTriangleBases(const Surface &surface, const std::vector<std::array<double, 3>> &field)
+{
+    const size_t triangles = surface.triangles.size();
+    TriangleField tf;
+    tf.metric.resize(triangles);
+    tf.vf.resize(triangles);
+    for (size_t t = 0; t < triangles; ++t) {
+        const AtlasMeshTriangleIndex i(static_cast<unsigned int>(t));
+        Point3D<Real> v[3];
+        for (unsigned int k = 0; k < 3; ++k) {
+            const std::array<double, 3> &q = surface.positions[surface.triangles[t][k]];
+            v[k] = Point3D<Real>(q[0], q[1], q[2]);
+        }
+        const Point3D<Real> d[] = { v[1] - v[0], v[2] - v[0] };
+        const Point3D<Real> f(field[t][0], field[t][1], field[t][2]);
+        for (unsigned int j = 0; j < 2; ++j)
+            for (unsigned int k = 0; k < 2; ++k)
+                tf.metric[i](j, k) = Point3D<Real>::Dot(d[j], d[k]);
+        tf.vf[i] = tf.metric[i].inverse() * Point2D<Real>(Point3D<Real>::Dot(d[0], f), Point3D<Real>::Dot(d[1], f));
+        tf.area += Point3D<Real>::Length(Point3D<Real>::CrossProduct(d[0], d[1])) / 2;
+    }
+    Real norm = 0, total = 0;
+    for (size_t t = 0; t < triangles; ++t) {
+        const AtlasMeshTriangleIndex i(static_cast<unsigned int>(t));
+        tf.metric[i] /= tf.area;
+        const Real a = std::sqrt(tf.metric[i].determinant()) / 2;
+        norm += Point2D<Real>::Dot(tf.vf[i], tf.metric[i] * tf.vf[i]) * a;
+        total += a;
+    }
+    norm = std::sqrt(norm / total);
+    if (norm > 0)
+        for (size_t t = 0; t < triangles; ++t)
+            tf.vf[AtlasMeshTriangleIndex(static_cast<unsigned int>(t))] /= norm;
+    return tf;
+}
+
 } // namespace
 
 FilterOutcome filter(const Atlas &atlas, Image &image, double detailSize, double gradientScale,
@@ -573,40 +619,11 @@ FilterOutcome lineIntegralConvolution(const Atlas &atlas, Image &image, const st
         {
             const PaddedAtlas p(atlas, image);
             const size_t triangles = atlas.triangles.size();
-
-            // As LineIntegralConvolution: each triangle's metric, the Gram matrix of its two edges from
-            // its first corner on the surface scaled to unit area, and the field in that basis, scaled
-            // to unit root-mean-square length.
-            ExplicitIndexVector<AtlasMeshTriangleIndex, SquareMatrix<Real, 2>> metric(triangles), anisotropic;
-            ExplicitIndexVector<AtlasMeshTriangleIndex, Point2D<Real>> vf(triangles);
-            Real area = 0;
-            for (size_t t = 0; t < triangles; ++t) {
-                const AtlasMeshTriangleIndex i(static_cast<unsigned int>(t));
-                Point3D<Real> v[3];
-                for (unsigned int k = 0; k < 3; ++k) {
-                    const std::array<double, 3> &q = atlas.positions[atlas.triangles[t][k]];
-                    v[k] = Point3D<Real>(q[0], q[1], q[2]);
-                }
-                const Point3D<Real> d[] = { v[1] - v[0], v[2] - v[0] };
-                const Point3D<Real> f(field[t][0], field[t][1], field[t][2]);
-                for (unsigned int j = 0; j < 2; ++j)
-                    for (unsigned int k = 0; k < 2; ++k)
-                        metric[i](j, k) = Point3D<Real>::Dot(d[j], d[k]);
-                vf[i] = metric[i].inverse() * Point2D<Real>(Point3D<Real>::Dot(d[0], f), Point3D<Real>::Dot(d[1], f));
-                area += Point3D<Real>::Length(Point3D<Real>::CrossProduct(d[0], d[1])) / 2;
-            }
-            Real norm = 0, total = 0;
-            for (size_t t = 0; t < triangles; ++t) {
-                const AtlasMeshTriangleIndex i(static_cast<unsigned int>(t));
-                metric[i] /= area;
-                const Real a = std::sqrt(metric[i].determinant()) / 2;
-                norm += Point2D<Real>::Dot(vf[i], metric[i] * vf[i]) * a;
-                total += a;
-            }
-            norm = std::sqrt(norm / total);
-            if (norm > 0)
-                for (size_t t = 0; t < triangles; ++t)
-                    vf[AtlasMeshTriangleIndex(static_cast<unsigned int>(t))] /= norm;
+            TriangleField tf = fieldInTriangleBases(atlas, field);
+            const ExplicitIndexVector<AtlasMeshTriangleIndex, SquareMatrix<Real, 2>> &metric = tf.metric;
+            const ExplicitIndexVector<AtlasMeshTriangleIndex, Point2D<Real>> &vf = tf.vf;
+            const Real area = tf.area;
+            ExplicitIndexVector<AtlasMeshTriangleIndex, SquareMatrix<Real, 2>> anisotropic;
             // The metric stretched across the field, so that diffusion runs along it: the program's
             // anisotropy, |v|^aExp * 1e5 across the field, none where the field vanishes.
             InitializeVectorFieldMetric(metric, vf, [&](Real length) { return Real(std::pow(length, anisotropyExponent) * 1e5); },
@@ -681,6 +698,194 @@ FilterOutcome lineIntegralConvolution(const Atlas &atlas, Image &image, const st
 
         // The program's sharpening of the streaks, the stage-2 solve.
         return filter(atlas, image, sharpenDetailSize, sharpenScale, nullptr, nullptr, false, onVCycle);
+    });
+}
+
+namespace {
+
+// The node layout of a system built outside GradientDomain, as writeBack reads it from one.
+struct Nodes
+{
+    const std::vector<TextureNodeInfo<Real>> &nodes;
+    size_t numNodes() const { return nodes.size(); }
+    std::pair<unsigned int, unsigned int> node(size_t n) const { return { nodes[n].ci, nodes[n].cj }; }
+    bool isCovered(size_t n) const { return nodes[n].isInterior; }
+};
+
+} // namespace
+
+FilterOutcome reactionDiffusion(const Atlas &atlas, Image &image, const std::vector<std::array<double, 3>> *field,
+                                double anisotropyScale, double anisotropyExponent, Pattern pattern, unsigned int steps,
+                                double timeStep, double diffusionScale, unsigned int seed,
+                                const std::function<bool(unsigned int)> &onStep)
+{
+    return rethrown([&]() -> FilterOutcome {
+        // ReactionDiffusion's set-up (InitializeSystem), on the mesh GradientDomain builds from the
+        // same functors, v flipped. GradientDomain cannot be used: the reaction term is integrated
+        // with a ScalarIntegrator, which only the operator initializer that builds the mass and
+        // stiffness gives, and the two concentrations share the operators but not the systems.
+        const PaddedAtlas p(atlas, image);
+        const size_t triangles = atlas.triangles.size();
+        TexturedTriangleMesh<Real> mesh;
+        mesh.surface.triangles.resize(triangles);
+        mesh.texture.triangles.resize(triangles);
+        mesh.surface.vertices.resize(atlas.positions.size());
+        mesh.texture.vertices.resize(p.texture.vertices.size());
+        for (size_t t = 0; t < triangles; ++t)
+            for (unsigned int k = 0; k < 3; ++k) {
+                mesh.surface.triangles[t][k] = static_cast<unsigned int>(p.surfaceCorner()(t, k));
+                mesh.texture.triangles[t][k] = static_cast<unsigned int>(p.textureCorner()(t, k));
+            }
+        for (size_t v = 0; v < atlas.positions.size(); ++v)
+            mesh.surface.vertices[v] = p.surfaceVertex()(v);
+        for (size_t v = 0; v < p.texture.vertices.size(); ++v) {
+            mesh.texture.vertices[v] = p.textureVertex()(v);
+            mesh.texture.vertices[v][1] = 1 - mesh.texture.vertices[v][1];
+        }
+
+        std::vector<TextureNodeInfo<Real>> nodes;
+        HierarchicalSystem<Real, Real> hierarchy;
+        ExplicitIndexVector<ChartIndex, AtlasChart<Real>> charts;
+        const MultigridBlockInfo blocks(128, 16, 2, 0); // the program's
+        InitializeHierarchy(mesh, unsigned(p.width), unsigned(p.height), kLevels, nodes, hierarchy, charts, blocks, false);
+
+        // The metric: the surface's, or stretched across the field by |v|^aExp * aScl, the field at
+        // unit root-mean-square length; then scaled so that the area is the number of nodes over 2,
+        // which makes the pattern's size a number of texels, whatever the mesh and its units.
+        ExplicitIndexVector<ChartIndex, ExplicitIndexVector<ChartMeshTriangleIndex, SquareMatrix<Real, 2>>> metric;
+        if (field) {
+            const TriangleField tf = fieldInTriangleBases(atlas, *field);
+            InitializeAnisotropicMetric(mesh, charts, tf.vf,
+                                        [&](Real length) { return Real(std::pow(length, anisotropyExponent) * anisotropyScale); }, metric);
+        } else {
+            InitializeMetric(mesh, EMBEDDING_METRIC, charts, metric);
+        }
+        for (unsigned int c = 0; c < metric.size(); ++c)
+            for (unsigned int t = 0; t < metric[ChartIndex(c)].size(); ++t)
+                metric[ChartIndex(c)][ChartMeshTriangleIndex(t)] *= Real(nodes.size()) / 2;
+
+        // The mass and stiffness with the program's 6 quadrature points per triangle, and the
+        // integrator of the reaction term with its 3, exact (not --approximateIntegration).
+        MassAndStiffnessOperators<Real> operators;
+        ScalarIntegrator<Real> integrator;
+        OperatorInitializer::Initialize(6u, operators, hierarchy.gridAtlases[0], metric, charts, std::tie(integrator), 3u, false, false);
+        auto scratch = integrator.template getScratch<Point<Real, 2>, Point<Real, 2>>();
+
+        std::vector<MultigridLevelIndices<Real>> indices(kLevels);
+        for (unsigned int i = 0; i < kLevels; ++i) {
+            const GridAtlas<Real, Real> &grid = hierarchy.gridAtlases[i];
+            indices[i].threadTasks = grid.threadTasks;
+            indices[i].boundaryToCombined = grid.indexConverter.boundaryToCombined();
+            indices[i].segmentedLines = grid.segmentedLines;
+            indices[i].rasterLines = grid.rasterLines;
+            indices[i].restrictionLines = grid.restrictionLines;
+            indices[i].prolongationLines = grid.prolongationLines;
+            if (i < kLevels - 1)
+                indices[i].boundaryRestriction = hierarchy.boundaryRestriction[i];
+        }
+
+        // Gray-Scott, one implicit step of length d for the diffusion, the reaction explicit:
+        //   (M + d D_a S) a' = M a + d R_a(a, b),   R_a = -a b^2 + F (1 - a)
+        //   (M + d D_b S) b' = M b + d R_b(a, b),   R_b =  a b^2 - (F + k) b
+        // with D_a = 1/10, D_b = 1/20 times the diffusion scale, and R integrated over the triangles.
+        const Real feed = pattern == Pattern::Dots ? Real(0.0367) : Real(0.062);
+        const Real kill = pattern == Pattern::Dots ? Real(0.0649) : Real(0.062);
+        const Real rates[2] = { Real(1.0 * diffusionScale / 10), Real(0.5 * diffusionScale / 10) };
+        using Solver = Eigen::SimplicialLDLT<Eigen::SparseMatrix<Real>>;
+        std::vector<SystemCoefficients<Real>> coefficients[2];
+        VCycleSolvers<Solver> solvers[2];
+        std::vector<MultigridLevelVariables<Real>> variables[2];
+        for (unsigned int ab = 0; ab < 2; ++ab) {
+            UpdateLinearSystem(Real(1), Real(rates[ab] * timeStep), hierarchy, coefficients[ab], operators, solvers[ab], false, true);
+            variables[ab].resize(kLevels);
+            for (unsigned int i = 0; i < kLevels; ++i) {
+                const auto &converter = hierarchy.gridAtlases[i].indexConverter;
+                MultigridLevelVariables<Real> &v = variables[ab][i];
+                v.x.resize(converter.numCombined());
+                v.rhs.resize(converter.numCombined());
+                v.residual.resize(converter.numCombined());
+                v.boundary_rhs.resize(converter.numBoundary());
+                v.boundary_value.resize(converter.numBoundary());
+                v.variable_boundary_value.resize(converter.numBoundary());
+            }
+        }
+        std::vector<Real> &a = variables[0][0].x, &b = variables[1][0].x;
+
+        // The program's start: a = 1 everywhere, b = 1 at the texels under random points of the
+        // surface, a hundredth of the nodes for stripes and a thousandth for dots, drawn by area. The
+        // program draws them with rand() on several threads; here a generator seeded by `seed` does.
+        std::fill(a.begin(), a.end(), Real(1));
+        std::fill(b.begin(), b.end(), Real(0));
+        {
+            RegularGrid<2, int> nodeIndex;
+            nodeIndex.resize(p.width, p.height);
+            for (size_t i = 0; i < nodeIndex.size(); ++i)
+                nodeIndex[i] = -1;
+            for (size_t n = 0; n < nodes.size(); ++n)
+                nodeIndex(nodes[n].ci, nodes[n].cj) = int(n);
+            std::vector<Real> cumulative(triangles);
+            Real sum = 0;
+            for (size_t t = 0; t < triangles; ++t)
+                cumulative[t] = sum += mesh.surfaceTriangle(static_cast<unsigned int>(t)).measure();
+            std::mt19937 generator(seed);
+            auto uniform = [&generator]() { return Real(generator()) / Real(std::mt19937::max()); };
+            const size_t samples = size_t(Real(b.size()) * (pattern == Pattern::Dots ? Real(0.001) : Real(0.01)));
+            for (size_t s = 0; s < samples; ++s) {
+                const Real r1 = uniform();
+                Real r2 = uniform(), r3 = uniform();
+                const size_t t = size_t(std::upper_bound(cumulative.begin(), cumulative.end(), r1 * sum) - cumulative.begin());
+                if (t >= triangles)
+                    continue;
+                if (r2 + r3 > 1)
+                    r2 = 1 - r2, r3 = 1 - r3;
+                const Point2D<Real> q = mesh.textureTriangle(static_cast<unsigned int>(t))(Point2D<Real>(r2, r3));
+                const int i = int(std::floor(q[0] * p.width + 0.5)), j = int(std::floor(q[1] * p.height + 0.5));
+                if (i >= 0 && j >= 0 && i < p.width && j < p.height && nodeIndex(i, j) >= 0)
+                    b[size_t(nodeIndex(i, j))] = 1;
+            }
+        }
+
+        // The steps, as UpdateApproximateSolution: the right-hand sides, then one V-cycle of two
+        // sweeps per level for each concentration, clamped at zero.
+        std::vector<Point2D<Real>> ab(a.size()), reaction(a.size());
+        auto react = [&](Point2D<Real> c, SquareMatrix<Real, 2>) {
+            return Point2D<Real>(Real(timeStep * (-c[0] * c[1] * c[1] + feed * (1 - c[0]))),
+                                 Real(timeStep * (c[0] * c[1] * c[1] - (kill + feed) * c[1])));
+        };
+        FilterOutcome outcome;
+        for (unsigned int step = 0; step < steps; ++step) {
+            for (size_t i = 0; i < a.size(); ++i)
+                ab[i] = Point2D<Real>(a[i], b[i]);
+            for (unsigned int c = 0; c < 2; ++c)
+                operators.mass(variables[c][0].x, variables[c][0].rhs);
+            integrator(ab, react, scratch, reaction);
+            for (unsigned int c = 0; c < 2; ++c) {
+                for (size_t i = 0; i < reaction.size(); ++i)
+                    variables[c][0].rhs[i] += reaction[i][c];
+                VCycle(variables[c], coefficients[c], indices, solvers[c], 2u, false, false);
+                for (Real &x : variables[c][0].x)
+                    x = std::max(x, Real(0));
+            }
+            ++outcome.vCycles;
+            if (onStep && !onStep(outcome.vCycles)) {
+                outcome.canceled = true;
+                return outcome;
+            }
+        }
+        outcome.converged = true;
+
+        // The program's output (SetOutputBuffer): the second concentration as a gray, 0.75 (1 - 2b)
+        // clamped, so no pattern is 191 and a full one black; the texels that are not nodes keep 204,
+        // as the program leaves them.
+        for (std::array<double, 4> &t : image.texels)
+            t = { 204, 204, 204, 255 };
+        std::vector<Texel> x(nodes.size());
+        for (size_t n = 0; n < nodes.size(); ++n) {
+            const Real v = std::floor((1 - std::clamp(b[n] * 2, Real(0), Real(1))) * Real(0.75) * 255);
+            x[n] = Texel(v, v, v, 255);
+        }
+        outcome.texels = writeBack(Nodes{ nodes }, x, p, image, true, false, [](size_t) { return true; });
+        return outcome;
     });
 }
 
