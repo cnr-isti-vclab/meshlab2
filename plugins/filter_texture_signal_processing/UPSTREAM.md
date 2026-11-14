@@ -127,7 +127,10 @@ drop `branch = meshlab`, move the gitlink to upstream's merge commit, and delete
   changes its output from run to run), the solve is in double precision (the program's default is
   float), and the field is the mesh's principal directions, as for line-integral convolution. Against
   the program on a 20k-face atlas, the same stripe period (11.22 texels) and share of dark texels
-  (0.44); the proposal has the comparison.
+  (0.44); the proposal has the comparison. One change to the method: the program scales the
+  surface to half its number of texels, which makes the period a number of texels; the filter scales
+  it so that the period is the *Pattern Size* on the mesh (`kPeriodInMetric`), and seeds disks of the
+  program's seed area at its density per period, so the texture sets only the resolution.
 - **Curvature per face** is `InitializePrincipalCurvatureDirection`, after `LineIntegralConvolution`'s
   normal smoothing, which is in the program rather than the library and is ported into the adapter
   (`principalCurvature`), on Eigen matrices. TSP measures on the surface scaled to unit area, so its

@@ -14,6 +14,7 @@
 #include <QImage>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <map>
 #include <stdexcept>
 
@@ -242,6 +243,8 @@ MeshFilterRunResult colorizeNewTextures(const FilterParams &params, Document &do
     const unsigned int seed = params.getRandomSeed().value;
     vcg::CallBackPos *cb = doc.progressCallback();
     const char *message = reaction ? "Colorizing texture by reaction-diffusion" : "Colorizing texture by principal directions";
+    const double patternSize = reaction ? params.getDouble(QStringLiteral("patternSize")) : 0;
+    double periodTexels = std::numeric_limits<double>::infinity(); // the pattern's, the smallest over the textures
 
     Tex::ensureTextureSlotIndices(mesh);
     const int slotCount = std::max(1, Tex::compactTextureSlotIndices(mesh));
@@ -284,6 +287,23 @@ MeshFilterRunResult colorizeNewTextures(const FilterParams &params, Document &do
             }
         }
 
+        if (reaction) {
+            // Texels per unit of length, on average: the side of the texture times the square root of
+            // the ratio of the UV area to the surface's.
+            double uvArea = 0, area = 0;
+            const TspAdapter::Atlas &atlas = prepared.atlas;
+            for (size_t t = 0; t < atlas.triangles.size(); ++t) {
+                const auto &p0 = atlas.positions[atlas.triangles[t][0]], &p1 = atlas.positions[atlas.triangles[t][1]],
+                           &p2 = atlas.positions[atlas.triangles[t][2]];
+                area += (vcg::Point3d(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]) ^
+                         vcg::Point3d(p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2])).Norm() / 2;
+                const auto &u0 = atlas.uv[3 * t], &u1 = atlas.uv[3 * t + 1], &u2 = atlas.uv[3 * t + 2];
+                uvArea += std::abs((u1[0] - u0[0]) * (u2[1] - u0[1]) - (u2[0] - u0[0]) * (u1[1] - u0[1])) / 2;
+            }
+            if (area > 0)
+                periodTexels = std::min(periodTexels, patternSize * side * std::sqrt(uvArea / area));
+        }
+
         TspAdapter::Image image = toAdapterImage(black);
         TspAdapter::FilterOutcome outcome;
         try {
@@ -297,8 +317,7 @@ MeshFilterRunResult colorizeNewTextures(const FilterParams &params, Document &do
                     params.getDouble(QStringLiteral("anisotropyExponent")),
                     params.getEnum(QStringLiteral("pattern")) == QStringLiteral("dots") ? TspAdapter::Pattern::Dots
                                                                                        : TspAdapter::Pattern::Stripes,
-                    steps, params.getDouble(QStringLiteral("timeStep")), params.getDouble(QStringLiteral("diffusionScale")),
-                    seed + unsigned(slot), progress);
+                    steps, params.getDouble(QStringLiteral("timeStep")), patternSize, seed + unsigned(slot), progress);
             } else {
                 const QString noiseId = params.getEnum(QStringLiteral("noise"));
                 const TspAdapter::Noise noise = noiseId == QStringLiteral("black_and_white") ? TspAdapter::Noise::BlackAndWhite
@@ -356,6 +375,13 @@ MeshFilterRunResult colorizeNewTextures(const FilterParams &params, Document &do
                                                             fromFaces ? QObject::tr("faces") : QObject::tr("vertices"))
                                                  : QString())
                                    .arg(texels).arg(slotCount);
+        // A period of a few texels is a stripe and a gap of two or three each, which the grid draws
+        // poorly; 6 is a chosen threshold, not a measured one.
+        if (std::isfinite(periodTexels))
+            result.infoMessages << (periodTexels < 6
+                ? QObject::tr("Warning: the pattern's period, %1 in the mesh's units, is only about %2 texels, too few to "
+                              "draw it; raise the Texture Size or the Pattern Size.").arg(patternSize, 0, 'g', 4).arg(periodTexels, 0, 'f', 1)
+                : QObject::tr("The pattern's period, %1 in the mesh's units, is about %2 texels.").arg(patternSize, 0, 'g', 4).arg(periodTexels, 0, 'f', 1));
     } else {
         result.infoMessages << QObject::tr("Drew the %1 principal directions of '%2', from its %3, into %4 texels of %5 new "
                                            "texture(s), which its faces now show; saving the mesh writes them.")

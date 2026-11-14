@@ -520,20 +520,72 @@ the program's gray, 0.75 (1 − 2b) clamped, 204 off the nodes. What differs:
 Dots grow from a thousandth of the texels and have not covered the surface by step 1000: the
 share left plain was 0.40 and 0.17 in two runs of the program, 0.30 for the filter.
 
-The pattern's width is a number of texels, about 11 for the stripes, because of the metric's
-scaling: a larger texture gives more stripes, not finer ones. `FilterTests::textureSignal-
-ProcessingGrowsReactionDiffusion` holds the filter to the program's dark share, to the width
-growing as the square root of the *Diffusion Scale* (2506 against 1176 crossings at four times
-it), to the stripes lining up with a field (128 crossings around a cylinder against 3,664 along
+As first ported, the pattern's width was a number of texels, about 11 for the stripes, because of
+the program's metric scaling: a larger texture gave more stripes, not finer ones. `FilterTests::textureSignal-
+ProcessingGrowsReactionDiffusion` holds the filter to the program's dark share, to the period (below,
+since the *Pattern Size* replaced the program's *Diffusion Scale*), to the stripes lining up with a field (128 crossings around a cylinder against 3,664 along
 it), and to the pattern running on across a seam. Writing that test showed that the test grid's
 cylinder was not closed: its last column of vertices sat at `cos(2π)`, `sin(2π)` in float, never
 merged with its first, so the cut was a slit (70 levels across it, against 5 once closed).
 
 **Parameters**: *Texture Size* (512, the program's), *Pattern* (stripes or dots, the program's
 two rate pairs and seed shares), *Direction* (none, maximal, minimal), *Anisotropy Scale* (1),
-*Steps* (1000), *Diffusion Scale* (1), and as advanced *Anisotropy Exponent* (0), *Time Step*
-(10, the program's speed) and `randomSeed`. *Diffusion Scale* is the program's; a width in texels
-would say more, and is a candidate for the same treatment as the Detail Size.
+*Steps* (1000), *Pattern Size* (3% of the diagonal; below), and as advanced *Anisotropy Exponent*
+(0), *Time Step* (10, the program's speed) and `randomSeed`.
+
+### Reaction-diffusion's scale as a length (approved and applied 2026-11-14)
+
+The filter's size parameter, *Diffusion Scale*, is the program's, and the pattern it gives is a
+number of texels, not a length on the mesh: the program scales the surface to an area of half
+the number of texel nodes. Measured on the flat 2π × 2π grid laid out over 0.9 of the texture,
+stripes, 2000 steps, period from the power-weighted spectrum:
+
+| Texture | Diffusion Scale | Period, texels | Period, mesh units |
+|---|---|---|---|
+| 128² | 1 | 12.66 | 0.691 |
+| 128² | 4 | 26.33 | 1.436 |
+| 256² | 1 | 12.87 | 0.351 |
+| 256² | 4 | 26.53 | 0.723 |
+
+So doubling *Texture Size* halves the pattern on the mesh, and the scale is in no unit a user
+sees. The fix is the one the Detail Size made. Scaling the metric by s is the same as dividing
+the diffusion by s (the steps are (s M + d D S) a' = s M a + d s R), so the adapter can fix the
+diffusion at the program's and choose s = A (c / L)² for a period L on the surface, A its area:
+c, the period in the metric, measured 9.11 and 9.18 at the two sizes above; the adapter takes 9.15
+(`kPeriodInMetric`). On the gargoyle at
+512² the program's default is a period of about 6.1 mesh units, 3.1% of the diagonal.
+
+The seeds are a share of the texels too (1% for stripes, 0.1% for dots), so with the pattern a
+length they would grow denser as the texture grows. They follow it: a number per period cell,
+the program's at its default (about 1.2 for stripes and 0.12 for dots per L²), so that how
+many steps fill the surface does not depend on the texture either. (The proposal said 1.2 and 0.12;
+with c = 9.15 the program's density is 0.02 c², 1.7 and 0.17.)
+
+**Applied, with one finding.** Each seed must also keep its size in the metric. The program seeds
+single texels, each of area 1/2 in its metric; with the metric set by the Pattern Size, a texel of a
+finer texture is smaller, and at 256² on the grid where 128² grew stripes, nothing grew: the seeds
+diffused away before reacting. Each seed is now a disk of nodes / (2 s) texels, one texel when that
+is less, which is the program's seed wherever its scaling and this one agree. Measured after the
+change:
+
+| Case | Pattern Size | Period measured |
+|---|---|---|
+| Flat grid, 128² | 0.7 | 0.691 (12.8 texels) |
+| Flat grid, 256² | 0.7 | 0.689 (25.7 texels) |
+| Gargoyle, 512², default 3% of the diagonal | 5.95 | 11.0 texels (program: 11.22); dark share 0.443 (0.437) |
+
+`FilterTests::textureSignalProcessingGrowsReactionDiffusion` holds the period to the Pattern Size
+within 10% at both sizes; the period is 4 / (π ρ), ρ the crossings between dark and light per unit
+length, which agreed with the spectrum's within 1.5%.
+
+| Current id · label · default | Target id · label · default | Evidence | Verdict |
+|---|---|---|---|
+| `diffusionScale` · `Diffusion Scale` · 1 | `patternSize` · `Pattern Size` · `@bboxDiag003` (absperc): the distance from one stripe or dot to the next | measured above; 3% is the program's default on the gargoyle at 512² | id, label, type |
+| seeds: 1% / 0.1% of the texels | about 1.7 / 0.17 per L² of surface, each a disk of the program's seed area | the program's density and seed size at its default | no parameter |
+| `textureSize` | unchanged; now only the resolution. The log says the period in texels, and warns below 6, where the grid no longer resolves the pattern | — | help |
+| `anisotropyScale`, `anisotropyExponent`, `steps`, `timeStep`, `pattern`, `direction`, `randomSeed` | unchanged | dimensionless already: a ratio of diffusions, an exponent, counts and Gray–Scott's own time | none |
+
+*Pattern Size* is in the vocabulary beside *Detail Size*: a period on the surface.
 
 ## Fidelity as a length (approved and applied 2026-11-13)
 

@@ -445,6 +445,9 @@ constexpr unsigned int kSweeps = 3;
 constexpr unsigned int kMaxVCycles = 300;
 constexpr Real kConverged = 0.02;
 
+// Reaction-diffusion's period in its metric at the program's rates and diffusion (see reactionDiffusion).
+constexpr double kPeriodInMetric = 9.15;
+
 // Runs V-cycles on the system set up in `gd` until converged, or until the cap. Returns false if
 // `onVCycle` stopped it, with `outcome.canceled` set.
 bool runVCycles(Hierarchy &gd, FilterOutcome &outcome, const std::function<bool(unsigned int)> &onVCycle)
@@ -475,10 +478,8 @@ bool runVCycles(Hierarchy &gd, FilterOutcome &outcome, const std::function<bool(
 // w = A (2 pi / size)^2. Measured with Smooth and Sharpen Texture on a flat grid, a sinusoid of the
 // size's wavelength: 0.502 for 0.5 and 1.501 for 1.5 (s = 2)
 // (FilterTests::textureSignalProcessingDetailSizeIsTheCrossover).
-double weightForDetailSize(const Surface &surface, double size)
+double surfaceArea(const Surface &surface)
 {
-    if (!(size > 0))
-        throw std::runtime_error("The detail size must be positive.");
     double area = 0;
     for (const std::array<unsigned int, 3> &t : surface.triangles) {
         const std::array<double, 3> &a = surface.positions[t[0]], &b = surface.positions[t[1]], &c = surface.positions[t[2]];
@@ -486,8 +487,15 @@ double weightForDetailSize(const Surface &surface, double size)
         const double n[] = { u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0] };
         area += std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) / 2;
     }
+    return area;
+}
+
+double weightForDetailSize(const Surface &surface, double size)
+{
+    if (!(size > 0))
+        throw std::runtime_error("The detail size must be positive.");
     const double k = 2 * M_PI / size;
-    return area * k * k;
+    return surfaceArea(surface) * k * k;
 }
 
 // A field given in 3D, one vector per triangle, as LineIntegralConvolution and ReactionDiffusion
@@ -716,7 +724,7 @@ struct Nodes
 
 FilterOutcome reactionDiffusion(const Atlas &atlas, Image &image, const std::vector<std::array<double, 3>> *field,
                                 double anisotropyScale, double anisotropyExponent, Pattern pattern, unsigned int steps,
-                                double timeStep, double diffusionScale, unsigned int seed,
+                                double timeStep, double patternSize, unsigned int seed,
                                 const std::function<bool(unsigned int)> &onStep)
 {
     return rethrown([&]() -> FilterOutcome {
@@ -750,8 +758,17 @@ FilterOutcome reactionDiffusion(const Atlas &atlas, Image &image, const std::vec
         InitializeHierarchy(mesh, unsigned(p.width), unsigned(p.height), kLevels, nodes, hierarchy, charts, blocks, false);
 
         // The metric: the surface's, or stretched across the field by |v|^aExp * aScl, the field at
-        // unit root-mean-square length; then scaled so that the area is the number of nodes over 2,
-        // which makes the pattern's size a number of texels, whatever the mesh and its units.
+        // unit root-mean-square length, at unit area; then scaled to the area `scale`. The program
+        // scales it to half the number of nodes, which makes the period a number of texels (12.7 at
+        // its defaults on a flat grid, at 128² and 256² alike), so that a larger texture gave a
+        // finer pattern on the mesh. Scaling the metric by s divides the diffusion by s (the steps are
+        // (s M + d D S) a' = s M a + d s R), so the period in the metric is a constant c of the
+        // Gray-Scott rates at the program's diffusion, and s = A (c / L)^2 gives a period L on the
+        // surface of area A, whatever the texture. c = 9.15 was measured from the program's own
+        // scaling; FilterTests::textureSignalProcessingGrowsReactionDiffusion holds the result to L.
+        if (!(patternSize > 0))
+            throw std::runtime_error("The pattern size must be positive.");
+        const Real scale = Real(surfaceArea(atlas) * std::pow(kPeriodInMetric / patternSize, 2));
         ExplicitIndexVector<ChartIndex, ExplicitIndexVector<ChartMeshTriangleIndex, SquareMatrix<Real, 2>>> metric;
         if (field) {
             const TriangleField tf = fieldInTriangleBases(atlas, *field);
@@ -762,7 +779,7 @@ FilterOutcome reactionDiffusion(const Atlas &atlas, Image &image, const std::vec
         }
         for (unsigned int c = 0; c < metric.size(); ++c)
             for (unsigned int t = 0; t < metric[ChartIndex(c)].size(); ++t)
-                metric[ChartIndex(c)][ChartMeshTriangleIndex(t)] *= Real(nodes.size()) / 2;
+                metric[ChartIndex(c)][ChartMeshTriangleIndex(t)] *= scale;
 
         // The mass and stiffness with the program's 6 quadrature points per triangle, and the
         // integrator of the reaction term with its 3, exact (not --approximateIntegration).
@@ -787,10 +804,10 @@ FilterOutcome reactionDiffusion(const Atlas &atlas, Image &image, const std::vec
         // Gray-Scott, one implicit step of length d for the diffusion, the reaction explicit:
         //   (M + d D_a S) a' = M a + d R_a(a, b),   R_a = -a b^2 + F (1 - a)
         //   (M + d D_b S) b' = M b + d R_b(a, b),   R_b =  a b^2 - (F + k) b
-        // with D_a = 1/10, D_b = 1/20 times the diffusion scale, and R integrated over the triangles.
+        // with the program's D_a = 1/10 and D_b = 1/20, and R integrated over the triangles.
         const Real feed = pattern == Pattern::Dots ? Real(0.0367) : Real(0.062);
         const Real kill = pattern == Pattern::Dots ? Real(0.0649) : Real(0.062);
-        const Real rates[2] = { Real(1.0 * diffusionScale / 10), Real(0.5 * diffusionScale / 10) };
+        const Real rates[2] = { Real(0.1), Real(0.05) };
         using Solver = Eigen::SimplicialLDLT<Eigen::SparseMatrix<Real>>;
         std::vector<SystemCoefficients<Real>> coefficients[2];
         VCycleSolvers<Solver> solvers[2];
@@ -812,8 +829,15 @@ FilterOutcome reactionDiffusion(const Atlas &atlas, Image &image, const std::vec
         std::vector<Real> &a = variables[0][0].x, &b = variables[1][0].x;
 
         // The program's start: a = 1 everywhere, b = 1 at the texels under random points of the
-        // surface, a hundredth of the nodes for stripes and a thousandth for dots, drawn by area. The
-        // program draws them with rand() on several threads; here a generator seeded by `seed` does.
+        // surface, drawn by area. The program draws a hundredth of its nodes for stripes and a
+        // thousandth for dots, 2 s of them at its scaling; the same share of 2 s here keeps the seeds
+        // per period cell (1.7 and 0.17 per L^2), so the steps the pattern takes to fill the surface
+        // do not depend on the texture. Each seed covers the area one texel has in the program's
+        // scaling, 1/2 in the metric: a disk of nodes/(2 s) texels around the one under the point, one
+        // texel when that is less. A single texel of a finer texture is too small a seed: at 256² on
+        // a layout where 128² grew stripes, nothing grew. The disk is taken in the texture, so near an
+        // island's edge it can take texels of a neighboring island. Drawn by a generator seeded by
+        // `seed`, not the program's rand() on several threads.
         std::fill(a.begin(), a.end(), Real(1));
         std::fill(b.begin(), b.end(), Real(0));
         {
@@ -829,7 +853,10 @@ FilterOutcome reactionDiffusion(const Atlas &atlas, Image &image, const std::vec
                 cumulative[t] = sum += mesh.surfaceTriangle(static_cast<unsigned int>(t)).measure();
             std::mt19937 generator(seed);
             auto uniform = [&generator]() { return Real(generator()) / Real(std::mt19937::max()); };
-            const size_t samples = size_t(Real(b.size()) * (pattern == Pattern::Dots ? Real(0.001) : Real(0.01)));
+            const Real radius = std::sqrt(std::max(Real(1), Real(nodes.size()) / (2 * scale)) / Real(M_PI));
+            const int reach = int(std::floor(radius));
+            const size_t samples = std::max<size_t>(
+                1, size_t(std::min(Real(b.size()), 2 * scale * (pattern == Pattern::Dots ? Real(0.001) : Real(0.01)))));
             for (size_t s = 0; s < samples; ++s) {
                 const Real r1 = uniform();
                 Real r2 = uniform(), r3 = uniform();
@@ -840,8 +867,13 @@ FilterOutcome reactionDiffusion(const Atlas &atlas, Image &image, const std::vec
                     r2 = 1 - r2, r3 = 1 - r3;
                 const Point2D<Real> q = mesh.textureTriangle(static_cast<unsigned int>(t))(Point2D<Real>(r2, r3));
                 const int i = int(std::floor(q[0] * p.width + 0.5)), j = int(std::floor(q[1] * p.height + 0.5));
-                if (i >= 0 && j >= 0 && i < p.width && j < p.height && nodeIndex(i, j) >= 0)
-                    b[size_t(nodeIndex(i, j))] = 1;
+                for (int dj = -reach; dj <= reach; ++dj)
+                    for (int di = -reach; di <= reach; ++di) {
+                        const int x = i + di, y = j + dj;
+                        if (di * di + dj * dj <= radius * radius && x >= 0 && y >= 0 && x < p.width && y < p.height &&
+                            nodeIndex(x, y) >= 0)
+                            b[size_t(nodeIndex(x, y))] = 1;
+                    }
             }
         }
 

@@ -583,7 +583,7 @@
       "name": "Colorize Texture by Reaction-Diffusion",
       "pythonName": "colorize_texture_by_reaction_diffusion",
       "shortDescription": "Grow a Gray-Scott pattern of stripes or dots on the surface into a new texture, continuous across seams.",
-      "longDescriptionMarkdown": "Fills a new texture with the stripes or dots of a Gray-Scott reaction-diffusion grown on the surface: two chemicals spread at different rates and react, starting from scattered seeds, until they settle into a pattern of a characteristic width. Since the texels on the two sides of a seam are neighbors on the surface, the pattern runs on across seams, and the islands' outlines do not show. With a *Direction*, the chemicals spread more slowly across the mesh's principal curvature directions, and the stripes or rows of dots line up with them.\n\n**The pattern's size is a number of texels**, whatever the mesh: the surface is scaled to an area of half the number of texels the layout covers, as the program does, so a larger *Texture Size* gives more, not finer, stripes. *Diffusion Scale* changes it.\n\n**The directions**, when asked for, come from the mesh as for *Colorize Texture by Principal Directions (Line Integral Convolution)*: from its faces when they have principal directions, otherwise from its vertices.\n\n**The texture.** The pattern goes into a new square texture of the size asked, laid out by the faces' texture coordinates, which need no image: a mesh that has only been parametrized works. It is added after the mesh's textures, which stay, and the faces are switched to it, so it shows at once; saving the mesh writes it. A mesh whose faces use several textures gets one new texture for each. Faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\nIt is the `ReactionDiffusion` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, run inside MeshLab with its defaults. Each step of length $d$ solves $(M + d\\,D_a\\,S)\\,a' = M\\,a + d\\,R_a(a, b)$ and $(M + d\\,D_b\\,S)\\,b' = M\\,b + d\\,R_b(a, b)$, with $R_a = -a\\,b^2 + F\\,(1 - a)$ and $R_b = a\\,b^2 - (F + k)\\,b$ integrated over the triangles, $D_a = 0.1$ and $D_b = 0.05$ times the *Diffusion Scale*, by one multigrid V-cycle, as the program does. Stripes take $F = k = 0.062$ and seed a hundredth of the texels; dots $F = 0.0367$, $k = 0.0649$ and a thousandth. The texture is the second chemical as a gray, $0.75\\,(1 - 2b)$ clamped, as the program writes it: white-gray where there is none, black where it is strong.\n\n**Time and memory** grow with the steps and with the length of the islands' boundaries in texels: about 50 s and 1.5 GB for 1000 steps on a 20k-face mesh at 512², but over two minutes on a layout of a thousand one-triangle islands at the same size. The run can be canceled between steps.",
+      "longDescriptionMarkdown": "Fills a new texture with the stripes or dots of a Gray-Scott reaction-diffusion grown on the surface: two chemicals spread at different rates and react, starting from scattered seeds, until they settle into a pattern of a characteristic width. Since the texels on the two sides of a seam are neighbors on the surface, the pattern runs on across seams, and the islands' outlines do not show. With a *Direction*, the chemicals spread more slowly across the mesh's principal curvature directions, and the stripes or rows of dots line up with them.\n\n**The pattern's size** is the *Pattern Size*, a length on the surface: the distance from one stripe or dot to the next. The *Texture Size* only sets how many texels draw it.\n\n**The directions**, when asked for, come from the mesh as for *Colorize Texture by Principal Directions (Line Integral Convolution)*: from its faces when they have principal directions, otherwise from its vertices.\n\n**The texture.** The pattern goes into a new square texture of the size asked, laid out by the faces' texture coordinates, which need no image: a mesh that has only been parametrized works. It is added after the mesh's textures, which stay, and the faces are switched to it, so it shows at once; saving the mesh writes it. A mesh whose faces use several textures gets one new texture for each. Faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).\n\nIt is the `ReactionDiffusion` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, run inside MeshLab with its defaults. Each step of length $d$ solves $(M + d\\,D_a\\,S)\\,a' = M\\,a + d\\,R_a(a, b)$ and $(M + d\\,D_b\\,S)\\,b' = M\\,b + d\\,R_b(a, b)$, with $R_a = -a\\,b^2 + F\\,(1 - a)$ and $R_b = a\\,b^2 - (F + k)\\,b$ integrated over the triangles, $D_a = 0.1$ and $D_b = 0.05$, by one multigrid V-cycle, as the program does, on the surface scaled to an area $A\\,(c/L)^2$, with $A$ its area, $L$ the *Pattern Size* and $c = 9.15$ the period the rates give: the program scales it to half the number of texels instead, which makes the period a number of texels (12.7 on a flat layout). Stripes take $F = k = 0.062$ and about 1.7 seeds per $L^2$ of surface; dots $F = 0.0367$, $k = 0.0649$ and 0.17, the program's densities at its scaling. The texture is the second chemical as a gray, $0.75\\,(1 - 2b)$ clamped, as the program writes it: white-gray where there is none, black where it is strong.\n\n**Time and memory** grow with the steps and with the length of the islands' boundaries in texels: about 50 s and 1.5 GB for 1000 steps on a 20k-face mesh at 512², but over two minutes on a layout of a thousand one-triangle islands at the same size. The run can be canceled between steps.",
       "tags": [
         "texture",
         "reaction-diffusion",
@@ -607,7 +607,7 @@
         {
           "id": "textureSize",
           "label": "Texture Size",
-          "help": "The side of the new texture, which is square, in texels. The pattern's width is a number of texels, so a larger texture holds more stripes or dots, not finer ones.",
+          "help": "The side of the new texture, which is square, in texels. It sets how finely the pattern is drawn, not its size, which is the Pattern Size.",
           "group": "main",
           "type": "int",
           "default": 512,
@@ -625,12 +625,12 @@
             {
               "id": "stripes",
               "label": "Stripes",
-              "help": "Feed and kill 0.062, a hundredth of the texels seeded: winding stripes."
+              "help": "Feed and kill 0.062, about 1.7 seeds for each Pattern Size squared of surface: winding stripes."
             },
             {
               "id": "dots",
               "label": "Dots",
-              "help": "Feed 0.0367 and kill 0.0649, a thousandth of the texels seeded: spots that multiply until they cover the surface, which can take more than the default Steps."
+              "help": "Feed 0.0367 and kill 0.0649, a tenth of the stripes' seeds: spots that multiply until they cover the surface, which can take more than the default Steps."
             }
           ]
         },
@@ -681,15 +681,15 @@
           "max": 100000
         },
         {
-          "id": "diffusionScale",
-          "label": "Diffusion Scale",
-          "help": "The factor on both chemicals' diffusion rates, which sets the pattern's width: larger spreads them further between reactions, and widens the stripes. The program's diffusion scale.",
+          "id": "patternSize",
+          "label": "Pattern Size",
+          "help": "The period of the pattern on the surface: the distance from one stripe, or dot, to the next. It is drawn with however many texels the Texture Size gives it; the log says how many, and warns below 6. The default, 3% of the bounding box diagonal, is about what the program draws on a compact mesh at 512².",
           "group": "main",
-          "type": "double",
-          "default": 1.0,
-          "min": 0.01,
-          "max": 100.0,
-          "decimals": 2
+          "type": "absperc",
+          "default": "@bboxDiag003",
+          "min": 0.0,
+          "max": "@bboxDiag5x",
+          "decimals": 6
         },
         {
           "id": "anisotropyExponent",
