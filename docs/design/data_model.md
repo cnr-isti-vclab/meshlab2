@@ -161,7 +161,7 @@ Python integration: `_meshlab.MeshSet` wraps a `Document` and exposes mesh/raste
 
 ## Preference Model
 
-Application preferences live in `resources/preferences.json`, using the same parameter-descriptor schema as filter parameters. `Preferences` is a process-wide `src/core` singleton backed by `QSettings`; it exposes declared descriptors, typed reads, immediate writes, reset-to-defaults, and a `changed` signal. `PreferencesDialog` renders those descriptors through the shared `ParameterFormBuilder`, so adding one of the current 14 preferences is a JSON/schema change plus a call-site read, not a custom-widget change.
+Application preferences live in `resources/preferences.json`, using the same parameter-descriptor schema as filter parameters. `Preferences` is a process-wide `src/core` singleton backed by `QSettings`; it exposes declared descriptors, typed reads, immediate writes, reset-to-defaults, and a `changed` signal. `PreferencesDialog` renders those descriptors through the shared `ParameterFormBuilder`, so adding a preference is a JSON/schema change plus a call-site read, not a custom-widget change.
 
 ## Undo/Redo Model
 

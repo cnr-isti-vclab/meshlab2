@@ -25,7 +25,7 @@ The initial audit covered the 272-filter registry present on 2026-07-29:
 - 32 distinct free-text `menuPath` values across 32 plugins, including one-offs like
   `Remeshing, Smoothing and Resampling` and backend leakage like `Normals/Embree`.
 
-**Current registry (2026-08-31): 327 filters**, with five renaming rounds applied —
+**The registry as measured on 2026-08-31: 327 filters**, with five renaming rounds applied —
 `Meshing`, `Attribute`, `Creation`, `Geometry`, and `Selection`:
 
 - **57 of 327 (17 %)** do not lead with a verb, and every one of them sits in a root
@@ -95,7 +95,7 @@ A geometry-processing ontology: **11 roots, two levels**. Roots are **nouns**
 a category must be either a root or a declared `Root/Subcategory` pair.
 
 Two levels was chosen for growth. Eleven roots over the 272-filter migration corpus
-of 2026-07-29 was ~25 each; with the current 327 filters it remains small enough that a
+of 2026-07-29 was ~25 each; at about 400 filters it remains small enough that a
 flat list becomes unbrowsable as the archive grows toward several hundred more
 implementations, whereas the second level absorbs that.
 

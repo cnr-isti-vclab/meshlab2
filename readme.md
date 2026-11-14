@@ -42,7 +42,7 @@ CI — see [GitHub Actions: macOS DMG](#github-actions-macos-dmg) below.
 - Scene overlays for selection, normals, boundaries, texture seams, non-manifold markers, curvature directions, current-mesh outline, trackball/light/axis gizmos, tool guides, quality histogram, and optional decorator info counts
 - PBR fill with albedo/normal/occlusion/roughness maps, tangent-space or object-space normal-map interpretation, plus Radiance Scaling
 - Scene3D rendering organized as lightweight `RenderFrameRequest` pass requests -> GPU resource preparation -> concrete `RenderFramePlan` draw items -> pass executors
-- Fill rendering modes (`Plain`, `Pbr`, `RadianceScaling`) isolated behind material renderers with shared fill services and an RS pre-pass hook
+- Fill materials (`Plain`, `Pbr`) behind material renderers with shared fill services; radiance scaling is an option of the plain material, fed by a curvature pre-pass
 - Fat-edge rendering for explicit edge meshes with constant, interpolated per-vertex, or flat per-edge color; decorator boundaries/seams/non-manifold edges have independently configurable styling
 - UV mode support for boundary-edge, texture-seam, and selection overlays on the current mesh; rubber-band selection can operate in UV space, while UV rendering remains a separate renderer with convergence toward the Scene3D material path planned next
 - Raster mode displays the current raster as the view reference with aspect-preserving fit, pan/zoom navigation, and opacity control; rasters with camera shots reuse the Scene3D mesh pass pipeline through the raster camera
@@ -71,6 +71,7 @@ Built-in filter plugins (dependency-gated at build time). A plugin is a
 dependency/build unit, not a user-facing grouping — the Filters menu is organized by
 filter *category* instead, see [Vocabulary](docs/design/vocabulary.md):
 - `filter_basic`
+- `filter_bpa`
 - `filter_camera`
 - `filter_cgal`
 - `filter_clean`
@@ -80,23 +81,28 @@ filter *category* instead, see [Vocabulary](docs/design/vocabulary.md):
 - `filter_embree`
 - `filter_expression`
 - `filter_geodesic`
+- `filter_geogram`
 - `filter_icp`
 - `filter_igl`
 - `filter_img_patch_param`
 - `filter_instant_meshes`
+- `filter_isoparam`
 - `filter_layer`
 - `filter_measure`
 - `filter_meshfix`
 - `filter_meshing`
 - `filter_mls`
+- `filter_open3d`
 - `filter_plymc`
-- `filter_quadwild`
 - `filter_qslim`
+- `filter_quadwild`
 - `filter_sampling`
 - `filter_screened_poisson`
 - `filter_select`
 - `filter_texture`
+- `filter_texture_consolidation`
 - `filter_texture_defragmentation`
+- `filter_texture_signal_processing`
 - `filter_trioptimize`
 - `filter_trueform`
 - `filter_unsharp`
@@ -147,29 +153,24 @@ export VCPKG_ROOT="/absolute/path/to/vcpkg"
 
 ### Build from terminal
 
-Release:
-
 ```bash
-cmake --preset vcpkg-release
-cmake --build --preset vcpkg-release -j8
-./build-release/MeshLab
+cmake --preset default -DCMAKE_BUILD_TYPE=Release
+cmake --build --preset default
 ```
 
-Debug:
+The tracked presets (`CMakePresets.json`) are `default` (vcpkg manifest mode, into
+`build/`) and `local-no-vcpkg` (below). They set no build type, so pass
+`-DCMAKE_BUILD_TYPE=Release` (or `Debug`) yourself: without it the compiler gets no
+optimization flags, and mesh processing runs several times slower. The application is
+`build/MeshLab.app` on macOS and `build/MeshLab` elsewhere.
 
-```bash
-cmake --preset vcpkg-debug
-cmake --build --preset vcpkg-debug -j8
-./build-debug/MeshLab
-```
-
-Notes:
-- `vcpkg-debug` and `vcpkg-release` are defined in `CMakeUserPresets.json`.
-- They use `Unix Makefiles` and set `VCPKG_ROOT=${sourceDir}/vcpkg` explicitly, which helps in GUI environments (for example VS Code) where shell environment variables are not always inherited.
+Presets of your own, for example with a different build directory or a fixed
+`VCPKG_ROOT` for GUI environments that do not inherit the shell's variables, go in an
+untracked `CMakeUserPresets.json`.
 
 ### Build from VS Code (CMake Tools)
 
-1. `CMake: Select Configure Preset` -> choose `vcpkg-debug` or `vcpkg-release`.
+1. `CMake: Select Configure Preset` -> choose `default`, then set the build type.
 2. `CMake: Configure`
 3. `CMake: Build`
 4. Launch with the CMake Tools run/debug actions.
@@ -182,9 +183,8 @@ If presets were changed and VS Code still uses stale values:
 
 ```bash
 git submodule update --init --recursive
-cmake --preset local-no-vcpkg
+cmake --preset local-no-vcpkg -DCMAKE_BUILD_TYPE=Release
 cmake --build --preset local-no-vcpkg
-./build-local/MeshLab
 ```
 
 The local minimal preset disables dependency-heavy plugins (`io_gltf`, `io_e57`, `io_obj_rapidobj`). Because the embedded Python console is enabled by default, this path still needs local Python development files and nanobind. If you want a lean viewer-only build without those, configure with `-DMESHLAB2_PYTHON_CONSOLE=OFF`.

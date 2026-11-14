@@ -153,7 +153,7 @@ code runs, so the filter is greyed out with a reason instead of failing inside
 `requireEdges`, `requireVertexQuality`, `requireFaceQuality`, `requireEdgeQuality`, `requireVertexColor`,
 `requireFaceColor`, `requireTextureCoordinates`, `requirePerVertexTexCoords`,
 `requirePerWedgeTexCoords`, `requireTextures`. Declare them instead of
-re-checking by hand — 291 of 337 filters do.
+re-checking by hand, as most filters do.
 
 A filter that can confine itself to the selection declares **`selectionScope`** —
 `"vertices"`, `"faces"` or `"edges"`, the kind of element its algorithm restricts to —
@@ -488,8 +488,7 @@ up front, or with a `success = false` result that says why.
   with "Operation canceled.") — the framework rolls the document back.
 - **Randomized filters declare `randomSeed`** — `int`, default `0`, minimum `0`,
   resolved through `FilterParams::getRandomSeed()`, with the drawn value reported
-  in the result messages so a run can be pinned afterwards. 39 parameters follow
-  this; see [Filter Organization](filter_organization.md#randomseed).
+  in the result messages so a run can be pinned afterwards; see [Filter Organization](filter_organization.md#randomseed).
 - **Per-layer plugin data** (rare) — `doc.setLayerData(meshIndex, "<pluginId>/<name>", ptr)`
   attaches an immutable, plugin-owned object to a layer: a solver state, a
   parametrization domain, anything too structured for mesh attributes. Undo

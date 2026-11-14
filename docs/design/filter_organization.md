@@ -14,8 +14,9 @@ per-filter display/Python name proposals derived from that grammar; [Adding a Fi
 
 ## Current Implementation Snapshot
 
-As of 2026-08-31, MeshLab ships **327 filters across 33 filter plugins** with
-**1131 declared parameters**. Each in-tree descriptor uses the ordered
+MeshLab ships about 400 filters across about 40 filter plugins; which of them a build
+has depends on its optional dependencies, and `plugins/filterpluginregistry.cpp` is the
+list. Each in-tree descriptor uses the ordered
 `categories` array, the loader validates entries against [Vocabulary](vocabulary.md),
 and the UI lists a filter under every category it declares. Filter search also
 matches categories and `provenance.project`, so backend/library provenance remains
@@ -658,7 +659,7 @@ historical 272-filter baseline):
 
 17 family plugins (226 filters) + 9 dependency/vendored plugins + 1 algorithm suite
 (46 filters) = **27 filter plugins, from 32**. These proposal totals were verified
-against the historical 272-filter baseline, not the current 327-filter registry.
+against the historical 272-filter baseline, not the registry as it grew afterwards.
 
 Historical dependency/vendored group: `filter_igl` (6), `filter_embree` (5),
 `filter_expression` (18), `filter_cgal` (1), `filter_screened_poisson` (3),

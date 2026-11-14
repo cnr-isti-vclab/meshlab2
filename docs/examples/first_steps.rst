@@ -38,19 +38,19 @@ decimation and Loop subdivision.
 
 .. code-block:: python
 
-   result = ms.apply_filter("create_noisy_isosurface", {
+   result = ms.apply_filter("create_isosurface_from_perlin_noise", {
        "resolution": 32,
    })
 
    if not result.success:
        raise RuntimeError(result.error_message)
 
-   ms.meshing_decimation_edge_collapse_for_marching_cube_meshes(
+   ms.simplify_marching_cubes_mesh_by_edge_collapse(
        cellError=0.25,
        preserveBB=False,
    )
 
-   ms.subdivision_loop(
+   ms.subdivide_by_loop(
        Iterations=1,
        LoopWeight="loop",
        Threshold=0.0,

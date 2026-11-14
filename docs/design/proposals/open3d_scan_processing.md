@@ -1,7 +1,10 @@
 # Open3D Scan Processing and Reconstruction
 
 This document proposes a scoped Open3D integration for RGB-D scan processing,
-multi-view registration and reconstruction in MeshLab. **Not implemented.** It
+multi-view registration and reconstruction in MeshLab. **Phases 0-2 implemented
+(2026-10-30) as `plugins/filter_open3d`: point-cloud preparation, ball-pivoting
+reconstruction and the registration filters. Phase 3, RGB-D sequence reconstruction,
+is not.** It
 includes Open3D's independent implementations even where another MeshLab filter
 performs the same operation. The RGB-D sequence pipeline is the largest new
 workflow; point-cloud preparation, registration and reconstruction filters also
@@ -18,8 +21,8 @@ upstream C++ source files and this checkout's filter descriptors and adapters.
 The documentation cited below describes Open3D 0.20-era APIs; the source links
 currently target upstream `main`, so the precise release and source revision
 must be pinned before implementation. This is a design and provenance study,
-not a benchmark or build-compatibility result. No Open3D code has been compiled
-or exercised in MeshLab.
+not a benchmark or build-compatibility result. (At the time no Open3D code had been
+compiled in MeshLab; Phase 0, below, later did.)
 
 A second pass on **2026-10-14** read `CMakeLists.txt`, `vcpkg.json` and
 `3rdparty/find_dependencies.cmake` at tag **v0.20.0** (released 2026-09-16) and

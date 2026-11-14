@@ -30,7 +30,7 @@ Each `RasterEntry` stores: identity/revision keys (`rasterId`, `imageRevision`, 
 
 ### `CameraShot`
 
-Core camera model (`src/core/camerashot.*`) used by raster layers and snapshot rendering. It wraps a VCG shot, carries viewport/pixel/focal/distortion/extrinsic fields, supports perspective/orthographic/isometric/cavalieri camera types, and provides projection, unprojection, depth, view-matrix, and projection-matrix helpers.
+Core camera model (`src/core/camerashot.*`) used by raster layers and snapshot rendering. It wraps a VCG shot, carries viewport/pixel/focal/extrinsic fields (the lens is the raster's, not the shot's), supports perspective and orthographic cameras, and provides projection, unprojection, depth, view-matrix, and projection-matrix helpers.
 
 ### `MeshGpuResourceCache`
 
@@ -124,7 +124,7 @@ fill/simple/decorator/selection pass executors
 
 Defined in `renderingsettings.h`:
 
-- **`PerMeshRenderSettings`** — one instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds pass toggles, decorator toggles (normals, boundary/seams, non-manifold markers, curvature directions), lighting/culling flags, wire faux-edge handling, fill material and sub-structs (`PlainFillParams`, `PbrFillParams`, `RsFillParams`), PBR normal-map space, colors, sizes, point color source, and explicit-edge color source (`Constant`, `PerVertex`, or `PerEdge`).
+- **`PerMeshRenderSettings`** — one instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds pass toggles, decorator toggles (normals, boundary/seams, non-manifold markers, curvature directions), lighting/culling flags, wire faux-edge handling, fill material (`Plain` or `Pbr`) and its sub-structs (`PlainFillParams`, which carries the radiance-scaling option, and `PbrFillParams`), PBR normal-map space, colors, sizes, point color source, and explicit-edge color source (`Constant`, `PerVertex`, or `PerEdge`).
 - **`GlobalRenderSettings`** — one instance per view in `m_renderSettings`. Holds scene highlight parameters, background colors, UV viewer options, quality histogram/range/isolines options, and overlay panel state. `using RenderSettings = GlobalRenderSettings` is provided as an alias.
 - **`MeshRenderMode`** — widget-local alias for `PerMeshRenderSettings`.
 
@@ -137,7 +137,7 @@ Defined in `renderingsettings.h`:
 **Managers** (`MeshIOPluginManager`, `MeshFilterPluginManager`): keep plugins in registration order; I/O manager stores per-extension preferred plugin in `QSettings`. Registration via `plugins/meshpluginregistry.*` and `plugins/filterpluginregistry.*`.
 
 Built-in I/O (when enabled at build time): `io_vcg`, `io_obj_rapidobj`, `io_3mf`, `io_gltf`, `io_e57`, `io_trueform`.
-Built-in filter plugins (when enabled at build time): `filter_basic`, `filter_camera`, `filter_cgal`, `filter_clean`, `filter_color_projection`, `filter_colorproc`, `filter_create`, `filter_embree`, `filter_expression`, `filter_geodesic`, `filter_icp`, `filter_igl`, `filter_img_patch_param`, `filter_instant_meshes`, `filter_layer`, `filter_measure`, `filter_meshfix`, `filter_meshing`, `filter_mls`, `filter_plymc`, `filter_quadwild`, `filter_qslim`, `filter_sampling`, `filter_screened_poisson`, `filter_select`, `filter_texture`, `filter_texture_defragmentation`, `filter_texture_signal_processing`, `filter_trioptimize`, `filter_trueform`, `filter_unsharp`, `filter_vertex_displacement`, `filter_voronoi`, `filter_xatlas`.
+Built-in filter plugins (when enabled at build time): `filter_basic`, `filter_bpa`, `filter_camera`, `filter_cgal`, `filter_clean`, `filter_color_projection`, `filter_colorproc`, `filter_create`, `filter_embree`, `filter_expression`, `filter_geodesic`, `filter_geogram`, `filter_icp`, `filter_igl`, `filter_img_patch_param`, `filter_instant_meshes`, `filter_isoparam`, `filter_layer`, `filter_measure`, `filter_meshfix`, `filter_meshing`, `filter_mls`, `filter_open3d`, `filter_plymc`, `filter_qslim`, `filter_quadwild`, `filter_sampling`, `filter_screened_poisson`, `filter_select`, `filter_texture`, `filter_texture_consolidation`, `filter_texture_defragmentation`, `filter_texture_signal_processing`, `filter_trioptimize`, `filter_trueform`, `filter_unsharp`, `filter_vertex_displacement`, `filter_voronoi`, `filter_xatlas`.
 
 ## Third-party geometry code
 
