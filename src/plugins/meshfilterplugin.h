@@ -372,7 +372,9 @@ enum class MeshFilterVisualizationAttribute
     // The single colour stored on the mesh itself. Same reason as EdgeColor: a filter that
     // writes it is asking for the layer to be *shown* in it, and nothing else would switch
     // a layer already being drawn from its per-vertex or constant colour.
-    PerMeshColor
+    PerMeshColor,
+    // Per-vertex colour written on an existing layer, for the same reason as EdgeColor.
+    VertexColor
 };
 
 struct MeshFilterVisualizationHint

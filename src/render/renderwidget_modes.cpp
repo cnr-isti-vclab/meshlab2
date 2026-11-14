@@ -401,6 +401,35 @@ void RenderWidget::showPerMeshColorVisualization(int meshIndex)
     update();
 }
 
+// Per-vertex colour on the fill, or on the points of a layer without faces. Like the
+// other hints it does nothing when the layer carries no such colour.
+void RenderWidget::showVertexColorVisualization(int meshIndex)
+{
+    if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())
+        return;
+    const auto &entry = m_doc->mesh(meshIndex);
+    if ((entry.ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) == 0)
+        return;
+
+    MeshRenderMode *mode = mutableRenderModeForMesh(meshIndex);
+    if (!mode)
+        return;
+    if (entry.mesh.FN() > 0) {
+        mode->showFill = true;
+        mode->fillMaterial = FillMaterial::Plain;
+        mode->fillPlain.colorSource = FillColorSource::PerVertex;
+    } else {
+        mode->showPoints = true;
+        mode->pointColorSource = PointColorSource::PerVertex;
+    }
+
+    if (meshIndex == m_doc->currentMeshIndex()) {
+        refreshColorSourceAvailability();
+        syncOverlaySettingsToCurrentMesh();
+    }
+    update();
+}
+
 void RenderWidget::showTextureVisualization(int meshIndex)
 {
     if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())

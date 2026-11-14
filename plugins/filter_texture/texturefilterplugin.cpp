@@ -36,7 +36,8 @@ constexpr QLatin1StringView kFilterWedgeToVertex("convert_per_wedge_uv_to_per_ve
 constexpr QLatin1StringView kFilterVertexToWedge("convert_per_vertex_uv_to_per_wedge_uv");
 constexpr QLatin1StringView kFilterPlanarMapping("parametrize_by_flat_plane");
 constexpr QLatin1StringView kFilterTriangleMapping("parametrize_by_trivial_per_triangle_layout");
-constexpr QLatin1StringView kFilterSetTexture("set_texture");
+constexpr QLatin1StringView kFilterSetDummyTexture("set_dummy_texture");
+constexpr QLatin1StringView kFilterSetTextureFromFile("set_texture_from_file");
 constexpr QLatin1StringView kFilterRemoveTextures("remove_textures");
 constexpr QLatin1StringView kFilterRenameTexture("rename_texture");
 constexpr QLatin1StringView kFilterColorToTexture("transfer_color_from_vertex_to_texture");
@@ -824,17 +825,13 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         return result;
     }
 
-    if (filterId == QString::fromLatin1(kFilterSetTexture)) {
-        if (mesh.VN() <= 0 || mesh.FN() <= 0)
-            return fail(QObject::tr("Current mesh must have vertices and faces."));
-
-        const bool hasTexCoords = (entry.ioMask & (Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTTEXCOORD)) != 0;
-        if (!hasTexCoords)
-            return fail(QObject::tr("Current mesh does not have texture coordinates."));
-
+    const bool setDummyTexture = filterId == QString::fromLatin1(kFilterSetDummyTexture);
+    if (setDummyTexture || filterId == QString::fromLatin1(kFilterSetTextureFromFile)) {
+        // Vertices, faces and texture coordinates (per wedge or per vertex) are checked
+        // by the descriptor's inputRequirements before the filter runs.
         QString displayName;
         std::vector<MeshIOTextureAsset> newAssets;
-        if (params.getBool(QStringLiteral("use_dummy_texture"))) {
+        if (setDummyTexture) {
             const int imageSize = params.getInt(QStringLiteral("dummy_img_size"));
             const int checkSize = params.getInt(QStringLiteral("dummy_check_size"));
             const QString dummyType = params.getEnum(QStringLiteral("dummy_type"));
@@ -846,7 +843,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             displayName = QStringLiteral("Dummy %1").arg(Tex::dummyTextureName(dummyType));
             newAssets.push_back(Tex::makeTextureAssetFromImage(dummyTexture, displayName));
         } else {
-            const QString chosenPath = params.getFileOpen(QStringLiteral("textName")).trimmed();
+            const QString chosenPath = params.getFileOpen(QStringLiteral("textureFile")).trimmed();
             if (chosenPath.isEmpty())
                 return fail(QObject::tr("Texture file not specified."));
 

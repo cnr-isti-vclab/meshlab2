@@ -27,6 +27,8 @@
 #include <QMessageBox>
 #include <QMetaObject>
 #include <QApplication>
+#include <QBuffer>
+#include <QHelpEvent>
 #include <QContextMenuEvent>
 #include <QMenu>
 #include <QMouseEvent>
@@ -942,6 +944,61 @@ QPixmap imageThumbnail(const QImage &image, const QString &path, int w, int h)
     return textureThumbnail(path, w, h);
 }
 
+// Hovering a texture or raster thumbnail shows the image at a readable size, with the
+// row's tooltip text under it. The tooltip is built on the first hover rather than with
+// the row: a panel holding dozens of photos would otherwise decode and encode every one
+// of them each time the panel is rebuilt.
+class ThumbnailPreview : public QObject
+{
+public:
+    ThumbnailPreview(QLabel *thumb, const QImage &image, const QString &path, const QString &text)
+        : QObject(thumb), m_thumb(thumb), m_image(image), m_path(path), m_text(text)
+    {
+        thumb->installEventFilter(this);
+    }
+
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (watched != m_thumb || event->type() != QEvent::ToolTip)
+            return false;
+        if (m_html.isEmpty())
+            m_html = buildHtml();
+        QToolTip::showText(static_cast<QHelpEvent *>(event)->globalPos(), m_html, m_thumb);
+        return true;
+    }
+
+private:
+    QString buildHtml() const
+    {
+        constexpr int kSide = 384; // logical pixels, the longer side of the preview
+        QSize size = !m_image.isNull() ? m_image.size() : QImageReader(m_path).size();
+        if (!size.isValid() || size.isEmpty())
+            size = QSize(kSide, kSide);
+        size.scale(kSide, kSide, Qt::KeepAspectRatio);
+        // Drawn at device resolution and shown at logical size, so it is sharp on HiDPI.
+        const qreal dpr = m_thumb->devicePixelRatioF();
+        const QPixmap pixmap = imageThumbnail(
+            m_image, m_path, int(std::lround(size.width() * dpr)), int(std::lround(size.height() * dpr)));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        pixmap.save(&buffer, "PNG");
+        QString html = QStringLiteral("<img src=\"data:image/png;base64,%1\" width=\"%2\" height=\"%3\">")
+                           .arg(QString::fromLatin1(png.toBase64()))
+                           .arg(size.width())
+                           .arg(size.height());
+        if (!m_text.isEmpty())
+            html += QStringLiteral("<br>") + m_text.toHtmlEscaped().replace(QLatin1Char('\n'), QStringLiteral("<br>"));
+        return html;
+    }
+
+    QLabel *m_thumb;
+    QImage m_image;
+    QString m_path;
+    QString m_text;
+    QString m_html;
+};
+
 QWidget *textureInfoWidget(
     QTreeWidget *owner,
     const LayerTextureInfo &textureInfo,
@@ -998,10 +1055,10 @@ QWidget *textureInfoWidget(
     }
     if (!tooltip.isEmpty()) {
         container->setToolTip(tooltip);
-        thumb->setToolTip(tooltip);
         nameLabel->setToolTip(tooltip);
         sizeLabel->setToolTip(tooltip);
     }
+    new ThumbnailPreview(thumb, textureInfo.image, path, tooltip);
 
     return container;
 }
@@ -1060,9 +1117,9 @@ QWidget *rasterPlaneInfoWidget(
         tooltipLines << path;
     const QString tooltip = tooltipLines.join(QLatin1Char('\n'));
     container->setToolTip(tooltip);
-    thumb->setToolTip(tooltip);
     nameLabel->setToolTip(tooltip);
     metaLabel->setToolTip(tooltip);
+    new ThumbnailPreview(thumb, plane.image, path, tooltip);
 
     return container;
 }
@@ -2258,6 +2315,8 @@ void LayerWidget::rebuildTable()
             thumbLabel->setFixedSize(54, 54);
             thumbLabel->setAlignment(Qt::AlignCenter);
             thumbLabel->setPixmap(imageThumbnail(planeImg, sourcePath, 54, 54));
+            if (plane)
+                new ThumbnailPreview(thumbLabel, planeImg, sourcePath, entry.name);
             m_rasterTable->setCellWidget(i, 1, thumbLabel);
 
             // Name column (2)

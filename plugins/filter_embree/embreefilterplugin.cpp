@@ -8,6 +8,7 @@
 #include <wrap/embree/EmbreeAdaptor.h>
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/algorithms/update/bounding.h>
+#include <vcg/complex/algorithms/update/color.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/algorithms/update/quality.h>
 #include <algorithm>
@@ -84,6 +85,19 @@ bool hasValidVertexNormals(const VCGMesh &mesh)
     return mesh.VN() > 0;
 }
 
+// Ambient occlusion is mostly wanted as a color, so both AO filters also write it as a
+// per-vertex gray. The ramp starts at 0 rather than at the smallest value, so that black
+// means fully occluded and the shading keeps the contrast the scalar actually has.
+void bakeAmbientOcclusionGray(Document::MeshEntry &entry)
+{
+    float maxQ = 0.0f;
+    for (const VCGVertex &v : entry.mesh.vert)
+        if (!v.IsD())
+            maxQ = std::max(maxQ, v.cQ());
+    vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityGray(entry.mesh, 0.0f, maxQ > 0.0f ? maxQ : 1.0f);
+    entry.ioMask |= vcg::tri::io::Mask::IOM_VERTCOLOR;
+}
+
 vcg::Matrix44f qtToVcg(const QMatrix4x4 &m)
 {
     vcg::Matrix44f result;
@@ -149,11 +163,12 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
 
             vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(entry.mesh);
             entry.ioMask |= Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY;
+            bakeAmbientOcclusionGray(entry);
             doc.markMeshGeometryChanged(
                 current->index,
                 QObject::tr("Computed mesh ambient occlusion for '%1'").arg(entry.name));
             return qualityResult(
-                current->index, MeshFilterVisualizationAttribute::FaceQuality,
+                current->index, MeshFilterVisualizationAttribute::VertexColor,
                 { QObject::tr("Computed mesh ambient occlusion using %1 rays").arg(rays) });
         }
 
@@ -205,11 +220,12 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
             return interruptedResult();
 
         entry.ioMask |= Mask::IOM_VERTQUALITY;
+        bakeAmbientOcclusionGray(entry);
         doc.markMeshGeometryChanged(
             current->index,
             QObject::tr("Computed point-cloud ambient occlusion for '%1'").arg(entry.name));
         return qualityResult(
-            current->index, MeshFilterVisualizationAttribute::VertexQuality,
+            current->index, MeshFilterVisualizationAttribute::VertexColor,
             { QObject::tr("Computed point-cloud ambient occlusion using %1 rays against '%2'")
                   .arg(rays)
                   .arg(occluder.name) });

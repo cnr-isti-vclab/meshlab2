@@ -344,6 +344,7 @@ const QHash<QString, QString> &expectedRefusals()
 
         // Needs a mesh shape the ladder does not build.
         {QStringLiteral("create_polyline_from_self_intersections_trueform"), QStringLiteral("needs a self-intersecting mesh")},
+        {QStringLiteral("set_texture_from_file"),                          QStringLiteral("needs an image file to load (FilterTests::setTextureAcceptsPerVertexTexCoords writes one and drives it)")},
         {QStringLiteral("smooth_polyline_on_surface"),                     QStringLiteral("needs a surface layer beside the polyline; every rung is one layer (FilterTests::smoothPolylineOnSurfaceStaysOnItAndShortens drives it)")},
         {QStringLiteral("create_surface_from_polyline_loop_hrbf"),         QStringLiteral("needs a surface layer beside the polyline loop; every rung is one layer (FilterTests::surfaceFromPolylineLoopSpansIt drives it)")},
         {QStringLiteral("embed_polyline_in_surface"),                      QStringLiteral("needs a polyline layer beside the surface; every rung is one layer (FilterTests::embedPolylineThenCutSplitsTheSurface drives it)")},

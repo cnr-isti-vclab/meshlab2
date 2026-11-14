@@ -2616,6 +2616,9 @@ void MainWindow::applyFilterResultToViews(const MeshFilterRunResult &result)
             case MeshFilterVisualizationAttribute::PerMeshColor:
                 view->showPerMeshColorVisualization(meshIndex);
                 break;
+            case MeshFilterVisualizationAttribute::VertexColor:
+                view->showVertexColorVisualization(meshIndex);
+                break;
             }
         }
     }

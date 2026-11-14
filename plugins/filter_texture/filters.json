@@ -271,45 +271,27 @@
       ]
     },
     {
-      "id": "set_texture",
+      "id": "set_dummy_texture",
       "categories": ["Texture/Assignment"],
-      "name": "Set Texture",
-      "pythonName": "set_texture",
-      "shortDescription": "Associate an image or generated dummy texture with the current mesh UV coordinates.",
-      "longDescriptionMarkdown": "Associates one texture with the current mesh UV parametrization, replacing its existing texture associations. By default, the filter generates a checkerboard that makes UV scale and distortion immediately visible. Disable **Use dummy texture** to select an existing image file instead.",
+      "name": "Set Dummy Texture",
+      "pythonName": "set_dummy_texture",
+      "shortDescription": "Give the current mesh a generated checkerboard or grid texture, to show its UV parametrization.",
+      "longDescriptionMarkdown": "Generates a square test image and makes it the only texture of the current mesh, replacing the textures it had. A checkerboard or a grid makes the scale and distortion of the UV parametrization visible at a glance; the UV grid draws the lines along U in red and those along V in blue, so the two directions can be told apart. The mesh needs texture coordinates, per wedge or per vertex. To use an image of your own, see *Set Texture from File*.",
       "tags": [
         "texture",
         "uv",
-        "material"
+        "material",
+        "checkerboard",
+        "grid"
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true,
         "requireFaces": true,
-        "requirePerWedgeTexCoords": true
+        "requireTextureCoordinates": true
       },
       "parameters": [
-        {
-          "id": "use_dummy_texture",
-          "label": "Use dummy texture",
-          "help": "If checked, generate a dummy texture instead of loading an image. Disable it to select an image using 'Texture file'.",
-          "group": "main",
-          "type": "bool",
-          "default": true
-        },
-        {
-          "id": "textName",
-          "label": "Texture file",
-          "help": "Sets the given input image as unique texture of the mesh.",
-          "group": "main",
-          "type": "fileopen",
-          "default": "",
-          "fileDialogTitle": "Choose Texture Image",
-          "fileNameFilters": [
-            "Images (*.png *.jpg *.jpeg *.dds *.bmp *.tif *.tiff)"
-          ]
-        },
         {
           "id": "dummy_img_size",
           "label": "Dummy Texture Size",
@@ -322,7 +304,7 @@
         },
         {
           "id": "dummy_check_size",
-          "label": "Cell size",
+          "label": "Cell Size",
           "help": "Size in pixel of the checkerboard or grid cell of the dummy texture.",
           "group": "main",
           "type": "int",
@@ -359,12 +341,50 @@
       ]
     },
     {
+      "id": "set_texture_from_file",
+      "categories": ["Texture/Assignment"],
+      "name": "Set Texture from File",
+      "pythonName": "set_texture_from_file",
+      "shortDescription": "Make an image file the texture of the current mesh, mapped by its UV coordinates.",
+      "longDescriptionMarkdown": "Loads an image file and makes it the only texture of the current mesh, replacing the textures it had. The mesh needs texture coordinates, per wedge or per vertex. To make a test pattern instead, see *Set Dummy Texture*.",
+      "tags": [
+        "texture",
+        "uv",
+        "material",
+        "image"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requireTextureCoordinates": true
+      },
+      "parameters": [
+        {
+          "id": "textureFile",
+          "label": "Texture File",
+          "help": "The image that becomes the only texture of the mesh.",
+          "group": "main",
+          "type": "fileopen",
+          "default": "",
+          "fileDialogTitle": "Choose Texture Image",
+          "fileNameFilters": [
+            "Images (*.png *.jpg *.jpeg *.dds *.bmp *.tif *.tiff)"
+          ]
+        }
+      ],
+      "outputModifies": [
+        "TX"
+      ]
+    },
+    {
       "id": "remove_textures",
       "categories": ["Texture/Assignment"],
       "name": "Remove Textures",
       "pythonName": "remove_textures",
       "shortDescription": "Detach one texture, or every texture, from the current mesh, keeping its texture coordinates unless asked not to.",
-      "longDescriptionMarkdown": "Detaches textures from the current mesh -- all of them, or the one chosen in **Texture**. The image files on disk are left alone.\n\nRemoving **all** the textures takes the images and the materials that refer to them, so that the mesh is drawn and saved untextured. The texture coordinates stay, so that *Set Texture* can give it another texture; **Remove texture coordinates** drops them as well, per wedge and per vertex, when the parametrization itself is not wanted any more.\n\nRemoving **one** texture takes that image, and the materials stop using it. A material left with no image at all goes too: the faces that used it become untextured, and every other face keeps the texture it had. A material that keeps another image -- a glTF one losing its normal map, say -- stays, and so do its faces.",
+      "longDescriptionMarkdown": "Detaches textures from the current mesh -- all of them, or the one chosen in **Texture**. The image files on disk are left alone.\n\nRemoving **all** the textures takes the images and the materials that refer to them, so that the mesh is drawn and saved untextured. The texture coordinates stay, so that *Set Dummy Texture* or *Set Texture from File* can give it another texture; **Remove texture coordinates** drops them as well, per wedge and per vertex, when the parametrization itself is not wanted any more.\n\nRemoving **one** texture takes that image, and the materials stop using it. A material left with no image at all goes too: the faces that used it become untextured, and every other face keeps the texture it had. A material that keeps another image -- a glTF one losing its normal map, say -- stays, and so do its faces.",
       "tags": [
         "texture",
         "uv",

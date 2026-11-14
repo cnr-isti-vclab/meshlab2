@@ -571,6 +571,7 @@ private slots:
     void applyToAllVisibleLayersReportsSkippedLayers();
     void packTextureImagesCreatesGutteredAtlas();
     void setTextureUvGridTellsUAndVApart();
+    void setTextureAcceptsPerVertexTexCoords();
     void removeTexturesKeepsTheUvsUnlessAsked();
     void removeTexturesCanTakeOne();
     void faceQualityFiltersAreSplit();
@@ -10419,7 +10420,7 @@ void FilterTests::packTextureImagesCreatesGutteredAtlas()
     }
 }
 
-// Set Texture's UV Grid: rows of the image are lines along U and come out red, columns run
+// Set Dummy Texture's UV Grid: rows of the image are lines along U and come out red, columns run
 // along V and come out blue, on the gray the other patterns use, so the two directions can
 // be told apart on the mesh. The plain Grid keeps white lines both ways.
 void FilterTests::setTextureUvGridTellsUAndVApart()
@@ -10434,11 +10435,10 @@ void FilterTests::setTextureUvGridTellsUAndVApart()
     QVERIFY(meshIndex >= 0);
 
     MeshFilterParameterValues params;
-    params.insert(QStringLiteral("use_dummy_texture"), true);
     params.insert(QStringLiteral("dummy_type"), QStringLiteral("uv_grid"));
     params.insert(QStringLiteral("dummy_img_size"), 64);
     params.insert(QStringLiteral("dummy_check_size"), 16);
-    const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("set_texture")), params);
+    const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("set_dummy_texture")), params);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
 
     const auto &assets = doc.mesh(meshIndex).textureAssets;
@@ -10456,8 +10456,51 @@ void FilterTests::setTextureUvGridTellsUAndVApart()
     QCOMPARE(grid.pixelColor(5, 5), QColor(128, 128, 128));
 }
 
+// Both Set Texture filters take texture coordinates per vertex as well as per wedge: the
+// requirement used to be per wedge only, so a mesh whose UVs were per vertex was refused
+// before the filter ran. A mesh with no texture coordinates at all is still refused.
+void FilterTests::setTextureAcceptsPerVertexTexCoords()
+{
+    Document doc;
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 3);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 2);
+    mesh.vert.EnableTexCoord();
+    for (int i = 0; i < 3; ++i) {
+        mesh.vert[size_t(i)].P() = vcg::Point3f(float(i == 1), float(i == 2), 0.0f);
+        mesh.vert[size_t(i)].T() = VCGVertex::TexCoordType(float(i == 1), float(i == 2));
+        mesh.vert[size_t(i)].T().N() = 0;
+    }
+    const int meshIndex = doc.addMesh(
+        mesh, QStringLiteral("vertex uv"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTTEXCOORD);
+    QVERIFY(meshIndex >= 0);
+
+    MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, QStringLiteral("set_dummy_texture")), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(doc.mesh(meshIndex).textureAssets.size(), std::size_t(1));
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString imagePath = dir.filePath(QStringLiteral("red.png"));
+    QImage red(8, 8, QImage::Format_RGB32);
+    red.fill(Qt::red);
+    QVERIFY(red.save(imagePath));
+    const QString fromFileKey = filterKeyForId(doc, QStringLiteral("set_texture_from_file"));
+    r = doc.runFilter(fromFileKey, { { QStringLiteral("textureFile"), imagePath } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(doc.mesh(meshIndex).textureAssets.size(), std::size_t(1));
+    QCOMPARE(Document::meshTextureDisplayName(doc.mesh(meshIndex), 0), QStringLiteral("red.png"));
+
+    VCGMesh bare;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(bare, 3);
+    vcg::tri::Allocator<VCGMesh>::AddFace(bare, 0, 1, 2);
+    doc.setCurrentMeshIndex(doc.addMesh(bare, QStringLiteral("no uv"), vcg::tri::io::Mask::IOM_VERTCOORD));
+    QVERIFY(!doc.runFilter(fromFileKey, { { QStringLiteral("textureFile"), imagePath } }).success);
+}
+
 // Remove Textures detaches the textures and the materials that refer to them, keeping the UVs,
-// so Set Texture can give the mesh another one; undo brings the texture back. Asked to, it drops
+// so Set Dummy Texture or Set Texture from File can give the mesh another one; undo brings the texture back. Asked to, it drops
 // the texture coordinates too. A mesh with nothing to remove is refused with a reason.
 void FilterTests::removeTexturesKeepsTheUvsUnlessAsked()
 {
@@ -10469,7 +10512,7 @@ void FilterTests::removeTexturesKeepsTheUvsUnlessAsked()
         QStringLiteral("uv"),
         vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
     QVERIFY(meshIndex >= 0);
-    const QString setKey = filterKeyForId(doc, QStringLiteral("set_texture"));
+    const QString setKey = filterKeyForId(doc, QStringLiteral("set_dummy_texture"));
     const QString removeKey = filterKeyForId(doc, QStringLiteral("remove_textures"));
     QVERIFY(!removeKey.isEmpty());
     QVERIFY(doc.runFilter(setKey, {}).success);
@@ -12971,6 +13014,15 @@ void FilterTests::ambientOcclusionSupportsPointCloudsAndDirectionalLighting()
     QCOMPARE(doc.mesh(1).mesh.face.size(), size_t(0));
     QCOMPARE(doc.mesh(1).mesh.vert[0].Q(), 0.0f);
     QVERIFY(doc.mesh(1).mesh.vert[1].Q() > 1.0f);
+    // The value is also shaded as gray, from black (occluded) to white (most exposed),
+    // and the view is asked to show it.
+    QVERIFY(doc.mesh(1).ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR);
+    QCOMPARE(int(doc.mesh(1).mesh.vert[0].C()[0]), 0);
+    QCOMPARE(int(doc.mesh(1).mesh.vert[1].C()[0]), 255);
+    QCOMPARE(int(doc.mesh(1).mesh.vert[1].C()[2]), 255);
+    QCOMPARE(result.visualizationHints.size(), 1);
+    QVERIFY(result.visualizationHints.front().attribute
+            == MeshFilterVisualizationAttribute::VertexColor);
 
     params.insert(QStringLiteral("cone_direction"), QVector3D(0.0f, 0.0f, -1.0f));
     result = doc.runFilter(aoKey, params);

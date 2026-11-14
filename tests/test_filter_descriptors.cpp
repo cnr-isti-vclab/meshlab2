@@ -1106,7 +1106,7 @@ void FilterDescriptorTests::searchRanksTheReferenceQueries()
     };
 
     static const std::pair<const char *, const char *> firsts[] = {
-        { "set tex", "Set Texture" },
+        { "set tex", "Set Texture from File" },
         { "rem tex", "Remove Textures" },
         { "del tex", "Remove Textures" },
         { "vert coord expr", "Compute Vertex Coordinates by Expression" },
