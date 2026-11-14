@@ -66,6 +66,8 @@ private slots:
     void helperProcessCancelKillsTheWholeProcessGroup();
     void layerDataSurvivesUndoAndRedo();
     void perMeshColorSurvivesUndoAndRedo();
+    void setMeshColorFilterUndoesAndRedoesWithoutACopy();
+    void undoKeepsUnchangedLayers();
     void customAttributesSurviveUndoAndDuplication();
     void layerDataIsDroppedWhenGeometryChanges();
     void layerDataIsSharedByADuplicatedLayer();
@@ -706,6 +708,64 @@ void DocumentTests::perMeshColorSurvivesUndoAndRedo()
              qPrintable(QStringLiteral("redo left the per-mesh colour at (%1, %2, %3, %4)")
                             .arg(doc.mesh(index).mesh.C()[0]).arg(doc.mesh(index).mesh.C()[1])
                             .arg(doc.mesh(index).mesh.C()[2]).arg(doc.mesh(index).mesh.C()[3])));
+}
+
+// The filter, not a hand-made step: Set Mesh Color moves no revision, so the states before and
+// after it share one interned copy of the geometry. The colour has to travel beside it, or redo
+// brings back the colour the copy was taken with.
+void DocumentTests::setMeshColorFilterUndoesAndRedoesWithoutACopy()
+{
+    Document doc;
+    const int index = addTinyMesh(doc, QStringLiteral("Layer"));
+    QVERIFY(index >= 0);
+    doc.setCurrentMeshIndex(index);
+    const QString key = QStringLiteral("meshlab2.filter.colorproc::set_mesh_color");
+    const auto setColor = [&](const QColor &c) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("color"), c);
+        QVERIFY(doc.runFilter(key, params).success);
+    };
+
+    setColor(QColor(220, 30, 40));
+    const std::uint64_t revision = doc.mesh(index).geometryRevision;
+    const int copies = doc.undoMemoryStats().uniqueGeometryCount;
+    setColor(QColor(20, 60, 200));
+    QCOMPARE(doc.mesh(index).geometryRevision, revision);
+    QCOMPARE(doc.undoMemoryStats().uniqueGeometryCount, copies);
+
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.mesh(index).mesh.C(), vcg::Color4b(220, 30, 40, 255));
+    QVERIFY(doc.redo());
+    QCOMPARE(doc.mesh(index).mesh.C(), vcg::Color4b(20, 60, 200, 255));
+}
+
+// An undo puts back only what changed: a layer whose revisions match the restored state keeps
+// its live mesh, so undoing a change to one layer of many does not copy the others.
+void DocumentTests::undoKeepsUnchangedLayers()
+{
+    Document doc;
+    const int a = addTinyMesh(doc, QStringLiteral("A"));
+    const int b = addTinyMesh(doc, QStringLiteral("B"));
+    QVERIFY(a >= 0 && b >= 0);
+    const VCGVertex *aVertices = &doc.mesh(a).mesh.vert[0];
+
+    QMatrix4x4 moved;
+    moved.translate(1, 2, 3);
+    doc.setMeshTransform(b, moved);
+    QVERIFY(doc.undo());
+    QCOMPARE(&doc.mesh(a).mesh.vert[0], aVertices);
+    QCOMPARE(doc.mesh(b).transform, QMatrix4x4());
+    QVERIFY(doc.redo());
+    QCOMPARE(doc.mesh(b).transform, moved);
+
+    // A change to B's geometry: undo copies B back, and still leaves A alone.
+    doc.beginUndoStep(QStringLiteral("Edit B"));
+    doc.mesh(b).mesh.vert[0].P() = vcg::Point3f(5, 5, 5);
+    doc.markMeshGeometryChanged(b, QStringLiteral("edit"));
+    doc.endUndoStep(true);
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.mesh(b).mesh.vert[0].P(), vcg::Point3f(0, 0, 0));
+    QCOMPARE(&doc.mesh(a).mesh.vert[0], aVertices);
 }
 
 // Custom attributes are the other thing that lives on the mesh without being an element

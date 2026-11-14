@@ -419,6 +419,25 @@ void Document::setMeshTransform(
         endUndoStep(true);
 }
 
+void Document::setMeshColor(int index, const vcg::Color4b &color)
+{
+    if (index < 0 || index >= meshCount())
+        return;
+    MeshEntry &entry = mesh(index);
+    if (entry.mesh.C() == color)
+        return;
+
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("Set Mesh Color"));
+
+    entry.mesh.C() = color;
+    emit meshDataChanged(index);
+
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
 void Document::transformMeshGeometry(VCGMesh &mesh, const QMatrix4x4 &matrix)
 {
     // The inverse transpose, not the linear part: the two agree only for rotations, mirrors

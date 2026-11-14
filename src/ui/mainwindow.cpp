@@ -1431,38 +1431,20 @@ MainWindow::MainWindow(QWidget *parent)
 #endif
     }
     connect(m_doc, &Document::bulkLoadFinished, this, &MainWindow::refreshFilterUi);
-    connect(m_doc, &Document::meshAdded, this, [this](int) {
-        if (m_doc->isRestoringUndoRedo()) return;
-        scheduleFilterUiRefresh();
-    });
-    connect(m_doc, &Document::meshRemoved, this, [this](int) {
-        if (m_doc->isRestoringUndoRedo()) return;
-        scheduleFilterUiRefresh();
-    });
-    connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
-        if (m_doc->isRestoringUndoRedo()) return;
-        scheduleFilterUiRefresh();
-    });
-    connect(m_doc, &Document::meshDataChanged, this, [this](int) {
-        if (m_doc->isRestoringUndoRedo()) return;
-        scheduleFilterUiRefresh();
-    });
-    connect(m_doc, &Document::rasterAdded, this, [this](int) {
-        if (m_doc->isRestoringUndoRedo()) return;
-        refreshFiltersMenu();
-    });
-    connect(m_doc, &Document::rasterRemoved, this, [this](int) {
-        if (m_doc->isRestoringUndoRedo()) return;
-        refreshFiltersMenu();
-    });
-    connect(m_doc, &Document::currentRasterChanged, this, [this](int) {
-        if (m_doc->isRestoringUndoRedo()) return;
-        refreshFiltersMenu();
-    });
-    connect(m_doc, &Document::rasterDataChanged, this, [this](int) {
-        if (m_doc->isRestoringUndoRedo()) return;
-        refreshFiltersMenu();
-    });
+    // Filter applicability follows the layers; an undo restore is refreshed once, on
+    // undoRestoreCompleted.
+    const auto refreshFilterUiLater = [this] {
+        if (!m_doc->isRestoringUndoRedo())
+            scheduleFilterUiRefresh();
+    };
+    connect(m_doc, &Document::meshAdded, this, refreshFilterUiLater);
+    connect(m_doc, &Document::meshRemoved, this, refreshFilterUiLater);
+    connect(m_doc, &Document::currentMeshChanged, this, refreshFilterUiLater);
+    connect(m_doc, &Document::meshDataChanged, this, refreshFilterUiLater);
+    connect(m_doc, &Document::rasterAdded, this, refreshFilterUiLater);
+    connect(m_doc, &Document::rasterRemoved, this, refreshFilterUiLater);
+    connect(m_doc, &Document::currentRasterChanged, this, refreshFilterUiLater);
+    connect(m_doc, &Document::rasterDataChanged, this, refreshFilterUiLater);
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
     viewMenu->addAction(tr("3D Scene Mode"), this, &MainWindow::setCurrentViewSceneMode);

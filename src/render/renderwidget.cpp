@@ -624,14 +624,9 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     // A tool that labels lengths with the unit has to show the new one.
     connect(m_doc, &Document::unitChanged, this, [this] { update(); });
     connect(m_doc, &Document::meshAdded, this, [this](int index) {
-        // A structural change invalidates any in-flight pick: the mesh id it
-        // encoded no longer maps to the same index. Rejecting it avoids
-        // selecting the wrong layer, and cancels any in-progress tool gesture.
-        invalidateToolPick();
-        if (m_activeTool) {
-            m_activeTool->cancelGesture();
-            updateToolStrip();
-        }
+        // An undo restore announces every layer; undoRestoreCompleted handles them at once.
+        if (m_doc->isRestoringUndoRedo())
+            return;
         if (index >= 0 && index <= int(m_meshVisibility.size()))
             m_meshVisibility.insert(m_meshVisibility.begin() + index, true);
         else
@@ -642,7 +637,7 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         // outside the view with no sign it loaded. The first mesh into an empty document
         // always frames, whatever the setting -- the alternative is a view pointed at
         // nothing. See view.reframeOnMeshAdded in resources/preferences.json.
-        if (!m_doc->isRestoringUndoRedo()) {
+        {
             const QString mode =
                 Preferences::instance().stringValue(QStringLiteral("view.reframeOnMeshAdded"));
             const bool firstMesh = m_doc->meshCount() <= 1;
@@ -652,17 +647,14 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
                      || !meshFitsInCurrentFrame(index))
                 m_reframeCameraRequested = true;
         }
-        syncPerMeshRenderModesWithDocument();
-        syncOverlaySettingsToCurrentMesh();
-        refreshColorSourceAvailability();
-        m_textureSrbs.clear();
-        syncUvCacheWithDocument();
-        m_uvFitRequested = true;
-        m_qualityHistogram.valid = false;
-        updateBoundingBoxCornersOverlay();
-        updateQualityHistogramOverlay();
-        layoutOverlayButtons();
-        update();
+        onLayersChanged(true);
+    });
+    // After an undo the view shows what the document shows, layer for layer.
+    connect(m_doc, &Document::undoRestoreCompleted, this, [this] {
+        ensureVisibilitySize();
+        for (int i = 0; i < m_doc->meshCount(); ++i)
+            m_meshVisibility[size_t(i)] = m_doc->mesh(i).visible;
+        onLayersChanged(true);
     });
     connect(m_doc, &Document::meshMoved, this, [this](int from, int to) {
         // The same layer, somewhere else in the list: its visibility moves with it, and a pick
@@ -683,28 +675,13 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         update();
     });
     connect(m_doc, &Document::meshRemoved, this, [this](int index) {
-        invalidateToolPick(); // invalidate in-flight picks (see meshAdded)
-        if (m_activeTool) {
-            m_activeTool->cancelGesture();
-            updateToolStrip();
-        }
         if (index >= 0 && index < int(m_meshVisibility.size()))
             m_meshVisibility.erase(m_meshVisibility.begin() + index);
         else
             ensureVisibilitySize();
         // Deliberately no reframe here. Deleting a layer is not a reason to move the
         // camera, and the next mesh into the emptied document frames it again anyway.
-        syncPerMeshRenderModesWithDocument();
-        syncOverlaySettingsToCurrentMesh();
-        refreshColorSourceAvailability();
-        m_textureSrbs.clear();
-        syncUvCacheWithDocument();
-        m_uvFitRequested = true;
-        m_qualityHistogram.valid = false;
-        updateBoundingBoxCornersOverlay();
-        updateQualityHistogramOverlay();
-        layoutOverlayButtons();
-        update();
+        onLayersChanged(true);
     });
     connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
         syncPerMeshRenderModesWithDocument();
@@ -719,24 +696,8 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     connect(m_doc, &Document::currentLayerChanged, this, [this](CurrentLayerKind, int) {
         update();
     });
-    connect(m_doc, &Document::meshDataChanged, this, [this](int) {
-        invalidateToolPick();
-        if (m_activeTool) {
-            m_activeTool->cancelGesture();
-            updateToolStrip();
-        }
-        syncPerMeshRenderModesWithDocument();
-        syncOverlaySettingsToCurrentMesh();
-        refreshColorSourceAvailability();
-        m_textureSrbs.clear();
-        syncUvCacheWithDocument();
-        m_qualityHistogram.valid = false;
-        updateBoundingBoxCornersOverlay();
-        updateQualityHistogramOverlay();
-        // Renaming a layer arrives here, and its tile caption is its name.
-        layoutOverlayButtons();
-        update();
-    });
+    // Renaming a layer arrives here too, and its tile caption is its name.
+    connect(m_doc, &Document::meshDataChanged, this, [this](int) { onLayersChanged(false); });
     // Selection-only change: the selection overlay buffer rebuilds on its own
     // (keyed on selectionRevision), so just repaint — none of the heavy
     // meshDataChanged work (texture/UV cache, histogram) applies to selection.
@@ -778,6 +739,27 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
 
     if (m_currentViewIndicator)
         m_currentViewIndicator->setGeometry(rect().adjusted(1, 1, -1, -1));
+}
+
+void RenderWidget::onLayersChanged(bool refitUv)
+{
+    invalidateToolPick();
+    if (m_activeTool) {
+        m_activeTool->cancelGesture();
+        updateToolStrip();
+    }
+    syncPerMeshRenderModesWithDocument();
+    syncOverlaySettingsToCurrentMesh();
+    refreshColorSourceAvailability();
+    m_textureSrbs.clear();
+    syncUvCacheWithDocument();
+    if (refitUv)
+        m_uvFitRequested = true;
+    m_qualityHistogram.valid = false;
+    updateBoundingBoxCornersOverlay();
+    updateQualityHistogramOverlay();
+    layoutOverlayButtons();
+    update();
 }
 
 void RenderWidget::ensureVisibilitySize()

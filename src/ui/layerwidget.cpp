@@ -1476,7 +1476,7 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     connect(m_doc, &Document::meshAdded, this, [this](int) {
         scheduleRebuild();
     });
-    connect(m_doc, &Document::meshRemoved, this, &LayerWidget::rebuild);
+    connect(m_doc, &Document::meshRemoved, this, [this](int) { scheduleRebuild(); });
     connect(m_doc, &Document::meshMoved, this, [this](int, int) { scheduleRebuild(); });
     connect(m_doc, &Document::meshVisibilityChanged, this, [this](int, bool) {
         scheduleRebuild();
@@ -1502,7 +1502,7 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     connect(m_doc, &Document::rasterAdded, this, [this](int) {
         scheduleRebuild();
     });
-    connect(m_doc, &Document::rasterRemoved, this, &LayerWidget::rebuild);
+    connect(m_doc, &Document::rasterRemoved, this, [this](int) { scheduleRebuild(); });
     connect(m_doc, &Document::rasterMoved, this, [this](int, int) { scheduleRebuild(); });
     connect(m_doc, &Document::rasterVisibilityChanged, this, [this](int, bool) {
         scheduleRebuild();

@@ -26,7 +26,8 @@ UndoState Document::captureUndoState() const
         snap.materialRevision   = entry->materialRevision;
         snap.selectionRevision  = entry->selectionRevision;
         snap.transform    = entry->transform;
-        snap.name               = entry->name;
+        snap.meshColor          = entry->mesh.C();
+        snap.name              = entry->name;
         snap.sourcePath         = entry->sourcePath;
         snap.textureFileNames   = entry->textureFileNames;
         snap.textureFilePaths   = entry->textureFilePaths;
@@ -83,7 +84,7 @@ UndoState Document::captureUndoState() const
     return state;
 }
 
-void Document::restoreUndoState(const UndoState &state)
+void Document::restoreUndoState(const UndoState &state, bool keepUnchangedMeshes)
 {
     const bool prevRestoring = m_undoManager->isRestoring();
     m_undoManager->setRestoring(true);
@@ -111,23 +112,41 @@ void Document::restoreUndoState(const UndoState &state)
         // LayerWidget and RenderWidget will be rebuilt from the final state
         // via a single meshDataChanged batch below.
         m_undoManager->setRestoring(true);
-        for (int i = meshCount() - 1; i >= 0; --i) {
-            const std::uint64_t meshId = m_meshes[static_cast<size_t>(i)]->meshId;
-            m_meshes.erase(m_meshes.begin() + i);
-            purgeMeshGpuResources(meshId);
-        }
+        // A live layer whose revisions match the snapshot's already holds that content:
+        // every change to a mesh moves one of them, and they are never reused. It is kept,
+        // geometry and GPU buffers alike, and only its cheap fields are put back; the
+        // others are copied out of the snapshot. Layers the state does not have are dropped.
+        std::unordered_map<std::uint64_t, std::unique_ptr<MeshEntry>> live;
+        for (auto &entry : m_meshes)
+            live.emplace(entry->meshId, std::move(entry));
         m_meshes.clear();
         m_meshes.reserve(state.meshes.size());
         {
             qint64 copyMs = 0;
+            int kept = 0;
             for (const auto &snap : state.meshes) {
-                auto entry = std::make_unique<MeshEntry>();
+                std::unique_ptr<MeshEntry> entry;
+                const auto it = live.find(snap.meshId);
+                if (keepUnchangedMeshes && it != live.end()
+                    && it->second->geometryRevision == snap.geometryRevision
+                    && it->second->materialRevision == snap.materialRevision
+                    && it->second->selectionRevision == snap.selectionRevision) {
+                    entry = std::move(it->second);
+                    live.erase(it);
+                    ++kept;
+                } else {
+                    entry = std::make_unique<MeshEntry>();
+                    QElapsedTimer t2; t2.start();
+                    deepCopyMesh(*snap.geometry, entry->mesh);
+                    copyMs += t2.elapsed();
+                }
                 entry->meshId           = snap.meshId;
                 entry->geometryRevision = snap.geometryRevision;
                 entry->materialRevision = snap.materialRevision;
                 entry->selectionRevision = snap.selectionRevision;
                 entry->transform  = snap.transform;
-                entry->name             = snap.name;
+                entry->mesh.C()         = snap.meshColor;
+                entry->name            = snap.name;
                 // The layer's file is a fact about the disk, not the history: a save since
                 // this state was captured named another one.
                 const auto stored = m_storedMeshes.find(snap.meshId);
@@ -140,26 +159,19 @@ void Document::restoreUndoState(const UndoState &state)
                 entry->ioMask           = snap.ioMask;
                 entry->polygonFaceCount = snap.polygonFaceCount;
                 entry->pluginData       = snap.pluginData;
-                {
-                    QElapsedTimer t2; t2.start();
-                    deepCopyMesh(*snap.geometry, entry->mesh);
-                    copyMs += t2.elapsed();
-                }
                 m_meshes.push_back(std::move(entry));
             }
-            writeLog(tr("Undo/redo — mesh restore: %1 ms (deepCopy %2)")
-                .arg(t.elapsed()).arg(copyMs),
+            // The GPU cache is keyed by revision, so a copied layer simply misses it; only
+            // the layers that are gone have buffers nobody will ask for again.
+            for (const auto &dropped : live)
+                purgeMeshGpuResources(dropped.first);
+            writeLog(tr("Undo/redo — mesh restore: %1 ms (%2 of %3 layers kept, deepCopy %4 ms)")
+                .arg(t.elapsed()).arg(kept).arg(meshCount()).arg(copyMs),
                 LogSource::Application, LogLevel::Debug);
         }
         // Notify views once for the entire mesh set.
         for (int i = 0; i < meshCount(); ++i)
             emit meshAdded(i);
-    }
-
-    {
-        QElapsedTimer t; t.start();
-        clearAllGpuResources();
-        writeLog(tr("Undo/redo — GPU cache clear: %1 ms").arg(t.elapsed()), LogSource::Application, LogLevel::Debug);
     }
 
     m_nextMeshId = state.nextMeshId;

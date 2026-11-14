@@ -646,6 +646,9 @@ struct SceneRasterProjectedDrawItem {
     void cancelCameraAnimation();
     void updateCameraFrameIfNeeded();
     void ensureVisibilitySize();
+    // What every change to the layer list or a layer's contents needs: a pick in flight named
+    // an index that may now hold another layer, and everything derived from the layers is redone.
+    void onLayersChanged(bool refitUv);
     int fillGpuVariantIndexForSettings(const PerMeshRenderSettings &settings) const;
     int pointGpuVariantIndexForSettings(const PerMeshRenderSettings &settings) const;
     QRhiGraphicsPipeline *fillPipelineForSettings(const PerMeshRenderSettings &settings);

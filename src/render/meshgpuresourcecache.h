@@ -212,7 +212,6 @@ public:
 
     void purgeMesh(std::uint64_t meshId);
     void releaseRhiResources(QRhi *rhi);
-    void clearAll();
     std::vector<GpuMeshMemoryStats> gpuMemoryStats() const;
 
 private:

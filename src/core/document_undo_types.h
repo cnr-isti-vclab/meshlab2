@@ -61,6 +61,9 @@ struct MeshSnapshot {
     std::uint64_t materialRevision = 0;
     std::uint64_t selectionRevision = 0;
     QMatrix4x4 transform;
+    // VCGMesh::C(), kept here rather than in the geometry: states that share one interned
+    // copy can still differ in it (Document::setMeshColor moves no revision).
+    vcg::Color4b meshColor;
     QString name;
     QString sourcePath;
     QStringList textureFileNames;

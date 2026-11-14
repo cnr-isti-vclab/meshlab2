@@ -160,7 +160,7 @@ void DocumentUndoManager::endStep(bool commit, bool restoreOnCancel)
     if (!commit) {
         if (restoreOnCancel) {
             m_restoringUndoRedo = true;
-            m_doc.restoreUndoState(*before);
+            m_doc.restoreUndoState(*before, false);
             m_restoringUndoRedo = false;
         }
         applyDeferredMemoryPressure();

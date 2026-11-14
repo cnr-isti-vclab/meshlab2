@@ -171,13 +171,6 @@ void Document::releaseRhiGpuResources(QRhi *rhi)
     m_gpuCache->releaseRhiResources(rhi);
 }
 
-void Document::clearAllGpuResources()
-{
-    if (!m_gpuCache)
-        return;
-    m_gpuCache->clearAll();
-}
-
 void Document::purgeMeshGpuResources(std::uint64_t meshId)
 {
     if (!m_gpuCache)

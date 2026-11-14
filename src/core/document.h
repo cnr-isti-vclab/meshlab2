@@ -406,6 +406,9 @@ public:
         int index,
         const QMatrix4x4 &transform,
         const QString &contextMessage = {});
+    // The colour of the layer as a whole (VCGMesh::C()). Like the transform it is a field of
+    // the undo state, not of the mesh copy, and moves no revision: no GPU buffer holds it.
+    void setMeshColor(int index, const vcg::Color4b &color);
     // Write the layer matrix into the vertex positions and normals and reset it to the
     // identity: what Freeze Matrix does, and what the framework does for a filter whose
     // transformResult is Bake positions. Nothing happens to a layer already at identity.
@@ -558,7 +561,6 @@ public:
     SelectionPassGpuView selectionPassGpuView(QRhi *rhi, int meshIndex) const;
     DecoratorPassGpuView decoratorPassGpuView(QRhi *rhi, int meshIndex) const;
     void releaseRhiGpuResources(QRhi *rhi);
-    void clearAllGpuResources();
 
     std::vector<CpuMeshMemoryStats> cpuMeshMemoryStats() const;
     CpuImageMemoryStats cpuImageMemoryStats() const;
@@ -624,7 +626,10 @@ public:
     // Undo state capture/restore — used by DocumentUndoManager.
     // Made public to avoid a friend declaration.
     UndoState captureUndoState() const;
-    void restoreUndoState(const UndoState &state);
+    // keepUnchangedMeshes: a live layer whose revisions match the state is kept as it is.
+    // Right for undo and redo, whose live state was committed; not for rolling back a
+    // cancelled or failed step, which may have edited a mesh without moving its revisions.
+    void restoreUndoState(const UndoState &state, bool keepUnchangedMeshes = true);
 
 private:
     static std::uint64_t nextInstanceId();

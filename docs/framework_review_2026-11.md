@@ -499,32 +499,235 @@ directly. A follow-up sweep should go header by header through `renderwidget.h` 
 
 ---
 
-## 5. Suggested order
+## 5. Plan
 
-All items except U1-full and R9 are small and net-negative. Do them in this order, each with its
-own tests:
+Six phases, one commit each, in this order. Phases 1-4 are net-negative or nearly so. Phases 5
+and 6 change the undo memory model and the render data model. Phase 6 is "large": ask before
+starting it.
 
-1. **Pure deletions:** section 4 table, U8, U6, R7, R8.3, R8.6. No behavior change; the existing
-   suite covers it.
-2. **Correctness:** R1. Verify with `MESHLAB2_GRAPHICS_API=vulkan` on a debug Qt if available,
-   plus the render probes.
-3. **Big wins, small diffs:**
-   - R2 and R3: check by opening `2930Colmap/project.mlp` in 3D and watching RSS.
-   - U4, Q1, Q2: undo on `afrodite.mlp`.
-   - U3, R4, R5.
-4. **Medium:**
-   - U2 (lazy capture);
-   - U1 small form (selection out of the key);
-   - U5;
-   - R6.
-   - Re-run the section 0 table: the `translate`, `measure` and `set_mesh_color` rows should
-     drop to a few MiB.
-5. **Large, ask first:** U1 full form (removes delta nodes), R9 (UV onto the shared cache).
+Every phase ends the same way:
 
-Tests to add (behavioural tier, per AGENTS.md "Tests"):
+1. `cmake --build build-release`, then `QT_QPA_PLATFORM=offscreen ctest` there (about 6 min,
+   dominated by `MeshLab2FilterTests` and `MeshLab2FilterSmokeTests`).
+2. Run the render probes for any phase that touches `src/render` (they need the window server;
+   see rendering.md).
+3. Re-run the measurement in section 0 that the phase targets.
+4. Leave `build-release` built from the final source: it is the maintainer's live binary.
+5. Hand over the file list and the full commit message.
 
-- `tests/test_document.cpp`: an undo step after a selection change does not deep-copy geometry
-  (compare `undoMemoryStats().uniqueGeometryCount`);
-- a full undo keeps unchanged meshes' `geometryRevision` and leaves their GPU cache entries in
-  place;
-- a read-only filter adds no geometry bytes.
+### Phase 1: undo restore that does not copy unchanged layers (U4 + U3 + Q2 + Q1)
+
+**Done 2026-11-14.**
+
+- **Measured** with a temporary `Document` harness on afrodite.mlp (41 layers, 30.6M faces):
+  undo/redo of a one-layer transform went from 303/256 ms to 0/0 ms, and of a one-layer
+  geometry edit from 251/252 ms to 7/4 ms (CPU only; the GPU cache is no longer cleared on top
+  of that).
+- **Two findings while doing it:**
+  - **U3 was misdiagnosed above.** `set_mesh_color` moves no revision at all; its +762 MiB was
+    U1. Its real defect was that its "after" state shared the "before" copy of the geometry,
+    whose color is the old one, so redo restored the old color. Fixed by `setMeshColor` and
+    `MeshSnapshot::meshColor`, and covered by `setMeshColorFilterUndoesAndRedoesWithoutACopy`.
+  - **Keeping unchanged layers is only right for undo and redo.** The rollback of a cancelled or
+    failed step must still copy everything, because a failed filter can edit a mesh without
+    moving its revisions. Three `FilterTests` caught this; `restoreUndoState` takes
+    `keepUnchangedMeshes`.
+- **D1** was taken as (a): after a full undo every view shows the document's visibility.
+- `Document::clearAllGpuResources` and `MeshGpuResourceCache::clearAll` lost their last caller
+  and were removed.
+
+**Why first.** It is the most visible cost in everyday use: every undo of a multi-layer scan
+project re-copies every layer and re-uploads every GPU buffer. The diff is small and stays
+inside `Document`, `RenderWidget`'s signal wiring and two plugin call sites.
+
+**1a. `restoreUndoState` keeps live meshes whose content is unchanged** (`src/core/document_undo_state.cpp`).
+
+- Move the live `std::unique_ptr<MeshEntry>`s out of `m_meshes` into an `unordered_map` keyed by
+  `meshId`.
+- For each `snap` in `state.meshes`:
+  - If a live entry has the same `meshId` **and** equal `geometryRevision`,
+    `materialRevision` and `selectionRevision`, reuse it. Overwrite only the cheap fields that
+    the copy path sets today: `transform`, `name`, `sourcePath` (with the existing
+    `m_storedMeshes` rule), `textureFileNames`, `textureFilePaths`, `textureAssets`,
+    `materialSet`, `visible`, `ioMask`, `polygonFaceCount`, `pluginData`.
+  - Otherwise build the entry as today, with `deepCopyMesh`.
+- Push the entries back in snapshot order.
+- `purgeMeshGpuResources` only the ids left in the map, i.e. layers that no longer exist.
+- **Delete** the `clearAllGpuResources()` block (`:172-176`). The cache is keyed by revisions,
+  and revisions are drawn from document-monotonic counters, so a restored older revision misses
+  and rebuilds by itself.
+- Keep the signal sequence as it is: `meshAdded(i)` for every index, then the current-index
+  signals, then `undoRestoreCompleted`. Views that ignore signals while restoring
+  (step 1c) then see one batch.
+
+Risk: this trusts that every mutation bumps a revision. It is the same contract the GPU cache
+already relies on: a filter that broke it already shows stale buffers on screen. The filter
+smoke test's undo/redo pass (`tests/test_filter_smoke.cpp`) is the net for that.
+
+**1b. Per-mesh color becomes undo metadata, like the transform (U3).**
+
+- Add `Document::setMeshColor(int index, const vcg::Color4b &)`, modeled line for line on
+  `setMeshTransform` (`document_layers.cpp:395-420`): own undo step "Set Mesh Color",
+  write `mesh.C()`, log, `emit meshDataChanged`, **no revision bump**.
+- Add `vcg::Color4b meshColor` to `MeshSnapshot`. Set it in `captureUndoState`, and write it into
+  `mesh.C()` in `restoreUndoState` on both the reused and the copied path. This is needed
+  because snapshots that share one interned geometry can carry different colors.
+- Switch the two writers in `plugins/filter_colorproc/colorprocfilterplugin.cpp` to it:
+  `set_mesh_color` (`:357`) and the scattered layer colors (`:379`), dropping their
+  `markGeometry`.
+
+No GPU buffer depends on it: `renderwidget_fill.cpp:122-128` reads `mesh.C()` into a uniform.
+No file format stores a per-mesh color either (checked `plugins/io_*`), so, like the transform,
+it does not mark a layer as changed against its file.
+
+**1c. One batched view update after a restore (Q2)** (`src/render/renderwidget.cpp:626-739`).
+
+- Fold the `meshAdded`/`meshRemoved`/`meshDataChanged` lambdas into one private
+  `onLayersChanged()`. Keep the index-specific parts in the lambdas: the visibility
+  insert/erase and the reframe decision.
+- `return` early from all three when `m_doc->isRestoringUndoRedo()`.
+- Connect `undoRestoreCompleted` to: `ensureVisibilitySize()`, the visibility rule chosen in
+  decision D1 below, then `onLayersChanged()`.
+
+**1d. Removal and raster signals use the existing coalescing (Q1).**
+
+- `layerwidget.cpp:1479, 1505`: `&LayerWidget::rebuild` becomes `scheduleRebuild()`. Before
+  changing it, click a layer row right after a deletion to confirm that no stale row can be
+  clicked before the queued rebuild runs.
+- `mainwindow.cpp:1450-1465`: `refreshFiltersMenu()` becomes `scheduleFilterUiRefresh()`. That
+  also refreshes the filter panel, which the raster path currently skips.
+
+**Tests** (`tests/test_document.cpp`, next to `undoRedoRestoresMeshList`):
+
+- `undoKeepsUnchangedLayers`: two tiny meshes; record `&doc.mesh(0).mesh.vert[0]`; translate
+  mesh 1; undo. Mesh 0's address and revisions are unchanged, and mesh 1's transform is back.
+- `undoCopiesOnlyTheChangedLayer`: same setup, but run a geometry edit on mesh 1. After undo,
+  mesh 1 has the old content and mesh 0 still has its old address.
+- `setMeshColorIsMetadata`: `geometryRevision` is unchanged and
+  `undoMemoryStats().uniqueGeometryCount` does not grow. Undo/redo round-trips the color
+  (extend `perMeshColorSurvivesUndoAndRedo`).
+
+**Measure.** Undo on `afrodite.mlp` after translating one layer: before and after. Needs
+decision D2.
+
+**Expected size:** about +60 / -45.
+
+### Phase 2: render-side waste on large data (R2, R3, R4, R5)
+
+All in `src/render`, independent of phase 1.
+
+- **R2.** In `collectRenderFramePassRequests`' Scene3D branch (`renderwidget_frame_plan.cpp:75-85`)
+  and in `ensureRaster`'s projected path (`renderwidget_raster.cpp:275-281`), require only
+  `entry.shot.isValid()`. Do not call `ensureRasterPlaneImage`.
+- **R3.** Move `convertToFormat(RGBA8888)` (`renderwidget_raster.cpp:336`) inside
+  `if (needsTexture)`, testing `needsTexture` against `plane->image.size()`.
+- **R4.** In the selection rebuild (`meshgpuresourcecache.cpp:1370-1430`), drop the
+  `reserve(FN * 9)` and `reserve(VN * 3)`. Count first in a `parallelFor`, then fill with
+  exact sizes. The indexed-overlay variant is a later option, not part of this phase.
+- **R5.** At the end of `ensureMeshResources`, reset every fill and point variant of this mesh
+  whose `geometryRevision`/`materialRevision` differs from `source`, and every variant that is
+  neither the requested one nor valid. That is about 8 lines; `gpuMemoryStats()` then reports
+  the drop.
+
+**Measure:** RSS after opening `2930Colmap/project.mlp` in the 3D view (expect about -1 GiB).
+Then switch the raster view between two photos and check per-frame CPU time in the status bar.
+Then paint a selection on ESTE and check peak RSS.
+
+**Size:** about +20 / -15.
+
+### Phase 3: uniforms uploaded before the pass (R1)
+
+- Add one per-frame CPU staging buffer per dynamic UBO (main, decorator ×N, decorator-fat,
+  selection, raster-projected, raster-backplate) next to the existing `DynamicUbufAllocator`s.
+- Split each executor in `renderwidget_scene_passes.cpp`, `renderwidget_fill.cpp` and
+  `renderwidget_selection.cpp` into two parts: a **prepare** walk over the plans that fills the
+  staging slices and stores each item's offset in the draw item, and the existing **draw** walk,
+  which only binds and draws.
+- Before `cb->beginPass` (`renderwidget_render.cpp:716`), issue one `updateDynamicBuffer` per UBO
+  into the batch `u` that is already passed to it.
+- The offscreen passes (depth pick, masks, radiance-scaling pre-pass) do the same with their own
+  `beginPass`.
+- `uploadMainUbuf` then keeps `writeMainUbuf` and loses its per-call batch.
+- The UV renderer (`renderwidget_uv.cpp:950-1383`) has the same pattern. Fix it in the same
+  phase unless phase 6 is scheduled soon after.
+
+**Verify:** all render probes, plus `MESHLAB2_GRAPHICS_API=vulkan` and `opengl` on this Mac (see
+the clipping-plane section of rendering.md), with the GPU timing preference on, to compare frame
+times.
+
+**Size:** about +60 / -70. This is the riskiest phase to get subtly wrong, so it gets its own
+commit.
+
+### Phase 4: collapse duplication (U6, R7, R8)
+
+- **U6:** one `compactNodes(keepSorted, newRootOldId)` with a `std::vector<int>` remap. Used by
+  `makeRoot`, `purgeBranch`, `linearizeHistory` and `pruneTreeToLimit`.
+- **R7:** `Document::gpuCache()` plus `meshGpuSource(index)` and a `MeshGpuNeeds` struct. Delete
+  the eight `*PassGpuView` forwarders and the `document.h` type re-exports, and stop including
+  `meshgpuresourcecache.h` from `document.h`.
+- **R8.1-6:**
+  - one `worldCorners(const MeshEntry&)` helper used by the four bbox blocks;
+  - `syncPerMeshRenderModesWithDocument` only from signals;
+  - per-tile requests filtered from the frame request;
+  - a `QHash` index in `Preferences::ensureLoaded`;
+  - UV tick labels hidden on mode switch only;
+  - the fallback-texture loop.
+
+**Size:** about +80 / -330. Behavior unchanged; the existing suite covers it.
+
+### Phase 5: undo capture cost (U2, U1 small form, U5, U7)
+
+- **U2, lazy "before" capture.**
+  - `DocumentUndoManager::beginStep` stores only the label and script action and sets
+    `m_beforePending`.
+  - Add `Document::noteMutation()` (private, called at the top of every mutator listed under
+    "APIs" in data_model.md, and by `markMesh*Changed`). It captures "before" when
+    `m_beforePending` is set.
+  - `endStep` with no capture commits nothing, but keeps the script action as a trailing record
+    exactly as an informational filter does now.
+  - Prerequisite: an exhaustive list of the mutators, built by grepping `m_meshes`/`m_rasters`
+    writes in `src/core/document_*.cpp` and recorded in the commit.
+- **U1 small form.**
+  - Take `selectionRevision` out of the geometry key.
+  - Snapshot selection bits as `shared_ptr<const MeshAttributeDelta>` (selection kinds only),
+    interned by `(meshId, selectionRevision)`. Reuse `captureAttributeDelta`/`applyAttributeDelta`.
+  - Restore applies them after the geometry.
+  - Delta nodes still exist; this just stops them forcing copies.
+- **U5:** `jumpToNode` restores the target's nearest full-snapshot ancestor once, then applies
+  forward deltas.
+- **U7:** incremental byte accounting in `pruneToMemoryBudgetInternal`.
+
+**Measure:** re-run the whole section 0 table. Targets: `translate` after a selection, and
+`measure_geometric_properties` after a selection, add a few MiB, not hundreds.
+
+**Size:** about +120 / -60.
+
+### Phase 6 (large, ask first): data-model simplifications
+
+- **R6:** raw quality in vertex buffers, range as a uniform; one range cache. Removes the four
+  invalidation blocks.
+- **R9:** the UV view draws a `UvLayout` variant of the shared cache. Removes most of
+  `ensureUvMeshResources`. Needs R6 first.
+- **U1 full form:**
+  - `colorRevision`/`scalarRevision`;
+  - every node a snapshot made of shared layers;
+  - the `Delta` node kind and the `outputModifies`→delta table removed.
+
+  Needs phase 5 first.
+
+**Estimated size:** about -600 together, but each touches many files. Write a mapping table of
+what moves where before starting, as AGENTS.md requires.
+
+### Decisions needed before phase 1
+
+- **D1: per-view visibility after undo.** Today a full undo effectively resets each view's
+  hidden layers to the document's visibility (section 3, Q2 side issue). The options:
+  - (a) keep that, now explicitly;
+  - (b) keep each view's own visibility for layers that still exist.
+
+  (b) is one line more and is what data_model.md's "each view keeps its own local visibility
+  vector" suggests.
+- **D2: how to measure undo.** The options:
+  - (a) add `undo()`, `redo()` and `undo_history()` to `pymeshlab2.MeshSet`: about 20 lines in
+    `src/python/bindings`, a public API that scripts could use;
+  - (b) a throwaway timing harness in the scratchpad, never committed.

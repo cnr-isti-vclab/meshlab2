@@ -2221,13 +2221,6 @@ void MeshGpuResourceCache::releaseRhiResources(QRhi *rhi)
     m_state->byRhi.erase(rhi);
 }
 
-void MeshGpuResourceCache::clearAll()
-{
-    if (!m_state)
-        return;
-    m_state->byRhi.clear();
-}
-
 std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> MeshGpuResourceCache::gpuMemoryStats() const
 {
     std::map<std::uint64_t, GpuMeshMemoryStats> byMesh;

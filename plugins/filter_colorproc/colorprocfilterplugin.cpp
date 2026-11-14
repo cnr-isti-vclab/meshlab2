@@ -354,7 +354,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         if (mi < 0) return fail(QObject::tr("No current mesh."));
         Document::MeshEntry &entry = doc.mesh(mi);
         QColor c = params.getColor(QStringLiteral("color"), QColor(128, 128, 128));
-        entry.mesh.C() = vcg::Color4b(c.red(), c.green(), c.blue(), c.alpha());
+        doc.setMeshColor(mi, vcg::Color4b(c.red(), c.green(), c.blue(), c.alpha()));
         doc.writeLog(QObject::tr("Set per-mesh color of '%1' to (%2,%3,%4,%5)")
             .arg(entry.name).arg(c.red()).arg(c.green()).arg(c.blue()).arg(c.alpha()),
             Document::LogSource::Application);
@@ -375,9 +375,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         vcg::math::MarsenneTwisterRNG rng{ seed.value };
         int colorIndex = rng.generate(int(visibleMeshes.size()));
         for (int meshIndex : visibleMeshes) {
-            Document::MeshEntry &entry = doc.mesh(meshIndex);
-            entry.mesh.C() = vcg::Color4b::Scatter(int(visibleMeshes.size()), colorIndex);
-            markGeometry(doc, meshIndex, QObject::tr("Assigned scattered mesh colors"));
+            doc.setMeshColor(meshIndex, vcg::Color4b::Scatter(int(visibleMeshes.size()), colorIndex));
             ++colorIndex;
             colorIndex %= int(visibleMeshes.size());
         }
