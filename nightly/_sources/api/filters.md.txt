@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 415 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 416 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -11168,6 +11168,54 @@ It is the method of the `LineIntegralConvolution` program of TextureSignalProces
 - **sharpenScale** (*double*, default: `100.0`) — How much the sharpening amplifies the streaks' gradients, for contrast; 1 leaves them as they are. The program's sharpening modulation.
 - **anisotropyExponent** (*double*, default: `0.0`) — How the streaks depend on how different the two curvatures are: 0 makes them equally strong wherever there is a direction; above 0 they fade where the surface curves alike in every direction. The program's anisotropy exponent.
 - **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the noise, and so the streaks, exactly reproducible.
+```
+
+---
+
+(filter-colorize-texture-by-reaction-diffusion)=
+
+## Colorize Texture by Reaction-Diffusion
+
+**Categories:** `Texture`
+
+**Plugin:** meshlab2.filter.texture_signal_processing
+
+Grow a Gray-Scott pattern of stripes or dots on the surface into a new texture, continuous across seams.
+
+```{py:function} ms.colorize_texture_by_reaction_diffusion(**params)
+:module: _meshlab
+
+Fills a new texture with the stripes or dots of a Gray-Scott reaction-diffusion grown on the surface: two chemicals spread at different rates and react, starting from scattered seeds, until they settle into a pattern of a characteristic width. Since the texels on the two sides of a seam are neighbors on the surface, the pattern runs on across seams, and the islands' outlines do not show. With a *Direction*, the chemicals spread more slowly across the mesh's principal curvature directions, and the stripes or rows of dots line up with them.
+
+**The pattern's size is a number of texels**, whatever the mesh: the surface is scaled to an area of half the number of texels the layout covers, as the program does, so a larger *Texture Size* gives more, not finer, stripes. *Diffusion Scale* changes it.
+
+**The directions**, when asked for, come from the mesh as for *Colorize Texture by Principal Directions (Line Integral Convolution)*: from its faces when they have principal directions, otherwise from its vertices.
+
+**The texture.** The pattern goes into a new square texture of the size asked, laid out by the faces' texture coordinates, which need no image: a mesh that has only been parametrized works. It is added after the mesh's textures, which stay, and the faces are switched to it, so it shows at once; saving the mesh writes it. A mesh whose faces use several textures gets one new texture for each. Faces with no UV area are left out, and faces whose UV triangles are folded over their own island are refused (*Select Folded UV Faces* shows them).
+
+It is the `ReactionDiffusion` program of TextureSignalProcessing, by Prada, Kazhdan, Chuang and Hoppe, run inside MeshLab with its defaults. Each step of length $d$ solves $(M + d\,D_a\,S)\,a' = M\,a + d\,R_a(a, b)$ and $(M + d\,D_b\,S)\,b' = M\,b + d\,R_b(a, b)$, with $R_a = -a\,b^2 + F\,(1 - a)$ and $R_b = a\,b^2 - (F + k)\,b$ integrated over the triangles, $D_a = 0.1$ and $D_b = 0.05$ times the *Diffusion Scale*, by one multigrid V-cycle, as the program does. Stripes take $F = k = 0.062$ and seed a hundredth of the texels; dots $F = 0.0367$, $k = 0.0649$ and a thousandth. The texture is the second chemical as a gray, $0.75\,(1 - 2b)$ clamped, as the program writes it: white-gray where there is none, black where it is strong.
+
+**Time and memory** grow with the steps and with the length of the islands' boundaries in texels: about 50 s and 1.5 GB for 1000 steps on a 20k-face mesh at 512², but over two minutes on a layout of a thousand one-triangle islands at the same size. The run can be canceled between steps.
+
+**Upstream:** [TextureSignalProcessing](https://github.com/mkazhdan/TextureSignalProcessing)
+
+**License:** MIT
+
+**References:**
+
+- Fabián Prada, Misha Kazhdan, Ming Chuang, Hugues Hoppe. **Gradient-domain Processing within a Texture Atlas**. *ACM Transactions on Graphics* (2018). [DOI](https://doi.org/10.1145/3197517.3201317)
+
+**Parameters:**
+
+- **textureSize** (*int*, default: `512`) — The side of the new texture, which is square, in texels. The pattern's width is a number of texels, so a larger texture holds more stripes or dots, not finer ones.
+- **pattern** (*enum*, default: `stripes`) — The Gray-Scott feed and kill rates, and how many texels are seeded.
+- **direction** (*enum*, default: `none`) — Which principal curvature direction the pattern lines up with, if any; the mesh needs principal directions for the other two.
+- **anisotropyScale** (*double*, default: `1.0`) — With a Direction, how much more slowly the chemicals spread across it than along it: lengths across the direction count sqrt(1 + scale) times longer. 0 makes no difference. The program's anisotropy scale.
+- **steps** (*int*, default: `1000`) — How many time steps the pattern grows for. It spreads from the seeds and fills the surface over the first few hundred, then slowly settles. The program's output steps.
+- **diffusionScale** (*double*, default: `1.0`) — The factor on both chemicals' diffusion rates, which sets the pattern's width: larger spreads them further between reactions, and widens the stripes. The program's diffusion scale.
+- **anisotropyExponent** (*double*, default: `0.0`) — With a Direction, how the anisotropy depends on how different the two curvatures are: 0 makes it the same wherever there is a direction; above 0 it fades where the surface curves alike in every direction. The program's anisotropy exponent.
+- **timeStep** (*double*, default: `10.0`) — The length of each step. Larger grows the pattern in fewer steps, until the explicit reaction term becomes unstable. The program's speed.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value places the seeds, and so the pattern, exactly reproducibly.
 ```
 
 ---

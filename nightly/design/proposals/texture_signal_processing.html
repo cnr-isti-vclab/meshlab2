@@ -254,8 +254,8 @@ process</strong>, as Screened Poisson is, through TSP’s header-only <code clas
 plugin <code class="docutils literal notranslate"><span class="pre">filter_texture_signal_processing</span></code>, with <em>Repair Texture Seams</em>, <em>Dilate Texture across
 Seams</em>, <em>Smooth Texture</em> and <em>Sharpen Texture</em>; see its <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code>); <strong>stage 3 the same day</strong>
 (<em>Inpaint Texture on Selected Faces</em>, <em>Transfer Texture Detail</em> and object-space normal maps); <strong>stage 4’s
-line-integral convolution 2026-11-13</strong>, with per-face principal curvature in MeshLab’s data model; its
-reaction-diffusion and stitching are not. Every number below was measured for
+line-integral convolution and reaction-diffusion 2026-11-13</strong>, with per-face principal curvature in
+MeshLab’s data model; its source-aware stitching is not. Every number below was measured for
 this proposal.</p>
 <p>See also: <a class="reference internal" href="../history/texture_consolidation.html"><span class="std std-doc">TextureConsolidation history</span></a>,
 <code class="docutils literal notranslate"><span class="pre">plugins/filter_texture_consolidation/UPSTREAM.md</span></code>, <code class="docutils literal notranslate"><span class="pre">plugins/filter_screened_poisson/UPSTREAM.md</span></code>,
@@ -638,8 +638,8 @@ proposed names are drafts. Four of them need words the vocabulary does not have 
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ReactionDiffusion</span></code> (918 lines)</p></td>
 <td><p>Gray–Scott stripes or dots grown in texture space, optionally aligned to a vector field</p></td>
 <td><p>Nothing</p></td>
-<td><p>Name to be decided</p></td>
-<td><p><strong>Stage 3.</strong> Its reaction term is integrated with <code class="docutils literal notranslate"><span class="pre">ScalarIntegrator</span></code>, which is not part of <code class="docutils literal notranslate"><span class="pre">GradientDomain.h</span></code>. Either the adapter uses the lower-level API, or the term is approximated by applying the mass matrix to a per-texel value, which is a change in the method and needs Paolo’s ruling</p></td>
+<td><p><em>Colorize Texture by Reaction-Diffusion</em></p></td>
+<td><p><strong>Stage 4, implemented 2026-11-13.</strong> Its reaction term is integrated with <code class="docutils literal notranslate"><span class="pre">ScalarIntegrator</span></code>, which is not part of <code class="docutils literal notranslate"><span class="pre">GradientDomain.h</span></code>; the adapter uses the lower-level API, as the program does (Paolo, 2026-11-13: keep the quadrature)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Geodesics</span></code> (816 lines)</p></td>
 <td><p>Heat-method distance from a clicked point, at texel resolution</p></td>
@@ -867,10 +867,8 @@ from 31.2 to 5.6.</p></li>
 </ul>
 </li>
 <li><p><strong>Line-integral convolution, reaction-diffusion, source-aware stitching.</strong> Line-integral
-convolution first, planned 2026-11-13 below. The other two still need their decisions:
-Paolo’s ruling on the reaction term, and a change to color projection for the stitching.
-<code class="docutils literal notranslate"><span class="pre">ReactionDiffusion</span></code>’s <code class="docutils literal notranslate"><span class="pre">--approximateIntegration</span></code> does not settle the ruling: it only chooses
-a cheaper quadrature inside <code class="docutils literal notranslate"><span class="pre">ScalarIntegrator</span></code>, which still needs the lower-level interface.</p>
+convolution first, planned 2026-11-13 below; reaction-diffusion the same day, after it
+(below). The stitching still needs a change to color projection.</p>
 <p><strong>What <code class="docutils literal notranslate"><span class="pre">LineIntegralConvolution</span></code> does.</strong> It takes a direction per triangle, by default the
 maximal (or, with <code class="docutils literal notranslate"><span class="pre">--minimal</span></code>, the minimal) principal curvature direction scaled by
 k_max − k_min, computed from vertex normals it first smooths twice. It normalizes the field
@@ -954,6 +952,74 @@ Space</em> to <code class="docutils literal notranslate"><span class="pre">Textu
 transfer moved there too.)</p>
 </li>
 </ol>
+<section id="reaction-diffusion-implemented-2026-11-13">
+<h3>Reaction-diffusion (implemented 2026-11-13)<a class="headerlink" href="#reaction-diffusion-implemented-2026-11-13" title="Link to this heading">¶</a></h3>
+<p><strong>Decided 2026-11-13</strong> (Paolo): keep the program’s quadrature for the reaction term. The
+adapter’s <code class="docutils literal notranslate"><span class="pre">reactionDiffusion</span></code> therefore cannot use <code class="docutils literal notranslate"><span class="pre">GradientDomain</span></code>, which builds the mass and
+stiffness but not the <code class="docutils literal notranslate"><span class="pre">ScalarIntegrator</span></code> of the same call, and builds the system the way the
+program’s <code class="docutils literal notranslate"><span class="pre">InitializeSystem</span></code> does: the hierarchy (the program’s multigrid blocks, 128 × 16, padded
+2 × 0), the metric, the surface’s or anisotropic along a field, scaled to an area of half the
+number of nodes, the operators with 6 quadrature points per triangle and the integrator with 3,
+exact. Each step is <code class="docutils literal notranslate"><span class="pre">UpdateApproximateSolution</span></code>: the mass of each concentration plus the
+integrated reaction, one V-cycle of two sweeps per level for each, clamped at 0. The output is
+the program’s gray, 0.75 (1 − 2b) clamped, 204 off the nodes. What differs:</p>
+<ul class="simple">
+<li><p><strong>The seeds</strong> are drawn by area from a <code class="docutils literal notranslate"><span class="pre">std::mt19937</span></code> seeded by <code class="docutils literal notranslate"><span class="pre">randomSeed</span></code>; the program
+draws them with <code class="docutils literal notranslate"><span class="pre">rand()</span></code> on several threads, so its own output changes from run to run.</p></li>
+<li><p><strong>Double precision.</strong> The program solves in <code class="docutils literal notranslate"><span class="pre">float</span></code> unless given <code class="docutils literal notranslate"><span class="pre">--double</span></code>.</p></li>
+<li><p><strong>The field</strong> is the mesh’s principal directions, as for line-integral convolution, through
+the same conversion (<code class="docutils literal notranslate"><span class="pre">fieldInTriangleBases</span></code>, which LIC now shares), instead of a file.</p></li>
+<li><p><strong>No viewer</strong>, and so no seed picked with the mouse; the run can be canceled between steps.</p></li>
+</ul>
+<p><strong>Compared with the program</strong> on the 20k-face gargoyle atlas at 512², 1000 steps, stripes
+(statistics over the 202,214 node texels; the seeds differ, so the texels cannot):</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>Program</p></th>
+<th class="head"><p>Filter</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Mean gray</p></td>
+<td><p>112.8</p></td>
+<td><p>112.1</p></td>
+</tr>
+<tr class="row-odd"><td><p>Share darker than 96</p></td>
+<td><p>0.437</p></td>
+<td><p>0.444</p></td>
+</tr>
+<tr class="row-even"><td><p>10th / 50th / 90th percentile</p></td>
+<td><p>42 / 114 / 182</p></td>
+<td><p>42 / 112 / 182</p></td>
+</tr>
+<tr class="row-odd"><td><p>Stripe period (power-weighted, texels)</p></td>
+<td><p>11.22 (another run 11.23)</p></td>
+<td><p>11.22</p></td>
+</tr>
+<tr class="row-even"><td><p>Time, peak memory</p></td>
+<td><p>38 s, 0.97 GB (float)</p></td>
+<td><p>51 s, 1.49 GB (double)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Dots grow from a thousandth of the texels and have not covered the surface by step 1000: the
+share left plain was 0.40 and 0.17 in two runs of the program, 0.30 for the filter.</p>
+<p>The pattern’s width is a number of texels, about 11 for the stripes, because of the metric’s
+scaling: a larger texture gives more stripes, not finer ones. <code class="docutils literal notranslate"><span class="pre">FilterTests::textureSignal-</span> <span class="pre">ProcessingGrowsReactionDiffusion</span></code> holds the filter to the program’s dark share, to the width
+growing as the square root of the <em>Diffusion Scale</em> (2506 against 1176 crossings at four times
+it), to the stripes lining up with a field (128 crossings around a cylinder against 3,664 along
+it), and to the pattern running on across a seam. Writing that test showed that the test grid’s
+cylinder was not closed: its last column of vertices sat at <code class="docutils literal notranslate"><span class="pre">cos(2π)</span></code>, <code class="docutils literal notranslate"><span class="pre">sin(2π)</span></code> in float, never
+merged with its first, so the cut was a slit (70 levels across it, against 5 once closed).</p>
+<p><strong>Parameters</strong>: <em>Texture Size</em> (512, the program’s), <em>Pattern</em> (stripes or dots, the program’s
+two rate pairs and seed shares), <em>Direction</em> (none, maximal, minimal), <em>Anisotropy Scale</em> (1),
+<em>Steps</em> (1000), <em>Diffusion Scale</em> (1), and as advanced <em>Anisotropy Exponent</em> (0), <em>Time Step</em>
+(10, the program’s speed) and <code class="docutils literal notranslate"><span class="pre">randomSeed</span></code>. <em>Diffusion Scale</em> is the program’s; a width in texels
+would say more, and is a candidate for the same treatment as the Detail Size.</p>
+</section>
 </section>
 <section id="fidelity-as-a-length-approved-and-applied-2026-11-13">
 <h2>Fidelity as a length (approved and applied 2026-11-13)<a class="headerlink" href="#fidelity-as-a-length-approved-and-applied-2026-11-13" title="Link to this heading">¶</a></h2>
@@ -1104,7 +1170,8 @@ Directions (Line Integral Convolution)</em>, <code class="docutils literal notra
 data”), as <em>Colorize Vertices by Perlin Noise</em>. <code class="docutils literal notranslate"><span class="pre">Rasterize</span></code> was considered and not admitted:
 it suggests scan-converting the field’s lines, and the filters that do scan-convert attributes
 into textures are <code class="docutils literal notranslate"><span class="pre">Transfer</span></code>.</p></li>
-<li><p><strong>Reaction-diffusion</strong> produces a new texture from no input texture too; to be named with it.</p></li>
+<li><p><strong>Reaction-diffusion</strong> (stage 4, 2026-11-13): <em>Colorize Texture by Reaction-Diffusion</em>, <code class="docutils literal notranslate"><span class="pre">Colorize</span></code> as
+for line-integral convolution, the hyphen of the term of art.</p></li>
 </ul>
 </section>
 <section id="open-questions">
@@ -1120,8 +1187,8 @@ the adapter’s workaround, if mkazhdan prefers one.</p></li>
 existing open item in <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code> more pressing. Alternatively, the adapter could
 avoid <code class="docutils literal notranslate"><span class="pre">PlyFile.h</span></code>, if TSP’s headers can be included without it. That has not been
 tried.</p></li>
-<li><p><strong>Reaction-diffusion’s reaction term</strong> (stage 3): keep the quadrature
-(<code class="docutils literal notranslate"><span class="pre">ScalarIntegrator</span></code>, lower-level API) or approximate it.</p></li>
+<li><p><strong>Reaction-diffusion’s reaction term.</strong> Answered 2026-11-13 (Paolo): keep the quadrature,
+through the lower-level API.</p></li>
 <li><p><strong>Multigrid or direct.</strong> Answered with stage 2: at 512² the direct solve is faster than
 enough V-cycles to match it (2.5 s against 7.5 s for 100), but at 2048² it takes 63 s and
 5.7 GB to factor against 28 s of multigrid, and grows faster from there. Multigrid.</p></li>
@@ -1189,7 +1256,10 @@ faces, 96 s and 22 GB for half of them, far more than inpainting is for.</p></li
 <li><a class="reference internal" href="#where-the-sources-come-from">Where the sources come from</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#staging">Staging</a></li>
+<li><a class="reference internal" href="#staging">Staging</a><ul>
+<li><a class="reference internal" href="#reaction-diffusion-implemented-2026-11-13">Reaction-diffusion (implemented 2026-11-13)</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#fidelity-as-a-length-approved-and-applied-2026-11-13">Fidelity as a length (approved and applied 2026-11-13)</a></li>
 <li><a class="reference internal" href="#naming">Naming</a></li>
 <li><a class="reference internal" href="#open-questions">Open questions</a></li>
