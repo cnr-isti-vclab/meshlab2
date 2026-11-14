@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 416 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 417 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="filter-add-noise-to-vertex-color">
 <span id="add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#filter-add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -491,6 +491,48 @@ Red, Green, Blue and Alpha channels may be defined specifying a function in thei
 <li><p><strong>b</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for blue output in range [0, 255].</p></li>
 <li><p><strong>a</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for alpha output in range [0, 255].</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-compute-mesh-ambient-occlusion">
+<span id="compute-mesh-ambient-occlusion"></span><h2>Compute Mesh Ambient Occlusion<a class="headerlink" href="#filter-compute-mesh-ambient-occlusion" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.embree</p>
+<p>Computes cosine-weighted ambient visibility of a surface mesh, per face and per vertex, and shades it as a gray vertex color.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.compute_mesh_ambient_occlusion">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_mesh_ambient_occlusion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_mesh_ambient_occlusion" title="Link to this definition">¶</a></dt>
+<dd><p>Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored per face, and each vertex then takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written (replacing any they held); a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute <code class="docutils literal notranslate"><span class="pre">BentNormal</span></code>. By default directions cover the sphere uniformly. <strong>Directional Bias</strong> replaces a fraction of them with directions inside the cone defined by <strong>Lighting Direction</strong> and <strong>Cone Half-Angle</strong>: <code class="docutils literal notranslate"><span class="pre">0</span></code> is fully uniform ambient illumination and <code class="docutils literal notranslate"><span class="pre">1</span></code> uses only the cone. More rays improve angular sampling at greater cost. The per-vertex value is also written as a gray vertex color, replacing any vertex color the mesh had: black is fully occluded and white is the most exposed vertex, so the gray keeps the contrast the values actually have, and the view switches to it. For a layer without faces use <em>Compute Point Cloud Ambient Occlusion</em>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of lighting directions tested at each face barycenter.</p></li>
+<li><p><strong>directional_bias</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.</p></li>
+<li><p><strong>cone_direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Axis of the directionally biased lighting cone.</p></li>
+<li><p><strong>cone_half_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Half-angle in degrees of the directionally biased lighting cone.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-compute-point-cloud-ambient-occlusion">
+<span id="compute-point-cloud-ambient-occlusion"></span><h2>Compute Point Cloud Ambient Occlusion<a class="headerlink" href="#filter-compute-point-cloud-ambient-occlusion" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.embree</p>
+<p>Computes point-cloud visibility against a surface occluder, and shades it as a gray vertex color.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.compute_point_cloud_ambient_occlusion">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_point_cloud_ambient_occlusion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_point_cloud_ambient_occlusion" title="Link to this definition">¶</a></dt>
+<dd><p>Traces rays from every point of the current point-cloud layer against a separate <strong>Occluder Mesh</strong>, using Intel Embree. The result is stored in vertex quality; a larger value means that the point is more exposed. Layer transforms are respected, and the average direction of escaping rays is stored in the per-vertex custom attribute <code class="docutils literal notranslate"><span class="pre">BentNormal</span></code>. <strong>Normal Source</strong> selects the meaning of the measurement:<ul><li><b>Point cloud normals</b> computes classical cosine-weighted hemisphere visibility around each existing point normal. Every point must have a valid normal.</li><li><b>Closest occluder surface</b> uses the geometric normal of the nearest occluder triangle. This is useful when point normals are absent or noisy and the points sample that surface; it assumes that the occluder orientation is meaningful.</li><li><b>No normal (spherical occlusion)</b> tests all sampled directions with equal weight. With <b>Directional Bias</b> set to <code>0</code>, this is orientation-independent full-sphere accessibility: enclosed points have low values and exposed points have high values. It is not classical hemisphere ambient occlusion. A non-zero directional bias instead measures accessibility under the selected directional distribution.</li></ul>By default directions cover the sphere uniformly. <strong>Directional Bias</strong> replaces a fraction of them with directions inside the cone defined by <strong>Lighting Direction</strong> and <strong>Cone Half-Angle</strong>: <code class="docutils literal notranslate"><span class="pre">0</span></code> is fully uniform and <code class="docutils literal notranslate"><span class="pre">1</span></code> uses only the cone. More rays improve angular sampling at greater cost. The value is also written as a gray vertex color, replacing any the points had: black is fully occluded and white is the most exposed point, and the view switches to it.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>occluder_mesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — Surface mesh tested by rays from the current point cloud.</p></li>
+<li><p><strong>normal_source</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">closest_occluder_surface</span></code>) — Selects an existing point normal, the closest occluder triangle normal, or orientation-independent spherical visibility.</p></li>
+<li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of visibility directions tested at each point.</p></li>
+<li><p><strong>directional_bias</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.</p></li>
+<li><p><strong>cone_direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Axis of the directionally biased lighting cone.</p></li>
+<li><p><strong>cone_half_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Half-angle in degrees of the directionally biased lighting cone.</p></li>
 </ul>
 </dd></dl>
 
@@ -1729,26 +1771,6 @@ Insert three function each one for quality of the three vertex of a face</p>
 
 <hr class="docutils" />
 </section>
-<section id="filter-compute-mesh-ambient-occlusion">
-<span id="compute-mesh-ambient-occlusion"></span><h2>Compute Mesh Ambient Occlusion<a class="headerlink" href="#filter-compute-mesh-ambient-occlusion" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
-<p><strong>Plugin:</strong> meshlab2.filter.embree</p>
-<p>Computes cosine-weighted ambient visibility of a surface mesh, per face and per vertex.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="meshlab.ms.compute_mesh_ambient_occlusion">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_mesh_ambient_occlusion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_mesh_ambient_occlusion" title="Link to this definition">¶</a></dt>
-<dd><p>Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored per face, and each vertex then takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written (replacing any they held); a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute <code class="docutils literal notranslate"><span class="pre">BentNormal</span></code>. By default directions cover the sphere uniformly. <strong>Directional Bias</strong> replaces a fraction of them with directions inside the cone defined by <strong>Lighting Direction</strong> and <strong>Cone Half-Angle</strong>: <code class="docutils literal notranslate"><span class="pre">0</span></code> is fully uniform ambient illumination and <code class="docutils literal notranslate"><span class="pre">1</span></code> uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; the view switches to showing the per-face scalar after completion. For a layer without faces use <em>Compute Point Cloud Ambient Occlusion</em>.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of lighting directions tested at each face barycenter.</p></li>
-<li><p><strong>directional_bias</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.</p></li>
-<li><p><strong>cone_direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Axis of the directionally biased lighting cone.</p></li>
-<li><p><strong>cone_half_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Half-angle in degrees of the directionally biased lighting cone.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
 <section id="filter-compute-obscurance">
 <span id="compute-obscurance"></span><h2>Compute Obscurance<a class="headerlink" href="#filter-compute-obscurance" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
@@ -1766,28 +1788,6 @@ Insert three function each one for quality of the three vertex of a face</p>
 <ul class="simple">
 <li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of rays shot from each face barycenter.</p></li>
 <li><p><strong>tau</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.1</span></code>) — Spatial decay factor used in obscurance accumulation.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="filter-compute-point-cloud-ambient-occlusion">
-<span id="compute-point-cloud-ambient-occlusion"></span><h2>Compute Point Cloud Ambient Occlusion<a class="headerlink" href="#filter-compute-point-cloud-ambient-occlusion" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
-<p><strong>Plugin:</strong> meshlab2.filter.embree</p>
-<p>Computes point-cloud visibility against a surface occluder.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="meshlab.ms.compute_point_cloud_ambient_occlusion">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_point_cloud_ambient_occlusion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_point_cloud_ambient_occlusion" title="Link to this definition">¶</a></dt>
-<dd><p>Traces rays from every point of the current point-cloud layer against a separate <strong>Occluder Mesh</strong>, using Intel Embree. The result is stored in vertex quality; a larger value means that the point is more exposed. Layer transforms are respected, and the average direction of escaping rays is stored in the per-vertex custom attribute <code class="docutils literal notranslate"><span class="pre">BentNormal</span></code>. <strong>Normal Source</strong> selects the meaning of the measurement:<ul><li><b>Point cloud normals</b> computes classical cosine-weighted hemisphere visibility around each existing point normal. Every point must have a valid normal.</li><li><b>Closest occluder surface</b> uses the geometric normal of the nearest occluder triangle. This is useful when point normals are absent or noisy and the points sample that surface; it assumes that the occluder orientation is meaningful.</li><li><b>No normal (spherical occlusion)</b> tests all sampled directions with equal weight. With <b>Directional Bias</b> set to <code>0</code>, this is orientation-independent full-sphere accessibility: enclosed points have low values and exposed points have high values. It is not classical hemisphere ambient occlusion. A non-zero directional bias instead measures accessibility under the selected directional distribution.</li></ul>By default directions cover the sphere uniformly. <strong>Directional Bias</strong> replaces a fraction of them with directions inside the cone defined by <strong>Lighting Direction</strong> and <strong>Cone Half-Angle</strong>: <code class="docutils literal notranslate"><span class="pre">0</span></code> is fully uniform and <code class="docutils literal notranslate"><span class="pre">1</span></code> uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; MeshLab switches to vertex-quality visualization after completion.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>occluder_mesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — Surface mesh tested by rays from the current point cloud.</p></li>
-<li><p><strong>normal_source</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">closest_occluder_surface</span></code>) — Selects an existing point normal, the closest occluder triangle normal, or orientation-independent spherical visibility.</p></li>
-<li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of visibility directions tested at each point.</p></li>
-<li><p><strong>directional_bias</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.</p></li>
-<li><p><strong>cone_direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Axis of the directionally biased lighting cone.</p></li>
-<li><p><strong>cone_half_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Half-angle in degrees of the directionally biased lighting cone.</p></li>
 </ul>
 </dd></dl>
 
@@ -9120,7 +9120,7 @@ Angle between face normal is considered signed according to convexity/concavity.
 <dt class="sig sig-object py" id="meshlab.ms.remove_textures">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remove_textures</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.remove_textures" title="Link to this definition">¶</a></dt>
 <dd><p>Detaches textures from the current mesh – all of them, or the one chosen in <strong>Texture</strong>. The image files on disk are left alone.</p>
-<p>Removing <strong>all</strong> the textures takes the images and the materials that refer to them, so that the mesh is drawn and saved untextured. The texture coordinates stay, so that <em>Set Texture</em> can give it another texture; <strong>Remove texture coordinates</strong> drops them as well, per wedge and per vertex, when the parametrization itself is not wanted any more.</p>
+<p>Removing <strong>all</strong> the textures takes the images and the materials that refer to them, so that the mesh is drawn and saved untextured. The texture coordinates stay, so that <em>Set Dummy Texture</em> or <em>Set Texture from File</em> can give it another texture; <strong>Remove texture coordinates</strong> drops them as well, per wedge and per vertex, when the parametrization itself is not wanted any more.</p>
 <p>Removing <strong>one</strong> texture takes that image, and the materials stop using it. A material left with no image at all goes too: the faces that used it become untextured, and every other face keeps the texture it had. A material that keeps another image – a glTF one losing its normal map, say – stays, and so do its faces.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -9150,22 +9150,37 @@ Angle between face normal is considered signed according to convexity/concavity.
 
 <hr class="docutils" />
 </section>
-<section id="filter-set-texture">
-<span id="set-texture"></span><h2>Set Texture<a class="headerlink" href="#filter-set-texture" title="Link to this heading">¶</a></h2>
+<section id="filter-set-dummy-texture">
+<span id="set-dummy-texture"></span><h2>Set Dummy Texture<a class="headerlink" href="#filter-set-dummy-texture" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.texture</p>
-<p>Associate an image or generated dummy texture with the current mesh UV coordinates.</p>
+<p>Give the current mesh a generated checkerboard or grid texture, to show its UV parametrization.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="meshlab.ms.set_texture">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">set_texture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.set_texture" title="Link to this definition">¶</a></dt>
-<dd><p>Associates one texture with the current mesh UV parametrization, replacing its existing texture associations. By default, the filter generates a checkerboard that makes UV scale and distortion immediately visible. Disable <strong>Use dummy texture</strong> to select an existing image file instead.</p>
+<dt class="sig sig-object py" id="meshlab.ms.set_dummy_texture">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">set_dummy_texture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.set_dummy_texture" title="Link to this definition">¶</a></dt>
+<dd><p>Generates a square test image and makes it the only texture of the current mesh, replacing the textures it had. A checkerboard or a grid makes the scale and distortion of the UV parametrization visible at a glance; the UV grid draws the lines along U in red and those along V in blue, so the two directions can be told apart. The mesh needs texture coordinates, per wedge or per vertex. To use an image of your own, see <em>Set Texture from File</em>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>use_dummy_texture</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If checked, generate a dummy texture instead of loading an image. Disable it to select an image using ‘Texture file’.</p></li>
-<li><p><strong>textName</strong> (<em>fileopen</em>, default: ``) — Sets the given input image as unique texture of the mesh.</p></li>
 <li><p><strong>dummy_img_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">512</span></code>) — The side of the dummy texture, which is square, in texels.</p></li>
 <li><p><strong>dummy_check_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Size in pixel of the checkerboard or grid cell of the dummy texture.</p></li>
 <li><p><strong>dummy_type</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">checkerboard</span></code>) — Choose between a checkerboard, a line grid, and a UV grid whose lines along U are red and along V blue.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-set-texture-from-file">
+<span id="set-texture-from-file"></span><h2>Set Texture from File<a class="headerlink" href="#filter-set-texture-from-file" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.texture</p>
+<p>Make an image file the texture of the current mesh, mapped by its UV coordinates.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.set_texture_from_file">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">set_texture_from_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.set_texture_from_file" title="Link to this definition">¶</a></dt>
+<dd><p>Loads an image file and makes it the only texture of the current mesh, replacing the textures it had. The mesh needs texture coordinates, per wedge or per vertex. To make a test pattern instead, see <em>Set Dummy Texture</em>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>textureFile</strong> (<em>fileopen</em>, default: ``) — The image that becomes the only texture of the mesh.</p></li>
 </ul>
 </dd></dl>
 
@@ -9859,6 +9874,14 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <li><a class="reference internal" href="#meshlab.ms.compute_face_color_by_expression"><code class="docutils literal notranslate"><span class="pre">ms.compute_face_color_by_expression()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#filter-compute-mesh-ambient-occlusion">Compute Mesh Ambient Occlusion</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.compute_mesh_ambient_occlusion"><code class="docutils literal notranslate"><span class="pre">ms.compute_mesh_ambient_occlusion()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-compute-point-cloud-ambient-occlusion">Compute Point Cloud Ambient Occlusion</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.compute_point_cloud_ambient_occlusion"><code class="docutils literal notranslate"><span class="pre">ms.compute_point_cloud_ambient_occlusion()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#filter-compute-vertex-color-by-expression">Compute Vertex Color by Expression</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.compute_vertex_color_by_expression"><code class="docutils literal notranslate"><span class="pre">ms.compute_vertex_color_by_expression()</span></code></a></li>
 </ul>
@@ -10087,16 +10110,8 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <li><a class="reference internal" href="#meshlab.ms.compute_heat_geodesic_distance_from_selection_vcglib"><code class="docutils literal notranslate"><span class="pre">ms.compute_heat_geodesic_distance_from_selection_vcglib()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#filter-compute-mesh-ambient-occlusion">Compute Mesh Ambient Occlusion</a><ul>
-<li><a class="reference internal" href="#meshlab.ms.compute_mesh_ambient_occlusion"><code class="docutils literal notranslate"><span class="pre">ms.compute_mesh_ambient_occlusion()</span></code></a></li>
-</ul>
-</li>
 <li><a class="reference internal" href="#filter-compute-obscurance">Compute Obscurance</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.compute_obscurance"><code class="docutils literal notranslate"><span class="pre">ms.compute_obscurance()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#filter-compute-point-cloud-ambient-occlusion">Compute Point Cloud Ambient Occlusion</a><ul>
-<li><a class="reference internal" href="#meshlab.ms.compute_point_cloud_ambient_occlusion"><code class="docutils literal notranslate"><span class="pre">ms.compute_point_cloud_ambient_occlusion()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#filter-compute-shape-diameter-function">Compute Shape Diameter Function</a><ul>
@@ -11367,8 +11382,12 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <li><a class="reference internal" href="#meshlab.ms.rename_texture"><code class="docutils literal notranslate"><span class="pre">ms.rename_texture()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#filter-set-texture">Set Texture</a><ul>
-<li><a class="reference internal" href="#meshlab.ms.set_texture"><code class="docutils literal notranslate"><span class="pre">ms.set_texture()</span></code></a></li>
+<li><a class="reference internal" href="#filter-set-dummy-texture">Set Dummy Texture</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.set_dummy_texture"><code class="docutils literal notranslate"><span class="pre">ms.set_dummy_texture()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-set-texture-from-file">Set Texture from File</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.set_texture_from_file"><code class="docutils literal notranslate"><span class="pre">ms.set_texture_from_file()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#filter-convert-object-space-normal-map-to-tangent-space">Convert Object-Space Normal Map to Tangent Space</a><ul>

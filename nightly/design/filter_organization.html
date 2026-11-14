@@ -423,7 +423,11 @@ both redundant and <strong>destructive</strong> — it silently overwrites any c
 <td><p><em>Colorize by vertex/face Quality</em></p></td>
 <td><p><strong>Correct as-is</strong> — these are <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code> filters by definition.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Colorizing a newly created layer</p></td>
+<tr class="row-odd"><td><p>Color is the main use of the scalar</p></td>
+<td><p><em>Compute Mesh Ambient Occlusion</em>, <em>Compute Point Cloud Ambient Occlusion</em></p></td>
+<td><p><strong>Reversed 2026-11-14.</strong> Ambient occlusion is wanted as shading far more often than as a number, so both are <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code> first and <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> second, write the value as a gray vertex color (0 is black, the largest value white) and declare <code class="docutils literal notranslate"><span class="pre">VC</span></code> in <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code>. They ask for the <code class="docutils literal notranslate"><span class="pre">VertexColor</span></code> visualization hint. <em>Compute Obscurance</em> stays a pure scalar.</p></td>
+</tr>
+<tr class="row-even"><td><p>Colorizing a newly created layer</p></td>
 <td><p><em>Sample Surface by Voronoi Relaxation</em> / <em>Sample Volume</em> volume meshes</p></td>
 <td><p><strong>Acceptable</strong> — writes to a new layer, destroys nothing. Low priority.</p></td>
 </tr>

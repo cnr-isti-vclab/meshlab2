@@ -1,0 +1,1220 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>Framework review: rendering, undo, Qt integration (2026-11-14) - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="texture_metrics.html">Texture and UV measures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="_sources/framework_review_2026-11.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="framework-review-rendering-undo-qt-integration-2026-11-14">
+<h1>Framework review: rendering, undo, Qt integration (2026-11-14)<a class="headerlink" href="#framework-review-rendering-undo-qt-integration-2026-11-14" title="Link to this heading">¶</a></h1>
+<p>A one-off assessment, written to be handed to an agent as a work list. It is <strong>not</strong> a
+<code class="docutils literal notranslate"><span class="pre">docs/design/</span></code> document: nothing here is settled design. Delete it once the items are
+done or rejected.</p>
+<p>Every item says how it was established:</p>
+<ul class="simple">
+<li><p><strong>measured</strong>: timed or sized on the Release wheel (<code class="docutils literal notranslate"><span class="pre">build-wheel</span></code>, <code class="docutils literal notranslate"><span class="pre">CMAKE_BUILD_TYPE=Release</span></code>)
+against <code class="docutils literal notranslate"><span class="pre">.reference/TestDataset</span></code>;</p></li>
+<li><p><strong>confirmed</strong>: read through the whole code path;</p></li>
+<li><p><strong>likely</strong>: read, but one link not verified. Check it before acting.</p></li>
+</ul>
+<p>Line estimates are <code class="docutils literal notranslate"><span class="pre">+added</span> <span class="pre">/</span> <span class="pre">-removed</span></code>. The house rule applies to every item: least code wins,
+reuse vcglib and existing mechanisms, and <strong>ask before anything marked “large”</strong>.</p>
+<hr class="docutils" />
+<section id="measurements-the-findings-rest-on">
+<h2>0. Measurements the findings rest on<a class="headerlink" href="#measurements-the-findings-rest-on" title="Link to this heading">¶</a></h2>
+<p>Release wheel, <code class="docutils literal notranslate"><span class="pre">QT_QPA_PLATFORM=offscreen</span></code>, RSS from <code class="docutils literal notranslate"><span class="pre">ps</span></code>. Each step is one <code class="docutils literal notranslate"><span class="pre">apply_filter</span></code>.
+That includes the undo capture, which is where most of the memory goes.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Mesh</p></th>
+<th class="head"><p>V / F</p></th>
+<th class="head"><p>Step</p></th>
+<th class="head"><p>Time</p></th>
+<th class="head"><p>RSS delta</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>RattoA_2M</p></td>
+<td><p>1.08M / 2.16M</p></td>
+<td><p>load</p></td>
+<td><p>189 ms</p></td>
+<td><p>+380 MiB</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p></p></td>
+<td><p>select_all / select_none / invert (delta undo)</p></td>
+<td><p>45-63 ms</p></td>
+<td><p>+3..6 MiB</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_mesh_color</span></code> (one per-mesh RGBA)</p></td>
+<td><p>64 ms</p></td>
+<td><p><strong>+171 MiB</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorize_vertices_by_perlin_noise</span></code> (color delta)</p></td>
+<td><p>66 ms</p></td>
+<td><p>+9 MiB</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">translate</span></code> (transform only), first after the color delta</p></td>
+<td><p>72 ms</p></td>
+<td><p><strong>+180 MiB</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">translate</span></code> again</p></td>
+<td><p>25 ms</p></td>
+<td><p>+1 MiB</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">duplicate_current_layer</span></code></p></td>
+<td><p>107 ms</p></td>
+<td><p>+499 MiB</p></td>
+</tr>
+<tr class="row-odd"><td><p>ESTE_PRINT</p></td>
+<td><p>4.97M / 9.94M</p></td>
+<td><p>load</p></td>
+<td><p>836 ms</p></td>
+<td><p>+1726 MiB</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_geometric_properties</span></code> (read-only)</p></td>
+<td><p>11.4 s</p></td>
+<td><p>+645 MiB</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p></p></td>
+<td><p>select_all, then <code class="docutils literal notranslate"><span class="pre">measure_geometric_properties</span></code> again</p></td>
+<td><p></p></td>
+<td><p><strong>+321 MiB</strong></p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p>select_none, then <code class="docutils literal notranslate"><span class="pre">translate</span></code></p></td>
+<td><p>244 ms</p></td>
+<td><p><strong>+533 MiB</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_mesh_color</span></code> twice</p></td>
+<td><p>~200 ms each</p></td>
+<td><p><strong>+762 MiB each</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>afrodite.mlp</p></td>
+<td><p>41 meshes, 30.6M F</p></td>
+<td><p>load project</p></td>
+<td><p>2.8 s</p></td>
+<td><p>+5.1 GiB</p></td>
+</tr>
+<tr class="row-odd"><td><p>2930Colmap</p></td>
+<td><p>2 meshes + 35 rasters (3840x2160)</p></td>
+<td><p>load project</p></td>
+<td><p>361 ms</p></td>
+<td><p>+600 MiB (no photos decoded yet)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>What the table shows:</p>
+<ul class="simple">
+<li><p><strong>Selection, color and scalar deltas work as designed</strong> (a few MiB).</p></li>
+<li><p><strong>Every other step costs a full deep copy of the mesh</strong> whenever the mesh’s identity key has
+moved since the last capture. That includes steps that change nothing in the geometry: a
+per-mesh color, a transform after a selection, a read-only measurement after a selection.
+See U1-U3.</p></li>
+</ul>
+<p>Undo/redo timing could not be measured from Python, because the bindings expose no <code class="docutils literal notranslate"><span class="pre">undo()</span></code>.
+Section U4 is from code reading. A 30-line <code class="docutils literal notranslate"><span class="pre">undo</span></code>/<code class="docutils literal notranslate"><span class="pre">redo</span></code>/<code class="docutils literal notranslate"><span class="pre">jump</span></code> binding would make these
+numbers measurable; it is worth adding only if the maintainer wants them in scripts.</p>
+</section>
+<hr class="docutils" />
+<section id="undo-system">
+<h2>1. Undo system<a class="headerlink" href="#undo-system" title="Link to this heading">¶</a></h2>
+<p>The tree model, node serials, geometry interning by <code class="docutils literal notranslate"><span class="pre">weak_ptr</span></code> and the memory accounting are
+sound. The costs are in what is captured and what is restored.</p>
+<section id="u1-a-selection-or-color-change-forces-the-next-full-step-to-deep-copy-the-mesh-measured-confirmed-high">
+<h3>U1. A selection or color change forces the next full step to deep-copy the mesh. Measured, confirmed. High.<a class="headerlink" href="#u1-a-selection-or-color-change-forces-the-next-full-step-to-deep-copy-the-mesh-measured-confirmed-high" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">captureUndoState()</span></code> interns geometry by <code class="docutils literal notranslate"><span class="pre">(meshId,</span> <span class="pre">geometryRevision,</span> <span class="pre">selectionRevision,</span> <span class="pre">materialRevision)</span></code> (<code class="docutils literal notranslate"><span class="pre">src/core/document_undo_state.cpp:46</span></code>, <code class="docutils literal notranslate"><span class="pre">documentundomanager.h:70-75</span></code>).</p>
+<ul class="simple">
+<li><p>A selection delta bumps <code class="docutils literal notranslate"><span class="pre">selectionRevision</span></code>.</p></li>
+<li><p>A color or scalar delta bumps <code class="docutils literal notranslate"><span class="pre">geometryRevision</span></code>.</p></li>
+</ul>
+<p>So the next full-snapshot step (a transform, a rename, a read-only filter: see U2) misses the
+cache and deep-copies the whole mesh: +533 MiB on ESTE for a <code class="docutils literal notranslate"><span class="pre">translate</span></code> after <code class="docutils literal notranslate"><span class="pre">select_none</span></code>.
+<code class="docutils literal notranslate"><span class="pre">pushStep</span></code> then stores that copy on the delta node (<code class="docutils literal notranslate"><span class="pre">documentundomanager.cpp:898</span></code>), so the delta
+saving lasts only until the next non-delta action.</p>
+<p><strong>Fix, smallest form (medium).</strong> Take selection out of the geometry identity:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">MeshSnapshot</span></code> gets a packed selection (<code class="docutils literal notranslate"><span class="pre">std::shared_ptr&lt;const</span> <span class="pre">std::vector&lt;uint32_t&gt;&gt;</span></code> per
+element kind, interned by <code class="docutils literal notranslate"><span class="pre">selectionRevision</span></code> exactly as geometry is by its key).</p></li>
+<li><p>The geometry key drops <code class="docutils literal notranslate"><span class="pre">selectionRevision</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">restoreUndoState</span></code> writes the bits back. <code class="docutils literal notranslate"><span class="pre">captureAttributeDelta</span></code>/<code class="docutils literal notranslate"><span class="pre">applyAttributeDelta</span></code> already
+pack and unpack selection bits, so reuse them.</p></li>
+</ul>
+<p>On ESTE that is 1.2 MiB per selection state instead of 533 MiB.</p>
+<p><strong>Fix, full form (large, ask first).</strong> Do the same for color and scalar: they need their own
+revision, <code class="docutils literal notranslate"><span class="pre">colorRevision</span></code>, instead of riding <code class="docutils literal notranslate"><span class="pre">geometryRevision</span></code>. Then every node is a full
+snapshot made of shared layers (geometry, selection, color, scalar), and the <code class="docutils literal notranslate"><span class="pre">Delta</span></code> node kind
+goes away. That removes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">beginDeltaStep</span></code>/<code class="docutils literal notranslate"><span class="pre">endDeltaStep</span></code>/<code class="docutils literal notranslate"><span class="pre">pushDeltaStep</span></code>;</p></li>
+<li><p>the delta branches in <code class="docutils literal notranslate"><span class="pre">undo()</span></code>/<code class="docutils literal notranslate"><span class="pre">redo()</span></code>/<code class="docutils literal notranslate"><span class="pre">endStep()</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">m_pendingDelta*</span></code>;</p></li>
+<li><p>the “delta nodes cannot become roots” special case in pruning (<code class="docutils literal notranslate"><span class="pre">documentundomanager.cpp:774-783</span></code>);</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code>→delta-kind table in <code class="docutils literal notranslate"><span class="pre">meshfilterpluginmanager.cpp:1056-1082</span></code>.</p></li>
+</ul>
+<p>Estimated net <strong>-150 lines</strong>. It also removes the hazard data_model.md records (“the descriptor
+is trusted completely”): a snapshot made of shared layers is correct whatever the descriptor
+says.</p>
+</section>
+<section id="u2-read-only-filters-still-capture-a-full-undo-state-measured-confirmed-high">
+<h3>U2. Read-only filters still capture a full undo state. Measured, confirmed. High.<a class="headerlink" href="#u2-read-only-filters-still-capture-a-full-undo-state-measured-confirmed-high" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">MeshFilterPluginManager::runFilter</span></code> always opens an undo step
+(<code class="docutils literal notranslate"><span class="pre">src/plugins/meshfilterpluginmanager.cpp:1097-1112</span></code>; the comment says this is on purpose,
+because nested operations collapse into it). <code class="docutils literal notranslate"><span class="pre">beginStep</span></code> captures a full <code class="docutils literal notranslate"><span class="pre">UndoState</span></code>
+(<code class="docutils literal notranslate"><span class="pre">documentundomanager.cpp:122</span></code>). After any selection or color change, that capture deep-copies
+the mesh: +321 MiB on ESTE for <code class="docutils literal notranslate"><span class="pre">measure_geometric_properties</span></code>, and the copy is then thrown away.</p>
+<p><strong>Fix (+15 / -0).</strong> Make the “before” capture lazy:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">beginStep</span></code> records only the label and script action.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Document</span></code> captures “before” the first time anything mutates inside the step. Hook it on the
+existing entry points: <code class="docutils literal notranslate"><span class="pre">markMesh*Changed</span></code>, <code class="docutils literal notranslate"><span class="pre">addMesh</span></code>, <code class="docutils literal notranslate"><span class="pre">removeMesh</span></code>, <code class="docutils literal notranslate"><span class="pre">setMeshTransform</span></code>, and
+the other mutators listed in data_model.md “APIs”.</p></li>
+<li><p>A filter that never mutates never captures.</p></li>
+</ul>
+<p>There is a cheaper partial fix: skip the capture when the descriptor’s <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> is empty
+<strong>and</strong> it creates no layer. But that again trusts the descriptor, so prefer the lazy capture.</p>
+</section>
+<section id="u3-set-mesh-color-deep-copies-the-mesh-and-rebuilds-every-gpu-buffer-to-change-one-rgba-measured-confirmed-medium">
+<h3>U3. <code class="docutils literal notranslate"><span class="pre">set_mesh_color</span></code> deep-copies the mesh and rebuilds every GPU buffer to change one RGBA. Measured, confirmed. Medium.<a class="headerlink" href="#u3-set-mesh-color-deep-copies-the-mesh-and-rebuilds-every-gpu-buffer-to-change-one-rgba-measured-confirmed-medium" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">set_mesh_color</span></code> declares no <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> and calls <code class="docutils literal notranslate"><span class="pre">markMeshGeometryChanged</span></code>
+(<code class="docutils literal notranslate"><span class="pre">plugins/filter_colorproc/colorprocfilterplugin.cpp:250</span></code>). That costs +762 MiB on ESTE per call,
+plus a full fill/wire/points rebuild.</p>
+<p>The renderer never reads that color from a buffer: <code class="docutils literal notranslate"><span class="pre">renderwidget_fill.cpp:122-128</span></code> reads
+<code class="docutils literal notranslate"><span class="pre">mesh.C()</span></code> into a uniform every frame.</p>
+<p><strong>Fix (+3 / -1).</strong></p>
+<ul class="simple">
+<li><p>Carry <code class="docutils literal notranslate"><span class="pre">mesh.C()</span></code> as cheap snapshot metadata. <code class="docutils literal notranslate"><span class="pre">MeshSnapshot</span></code> already copies <code class="docutils literal notranslate"><span class="pre">transform</span></code>, so add
+one <code class="docutils literal notranslate"><span class="pre">vcg::Color4b</span></code>, and have restore put it back.</p></li>
+<li><p>Have the filter bump nothing but a repaint.</p></li>
+</ul>
+<p>Audit the other per-mesh-only filters in <code class="docutils literal notranslate"><span class="pre">filter_colorproc</span></code> for the same pattern.</p>
+</section>
+<section id="u4-every-full-undo-redo-re-copies-every-mesh-and-drops-the-whole-gpu-cache-confirmed-by-reading-high-for-multi-layer-documents">
+<h3>U4. Every full undo/redo re-copies every mesh and drops the whole GPU cache. Confirmed by reading. High for multi-layer documents.<a class="headerlink" href="#u4-every-full-undo-redo-re-copies-every-mesh-and-drops-the-whole-gpu-cache-confirmed-by-reading-high-for-multi-layer-documents" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Document::restoreUndoState</span></code> (<code class="docutils literal notranslate"><span class="pre">src/core/document_undo_state.cpp:127-175</span></code>):</p>
+<ul class="simple">
+<li><p>erases every live mesh and <code class="docutils literal notranslate"><span class="pre">purgeMeshGpuResources</span></code> each one;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">deepCopyMesh</span></code>es <strong>every</strong> mesh out of the snapshot;</p></li>
+<li><p>then calls <code class="docutils literal notranslate"><span class="pre">clearAllGpuResources()</span></code>.</p></li>
+</ul>
+<p>Undoing a translate of one layer of afrodite (41 layers, 30.6M faces) therefore copies 30.6M
+faces. At the ~50 ms per M faces implied by <code class="docutils literal notranslate"><span class="pre">duplicate_current_layer</span></code> that is about 1.5 s. It
+then rebuilds every fill/wire/point buffer on the next frame.</p>
+<p>The rasters right below already do the right thing (<code class="docutils literal notranslate"><span class="pre">:185-208</span></code>): they keep a live entry whose
+id and revisions match the snapshot.</p>
+<p><strong>Fix (+20 / -15). Same pattern for meshes:</strong></p>
+<ul class="simple">
+<li><p>Keep a live <code class="docutils literal notranslate"><span class="pre">MeshEntry</span></code> whose <code class="docutils literal notranslate"><span class="pre">(meshId,</span> <span class="pre">geometryRevision,</span> <span class="pre">materialRevision,</span> <span class="pre">selectionRevision)</span></code> equals the snapshot’s. Update only its cheap metadata (transform, name,
+visible, …).</p></li>
+<li><p>Deep-copy only the meshes that differ.</p></li>
+<li><p>Delete the <code class="docutils literal notranslate"><span class="pre">clearAllGpuResources()</span></code> call and the per-mesh purge. The cache is keyed by
+revisions, and revisions are document-monotonic (data_model.md), so a changed mesh misses and
+rebuilds on its own. Purge only the <code class="docutils literal notranslate"><span class="pre">meshId</span></code>s absent from the restored state.</p></li>
+</ul>
+<p>This also makes the <code class="docutils literal notranslate"><span class="pre">meshAdded</span></code> storm of Q4 unnecessary for unchanged layers.</p>
+</section>
+<section id="u5-jumptonode-replays-every-intermediate-state-confirmed-medium">
+<h3>U5. <code class="docutils literal notranslate"><span class="pre">jumpToNode</span></code> replays every intermediate state. Confirmed. Medium.<a class="headerlink" href="#u5-jumptonode-replays-every-intermediate-state-confirmed-medium" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">jumpToNode</span></code> (<code class="docutils literal notranslate"><span class="pre">documentundomanager.cpp:329-430</span></code>) walks <code class="docutils literal notranslate"><span class="pre">undo()</span></code> up to the lowest common
+ancestor, then <code class="docutils literal notranslate"><span class="pre">redo()</span></code> down. Each step is a full <code class="docutils literal notranslate"><span class="pre">restoreUndoState</span></code>, so with U4 unfixed, a jump
+across k states makes k full document copies and k GPU-cache clears. The Action History click
+and <code class="docutils literal notranslate"><span class="pre">updateUndoNodeCameras</span></code> (which visits many states) both use it.</p>
+<p><strong>Fix (+30 / -45).</strong> Find the target’s nearest full-snapshot ancestor-or-self, restore it once,
+then apply the <code class="docutils literal notranslate"><span class="pre">afterAttributes</span></code> of the delta nodes between it and the target. Set
+<code class="docutils literal notranslate"><span class="pre">preferredChild</span></code> along the path as now. The debug-only <code class="docutils literal notranslate"><span class="pre">redoPreview</span></code> block (<code class="docutils literal notranslate"><span class="pre">:367-379</span></code>) goes
+away. After U1’s full form, every node is a snapshot and this collapses to one restore.</p>
+</section>
+<section id="u6-four-copies-of-the-tree-compaction-code-confirmed-low-risk-pure-deletion">
+<h3>U6. Four copies of the tree-compaction code. Confirmed. Low risk, pure deletion.<a class="headerlink" href="#u6-four-copies-of-the-tree-compaction-code-confirmed-low-risk-pure-deletion" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">makeRoot</span></code> (<code class="docutils literal notranslate"><span class="pre">:561-579</span></code>), <code class="docutils literal notranslate"><span class="pre">purgeBranch</span></code> (<code class="docutils literal notranslate"><span class="pre">:634-653</span></code>), <code class="docutils literal notranslate"><span class="pre">linearizeHistory</span></code> (<code class="docutils literal notranslate"><span class="pre">:686-703</span></code>) and
+<code class="docutils literal notranslate"><span class="pre">pruneTreeToLimit</span></code> (<code class="docutils literal notranslate"><span class="pre">:1066-1087</span></code>) each:</p>
+<ul class="simple">
+<li><p>build <code class="docutils literal notranslate"><span class="pre">std::map&lt;int,int&gt;</span> <span class="pre">remap</span></code>;</p></li>
+<li><p>move nodes, remap <code class="docutils literal notranslate"><span class="pre">parentId</span></code>/<code class="docutils literal notranslate"><span class="pre">children</span></code>/<code class="docutils literal notranslate"><span class="pre">preferredChild</span></code>.</p></li>
+</ul>
+<p><strong>Fix (+25 / -65).</strong> One helper:
+<code class="docutils literal notranslate"><span class="pre">void</span> <span class="pre">compact(const</span> <span class="pre">std::vector&lt;int&gt;</span> <span class="pre">&amp;keepSorted,</span> <span class="pre">int</span> <span class="pre">newRootOldId,</span> <span class="pre">int</span> <span class="pre">currentFallbackOldId)</span></code>.
+A <code class="docutils literal notranslate"><span class="pre">std::vector&lt;int&gt;</span></code> of size <code class="docutils literal notranslate"><span class="pre">m_undoNodes.size()</span></code> filled with -1 replaces the <code class="docutils literal notranslate"><span class="pre">std::map</span></code>.
+<code class="docutils literal notranslate"><span class="pre">stepsToRemove</span></code> in <code class="docutils literal notranslate"><span class="pre">pruneTreeToLimit</span></code> (<code class="docutils literal notranslate"><span class="pre">:1048</span></code>, <code class="docutils literal notranslate"><span class="pre">:1090</span></code>) is computed and never used.</p>
+</section>
+<section id="u7-memory-pruning-is-quadratic-confirmed-low-off-by-default">
+<h3>U7. Memory pruning is quadratic. Confirmed. Low (off by default).<a class="headerlink" href="#u7-memory-pruning-is-quadratic-confirmed-low-off-by-default" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">pruneToMemoryBudgetInternal</span></code> calls <code class="docutils literal notranslate"><span class="pre">memoryStats()</span></code> after every root advance (<code class="docutils literal notranslate"><span class="pre">:790</span></code>).
+<code class="docutils literal notranslate"><span class="pre">memoryStats()</span></code> walks every node and every image into <code class="docutils literal notranslate"><span class="pre">std::set</span></code>s. When the budget preference is
+on this is O(nodes²) after every step. Compute the bytes once, subtract what each <code class="docutils literal notranslate"><span class="pre">makeRoot</span></code>
+released, and re-measure only at the end.</p>
+</section>
+<section id="u8-debug-traces-left-in-release-confirmed-trivial">
+<h3>U8. Debug traces left in Release. Confirmed. Trivial.<a class="headerlink" href="#u8-debug-traces-left-in-release-confirmed-trivial" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">qDebug</span></code> runs in Release here: there is no <code class="docutils literal notranslate"><span class="pre">QT_NO_DEBUG_OUTPUT</span></code>. On every undo/redo/jump:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">[JUMP]</span></code>, <code class="docutils literal notranslate"><span class="pre">[UNDO]</span></code>, <code class="docutils literal notranslate"><span class="pre">[REDO]</span></code>, <code class="docutils literal notranslate"><span class="pre">[STATE</span> <span class="pre">SAVED]</span></code> (<code class="docutils literal notranslate"><span class="pre">documentundomanager.cpp:374,</span> <span class="pre">440,</span> <span class="pre">483,</span> <span class="pre">924-928,</span> <span class="pre">973-978</span></code>);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">[STATE</span> <span class="pre">RESTORE]</span></code>, which <strong>dumps the whole tree, one line per node</strong>
+(<code class="docutils literal notranslate"><span class="pre">document_undo_state.cpp:90-102</span></code>).</p></li>
+</ul>
+<p>The <code class="docutils literal notranslate"><span class="pre">QElapsedTimer</span></code> blocks that feed <code class="docutils literal notranslate"><span class="pre">writeLog(...,</span> <span class="pre">Debug)</span></code> in <code class="docutils literal notranslate"><span class="pre">restoreUndoState</span></code> are fine.
+<strong>Remove the 7 <code class="docutils literal notranslate"><span class="pre">qDebug</span></code> blocks (-35 lines).</strong></p>
+<p>Also stale wording:</p>
+<ul class="simple">
+<li><p>The log says “(selection delta)” for color and scalar deltas too (<code class="docutils literal notranslate"><span class="pre">:451</span></code>, <code class="docutils literal notranslate"><span class="pre">:494</span></code>).</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">selectionOnlyUndo</span></code> variable (<code class="docutils literal notranslate"><span class="pre">meshfilterpluginmanager.cpp:1082</span></code>) covers color and scalar.</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="rendering-system">
+<h2>2. Rendering system<a class="headerlink" href="#rendering-system" title="Link to this heading">¶</a></h2>
+<p>The request → plan → execute split, the revision-keyed shared cache, the dynamic-offset UBO
+allocators and the clip-space discipline are good architecture. Most findings are about doing
+work every frame that should be done once, and about one QRhi API misuse.</p>
+<section id="r1-uniform-uploads-call-qrhicommandbuffer-resourceupdate-inside-an-open-render-pass-confirmed-in-code-qt-side-effect-likely-high-correctness">
+<h3>R1. Uniform uploads call <code class="docutils literal notranslate"><span class="pre">QRhiCommandBuffer::resourceUpdate</span></code> inside an open render pass. Confirmed in code; Qt-side effect likely. High (correctness).<a class="headerlink" href="#r1-uniform-uploads-call-qrhicommandbuffer-resourceupdate-inside-an-open-render-pass-confirmed-in-code-qt-side-effect-likely-high-correctness" title="Link to this heading">¶</a></h3>
+<p>Qt’s documentation for <code class="docutils literal notranslate"><span class="pre">resourceUpdate</span></code>: <em>“Cannot be called inside a pass.”</em> Yet:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">uploadMainUbuf</span></code> (<code class="docutils literal notranslate"><span class="pre">renderwidget_render.cpp:219-221</span></code>) does it once per draw item;</p></li>
+<li><p>so do the decorator, fat-decorator and selection uploads (<code class="docutils literal notranslate"><span class="pre">renderwidget_scene_passes.cpp:114-117,</span> <span class="pre">144-147,</span> <span class="pre">221-224</span></code>) and the solid-cut cap (<code class="docutils literal notranslate"><span class="pre">:341-344</span></code>);</p></li>
+<li><p>all of them run between <code class="docutils literal notranslate"><span class="pre">beginPass</span></code> (<code class="docutils literal notranslate"><span class="pre">renderwidget_render.cpp:716</span></code>) and <code class="docutils literal notranslate"><span class="pre">endPass</span></code> (<code class="docutils literal notranslate"><span class="pre">:844</span></code>).</p></li>
+</ul>
+<p>It works today because Qt’s backends happen to flush dynamic-buffer writes lazily. A Vulkan or
+D3D debug build of Qt asserts on it, and it creates one <code class="docutils literal notranslate"><span class="pre">QRhiResourceUpdateBatch</span></code> per draw.</p>
+<p><strong>Fix (+40 / -60).</strong> The allocators already hand out disjoint offsets, so:</p>
+<ul class="simple">
+<li><p>During plan execution, write each slice into a per-frame CPU <code class="docutils literal notranslate"><span class="pre">std::vector&lt;float&gt;</span></code> per UBO.</p></li>
+<li><p>Issue one <code class="docutils literal notranslate"><span class="pre">updateDynamicBuffer</span></code> per UBO into the batch <code class="docutils literal notranslate"><span class="pre">u</span></code> that is already passed to
+<code class="docutils literal notranslate"><span class="pre">beginPass</span></code>.</p></li>
+</ul>
+<p>That means splitting each <code class="docutils literal notranslate"><span class="pre">render*Items</span></code> into “fill uniforms” (before the pass) and “draw” (in
+the pass). Equivalently, run the plan twice with a flag. Each <code class="docutils literal notranslate"><span class="pre">upload*</span></code> lambda loses its own
+batch boilerplate.</p>
+</section>
+<section id="r2-the-3d-view-decodes-every-raster-photo-to-draw-a-frustum-glyph-confirmed-high-for-photogrammetry-projects">
+<h3>R2. The 3D view decodes every raster photo to draw a frustum glyph. Confirmed. High for photogrammetry projects.<a class="headerlink" href="#r2-the-3d-view-decodes-every-raster-photo-to-draw-a-frustum-glyph-confirmed-high-for-photogrammetry-projects" title="Link to this heading">¶</a></h3>
+<p>In <code class="docutils literal notranslate"><span class="pre">Scene3D</span></code>, <code class="docutils literal notranslate"><span class="pre">collectRenderFramePassRequests</span></code> calls <code class="docutils literal notranslate"><span class="pre">Document::ensureRasterPlaneImage</span></code> for
+every visible raster and drops rasters whose image is null (<code class="docutils literal notranslate"><span class="pre">renderwidget_frame_plan.cpp:75-85</span></code>).
+<code class="docutils literal notranslate"><span class="pre">ensureRaster</span></code> does the same (<code class="docutils literal notranslate"><span class="pre">renderwidget_raster.cpp:275-281</span></code>). Yet rendering.md says the 3D
+view draws only “small line frustums” and “the raster image itself is not pasted into the 3D
+scene”.</p>
+<p>On 2930Colmap the first 3D frame therefore decodes, and lens-undistorts
+(<code class="docutils literal notranslate"><span class="pre">document_layers.cpp:850-853</span></code>), all 35 photos at 3840x2160. That is about 33 MB each in RGBA8,
+<strong>≈1.1 GiB</strong>, to draw 35 line boxes. The project loads in 361 ms precisely because nothing is
+decoded yet.</p>
+<p><strong>Fix (-10).</strong> In the Scene3D branch, test <code class="docutils literal notranslate"><span class="pre">entry.shot.isValid()</span></code> only. Decode only in
+<code class="docutils literal notranslate"><span class="pre">RasterImage</span></code> mode and only for the current raster.</p>
+</section>
+<section id="r3-a-raster-backplate-is-converted-to-rgba8888-on-every-frame-confirmed-medium">
+<h3>R3. A raster backplate is converted to RGBA8888 on every frame. Confirmed. Medium.<a class="headerlink" href="#r3-a-raster-backplate-is-converted-to-rgba8888-on-every-frame-confirmed-medium" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">renderwidget_raster.cpp:336</span></code> runs <code class="docutils literal notranslate"><span class="pre">plane-&gt;image.convertToFormat(QImage::Format_RGBA8888)</span></code>
+<strong>before</strong> the <code class="docutils literal notranslate"><span class="pre">needsTexture</span></code> test (<code class="docutils literal notranslate"><span class="pre">:340-344</span></code>). A PNG decodes to <code class="docutils literal notranslate"><span class="pre">RGB32</span></code>/<code class="docutils literal notranslate"><span class="pre">ARGB32</span></code>, so in raster
+mode every frame converts and copies the full photo (33 MB at 4K) and then discards it.</p>
+<p><strong>Fix (±0).</strong> Test <code class="docutils literal notranslate"><span class="pre">needsTexture</span></code> against <code class="docutils literal notranslate"><span class="pre">plane-&gt;image.size()</span></code>, and convert only inside the
+<code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">(needsTexture)</span></code> block.</p>
+</section>
+<section id="r4-selection-overlay-rebuild-reserves-for-the-whole-mesh-confirmed-medium">
+<h3>R4. Selection overlay rebuild reserves for the whole mesh. Confirmed. Medium.<a class="headerlink" href="#r4-selection-overlay-rebuild-reserves-for-the-whole-mesh-confirmed-medium" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.cpp:1378</span></code>: <code class="docutils literal notranslate"><span class="pre">selectedFaceTriangles.reserve(FN</span> <span class="pre">*</span> <span class="pre">9)</span></code> floats, plus
+<code class="docutils literal notranslate"><span class="pre">VN</span> <span class="pre">*</span> <span class="pre">3</span></code> (<code class="docutils literal notranslate"><span class="pre">:1410</span></code>), in a serial loop, on every <code class="docutils literal notranslate"><span class="pre">selectionRevision</span></code> change. On ESTE that is a
+<strong>358 MiB transient allocation</strong> for each brush stroke or rubber-band, even when one face is
+selected.</p>
+<p><strong>Fix (+3 / -2).</strong> Count the selected faces first, in the same parallel pass, or <code class="docutils literal notranslate"><span class="pre">push_back</span></code>
+with no reserve. Better and less memory: upload a <code class="docutils literal notranslate"><span class="pre">uint32</span></code> index list of the selected faces and
+draw it against the existing indexed fill vertex buffer: 12 B per selected face instead of 36,
+and no position copy. Medium.</p>
+</section>
+<section id="r5-unused-fill-and-point-variants-are-never-released-confirmed-medium">
+<h3>R5. Unused fill and point variants are never released. Confirmed. Medium.<a class="headerlink" href="#r5-unused-fill-and-point-variants-are-never-released-confirmed-medium" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">MeshGpu</span></code> holds <code class="docutils literal notranslate"><span class="pre">std::array&lt;FillVariantGpu,</span> <span class="pre">6&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">std::array&lt;PointsVariantGpu,</span> <span class="pre">3&gt;</span></code>
+(<code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.cpp:219-228</span></code>). Switching a layer’s color source from per-vertex to
+scalar to texture leaves the old variants’ buffers alive until the mesh is purged. After a
+geometry edit, the variants not on screen keep the <strong>previous revision’s</strong> buffers forever.</p>
+<p>Expanded fill uses 52 B per corner (<code class="docutils literal notranslate"><span class="pre">kFillVertexStrideFloats</span> <span class="pre">=</span> <span class="pre">13</span></code>). On ESTE one expanded variant
+is ~1.55 GB, an indexed one ~0.38 GB.</p>
+<p><strong>Fix (+8).</strong> In <code class="docutils literal notranslate"><span class="pre">ensureMeshResources</span></code>, after rebuilding, release every other variant of the
+same mesh whose <code class="docutils literal notranslate"><span class="pre">geometryRevision</span></code>/<code class="docutils literal notranslate"><span class="pre">materialRevision</span></code> differs from the source’s. An LRU is not
+needed.</p>
+</section>
+<section id="r6-the-quality-range-is-baked-into-vertex-buffers-with-four-copies-of-the-invalidation-logic-confirmed-medium">
+<h3>R6. The quality range is baked into vertex buffers, with four copies of the invalidation logic. Confirmed. Medium.<a class="headerlink" href="#r6-the-quality-range-is-baked-into-vertex-buffers-with-four-copies-of-the-invalidation-logic-confirmed-medium" title="Link to this heading">¶</a></h3>
+<p>Normalized quality is written into the buffers. So changing fixed min/max, center-on-zero or
+percentile crop <strong>rebuilds the whole fill or point buffer</strong>: 10M faces per slider drag. The
+“same range?” test exists four times:</p>
+<ul class="simple">
+<li><p>fill variant (<code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.cpp:284-317</span></code>);</p></li>
+<li><p>point variant (<code class="docutils literal notranslate"><span class="pre">:1074-1105</span></code>);</p></li>
+<li><p>UV cache (<code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp:205-240</span></code>);</p></li>
+<li><p>histogram cache (<code class="docutils literal notranslate"><span class="pre">renderwidget.cpp:3165-3195</span></code>).</p></li>
+</ul>
+<p>The range computation itself is already shared (<code class="docutils literal notranslate"><span class="pre">qualityrange.h</span></code>).</p>
+<p><strong>Fix (+25 / -90).</strong></p>
+<ul class="simple">
+<li><p>Store raw quality in the buffer.</p></li>
+<li><p>Compute the automatic range once per <code class="docutils literal notranslate"><span class="pre">(meshId,</span> <span class="pre">geometryRevision,</span> <span class="pre">centerOnZero,</span> <span class="pre">crop)</span></code> in one
+small cache next to the histogram.</p></li>
+<li><p>Pass <code class="docutils literal notranslate"><span class="pre">(min,</span> <span class="pre">max)</span></code> as two floats in the per-mesh UBO slice; the shader normalizes.</p></li>
+</ul>
+<p>The <code class="docutils literal notranslate"><span class="pre">quality*</span></code> fields leave <code class="docutils literal notranslate"><span class="pre">MeshSource</span></code>, <code class="docutils literal notranslate"><span class="pre">FillVariantGpu</span></code>, <code class="docutils literal notranslate"><span class="pre">PointsVariantGpu</span></code>, <code class="docutils literal notranslate"><span class="pre">UvMeshGpu</span></code> and
+<code class="docutils literal notranslate"><span class="pre">Document::ensureMeshGpuResources</span></code>’s signature.</p>
+</section>
+<section id="r7-document-is-a-pass-through-layer-for-the-gpu-cache-confirmed-low-risk-pure-deletion">
+<h3>R7. Document is a pass-through layer for the GPU cache. Confirmed. Low risk, pure deletion.<a class="headerlink" href="#r7-document-is-a-pass-through-layer-for-the-gpu-cache-confirmed-low-risk-pure-deletion" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">src/core/document_gpu.cpp</span></code> (186 lines) holds:</p>
+<ul class="simple">
+<li><p>eight <code class="docutils literal notranslate"><span class="pre">*PassGpuView</span></code> methods that each check the index and forward to the cache by <code class="docutils literal notranslate"><span class="pre">meshId</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ensureMeshGpuResources</span></code>, which takes <strong>19 positional arguments, nine of them <code class="docutils literal notranslate"><span class="pre">bool</span></code></strong>, and
+repacks them into <code class="docutils literal notranslate"><span class="pre">MeshSource</span></code>.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">document.h:176-186</span></code> re-exports the cache’s types as <code class="docutils literal notranslate"><span class="pre">Document::FillGpuVariant</span></code> and friends.
+<code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code> then <code class="docutils literal notranslate"><span class="pre">static_cast</span></code>s between the two names (<code class="docutils literal notranslate"><span class="pre">renderwidget_selection.cpp:88-91</span></code>).</p>
+<p><strong>Fix (+30 / -200).</strong></p>
+<ul class="simple">
+<li><p>Give <code class="docutils literal notranslate"><span class="pre">Document</span></code> one <code class="docutils literal notranslate"><span class="pre">MeshGpuResourceCache</span> <span class="pre">&amp;gpuCache()</span></code> and a <code class="docutils literal notranslate"><span class="pre">MeshSource</span> <span class="pre">meshGpuSource(int</span> <span class="pre">index)</span></code> helper.</p></li>
+<li><p>Replace the bool list with a <code class="docutils literal notranslate"><span class="pre">struct</span> <span class="pre">MeshGpuNeeds</span></code>.</p></li>
+<li><p>Have <code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code> call the cache directly with the <code class="docutils literal notranslate"><span class="pre">meshId</span></code>.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">document.h</span></code> then no longer needs to include a <code class="docutils literal notranslate"><span class="pre">src/render</span></code> header.</p>
+</section>
+<section id="r8-per-frame-work-that-only-needs-to-happen-on-change-confirmed-low-each-cheap-to-fix">
+<h3>R8. Per-frame work that only needs to happen on change. Confirmed. Low each, cheap to fix.<a class="headerlink" href="#r8-per-frame-work-that-only-needs-to-happen-on-change-confirmed-low-each-cheap-to-fix" title="Link to this heading">¶</a></h3>
+<ol class="arabic">
+<li><p><code class="docutils literal notranslate"><span class="pre">syncPerMeshRenderModesWithDocument()</span></code> runs at the top of every frame
+(<code class="docutils literal notranslate"><span class="pre">renderwidget_render.cpp:298</span></code>). It also runs in every document-signal slot, and allocates an
+<code class="docutils literal notranslate"><span class="pre">unordered_map</span></code> of all mesh ids each time. Call it from the structural signals only.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">collectRenderFramePassRequests</span></code> runs once for the frame and again once per grid tile
+(<code class="docutils literal notranslate"><span class="pre">renderwidget_render.cpp:336,</span> <span class="pre">641</span></code>). Each run walks all meshes and copies their
+<code class="docutils literal notranslate"><span class="pre">PerMeshRenderSettings</span></code> (<code class="docutils literal notranslate"><span class="pre">renderModeForMesh</span></code> returns by value), which is O(N²) per frame in
+grid mode. Filter the frame-wide request by <code class="docutils literal notranslate"><span class="pre">meshIndex</span></code> instead.</p></li>
+<li><p>The “8 bbox corners through the layer matrix” block appears <strong>four times</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">computeWorldSceneBBox</span></code> (<code class="docutils literal notranslate"><span class="pre">renderwidget_resources.cpp:18-57</span></code>);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">meshFitsInCurrentFrame</span></code> (<code class="docutils literal notranslate"><span class="pre">:59-96</span></code>);</p></li>
+<li><p>raster depth fit (<code class="docutils literal notranslate"><span class="pre">renderwidget_render.cpp:430-461</span></code>);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rasterFrustumDepth</span></code> (<code class="docutils literal notranslate"><span class="pre">renderwidget_raster.cpp:164-210</span></code>).</p></li>
+</ul>
+<p>The last one also runs <strong>per raster per frame</strong> and re-uploads every frustum’s vertex buffer
+each frame. One <code class="docutils literal notranslate"><span class="pre">worldCorners(const</span> <span class="pre">MeshEntry&amp;)</span></code> helper: about <strong>-70 lines</strong>. Cache the
+frustum vertices by <code class="docutils literal notranslate"><span class="pre">cameraRevision</span></code> plus the scene bbox.</p>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Preferences::value</span></code> finds the descriptor by linear search (<code class="docutils literal notranslate"><span class="pre">preferences.cpp:60-67</span></code>) on every
+read of a preference left at its default. The frame path reads several each frame:
+<code class="docutils literal notranslate"><span class="pre">view.renderDuringProjectLoad</span></code>, <code class="docutils literal notranslate"><span class="pre">view.loupeMagnification</span></code>, <code class="docutils literal notranslate"><span class="pre">render.selectedEdgeWidth</span></code> per
+selection item, and <code class="docutils literal notranslate"><span class="pre">viewGridStyle()</span></code>. Index the descriptors in a <code class="docutils literal notranslate"><span class="pre">QHash</span></code> once in
+<code class="docutils literal notranslate"><span class="pre">ensureLoaded</span></code> (+3 / -4).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">render()</span></code> hides every UV tick <code class="docutils literal notranslate"><span class="pre">QLabel</span></code> on every 3D frame (<code class="docutils literal notranslate"><span class="pre">renderwidget_render.cpp:282-289</span></code>).
+Do it on the mode switch.</p></li>
+<li><p>Four copies of the 1x1 fallback-texture upload (<code class="docutils literal notranslate"><span class="pre">renderwidget_selection.cpp:34-69</span></code>) collapse
+to a loop over <code class="docutils literal notranslate"><span class="pre">{texture,</span> <span class="pre">pendingFlag,</span> <span class="pre">color}</span></code> (-25).</p></li>
+</ol>
+</section>
+<section id="r9-the-uv-renderer-has-its-own-copy-of-the-gpu-cache-confirmed-large-ask-first">
+<h3>R9. The UV renderer has its own copy of the GPU cache. Confirmed. Large: ask first.<a class="headerlink" href="#r9-the-uv-renderer-has-its-own-copy-of-the-gpu-cache-confirmed-large-ask-first" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">ensureUvMeshResources</span></code> (<code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp:187-676</span></code>, about 490 lines) rebuilds in the view
+what <code class="docutils literal notranslate"><span class="pre">MeshGpuResourceCache</span></code> builds in the document:</p>
+<ul class="simple">
+<li><p>fill variants;</p></li>
+<li><p>points;</p></li>
+<li><p>wire;</p></li>
+<li><p>boundaries;</p></li>
+<li><p>selection;</p></li>
+<li><p>its own quality-range key, and it bakes the <strong>colormap</strong> into the buffer, where the 3D path
+samples a LUT.</p></li>
+</ul>
+<p>It is per view, not shared. rendering.md already names “later UV convergence” as the goal.</p>
+<p><strong>Smallest convergence.</strong> Add a <code class="docutils literal notranslate"><span class="pre">UvLayout</span></code> variant to the shared cache, whose positions are
+<code class="docutils literal notranslate"><span class="pre">(u,</span> <span class="pre">v,</span> <span class="pre">0)</span></code> taken from wedge or vertex texcoords, with the same 52-byte layout. Then the UV view
+draws it with the existing pipelines and an orthographic matrix. Estimated -350 lines. Do this
+after R6, which removes the quality and colormap divergence.</p>
+</section>
+<section id="r10-wireframe-memory-confirmed-low-note-only">
+<h3>R10. Wireframe memory. Confirmed. Low, note only.<a class="headerlink" href="#r10-wireframe-memory-confirmed-low-note-only" title="Link to this heading">¶</a></h3>
+<p>The wire buffer is fully expanded: 3 corners × 6 floats = 72 B per face, so 716 MB on ESTE.
+That is acceptable because wire defaults on only below 10k faces. If it matters later, the
+barycentric can come from <code class="docutils literal notranslate"><span class="pre">gl_VertexIndex</span> <span class="pre">%</span> <span class="pre">3</span></code> over the expanded flat-fill stream. That needs no
+new buffer, but it does need faux-edge bits per face.</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="qt-integration">
+<h2>3. Qt integration<a class="headerlink" href="#qt-integration" title="Link to this heading">¶</a></h2>
+<p>The basics are right:</p>
+<ul class="simple">
+<li><p>the layer panel coalesces rebuilds through a queued call and defers them during bulk loads
+(<code class="docutils literal notranslate"><span class="pre">layerwidget.cpp:1536-1547</span></code>), and builds only the visible presentation (<code class="docutils literal notranslate"><span class="pre">:1665-1671</span></code>);</p></li>
+<li><p>the filter UI refresh is coalesced the same way (<code class="docutils literal notranslate"><span class="pre">mainwindow.cpp:2374-2384</span></code>);</p></li>
+<li><p>a selection change repaints without rebuilding (<code class="docutils literal notranslate"><span class="pre">renderwidget.cpp:743-745</span></code>).</p></li>
+</ul>
+<p>The leaks in that discipline:</p>
+<section id="q1-removals-and-raster-changes-bypass-the-coalescing-confirmed-medium">
+<h3>Q1. Removals and raster changes bypass the coalescing. Confirmed. Medium.<a class="headerlink" href="#q1-removals-and-raster-changes-bypass-the-coalescing-confirmed-medium" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">LayerWidget</span></code> connects <code class="docutils literal notranslate"><span class="pre">meshRemoved</span></code> and <code class="docutils literal notranslate"><span class="pre">rasterRemoved</span></code> straight to <code class="docutils literal notranslate"><span class="pre">rebuild()</span></code>
+(<code class="docutils literal notranslate"><span class="pre">layerwidget.cpp:1479,</span> <span class="pre">1505</span></code>), while every other signal goes through <code class="docutils literal notranslate"><span class="pre">scheduleRebuild()</span></code>.
+<code class="docutils literal notranslate"><span class="pre">restoreUndoState</span></code> emits <code class="docutils literal notranslate"><span class="pre">rasterRemoved</span></code> once per changed raster, so that is one synchronous
+full rebuild each.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MainWindow</span></code> answers <code class="docutils literal notranslate"><span class="pre">rasterAdded</span></code>, <code class="docutils literal notranslate"><span class="pre">rasterRemoved</span></code>, <code class="docutils literal notranslate"><span class="pre">currentRasterChanged</span></code> and
+<code class="docutils literal notranslate"><span class="pre">rasterDataChanged</span></code> with a <strong>synchronous</strong> <code class="docutils literal notranslate"><span class="pre">refreshFiltersMenu()</span></code> (<code class="docutils literal notranslate"><span class="pre">mainwindow.cpp:1450-1465</span></code>).
+That recomputes applicability for all 405 filters and rebuilds the whole menu. The bulk-load
+guard does not cover it, so a 35-raster project rebuilds the menu 35 times. These slots also
+skip <code class="docutils literal notranslate"><span class="pre">m_filterPanel-&gt;reloadFilters</span></code>, while the mesh slots get it through
+<code class="docutils literal notranslate"><span class="pre">scheduleFilterUiRefresh()</span></code>. That looks like a bug: raster-dependent filters keep a stale
+enabled state in the panel. Likely.</p></li>
+</ul>
+<p><strong>Fix (-6).</strong> Use <code class="docutils literal notranslate"><span class="pre">scheduleRebuild</span></code> and <code class="docutils literal notranslate"><span class="pre">scheduleFilterUiRefresh</span></code> everywhere.</p>
+</section>
+<section id="q2-undo-restore-fans-out-per-mesh-into-heavy-renderwidget-slots-confirmed-medium">
+<h3>Q2. Undo restore fans out per mesh into heavy RenderWidget slots. Confirmed. Medium.<a class="headerlink" href="#q2-undo-restore-fans-out-per-mesh-into-heavy-renderwidget-slots-confirmed-medium" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">restoreUndoState</span></code> emits <code class="docutils literal notranslate"><span class="pre">meshAdded(i)</span></code> for every mesh (<code class="docutils literal notranslate"><span class="pre">document_undo_state.cpp:168-169</span></code>).
+RenderWidget’s <code class="docutils literal notranslate"><span class="pre">meshAdded</span></code> slot (<code class="docutils literal notranslate"><span class="pre">renderwidget.cpp:626-666</span></code>) checks <code class="docutils literal notranslate"><span class="pre">isRestoringUndoRedo()</span></code> only
+for reframing. On each emission it then runs:</p>
+<ul class="simple">
+<li><p>the O(N) mode sync;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">refreshColorSourceAvailability</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">m_textureSrbs.clear()</span></code>;</p></li>
+<li><p>the UV-cache sync;</p></li>
+<li><p>the bbox overlay;</p></li>
+<li><p>the histogram overlay;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">layoutOverlayButtons</span></code>.</p></li>
+</ul>
+<p>That is O(N²) per undo. <code class="docutils literal notranslate"><span class="pre">undoRestoreCompleted</span></code> exists exactly to batch this (“This is the batch
+they were promised”).</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">meshAdded</span></code>, <code class="docutils literal notranslate"><span class="pre">meshRemoved</span></code> and <code class="docutils literal notranslate"><span class="pre">meshDataChanged</span></code> lambdas are also three near-copies of the
+same eight calls (<code class="docutils literal notranslate"><span class="pre">:626-739</span></code>).</p>
+<p><strong>Fix (+10 / -35).</strong></p>
+<ul class="simple">
+<li><p>Fold the three lambdas into one <code class="docutils literal notranslate"><span class="pre">onLayersChanged()</span></code>.</p></li>
+<li><p>Return early while restoring.</p></li>
+<li><p>Call it once from <code class="docutils literal notranslate"><span class="pre">undoRestoreCompleted</span></code>.</p></li>
+</ul>
+<p><strong>Likely side issue to verify.</strong> Because restore emits <code class="docutils literal notranslate"><span class="pre">meshAdded</span></code> without the matching
+<code class="docutils literal notranslate"><span class="pre">meshRemoved</span></code>, <code class="docutils literal notranslate"><span class="pre">m_meshVisibility</span></code> grows by N with <code class="docutils literal notranslate"><span class="pre">true</span></code> entries and is then truncated
+(<code class="docutils literal notranslate"><span class="pre">ensureVisibilitySize</span></code>). So after any full undo, the view’s own hidden layers become visible
+again, except those hidden in the document proxy. Check that against the intended per-view
+visibility semantics in data_model.md.</p>
+</section>
+<section id="q3-history-thumbnails-confirmed-low">
+<h3>Q3. History thumbnails. Confirmed. Low.<a class="headerlink" href="#q3-history-thumbnails-confirmed-low" title="Link to this heading">¶</a></h3>
+<p>Every new current state calls <code class="docutils literal notranslate"><span class="pre">QRhiWidget::grabFramebuffer()</span></code> (<code class="docutils literal notranslate"><span class="pre">mainwindow.cpp:3869</span></code>): a full
+extra render plus a synchronous GPU readback. It keeps:</p>
+<ul class="simple">
+<li><p>a 96×48 thumbnail;</p></li>
+<li><p>a <strong>half-framebuffer</strong> hover snapshot: about 14 MB per state on a 5K display.</p></li>
+</ul>
+<p>Old states are pruned with the tree (<code class="docutils literal notranslate"><span class="pre">:3988-4005</span></code>), so this is bounded but large.</p>
+<p><strong>Fix (±0).</strong> Cap the snapshot to about 640 px wide.</p>
+</section>
+<section id="q4-preferences-changed-and-settings-checked-fine">
+<h3>Q4. <code class="docutils literal notranslate"><span class="pre">Preferences::changed</span></code> and settings. Checked, fine.<a class="headerlink" href="#q4-preferences-changed-and-settings-checked-fine" title="Link to this heading">¶</a></h3>
+<p>Preferences are cached in memory after the first load, and <code class="docutils literal notranslate"><span class="pre">QSettings</span></code> is touched only on writes
+(<code class="docutils literal notranslate"><span class="pre">preferences.cpp</span></code>). Q1’s slots are the only signal fan-out problems found.</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="leftovers-and-duplication-approval-needed-before-removal">
+<h2>4. Leftovers and duplication. Approval needed before removal.<a class="headerlink" href="#leftovers-and-duplication-approval-needed-before-removal" title="Link to this heading">¶</a></h2>
+<p><strong>Done 2026-11-14:</strong> every row whose verdict is “remove” and U8 have been removed (the
+<code class="docutils literal notranslate"><span class="pre">undoStackLabels</span></code> use became <code class="docutils literal notranslate"><span class="pre">canUndo()</span></code>, which is what it meant: a non-root current node).
+Still open: <code class="docutils literal notranslate"><span class="pre">undoCursorPosition</span></code>, <code class="docutils literal notranslate"><span class="pre">menuPath</span></code>, the aliases, and the collapse items.</p>
+<p>Evidence is a whole-repo grep over <code class="docutils literal notranslate"><span class="pre">src</span> <span class="pre">plugins</span> <span class="pre">tests</span> <span class="pre">python</span></code> (<code class="docutils literal notranslate"><span class="pre">*.cpp</span> <span class="pre">*.h</span> <span class="pre">*.py</span> <span class="pre">*.mm</span></code>).</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Where</p></th>
+<th class="head"><p>Evidence</p></th>
+<th class="head"><p>Verdict</p></th>
+<th class="head"><p>Lines</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MainWindow::captureUndoHistoryThumbnail()</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mainwindow.cpp:3819-3845</span></code>, <code class="docutils literal notranslate"><span class="pre">.h:143</span></code></p></td>
+<td><p>0 callers; superseded by <code class="docutils literal notranslate"><span class="pre">captureUndoNodeImages</span></code>, which repeats its crop code</p></td>
+<td><p>remove</p></td>
+<td><p>-29</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Document::loadedPluginSummaries</span></code>, <code class="docutils literal notranslate"><span class="pre">loadedFilterPluginSummaries</span></code>, and the two managers’ <code class="docutils literal notranslate"><span class="pre">loadedPluginSummaries</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">document_filters.cpp:5-15</span></code>, <code class="docutils literal notranslate"><span class="pre">meshiopluginmanager.cpp:135-142</span></code>, <code class="docutils literal notranslate"><span class="pre">meshfilterpluginmanager.cpp:980-988</span></code>, headers</p></td>
+<td><p>0 callers outside their own definitions</p></td>
+<td><p>remove</p></td>
+<td><p>-30</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">undoHistoryLabels</span></code> / <code class="docutils literal notranslate"><span class="pre">undoStackLabels</span></code> (Document + manager)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">documentundomanager.cpp:247-265</span></code>, <code class="docutils literal notranslate"><span class="pre">document_undo.cpp:128-136</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">undoHistoryLabels</span></code> 0 callers; <code class="docutils literal notranslate"><span class="pre">undoStackLabels</span></code> is an alias with one use, <code class="docutils literal notranslate"><span class="pre">mainwindow.cpp:2086</span></code> <code class="docutils literal notranslate"><span class="pre">!undoStackLabels().isEmpty()</span></code>, which means “there is history”</p></td>
+<td><p>replace that use with <code class="docutils literal notranslate"><span class="pre">canUndo()</span> <span class="pre">||</span> <span class="pre">canRedo()</span></code>, remove both</p></td>
+<td><p>-30</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">undoCursorPosition</span></code> (Document + manager)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">documentundomanager.cpp:267-278</span></code></p></td>
+<td><p>used only by <code class="docutils literal notranslate"><span class="pre">tests/test_filters.cpp</span></code> (5 uses)</p></td>
+<td><p>keep, or move into the test as a helper over <code class="docutils literal notranslate"><span class="pre">undoTreeInfo()</span></code></p></td>
+<td><p>-15</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">DocumentUndoManager::suppressSignals()</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">documentundomanager.h:66</span></code></p></td>
+<td><p>0 callers</p></td>
+<td><p>remove</p></td>
+<td><p>-1</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">EnsureStats::uploadedResources</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.h:161</span></code>, <code class="docutils literal notranslate"><span class="pre">.cpp:1962</span></code></p></td>
+<td><p>written, never read</p></td>
+<td><p>remove</p></td>
+<td><p>-2</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">stepsToRemove</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">documentundomanager.cpp:1048,</span> <span class="pre">1090</span></code></p></td>
+<td><p>computed, <code class="docutils literal notranslate"><span class="pre">(void)</span></code>-cast</p></td>
+<td><p>remove (goes with U6)</p></td>
+<td><p>-2</p></td>
+</tr>
+<tr class="row-odd"><td><p>7 <code class="docutils literal notranslate"><span class="pre">qDebug</span></code> trace blocks</p></td>
+<td><p>U8</p></td>
+<td><p>debug leftovers</p></td>
+<td><p>remove</p></td>
+<td><p>-35</p></td>
+</tr>
+<tr class="row-even"><td><p>legacy <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> loader fallback</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filterdescriptorloader.cpp:211-225</span></code>, <code class="docutils literal notranslate"><span class="pre">.h:23</span></code></p></td>
+<td><p>0 JSON files in <code class="docutils literal notranslate"><span class="pre">plugins/</span></code> or <code class="docutils literal notranslate"><span class="pre">resources/</span></code> use it; kept “for out-of-tree descriptors”</p></td>
+<td><p>ask: are there any?</p></td>
+<td><p>-12</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">using</span> <span class="pre">RenderSettings</span> <span class="pre">=</span> <span class="pre">GlobalRenderSettings</span></code>, <code class="docutils literal notranslate"><span class="pre">MeshRenderMode</span></code> alias</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">renderingsettings.h:369</span></code>; 28 and 22 uses</p></td>
+<td><p>compatibility aliases, documented as such</p></td>
+<td><p>rename to the canonical names; this is a rename, so the mapping-table rule applies</p></td>
+<td><p>±0</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Document::*GpuVariant</span></code> / <code class="docutils literal notranslate"><span class="pre">*PassGpuView</span></code> re-exports</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">document.h:176-186</span></code></p></td>
+<td><p>pure aliases of cache types</p></td>
+<td><p>remove with R7</p></td>
+<td><p>(in R7)</p></td>
+</tr>
+<tr class="row-odd"><td><p>bbox-corner block ×4, compaction ×4, quality-range check ×4, fallback texture ×4, RenderWidget layer-change lambda ×3</p></td>
+<td><p>R8.3, U6, R6, R8.6, Q2</p></td>
+<td><p>read side by side</p></td>
+<td><p>collapse</p></td>
+<td><p>(in items)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Checked and <strong>not</strong> leftovers: all 44 files in <code class="docutils literal notranslate"><span class="pre">shaders/</span></code> are loaded or included by
+<code class="docutils literal notranslate"><span class="pre">src/render</span></code>, including <code class="docutils literal notranslate"><span class="pre">selection_mask_debug.frag</span></code>, which backs the outline debug views.</p>
+<p><strong>Not covered.</strong> The planned exhaustive zero-caller sweep of every header in <code class="docutils literal notranslate"><span class="pre">src/ui</span></code> and
+<code class="docutils literal notranslate"><span class="pre">src/render</span></code> was cut short by a usage limit. The table above covers only the symbols checked
+directly. A follow-up sweep should go header by header through <code class="docutils literal notranslate"><span class="pre">renderwidget.h</span></code> (1169 lines),
+<code class="docutils literal notranslate"><span class="pre">mainwindow.h</span></code>, <code class="docutils literal notranslate"><span class="pre">layerwidget.h</span></code> and <code class="docutils literal notranslate"><span class="pre">renderoverlaypanel.h</span></code>.</p>
+</section>
+<hr class="docutils" />
+<section id="plan">
+<h2>5. Plan<a class="headerlink" href="#plan" title="Link to this heading">¶</a></h2>
+<p>Six phases, one commit each, in this order. Phases 1-4 are net-negative or nearly so. Phases 5
+and 6 change the undo memory model and the render data model. Phase 6 is “large”: ask before
+starting it.</p>
+<p>Every phase ends the same way:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cmake</span> <span class="pre">--build</span> <span class="pre">build-release</span></code>, then <code class="docutils literal notranslate"><span class="pre">QT_QPA_PLATFORM=offscreen</span> <span class="pre">ctest</span></code> there (about 6 min,
+dominated by <code class="docutils literal notranslate"><span class="pre">MeshLab2FilterTests</span></code> and <code class="docutils literal notranslate"><span class="pre">MeshLab2FilterSmokeTests</span></code>).</p></li>
+<li><p>Run the render probes for any phase that touches <code class="docutils literal notranslate"><span class="pre">src/render</span></code> (they need the window server;
+see rendering.md).</p></li>
+<li><p>Re-run the measurement in section 0 that the phase targets.</p></li>
+<li><p>Leave <code class="docutils literal notranslate"><span class="pre">build-release</span></code> built from the final source: it is the maintainer’s live binary.</p></li>
+<li><p>Hand over the file list and the full commit message.</p></li>
+</ol>
+<section id="phase-1-undo-restore-that-does-not-copy-unchanged-layers-u4-u3-q2-q1">
+<h3>Phase 1: undo restore that does not copy unchanged layers (U4 + U3 + Q2 + Q1)<a class="headerlink" href="#phase-1-undo-restore-that-does-not-copy-unchanged-layers-u4-u3-q2-q1" title="Link to this heading">¶</a></h3>
+<p><strong>Done 2026-11-14.</strong></p>
+<ul class="simple">
+<li><p><strong>Measured</strong> with a temporary <code class="docutils literal notranslate"><span class="pre">Document</span></code> harness on afrodite.mlp (41 layers, 30.6M faces):
+undo/redo of a one-layer transform went from 303/256 ms to 0/0 ms, and of a one-layer
+geometry edit from 251/252 ms to 7/4 ms (CPU only; the GPU cache is no longer cleared on top
+of that).</p></li>
+<li><p><strong>Two findings while doing it:</strong></p>
+<ul>
+<li><p><strong>U3 was misdiagnosed above.</strong> <code class="docutils literal notranslate"><span class="pre">set_mesh_color</span></code> moves no revision at all; its +762 MiB was
+U1. Its real defect was that its “after” state shared the “before” copy of the geometry,
+whose color is the old one, so redo restored the old color. Fixed by <code class="docutils literal notranslate"><span class="pre">setMeshColor</span></code> and
+<code class="docutils literal notranslate"><span class="pre">MeshSnapshot::meshColor</span></code>, and covered by <code class="docutils literal notranslate"><span class="pre">setMeshColorFilterUndoesAndRedoesWithoutACopy</span></code>.</p></li>
+<li><p><strong>Keeping unchanged layers is only right for undo and redo.</strong> The rollback of a cancelled or
+failed step must still copy everything, because a failed filter can edit a mesh without
+moving its revisions. Three <code class="docutils literal notranslate"><span class="pre">FilterTests</span></code> caught this; <code class="docutils literal notranslate"><span class="pre">restoreUndoState</span></code> takes
+<code class="docutils literal notranslate"><span class="pre">keepUnchangedMeshes</span></code>.</p></li>
+</ul>
+</li>
+<li><p><strong>D1</strong> was taken as (a): after a full undo every view shows the document’s visibility.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Document::clearAllGpuResources</span></code> and <code class="docutils literal notranslate"><span class="pre">MeshGpuResourceCache::clearAll</span></code> lost their last caller
+and were removed.</p></li>
+</ul>
+<p><strong>Why first.</strong> It is the most visible cost in everyday use: every undo of a multi-layer scan
+project re-copies every layer and re-uploads every GPU buffer. The diff is small and stays
+inside <code class="docutils literal notranslate"><span class="pre">Document</span></code>, <code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code>’s signal wiring and two plugin call sites.</p>
+<p><strong>1a. <code class="docutils literal notranslate"><span class="pre">restoreUndoState</span></code> keeps live meshes whose content is unchanged</strong> (<code class="docutils literal notranslate"><span class="pre">src/core/document_undo_state.cpp</span></code>).</p>
+<ul class="simple">
+<li><p>Move the live <code class="docutils literal notranslate"><span class="pre">std::unique_ptr&lt;MeshEntry&gt;</span></code>s out of <code class="docutils literal notranslate"><span class="pre">m_meshes</span></code> into an <code class="docutils literal notranslate"><span class="pre">unordered_map</span></code> keyed by
+<code class="docutils literal notranslate"><span class="pre">meshId</span></code>.</p></li>
+<li><p>For each <code class="docutils literal notranslate"><span class="pre">snap</span></code> in <code class="docutils literal notranslate"><span class="pre">state.meshes</span></code>:</p>
+<ul>
+<li><p>If a live entry has the same <code class="docutils literal notranslate"><span class="pre">meshId</span></code> <strong>and</strong> equal <code class="docutils literal notranslate"><span class="pre">geometryRevision</span></code>,
+<code class="docutils literal notranslate"><span class="pre">materialRevision</span></code> and <code class="docutils literal notranslate"><span class="pre">selectionRevision</span></code>, reuse it. Overwrite only the cheap fields that
+the copy path sets today: <code class="docutils literal notranslate"><span class="pre">transform</span></code>, <code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">sourcePath</span></code> (with the existing
+<code class="docutils literal notranslate"><span class="pre">m_storedMeshes</span></code> rule), <code class="docutils literal notranslate"><span class="pre">textureFileNames</span></code>, <code class="docutils literal notranslate"><span class="pre">textureFilePaths</span></code>, <code class="docutils literal notranslate"><span class="pre">textureAssets</span></code>,
+<code class="docutils literal notranslate"><span class="pre">materialSet</span></code>, <code class="docutils literal notranslate"><span class="pre">visible</span></code>, <code class="docutils literal notranslate"><span class="pre">ioMask</span></code>, <code class="docutils literal notranslate"><span class="pre">polygonFaceCount</span></code>, <code class="docutils literal notranslate"><span class="pre">pluginData</span></code>.</p></li>
+<li><p>Otherwise build the entry as today, with <code class="docutils literal notranslate"><span class="pre">deepCopyMesh</span></code>.</p></li>
+</ul>
+</li>
+<li><p>Push the entries back in snapshot order.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">purgeMeshGpuResources</span></code> only the ids left in the map, i.e. layers that no longer exist.</p></li>
+<li><p><strong>Delete</strong> the <code class="docutils literal notranslate"><span class="pre">clearAllGpuResources()</span></code> block (<code class="docutils literal notranslate"><span class="pre">:172-176</span></code>). The cache is keyed by revisions,
+and revisions are drawn from document-monotonic counters, so a restored older revision misses
+and rebuilds by itself.</p></li>
+<li><p>Keep the signal sequence as it is: <code class="docutils literal notranslate"><span class="pre">meshAdded(i)</span></code> for every index, then the current-index
+signals, then <code class="docutils literal notranslate"><span class="pre">undoRestoreCompleted</span></code>. Views that ignore signals while restoring
+(step 1c) then see one batch.</p></li>
+</ul>
+<p>Risk: this trusts that every mutation bumps a revision. It is the same contract the GPU cache
+already relies on: a filter that broke it already shows stale buffers on screen. The filter
+smoke test’s undo/redo pass (<code class="docutils literal notranslate"><span class="pre">tests/test_filter_smoke.cpp</span></code>) is the net for that.</p>
+<p><strong>1b. Per-mesh color becomes undo metadata, like the transform (U3).</strong></p>
+<ul class="simple">
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">Document::setMeshColor(int</span> <span class="pre">index,</span> <span class="pre">const</span> <span class="pre">vcg::Color4b</span> <span class="pre">&amp;)</span></code>, modeled line for line on
+<code class="docutils literal notranslate"><span class="pre">setMeshTransform</span></code> (<code class="docutils literal notranslate"><span class="pre">document_layers.cpp:395-420</span></code>): own undo step “Set Mesh Color”,
+write <code class="docutils literal notranslate"><span class="pre">mesh.C()</span></code>, log, <code class="docutils literal notranslate"><span class="pre">emit</span> <span class="pre">meshDataChanged</span></code>, <strong>no revision bump</strong>.</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">vcg::Color4b</span> <span class="pre">meshColor</span></code> to <code class="docutils literal notranslate"><span class="pre">MeshSnapshot</span></code>. Set it in <code class="docutils literal notranslate"><span class="pre">captureUndoState</span></code>, and write it into
+<code class="docutils literal notranslate"><span class="pre">mesh.C()</span></code> in <code class="docutils literal notranslate"><span class="pre">restoreUndoState</span></code> on both the reused and the copied path. This is needed
+because snapshots that share one interned geometry can carry different colors.</p></li>
+<li><p>Switch the two writers in <code class="docutils literal notranslate"><span class="pre">plugins/filter_colorproc/colorprocfilterplugin.cpp</span></code> to it:
+<code class="docutils literal notranslate"><span class="pre">set_mesh_color</span></code> (<code class="docutils literal notranslate"><span class="pre">:357</span></code>) and the scattered layer colors (<code class="docutils literal notranslate"><span class="pre">:379</span></code>), dropping their
+<code class="docutils literal notranslate"><span class="pre">markGeometry</span></code>.</p></li>
+</ul>
+<p>No GPU buffer depends on it: <code class="docutils literal notranslate"><span class="pre">renderwidget_fill.cpp:122-128</span></code> reads <code class="docutils literal notranslate"><span class="pre">mesh.C()</span></code> into a uniform.
+No file format stores a per-mesh color either (checked <code class="docutils literal notranslate"><span class="pre">plugins/io_*</span></code>), so, like the transform,
+it does not mark a layer as changed against its file.</p>
+<p><strong>1c. One batched view update after a restore (Q2)</strong> (<code class="docutils literal notranslate"><span class="pre">src/render/renderwidget.cpp:626-739</span></code>).</p>
+<ul class="simple">
+<li><p>Fold the <code class="docutils literal notranslate"><span class="pre">meshAdded</span></code>/<code class="docutils literal notranslate"><span class="pre">meshRemoved</span></code>/<code class="docutils literal notranslate"><span class="pre">meshDataChanged</span></code> lambdas into one private
+<code class="docutils literal notranslate"><span class="pre">onLayersChanged()</span></code>. Keep the index-specific parts in the lambdas: the visibility
+insert/erase and the reframe decision.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">return</span></code> early from all three when <code class="docutils literal notranslate"><span class="pre">m_doc-&gt;isRestoringUndoRedo()</span></code>.</p></li>
+<li><p>Connect <code class="docutils literal notranslate"><span class="pre">undoRestoreCompleted</span></code> to: <code class="docutils literal notranslate"><span class="pre">ensureVisibilitySize()</span></code>, the visibility rule chosen in
+decision D1 below, then <code class="docutils literal notranslate"><span class="pre">onLayersChanged()</span></code>.</p></li>
+</ul>
+<p><strong>1d. Removal and raster signals use the existing coalescing (Q1).</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">layerwidget.cpp:1479,</span> <span class="pre">1505</span></code>: <code class="docutils literal notranslate"><span class="pre">&amp;LayerWidget::rebuild</span></code> becomes <code class="docutils literal notranslate"><span class="pre">scheduleRebuild()</span></code>. Before
+changing it, click a layer row right after a deletion to confirm that no stale row can be
+clicked before the queued rebuild runs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mainwindow.cpp:1450-1465</span></code>: <code class="docutils literal notranslate"><span class="pre">refreshFiltersMenu()</span></code> becomes <code class="docutils literal notranslate"><span class="pre">scheduleFilterUiRefresh()</span></code>. That
+also refreshes the filter panel, which the raster path currently skips.</p></li>
+</ul>
+<p><strong>Tests</strong> (<code class="docutils literal notranslate"><span class="pre">tests/test_document.cpp</span></code>, next to <code class="docutils literal notranslate"><span class="pre">undoRedoRestoresMeshList</span></code>):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">undoKeepsUnchangedLayers</span></code>: two tiny meshes; record <code class="docutils literal notranslate"><span class="pre">&amp;doc.mesh(0).mesh.vert[0]</span></code>; translate
+mesh 1; undo. Mesh 0’s address and revisions are unchanged, and mesh 1’s transform is back.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">undoCopiesOnlyTheChangedLayer</span></code>: same setup, but run a geometry edit on mesh 1. After undo,
+mesh 1 has the old content and mesh 0 still has its old address.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">setMeshColorIsMetadata</span></code>: <code class="docutils literal notranslate"><span class="pre">geometryRevision</span></code> is unchanged and
+<code class="docutils literal notranslate"><span class="pre">undoMemoryStats().uniqueGeometryCount</span></code> does not grow. Undo/redo round-trips the color
+(extend <code class="docutils literal notranslate"><span class="pre">perMeshColorSurvivesUndoAndRedo</span></code>).</p></li>
+</ul>
+<p><strong>Measure.</strong> Undo on <code class="docutils literal notranslate"><span class="pre">afrodite.mlp</span></code> after translating one layer: before and after. Needs
+decision D2.</p>
+<p><strong>Expected size:</strong> about +60 / -45.</p>
+</section>
+<section id="phase-2-render-side-waste-on-large-data-r2-r3-r4-r5">
+<h3>Phase 2: render-side waste on large data (R2, R3, R4, R5)<a class="headerlink" href="#phase-2-render-side-waste-on-large-data-r2-r3-r4-r5" title="Link to this heading">¶</a></h3>
+<p>All in <code class="docutils literal notranslate"><span class="pre">src/render</span></code>, independent of phase 1.</p>
+<ul class="simple">
+<li><p><strong>R2.</strong> In <code class="docutils literal notranslate"><span class="pre">collectRenderFramePassRequests</span></code>’ Scene3D branch (<code class="docutils literal notranslate"><span class="pre">renderwidget_frame_plan.cpp:75-85</span></code>)
+and in <code class="docutils literal notranslate"><span class="pre">ensureRaster</span></code>’s projected path (<code class="docutils literal notranslate"><span class="pre">renderwidget_raster.cpp:275-281</span></code>), require only
+<code class="docutils literal notranslate"><span class="pre">entry.shot.isValid()</span></code>. Do not call <code class="docutils literal notranslate"><span class="pre">ensureRasterPlaneImage</span></code>.</p></li>
+<li><p><strong>R3.</strong> Move <code class="docutils literal notranslate"><span class="pre">convertToFormat(RGBA8888)</span></code> (<code class="docutils literal notranslate"><span class="pre">renderwidget_raster.cpp:336</span></code>) inside
+<code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">(needsTexture)</span></code>, testing <code class="docutils literal notranslate"><span class="pre">needsTexture</span></code> against <code class="docutils literal notranslate"><span class="pre">plane-&gt;image.size()</span></code>.</p></li>
+<li><p><strong>R4.</strong> In the selection rebuild (<code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.cpp:1370-1430</span></code>), drop the
+<code class="docutils literal notranslate"><span class="pre">reserve(FN</span> <span class="pre">*</span> <span class="pre">9)</span></code> and <code class="docutils literal notranslate"><span class="pre">reserve(VN</span> <span class="pre">*</span> <span class="pre">3)</span></code>. Count first in a <code class="docutils literal notranslate"><span class="pre">parallelFor</span></code>, then fill with
+exact sizes. The indexed-overlay variant is a later option, not part of this phase.</p></li>
+<li><p><strong>R5.</strong> At the end of <code class="docutils literal notranslate"><span class="pre">ensureMeshResources</span></code>, reset every fill and point variant of this mesh
+whose <code class="docutils literal notranslate"><span class="pre">geometryRevision</span></code>/<code class="docutils literal notranslate"><span class="pre">materialRevision</span></code> differs from <code class="docutils literal notranslate"><span class="pre">source</span></code>, and every variant that is
+neither the requested one nor valid. That is about 8 lines; <code class="docutils literal notranslate"><span class="pre">gpuMemoryStats()</span></code> then reports
+the drop.</p></li>
+</ul>
+<p><strong>Measure:</strong> RSS after opening <code class="docutils literal notranslate"><span class="pre">2930Colmap/project.mlp</span></code> in the 3D view (expect about -1 GiB).
+Then switch the raster view between two photos and check per-frame CPU time in the status bar.
+Then paint a selection on ESTE and check peak RSS.</p>
+<p><strong>Size:</strong> about +20 / -15.</p>
+</section>
+<section id="phase-3-uniforms-uploaded-before-the-pass-r1">
+<h3>Phase 3: uniforms uploaded before the pass (R1)<a class="headerlink" href="#phase-3-uniforms-uploaded-before-the-pass-r1" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add one per-frame CPU staging buffer per dynamic UBO (main, decorator ×N, decorator-fat,
+selection, raster-projected, raster-backplate) next to the existing <code class="docutils literal notranslate"><span class="pre">DynamicUbufAllocator</span></code>s.</p></li>
+<li><p>Split each executor in <code class="docutils literal notranslate"><span class="pre">renderwidget_scene_passes.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">renderwidget_fill.cpp</span></code> and
+<code class="docutils literal notranslate"><span class="pre">renderwidget_selection.cpp</span></code> into two parts: a <strong>prepare</strong> walk over the plans that fills the
+staging slices and stores each item’s offset in the draw item, and the existing <strong>draw</strong> walk,
+which only binds and draws.</p></li>
+<li><p>Before <code class="docutils literal notranslate"><span class="pre">cb-&gt;beginPass</span></code> (<code class="docutils literal notranslate"><span class="pre">renderwidget_render.cpp:716</span></code>), issue one <code class="docutils literal notranslate"><span class="pre">updateDynamicBuffer</span></code> per UBO
+into the batch <code class="docutils literal notranslate"><span class="pre">u</span></code> that is already passed to it.</p></li>
+<li><p>The offscreen passes (depth pick, masks, radiance-scaling pre-pass) do the same with their own
+<code class="docutils literal notranslate"><span class="pre">beginPass</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">uploadMainUbuf</span></code> then keeps <code class="docutils literal notranslate"><span class="pre">writeMainUbuf</span></code> and loses its per-call batch.</p></li>
+<li><p>The UV renderer (<code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp:950-1383</span></code>) has the same pattern. Fix it in the same
+phase unless phase 6 is scheduled soon after.</p></li>
+</ul>
+<p><strong>Verify:</strong> all render probes, plus <code class="docutils literal notranslate"><span class="pre">MESHLAB2_GRAPHICS_API=vulkan</span></code> and <code class="docutils literal notranslate"><span class="pre">opengl</span></code> on this Mac (see
+the clipping-plane section of rendering.md), with the GPU timing preference on, to compare frame
+times.</p>
+<p><strong>Size:</strong> about +60 / -70. This is the riskiest phase to get subtly wrong, so it gets its own
+commit.</p>
+</section>
+<section id="phase-4-collapse-duplication-u6-r7-r8">
+<h3>Phase 4: collapse duplication (U6, R7, R8)<a class="headerlink" href="#phase-4-collapse-duplication-u6-r7-r8" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>U6:</strong> one <code class="docutils literal notranslate"><span class="pre">compactNodes(keepSorted,</span> <span class="pre">newRootOldId)</span></code> with a <code class="docutils literal notranslate"><span class="pre">std::vector&lt;int&gt;</span></code> remap. Used by
+<code class="docutils literal notranslate"><span class="pre">makeRoot</span></code>, <code class="docutils literal notranslate"><span class="pre">purgeBranch</span></code>, <code class="docutils literal notranslate"><span class="pre">linearizeHistory</span></code> and <code class="docutils literal notranslate"><span class="pre">pruneTreeToLimit</span></code>.</p></li>
+<li><p><strong>R7:</strong> <code class="docutils literal notranslate"><span class="pre">Document::gpuCache()</span></code> plus <code class="docutils literal notranslate"><span class="pre">meshGpuSource(index)</span></code> and a <code class="docutils literal notranslate"><span class="pre">MeshGpuNeeds</span></code> struct. Delete
+the eight <code class="docutils literal notranslate"><span class="pre">*PassGpuView</span></code> forwarders and the <code class="docutils literal notranslate"><span class="pre">document.h</span></code> type re-exports, and stop including
+<code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.h</span></code> from <code class="docutils literal notranslate"><span class="pre">document.h</span></code>.</p></li>
+<li><p><strong>R8.1-6:</strong></p>
+<ul>
+<li><p>one <code class="docutils literal notranslate"><span class="pre">worldCorners(const</span> <span class="pre">MeshEntry&amp;)</span></code> helper used by the four bbox blocks;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">syncPerMeshRenderModesWithDocument</span></code> only from signals;</p></li>
+<li><p>per-tile requests filtered from the frame request;</p></li>
+<li><p>a <code class="docutils literal notranslate"><span class="pre">QHash</span></code> index in <code class="docutils literal notranslate"><span class="pre">Preferences::ensureLoaded</span></code>;</p></li>
+<li><p>UV tick labels hidden on mode switch only;</p></li>
+<li><p>the fallback-texture loop.</p></li>
+</ul>
+</li>
+</ul>
+<p><strong>Size:</strong> about +80 / -330. Behavior unchanged; the existing suite covers it.</p>
+</section>
+<section id="phase-5-undo-capture-cost-u2-u1-small-form-u5-u7">
+<h3>Phase 5: undo capture cost (U2, U1 small form, U5, U7)<a class="headerlink" href="#phase-5-undo-capture-cost-u2-u1-small-form-u5-u7" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>U2, lazy “before” capture.</strong></p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">DocumentUndoManager::beginStep</span></code> stores only the label and script action and sets
+<code class="docutils literal notranslate"><span class="pre">m_beforePending</span></code>.</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">Document::noteMutation()</span></code> (private, called at the top of every mutator listed under
+“APIs” in data_model.md, and by <code class="docutils literal notranslate"><span class="pre">markMesh*Changed</span></code>). It captures “before” when
+<code class="docutils literal notranslate"><span class="pre">m_beforePending</span></code> is set.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">endStep</span></code> with no capture commits nothing, but keeps the script action as a trailing record
+exactly as an informational filter does now.</p></li>
+<li><p>Prerequisite: an exhaustive list of the mutators, built by grepping <code class="docutils literal notranslate"><span class="pre">m_meshes</span></code>/<code class="docutils literal notranslate"><span class="pre">m_rasters</span></code>
+writes in <code class="docutils literal notranslate"><span class="pre">src/core/document_*.cpp</span></code> and recorded in the commit.</p></li>
+</ul>
+</li>
+<li><p><strong>U1 small form.</strong></p>
+<ul>
+<li><p>Take <code class="docutils literal notranslate"><span class="pre">selectionRevision</span></code> out of the geometry key.</p></li>
+<li><p>Snapshot selection bits as <code class="docutils literal notranslate"><span class="pre">shared_ptr&lt;const</span> <span class="pre">MeshAttributeDelta&gt;</span></code> (selection kinds only),
+interned by <code class="docutils literal notranslate"><span class="pre">(meshId,</span> <span class="pre">selectionRevision)</span></code>. Reuse <code class="docutils literal notranslate"><span class="pre">captureAttributeDelta</span></code>/<code class="docutils literal notranslate"><span class="pre">applyAttributeDelta</span></code>.</p></li>
+<li><p>Restore applies them after the geometry.</p></li>
+<li><p>Delta nodes still exist; this just stops them forcing copies.</p></li>
+</ul>
+</li>
+<li><p><strong>U5:</strong> <code class="docutils literal notranslate"><span class="pre">jumpToNode</span></code> restores the target’s nearest full-snapshot ancestor once, then applies
+forward deltas.</p></li>
+<li><p><strong>U7:</strong> incremental byte accounting in <code class="docutils literal notranslate"><span class="pre">pruneToMemoryBudgetInternal</span></code>.</p></li>
+</ul>
+<p><strong>Measure:</strong> re-run the whole section 0 table. Targets: <code class="docutils literal notranslate"><span class="pre">translate</span></code> after a selection, and
+<code class="docutils literal notranslate"><span class="pre">measure_geometric_properties</span></code> after a selection, add a few MiB, not hundreds.</p>
+<p><strong>Size:</strong> about +120 / -60.</p>
+</section>
+<section id="phase-6-large-ask-first-data-model-simplifications">
+<h3>Phase 6 (large, ask first): data-model simplifications<a class="headerlink" href="#phase-6-large-ask-first-data-model-simplifications" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><strong>R6:</strong> raw quality in vertex buffers, range as a uniform; one range cache. Removes the four
+invalidation blocks.</p></li>
+<li><p><strong>R9:</strong> the UV view draws a <code class="docutils literal notranslate"><span class="pre">UvLayout</span></code> variant of the shared cache. Removes most of
+<code class="docutils literal notranslate"><span class="pre">ensureUvMeshResources</span></code>. Needs R6 first.</p></li>
+<li><p><strong>U1 full form:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">colorRevision</span></code>/<code class="docutils literal notranslate"><span class="pre">scalarRevision</span></code>;</p></li>
+<li><p>every node a snapshot made of shared layers;</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">Delta</span></code> node kind and the <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code>→delta table removed.</p></li>
+</ul>
+<p>Needs phase 5 first.</p>
+</li>
+</ul>
+<p><strong>Estimated size:</strong> about -600 together, but each touches many files. Write a mapping table of
+what moves where before starting, as AGENTS.md requires.</p>
+</section>
+<section id="decisions-needed-before-phase-1">
+<h3>Decisions needed before phase 1<a class="headerlink" href="#decisions-needed-before-phase-1" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><strong>D1: per-view visibility after undo.</strong> Today a full undo effectively resets each view’s
+hidden layers to the document’s visibility (section 3, Q2 side issue). The options:</p>
+<ul class="simple">
+<li><p>(a) keep that, now explicitly;</p></li>
+<li><p>(b) keep each view’s own visibility for layers that still exist.</p></li>
+</ul>
+<p>(b) is one line more and is what data_model.md’s “each view keeps its own local visibility
+vector” suggests.</p>
+</li>
+<li><p><strong>D2: how to measure undo.</strong> The options:</p>
+<ul class="simple">
+<li><p>(a) add <code class="docutils literal notranslate"><span class="pre">undo()</span></code>, <code class="docutils literal notranslate"><span class="pre">redo()</span></code> and <code class="docutils literal notranslate"><span class="pre">undo_history()</span></code> to <code class="docutils literal notranslate"><span class="pre">pymeshlab2.MeshSet</span></code>: about 20 lines in
+<code class="docutils literal notranslate"><span class="pre">src/python/bindings</span></code>, a public API that scripts could use;</p></li>
+<li><p>(b) a throwaway timing harness in the scratchpad, never committed.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Framework review: rendering, undo, Qt integration (2026-11-14)</a><ul>
+<li><a class="reference internal" href="#measurements-the-findings-rest-on">0. Measurements the findings rest on</a></li>
+<li><a class="reference internal" href="#undo-system">1. Undo system</a><ul>
+<li><a class="reference internal" href="#u1-a-selection-or-color-change-forces-the-next-full-step-to-deep-copy-the-mesh-measured-confirmed-high">U1. A selection or color change forces the next full step to deep-copy the mesh. Measured, confirmed. High.</a></li>
+<li><a class="reference internal" href="#u2-read-only-filters-still-capture-a-full-undo-state-measured-confirmed-high">U2. Read-only filters still capture a full undo state. Measured, confirmed. High.</a></li>
+<li><a class="reference internal" href="#u3-set-mesh-color-deep-copies-the-mesh-and-rebuilds-every-gpu-buffer-to-change-one-rgba-measured-confirmed-medium">U3. <code class="docutils literal notranslate"><span class="pre">set_mesh_color</span></code> deep-copies the mesh and rebuilds every GPU buffer to change one RGBA. Measured, confirmed. Medium.</a></li>
+<li><a class="reference internal" href="#u4-every-full-undo-redo-re-copies-every-mesh-and-drops-the-whole-gpu-cache-confirmed-by-reading-high-for-multi-layer-documents">U4. Every full undo/redo re-copies every mesh and drops the whole GPU cache. Confirmed by reading. High for multi-layer documents.</a></li>
+<li><a class="reference internal" href="#u5-jumptonode-replays-every-intermediate-state-confirmed-medium">U5. <code class="docutils literal notranslate"><span class="pre">jumpToNode</span></code> replays every intermediate state. Confirmed. Medium.</a></li>
+<li><a class="reference internal" href="#u6-four-copies-of-the-tree-compaction-code-confirmed-low-risk-pure-deletion">U6. Four copies of the tree-compaction code. Confirmed. Low risk, pure deletion.</a></li>
+<li><a class="reference internal" href="#u7-memory-pruning-is-quadratic-confirmed-low-off-by-default">U7. Memory pruning is quadratic. Confirmed. Low (off by default).</a></li>
+<li><a class="reference internal" href="#u8-debug-traces-left-in-release-confirmed-trivial">U8. Debug traces left in Release. Confirmed. Trivial.</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#rendering-system">2. Rendering system</a><ul>
+<li><a class="reference internal" href="#r1-uniform-uploads-call-qrhicommandbuffer-resourceupdate-inside-an-open-render-pass-confirmed-in-code-qt-side-effect-likely-high-correctness">R1. Uniform uploads call <code class="docutils literal notranslate"><span class="pre">QRhiCommandBuffer::resourceUpdate</span></code> inside an open render pass. Confirmed in code; Qt-side effect likely. High (correctness).</a></li>
+<li><a class="reference internal" href="#r2-the-3d-view-decodes-every-raster-photo-to-draw-a-frustum-glyph-confirmed-high-for-photogrammetry-projects">R2. The 3D view decodes every raster photo to draw a frustum glyph. Confirmed. High for photogrammetry projects.</a></li>
+<li><a class="reference internal" href="#r3-a-raster-backplate-is-converted-to-rgba8888-on-every-frame-confirmed-medium">R3. A raster backplate is converted to RGBA8888 on every frame. Confirmed. Medium.</a></li>
+<li><a class="reference internal" href="#r4-selection-overlay-rebuild-reserves-for-the-whole-mesh-confirmed-medium">R4. Selection overlay rebuild reserves for the whole mesh. Confirmed. Medium.</a></li>
+<li><a class="reference internal" href="#r5-unused-fill-and-point-variants-are-never-released-confirmed-medium">R5. Unused fill and point variants are never released. Confirmed. Medium.</a></li>
+<li><a class="reference internal" href="#r6-the-quality-range-is-baked-into-vertex-buffers-with-four-copies-of-the-invalidation-logic-confirmed-medium">R6. The quality range is baked into vertex buffers, with four copies of the invalidation logic. Confirmed. Medium.</a></li>
+<li><a class="reference internal" href="#r7-document-is-a-pass-through-layer-for-the-gpu-cache-confirmed-low-risk-pure-deletion">R7. Document is a pass-through layer for the GPU cache. Confirmed. Low risk, pure deletion.</a></li>
+<li><a class="reference internal" href="#r8-per-frame-work-that-only-needs-to-happen-on-change-confirmed-low-each-cheap-to-fix">R8. Per-frame work that only needs to happen on change. Confirmed. Low each, cheap to fix.</a></li>
+<li><a class="reference internal" href="#r9-the-uv-renderer-has-its-own-copy-of-the-gpu-cache-confirmed-large-ask-first">R9. The UV renderer has its own copy of the GPU cache. Confirmed. Large: ask first.</a></li>
+<li><a class="reference internal" href="#r10-wireframe-memory-confirmed-low-note-only">R10. Wireframe memory. Confirmed. Low, note only.</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#qt-integration">3. Qt integration</a><ul>
+<li><a class="reference internal" href="#q1-removals-and-raster-changes-bypass-the-coalescing-confirmed-medium">Q1. Removals and raster changes bypass the coalescing. Confirmed. Medium.</a></li>
+<li><a class="reference internal" href="#q2-undo-restore-fans-out-per-mesh-into-heavy-renderwidget-slots-confirmed-medium">Q2. Undo restore fans out per mesh into heavy RenderWidget slots. Confirmed. Medium.</a></li>
+<li><a class="reference internal" href="#q3-history-thumbnails-confirmed-low">Q3. History thumbnails. Confirmed. Low.</a></li>
+<li><a class="reference internal" href="#q4-preferences-changed-and-settings-checked-fine">Q4. <code class="docutils literal notranslate"><span class="pre">Preferences::changed</span></code> and settings. Checked, fine.</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#leftovers-and-duplication-approval-needed-before-removal">4. Leftovers and duplication. Approval needed before removal.</a></li>
+<li><a class="reference internal" href="#plan">5. Plan</a><ul>
+<li><a class="reference internal" href="#phase-1-undo-restore-that-does-not-copy-unchanged-layers-u4-u3-q2-q1">Phase 1: undo restore that does not copy unchanged layers (U4 + U3 + Q2 + Q1)</a></li>
+<li><a class="reference internal" href="#phase-2-render-side-waste-on-large-data-r2-r3-r4-r5">Phase 2: render-side waste on large data (R2, R3, R4, R5)</a></li>
+<li><a class="reference internal" href="#phase-3-uniforms-uploaded-before-the-pass-r1">Phase 3: uniforms uploaded before the pass (R1)</a></li>
+<li><a class="reference internal" href="#phase-4-collapse-duplication-u6-r7-r8">Phase 4: collapse duplication (U6, R7, R8)</a></li>
+<li><a class="reference internal" href="#phase-5-undo-capture-cost-u2-u1-small-form-u5-u7">Phase 5: undo capture cost (U2, U1 small form, U5, U7)</a></li>
+<li><a class="reference internal" href="#phase-6-large-ask-first-data-model-simplifications">Phase 6 (large, ask first): data-model simplifications</a></li>
+<li><a class="reference internal" href="#decisions-needed-before-phase-1">Decisions needed before phase 1</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=2709fde1"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 416 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 417 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -314,6 +314,58 @@ Red, Green, Blue and Alpha channels may be defined specifying a function in thei
 - **b** (*string*, default: `255`) — Expression for blue output in range [0, 255].
 - **a** (*string*, default: `255`) — Expression for alpha output in range [0, 255].
 - **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
+```
+
+---
+
+(filter-compute-mesh-ambient-occlusion)=
+
+## Compute Mesh Ambient Occlusion
+
+**Categories:** `Attribute/Color`, `Attribute/Scalar`
+
+**Plugin:** meshlab2.filter.embree
+
+Computes cosine-weighted ambient visibility of a surface mesh, per face and per vertex, and shades it as a gray vertex color.
+
+```{py:function} ms.compute_mesh_ambient_occlusion(**params)
+:module: _meshlab
+
+Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored per face, and each vertex then takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written (replacing any they held); a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute `BentNormal`. By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Half-Angle**: `0` is fully uniform ambient illumination and `1` uses only the cone. More rays improve angular sampling at greater cost. The per-vertex value is also written as a gray vertex color, replacing any vertex color the mesh had: black is fully occluded and white is the most exposed vertex, so the gray keeps the contrast the values actually have, and the view switches to it. For a layer without faces use *Compute Point Cloud Ambient Occlusion*.
+
+**Parameters:**
+
+- **rays** (*int*, default: `64`) — Number of lighting directions tested at each face barycenter.
+- **directional_bias** (*double*, default: `0.0`) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.
+- **cone_direction** (*point3f*, default: `[0.0, 1.0, 0.0]`) — Axis of the directionally biased lighting cone.
+- **cone_half_angle** (*double*, default: `30.0`) — Half-angle in degrees of the directionally biased lighting cone.
+```
+
+---
+
+(filter-compute-point-cloud-ambient-occlusion)=
+
+## Compute Point Cloud Ambient Occlusion
+
+**Categories:** `Attribute/Color`, `Attribute/Scalar`
+
+**Plugin:** meshlab2.filter.embree
+
+Computes point-cloud visibility against a surface occluder, and shades it as a gray vertex color.
+
+```{py:function} ms.compute_point_cloud_ambient_occlusion(**params)
+:module: _meshlab
+
+Traces rays from every point of the current point-cloud layer against a separate **Occluder Mesh**, using Intel Embree. The result is stored in vertex quality; a larger value means that the point is more exposed. Layer transforms are respected, and the average direction of escaping rays is stored in the per-vertex custom attribute `BentNormal`. **Normal Source** selects the meaning of the measurement:<ul><li><b>Point cloud normals</b> computes classical cosine-weighted hemisphere visibility around each existing point normal. Every point must have a valid normal.</li><li><b>Closest occluder surface</b> uses the geometric normal of the nearest occluder triangle. This is useful when point normals are absent or noisy and the points sample that surface; it assumes that the occluder orientation is meaningful.</li><li><b>No normal (spherical occlusion)</b> tests all sampled directions with equal weight. With <b>Directional Bias</b> set to <code>0</code>, this is orientation-independent full-sphere accessibility: enclosed points have low values and exposed points have high values. It is not classical hemisphere ambient occlusion. A non-zero directional bias instead measures accessibility under the selected directional distribution.</li></ul>By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Half-Angle**: `0` is fully uniform and `1` uses only the cone. More rays improve angular sampling at greater cost. The value is also written as a gray vertex color, replacing any the points had: black is fully occluded and white is the most exposed point, and the view switches to it.
+
+**Parameters:**
+
+- **occluder_mesh** (*mesh*, default: `@otherMeshIndex`) — Surface mesh tested by rays from the current point cloud.
+- **normal_source** (*enum*, default: `closest_occluder_surface`) — Selects an existing point normal, the closest occluder triangle normal, or orientation-independent spherical visibility.
+- **rays** (*int*, default: `64`) — Number of visibility directions tested at each point.
+- **directional_bias** (*double*, default: `0.0`) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.
+- **cone_direction** (*point3f*, default: `[0.0, 1.0, 0.0]`) — Axis of the directionally biased lighting cone.
+- **cone_half_angle** (*double*, default: `30.0`) — Half-angle in degrees of the directionally biased lighting cone.
 ```
 
 ---
@@ -1869,31 +1921,6 @@ Store in the vertex quality field the approximated geodesic distance, computed v
 
 ---
 
-(filter-compute-mesh-ambient-occlusion)=
-
-## Compute Mesh Ambient Occlusion
-
-**Categories:** `Attribute/Scalar`
-
-**Plugin:** meshlab2.filter.embree
-
-Computes cosine-weighted ambient visibility of a surface mesh, per face and per vertex.
-
-```{py:function} ms.compute_mesh_ambient_occlusion(**params)
-:module: _meshlab
-
-Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored per face, and each vertex then takes the average of the values of the faces around it, so both the per-face and the per-vertex scalar are written (replacing any they held); a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute `BentNormal`. By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Half-Angle**: `0` is fully uniform ambient illumination and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; the view switches to showing the per-face scalar after completion. For a layer without faces use *Compute Point Cloud Ambient Occlusion*.
-
-**Parameters:**
-
-- **rays** (*int*, default: `64`) — Number of lighting directions tested at each face barycenter.
-- **directional_bias** (*double*, default: `0.0`) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.
-- **cone_direction** (*point3f*, default: `[0.0, 1.0, 0.0]`) — Axis of the directionally biased lighting cone.
-- **cone_half_angle** (*double*, default: `30.0`) — Half-angle in degrees of the directionally biased lighting cone.
-```
-
----
-
 (filter-compute-obscurance)=
 
 ## Compute Obscurance
@@ -1917,33 +1944,6 @@ Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics tech
 
 - **rays** (*int*, default: `64`) — Number of rays shot from each face barycenter.
 - **tau** (*double*, default: `0.1`) — Spatial decay factor used in obscurance accumulation.
-```
-
----
-
-(filter-compute-point-cloud-ambient-occlusion)=
-
-## Compute Point Cloud Ambient Occlusion
-
-**Categories:** `Attribute/Scalar`
-
-**Plugin:** meshlab2.filter.embree
-
-Computes point-cloud visibility against a surface occluder.
-
-```{py:function} ms.compute_point_cloud_ambient_occlusion(**params)
-:module: _meshlab
-
-Traces rays from every point of the current point-cloud layer against a separate **Occluder Mesh**, using Intel Embree. The result is stored in vertex quality; a larger value means that the point is more exposed. Layer transforms are respected, and the average direction of escaping rays is stored in the per-vertex custom attribute `BentNormal`. **Normal Source** selects the meaning of the measurement:<ul><li><b>Point cloud normals</b> computes classical cosine-weighted hemisphere visibility around each existing point normal. Every point must have a valid normal.</li><li><b>Closest occluder surface</b> uses the geometric normal of the nearest occluder triangle. This is useful when point normals are absent or noisy and the points sample that surface; it assumes that the occluder orientation is meaningful.</li><li><b>No normal (spherical occlusion)</b> tests all sampled directions with equal weight. With <b>Directional Bias</b> set to <code>0</code>, this is orientation-independent full-sphere accessibility: enclosed points have low values and exposed points have high values. It is not classical hemisphere ambient occlusion. A non-zero directional bias instead measures accessibility under the selected directional distribution.</li></ul>By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Half-Angle**: `0` is fully uniform and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; MeshLab switches to vertex-quality visualization after completion.
-
-**Parameters:**
-
-- **occluder_mesh** (*mesh*, default: `@otherMeshIndex`) — Surface mesh tested by rays from the current point cloud.
-- **normal_source** (*enum*, default: `closest_occluder_surface`) — Selects an existing point normal, the closest occluder triangle normal, or orientation-independent spherical visibility.
-- **rays** (*int*, default: `64`) — Number of visibility directions tested at each point.
-- **directional_bias** (*double*, default: `0.0`) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.
-- **cone_direction** (*point3f*, default: `[0.0, 1.0, 0.0]`) — Axis of the directionally biased lighting cone.
-- **cone_half_angle** (*double*, default: `30.0`) — Half-angle in degrees of the directionally biased lighting cone.
 ```
 
 ---
@@ -11235,7 +11235,7 @@ Detach one texture, or every texture, from the current mesh, keeping its texture
 
 Detaches textures from the current mesh -- all of them, or the one chosen in **Texture**. The image files on disk are left alone.
 
-Removing **all** the textures takes the images and the materials that refer to them, so that the mesh is drawn and saved untextured. The texture coordinates stay, so that *Set Texture* can give it another texture; **Remove texture coordinates** drops them as well, per wedge and per vertex, when the parametrization itself is not wanted any more.
+Removing **all** the textures takes the images and the materials that refer to them, so that the mesh is drawn and saved untextured. The texture coordinates stay, so that *Set Dummy Texture* or *Set Texture from File* can give it another texture; **Remove texture coordinates** drops them as well, per wedge and per vertex, when the parametrization itself is not wanted any more.
 
 Removing **one** texture takes that image, and the materials stop using it. A material left with no image at all goes too: the faces that used it become untextured, and every other face keeps the texture it had. A material that keeps another image -- a glTF one losing its normal map, say -- stays, and so do its faces.
 
@@ -11272,28 +11272,48 @@ A texture that already has a file is not renamed on disk: that file is left alon
 
 ---
 
-(filter-set-texture)=
+(filter-set-dummy-texture)=
 
-## Set Texture
+## Set Dummy Texture
 
 **Categories:** `Texture/Assignment`
 
 **Plugin:** meshlab2.filter.texture
 
-Associate an image or generated dummy texture with the current mesh UV coordinates.
+Give the current mesh a generated checkerboard or grid texture, to show its UV parametrization.
 
-```{py:function} ms.set_texture(**params)
+```{py:function} ms.set_dummy_texture(**params)
 :module: _meshlab
 
-Associates one texture with the current mesh UV parametrization, replacing its existing texture associations. By default, the filter generates a checkerboard that makes UV scale and distortion immediately visible. Disable **Use dummy texture** to select an existing image file instead.
+Generates a square test image and makes it the only texture of the current mesh, replacing the textures it had. A checkerboard or a grid makes the scale and distortion of the UV parametrization visible at a glance; the UV grid draws the lines along U in red and those along V in blue, so the two directions can be told apart. The mesh needs texture coordinates, per wedge or per vertex. To use an image of your own, see *Set Texture from File*.
 
 **Parameters:**
 
-- **use_dummy_texture** (*bool*, default: `True`) — If checked, generate a dummy texture instead of loading an image. Disable it to select an image using 'Texture file'.
-- **textName** (*fileopen*, default: ``) — Sets the given input image as unique texture of the mesh.
 - **dummy_img_size** (*int*, default: `512`) — The side of the dummy texture, which is square, in texels.
 - **dummy_check_size** (*int*, default: `64`) — Size in pixel of the checkerboard or grid cell of the dummy texture.
 - **dummy_type** (*enum*, default: `checkerboard`) — Choose between a checkerboard, a line grid, and a UV grid whose lines along U are red and along V blue.
+```
+
+---
+
+(filter-set-texture-from-file)=
+
+## Set Texture from File
+
+**Categories:** `Texture/Assignment`
+
+**Plugin:** meshlab2.filter.texture
+
+Make an image file the texture of the current mesh, mapped by its UV coordinates.
+
+```{py:function} ms.set_texture_from_file(**params)
+:module: _meshlab
+
+Loads an image file and makes it the only texture of the current mesh, replacing the textures it had. The mesh needs texture coordinates, per wedge or per vertex. To make a test pattern instead, see *Set Dummy Texture*.
+
+**Parameters:**
+
+- **textureFile** (*fileopen*, default: ``) — The image that becomes the only texture of the mesh.
 ```
 
 ---
