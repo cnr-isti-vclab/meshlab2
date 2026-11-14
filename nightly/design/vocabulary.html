@@ -1207,23 +1207,27 @@ display name leads with a word that is not here.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Detail</span> <span class="pre">Size</span></code>, id <code class="docutils literal notranslate"><span class="pre">detailSize</span></code>, a length on the surface (<code class="docutils literal notranslate"><span class="pre">absperc</span></code>): the wavelength at which the filter is halfway between keeping the input and acting on it, smaller patterns being smoothed, sharpened or transferred and larger ones kept. Qualified by what is filtered when a dialog has another (<code class="docutils literal notranslate"><span class="pre">Sharpening</span> <span class="pre">Detail</span> <span class="pre">Size</span></code>, <code class="docutils literal notranslate"><span class="pre">Normal</span> <span class="pre">Smoothing</span> <span class="pre">Size</span></code>). See <a class="reference internal" href="proposals/texture_signal_processing.html#fidelity-as-a-length-approved-and-applied-2026-11-13"><span class="std std-ref">Fidelity as a length</span></a></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Fidelity</span></code>, <code class="docutils literal notranslate"><span class="pre">Interpolation</span> <span class="pre">Weight</span></code>, <code class="docutils literal notranslate"><span class="pre">Screening</span> <span class="pre">Weight</span></code> — the solver’s weight, unitless on a surface scaled to unit area, which no one can relate to the mesh</p></td>
 </tr>
-<tr class="row-even"><td><p>Normal vector</p></td>
+<tr class="row-even"><td><p>Size of a pattern a filter grows on the surface (UI label and id, 2026-11-14)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Pattern</span> <span class="pre">Size</span></code>, id <code class="docutils literal notranslate"><span class="pre">patternSize</span></code>, a length on the surface (<code class="docutils literal notranslate"><span class="pre">absperc</span></code>): the period, the distance from one stripe or dot to the next. The texture’s size then only sets how many texels draw it. See <a class="reference internal" href="proposals/texture_signal_processing.html#reaction-diffusions-scale-as-a-length-approved-and-applied-2026-11-14"><span class="std std-ref">Reaction-diffusion’s scale as a length</span></a></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Diffusion</span> <span class="pre">Scale</span></code> (the solver’s factor, which with the program’s scaling made the pattern a number of texels), <code class="docutils literal notranslate"><span class="pre">Stripe</span> <span class="pre">Width</span></code> (half the period, and no word for dots)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Normal vector</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normal</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normals</span> <span class="pre">direction</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Layer matrix</p></td>
+<tr class="row-even"><td><p>Layer matrix</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">matrix</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">transformation</span> <span class="pre">matrix</span></code> (verbose), <code class="docutils literal notranslate"><span class="pre">xform</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>1D abstraction of a shape</p></td>
+<tr class="row-odd"><td><p>1D abstraction of a shape</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">skeleton</span></code> alone, <code class="docutils literal notranslate"><span class="pre">morphological</span> <span class="pre">skeleton</span></code>, <code class="docutils literal notranslate"><span class="pre">medial</span> <span class="pre">axis</span></code>, <code class="docutils literal notranslate"><span class="pre">centerline</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Graph of the level-set components of a scalar field</p></td>
+<tr class="row-even"><td><p>Graph of the level-set components of a scalar field</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Reeb</span> <span class="pre">graph</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">contour</span> <span class="pre">tree</span></code> (the special case of a simply connected domain, which has no cycles)</p></td>
 </tr>
-<tr class="row-even"><td><p>Loops around a handle / around a tunnel of a closed surface</p></td>
+<tr class="row-odd"><td><p>Loops around a handle / around a tunnel of a closed surface</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">handle</span> <span class="pre">loop</span></code>, <code class="docutils literal notranslate"><span class="pre">tunnel</span> <span class="pre">loop</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meridian</span></code>, <code class="docutils literal notranslate"><span class="pre">longitude</span></code> (torus-only), <code class="docutils literal notranslate"><span class="pre">generator</span></code> (any basis loop, not classified)</p></td>
 </tr>
