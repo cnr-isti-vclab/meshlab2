@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 417 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 419 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -3263,6 +3263,42 @@ Implemented with VCGLib's Quickhull.
 - C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa. **The quickhull algorithm for convex hulls**. *ACM Transactions on Mathematical Software* (1996). [DOI](https://doi.org/10.1145/235815.235821)
 
 This filter has no parameters.
+```
+
+---
+
+(filter-create-isosurface-from-vertex-scalar)=
+
+## Create Isosurface from Vertex Scalar
+
+**Categories:** `Creation/Reconstruction`, `Attribute/Scalar`
+
+**Plugin:** meshlab2.filter.screened_poisson
+
+Fit a smooth function of space to the per-vertex scalar of a point set, and create the surface where it equals a value.
+
+```{py:function} ms.create_isosurface_from_vertex_scalar(**params)
+:module: _meshlab
+
+Takes the vertices of the current layer as samples of a scalar field in space, such as measurements taken at scattered points, fits a smooth function to them, and creates the surface where the function equals the *Isovalue* as a new layer. The vertices need no normals and no faces: a point cloud with a scalar is the typical input.
+
+The function is the one that minimizes $$w_v \sum_i \big(f(p_i) - s_i\big)^2 + w_l \int \|\nabla f\|^2 + w_b \int (\Delta f)^2,$$ with $s_i$ the scalar at vertex $p_i$, $w_v$ the *Value Weight*, $w_l$ the *Laplacian Weight* and $w_b$ the *Bi-Laplacian Weight*, over the degree-2 B-splines of an octree refined to the *Cell Size* where the samples are. It is the `PointInterpolant` program of Kazhdan's PoissonRecon, with its defaults, run inside MeshLab on the reconstructors' octree solver. Between the samples the function is the smoothest one through them; far from them, the smoothness term alone decides it, so it is meaningful only near the samples. The layer's matrix is applied: the fit is in the document's space.
+
+The new layer's vertices carry the isovalue as their scalar.
+
+**Parameters:**
+
+- **isovalue** (*double*, default: `@qualityVMid`) — The value of the fitted function the surface follows. The default is midway between the vertices' smallest and largest scalar.
+- **cellSize** (*absperc*, default: `@bboxDiag0005`) — The finest octree cell is at most this wide: details of the scalar smaller than a few cells cannot be represented. The tree spans the samples' bounding box enlarged by the Scale Factor, and is as deep as this size needs, up to 12 levels.
+- **valueWeight** (*double*, default: `1000.0`) — How closely the fitted function holds the samples' values, against its smoothness. The program's value interpolation weight.
+- **biLapWeight** (*double*, default: `1.0`) — How strongly the function's curvature is penalized: the larger, the smoother it is between and beyond the samples. The program's bi-Laplacian weight.
+- **lapWeight** (*double*, default: `0.0`) — How strongly the function's gradient is penalized, which flattens it rather than smoothing it. The program's Laplacian weight; 0 by default.
+- **exactInterpolation** (*bool*, default: `False`) — Hold the values at the samples' exact positions rather than splatted into the octree cells around them: more accurate, and slower.
+- **scale** (*double*, default: `1.1`) — The ratio between the side of the cube the octree spans and the largest side of the samples' bounding box. The default value is 1.1.
+- **fullDepth** (*int*, default: `5`) — Down to this depth the octree is complete, whatever the samples. The default value is 5.
+- **iters** (*int*, default: `8`) — The number of Gauss-Seidel relaxations at each level of the hierarchy. The default value is 8.
+- **threads** (*int*, default: `@hardwareThreads`) — Maximum number of threads that the solve can use.
+- **nonManifold** (*bool*, default: `False`) — Do not split the vertices where the surface touches itself; by default the output is manifold.
 ```
 
 ---
@@ -11747,6 +11783,41 @@ For each texel of the current mesh, finds its point on the surface and the close
 - **textureSize** (*int*, default: `1024`) — The side of each new texture, which is square, in texels.
 - **overwrite** (*bool*, default: `False`) — If the current mesh has textures, replace their images instead of adding new textures. Their files are left alone.
 - **pullpush** (*bool*, default: `True`) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.
+```
+
+---
+
+(filter-transfer-vertex-scalar-by-smooth-interpolation)=
+
+## Transfer Vertex Scalar by Smooth Interpolation
+
+**Categories:** `Transfer/Between Layers`, `Attribute/Scalar`
+
+**Plugin:** meshlab2.filter.screened_poisson
+
+Fit a smooth function of space to another layer's per-vertex scalar, and set the current layer's vertex scalar from it.
+
+```{py:function} ms.transfer_vertex_scalar_by_smooth_interpolation(**params)
+:module: _meshlab
+
+Sets the scalar of every vertex of the current layer from the per-vertex scalar of the *Source* layer, through a smooth function of space fitted to the source's vertices. Unlike *Transfer Vertex Attributes by Closest Point*, which copies the value of the nearest point and so changes in steps between the samples, the result varies smoothly, and fills the gaps between sparse samples, such as a few measurements over a scan.
+
+The function is the one that minimizes $$w_v \sum_i \big(f(p_i) - s_i\big)^2 + w_l \int \|\nabla f\|^2 + w_b \int (\Delta f)^2,$$ with $s_i$ the scalar at vertex $p_i$, $w_v$ the *Value Weight*, $w_l$ the *Laplacian Weight* and $w_b$ the *Bi-Laplacian Weight*, over the degree-2 B-splines of an octree refined to the *Cell Size* where the samples are. It is the `PointInterpolant` program of Kazhdan's PoissonRecon, with its defaults, run inside MeshLab on the reconstructors' octree solver. Between the samples the function is the smoothest one through them; far from them, the smoothness term alone decides it, so it is meaningful only near the samples. The layer's matrix is applied: the fit is in the document's space.
+
+Vertices outside the cube the fit spans, the source's bounding box enlarged by the *Scale Factor*, keep their scalar; the log says how many.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer whose per-vertex scalar is fitted.
+- **cellSize** (*absperc*, default: `@bboxDiag0005`) — The finest octree cell is at most this wide: details of the scalar smaller than a few cells cannot be represented. The tree spans the samples' bounding box enlarged by the Scale Factor, and is as deep as this size needs, up to 12 levels.
+- **valueWeight** (*double*, default: `1000.0`) — How closely the fitted function holds the samples' values, against its smoothness. The program's value interpolation weight.
+- **biLapWeight** (*double*, default: `1.0`) — How strongly the function's curvature is penalized: the larger, the smoother it is between and beyond the samples. The program's bi-Laplacian weight.
+- **lapWeight** (*double*, default: `0.0`) — How strongly the function's gradient is penalized, which flattens it rather than smoothing it. The program's Laplacian weight; 0 by default.
+- **exactInterpolation** (*bool*, default: `False`) — Hold the values at the samples' exact positions rather than splatted into the octree cells around them: more accurate, and slower.
+- **scale** (*double*, default: `1.1`) — The ratio between the side of the cube the octree spans and the largest side of the samples' bounding box. The default value is 1.1.
+- **fullDepth** (*int*, default: `5`) — Down to this depth the octree is complete, whatever the samples. The default value is 5.
+- **iters** (*int*, default: `8`) — The number of Gauss-Seidel relaxations at each level of the hierarchy. The default value is 8.
+- **threads** (*int*, default: `@hardwareThreads`) — Maximum number of threads that the solve can use.
 ```
 
 ---

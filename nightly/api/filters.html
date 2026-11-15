@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 417 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 419 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="filter-add-noise-to-vertex-color">
 <span id="add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#filter-add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -2819,6 +2819,35 @@ To build a polyline from an <em>edge</em> selection instead, use <em>Build a Pol
 <li><p>C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa. <strong>The quickhull algorithm for convex hulls</strong>. <em>ACM Transactions on Mathematical Software</em> (1996). <a class="reference external" href="https://doi.org/10.1145/235815.235821">DOI</a></p></li>
 </ul>
 <p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-create-isosurface-from-vertex-scalar">
+<span id="create-isosurface-from-vertex-scalar"></span><h2>Create Isosurface from Vertex Scalar<a class="headerlink" href="#filter-create-isosurface-from-vertex-scalar" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.screened_poisson</p>
+<p>Fit a smooth function of space to the per-vertex scalar of a point set, and create the surface where it equals a value.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.create_isosurface_from_vertex_scalar">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_isosurface_from_vertex_scalar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.create_isosurface_from_vertex_scalar" title="Link to this definition">¶</a></dt>
+<dd><p>Takes the vertices of the current layer as samples of a scalar field in space, such as measurements taken at scattered points, fits a smooth function to them, and creates the surface where the function equals the <em>Isovalue</em> as a new layer. The vertices need no normals and no faces: a point cloud with a scalar is the typical input.</p>
+<p>The function is the one that minimizes $<span class="math notranslate nohighlight">\(w_v \sum_i \big(f(p_i) - s_i\big)^2 + w_l \int \|\nabla f\|^2 + w_b \int (\Delta f)^2,\)</span><span class="math notranslate nohighlight">\( with \)</span>s_i<span class="math notranslate nohighlight">\( the scalar at vertex \)</span>p_i<span class="math notranslate nohighlight">\(, \)</span>w_v<span class="math notranslate nohighlight">\( the *Value Weight*, \)</span>w_l<span class="math notranslate nohighlight">\( the *Laplacian Weight* and \)</span>w_b$ the <em>Bi-Laplacian Weight</em>, over the degree-2 B-splines of an octree refined to the <em>Cell Size</em> where the samples are. It is the <code class="docutils literal notranslate"><span class="pre">PointInterpolant</span></code> program of Kazhdan’s PoissonRecon, with its defaults, run inside MeshLab on the reconstructors’ octree solver. Between the samples the function is the smoothest one through them; far from them, the smoothness term alone decides it, so it is meaningful only near the samples. The layer’s matrix is applied: the fit is in the document’s space.</p>
+<p>The new layer’s vertices carry the isovalue as their scalar.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>isovalue</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;qualityVMid</span></code>) — The value of the fitted function the surface follows. The default is midway between the vertices’ smallest and largest scalar.</p></li>
+<li><p><strong>cellSize</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag0005</span></code>) — The finest octree cell is at most this wide: details of the scalar smaller than a few cells cannot be represented. The tree spans the samples’ bounding box enlarged by the Scale Factor, and is as deep as this size needs, up to 12 levels.</p></li>
+<li><p><strong>valueWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1000.0</span></code>) — How closely the fitted function holds the samples’ values, against its smoothness. The program’s value interpolation weight.</p></li>
+<li><p><strong>biLapWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — How strongly the function’s curvature is penalized: the larger, the smoother it is between and beyond the samples. The program’s bi-Laplacian weight.</p></li>
+<li><p><strong>lapWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — How strongly the function’s gradient is penalized, which flattens it rather than smoothing it. The program’s Laplacian weight; 0 by default.</p></li>
+<li><p><strong>exactInterpolation</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Hold the values at the samples’ exact positions rather than splatted into the octree cells around them: more accurate, and slower.</p></li>
+<li><p><strong>scale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.1</span></code>) — The ratio between the side of the cube the octree spans and the largest side of the samples’ bounding box. The default value is 1.1.</p></li>
+<li><p><strong>fullDepth</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — Down to this depth the octree is complete, whatever the samples. The default value is 5.</p></li>
+<li><p><strong>iters</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — The number of Gauss-Seidel relaxations at each level of the hierarchy. The default value is 8.</p></li>
+<li><p><strong>threads</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hardwareThreads</span></code>) — Maximum number of threads that the solve can use.</p></li>
+<li><p><strong>nonManifold</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Do not split the vertices where the surface touches itself; by default the output is manifold.</p></li>
+</ul>
 </dd></dl>
 
 <hr class="docutils" />
@@ -9517,6 +9546,34 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 
 <hr class="docutils" />
 </section>
+<section id="filter-transfer-vertex-scalar-by-smooth-interpolation">
+<span id="transfer-vertex-scalar-by-smooth-interpolation"></span><h2>Transfer Vertex Scalar by Smooth Interpolation<a class="headerlink" href="#filter-transfer-vertex-scalar-by-smooth-interpolation" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.screened_poisson</p>
+<p>Fit a smooth function of space to another layer’s per-vertex scalar, and set the current layer’s vertex scalar from it.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.transfer_vertex_scalar_by_smooth_interpolation">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_vertex_scalar_by_smooth_interpolation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.transfer_vertex_scalar_by_smooth_interpolation" title="Link to this definition">¶</a></dt>
+<dd><p>Sets the scalar of every vertex of the current layer from the per-vertex scalar of the <em>Source</em> layer, through a smooth function of space fitted to the source’s vertices. Unlike <em>Transfer Vertex Attributes by Closest Point</em>, which copies the value of the nearest point and so changes in steps between the samples, the result varies smoothly, and fills the gaps between sparse samples, such as a few measurements over a scan.</p>
+<p>The function is the one that minimizes $<span class="math notranslate nohighlight">\(w_v \sum_i \big(f(p_i) - s_i\big)^2 + w_l \int \|\nabla f\|^2 + w_b \int (\Delta f)^2,\)</span><span class="math notranslate nohighlight">\( with \)</span>s_i<span class="math notranslate nohighlight">\( the scalar at vertex \)</span>p_i<span class="math notranslate nohighlight">\(, \)</span>w_v<span class="math notranslate nohighlight">\( the *Value Weight*, \)</span>w_l<span class="math notranslate nohighlight">\( the *Laplacian Weight* and \)</span>w_b$ the <em>Bi-Laplacian Weight</em>, over the degree-2 B-splines of an octree refined to the <em>Cell Size</em> where the samples are. It is the <code class="docutils literal notranslate"><span class="pre">PointInterpolant</span></code> program of Kazhdan’s PoissonRecon, with its defaults, run inside MeshLab on the reconstructors’ octree solver. Between the samples the function is the smoothest one through them; far from them, the smoothness term alone decides it, so it is meaningful only near the samples. The layer’s matrix is applied: the fit is in the document’s space.</p>
+<p>Vertices outside the cube the fit spans, the source’s bounding box enlarged by the <em>Scale Factor</em>, keep their scalar; the log says how many.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The layer whose per-vertex scalar is fitted.</p></li>
+<li><p><strong>cellSize</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag0005</span></code>) — The finest octree cell is at most this wide: details of the scalar smaller than a few cells cannot be represented. The tree spans the samples’ bounding box enlarged by the Scale Factor, and is as deep as this size needs, up to 12 levels.</p></li>
+<li><p><strong>valueWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1000.0</span></code>) — How closely the fitted function holds the samples’ values, against its smoothness. The program’s value interpolation weight.</p></li>
+<li><p><strong>biLapWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — How strongly the function’s curvature is penalized: the larger, the smoother it is between and beyond the samples. The program’s bi-Laplacian weight.</p></li>
+<li><p><strong>lapWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — How strongly the function’s gradient is penalized, which flattens it rather than smoothing it. The program’s Laplacian weight; 0 by default.</p></li>
+<li><p><strong>exactInterpolation</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Hold the values at the samples’ exact positions rather than splatted into the octree cells around them: more accurate, and slower.</p></li>
+<li><p><strong>scale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.1</span></code>) — The ratio between the side of the cube the octree spans and the largest side of the samples’ bounding box. The default value is 1.1.</p></li>
+<li><p><strong>fullDepth</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — Down to this depth the octree is complete, whatever the samples. The default value is 5.</p></li>
+<li><p><strong>iters</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — The number of Gauss-Seidel relaxations at each level of the hierarchy. The default value is 8.</p></li>
+<li><p><strong>threads</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;hardwareThreads</span></code>) — Maximum number of threads that the solve can use.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="filter-transfer-color-from-current-raster-to-vertex">
 <span id="transfer-color-from-current-raster-to-vertex"></span><h2>Transfer Color from Current Raster to Vertex<a class="headerlink" href="#filter-transfer-color-from-current-raster-to-vertex" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
@@ -10302,6 +10359,10 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#filter-create-convex-hull">Create Convex Hull</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.create_convex_hull"><code class="docutils literal notranslate"><span class="pre">ms.create_convex_hull()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-create-isosurface-from-vertex-scalar">Create Isosurface from Vertex Scalar</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.create_isosurface_from_vertex_scalar"><code class="docutils literal notranslate"><span class="pre">ms.create_isosurface_from_vertex_scalar()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#filter-create-surface-from-polyline-loop-hrbf">Create Surface from Polyline Loop (HRBF)</a><ul>
@@ -11442,6 +11503,10 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#filter-transfer-vertex-attributes-to-texture-by-closest-point">Transfer Vertex Attributes to Texture by Closest Point</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.transfer_vertex_attributes_to_texture_by_closest_point"><code class="docutils literal notranslate"><span class="pre">ms.transfer_vertex_attributes_to_texture_by_closest_point()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-transfer-vertex-scalar-by-smooth-interpolation">Transfer Vertex Scalar by Smooth Interpolation</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.transfer_vertex_scalar_by_smooth_interpolation"><code class="docutils literal notranslate"><span class="pre">ms.transfer_vertex_scalar_by_smooth_interpolation()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#filter-transfer-color-from-current-raster-to-vertex">Transfer Color from Current Raster to Vertex</a><ul>

@@ -1217,6 +1217,256 @@ invalidation blocks.</p></li>
 </ul>
 <p><strong>Estimated size:</strong> about -600 together, but each touches many files. Write a mapping table of
 what moves where before starting, as AGENTS.md requires.</p>
+<section id="mapping-table-2026-11-15-awaiting-approval">
+<h4>Mapping table (2026-11-15, awaiting approval)<a class="headerlink" href="#mapping-table-2026-11-15-awaiting-approval" title="Link to this heading">¶</a></h4>
+<p>Three commits in this order. R9 needs R6, because the colormap is the main difference between
+the two caches. U1 comes after R9, so that the UV cache it deletes needs no new keys. Line
+numbers are from the tree at <code class="docutils literal notranslate"><span class="pre">fe754200</span></code>.</p>
+<p><strong>R6: raw quality in the buffers, the range as a uniform</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Current</p></th>
+<th class="head"><p>Target</p></th>
+<th class="head"><p>Measured evidence</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>R6.1</p></td>
+<td><p>Fill variant: range test <code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.cpp:277-318</span></code>, range computed <code class="docutils literal notranslate"><span class="pre">:363-406</span></code>, normalized into the buffer <code class="docutils literal notranslate"><span class="pre">:565-609</span></code> and <code class="docutils literal notranslate"><span class="pre">:919-938</span></code></p></td>
+<td><p>raw <code class="docutils literal notranslate"><span class="pre">cQ()</span></code> in slot 6, LUT flag −1 unchanged; no range state in the variant</p></td>
+<td><p>5 <code class="docutils literal notranslate"><span class="pre">quality*</span></code> fields in <code class="docutils literal notranslate"><span class="pre">FillVariantGpu</span></code> (<code class="docutils literal notranslate"><span class="pre">:127-131</span></code>); the shaders read only <code class="docutils literal notranslate"><span class="pre">v_meshColor.r</span></code> (<code class="docutils literal notranslate"><span class="pre">fill_flat.frag:121</span></code>, <code class="docutils literal notranslate"><span class="pre">fill_smooth.frag:110</span></code>)</p></td>
+<td><p>change</p></td>
+</tr>
+<tr class="row-odd"><td><p>R6.2</p></td>
+<td><p>Points variant: range test and compute <code class="docutils literal notranslate"><span class="pre">:1074-1160</span></code></p></td>
+<td><p>same as R6.1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PointsVariantGpu</span></code> <code class="docutils literal notranslate"><span class="pre">:156-160</span></code>; <code class="docutils literal notranslate"><span class="pre">overlay_points.frag:56</span></code></p></td>
+<td><p>change</p></td>
+</tr>
+<tr class="row-even"><td><p>R6.3</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshSource::quality*</span></code> (<code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.h:46-50</span></code>), filled in <code class="docutils literal notranslate"><span class="pre">renderwidget_selection.cpp</span></code></p></td>
+<td><p>removed</p></td>
+<td><p>24 + 3 + 3 references in the cache <code class="docutils literal notranslate"><span class="pre">.cpp</span></code>/<code class="docutils literal notranslate"><span class="pre">.h</span></code> and <code class="docutils literal notranslate"><span class="pre">renderwidget_selection.cpp</span></code></p></td>
+<td><p>delete</p></td>
+</tr>
+<tr class="row-odd"><td><p>R6.4</p></td>
+<td><p>The automatic range is computed from the mesh at 5 sites: fill, points, UV (<code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp:370-392</span></code>), histogram (<code class="docutils literal notranslate"><span class="pre">renderwidget.cpp:3098-3170</span></code>), and <code class="docutils literal notranslate"><span class="pre">automaticQualityRangeForCurrentMesh</span></code> (<code class="docutils literal notranslate"><span class="pre">:243-297</span></code>, used by fixed-range seeding <code class="docutils literal notranslate"><span class="pre">:2066</span></code> and by Bake <code class="docutils literal notranslate"><span class="pre">:3425</span></code>)</p></td>
+<td><p>one <code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code> range function, cached by (meshId, geometryRevision, element, centerOnZero, crop); the histogram and both callers read it</p></td>
+<td><p>each site gathers the values and calls <code class="docutils literal notranslate"><span class="pre">sampledRenderQualityRange</span></code> (<code class="docutils literal notranslate"><span class="pre">qualityrange.h:22</span></code>)</p></td>
+<td><p>merge 5 → 1</p></td>
+</tr>
+<tr class="row-even"><td><p>R6.5</p></td>
+<td><p>15 shaders share the <code class="docutils literal notranslate"><span class="pre">buf</span></code> block, which ends at <code class="docutils literal notranslate"><span class="pre">clipRim</span></code> (offset 368, <code class="docutils literal notranslate"><span class="pre">kUbufSize</span> <span class="pre">=</span> <span class="pre">384</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">vec4</span> <span class="pre">qualityRange</span></code> (min, 1/(max−min)) at offset 384, <code class="docutils literal notranslate"><span class="pre">kUbufSize</span> <span class="pre">=</span> <span class="pre">400</span></code>, declared only by the 3 shaders that sample the LUT</p></td>
+<td><p>grep <code class="docutils literal notranslate"><span class="pre">vec4</span> <span class="pre">clipRim</span></code>: 15 files; LUT lookups: 3. std140 lets the other 12 omit a trailing member. The <code class="docutils literal notranslate"><span class="pre">ubufAligned</span></code> stride stays 512 at 256-byte alignment</p></td>
+<td><p>change</p></td>
+</tr>
+<tr class="row-odd"><td><p>R6.6</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">qualityrange.h</span></code></p></td>
+<td><p>stays</p></td>
+<td><p>used by <code class="docutils literal notranslate"><span class="pre">colorize_vertices_by_scalar</span></code> (<code class="docutils literal notranslate"><span class="pre">colorprocfilterplugin.cpp:295-570</span></code>), Bake, <code class="docutils literal notranslate"><span class="pre">test_colormap.cpp</span></code></p></td>
+<td><p>keep</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Behaviour:</p>
+<ul class="simple">
+<li><p><strong>Unchanged except when the range clamps inside a triangle.</strong> There the clamp moves from the
+vertices to the fragments, which is the correct result: normalization is affine, so it
+commutes with interpolation.</p></li>
+<li><p><strong>Non-finite values (decision D6-3).</strong> Today they paint the middle of the LUT
+(<code class="docutils literal notranslate"><span class="pre">normalizedRenderQuality</span></code> returns 0.5). A shader cannot test NaN reliably under Metal fast
+math, so the CPU has to replace them when it builds the buffer.</p></li>
+</ul>
+<p>Size: about +40 / −130.</p>
+<p><strong>R6 done (2026-11-15).</strong> Source and shaders +197 / −381; the 6 rows as mapped.</p>
+<ul>
+<li><p><strong>Buffers and uniform.</strong> The buffers carry the raw scalar, flagged −1 per-vertex, −2 per-face,
+or 0 when it is not finite (D6-3). The fill and point variants hold no range state. The shaders
+map through <code class="docutils literal notranslate"><span class="pre">qualityMap</span></code> (scale, offset per element), written by <code class="docutils literal notranslate"><span class="pre">uploadMainUbufForMesh</span></code>.</p></li>
+<li><p><strong>One range.</strong> <code class="docutils literal notranslate"><span class="pre">RenderWidget::qualityRange</span></code> and <code class="docutils literal notranslate"><span class="pre">sampledQualityRange</span></code> replace
+<code class="docutils literal notranslate"><span class="pre">automaticQualityRangeForCurrentMesh</span></code> and the four inline computations; the UV view keys its
+baked colors on the ranges it reads there.</p></li>
+<li><p><strong>Shader interface.</strong> <code class="docutils literal notranslate"><span class="pre">tests/test_shader_interfaces.cpp</span></code> requires linked stages to declare the
+block alike, so <code class="docutils literal notranslate"><span class="pre">fill_flat.vert</span></code>, <code class="docutils literal notranslate"><span class="pre">fill_smooth.vert</span></code> and <code class="docutils literal notranslate"><span class="pre">overlay_points.vert</span></code> declare
+<code class="docutils literal notranslate"><span class="pre">qualityMap</span></code> too. R6.5’s “std140 lets the others omit it” holds only for stages not linked to
+one of the three.</p></li>
+<li><p><strong>Duplicate invalidation removed.</strong> Both settings handlers cleared the histogram cache by hand
+for fields its own key already compares; those blocks are gone.</p></li>
+<li><p><strong>Tests.</strong> The new <code class="docutils literal notranslate"><span class="pre">tests/render_probes/scalar_color_map</span></code> measures:</p>
+<ul class="simple">
+<li><p>a per-vertex 0.25 and a per-face 0.75 in [0, 1] on the gray map: 64 and 191 for fill, 64 for
+points;</p></li>
+<li><p>the automatic range drawing pixel-for-pixel what the same fixed range draws;</p></li>
+<li><p>a clamp saturating to white;</p></li>
+<li><p>non-finite scalars drawing exactly the fill color.</p></li>
+</ul>
+<p>All 10 render probes and the 23 ctest suites pass.</p>
+</li>
+<li><p><strong>Seen, not changed.</strong> <code class="docutils literal notranslate"><span class="pre">uv_fill_texture.vert</span></code> declares a shorter anonymous <code class="docutils literal notranslate"><span class="pre">buf</span></code> than
+<code class="docutils literal notranslate"><span class="pre">fill_smooth.frag</span></code>, which it is linked with. The shader-interface test only compares named
+instances, so it does not see this.</p></li>
+</ul>
+<p><strong>R9: the UV view draws from the shared cache</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Current</p></th>
+<th class="head"><p>Target</p></th>
+<th class="head"><p>Measured evidence</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>R9.1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ensureUvMeshResources</span></code> (<code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp:187-674</span></code>, 488 lines) builds 5 fill variants, 3 point variants, wire, boundaries, seams, and selected faces and vertices, split by texture group</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshGpuResourceCache</span></code> products in a UV layout: positions <code class="docutils literal notranslate"><span class="pre">(u,</span> <span class="pre">v,</span> <span class="pre">0)</span></code> from corner UVs, normal (0,0,1), key <code class="docutils literal notranslate"><span class="pre">(meshId,</span> <span class="pre">uvGroup)</span></code>; <code class="docutils literal notranslate"><span class="pre">uvGroup</span> <span class="pre">=</span> <span class="pre">−1</span></code> is the 3D layout</p></td>
+<td><p>the 3D fill already has an expanded per-corner path (<code class="docutils literal notranslate"><span class="pre">expandTriangles</span></code>, <code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.cpp:361-408</span></code>) and the same 13-float stride (<code class="docutils literal notranslate"><span class="pre">:59</span></code> = <code class="docutils literal notranslate"><span class="pre">renderwidget_internal.h:75</span></code>); 3D boundaries and seams use the same vertex-pair edge map (<code class="docutils literal notranslate"><span class="pre">:1686-1840</span></code>) as the UV code (<code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp:478-547</span></code>)</p></td>
+<td><p>move into the cache, delete</p></td>
+</tr>
+<tr class="row-odd"><td><p>R9.2</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UvMeshGpu</span></code> (<code class="docutils literal notranslate"><span class="pre">renderwidget.h:1101-1147</span></code>), <code class="docutils literal notranslate"><span class="pre">m_uvMeshGpu</span></code> (<code class="docutils literal notranslate"><span class="pre">:1161</span></code>), <code class="docutils literal notranslate"><span class="pre">syncUvCacheWithDocument</span></code> (<code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp:41-66</span></code>)</p></td>
+<td><p>the cache’s <code class="docutils literal notranslate"><span class="pre">purgeMesh</span></code></p></td>
+<td><p>20 references in <code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp</span></code>, 1 in <code class="docutils literal notranslate"><span class="pre">renderwidget_resources.cpp</span></code></p></td>
+<td><p>delete</p></td>
+</tr>
+<tr class="row-even"><td><p>R9.3</p></td>
+<td><p>The draw picks a <code class="docutils literal notranslate"><span class="pre">DrawRange</span></code> per product (<code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp:1229-1386</span></code>)</p></td>
+<td><p>the cache’s pass views for <code class="docutils literal notranslate"><span class="pre">(meshId,</span> <span class="pre">activeGroup)</span></code></p></td>
+<td><p>only the active group is ever drawn (<code class="docutils literal notranslate"><span class="pre">:1019</span></code>, <code class="docutils literal notranslate"><span class="pre">:1229</span></code>)</p></td>
+<td><p>simplify</p></td>
+</tr>
+<tr class="row-odd"><td><p>R9.4</p></td>
+<td><p>UV-only drawing: background, texture quad, axes, unit box, tick labels, group list, fit/pan/zoom</p></td>
+<td><p>stays</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp:67-186</span></code>, <code class="docutils literal notranslate"><span class="pre">676-1018</span></code></p></td>
+<td><p>keep</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Behaviour:</p>
+<ul class="simple">
+<li><p><strong>Colormap.</strong> The UV code bakes the colormap into its buffer (<code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp:342-347</span></code>).
+After the move it samples the LUT, so changing the map no longer rebuilds anything.</p></li>
+<li><p><strong>Variants.</strong> Any change today rebuilds all 8 color variants (<code class="docutils literal notranslate"><span class="pre">:269-274</span></code>, <code class="docutils literal notranslate"><span class="pre">:636-651</span></code>). The cache
+builds only the variant being drawn.</p></li>
+<li><p><strong>Faux edges (decision D6-1).</strong> The UV wire draws every edge, while the 3D wire respects faux
+edges (<code class="docutils literal notranslate"><span class="pre">wireRespectFaux</span></code>, <code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.cpp:1018</span></code>).</p></li>
+<li><p><strong>Seams.</strong> The UV code compares UVs only; the 3D code also compares the texture index. The 3D
+rule is taken.</p></li>
+<li><p><strong>Switching texture group.</strong> Today it only switches the draw range. After the move, the first
+view of a group builds that group’s faces.</p></li>
+<li><p><strong>Memory.</strong> There is one shared copy instead of one per UV view.</p></li>
+</ul>
+<p>Size: about +110 / −470.</p>
+<p><strong>U1 full form: every node a snapshot made of shared layers</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Current</p></th>
+<th class="head"><p>Target</p></th>
+<th class="head"><p>Measured evidence</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>U1.1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshEntry</span></code> revisions geometry, material and selection (<code class="docutils literal notranslate"><span class="pre">document.h:69-73</span></code>)</p></td>
+<td><p>add <code class="docutils literal notranslate"><span class="pre">colorRevision</span></code> and <code class="docutils literal notranslate"><span class="pre">scalarRevision</span></code>, moved by new <code class="docutils literal notranslate"><span class="pre">markMeshColorChanged</span></code> and <code class="docutils literal notranslate"><span class="pre">markMeshScalarChanged</span></code> beside <code class="docutils literal notranslate"><span class="pre">markMeshSelectionChanged</span></code> (<code class="docutils literal notranslate"><span class="pre">:406-413</span></code>)</p></td>
+<td><p>color and scalar ride <code class="docutils literal notranslate"><span class="pre">geometryRevision</span></code> (<code class="docutils literal notranslate"><span class="pre">applyAttributeDelta</span></code>, <code class="docutils literal notranslate"><span class="pre">document_layers.cpp:1211-1213</span></code>)</p></td>
+<td><p>new</p></td>
+</tr>
+<tr class="row-odd"><td><p>U1.2</p></td>
+<td><p>63 filters that change only color or scalar call <code class="docutils literal notranslate"><span class="pre">markMeshGeometryChanged</span></code></p></td>
+<td><p>call the new markers instead, call site by call site</p></td>
+<td><p>descriptor sweep (<code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> ⊆ {VC, FC, EC, VQ, FQ, EQ}, SingleMesh): colorproc 28, expression 6, igl 5, geodesic 4, unsharp 3, sampling 3, trueform 3, embree 2, mls 2, color_projection 2, img_patch_param 2, camera 1, texture 1, geogram 1. Those 14 plugins hold 114 geometry-marker calls in all</p></td>
+<td><p>migrate by hand. A filter left unmigrated stays correct and costs a copy, so nothing trusts the descriptor</p></td>
+</tr>
+<tr class="row-even"><td><p>U1.3</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshSnapshot::selection</span></code> and <code class="docutils literal notranslate"><span class="pre">selectionCache</span></code> keyed (meshId, selectionRevision) (<code class="docutils literal notranslate"><span class="pre">document_undo_types.h:81-83</span></code>, <code class="docutils literal notranslate"><span class="pre">documentundomanager.h:75-80,</span> <span class="pre">110</span></code>)</p></td>
+<td><p>selection, color and scalar layers on <code class="docutils literal notranslate"><span class="pre">MeshSnapshot</span></code>, in one cache keyed (meshId, kind, revision)</p></td>
+<td><p>the phase 5 shape</p></td>
+<td><p>generalize</p></td>
+</tr>
+<tr class="row-odd"><td><p>U1.4</p></td>
+<td><p>The delta node kind: <code class="docutils literal notranslate"><span class="pre">UndoStorageKind</span></code> (<code class="docutils literal notranslate"><span class="pre">document_undo_types.h:219-225</span></code>), <code class="docutils literal notranslate"><span class="pre">storageKind</span></code>, <code class="docutils literal notranslate"><span class="pre">before/afterAttributes</span></code> (<code class="docutils literal notranslate"><span class="pre">:243</span></code>, <code class="docutils literal notranslate"><span class="pre">:258-261</span></code>)</p></td>
+<td><p>gone; every node is a snapshot</p></td>
+<td><p></p></td>
+<td><p>delete</p></td>
+</tr>
+<tr class="row-even"><td><p>U1.5</p></td>
+<td><p>The delta code in <code class="docutils literal notranslate"><span class="pre">DocumentUndoManager</span></code>: <code class="docutils literal notranslate"><span class="pre">beginDeltaStep</span></code>/<code class="docutils literal notranslate"><span class="pre">endDeltaStep</span></code> (<code class="docutils literal notranslate"><span class="pre">.cpp:210-248</span></code>), <code class="docutils literal notranslate"><span class="pre">pushDeltaStep</span></code> (<code class="docutils literal notranslate"><span class="pre">:888-928</span></code>), the delta branches in <code class="docutils literal notranslate"><span class="pre">endStep</span></code> (<code class="docutils literal notranslate"><span class="pre">:164-181</span></code>), <code class="docutils literal notranslate"><span class="pre">undo</span></code> (<code class="docutils literal notranslate"><span class="pre">:453-462</span></code>) and <code class="docutils literal notranslate"><span class="pre">redo</span></code> (<code class="docutils literal notranslate"><span class="pre">:493-501</span></code>), the delta walk in <code class="docutils literal notranslate"><span class="pre">jumpToNode</span></code> (<code class="docutils literal notranslate"><span class="pre">:401-425</span></code>), <code class="docutils literal notranslate"><span class="pre">clear</span></code> (<code class="docutils literal notranslate"><span class="pre">:533-534</span></code>), the root and prune guards (<code class="docutils literal notranslate"><span class="pre">:605-606</span></code>, <code class="docutils literal notranslate"><span class="pre">:733</span></code>, <code class="docutils literal notranslate"><span class="pre">:994-996</span></code>), <code class="docutils literal notranslate"><span class="pre">m_pendingDelta*</span></code> (<code class="docutils literal notranslate"><span class="pre">.h:120-122</span></code>), and the declarations (<code class="docutils literal notranslate"><span class="pre">.h:23-28</span></code>, <code class="docutils literal notranslate"><span class="pre">91-95</span></code>)</p></td>
+<td><p>gone; a jump is one restore</p></td>
+<td><p>line ranges read</p></td>
+<td><p>delete</p></td>
+</tr>
+<tr class="row-odd"><td><p>U1.6</p></td>
+<td><p>The delta entry points: two <code class="docutils literal notranslate"><span class="pre">beginUndoStep</span></code> overloads (<code class="docutils literal notranslate"><span class="pre">document_undo.cpp:22-37</span></code>), <code class="docutils literal notranslate"><span class="pre">applyAttributeDelta</span></code> (<code class="docutils literal notranslate"><span class="pre">document_layers.cpp:1200-1221</span></code>), the “Change Selection” step (<code class="docutils literal notranslate"><span class="pre">:1023</span></code>), and the <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code>→kind table with its branch (<code class="docutils literal notranslate"><span class="pre">meshfilterpluginmanager.cpp:1038-1072</span></code>, <code class="docutils literal notranslate"><span class="pre">1097-1101</span></code>)</p></td>
+<td><p>gone. <code class="docutils literal notranslate"><span class="pre">captureAttributeDelta</span></code> and <code class="docutils literal notranslate"><span class="pre">applyAttributeValues</span></code> stay, to build and restore the layers</p></td>
+<td><p>no callers outside undo (grep)</p></td>
+<td><p>delete</p></td>
+</tr>
+<tr class="row-even"><td><p>U1.7</p></td>
+<td><p>Code that learns of a color or scalar change through <code class="docutils literal notranslate"><span class="pre">geometryRevision</span></code>: the GPU fill/point keys (<code class="docutils literal notranslate"><span class="pre">MeshSource</span></code>, <code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.h:40-44</span></code>), the histogram (<code class="docutils literal notranslate"><span class="pre">renderwidget.cpp:3098</span></code>), the saved-file check (<code class="docutils literal notranslate"><span class="pre">document_io.cpp:727</span></code>, <code class="docutils literal notranslate"><span class="pre">761</span></code>), the metadata copy (<code class="docutils literal notranslate"><span class="pre">document_internal.cpp:395</span></code>)</p></td>
+<td><p>add the two revisions</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">geometryRevision</span></code> appears in 20 files; the others need geometry only (occluder, decorator counts, selection scope, xatlas, texture)</p></td>
+<td><p>change</p></td>
+</tr>
+<tr class="row-odd"><td><p>U1.8</p></td>
+<td><p>Memory reporting: <code class="docutils literal notranslate"><span class="pre">deltaBytes</span></code>, <code class="docutils literal notranslate"><span class="pre">pendingDeltaBytes</span></code>, <code class="docutils literal notranslate"><span class="pre">attributeDelta</span></code> (<code class="docutils literal notranslate"><span class="pre">document_undo_types.h:283-302</span></code>), the memory dialog rows (<code class="docutils literal notranslate"><span class="pre">mainwindow.cpp:3014-3040</span></code>, <code class="docutils literal notranslate"><span class="pre">3123</span></code>), the Make Root guard (<code class="docutils literal notranslate"><span class="pre">undographwidget.cpp:605</span></code>)</p></td>
+<td><p>layers counted with the geometry, as phase 5 does for selection; the guard removed</p></td>
+<td><p></p></td>
+<td><p>delete (decision D6-2)</p></td>
+</tr>
+<tr class="row-even"><td><p>U1.9</p></td>
+<td><p>Tests that assert delta storage: <code class="docutils literal notranslate"><span class="pre">test_document.cpp</span></code> 813-819, 3233-3285, 3310, 3389; <code class="docutils literal notranslate"><span class="pre">test_filters.cpp</span></code> 14691-14725, 15568-15570</p></td>
+<td><p>assert “no geometry copy” instead: geometry bytes unchanged across the step</p></td>
+<td><p>grep</p></td>
+<td><p>rewrite</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Behaviour and risks:</p>
+<ul class="simple">
+<li><p><strong>Memory.</strong> A delta node keeps the before and after values; a layer keeps one set, shared by
+the states that have it. That is about half.</p></li>
+<li><p><strong>Cache miss.</strong> A selection or color step whose “before” geometry is no longer interned (the
+history was pruned below it) now copies, where a delta did not. Measure this on ESTE after a
+prune.</p></li>
+<li><p><strong>Hand-incremented revision.</strong> <code class="docutils literal notranslate"><span class="pre">filter_texture</span></code> increments <code class="docutils literal notranslate"><span class="pre">materialRevision</span></code> by hand
+(<code class="docutils literal notranslate"><span class="pre">texturefilterplugin.cpp:1033</span></code>, <code class="docutils literal notranslate"><span class="pre">1308</span></code>). It is harmless only because a fresh geometry
+revision follows at once; fold it into <code class="docutils literal notranslate"><span class="pre">markMeshMaterialChanged</span></code> while there.</p></li>
+</ul>
+<p>Size: about +120 / −330.</p>
+<p><strong>Totals:</strong> 19 rows.</p>
+<ul class="simple">
+<li><p>R6, 6 rows: 3 change, 1 delete, 1 merge, 1 keep.</p></li>
+<li><p>R9, 4 rows: 1 move, 1 delete, 1 simplify, 1 keep.</p></li>
+<li><p>U1, 9 rows: 1 new, 1 migrate, 1 generalize, 4 delete, 1 change, 1 rewrite.</p></li>
+</ul>
+<p>Estimated about +270 / −930, a net −660 (the review’s estimate was about −600).</p>
+<p><strong>Decisions (2026-11-15):</strong></p>
+<ul class="simple">
+<li><p><strong>D6-1, UV wire and faux edges: no decision needed.</strong> Hiding faux edges is already the
+per-mesh “respect faux” setting (<code class="docutils literal notranslate"><span class="pre">PerMeshRenderSettings::wireRespectFaux</span></code>, on by default). After
+R9 the UV wire follows it as the 3D wire does.</p></li>
+<li><p><strong>D6-2, memory dialog: one “Attribute layers” row.</strong> It counts the selection, color and scalar
+layers, and the selection moves back out of the geometry bytes. The row reuses <code class="docutils literal notranslate"><span class="pre">deltaBytes</span></code>.</p></li>
+<li><p><strong>D6-3, non-finite quality: the mesh’s plain fill color.</strong> The vertex carries the plain color
+flag instead of the LUT flag, so it shows as a gap rather than as an average value. For
+per-vertex quality the gap reaches about halfway to the neighbors. Bake to Vertex Color and
+Colorize by Scalar keep painting the LUT’s middle (<code class="docutils literal notranslate"><span class="pre">normalizedRenderQuality</span></code>); they are filters,
+outside this change.</p></li>
+</ul>
+</section>
 </section>
 <section id="decisions-needed-before-phase-1">
 <h3>Decisions needed before phase 1<a class="headerlink" href="#decisions-needed-before-phase-1" title="Link to this heading">¶</a></h3>
@@ -1319,7 +1569,10 @@ vector” suggests.</p>
 <li><a class="reference internal" href="#phase-3-uniforms-uploaded-before-the-pass-r1">Phase 3: uniforms uploaded before the pass (R1)</a></li>
 <li><a class="reference internal" href="#phase-4-collapse-duplication-u6-r7-r8">Phase 4: collapse duplication (U6, R7, R8)</a></li>
 <li><a class="reference internal" href="#phase-5-undo-capture-cost-u2-u1-small-form-u5-u7">Phase 5: undo capture cost (U2, U1 small form, U5, U7)</a></li>
-<li><a class="reference internal" href="#phase-6-large-ask-first-data-model-simplifications">Phase 6 (large, ask first): data-model simplifications</a></li>
+<li><a class="reference internal" href="#phase-6-large-ask-first-data-model-simplifications">Phase 6 (large, ask first): data-model simplifications</a><ul>
+<li><a class="reference internal" href="#mapping-table-2026-11-15-awaiting-approval">Mapping table (2026-11-15, awaiting approval)</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#decisions-needed-before-phase-1">Decisions needed before phase 1</a></li>
 </ul>
 </li>
