@@ -523,6 +523,7 @@ private slots:
     void textureSignalProcessingDrawsStreaksOfTheLengthAsked();
     void textureSignalProcessingTakesUvsAlignedWithTheTexels();
     void textureSignalProcessingGrowsReactionDiffusion();
+    void pointInterpolantContoursAndTransfersAScalar();
     void filtersMakingTexturesAddOneOnEachRun();
     void open3dFeatureMatchingCanUseAllVisibleLayersAsReference();
     void open3dFeatureMatchingCanEstimateItsQualityWithIcp();
@@ -7618,6 +7619,81 @@ void FilterTests::textureSignalProcessingGrowsReactionDiffusion()
            alongU, alongV, cut, inside);
     QVERIFY(alongU * 3 < alongV);
     QVERIFY(cut < 3 * inside + 5);
+}
+
+// PointInterpolant: 4000 random points in [-1, 1]³ carrying their distance from the origin as the
+// scalar, a field whose level sets are spheres.
+// - Create Isosurface from Vertex Scalar at 0.5 gives the sphere of radius 0.5.
+// - Transfer Vertex Scalar by Smooth Interpolation sets, on a sphere of radius 0.8, about 0.8 (the
+//   error is the samples' spacing showing, 4000 points in a cube of side 2); a vertex far outside the
+//   fitted cube keeps its scalar.
+void FilterTests::pointInterpolantContoursAndTransfersAScalar()
+{
+    Document probe;
+    const QString isoKey = filterKeyForId(probe, QStringLiteral("create_isosurface_from_vertex_scalar"));
+    const QString transferKey = filterKeyForId(probe, QStringLiteral("transfer_vertex_scalar_by_smooth_interpolation"));
+    if (isoKey.isEmpty() || transferKey.isEmpty())
+        QSKIP("Screened Poisson plugin is not available in this build.");
+
+    VCGMesh cloud;
+    std::mt19937 random(11);
+    std::uniform_real_distribution<float> coordinate(-1.f, 1.f);
+    vcg::tri::Allocator<VCGMesh>::AddVertices(cloud, 4000);
+    for (VCGVertex &v : cloud.vert) {
+        v.P() = vcg::Point3f(coordinate(random), coordinate(random), coordinate(random));
+        v.Q() = v.P().Norm();
+    }
+    Document doc;
+    const int cloudIndex = doc.addMesh(cloud, QStringLiteral("cloud"), vcg::tri::io::Mask::IOM_VERTQUALITY);
+    QVERIFY(cloudIndex >= 0);
+    doc.setCurrentMeshIndex(cloudIndex);
+
+    MeshFilterParameterValues iso;
+    iso.insert(QStringLiteral("isovalue"), 0.5);
+    const MeshFilterRunResult contoured = doc.runFilter(isoKey, iso);
+    QVERIFY2(contoured.success, qPrintable(contoured.errorMessage));
+    QCOMPARE(contoured.newMeshIndices.size(), size_t(1));
+    const VCGMesh &sphere = doc.mesh(contoured.newMeshIndices.front()).mesh;
+    double sum = 0, worst = 0;
+    int n = 0;
+    for (const VCGVertex &v : sphere.vert)
+        if (!v.IsD()) {
+            const double r = v.cP().Norm();
+            sum += r, worst = std::max(worst, std::abs(r - 0.5)), ++n;
+        }
+    qDebug("isosurface at 0.5: %d vertices, %d faces, mean radius %.4f, largest deviation %.4f | %s", n, sphere.FN(),
+           sum / n, worst, qPrintable(contoured.infoMessages.join(QStringLiteral(" | "))));
+    QVERIFY(sphere.FN() > 100);
+    QVERIFY(std::abs(sum / n - 0.5) < 0.01);
+    QVERIFY(worst < 0.05);
+
+    VCGMesh target;
+    vcg::tri::Sphere(target, 3);
+    for (VCGVertex &v : target.vert)
+        v.P() *= 0.8f;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(target, vcg::Point3f(5, 0, 0));
+    for (VCGVertex &v : target.vert)
+        v.Q() = -1;
+    const int targetIndex = doc.addMesh(target, QStringLiteral("target"), vcg::tri::io::Mask::IOM_VERTQUALITY);
+    QVERIFY(targetIndex >= 0);
+    doc.setCurrentMeshIndex(targetIndex);
+    MeshFilterParameterValues transfer;
+    transfer.insert(QStringLiteral("sourceMesh"), cloudIndex);
+    const MeshFilterRunResult transferred = doc.runFilter(transferKey, transfer);
+    QVERIFY2(transferred.success, qPrintable(transferred.errorMessage));
+    const VCGMesh &set = doc.mesh(targetIndex).mesh;
+    double error = 0, total = 0;
+    for (size_t i = 0; i + 1 < set.vert.size(); ++i) {
+        const double e = std::abs(double(set.vert[i].cQ()) - 0.8);
+        error = std::max(error, e), total += e;
+    }
+    const double mean = total / double(set.vert.size() - 1);
+    qDebug("transferred to radius 0.8: mean error %.4f, largest %.4f; the far vertex %.1f | %s", mean, error,
+           set.vert.back().cQ(), qPrintable(transferred.infoMessages.join(QStringLiteral(" | "))));
+    QVERIFY(mean < 0.01);
+    QVERIFY(error < 0.04);
+    QCOMPARE(set.vert.back().cQ(), -1.f);
+    QCOMPARE(transferred.outputValues.value(QStringLiteral("vertices_outside")).toLongLong(), 1);
 }
 
 // A layout whose vertices sit on the texel grid puts edges exactly through texel centers and along the

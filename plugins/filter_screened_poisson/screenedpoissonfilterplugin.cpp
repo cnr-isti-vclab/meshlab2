@@ -10,6 +10,8 @@ namespace {
 constexpr QLatin1StringView kFilterScreenedPoisson("reconstruct_surface_by_screened_poisson");
 constexpr QLatin1StringView kFilterSSDRecon("reconstruct_surface_by_smooth_signed_distance");
 constexpr QLatin1StringView kFilterSurfaceTrimmer("trim_surface_by_scalar_isovalue");
+constexpr QLatin1StringView kFilterIsosurfaceFromScalar("create_isosurface_from_vertex_scalar");
+constexpr QLatin1StringView kFilterScalarTransfer("transfer_vertex_scalar_by_smooth_interpolation");
 
 std::vector<int> selectedMeshIndices(const Document &doc, bool mergeVisible)
 {
@@ -58,6 +60,16 @@ MeshFilterRunResult ScreenedPoissonFilterPlugin::runFilter(
         if (meshIndex < 0 || meshIndex >= doc.meshCount())
             return { false, false, QObject::tr("No current mesh selected.") };
         return ScreenedPoisson::runSurfaceTrimmerFilter(doc, meshIndex, params.rawValues());
+    }
+
+    if (filterId == QString::fromLatin1(kFilterIsosurfaceFromScalar) || filterId == QString::fromLatin1(kFilterScalarTransfer)) {
+        const int meshIndex = doc.currentMeshIndex();
+        if (meshIndex < 0 || meshIndex >= doc.meshCount())
+            return { false, false, QObject::tr("No current mesh selected.") };
+        if (filterId == QString::fromLatin1(kFilterIsosurfaceFromScalar))
+            return ScreenedPoisson::runIsosurfaceFromScalarFilter(doc, meshIndex, params.rawValues());
+        return ScreenedPoisson::runScalarTransferFilter(doc, meshIndex, params.getMesh(QStringLiteral("sourceMesh")),
+                                                        params.rawValues());
     }
 
     if (filterId == QString::fromLatin1(kFilterScreenedPoisson) || filterId == QString::fromLatin1(kFilterSSDRecon)) {

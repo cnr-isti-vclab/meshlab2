@@ -32,6 +32,12 @@ MeshFilterRunResult runSSDReconFilter(
     const std::vector<int> &meshIndices,
     bool mergeVisible,
     const MeshFilterParameterValues &parameters);
+// PointInterpolant: the current layer's per-vertex scalar fitted by a smooth function of space, and
+// the surface where it equals the isovalue created as a new layer.
+MeshFilterRunResult runIsosurfaceFromScalarFilter(Document &doc, int meshIndex, const MeshFilterParameterValues &parameters);
+// PointInterpolant: the source layer's per-vertex scalar fitted by a smooth function of space and
+// evaluated at the target layer's vertices.
+MeshFilterRunResult runScalarTransferFilter(Document &doc, int targetIndex, int sourceIndex, const MeshFilterParameterValues &parameters);
 MeshFilterRunResult runSurfaceTrimmerFilter(
     Document &doc,
     int meshIndex,

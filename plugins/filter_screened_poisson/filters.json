@@ -425,6 +425,259 @@
         "FV",
         "VG"
       ]
+    },
+    {
+      "id": "create_isosurface_from_vertex_scalar",
+      "categories": ["Creation/Reconstruction", "Attribute/Scalar"],
+      "name": "Create Isosurface from Vertex Scalar",
+      "pythonName": "create_isosurface_from_vertex_scalar",
+      "shortDescription": "Fit a smooth function of space to the per-vertex scalar of a point set, and create the surface where it equals a value.",
+      "longDescriptionMarkdown": "Takes the vertices of the current layer as samples of a scalar field in space, such as measurements taken at scattered points, fits a smooth function to them, and creates the surface where the function equals the *Isovalue* as a new layer. The vertices need no normals and no faces: a point cloud with a scalar is the typical input.\n\nThe function is the one that minimizes $$w_v \\sum_i \\big(f(p_i) - s_i\\big)^2 + w_l \\int \\|\\nabla f\\|^2 + w_b \\int (\\Delta f)^2,$$ with $s_i$ the scalar at vertex $p_i$, $w_v$ the *Value Weight*, $w_l$ the *Laplacian Weight* and $w_b$ the *Bi-Laplacian Weight*, over the degree-2 B-splines of an octree refined to the *Cell Size* where the samples are. It is the `PointInterpolant` program of Kazhdan's PoissonRecon, with its defaults, run inside MeshLab on the reconstructors' octree solver. Between the samples the function is the smoothest one through them; far from them, the smoothness term alone decides it, so it is meaningful only near the samples. The layer's matrix is applied: the fit is in the document's space.\n\nThe new layer's vertices carry the isovalue as their scalar.",
+      "tags": ["isosurface", "level set", "scalar field", "interpolation", "point interpolant", "PoissonRecon", "volume"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "outputTag": "isosurface",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireVertexQuality": true
+      },
+      "parameters": [
+        {
+          "id": "isovalue",
+          "label": "Isovalue",
+          "help": "The value of the fitted function the surface follows. The default is midway between the vertices' smallest and largest scalar.",
+          "group": "main",
+          "type": "double",
+          "default": "@qualityVMid",
+          "decimals": 6
+        },
+        {
+          "id": "cellSize",
+          "label": "Cell Size",
+          "help": "The finest octree cell is at most this wide: details of the scalar smaller than a few cells cannot be represented. The tree spans the samples' bounding box enlarged by the Scale Factor, and is as deep as this size needs, up to 12 levels.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag0005",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "valueWeight",
+          "label": "Value Weight",
+          "help": "How closely the fitted function holds the samples' values, against its smoothness. The program's value interpolation weight.",
+          "group": "main",
+          "type": "double",
+          "default": 1000.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 3
+        },
+        {
+          "id": "biLapWeight",
+          "label": "Bi-Laplacian Weight",
+          "help": "How strongly the function's curvature is penalized: the larger, the smoother it is between and beyond the samples. The program's bi-Laplacian weight.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 3
+        },
+        {
+          "id": "lapWeight",
+          "label": "Laplacian Weight",
+          "help": "How strongly the function's gradient is penalized, which flattens it rather than smoothing it. The program's Laplacian weight; 0 by default.",
+          "group": "advanced.solver",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 3
+        },
+        {
+          "id": "exactInterpolation",
+          "label": "Exact Interpolation",
+          "help": "Hold the values at the samples' exact positions rather than splatted into the octree cells around them: more accurate, and slower.",
+          "group": "advanced.solver",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "scale",
+          "label": "Scale Factor",
+          "help": "The ratio between the side of the cube the octree spans and the largest side of the samples' bounding box. The default value is 1.1.",
+          "group": "advanced.tree",
+          "type": "double",
+          "default": 1.1,
+          "min": 1.0,
+          "max": 100.0,
+          "decimals": 3
+        },
+        {
+          "id": "fullDepth",
+          "label": "Full Depth",
+          "help": "Down to this depth the octree is complete, whatever the samples. The default value is 5.",
+          "group": "advanced.solver",
+          "type": "int",
+          "default": 5,
+          "min": 1,
+          "max": 12
+        },
+        {
+          "id": "iters",
+          "label": "Gauss-Seidel Relaxations",
+          "help": "The number of Gauss-Seidel relaxations at each level of the hierarchy. The default value is 8.",
+          "group": "advanced.solver",
+          "type": "int",
+          "default": 8,
+          "min": 1,
+          "max": 100
+        },
+        {
+          "id": "threads",
+          "label": "Number of Threads",
+          "help": "Maximum number of threads that the solve can use.",
+          "group": "main",
+          "type": "int",
+          "default": "@hardwareThreads",
+          "min": 1,
+          "max": 256
+        },
+        {
+          "id": "nonManifold",
+          "label": "Allow Non-Manifold Output",
+          "help": "Do not split the vertices where the surface touches itself; by default the output is manifold.",
+          "group": "advanced.extraction",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": [],
+      "referenceIds": []
+    },
+    {
+      "id": "transfer_vertex_scalar_by_smooth_interpolation",
+      "categories": ["Transfer/Between Layers", "Attribute/Scalar"],
+      "name": "Transfer Vertex Scalar by Smooth Interpolation",
+      "pythonName": "transfer_vertex_scalar_by_smooth_interpolation",
+      "shortDescription": "Fit a smooth function of space to another layer's per-vertex scalar, and set the current layer's vertex scalar from it.",
+      "longDescriptionMarkdown": "Sets the scalar of every vertex of the current layer from the per-vertex scalar of the *Source* layer, through a smooth function of space fitted to the source's vertices. Unlike *Transfer Vertex Attributes by Closest Point*, which copies the value of the nearest point and so changes in steps between the samples, the result varies smoothly, and fills the gaps between sparse samples, such as a few measurements over a scan.\n\nThe function is the one that minimizes $$w_v \\sum_i \\big(f(p_i) - s_i\\big)^2 + w_l \\int \\|\\nabla f\\|^2 + w_b \\int (\\Delta f)^2,$$ with $s_i$ the scalar at vertex $p_i$, $w_v$ the *Value Weight*, $w_l$ the *Laplacian Weight* and $w_b$ the *Bi-Laplacian Weight*, over the degree-2 B-splines of an octree refined to the *Cell Size* where the samples are. It is the `PointInterpolant` program of Kazhdan's PoissonRecon, with its defaults, run inside MeshLab on the reconstructors' octree solver. Between the samples the function is the smoothest one through them; far from them, the smoothness term alone decides it, so it is meaningful only near the samples. The layer's matrix is applied: the fit is in the document's space.\n\nVertices outside the cube the fit spans, the source's bounding box enlarged by the *Scale Factor*, keep their scalar; the log says how many.",
+      "tags": ["transfer", "scalar", "interpolation", "smooth", "point interpolant", "PoissonRecon", "scattered data"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Source",
+          "help": "The layer whose per-vertex scalar is fitted.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireVertexQuality": true
+          }
+        },
+        {
+          "id": "cellSize",
+          "label": "Cell Size",
+          "help": "The finest octree cell is at most this wide: details of the scalar smaller than a few cells cannot be represented. The tree spans the samples' bounding box enlarged by the Scale Factor, and is as deep as this size needs, up to 12 levels.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag0005",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "valueWeight",
+          "label": "Value Weight",
+          "help": "How closely the fitted function holds the samples' values, against its smoothness. The program's value interpolation weight.",
+          "group": "main",
+          "type": "double",
+          "default": 1000.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 3
+        },
+        {
+          "id": "biLapWeight",
+          "label": "Bi-Laplacian Weight",
+          "help": "How strongly the function's curvature is penalized: the larger, the smoother it is between and beyond the samples. The program's bi-Laplacian weight.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 3
+        },
+        {
+          "id": "lapWeight",
+          "label": "Laplacian Weight",
+          "help": "How strongly the function's gradient is penalized, which flattens it rather than smoothing it. The program's Laplacian weight; 0 by default.",
+          "group": "advanced.solver",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 3
+        },
+        {
+          "id": "exactInterpolation",
+          "label": "Exact Interpolation",
+          "help": "Hold the values at the samples' exact positions rather than splatted into the octree cells around them: more accurate, and slower.",
+          "group": "advanced.solver",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "scale",
+          "label": "Scale Factor",
+          "help": "The ratio between the side of the cube the octree spans and the largest side of the samples' bounding box. The default value is 1.1.",
+          "group": "advanced.tree",
+          "type": "double",
+          "default": 1.1,
+          "min": 1.0,
+          "max": 100.0,
+          "decimals": 3
+        },
+        {
+          "id": "fullDepth",
+          "label": "Full Depth",
+          "help": "Down to this depth the octree is complete, whatever the samples. The default value is 5.",
+          "group": "advanced.solver",
+          "type": "int",
+          "default": 5,
+          "min": 1,
+          "max": 12
+        },
+        {
+          "id": "iters",
+          "label": "Gauss-Seidel Relaxations",
+          "help": "The number of Gauss-Seidel relaxations at each level of the hierarchy. The default value is 8.",
+          "group": "advanced.solver",
+          "type": "int",
+          "default": 8,
+          "min": 1,
+          "max": 100
+        },
+        {
+          "id": "threads",
+          "label": "Number of Threads",
+          "help": "Maximum number of threads that the solve can use.",
+          "group": "main",
+          "type": "int",
+          "default": "@hardwareThreads",
+          "min": 1,
+          "max": 256
+        }
+      ],
+      "outputModifies": ["VQ"],
+      "referenceIds": []
     }
   ]
 }

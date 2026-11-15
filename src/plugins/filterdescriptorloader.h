@@ -94,6 +94,7 @@ class Document;
 //   @documentUnit          - the document's unit, as LengthUnits::scriptId() spells it
 //   @qualityVMin           - per-vertex quality minimum
 //   @qualityVMax           - per-vertex quality maximum
+//   @qualityVMid           - midway between the per-vertex quality minimum and maximum
 //   @qualityFMin           - per-face quality minimum
 //   @qualityFMax           - per-face quality maximum
 //   @hasSelectedFaces      - bool: selected face count > 0

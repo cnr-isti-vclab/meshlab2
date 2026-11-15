@@ -390,6 +390,7 @@ QVariant resolveToken(const QVariant &v, double bboxDiag,
     if (token == QStringLiteral("negBboxDiagHalf"))    return -bboxDiag * 0.5;
     if (token == QStringLiteral("qualityVMin"))        return qualityVMin;
     if (token == QStringLiteral("qualityVMax"))        return qualityVMax;
+    if (token == QStringLiteral("qualityVMid"))        return (qualityVMin + qualityVMax) / 2;
     if (token == QStringLiteral("qualityFMin"))        return qualityFMin;
     if (token == QStringLiteral("qualityFMax"))        return qualityFMax;
     if (token == QStringLiteral("hasSelectedFaces"))   return hasSelectedFaces;
@@ -579,7 +580,8 @@ void FilterDescriptorLoader::resolveSymbolicBounds(
         || usesToken(QStringLiteral("@selOrFaceCountHalf"));
     const bool needSelectedVerts = usesToken(QStringLiteral("@hasSelectedVerts"));
     const bool needVertexQuality =
-        usesToken(QStringLiteral("@qualityVMin")) || usesToken(QStringLiteral("@qualityVMax"));
+        usesToken(QStringLiteral("@qualityVMin")) || usesToken(QStringLiteral("@qualityVMax"))
+        || usesToken(QStringLiteral("@qualityVMid"));
     const bool needFaceQuality =
         usesToken(QStringLiteral("@qualityFMin")) || usesToken(QStringLiteral("@qualityFMax"));
 

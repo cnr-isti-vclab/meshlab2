@@ -30,6 +30,31 @@ remain easy to review:
 - `plugins/filter_screened_poisson/screenedpoissonfilterplugin.cpp`
 - `plugins/filter_screened_poisson/CMakeLists.txt`
 
+## PointInterpolant
+
+*Create Isosurface from Vertex Scalar* and *Transfer Vertex Scalar by Smooth Interpolation* run
+the fit of the `PointInterpolant` program (`Src/PointInterpolant.cpp`, `Execute`), which has no
+library entry point as `PoissonRecon` and `SSDRecon` have in `Src/Reconstructors.h`. The fit is
+reproduced in `poissonrecon_backend.cpp` (`fitInterpolant`) for values only, degree 2, free
+boundary, the program's defaults, and its result is put in a `Reconstructor::Implicit`, so that
+the reconstructors' level-set extraction and `Evaluator` serve it unchanged. The program's
+`ConstraintDual` and `SystemDual` for values live in its `.cpp`, so they are copied there too.
+What differs from the program:
+
+- **The resolution is the program's `--width`**, a *Cell Size* in the document's units, not a
+  depth; the depth follows, capped at 12.
+- **No files**: the samples are the layer's vertices and scalar, moved by its matrix, as the
+  reconstructors take their points; the program's `--tree`, `--grid` and 2D image outputs are not
+  offered.
+- **Gradient constraints are not offered.** With values 0 at the points and gradients equal to
+  the normals, under the bi-Laplacian, the fit is the energy `SSDRecon` already solves through the
+  same `FEMTree` calls (`Src/Reconstructors.h`, the SSD solver): not a third reconstructor.
+
+When `PointInterpolant.cpp` changes upstream, compare `Execute`'s value path with
+`fitInterpolant`. `FilterTests::pointInterpolantContoursAndTransfersAScalar` checks the result:
+the isosurface at 0.5 of the distance from the origin, sampled at 4000 random points, is the sphere
+of radius 0.5 within 0.0023.
+
 ## Vendored files modified locally
 
 At the moment, two files inside `Src` differ from the reference clone:

@@ -8,6 +8,8 @@
 #include "Src/Reconstructors.h"
 
 #include <QByteArray>
+#include <QMatrix4x4>
+#include <QVector3D>
 
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
@@ -15,6 +17,7 @@
 #include <vcg/complex/algorithms/update/normal.h>
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <limits>
 #include <list>
@@ -780,6 +783,182 @@ MeshFilterRunResult runSurfaceTrimmerImpl(
     return result;
 }
 
+// PointInterpolant: a function fitted to values given at points, as the program fits its --inValues
+// (Src/PointInterpolant.cpp, Execute), held in a Reconstructor::Implicit so that the level-set
+// extraction and the evaluator of the reconstructors serve it too. Degree 2, free boundary, the
+// program's defaults. The program's ConstraintDual and SystemDual for values are reproduced below;
+// they live in its .cpp, not in a header.
+using ScreenedPoisson::Dim;
+using ScreenedPoisson::Real;
+using InterpolantSigs = IsotropicUIntPack<Dim, FEMDegreeAndBType<2, BOUNDARY_FREE>::Signature>;
+using Interpolant = Reconstructor::Implicit<Real, Dim, InterpolantSigs>;
+using SampleValue = DirectSum<Real, Real>;
+
+struct InterpolantParameters
+{
+    Real cellSize = 0;        // the finest cell at most this wide, in the samples' units (--width)
+    Real scale = Real(1.1);   // the cube over the samples' bounding box (--scale)
+    Real valueWeight = 1000;  // --valueWeight
+    Real lapWeight = 0;       // --lapWeight
+    Real biLapWeight = 1;     // --biLapWeight
+    bool exact = false;       // --exact
+    unsigned int fullDepth = 5;
+    unsigned int iters = 8;
+};
+
+struct ValueConstraintDual
+{
+    Real weight;
+    CumulativeDerivativeValues<Real, Dim, 0> operator()(const Point<Real, Dim> &, const SampleValue &data) const
+    {
+        CumulativeDerivativeValues<Real, Dim, 0> cdv;
+        cdv[0] = data.template get<0>() * weight;
+        return cdv;
+    }
+};
+
+struct ValueSystemDual
+{
+    CumulativeDerivativeValues<Real, Dim, 0> weight;
+    explicit ValueSystemDual(Real v) { weight[0] = v; }
+    CumulativeDerivativeValues<Real, Dim, 0> operator()(Point<Real, Dim>, const SampleValue &, const CumulativeDerivativeValues<Real, Dim, 0> &d) const
+    {
+        return d * weight;
+    }
+    CumulativeDerivativeValues<double, Dim, 0> operator()(Point<Real, Dim>, const SampleValue &, const CumulativeDerivativeValues<double, Dim, 0> &d) const
+    {
+        return d * weight;
+    }
+};
+
+class ValueSampleStream : public InputDataStream<Point<Real, Dim>, SampleValue>
+{
+public:
+    ValueSampleStream(const std::vector<Point<Real, Dim>> &positions, const std::vector<Real> &values, XForm<Real, Dim + 1> xForm)
+        : m_positions(positions), m_values(values), m_xForm(xForm) {}
+    void reset() override { m_next = 0; }
+    bool read(Point<Real, Dim> &p, SampleValue &v) override
+    {
+        if (m_next >= m_positions.size())
+            return false;
+        p = m_xForm * m_positions[m_next];
+        v = SampleValue(m_values[m_next]);
+        ++m_next;
+        return true;
+    }
+private:
+    const std::vector<Point<Real, Dim>> &m_positions;
+    const std::vector<Real> &m_values;
+    XForm<Real, Dim + 1> m_xForm;
+    size_t m_next = 0;
+};
+
+// The cube the tree spans: `scale` times the samples' bounding box, rounded up to a power of two
+// cells of `cellSize`, so that the finest cell is at most `cellSize` (GetBoundingBoxXForm with a
+// width, in the program). Returns the transformation to the unit cube and sets `depth`.
+XForm<Real, Dim + 1> unitCubeOf(const std::vector<Point<Real, Dim>> &positions, Real cellSize, Real scale, unsigned int &depth)
+{
+    Point<Real, Dim> min = positions.front(), max = positions.front();
+    for (const Point<Real, Dim> &p : positions)
+        for (unsigned int d = 0; d < Dim; ++d)
+            min[d] = std::min(min[d], p[d]), max[d] = std::max(max[d], p[d]);
+    Real resolution = 0;
+    for (unsigned int d = 0; d < Dim; ++d)
+        resolution = std::max(resolution, (max[d] - min[d]) / cellSize);
+    resolution *= scale;
+    depth = 0;
+    while (Real(1u << depth) < resolution)
+        ++depth;
+    Point<Real, Dim> corner = (max + min) / 2;
+    const Real side = Real(1u << depth) * cellSize;
+    for (unsigned int d = 0; d < Dim; ++d)
+        corner[d] -= side / 2;
+    XForm<Real, Dim + 1> t = XForm<Real, Dim + 1>::Identity(), sc = XForm<Real, Dim + 1>::Identity();
+    for (unsigned int d = 0; d < Dim; ++d)
+        sc(d, d) = Real(1) / side, t(Dim, d) = -corner[d];
+    return sc * t;
+}
+
+// The program's fit with values only: the tree refined to `depth` at the samples, the value
+// interpolation term (approximate, or exact), the multigrid finalized down to `fullDepth`, then
+// solved with lapWeight and biLapWeight as the system's first- and second-derivative weights.
+std::unique_ptr<Interpolant> fitInterpolant(const std::vector<Point<Real, Dim>> &positions, const std::vector<Real> &values,
+                                            const InterpolantParameters &params, unsigned int &depth)
+{
+    using FEMTreeNode = RegularTreeNode<Dim, FEMTreeNodeData, depth_and_offset_type>;
+    if (positions.empty())
+        throw std::runtime_error("There are no samples to fit.");
+    if (!(params.cellSize > 0))
+        throw std::runtime_error("The cell size must be positive.");
+    auto implicit = std::make_unique<Interpolant>();
+    FEMTree<Dim, Real> &tree = implicit->tree;
+    const XForm<Real, Dim + 1> modelToUnitCube = unitCubeOf(positions, params.cellSize, params.scale, depth);
+    if (depth > 12)
+        throw std::runtime_error("The cell size asks for an octree deeper than 12 levels: raise it.");
+    const unsigned int fullDepth = std::min(params.fullDepth, depth);
+
+    std::vector<typename FEMTree<Dim, Real>::PointSample> samples;
+    std::vector<SampleValue> sampleData;
+    {
+        ValueSampleStream stream(positions, values, modelToUnitCube);
+        typename FEMTreeInitializer<Dim, Real>::StreamInitializationData sid;
+        FEMTreeInitializer<Dim, Real>::template Initialize<SampleValue>(
+            sid, tree.spaceRoot(), stream, SampleValue(Real(0)), int(depth), samples, sampleData,
+            tree.nodeAllocators.size() ? tree.nodeAllocators[0] : nullptr, tree.initializer(),
+            [](const Point<Real, Dim> &, SampleValue &) { return Real(1); });
+    }
+    tree.resetNodeIndices(0);
+    using Info = typename FEMTree<Dim, Real>::template InterpolationInfo<Real, 0>;
+    Info *info = nullptr;
+    if (params.exact)
+        info = FEMTree<Dim, Real>::template InitializeExactPointAndDataInterpolationInfo<Real, SampleValue, 0>(
+            tree, samples, GetPointer(sampleData), ValueConstraintDual{ params.valueWeight }, ValueSystemDual(params.valueWeight), true, false);
+    else
+        info = FEMTree<Dim, Real>::template InitializeApproximatePointAndDataInterpolationInfo<Real, SampleValue, 0>(
+            tree, samples, GetPointer(sampleData), ValueConstraintDual{ params.valueWeight }, ValueSystemDual(params.valueWeight), true, int(depth), 1);
+    std::unique_ptr<Info> infoOwner(info);
+    const int baseDepth = 0;
+    tree.template finalizeForMultigrid<2, 2>(baseDepth, [&](int d, const int[Dim]) { return d <= int(fullDepth); },
+                                            [](const FEMTreeNode *) { return true; }, std::make_tuple(info));
+    DenseNodeData<Real, InterpolantSigs> constraints = tree.initDenseNodeData(InterpolantSigs());
+    tree.addInterpolationConstraints(constraints, int(depth), std::make_tuple(info));
+    typename FEMTree<Dim, Real>::SolverInfo sInfo;
+    sInfo.cgDepth = 0, sInfo.cascadic = true, sInfo.vCycles = 1, sInfo.iters = params.iters, sInfo.cgAccuracy = Real(1e-3),
+    sInfo.verbose = false, sInfo.showResidual = false, sInfo.showGlobalResidual = SHOW_GLOBAL_RESIDUAL_NONE, sInfo.sliceBlockSize = 1;
+    sInfo.baseVCycles = 4;
+    typename FEMIntegrator::template System<InterpolantSigs, IsotropicUIntPack<Dim, 2>> F({ 0., double(params.lapWeight), double(params.biLapWeight) });
+    implicit->solution = tree.solveSystem(InterpolantSigs(), F, constraints, baseDepth, int(depth), sInfo, std::make_tuple(info));
+    implicit->unitCubeToModel = modelToUnitCube.inverse();
+    implicit->isoValue = 0;
+    return implicit;
+}
+
+InterpolantParameters interpolantParameters(const MeshFilterParameterValues &parameters)
+{
+    InterpolantParameters p;
+    p.cellSize = Real(doubleParameter(parameters, QStringLiteral("cellSize"), 0));
+    p.scale = Real(std::max(1.0, doubleParameter(parameters, QStringLiteral("scale"), 1.1)));
+    p.valueWeight = Real(std::max(0.0, doubleParameter(parameters, QStringLiteral("valueWeight"), 1000)));
+    p.lapWeight = Real(std::max(0.0, doubleParameter(parameters, QStringLiteral("lapWeight"), 0)));
+    p.biLapWeight = Real(std::max(0.0, doubleParameter(parameters, QStringLiteral("biLapWeight"), 1)));
+    p.exact = boolParameter(parameters, QStringLiteral("exactInterpolation"), false);
+    p.fullDepth = unsigned(std::max(1, intParameter(parameters, QStringLiteral("fullDepth"), 5)));
+    p.iters = unsigned(std::max(1, intParameter(parameters, QStringLiteral("iters"), 8)));
+    return p;
+}
+
+// The live vertices of a layer and their scalar, in the document's space (moved by the layer's
+// matrix), as the reconstructors take their points.
+void scalarSamples(const Document::MeshEntry &entry, std::vector<Point<Real, Dim>> &positions, std::vector<Real> &values)
+{
+    for (const VCGVertex &v : entry.mesh.vert)
+        if (!v.IsD() && std::isfinite(v.cQ())) {
+            const QVector3D q = entry.transform.map(QVector3D(v.cP()[0], v.cP()[1], v.cP()[2]));
+            positions.emplace_back(q.x(), q.y(), q.z());
+            values.push_back(Real(v.cQ()));
+        }
+}
+
 } // namespace
 
 namespace ScreenedPoisson
@@ -1088,6 +1267,109 @@ MeshFilterRunResult runSSDReconFilter(
                 .arg(requestedThreads)
                 .arg(requestedThreads == 1 ? QString() : QStringLiteral("s"))
         });
+}
+
+MeshFilterRunResult runIsosurfaceFromScalarFilter(Document &doc, int meshIndex, const MeshFilterParameterValues &parameters)
+{
+    std::vector<Point<Real, Dim>> positions;
+    std::vector<Real> values;
+    scalarSamples(doc.mesh(meshIndex), positions, values);
+    if (positions.empty())
+        return { false, false, QObject::tr("'%1' has no vertex with a finite scalar.").arg(doc.mesh(meshIndex).name) };
+    const InterpolantParameters params = interpolantParameters(parameters);
+    const Real isoValue = Real(doubleParameter(parameters, QStringLiteral("isovalue"), 0));
+    const int threads = std::max(1, intParameter(parameters, QStringLiteral("threads"), 1));
+    vcg::CallBackPos *cb = doc.progressCallback();
+    doc.beginFilterProgress(QObject::tr("Create Isosurface from Vertex Scalar"));
+    configureThreadPool(threads);
+    VCGMesh outputMesh;
+    unsigned int depth = 0;
+    try {
+        reportProgress(cb, 5, QObject::tr("Fitting the scalar of %1 vertices...").arg(positions.size()), true);
+        std::unique_ptr<Interpolant> implicit = fitInterpolant(positions, values, params, depth);
+        implicit->isoValue = isoValue;
+        reportProgress(cb, 70, QObject::tr("Extracting the isosurface..."), true);
+        VectorLevelSetVertexStream vertexStream;
+        VectorFaceStream faceStream;
+        extractLevelSet(*implicit, true, !boolParameter(parameters, QStringLiteral("nonManifold"), false), false, threads,
+                        vertexStream, faceStream);
+        appendToMesh(vertexStream.vertices(), faceStream.faces(), outputMesh);
+        for (VCGVertex &v : outputMesh.vert)
+            v.Q() = isoValue;
+    } catch (const std::exception &ex) {
+        const QString message = QObject::tr("The fit failed: %1").arg(QString::fromUtf8(ex.what()));
+        doc.finishFilterProgress(false, message);
+        return { false, false, message };
+    }
+    if (outputMesh.FN() == 0) {
+        const QString message = QObject::tr("The fitted scalar does not reach %1 anywhere: choose an isovalue between the "
+                                            "vertices' smallest and largest.").arg(isoValue);
+        doc.finishFilterProgress(false, message);
+        return { false, false, message };
+    }
+    MeshFilterRunResult result = finalizeMeshResult(
+        doc, outputMesh, false, QObject::tr("Created the isosurface"),
+        { QObject::tr("Fitted the scalar of %1 vertices of '%2' with an octree of depth %3, and extracted the "
+                      "isosurface at %4: %5 vertices, %6 faces.")
+              .arg(positions.size()).arg(doc.mesh(meshIndex).name).arg(depth).arg(isoValue)
+              .arg(outputMesh.VN()).arg(outputMesh.FN()) });
+    if (result.success)
+        result.sourceMeshIndices.push_back(meshIndex);
+    return result;
+}
+
+MeshFilterRunResult runScalarTransferFilter(Document &doc, int targetIndex, int sourceIndex, const MeshFilterParameterValues &parameters)
+{
+    if (sourceIndex < 0 || sourceIndex >= doc.meshCount())
+        return { false, false, QObject::tr("Choose a source layer.") };
+    Document::MeshEntry &source = doc.mesh(sourceIndex);
+    Document::MeshEntry &target = doc.mesh(targetIndex);
+    std::vector<Point<Real, Dim>> positions;
+    std::vector<Real> values;
+    scalarSamples(source, positions, values);
+    if (positions.empty())
+        return { false, false, QObject::tr("'%1' has no vertex with a finite scalar.").arg(source.name) };
+    // The two layers meet in the document's space, each moved there by its matrix.
+    const QMatrix4x4 targetMatrix = target.transform;
+    const InterpolantParameters params = interpolantParameters(parameters);
+    const int threads = std::max(1, intParameter(parameters, QStringLiteral("threads"), 1));
+    configureThreadPool(threads);
+    unsigned int depth = 0;
+    size_t set = 0, outside = 0;
+    try {
+        std::unique_ptr<Interpolant> implicit = fitInterpolant(positions, values, params, depth);
+        typename Interpolant::Evaluator evaluate = implicit->evaluator();
+        for (VCGVertex &v : target.mesh.vert) {
+            if (v.IsD())
+                continue;
+            const QVector3D q = targetMatrix.map(QVector3D(v.cP()[0], v.cP()[1], v.cP()[2]));
+            try {
+                v.Q() = float(evaluate(Point<Real, Dim>(q.x(), q.y(), q.z())));
+                ++set;
+            } catch (const typename Interpolant::Evaluator::OutOfUnitCubeException &) {
+                ++outside;
+            }
+        }
+    } catch (const std::exception &ex) {
+        return { false, false, QObject::tr("The fit failed: %1").arg(QString::fromUtf8(ex.what())) };
+    }
+    if (set == 0)
+        return { false, false, QObject::tr("No vertex of '%1' lies within the region the fit spans, around '%2'.")
+                                   .arg(target.name, source.name) };
+    target.ioMask |= Mask::IOM_VERTQUALITY;
+    doc.markMeshGeometryChanged(targetIndex, QObject::tr("Transferred the scalar of '%1' to '%2'").arg(source.name, target.name));
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages << QObject::tr("Fitted the scalar of %1 vertices of '%2' with an octree of depth %3, and set it "
+                                       "on %4 vertices of '%5'.")
+                               .arg(positions.size()).arg(source.name).arg(depth).arg(set).arg(target.name);
+    if (outside > 0)
+        result.infoMessages << QObject::tr("%1 vertices lie outside the region the fit spans and kept their scalar.").arg(outside);
+    result.visualizationHints.push_back({ targetIndex, MeshFilterVisualizationAttribute::VertexQuality });
+    result.outputValues["vertices_set"] = qlonglong(set);
+    result.outputValues["vertices_outside"] = qlonglong(outside);
+    return result;
 }
 
 MeshFilterRunResult runSurfaceTrimmerFilter(
