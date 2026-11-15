@@ -26,9 +26,12 @@ Taken 2026-10-11 and binding on what follows:
    height at the orbit centre is the one quantity both projections share, and it is
    already what the trackball is built on (see [The invariant](#the-invariant)).
 
-## Where things stand
+## Where things stood before this work
 
-The camera is `ViewTrackball`: an orbit centre, a rotation, a `distance`, a `radius`
+*The starting point the stages were planned from, kept for the record; none of it
+describes the code today.*
+
+The camera was `ViewTrackball`: an orbit centre, a rotation, a `distance`, a `radius`
 and a vertical field of view clamped to 10-120 degrees. `projectionMatrix()` calls
 `perspective()` and nothing else. The `trackball` JSON payload, the undo `ViewState`,
 the view synchronization and the render-state JSON all carry that one state, and none

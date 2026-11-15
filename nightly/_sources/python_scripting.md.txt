@@ -214,7 +214,7 @@ There are two equivalent styles.
 Call `apply_filter()` with the filter Python name:
 
 ```python
-result = ms.apply_filter("simplification_quadric_edge_collapse", {
+result = ms.apply_filter("simplify_by_quadric_edge_collapse_vcglib", {
     "TargetFaceNum": 10000,
     "PreserveBoundary": True,
 })
@@ -224,7 +224,7 @@ print(result.success, result.error_message)
 Or call the dynamically generated convenience method:
 
 ```python
-result = ms.simplification_quadric_edge_collapse(
+result = ms.simplify_by_quadric_edge_collapse_vcglib(
     TargetFaceNum=10000,
     PreserveBoundary=True,
 )
@@ -267,7 +267,7 @@ and choose either the full or compact format.
 Filter calls return a `pymeshlab2.FilterRunResult`-compatible object.
 
 ```python
-result = ms.apply_filter("mesh_info", {"precision": 3})
+result = ms.apply_filter("measure_mesh_summary", {"precision": 3})
 
 print("success:", result.success)
 print("modified:", result.document_modified)
@@ -357,7 +357,7 @@ ms.save_current_mesh("/tmp/output.ply")
 Run a filter and inspect the result:
 
 ```python
-result = ms.apply_filter("mesh_info", {"precision": 2})
+result = ms.apply_filter("measure_mesh_summary", {"precision": 2})
 
 if not result.success:
     print("Filter failed:", result.error_message)

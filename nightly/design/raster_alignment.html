@@ -249,7 +249,7 @@
 <p>How a raster’s camera is aligned to the mesh: by point pairs, by mutual information, both at
 once, and globally over a set of rasters. How rasters, cameras and lenses are stored is in
 <a class="reference internal" href="data_model.html#raster-data-type"><span class="std std-ref">Data Model</span></a>; the interactive tool and picking in the raster
-view are in <a class="reference internal" href="rendering.html#interactive-tools"><span class="std std-ref">Rendering</span></a>. The record of how this was built,
+view are in <a class="reference internal" href="user_interface.html#interactive-tools"><span class="std std-ref">Rendering</span></a>. The record of how this was built,
 with the measurements and the decisions behind it, is
 <a class="reference internal" href="history/raster_alignment.html"><span class="std std-doc">history/raster_alignment.md</span></a>.</p>
 <section id="what-changes-and-what-does-not">
@@ -405,10 +405,10 @@ mesh and never move.</p></li>
 view draws it, perspective and orthographic, with a roll.</p></li>
 <li><p><strong>Point correspondences:</strong></p>
 <ul>
-<li><p>On the gargoyle fixture’s cameras, from exact pairs: back to under 1e-4 px, also with the
+<li><p>On the gargoyle fixture’s cameras, from exact pairs: back to within 0.01 px, also with the
 focal length.</p></li>
 <li><p>On the <code class="docutils literal notranslate"><span class="pre">2930Colmap</span></code> dataset, when present, from COLMAP’s observations taken through the
-lens: 0.05 px from COLMAP’s camera.</p></li>
+lens: within 0.1 px of COLMAP’s camera, with an error no worse than COLMAP’s own.</p></li>
 </ul>
 </li>
 <li><p><strong>Mutual information:</strong></p>
@@ -420,8 +420,9 @@ ends, within 2 px (5 for camera 1, whose maximum is the flattest).</p></li>
 <li><p>On the scan, when present, with <em>Vertex Color</em>: within 3 px of COLMAP’s camera.</p></li>
 </ul>
 </li>
-<li><p><strong>Global refinement:</strong> the gargoyle’s four cameras end within 1.5 px of the fixture’s, and
-within 2 px with camera 0 as an anchor that does not move.</p></li>
+<li><p><strong>Global refinement:</strong> each of the gargoyle’s four cameras ends nearer the fixture’s than it
+started and within 2 px of it (2.5 for camera 1), with or without camera 0 as an anchor that
+does not move.</p></li>
 </ul>
 <p>The tool, which needs the GUI, was checked in the real window, on Metal and OpenGL (see the
 record).</p>

@@ -393,7 +393,7 @@ path.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><strong>A. Pinned submodule; build the three programs unmodified; run them as helpers</strong></p></td>
-<td><p>Zero patches. An <code class="docutils literal notranslate"><span class="pre">exit(0)</span></code>, an assertion or a crash ends a child process, not MeshLab. Exactly the <a class="reference internal" href="#../../plugins/filter_quadwild/UPSTREAM.md"><span class="xref myst">QuadWild-BiMDF</span></a> arrangement, whose runner (<code class="docutils literal notranslate"><span class="pre">src/core/helperprocess.{h,cpp}</span></code>) already gives progress, cancellation and logging. C++20 and OpenMP stay inside the helper build.</p></td>
+<td><p>Zero patches. An <code class="docutils literal notranslate"><span class="pre">exit(0)</span></code>, an assertion or a crash ends a child process, not MeshLab. Exactly the <span class="xref myst">QuadWild-BiMDF</span> arrangement, whose runner (<code class="docutils literal notranslate"><span class="pre">src/core/helperprocess.{h,cpp}</span></code>) already gives progress, cancellation and logging. C++20 and OpenMP stay inside the helper build.</p></td>
 <td><p>Packaging on three platforms. File I/O round trip, small beside a minute-long solve.</p></td>
 </tr>
 <tr class="row-odd"><td><p>B. Link the headers into the plugin</p></td>
@@ -407,7 +407,7 @@ path.</p>
 </tbody>
 </table>
 </div>
-<p><strong>Recommended: A.</strong> Under <a class="reference internal" href="../architecture.html#choosing-how-to-bring-third-party-code-in"><span class="std std-ref">the third-party rule</span></a>
+<p><strong>Recommended: A.</strong> Under <a class="reference internal" href="../third_party.html#choosing-how-to-bring-third-party-code-in"><span class="std std-ref">the third-party rule</span></a>
 it is the “no change, no suitable port” case: a pinned, unmodified submodule. No vcpkg
 port exists for any of the four repositories. Route B would turn that into “we patch it”,
 which means vendoring, for a gain that is not needed.</p>

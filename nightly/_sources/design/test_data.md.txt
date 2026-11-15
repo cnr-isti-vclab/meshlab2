@@ -5,7 +5,7 @@ Where the test suite's inputs live, and what a test does when they are missing.
 See also: [Adding a Filter](adding_a_filter.md) (the three filter-testing tiers),
 `AGENTS.md` (the tier rules and the gargoyle intrinsics warning).
 
-## Three places, by size
+## Five places, by size
 
 | Location | Tracked? | For |
 |---|---|---|
@@ -122,7 +122,7 @@ Two inputs: `ctest_filter` passes a regex to `ctest -R`, and `fetch_datasets`
 How it treats the two caches is deliberate:
 
 - **vcpkg: restore only, from the packaging job's key.** The dependencies are
-  identical to the ones `macos-dmg.yml` already builds on every push to main, so
+  identical to the ones `macos-dmg.yml` already builds on every push to `devel`, so
   this job reuses them and never saves an entry of its own. A second ~4 GB copy
   would spend twice from the 10 GB per-repository budget and let the two jobs
   evict each other. The cost is that a run with no warm packaging cache compiles

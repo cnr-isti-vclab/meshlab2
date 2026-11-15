@@ -285,6 +285,12 @@ reasoning.</p></li>
 <tr class="row-even"><td><p><a class="reference internal" href="preferences.html"><span class="std std-doc">Preferences</span></a></p></td>
 <td><p>Application settings, sharing the filter-parameter schema.</p></td>
 </tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="user_interface.html"><span class="std std-doc">User Interface</span></a></p></td>
+<td><p>How the panels, gestures, interactive tools and the Action History behave.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="third_party.html"><span class="std std-doc">Third-Party Code</span></a></p></td>
+<td><p>How libraries and vendored algorithm code enter the build, what a vendored tree records, the About dialog’s lists.</p></td>
+</tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a></p></td>
 <td><p>The practical how-to: descriptor schema, plugin class, wiring.</p></td>
 </tr>
@@ -311,7 +317,7 @@ reasoning.</p></li>
 </div>
 <blockquote>
 <div><p><strong><a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a> is read by the test suite at runtime.</strong>
-<code class="docutils literal notranslate"><span class="pre">test_filter_descriptors.cpp</span></code> and <code class="docutils literal notranslate"><span class="pre">test_filters.cpp</span></code> open it by path and parse
+<code class="docutils literal notranslate"><span class="pre">test_filter_descriptors.cpp</span></code> opens it by path and parses
 the <code class="docutils literal notranslate"><span class="pre">##</span> <span class="pre">3.</span> <span class="pre">Verb</span> <span class="pre">lexicon</span></code> section. Renaming the file or that heading breaks the
 build. Adding or retiring a verb there changes what the tests enforce, which is
 the intent.</p>
@@ -333,50 +339,53 @@ the intent.</p>
 <tr class="row-odd"><td><p><a class="reference internal" href="proposals/pymeshlab_merge.html"><span class="std std-doc">Folding the pymeshlab2 wheel into this repository</span></a></p></td>
 <td><p>Mapping tables for retiring the separate <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code> repository and building the wheel here, and for renaming the in-app <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> facade to <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> so it matches the wheel. Approved; facade rename, in-tree wheel build, its tests and the CI workflow done and green on <code class="docutils literal notranslate"><span class="pre">devel</span></code>; tagging a release and archiving the old repository remain.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="proposals/usage_statistics.html"><span class="std std-doc">Usage Statistics</span></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="proposals/filter_representation.html"><span class="std std-doc">Filter Representation</span></a></p></td>
+<td><p>What a filter works on and produces (<code class="docutils literal notranslate"><span class="pre">Mesh/Triangle</span></code>, <code class="docutils literal notranslate"><span class="pre">Point</span> <span class="pre">Cloud</span></code>, …) as a classification facet beside the category; moved out of Vocabulary. Not implemented.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="proposals/usage_statistics.html"><span class="std std-doc">Usage Statistics</span></a></p></td>
 <td><p>Aggregate usage collection, designed for privacy. Not implemented.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="proposals/gaussian_splatting.html"><span class="std std-doc">Gaussian Splatting</span></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="proposals/gaussian_splatting.html"><span class="std std-doc">Gaussian Splatting</span></a></p></td>
 <td><p>Splat loading, rendering and editing. Not implemented; some decisions taken.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="proposals/edge_support.html"><span class="std std-doc">Edge Support</span></a></p></td>
-<td><p>The two kinds of edge, what is missing in selection and rendering, and filters that would generate per-edge colour. Per-edge colour implemented; the rest not.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="proposals/edge_support.html"><span class="std std-doc">Edge Support</span></a></p></td>
+<td><p>The two kinds of edge, what is missing in selection and rendering, and filters that would generate per-edge colour. Stages 1-3 implemented (2026-09-16); stages 4-5 and interactive edge selection not.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="proposals/coral_branch_phenotyping.html"><span class="std std-doc">Coral Branch Phenotyping</span></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="proposals/coral_branch_phenotyping.html"><span class="std std-doc">Coral Branch Phenotyping</span></a></p></td>
 <td><p>Mapping table for porting Yuri Andraccio’s curve-skeleton branch segmentation and measurement plugin (and its three vcglib additions). Not implemented; awaiting approval; <code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code> approved, five issues open.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="proposals/openscad_csg.html"><span class="std std-doc">OpenSCAD CSG</span></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="proposals/openscad_csg.html"><span class="std std-doc">OpenSCAD CSG</span></a></p></td>
 <td><p>One filter exposing geogram’s OpenSCAD-subset compiler, to build a mesh from a script. Not implemented; split out of the geogram port.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="proposals/cinolib_port.html"><span class="std std-doc">CinoLib Port</span></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="proposals/cinolib_port.html"><span class="std std-doc">CinoLib Port</span></a></p></td>
 <td><p>Nine proposed surface filters in three stages: UV mapping, polyharmonic fields, topology and polygon tools; source-verified integration constraints and a deferred-candidate survey. Not implemented.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="proposals/open3d_scan_processing.html"><span class="std std-doc">Open3D Scan Processing and Reconstruction</span></a></p></td>
-<td><p>Proposed RGB-D sequence workflow plus Open3D’s independent point-cloud, registration and reconstruction implementations; shared-core Poisson provenance distinguished. Not implemented.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="proposals/open3d_scan_processing.html"><span class="std std-doc">Open3D Scan Processing and Reconstruction</span></a></p></td>
+<td><p>Proposed RGB-D sequence workflow plus Open3D’s independent point-cloud, registration and reconstruction implementations; shared-core Poisson provenance distinguished. Phases 0-2 implemented (2026-10-30) as <code class="docutils literal notranslate"><span class="pre">filter_open3d</span></code>; the RGB-D workflow (phase 3) not.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="proposals/layer_selection_model.html"><span class="std std-doc">Layer Selection Model</span></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="proposals/layer_selection_model.html"><span class="std std-doc">Layer Selection Model</span></a></p></td>
 <td><p>Merging <em>visible</em> and <em>current</em> into one <em>selected</em> set with a last-selected member, from the Tarini and Callieri sessions: the 136-reference mapping table, seven open decisions and a seven-step staging. Not implemented; awaiting approval of the table and the names.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="proposals/filter_search.html"><span class="std std-doc">Filter Search</span></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="proposals/filter_search.html"><span class="std std-doc">Filter Search</span></a></p></td>
 <td><p>Matching filter searches at word starts, with prefix-triggered synonyms drawn from the vocabulary’s rejected-synonym column, a five-level ranking, and 24 reference queries pinned by a test. Implemented 2026-10-30; kept here for the reference queries and the decisions.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="proposals/orthographic_camera.html"><span class="std std-doc">Orthographic Camera</span></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="proposals/orthographic_camera.html"><span class="std std-doc">Orthographic Camera</span></a></p></td>
 <td><p>An orthographic projection for the 3D view and every camera consumer: one invariant (the visible height at the orbit centre) that makes switching seamless, the JSON extension, rays, shaders, glyphs, snapshots, raster filters and the one vcglib fix; a 45-row mapping table. Implemented in five stages (2026-10); kept here for the mapping table and the open questions until it moves to reference.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="proposals/directional_port.html"><span class="std std-doc">Directional and Frame Fields</span></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="proposals/directional_port.html"><span class="std std-doc">Directional and Frame Fields</span></a></p></td>
 <td><p>Ten proposed field synthesis, visualization, analysis, seamless parametrization and polygon remeshing filters, plus QuadWild and Instant Meshes consumers. Not implemented.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="proposals/camera_lens_model.html"><span class="std std-doc">Camera Lens Model</span></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="proposals/camera_lens_model.html"><span class="std std-doc">Camera Lens Model</span></a></p></td>
 <td><p>Lens distortion for raster cameras behind a hard boundary: the camera every consumer sees stays pinhole, and a separate lens (OpenCV’s Brown model, in a new vcglib header) undistorts planes when they are decoded. Removes vcglib’s unused one-parameter distortion (a 14-row table), adds the lens to rasters, undo and the <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> (an 11-row table), then a native COLMAP import; image-to-mesh alignment follows as its own proposal. Stage 0, removing vcglib’s distortion, implemented 2026-11-02, with a patch that keeps old MeshLab building; Stage 1, the lens on rasters, undo and the <code class="docutils literal notranslate"><span class="pre">.mlp</span></code>, and Stage 2, opening COLMAP models (<code class="docutils literal notranslate"><span class="pre">cameras.txt</span></code> / <code class="docutils literal notranslate"><span class="pre">cameras.bin</span></code>) natively, the same day; alignment was <a class="reference internal" href="raster_alignment.html"><span class="std std-doc">Raster Alignment</span></a>.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="proposals/texture_signal_processing.html"><span class="std std-doc">Texture Signal Processing Filters</span></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="proposals/texture_signal_processing.html"><span class="std std-doc">Texture Signal Processing Filters</span></a></p></td>
 <td><p>Which of TextureSignalProcessing’s nine programs deserve a filter (seam repair and seam-aware dilation first, then smoothing and sharpening; not geodesics, masking or the seam stitcher), and integrating its header-only library in process, as Screened Poisson is, rather than as helpers. Measured: it compiles against MeshLab’s Eigen 5 with byte-identical output, and needs padding and an error hook. Stage 0 (2026-11-12) traced the memory (44.5 GB at 4096² on a 3M-face scan) to a divergence operator these filters do not use, 3.5× less without it, and found a chart-indexing bug that crashes TSP on real atlases; four upstream pull requests (#20 to #23) followed. Stage 1, <em>Repair Texture Seams</em> and <em>Dilate Texture across Seams</em> in process, and stage 2, <em>Smooth Texture</em> and <em>Sharpen Texture</em> by multigrid with an optional face selection, implemented 2026-11-12 on a fork branch merging them. Stage 3, <em>Inpaint Texture on Selected Faces</em>, <em>Transfer Texture Detail</em> and object-space normal maps, implemented the same day, which also stopped the color filters from changing alpha and made the selection’s edge repeatable; stage 4’s line-integral convolution implemented 2026-11-13, <em>Colorize Texture by Principal Directions (Line Integral Convolution)</em>, with per-face principal curvature directions in the data model, TSP’s per-face curvature method and transfers both ways; reaction-diffusion and stitching not started.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="proposals/texmetro.html"><span class="std std-doc">TexMetro</span></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="proposals/texmetro.html"><span class="std std-doc">TexMetro</span></a></p></td>
 <td><p>Bringing TexMetro’s 68 UV, texture and mesh metrics into <code class="docutils literal notranslate"><span class="pre">Measurement</span></code>: a key-by-key mapping table, the measured case against vendoring it (its GLSL 4.30 raster shaders do not compile on a Mac) and against a QRhi raster, and a CPU rasterizer that takes 0.35 s a MIP level on a 3 M-face atlas. The algorithms are proposed as five vcglib additions with thin <code class="docutils literal notranslate"><span class="pre">filter_measure</span></code> adapters. Stages 1 to 5 implemented 2026-10-23 to 26 (quasi-conformal and UV-scaling metrics, six mesh keys, nested Python outputs, <em>Measure UV Mapping</em> with its occupancy and UV scaling, <em>Select Folded UV Faces</em>, <em>Measure Texel Coverage</em> on a vcglib CPU rasterizer, and <em>Measure Texture Seam Color Discrepancy</em>, which finds that TexMetro pairs mirrored sample points, and <em>Select Overlapping UV Faces</em>, the diagnostic that shows where texels are shared or clash); the category <code class="docutils literal notranslate"><span class="pre">Measurement/UV</span> <span class="pre">Mapping</span></code>, <code class="docutils literal notranslate"><span class="pre">vcg::Histogram</span></code> percentiles and dropping <code class="docutils literal notranslate"><span class="pre">orientable</span></code> were decided the same day; <em>Create Polyline from UV Seams</em> puts the seam discrepancy on the edges of a polyline; what is left is the reference values of Stage 0, for which the script and the key table of <code class="docutils literal notranslate"><span class="pre">docs/texture_metrics.md</span></code> are ready.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="proposals/local_flattening.html"><span class="std std-doc">Local Flattening</span></a></p></td>
-<td><p>Reimplementing Pietroni, Corsini, Cignoni and Scopigno’s interactive local flattening operator (TVCG 2011): a field-aligned disk parametrization of the strip around a polyline, cropped to a rectangle, then height maps of the residual chisel marks, ridge and valley traces, photographs and curvature on the same rectangle. Maps each step to what MeshLab and vcglib have (vcglib’s <code class="docutils literal notranslate"><span class="pre">PoissonSolver</span></code> is very likely the paper’s solver) and proposes five stages; six questions for Paolo. Not implemented.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="proposals/local_flattening.html"><span class="std std-doc">Local Flattening</span></a></p></td>
+<td><p>Reimplementing Pietroni, Corsini, Cignoni and Scopigno’s interactive local flattening operator (TVCG 2011), its first five steps only: selection around a guidance polyline, a cross field, a field-aligned disk parametrization with vcglib’s <code class="docutils literal notranslate"><span class="pre">PoissonSolver</span></code> (the paper’s own solver, to be cleaned up), a rectangular crop and a height map, at a single resolution. Explains why eq. 1 only works with a conformal energy. Not implemented; scope decided 2026-11-15, three questions open.</p></td>
 </tr>
 </tbody>
 </table>
@@ -397,6 +406,12 @@ the intent.</p>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="history/filter_names.html"><span class="std std-doc">Filter Names</span></a></p></td>
 <td><p>The pass-1 renaming rounds, verb by verb, with the rulings made along the way.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="history/category_migration.html"><span class="std std-doc">Category Migration</span></a></p></td>
+<td><p>The 32 old <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> values mapped onto the category ontology, and the search change that made dropping category prefixes safe.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="history/plugin_reorganization.html"><span class="std std-doc">Plugin Reorganization</span></a></p></td>
+<td><p>The 2026-08 plan to fold the filter plugins into user-facing families, with its mapping table and rulings; not carried out.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="history/pass2_identifier_map.html"><span class="std std-doc">Pass 2 Identifier Map</span></a></p></td>
 <td><p>The <code class="docutils literal notranslate"><span class="pre">id</span></code> / <code class="docutils literal notranslate"><span class="pre">pythonName</span></code> mapping applied 2026-09-03.</p></td>
@@ -436,6 +451,9 @@ the intent.</p>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="history/texture_consolidation.html"><span class="std std-doc">Texture Consolidation</span></a></p></td>
 <td><p>Liu, Wang, Kim and Kazhdan’s registration-and-stitching texture builder as a second <em>Transfer Color from Visible Rasters to Texture</em>, run as three helper programs from a recursive submodule on four forks. The measured upstream, the camera conversion and its test, two out-of-bounds reads and an uninitialized read that had corrupted every texture, the scheduling fixes that made the pipeline repeatable, the stitcher’s compile cost cut from 151 s to 57 s, and the move of the Linux build to Ubuntu 24.04. Completed 2026-11-07; what is still open, the upstream pull requests among it, is in <code class="docutils literal notranslate"><span class="pre">plugins/filter_texture_consolidation/UPSTREAM.md</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="history/documentation_reorganization.html"><span class="std std-doc">Documentation Reorganization</span></a></p></td>
+<td><p>The 139-section mapping table that gave each reference document one audience: UI behaviour to User Interface, third-party policy to its own document, finished migrations here, unbuilt designs to proposals, duplicates merged. Moves and trims applied 2026-11-15.</p></td>
 </tr>
 </tbody>
 </table>

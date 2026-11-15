@@ -271,9 +271,11 @@ height at the orbit centre is the one quantity both projections share, and it is
 already what the trackball is built on (see <a class="reference internal" href="#the-invariant"><span class="xref myst">The invariant</span></a>).</p></li>
 </ol>
 </section>
-<section id="where-things-stand">
-<h2>Where things stand<a class="headerlink" href="#where-things-stand" title="Link to this heading">¶</a></h2>
-<p>The camera is <code class="docutils literal notranslate"><span class="pre">ViewTrackball</span></code>: an orbit centre, a rotation, a <code class="docutils literal notranslate"><span class="pre">distance</span></code>, a <code class="docutils literal notranslate"><span class="pre">radius</span></code>
+<section id="where-things-stood-before-this-work">
+<h2>Where things stood before this work<a class="headerlink" href="#where-things-stood-before-this-work" title="Link to this heading">¶</a></h2>
+<p><em>The starting point the stages were planned from, kept for the record; none of it
+describes the code today.</em></p>
+<p>The camera was <code class="docutils literal notranslate"><span class="pre">ViewTrackball</span></code>: an orbit centre, a rotation, a <code class="docutils literal notranslate"><span class="pre">distance</span></code>, a <code class="docutils literal notranslate"><span class="pre">radius</span></code>
 and a vertical field of view clamped to 10-120 degrees. <code class="docutils literal notranslate"><span class="pre">projectionMatrix()</span></code> calls
 <code class="docutils literal notranslate"><span class="pre">perspective()</span></code> and nothing else. The <code class="docutils literal notranslate"><span class="pre">trackball</span></code> JSON payload, the undo <code class="docutils literal notranslate"><span class="pre">ViewState</span></code>,
 the view synchronization and the render-state JSON all carry that one state, and none
@@ -985,7 +987,7 @@ with the layer rather than with the query if it is too loose.</p></li>
             <ul>
 <li><a class="reference internal" href="#">Orthographic Camera</a><ul>
 <li><a class="reference internal" href="#decisions">Decisions</a></li>
-<li><a class="reference internal" href="#where-things-stand">Where things stand</a></li>
+<li><a class="reference internal" href="#where-things-stood-before-this-work">Where things stood before this work</a></li>
 <li><a class="reference internal" href="#the-invariant">The invariant</a></li>
 <li><a class="reference internal" href="#the-camera-state">The camera state</a><ul>
 <li><a class="reference internal" href="#json">JSON</a></li>

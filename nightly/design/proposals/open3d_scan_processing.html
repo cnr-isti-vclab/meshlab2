@@ -247,7 +247,10 @@
           <section class="tex2jax_ignore mathjax_ignore" id="open3d-scan-processing-and-reconstruction">
 <h1>Open3D Scan Processing and Reconstruction<a class="headerlink" href="#open3d-scan-processing-and-reconstruction" title="Link to this heading">¶</a></h1>
 <p>This document proposes a scoped Open3D integration for RGB-D scan processing,
-multi-view registration and reconstruction in MeshLab. <strong>Not implemented.</strong> It
+multi-view registration and reconstruction in MeshLab. <strong>Phases 0-2 implemented
+(2026-10-30) as <code class="docutils literal notranslate"><span class="pre">plugins/filter_open3d</span></code>: point-cloud preparation, ball-pivoting
+reconstruction and the registration filters. Phase 3, RGB-D sequence reconstruction,
+is not.</strong> It
 includes Open3D’s independent implementations even where another MeshLab filter
 performs the same operation. The RGB-D sequence pipeline is the largest new
 workflow; point-cloud preparation, registration and reconstruction filters also
@@ -262,8 +265,8 @@ upstream C++ source files and this checkout’s filter descriptors and adapters.
 The documentation cited below describes Open3D 0.20-era APIs; the source links
 currently target upstream <code class="docutils literal notranslate"><span class="pre">main</span></code>, so the precise release and source revision
 must be pinned before implementation. This is a design and provenance study,
-not a benchmark or build-compatibility result. No Open3D code has been compiled
-or exercised in MeshLab.</p>
+not a benchmark or build-compatibility result. (At the time no Open3D code had been
+compiled in MeshLab; Phase 0, below, later did.)</p>
 <p>A second pass on <strong>2026-10-14</strong> read <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code>, <code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code> and
 <code class="docutils literal notranslate"><span class="pre">3rdparty/find_dependencies.cmake</span></code> at tag <strong>v0.20.0</strong> (released 2026-09-16) and
 measured this checkout’s current dependency footprint. It found one fact that

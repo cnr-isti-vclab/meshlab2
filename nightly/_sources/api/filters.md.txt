@@ -8216,6 +8216,10 @@ The per-vertex scalar, colour and texture coordinates are preserved, and interpo
 
 Unless the cut is closed the result is a surface with a new boundary, not a solid.
 
+**Snapping.** Every face crossing the plane is split exactly. Only a vertex that already lies on the plane, to within rounding, is moved onto it instead, which cannot be seen and keeps the outline of the cut clean. *Snap to existing vertices* goes further: a crossing within that fraction of an edge from an endpoint moves the endpoint rather than splitting the edge. It avoids thin triangles, but on a long edge it can drag a vertex visibly off the plane (a second cut through the cap of a first shows it), so it is off by default. A non-manifold edge cannot be split, so its nearer end is always moved onto the plane.
+
+**Closing the cut.** *Close the cut* fills only the holes the plane opens; holes the mesh already had stay open. All the outlines on the plane are filled together under the even-odd rule, so a torus cut through its central circle gets a ring-shaped cap, and shells that pass through each other get a cap each. An outline that crosses or pinches itself, as a scanned surface sometimes does, is closed by ear cutting, where a few triangles may fold over others. The log counts the outlines left open: one that runs into a hole the mesh already had, an outer outline whose holes cannot be tessellated, and one beside a non-manifold edge.
+
 **Parameters:**
 
 - **planeNormal** (*point3f*, default: `[1.0, 0.0, 0.0]`) — Direction the cutting plane faces. Everything behind the plane is discarded. It need not be unit length.

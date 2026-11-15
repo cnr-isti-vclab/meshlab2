@@ -12,36 +12,15 @@ applied to plugins and menus), [Adding a Filter](adding_a_filter.md).
 
 ## Why this exists
 
-The initial audit covered the 272-filter registry present on 2026-07-29:
-
-- **165 of 272 display names (61 %) did not lead with a verb**, so the reader could not
-  tell what would change.
-- Live synonym pairs, both spellings in active use: `remove` (10) / `delete` (8) ·
-  `create` (16) / `generate` (19) · `apply` (16) / `set` (16) · `transfer` (11) /
-  `project` (5) · `simplification` (6) / `decimation` (4) · `quality` (29) /
-  `scalar` (7) · `texcoord` (4) / `uv` (2).
-- Spelling splits: `parametrization` (8) vs `parameterization` (2); American
-  `Color` alongside British `Colourisation`.
-- 32 distinct free-text `menuPath` values across 32 plugins, including one-offs like
-  `Remeshing, Smoothing and Resampling` and backend leakage like `Normals/Embree`.
-
-**Current registry (2026-08-31): 327 filters**, with five renaming rounds applied —
-`Meshing`, `Attribute`, `Creation`, `Geometry`, and `Selection`:
-
-- **57 of 327 (17 %)** do not lead with a verb, and every one of them sits in a root
-  whose round has not run yet.
-- The same is true of every surviving rejected synonym: `delete` and `generate` in
-  `Document`, `quality` in `Repair`/`Transfer`/`Measurement`/`Selection`,
-  `parameterization` in `Parametrization`. The completed rounds left no synonym debt,
-  so no separate sweep is needed — each round retires its own.
-- Free-text `menuPath` is gone from the descriptors in favour of the `categories`
-  array; the loader still reads a single `menuPath` string as a legacy fallback.
-- British spellings are gone (`colour` 0 / `color` 34).
-
-Remaining rounds, largest first: `Repair` (24), `Document` (22),
-`Parametrization` (17), `Measurement` (14), `Transfer` (13), `Texture` (3, plus 7
-filters still at the bare root awaiting a subcategory decision). Then pass 2: the
-Python names and parameter ids.
+An audit of the 272 filters registered on 2026-07-29 found most display names not
+leading with a verb, synonyms in live use side by side (`remove`/`delete`,
+`create`/`generate`, `quality`/`scalar`, ...), split spellings, and 32 free-text menu
+paths. This document is the rule set the renaming then applied, in eleven rounds by
+category root and a final pass over ids and Python names. Every display name now leads
+with a ratified verb, or is one of the named results of §6, and
+`tests/test_filter_descriptors.cpp` enforces it against §3. The audit and the rounds
+are recorded in [Filter Names](history/filter_names.md), the identifier pass in
+[Pass 2 Identifier Map](history/pass2_identifier_map.md).
 
 ## 1. Filter categories (closed set)
 
@@ -52,7 +31,7 @@ intended:
 
 - **A plugin may contain filters in any number of categories.** This is structural,
   not a convention: in `filters.json`, `pluginId` is a **file-level** key while
-  `categories` is a **per-filter** key. `filter_mls` spans four categories,
+  `categories` is a **per-filter** key. `filter_mls` spans five categories,
   `filter_igl` spans several, and `filter_basic` still spans multiple categories.
   Plugins are dependency/build units; categories are the user-facing
   classification. See [Filter Organization](filter_organization.md), decisions 1–3.
@@ -95,7 +74,7 @@ A geometry-processing ontology: **11 roots, two levels**. Roots are **nouns**
 a category must be either a root or a declared `Root/Subcategory` pair.
 
 Two levels was chosen for growth. Eleven roots over the 272-filter migration corpus
-of 2026-07-29 was ~25 each; with the current 327 filters it remains small enough that a
+of 2026-07-29 was ~25 each; at about 400 filters it remains small enough that a
 flat list becomes unbrowsable as the archive grows toward several hundred more
 implementations, whereas the second level absorbs that.
 
@@ -116,8 +95,7 @@ validates against; this table mirrors it and must be updated together with it.
 | `Measurement` | `Geometric` · `Topological` · `Statistics` · `UV Mapping` | Reports values; does **not** modify the document |
 | `Document` | `Layer` · `Camera` · `Render` | Document structure and view state |
 
-`Repair` is a root, not a `Meshing` subcategory: at ~19 filters it is the single
-largest branch, and "clean up this broken scan" is a top-level task users come looking
+`Repair` is a root, not a `Meshing` subcategory: it holds 26 filters, and "clean up this broken scan" is a top-level task users come looking
 for, not a variety of meshing. Its subcategories, from the existing filters:
 
 | Subcategory | Covers |
@@ -160,8 +138,8 @@ Form rules:
 2. **Subcategories are singular** unless they name a class of countable items, where
    English forces the plural: `Repair/Duplicates`, `Creation/Primitives`,
    `Repair/Holes and Borders`.
-3. `Attribute`'s four subcategories are all singular quantity names —
-   `Normal` · `Scalar` · `Curvature` · `Color`. `Normals` was also a direct violation of
+3. `Attribute`'s quantity subcategories are all singular —
+   `Normal` · `Scalar` · `Curvature` · `Color`, beside `Custom`. `Normals` was also a direct violation of
    the noun lexicon in §4, which makes `normal` canonical.
 4. **A subcategory must not repeat a root name unqualified.** `Texture/Creation` was
    ambiguous against the root `Creation`, so texture subcategories are now
@@ -219,61 +197,6 @@ Discriminators for the borderline cases:
 All three shape questions raised during review are now settled: `Repair` is a root ·
 `Boolean` stays in `Meshing` · `Curvature` is distinct from `Scalar`.
 
-### Migration: today's 32 values → the ontology
-
-| Current `menuPath` | N | Target `categories` |
-|---|---|---|
-| `Camera` | 10 | `Document/Camera` |
-| `Cleaning` | 15 | `Repair/*` by defect kind · `Creation/Reconstruction` (Ball Pivoting) |
-| `Color` | 24 | `Attribute/Color` |
-| `Compute/Attributes` | 4 | `Attribute` |
-| `Compute/Color` | 2 | `Attribute/Color` — it writes color |
-| `Compute/Geometry` | 1 | `Attribute` |
-| `Compute/Normals` | 9 | `Attribute/Normal` |
-| `Compute/Quality` | 2 | `Attribute/Scalar` |
-| `Compute/Texture` | 2 | `Texture/Assignment` |
-| `Create` | 16 | `Creation/Primitives` |
-| `Geometry/Transform` | 1 | `Geometry/Transform` |
-| `Inspection` | 1 | `Measurement` |
-| `Layer` | 14 | `Document/Layer` |
-| `Layer/Boolean` | 4 | `Meshing/Boolean` — mis-filed under `Layer` today |
-| `MLS` | 8 | *split by result* — `Geometry/Smoothing` (projection) · `Creation/Reconstruction` (marching cubes) · `Attribute/Curvature` · `Measurement/Statistics` (radius) · `Selection/by Topology` (small components) |
-| `Measure` | 5 | `Measurement/Geometric`, `Measurement/Topological` |
-| `Measure/Quality` | 4 | `Measurement/Statistics` |
-| `Meshing` | 38 | *split ten ways* — see the `filter_meshing` breakdown in [Filter Organization](filter_organization.md) |
-| `Normals/Embree` | 1 | `Attribute/Normal` — backend dropped |
-| `Parameterization` | 2 | `Parametrization/UV Creation` — spelling normalized |
-| `Quality` | 7 | `Attribute/Scalar` |
-| `Quality/Embree` | 3 | `Attribute/Scalar` — backend dropped |
-| `Quality/Geodesic` | 4 | `Attribute/Scalar` — backend dropped |
-| `Raster` | 5 | `Transfer/From Rasters` (color projection) · `Attribute/Scalar` (coverage count) |
-| `Remeshing` | 8 | `Meshing/Remeshing` |
-| `Remeshing, Smoothing and Resampling` | 2 | `Creation/Reconstruction` · `Meshing/Simplification` |
-| `Remeshing/Surface Reconstruction` | 3 | `Creation/Reconstruction` |
-| `Sampling` | 17 | `Creation/Sampling` |
-| `Selection` | 27 | `Selection/*` by criterion |
-| `Selection/Embree` | 1 | `Selection/by Visibility` — backend dropped |
-| `Smoothing` | 16 | `Geometry/Smoothing` |
-| `Texture` | 16 | *split* — `Parametrization/UV Creation` (Voronoi Atlas, Flat Plane, Trivial Per-Triangle) · `Parametrization/UV Conversion` (PerWedge↔PerVertex) · `Parametrization/Defragmentation` (+`Texture` secondary) · `Texture/Assignment` (Set Texture) · `Texture/Conversion` (normal-map) · `Texture/Packing` (Pack Texture Images) · `Transfer/Between Layers` (the three Transfer filters) |
-
-Notable corrections this surfaces:
-
-- `Compute/Color` belongs to **`Attribute/Color`** — it writes color.
-- `Compute/Texture` belongs to **`Texture`**.
-- `Quality`, `Compute/Quality`, `Quality/Embree` and `Quality/Geodesic` were **four**
-  names for one concept — now the single `Attribute/Scalar`.
-- `Raster` was doing two unrelated jobs: projecting color (a `Transfer`) and computing
-  coverage counts (an `Attribute/Scalar` write).
-- `Layer/Boolean` moves out of `Layer` to **`Meshing/Boolean`** — booleans rebuild
-  topology; they are not document-structure operations.
-- Four backend-suffixed paths disappear entirely.
-
-Filters that now legitimately carry **more than one** category include *Simplification:
-QEC (with texture)* → `Meshing/Simplification` + `Texture`; *Parameterization +
-texturing from registered rasters* → `Parametrization/UV Creation` +
-`Texture/Assignment` + `Transfer/From Rasters`; *Transfer Vertex Color to Texture* →
-`Transfer/Between Layers` + `Attribute/Color`.
-
 ### Categories, and what should never be hand-tagged
 
 Categories are the **authored** classification: a set of ontology paths expressing
@@ -285,7 +208,7 @@ Two derivable facets, both already present in the descriptor in structured form:
 
 | Facet | Derived from | Gives |
 |---|---|---|
-| **Data touched** | `outputModifies` (`VG` 68, `VN` 61, `FV` 47, `VC` 31, `VQ` 30, `WT` 12, `TM`/`TX`, `FS`/`VS`) and `inputRequirements` | "writes UVs", "reads vertex color", "changes topology" — and the read/write distinction, which no hand tag currently captures |
+| **Data touched** | `outputModifies` (on 2026-11-15: `VG` 86, `VN` 86, `FV` 52, `VC` 27, `VQ` 35, `WT` 22, `TM`/`TX`, `FS`/`VS`) and `inputRequirements` | "writes UVs", "reads vertex color", "changes topology" — and the read/write distinction, which no hand tag currently captures |
 | **Implementation** | `provenance.project` and the plugin | "every QSlim filter", "everything backed by CGAL" — already searched today |
 
 So `tags` should become **generated** (categories + derived facets, flattened for
@@ -311,76 +234,7 @@ in sections 3–4, singular and lower case (`normal`, not `normals`).
 
 ## 2. Representation
 
-*What* the filter operates on and produces — orthogonal to the category, which says
-what it *does*. *Simplify Quadric Edge Collapse* is `Meshing/Simplification` acting on
-`Mesh/Triangle`; *Reconstruct Screened Poisson* is `Creation/Reconstruction` taking
-`Point Cloud` and producing `Mesh/Triangle`. Neither fact implies the other.
-
-With this, the classification model has four facets:
-
-| Facet | Answers | Source |
-|---|---|---|
-| **Category** (§1) | what does it do | authored, multi-valued |
-| **Representation** (§2) | what does it work on / produce | authored, directional |
-| **Data touched** | which attributes does it read/write | derived from `outputModifies`, `inputRequirements` |
-| **Implementation** | which library/algorithm | derived from `provenance.project` |
-
-### Terminology: `representation`, not "domain"
-
-`inputDomain` and `outputDomain` already exist in the descriptor and mean **document
-scope** — `SingleMesh` / `WholeDocument` / `None`, and `ModifyCurrentMesh` /
-`NewMeshes` / `Information`. Applying this document's own one-term-per-concept rule,
-the new facet is **`representation`**, and those existing fields should be renamed
-**`inputScope` / `outputScope`** in the same pass, since scope is what they describe.
-
-### The values
-
-| Representation | Meaning |
-|---|---|
-| `Mesh` | Any face-based surface; use when the filter does not care |
-| `Mesh/Triangle` | Requires triangles |
-| `Mesh/Quad` | Quad or quad-dominant |
-| `Mesh/Polygonal` | General n-gons |
-| `Point Cloud` | Vertices only, no faces |
-| `Polyline` | Edge-based curves (the mesh edge container) |
-| `Volume` | Voxel grid or 3D scalar field |
-| `Raster` | Registered image layer |
-
-### Direction matters
-
-Input and output are declared separately:
-
-```json
-"inputRepresentation": ["Point Cloud"],
-"outputRepresentation": ["Mesh/Triangle"]
-```
-
-This is what answers *"what turns a point cloud into a surface?"* and *"what converts
-triangles to quads?"* — questions the current tree cannot express at all, even though
-the filters exist (*Tri to Quad by 4-8 Subdivision*, *Turn into a Pure-Triangular
-mesh*, *Reconstruct Ball Pivoting*).
-
-### Declared, not derived
-
-Unlike the data-touched and implementation facets, representation cannot be inferred:
-
-- **Quad-ness is invisible in the data structure.** vcglib stores quad meshes as
-  *triangle* meshes with faux edges (`FaceClearF`, `IsFaceFauxConsistent`), so the
-  intent lives in bit flags, not in the type.
-- **Polylines** use the edge container, which a surface mesh may also populate
-  incidentally.
-- Only the point-cloud case is partly derivable: `requireVertices` without
-  `requireFaces` implies a filter that tolerates points.
-
-So it is declared — but the loader should **cross-check** it: a filter declaring
-`Point Cloud` input while listing `requireFaces` is contradictory and should warn. That
-catches drift the same way category validation does.
-
-### The need is already visible
-
-These concepts are being expressed informally today, where nothing can search or
-validate them: across current descriptors `quad` appears **48** times, `point cloud`
-**33**, and `polyline` **12** — scattered through display names, descriptions and tags.
+Proposed, not implemented: what a filter works on and produces (`Mesh/Triangle`, `Point Cloud`, `Polyline`, ...), as a facet beside the category. See [Filter Representation](proposals/filter_representation.md).
 
 ## 3. Verb lexicon
 
@@ -497,7 +351,7 @@ asks for as *Compute Normals*.
 
 Every verb above the `Estimate` footnote is ratified. The rounds that introduced the
 later ones are recorded in [Filter Names](history/filter_names.md), which is the history; this
-table is the authority. `tests/test_filters.cpp` parses it and fails if any shipped
+table is the authority. `tests/test_filter_descriptors.cpp` parses it and fails if any shipped
 display name leads with a word that is not here.
 
 ## 4. Element and data nouns
@@ -769,44 +623,6 @@ to Face* → `transfer_color_from_vertex_to_face`.
 
 An earlier draft of this section dropped `by` while keeping `from` and `to`, which no
 reader could have predicted; pass 2 settled it by keeping every word (2026-09-03).
-
-### Discoverability: prerequisite (done)
-
-Dropping the category prefix from names is only safe if filter search can still find a
-filter by its category. It could not: `MeshFilterPanel::matchesSearch` matched `name`,
-`shortDescription`, `longDescriptionMarkdown` and `provenance.project`, but **not** the
-category.
-
-**Implemented** in `src/ui/meshfilterpanel.cpp` — `matchesSearch` now also matches the
-category. The historical before/after benchmark below used the 272 descriptors in the
-2026-07-29 category migration:
-
-| Query | Matches before | After |
-|---|---|---|
-| `cleaning` | 1 | 16 |
-| `selection` | 17 | 36 |
-| `sampling` | 22 | 28 |
-| `simplification` | 7 | 7 |
-
-The `cleaning` row shows how real the gap was: 15 of the 16 filters in that category
-were unfindable by its name, because they are called *Remove Duplicate Vertices*,
-*Repair Non-Manifold Edges* and so on — never "cleaning".
-
-The unchanged rows matter just as much. `simplification` gained nothing **because the
-category is currently repeated in those names** (*Simplification: Quadric Edge
-Collapse*). Once the naming pass removes that redundancy, those queries would have lost
-their matches without this fix — so this is the prerequisite that makes the new grammar
-safe, not merely an improvement.
-
-Ranking is unaffected: name matches sort above category-only matches (since 2026-10-30
-by `FilterPresentation::rank`, which replaced the name-only `titleMatchesAllTerms`; see
-[Filter Search](proposals/filter_search.md)).
-
-The implementation loops over the `categories` array; a single legacy `menuPath` string
-is still accepted by the loader for descriptors that predate it.
-
-Worth noting `provenance.project` was *already* searched, which is exactly what the
-algorithm-archive model needs — typing *qslim* finds the QSlim implementations.
 
 ## 7. Naming the layers a filter creates
 

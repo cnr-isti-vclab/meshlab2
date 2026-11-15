@@ -3,98 +3,137 @@
 This document plans a reimplementation, as MeshLab filters, of Pietroni, Corsini, Cignoni and
 Scopigno, *An Interactive Local Flattening Operator to Support Digital Investigations on Artwork
 Surfaces* (IEEE TVCG 17(12), Visualization 2011; `.reference/papers/IEEEViz_local_flattening_final_v2.pdf`).
-**Not implemented**; drafted 2026-11-13. The decisions marked *open* need Paolo, who co-authored the
-paper.
+**Not implemented**; drafted 2026-11-13, scope and answers from Paolo, a co-author, 2026-11-15.
 
-See also: [Texture Signal Processing](texture_signal_processing.md) (per-face curvature directions
-and line-integral convolution, stage 4), [Directional](directional_port.md), [TexMetro](texmetro.md),
-[Adding a Filter](../adding_a_filter.md), [Vocabulary](../vocabulary.md), and the interactive tools
-plan in the `interactive-tools-design` notes.
+See also: [Texture Signal Processing](texture_signal_processing.md) (per-face principal directions
+in `VCGFace`, stage 4), [Directional](directional_port.md), [TexMetro](texmetro.md),
+[Adding a Filter](../adding_a_filter.md), [Vocabulary](../vocabulary.md).
 
-## What the paper does
+## What the paper does, and what is in scope
 
-A user sketches two polylines on a scanned sculpture: a **guidance polyline**, along which the
-patch runs, and an **interval polyline**, whose length is the patch's half-width. The operator then:
+A user sketches a **guidance polyline**, along which a patch runs, and an **interval polyline**,
+whose length is the patch's half-width. The operator then:
 
 1. **Selects** the faces whose geodesic distance from the guidance polyline is below the interval's
    length, and rejects the selection unless it is a disk.
-2. **Interpolates a cross field** over the selection that follows the guidance polyline: a discrete
-   harmonic (cotangent) parametrization with a least-squares term pulling the polyline's points to a
-   constant U (eq. 1, stiffness k_st), the two ends of the polyline fixed; the U direction of that
-   map, carried back to 3D, is the field.
+2. **Interpolates a cross field** over the selection that follows the guidance polyline: a
+   parametrization with a least-squares term pulling the polyline's points to a constant U (eq. 1,
+   stiffness k_st), the two ends of the polyline fixed; the U direction of that map, carried back
+   to 3D, is the field.
 3. **Parametrizes** the selection aligned to the field, as the field-aligned methods do [Bommes et
    al. 2009], but on a disk, so with no cuts or integer variables.
 4. **Crops** to the rectangle spanned in UV by the ends of the two polylines.
+5. **Samples a height map** of the residual marks (§4.1): the patch as a geometry image at a chosen
+   resolution (0.25 mm per pixel), smoothed by a Gaussian to keep only the overall shape, each
+   sample cast along its normal back onto the surface; the distances form the image.
 
-On the resulting rectangular patch (Table 1: edge-length ratio between 0.83 and 1.17, average error
-under 5%):
+The paper goes on to extract chisel traces as ridges and valleys of that image (§4.2), to compare
+photographs on the patch (§5), and to set the traces against curvature directions (§6). **Out of
+scope** (decided 2026-11-15): only steps 1 to 5 are reimplemented. Photographs onto a patch already
+work with *Transfer Color from Visible Rasters to Texture* once the patch has UVs.
 
-5. **Height map of the residual marks** (§4.1): the patch, built on a medium-resolution model (250k
-   faces for the Pietà), is sampled into a geometry image at a chosen resolution (0.25 mm per pixel),
-   smoothed by a Gaussian to keep only the overall shape, and each sample is cast along its normal
-   onto the full-resolution scan; the distances form the image.
-6. **Chisel traces** (§4.2): ridges and valleys of that image at a scale, after Lindeberg 1998: in a
-   Gaussian scale space L = I * G(σ), with p and q the image's principal-curvature directions,
-   ridges where L_p = 0, L_pp < 0, |L_pp| ≥ |L_qq|, valleys symmetrically; drawn colored by
-   orientation, and grouped by similarity to a trace the user picks.
-7. **Comparing photographs** (§5): photos registered to the model before and after a restoration are
-   projected onto the same patch, giving two images of the same rectangle of surface.
-8. **Marks against curvature** (§6): the principal curvature directions of a smoothed low-resolution
-   model, drawn over the trace image.
+## Decisions (2026-11-15)
 
-## What MeshLab has for each step
+- **Single resolution.** The paper parametrizes a medium-resolution model and samples the full scan;
+  here one layer is both, and a user who wants the paper's split simplifies a copy by hand.
+- **A width, not an interval polyline.** The interval polyline only gives a length.
+- **vcglib's `PoissonSolver` is the paper's solver**, and is cleaned up to vcglib's current rules
+  rather than replaced (stage 0).
 
-| Step | Existing in MeshLab or vcglib | Missing | Verdict |
+## Step 2: what eq. 1 can mean
+
+The text is self-contradictory in two ways, and only one reading makes the system work.
+
+**U or V does not matter.** Pulling the polyline's points to a constant U makes the polyline an
+iso-line of U, a segment parallel to the V axis, while the text says it is aligned with U. But the
+field built from the map is a cross field: both directions, and their opposites, are the same
+field, so which axis the polyline lies along changes nothing but the labels. Step 4's crop uses the
+polyline's ends in UV, so it does not care either.
+
+**Harmonic or conformal matters.** The text says a discrete harmonic map with cotangent weights.
+That energy is the Dirichlet energy of U plus that of V, the two independent of each other:
+
+- U is then pulled to U_k at the polyline's points, and at its two fixed ends (which "should be
+  correctly aligned with U"). The constant U = U_k satisfies every constraint at zero energy, so U
+  is that constant, and carries no information.
+- V is harmonic with only its two end values fixed and a free boundary. That is well defined, but
+  its gradient runs from one end to the other with singularities at the two ends; nothing in it
+  follows the polyline, since the polyline's term acts only on U.
+
+So with a harmonic energy the alignment term has no effect, and the map collapses onto a line.
+
+It works if the energy **couples U and V**, as the conformal (LSCM) energy does: the Dirichlet
+energy minus the signed area of the map, which ties ∇U to ∇V rotated by 90° (Cauchy-Riemann). Then
+making the polyline an iso-line of U forces ∇V to run along it, and conformality carries that
+direction smoothly into the rest of the patch. Two things point to this reading:
+
+- **LSCM needs exactly two pinned points** to have a unique solution, which is what the text says:
+  "it is sufficient to fix the two extremes of the guidance polyline … to make the sparse system
+  solvable". A harmonic map with a free boundary would also need them, but would still collapse,
+  as shown above.
+- **vcglib's `PoissonSolver` is that solver.** Without a direction field it adds `AddAreaTerm` to
+  the cotangent matrix, the antisymmetric coupling that turns the Dirichlet energy into LSCM's, and
+  pins the two farthest vertices (`FixDefaultVertices`). The paper's step 2 is that mode plus the
+  least-squares term on the polyline; step 3 is the same solver's other mode, `use_direction_field`,
+  which fits ∇U and ∇V to a field read from the faces' `PD1` and `PD2`, with one pinned vertex.
+
+The field of step 2 is then, per face, the gradient of U carried to 3D and its rotation in the face's
+plane. In a conformal map the two are orthogonal and of equal length, so they make a cross field
+directly.
+
+The alternative needs no map at all: give the faces the polyline crosses its tangent as `PD1`, and
+spread it over the selection with vcglib's `CrossField::PropagateFromSelF` and `SmoothIterative`
+(faces under the polyline fixed). It is simpler, but it is not the paper's method, and the field
+away from the polyline would be smoothed rather than conformal. **Proposed:** the conformal reading
+as the method, and the propagation only if the first proves fragile.
+
+## What MeshLab and vcglib have for each step
+
+| Step | Existing | Missing | Plan |
 |---|---|---|---|
-| Sketching polylines on the surface | Polyline layers; *Create Polyline from Geodesic Path*, *from Planar Section*; *Embed Polyline in Surface* (vcglib `CoMEmbed`); the GPU surface pick of the interactive tools | A tool that draws a polyline on the surface | Filter first, with the guidance polyline as a layer; the sketch tool later, as a front end that runs the filter |
-| 1. Selection by geodesic distance | *Compute Geodesic Distance from Selection* (vcglib `Geodesic`, heat), *Select by Scalar*; disk test `PoissonSolver::IsFeasible` | Seeds on the polyline rather than on selected vertices | Embed the polyline (its vertices become seeds) in a copy, or seed the geodesic at the polyline's points |
-| 2. Cross field from the polyline | vcglib `CrossField`: `PropagateFromSelF`, `SmoothIterative` with fixed faces, face `PD1`/`PD2` (in `VCGFace` since stage 4 of the TSP work) | The paper's harmonic map with the alignment term (eq. 1); `vcg::tri::Harmonic` solves scalar fields with hard vertex constraints only | *Open* (question 1): the paper's construction, or seeding the polyline's tangent on the faces it crosses and propagating it |
-| 3. Field-aligned disk parametrization | vcglib `PoissonSolver` (Pietroni and Cignoni, October 2011), with `use_direction_field` reading the faces' `PD1`/`PD2` | Modern idioms: it reports with `printf`, checks with `assert`, keeps state in `std::map`s | Very likely the paper's own solver (question 2). Bring it to vcglib's current rules rather than write another |
-| 4. Crop to a rectangle | vcglib `clip.h` (exact plane clipping, *Trim Surface by Plane*) | Clipping in UV | Clip a copy laid out in UV by the rectangle's four lines, exactly, then map back by barycentrics |
-| Distortion (Table 1) | vcglib `Distortion`, the TexMetro measures | The paper's edge-length ratios as one result | Report min/max ratio and average error from the filter |
-| 5. Height map | vcg `GridStaticPtr` ray casting (as `select_by_rectangle` uses), Embree optionally; raster layers (`QImage`, `Grayscale16`) | Sampling a geometry image, Gaussian smoothing, casting along normals | New, a few hundred lines in a plugin |
-| 6. Ridges and valleys | Nothing for images | Gaussian derivative scale space, Lindeberg's conditions, tracing into polylines | New; the larger image-processing piece (question 5) |
-| 7. Photos on the patch | *Transfer Color from Visible Rasters to Texture* on the patch layer | None | Works once the patch has UVs; document the workflow |
-| 8. Curvature against the marks | Four curvature methods, per vertex and (stage 4) per face; *Colorize Texture by Principal Directions (Line Integral Convolution)* on the patch's texture | None once stage 4 lands | Document the workflow |
+| Polyline on the surface | Polyline layers; *Create Polyline from Geodesic Path*, *from Planar Section*; *Embed Polyline in Surface* (vcglib `CoMEmbed`) | A sketch tool | The filter takes the guidance polyline as a layer. A tool may follow as a front end that runs the filter |
+| 1. Selection | vcglib geodesic distance (`Geodesic`, heat), *Select by Scalar*; `PoissonSolver::IsFeasible` (a disk) | Seeds on the polyline instead of on vertices | Embed the polyline in a working copy, so its points become vertices and seeds; or seed the geodesic at the polyline's points directly |
+| 2. Cross field | `PoissonSolver`'s conformal mode | Soft linear constraints on points inside faces (eq. 1: one row per polyline point, its three corners weighted by its barycentric coordinates) | Add to `PoissonSolver`, which already assembles least-squares rows for its fixed vertices |
+| 3. Field-aligned parametrization | `PoissonSolver` with `use_direction_field`, reading face `PD1`/`PD2` (in `VCGFace` since the TSP stage 4) | Nothing beyond stage 0's clean-up | Reuse |
+| 4. Crop to a rectangle | vcglib `clip.h`, exact plane clipping (*Trim Surface by Plane*) | Clipping in UV | Clip a working copy laid out in UV by the rectangle's four lines, exactly, and carry the positions with the cuts |
+| Distortion (Table 1) | vcglib `Distortion`, the TexMetro measures | The paper's edge-length ratios as one result | Report min and max ratio and the average error from the filter |
+| 5. Height map | vcg `GridStaticPtr` ray casting (as *Select by Rectangle* uses); raster layers (`QImage`, `Grayscale16`) | Sampling the geometry image, Gaussian smoothing, casting along normals | New, in the plugin |
 
-## Proposed stages
+## Stages
 
+0. **`PoissonSolver` cleaned up, with point constraints.** To vcglib's rules (`vcglib/AGENTS.md`):
+   throw on a region that is not a disk or a singular system instead of `assert` and `printf`;
+   report through a `CallBackPos`; vectors instead of `std::map` indexing, since a patch of a scan
+   can have a million faces; the dead commented code removed. Then the new soft point constraint.
+   The sample `trimesh_disk_parametrization` stays a short sample. A vcglib commit, push and gitlink
+   bump by Paolo.
 1. **The flattening filter.** *Parametrize Surface along Polyline (Local Flattening)*, name to be
-   decided. Inputs: the current mesh, the guidance polyline (a `mesh` parameter naming a polyline
-   layer), the patch's half-width (`absperc`), and the cross-field construction if question 1 keeps
-   both. Output: a **new layer**, the rectangular patch, with per-wedge UVs in the surface's units
-   (one UV unit is one mesh unit, so lengths read off the image), and the distortion figures as
-   output values. Refuses a region that is not a disk. Mostly vcglib: geodesic, cross field,
-   `PoissonSolver`, clipping. Tests: a cylinder (developable, so the patch must be isometric up to
-   discretization), then a scan.
-2. **The height map.** A filter from the patch layer and the full-resolution layer to a raster layer
-   holding a 16-bit height image at a given resolution, with the smoothing scale σ; the height range
-   as output values. Tests: a known bump function added to a smooth surface must come back.
-3. **Chisel traces.** Ridges and valleys at a scale, as polyline layers: in the image's space, or
-   carried back onto the 3D surface through the patch, colored by orientation. Grouping by similarity
-   to a user-picked trace is left for later.
-4. **Workflows** on existing filters: photos before and after a restoration, curvature directions
-   against the traces; a page in the user documentation.
-5. **The sketch tool.** Drawing the two polylines on the surface, as the paper does, built as a front
-   end that runs stage 1's filter (one gesture, one filter run, one undo step).
+   approved. Inputs: the current mesh, the guidance polyline (a `mesh` parameter naming a polyline
+   layer), the half-width (`absperc`), the alignment stiffness k_st. Output: a **new layer**, the
+   rectangular patch, with per-wedge UVs in the surface's units, so that lengths read off the image
+   are lengths on the surface; the distortion figures as output values. Refuses a region that is not
+   a disk. Tests: a cylinder, developable, so the patch must come out isometric up to discretization;
+   then a strip of a scan (`TestDataset/Ruth_1M.ply`, `StatuaPisa.ply`, `Shepard_1M.ply`), against
+   the paper's distortion figures (edge-length ratio within about 0.83 to 1.17, average error under
+   5%).
+2. **The height map.** A filter from the patch layer to a raster layer holding a 16-bit height
+   image, at a resolution in pixels per unit and with the smoothing scale σ; the height range as
+   output values, to read heights back. Rays are cast from the smoothed geometry image onto the
+   patch itself (single resolution). Tests: a known bump added to a smooth surface must come back.
+3. **The sketch tool**, later and only if wanted: drawing the guidance polyline on the surface as a
+   front end that runs stage 1's filter, one gesture to one undo step.
 
-## Open questions for Paolo
+## Possible later extension
 
-1. **The cross field.** Eq. 1 pulls the polyline's points to a constant U, which maps the polyline
-   to a line parallel to the V axis, while the text says the patch is aligned with U. Which was meant,
-   and was the field the gradient of U or of V? Would seeding the faces the polyline crosses with
-   its tangent and propagating with `CrossField` give the same patches in practice? It needs no new
-   solver.
-2. **`PoissonSolver`.** Is vcglib's the solver of the paper? It fixes one vertex when following a
-   field and two otherwise; was the patch's scale left to the field (unit-length directions, so
-   lengths come out isometric), as `fieldScale` suggests?
-3. **The interval polyline.** In a filter, a width is simpler than a second polyline. Was the
-   interval ever used for anything but its length?
-4. **Which model for which step.** The paper parametrizes a medium-resolution model and samples the
-   full-resolution one. Two layers in MeshLab, or one layer simplified on the fly?
-5. **Image processing.** Ridges and valleys need Gaussian derivatives on images, which MeshLab has
-   nowhere. Write the small separable convolution needed, or bring in an image library? Is OpenCV
-   acceptable as an optional dependency?
-6. **Data.** The paper used the Pietà di Palestrina, the St Matthew and the David. Are any of those
-   scans available for tests? `.reference/2007Delos_Afrodite` holds 1 GB of range maps of a
-   sculpture, an alternative.
+The interval polyline could give a second direction. `PoissonSolver`'s field mode fits ∇U to `PD1`
+and ∇V to `PD2` separately, each normalized on its own, so it does not require them to be
+orthogonal: a patch whose two axes follow two different polylines, a non-orthogonal frame, would
+need only a second field.
+
+## Open questions
+
+1. **The conformal reading of step 2** (above): is that how the original worked?
+2. **The patch's scale.** In field mode the directions are normalized, so ∇U and ∇V have unit length
+   and the patch comes out at the surface's scale (`fieldScale` 1). Is that how lengths were kept, or
+   was the patch rescaled afterwards?
+3. **The name** of the stage 1 filter, and of stage 2's (*Sample Height Map from Surface*?).

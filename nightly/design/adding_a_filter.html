@@ -342,7 +342,7 @@ It then asks the view to show the texture, with a <code class="docutils literal 
 document’s unit (<code class="docutils literal notranslate"><span class="pre">Document::unit()</span></code>, “mm”, “m”, …) once the user has set one, and
 “abs” while it is unknown, so declare as <code class="docutils literal notranslate"><span class="pre">absperc</span></code> only what really is a length in the
 layer’s coordinates – not a count, an angle or a ratio.</p>
-<p>Every parameter also carries <code class="docutils literal notranslate"><span class="pre">label</span></code>, <code class="docutils literal notranslate"><span class="pre">help</span></code> and <code class="docutils literal notranslate"><span class="pre">group</span></code> — all 1168 declared
+<p>Every parameter also carries <code class="docutils literal notranslate"><span class="pre">label</span></code>, <code class="docutils literal notranslate"><span class="pre">help</span></code> and <code class="docutils literal notranslate"><span class="pre">group</span></code> — all 1433 declared
 parameters do. Each distinct <code class="docutils literal notranslate"><span class="pre">group</span></code> becomes one section of the form, in order
 of first appearance, and headings only appear once there is more than one group.
 The name is cosmetic except for one rule: <strong>a group whose name begins with
@@ -396,7 +396,7 @@ code runs, so the filter is greyed out with a reason instead of failing inside
 <code class="docutils literal notranslate"><span class="pre">requireEdges</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertexQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireFaceQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireEdgeQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertexColor</span></code>,
 <code class="docutils literal notranslate"><span class="pre">requireFaceColor</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextureCoordinates</span></code>, <code class="docutils literal notranslate"><span class="pre">requirePerVertexTexCoords</span></code>,
 <code class="docutils literal notranslate"><span class="pre">requirePerWedgeTexCoords</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextures</span></code>. Declare them instead of
-re-checking by hand — 291 of 337 filters do.</p>
+re-checking by hand, as most filters do.</p>
 <p>A filter that can confine itself to the selection declares <strong><code class="docutils literal notranslate"><span class="pre">selectionScope</span></code></strong> —
 <code class="docutils literal notranslate"><span class="pre">&quot;vertices&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;faces&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;edges&quot;</span></code>, the kind of element its algorithm restricts to —
 and <strong>no toggle of its own</strong>. The loader injects one <code class="docutils literal notranslate"><span class="pre">selectedOnly</span></code> bool, first and never
@@ -747,8 +747,7 @@ cancels</strong>: stop and return a failure, as <em>Compute Face Scalar from Ras
 with “Operation canceled.”) — the framework rolls the document back.</p></li>
 <li><p><strong>Randomized filters declare <code class="docutils literal notranslate"><span class="pre">randomSeed</span></code></strong> — <code class="docutils literal notranslate"><span class="pre">int</span></code>, default <code class="docutils literal notranslate"><span class="pre">0</span></code>, minimum <code class="docutils literal notranslate"><span class="pre">0</span></code>,
 resolved through <code class="docutils literal notranslate"><span class="pre">FilterParams::getRandomSeed()</span></code>, with the drawn value reported
-in the result messages so a run can be pinned afterwards. 39 parameters follow
-this; see <a class="reference internal" href="filter_organization.html#randomseed"><span class="std std-ref">Filter Organization</span></a>.</p></li>
+in the result messages so a run can be pinned afterwards; see <a class="reference internal" href="filter_organization.html#randomseed"><span class="std std-ref">Filter Organization</span></a>.</p></li>
 <li><p><strong>Per-layer plugin data</strong> (rare) — <code class="docutils literal notranslate"><span class="pre">doc.setLayerData(meshIndex,</span> <span class="pre">&quot;&lt;pluginId&gt;/&lt;name&gt;&quot;,</span> <span class="pre">ptr)</span></code>
 attaches an immutable, plugin-owned object to a layer: a solver state, a
 parametrization domain, anything too structured for mesh attributes. Undo

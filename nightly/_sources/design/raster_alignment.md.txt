@@ -3,7 +3,7 @@
 How a raster's camera is aligned to the mesh: by point pairs, by mutual information, both at
 once, and globally over a set of rasters. How rasters, cameras and lenses are stored is in
 [Data Model](data_model.md#raster-data-type); the interactive tool and picking in the raster
-view are in [Rendering](rendering.md#interactive-tools). The record of how this was built,
+view are in [Rendering](user_interface.md#interactive-tools). The record of how this was built,
 with the measurements and the decisions behind it, is
 [history/raster_alignment.md](history/raster_alignment.md).
 
@@ -141,18 +141,19 @@ In `tests/test_filters.cpp`, behavioural tier:
 - **Set Raster Camera from a view:** every corner of a cube lands within 0.01 px of where the
   view draws it, perspective and orthographic, with a roll.
 - **Point correspondences:**
-  - On the gargoyle fixture's cameras, from exact pairs: back to under 1e-4 px, also with the
+  - On the gargoyle fixture's cameras, from exact pairs: back to within 0.01 px, also with the
     focal length.
   - On the `2930Colmap` dataset, when present, from COLMAP's observations taken through the
-    lens: 0.05 px from COLMAP's camera.
+    lens: within 0.1 px of COLMAP's camera, with an error no worse than COLMAP's own.
 - **Mutual information:**
   - Gargoyle cameras from 2 and 5 degree starts: back to where a fit from the true camera
     ends, within 2 px (5 for camera 1, whose maximum is the flattest).
   - With six noisy pairs, camera 1 from 8 degrees, beyond the information's own reach: within
     1.5 px. The *Silhouette* rendering runs.
   - On the scan, when present, with *Vertex Color*: within 3 px of COLMAP's camera.
-- **Global refinement:** the gargoyle's four cameras end within 1.5 px of the fixture's, and
-  within 2 px with camera 0 as an anchor that does not move.
+- **Global refinement:** each of the gargoyle's four cameras ends nearer the fixture's than it
+  started and within 2 px of it (2.5 for camera 1), with or without camera 0 as an anchor that
+  does not move.
 
 The tool, which needs the GUI, was checked in the real window, on Metal and OpenGL (see the
 record).

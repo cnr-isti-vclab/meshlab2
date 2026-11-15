@@ -249,8 +249,8 @@
 <p>Where the test suite’s inputs live, and what a test does when they are missing.</p>
 <p>See also: <a class="reference internal" href="adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a> (the three filter-testing tiers),
 <code class="docutils literal notranslate"><span class="pre">AGENTS.md</span></code> (the tier rules and the gargoyle intrinsics warning).</p>
-<section id="three-places-by-size">
-<h2>Three places, by size<a class="headerlink" href="#three-places-by-size" title="Link to this heading">¶</a></h2>
+<section id="five-places-by-size">
+<h2>Five places, by size<a class="headerlink" href="#five-places-by-size" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -380,7 +380,7 @@ cache budget without telling anyone much.</p>
 <p>How it treats the two caches is deliberate:</p>
 <ul class="simple">
 <li><p><strong>vcpkg: restore only, from the packaging job’s key.</strong> The dependencies are
-identical to the ones <code class="docutils literal notranslate"><span class="pre">macos-dmg.yml</span></code> already builds on every push to main, so
+identical to the ones <code class="docutils literal notranslate"><span class="pre">macos-dmg.yml</span></code> already builds on every push to <code class="docutils literal notranslate"><span class="pre">devel</span></code>, so
 this job reuses them and never saves an entry of its own. A second ~4 GB copy
 would spend twice from the 10 GB per-repository budget and let the two jobs
 evict each other. The cost is that a run with no warm packaging cache compiles
@@ -440,7 +440,7 @@ suite — is exactly wrong for them. See
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Test Data</a><ul>
-<li><a class="reference internal" href="#three-places-by-size">Three places, by size</a></li>
+<li><a class="reference internal" href="#five-places-by-size">Five places, by size</a></li>
 <li><a class="reference internal" href="#fetching">Fetching</a></li>
 <li><a class="reference internal" href="#using-it-from-a-test">Using it from a test</a><ul>
 <li><a class="reference internal" href="#range-maps-are-the-standing-corpus-for-alignment">Range maps are the standing corpus for alignment</a></li>
