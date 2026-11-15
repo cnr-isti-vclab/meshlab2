@@ -653,6 +653,7 @@ private slots:
     void cutAlongSelectedEdgesMatchesCutAlongCreaseEdges();
     void embedPolylineThenCutSplitsTheSurface();
     void embedPolylineRefusesWhatItCannotEmbed();
+    void localFlatteningUnrollsACylinderIsometrically();
     void smoothPolylineOnSurfaceStaysOnItAndShortens();
     void smoothPolylineOnCylinderKeepsTheHelixWinding();
     void smoothPolylineWithoutControlPointsFindsTheClosedGeodesic();
@@ -16029,6 +16030,80 @@ double curveLength(const VCGMesh &m)
 }
 
 } // namespace
+
+// A helix on a cylinder is a geodesic, and the cylinder is developable: the flattened strip
+// around it must be an exact rectangle, with every edge keeping its length.
+void FilterTests::localFlatteningUnrollsACylinderIsometrically()
+{
+    const int na = 120, nh = 80;  // around and along a cylinder of radius 2 and height 8
+    const float r = 2.0f, h = 8.0f;
+    VCGMesh cyl;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(cyl, size_t(na * (nh + 1)));
+    for (int j = 0; j <= nh; ++j)
+        for (int i = 0; i < na; ++i) {
+            const float t = float(2 * M_PI * i / na);
+            cyl.vert[size_t(j * na + i)].P() = vcg::Point3f(r * std::cos(t), r * std::sin(t), h * j / nh);
+        }
+    for (int j = 0; j < nh; ++j)
+        for (int i = 0; i < na; ++i) {
+            VCGVertex *a = &cyl.vert[size_t(j * na + i)], *b = &cyl.vert[size_t(j * na + (i + 1) % na)];
+            VCGVertex *c = &cyl.vert[size_t((j + 1) * na + (i + 1) % na)], *d = &cyl.vert[size_t((j + 1) * na + i)];
+            vcg::tri::Allocator<VCGMesh>::AddFace(cyl, a, b, c);
+            vcg::tri::Allocator<VCGMesh>::AddFace(cyl, a, c, d);
+        }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(cyl);
+
+    Document doc;
+    const int surface = doc.addMesh(cyl, QStringLiteral("cylinder"), 0);
+    std::vector<vcg::Point3f> helix;  // a quarter turn while rising by 4
+    for (int k = 0; k <= 40; ++k) {
+        const float t = 1.0f + float(M_PI / 2) * k / 40;
+        helix.push_back(vcg::Point3f(r * std::cos(t), r * std::sin(t), 2.0f + 4.0f * k / 40));
+    }
+    VCGMesh line;
+    makePolyline(line, helix);
+    const int polyline = doc.addMesh(line, QStringLiteral("helix"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+    doc.setCurrentMeshIndex(surface);
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("polyline"), polyline);
+    p.insert(QStringLiteral("halfWidth"), 1.0);
+    const QString key = filterKeyForId(doc, QStringLiteral("parametrize_surface_along_polyline_local_flattening"));
+    MeshFilterRunResult res = doc.runFilter(key, p);
+    QVERIFY2(res.success, qPrintable(res.errorMessage));
+    QCOMPARE(res.newMeshIndices.size(), 1);
+    QCOMPARE(doc.mesh(surface).mesh.FN(), 2 * na * nh);  // the surface is untouched
+
+    const double helixLength = std::sqrt(16.0 + std::pow(2.0 * M_PI / 2, 2));
+    const double length = res.outputValues.value(QStringLiteral("length")).toDouble();
+    QVERIFY2(std::abs(length - helixLength) < 0.005 * helixLength, qPrintable(QString::number(length)));
+    QVERIFY(res.outputValues.value(QStringLiteral("min_length_ratio")).toDouble() > 0.98);
+    QVERIFY(res.outputValues.value(QStringLiteral("max_length_ratio")).toDouble() < 1.02);
+    QVERIFY(res.outputValues.value(QStringLiteral("average_length_error")).toDouble() < 0.002);
+
+    const VCGMesh &patch = doc.mesh(res.newMeshIndices.front()).mesh;
+    QVERIFY(patch.FN() > 0);
+    vcg::Box2f box;
+    int folded = 0;
+    for (const VCGFace &f : patch.face) {
+        for (int k = 0; k < 3; ++k) box.Add(f.cWT(k).P());
+        const vcg::Point2f e1 = f.cWT(1).P() - f.cWT(0).P(), e2 = f.cWT(2).P() - f.cWT(0).P();
+        folded += (e1 ^ e2) <= 0 ? 1 : 0;
+    }
+    QCOMPARE(folded, 0);
+    QVERIFY(std::abs(box.min[0] + 1) < 1e-4f && std::abs(box.max[0] - 1) < 1e-4f);  // cropped exactly
+    QVERIFY(std::abs(box.min[1]) < 1e-4f && std::abs(box.max[1] - float(length)) < 1e-4f);
+
+    // a closed polyline has no ends to run along
+    helix.push_back(helix.front());
+    makePolyline(line, helix);
+    const int loop = doc.addMesh(line, QStringLiteral("loop"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+    doc.setCurrentMeshIndex(surface);
+    p.insert(QStringLiteral("polyline"), loop);
+    res = doc.runFilter(key, p);
+    QVERIFY(!res.success);
+    QVERIFY2(res.errorMessage.contains(QStringLiteral("open curve")), qPrintable(res.errorMessage));
+}
 
 // A zigzag hovering just above a flat grid ends up on it, much shorter, with its two ends
 // (the control points) only projected; the grid is untouched. The same holds for a polyline

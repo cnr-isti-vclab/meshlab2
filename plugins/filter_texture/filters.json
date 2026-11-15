@@ -15,6 +15,21 @@
       "page": "15-36",
       "issued": { "date-parts": [[1993]] },
       "DOI": "10.1080/10586458.1993.10504266"
+    },
+    {
+      "id": "pietroni2011localflattening",
+      "type": "article-journal",
+      "title": "An Interactive Local Flattening Operator to Support Digital Investigations on Artwork Surfaces",
+      "author": [
+        { "family": "Pietroni", "given": "Nico" },
+        { "family": "Corsini", "given": "Massimiliano" },
+        { "family": "Cignoni", "given": "Paolo" },
+        { "family": "Scopigno", "given": "Roberto" }
+      ],
+      "container-title": "IEEE Transactions on Visualization and Computer Graphics",
+      "volume": "17",
+      "issue": "12",
+      "issued": { "date-parts": [[2011]] }
     }
   ],
   "filters": [
@@ -67,6 +82,63 @@
           "default": 0,
           "min": 0,
           "max": 2147483647
+        }
+      ]
+    },
+    {
+      "id": "parametrize_surface_along_polyline_local_flattening",
+      "categories": ["Parametrization/UV Creation"],
+      "referenceIds": ["pietroni2011localflattening"],
+      "name": "Parametrize Surface along Polyline (Local Flattening)",
+      "pythonName": "parametrize_surface_along_polyline_local_flattening",
+      "shortDescription": "Create a rectangular patch of the surface around a polyline, flattened with UVs in the surface's own units.",
+      "longDescriptionMarkdown": "Flatten a strip of the current surface that runs along a polyline drawn on it, into a rectangle: the local flattening operator of Pietroni et al., which turns a portion of a scanned artwork into an image in which lengths can be measured, carved marks compared and photographs laid side by side.\n\nThe faces within a geodesic distance of the polyline a little over the half-width are taken, and must form a disk. A conformal map that pulls the polyline onto a straight line gives a cross field that follows it, and the strip is then parametrized aligned to that field. The result is cropped exactly to the rectangle $|U| \\le w$, $0 \\le V \\le L$: the polyline runs along $V$, from its end with the lower index, and $w$ is the half-width.\n\nThe patch is a **new layer** with per-vertex and per-wedge texture coordinates in the surface's units, so that one unit of UV is one unit on the surface; the current mesh is left unchanged. *Sample Height Map from Surface* then makes a height image of it. The log and the output values report the distortion as the paper does: the smallest and largest ratio between an edge's length on the surface and in UV, and their average deviation from 1.\n\nThe paper's equation 1 pulls only the U coordinate of the polyline to a constant. Here V is also pulled to the arc length along the polyline, which on a developable surface cuts the length distortion by an order of magnitude; the polyline need not be a geodesic, and is straightened. The polyline must be a single open curve lying on the surface; one made with *Create Polyline from Geodesic Path* is.",
+      "tags": [
+        "parametrization",
+        "uv",
+        "flattening",
+        "polyline",
+        "unfolding",
+        "cultural heritage"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputTag": "flattened",
+      "parameters": [
+        {
+          "id": "polyline",
+          "label": "Polyline",
+          "help": "The polyline layer the patch runs along: a single open curve lying on the current mesh. It is left unchanged.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {"requireVertices": true, "requireEdges": true}
+        },
+        {
+          "id": "halfWidth",
+          "label": "Half-width",
+          "help": "Half the width of the patch, measured on the surface from the polyline to each long side of the rectangle.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag005",
+          "min": 0.0,
+          "max": "@bboxDiagHalf",
+          "decimals": 6
+        },
+        {
+          "id": "stiffness",
+          "label": "Alignment stiffness",
+          "help": "How strongly the polyline is pulled onto the straight V axis when the cross field is computed (k_st in the paper). Higher values follow the polyline more closely.",
+          "group": "advanced",
+          "type": "double",
+          "default": 10.0,
+          "min": 0.01,
+          "max": 10000.0,
+          "decimals": 2
         }
       ]
     },

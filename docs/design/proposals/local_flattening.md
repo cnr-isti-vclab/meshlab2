@@ -3,7 +3,7 @@
 This document plans a reimplementation, as MeshLab filters, of Pietroni, Corsini, Cignoni and
 Scopigno, *An Interactive Local Flattening Operator to Support Digital Investigations on Artwork
 Surfaces* (IEEE TVCG 17(12), Visualization 2011; `.reference/papers/IEEEViz_local_flattening_final_v2.pdf`).
-**Not implemented**; drafted 2026-11-13, scope and answers from Paolo, a co-author, 2026-11-15.
+**Stages 0 and 1 implemented** 2026-11-15; drafted 2026-11-13, scope and answers from Paolo, a co-author, 2026-11-15.
 
 See also: [Texture Signal Processing](texture_signal_processing.md) (per-face principal directions
 in `VCGFace`, stage 4), [Directional](directional_port.md), [TexMetro](texmetro.md),
@@ -39,6 +39,17 @@ work with *Transfer Color from Visible Rasters to Texture* once the patch has UV
 - **A width, not an interval polyline.** The interval polyline only gives a length.
 - **vcglib's `PoissonSolver` is the paper's solver**, and is cleaned up to vcglib's current rules
   rather than replaced (stage 0).
+- **Step 2 is conformal** (confirmed by Paolo): `PoissonSolver`'s LSCM mode with the least-squares
+  term of eq. 1, as reasoned below.
+- **The patch keeps the surface's scale**: one UV unit is one unit on the surface, with no
+  rescaling after the field-aligned solve.
+- **Names**: *Parametrize Surface along Polyline (Local Flattening)* and *Sample Height Map from
+  Surface*.
+- **Step 2 constrains V too** (Paolo, after measurement): the polyline's points are pulled to
+  U = 0 *and* to V equal to their arc length, with no stiff pins at its ends. Eq. 1's U alone
+  leaves nearly conformal deformations free, and they rotate the field: on a developable cylinder
+  a quarter-turn helix came out with 1.7% average length error, against 0.02% with both
+  coordinates and no pins (the pins add a singularity around each end).
 
 ## Step 2: what eq. 1 can mean
 
@@ -107,16 +118,40 @@ as the method, and the propagation only if the first proves fragile.
    can have a million faces; the dead commented code removed. Then the new soft point constraint.
    The sample `trimesh_disk_parametrization` stays a short sample. A vcglib commit, push and gitlink
    bump by Paolo.
-1. **The flattening filter.** *Parametrize Surface along Polyline (Local Flattening)*, name to be
-   approved. Inputs: the current mesh, the guidance polyline (a `mesh` parameter naming a polyline
-   layer), the half-width (`absperc`), the alignment stiffness k_st. Output: a **new layer**, the
-   rectangular patch, with per-wedge UVs in the surface's units, so that lengths read off the image
-   are lengths on the surface; the distortion figures as output values. Refuses a region that is not
-   a disk. Tests: a cylinder, developable, so the patch must come out isometric up to discretization;
-   then a strip of a scan (`TestDataset/Ruth_1M.ply`, `StatuaPisa.ply`, `Shepard_1M.ply`), against
-   the paper's distortion figures (edge-length ratio within about 0.83 to 1.17, average error under
-   5%).
-2. **The height map.** A filter from the patch layer to a raster layer holding a 16-bit height
+   **Implemented 2026-11-15**: 684 lines to 333; the system assembled from triplets and solved by
+   `SimplicialLDLT` (980k faces in 19 s, conformal); fixed vertices a penalty on the diagonal
+   rather than extra variables; `FixVertex` and `AddPointConstraint(face, bary, coord, value,
+   weight)` added; `SolvePoisson` takes a `CallBackPos` and throws on too few fixed vertices,
+   `IsFeasible` no longer prints. Three bugs fixed on the way: the field mode came out at twice the
+   surface's scale (the ½ of ∇φ = n×e/2A was commented out), meshes with deleted vertices indexed
+   past the system, and the fold correction mirrored the vertices after their UVs had been copied
+   to the wedges. Checked on a cylinder strip: conformal and field-aligned maps isometric, a
+   polyline pulled to U = 0 lands there to 1e-12.
+1. **The flattening filter.** *Parametrize Surface along Polyline (Local Flattening)*, in
+   `filter_texture`, a thin adapter over vcglib's new `LocalFlattening`
+   (`parametrization/local_flattening.h`) and `ClipMeshWithUVLine` (`clip.h`, the texture-space
+   sibling of `ClipMeshWithPlane`). Inputs: the current mesh, the guidance polyline (a `mesh`
+   parameter), the half-width (`absperc`), the stiffness k_st (advanced, default 10). Output: a
+   new layer, the rectangle, with per-vertex and per-wedge UVs in the surface's units, and the
+   paper's distortion figures as output values. Refuses a polyline that is not one open curve and
+   a region that is not a disk. **Implemented 2026-11-15**, with what the measurements forced:
+   - the cotangent weights in double (float rounding excited the near-null conformal modes:
+     |grad U| of 0.82 to 1.12 on a developable strip, 0.95 to 1.04 in double);
+   - the polyline's ends fixed as points inside their faces (`PoissonSolver::FixPoint`), not at
+     the nearest vertices, which twisted the map by up to half an edge;
+   - zero-area faces skipped by the solver (one turned the whole solve into NaN), and the UV clip
+     snapping at rounding level, as the plane clip does, so it makes none.
+
+   **Measured.** Cylinder, straight polyline: 0.033% average error, ratios 0.994 to 1.003; helix:
+   0.023%, 0.991 to 1.003, exact rectangles, no folds (`FilterTests::localFlatteningUnrollsA
+   CylinderIsometrically`). Raw scans (`Ruth_1M`, `Shepard_1M`, `RattoA_2M`), strips 6% of the
+   diagonal long and 3% wide, 0.15 to 0.4 s each: with polylines smoothed on the surface, 2.5 to
+   7% average error on most strips, the paper's range (Table 1: 1.4 to 3%, on chosen regions of a
+   medium-resolution model); with the raw edge paths *Create Polyline from Geodesic Path* makes,
+   which zigzag and run 20 to 60% longer than the curve they stand for, 5 to 20%, U only or U and
+   V alike. A few strips still collapse locally at a corner (one face pair with a ratio in the
+   thousands); not yet understood.
+2. **The height map.** *Sample Height Map from Surface*, a filter from the patch layer to a raster layer holding a 16-bit height
    image, at a resolution in pixels per unit and with the smoothing scale σ; the height range as
    output values, to read heights back. Rays are cast from the smoothed geometry image onto the
    patch itself (single resolution). Tests: a known bump added to a smooth surface must come back.
@@ -132,8 +167,7 @@ need only a second field.
 
 ## Open questions
 
-1. **The conformal reading of step 2** (above): is that how the original worked?
-2. **The patch's scale.** In field mode the directions are normalized, so ∇U and ∇V have unit length
-   and the patch comes out at the surface's scale (`fieldScale` 1). Is that how lengths were kept, or
-   was the patch rescaled afterwards?
-3. **The name** of the stage 1 filter, and of stage 2's (*Sample Height Map from Surface*?).
+- **Zigzag polylines.** Should the filter smooth the polyline on the surface first (vcglib
+  `CoM::SmoothProject`, what *Smooth Polyline on Surface* runs), or leave it to the user?
+- **The local collapses** on some scan strips: where they come from (a ragged selection border,
+  a flap folded in UV) is still to be found.

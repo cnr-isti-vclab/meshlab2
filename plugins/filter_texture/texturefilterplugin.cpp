@@ -10,6 +10,7 @@
 #include <vcg/complex/append.h>
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/attribute_seam.h>
+#include <vcg/complex/algorithms/parametrization/local_flattening.h>
 #include <vcg/complex/algorithms/parametrization/voronoi_atlas.h>
 #include <vcg/complex/algorithms/point_sampling.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -32,6 +33,7 @@
 
 namespace {
 constexpr QLatin1StringView kFilterVoronoiAtlas("parametrize_by_voronoi_atlas_vcglib");
+constexpr QLatin1StringView kFilterLocalFlattening("parametrize_surface_along_polyline_local_flattening");
 constexpr QLatin1StringView kFilterWedgeToVertex("convert_per_wedge_uv_to_per_vertex_uv");
 constexpr QLatin1StringView kFilterVertexToWedge("convert_per_vertex_uv_to_per_wedge_uv");
 constexpr QLatin1StringView kFilterPlanarMapping("parametrize_by_flat_plane");
@@ -496,6 +498,90 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                 .arg(pp.vas.iterNum),
             seed.message()
         };
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterLocalFlattening)) {
+        if (mesh.FN() <= 0)
+            return fail(QObject::tr("Current mesh must have faces."));
+        const int pi = params.getMesh(QStringLiteral("polyline"));
+        if (pi < 0 || pi >= doc.meshCount() || pi == meshIndex)
+            return fail(QObject::tr("Choose a polyline layer other than the surface."));
+        const auto &polyEntry = doc.mesh(pi);
+        if (polyEntry.mesh.EN() == 0)
+            return fail(QObject::tr("Layer '%1' has no edges.").arg(polyEntry.name));
+
+        // Work on copies, both in the surface's own frame: the two layers stay as they are.
+        VCGMesh poly;
+        vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(poly, polyEntry.mesh);
+        bool invertible = true;
+        const QMatrix4x4 toSurface = entry.transform.inverted(&invertible) * polyEntry.transform;
+        if (!invertible)
+            return fail(QObject::tr("The surface's matrix cannot be inverted."));
+        for (VCGVertex &v : poly.vert) {
+            const QVector3D q = toSurface.map(QVector3D(v.P()[0], v.P()[1], v.P()[2]));
+            v.P() = vcg::Point3f(q.x(), q.y(), q.z());
+        }
+        // a curve drawn as separate pieces, or closed by repeating its first point, shares
+        // nothing until coincident vertices are merged
+        vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(poly);
+        VCGMesh work;
+        vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(work, mesh);
+        work.face.EnableFFAdjacency();
+        work.vert.EnableVFAdjacency();
+        work.face.EnableVFAdjacency();
+        work.face.EnableMark();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(work);
+        vcg::tri::UpdateTopology<VCGMesh>::VertexFace(work);
+        vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(work);
+
+        VCGMesh patch;
+        patch.vert.EnableTexCoord();
+        patch.face.EnableWedgeTexCoord();
+        patch.face.EnableCurvatureDir();
+        patch.face.EnableFFAdjacency();
+        patch.face.EnableMark();
+        vcg::tri::LocalFlattening<VCGMesh>::Param par;
+        par.halfWidth = float(params.getDouble(QStringLiteral("halfWidth")));
+        par.stiffness = float(params.getDouble(QStringLiteral("stiffness")));
+        par.cb = doc.progressCallback();
+        doc.beginFilterProgress(QObject::tr("Parametrize Surface along Polyline (Local Flattening)"));
+        vcg::tri::LocalFlattening<VCGMesh>::Stats st;
+        try {
+            st = vcg::tri::LocalFlattening<VCGMesh>::Flatten(work, poly, patch, par);
+        } catch (const std::exception &e) {
+            const QString message = QString::fromUtf8(e.what()).remove(QStringLiteral("LocalFlattening: "));
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
+        patch.face.DisableCurvatureDir();  // the cross field is scaffolding, not a result
+        patch.face.DisableMark();
+        patch.face.DisableFFAdjacency();
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(patch);
+
+        const int ioMask = Mask::IOM_VERTTEXCOORD | Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTNORMAL
+            | Mask::IOM_FACENORMAL | (entry.ioMask & (Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY));
+        const int newIndex = doc.addMesh(patch, {}, ioMask);
+        if (newIndex >= 0)
+            doc.mesh(newIndex).transform = entry.transform;  // a piece of the same surface, in its frame
+        doc.finishFilterProgress(true, QObject::tr("Flattened the patch."));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.newMeshIndices = { newIndex };
+        result.infoMessages = {
+            QObject::tr("Flattened a %1 by %2 patch along '%3' (%4 faces).")
+                .arg(2 * par.halfWidth).arg(st.length).arg(polyEntry.name).arg(patch.FN()),
+            QObject::tr("Length distortion: ratios of surface to UV edge lengths %1 to %2, "
+                        "average deviation %3%.")
+                .arg(st.minRatio, 0, 'f', 4).arg(st.maxRatio, 0, 'f', 4).arg(100 * st.avgError, 0, 'f', 2)
+        };
+        result.outputValues["width"] = 2 * par.halfWidth;
+        result.outputValues["length"] = st.length;
+        result.outputValues["min_length_ratio"] = st.minRatio;
+        result.outputValues["max_length_ratio"] = st.maxRatio;
+        result.outputValues["average_length_error"] = st.avgError;
         return result;
     }
 
