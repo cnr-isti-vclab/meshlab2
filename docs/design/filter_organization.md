@@ -127,7 +127,7 @@ Consequences, and the current state of each:
 | Case | Filters | Status |
 |---|---|---|
 | Unconditional bake inside a `Compute` filter | *Compute Obscurance*, *Compute Ambient Occlusion* | **Fixed.** Both wrote vertex *and* face colour while their descriptors declared only `outputModifies: [FQ, VQ]` — the code violated its own contract. The bake is removed; the `FaceQuality` visualization hint they already returned now does the job. |
-| Opt-in `map to colour` parameter on a compute filter | *Compute Vertex Scalar from Camera* (`map`), *Per Vertex/Face Quality Function* (`mapToColor`), *Compute Harmonic Scalar Field* (`colorize`) | **Deferred to pass 2.** These are opt-in rather than automatic, but the option is now redundant. Removing a parameter is script-visible, so it belongs with the parameter-id pass. |
+| Opt-in `map to colour` parameter on a compute filter | *Compute Vertex Scalar from Camera* (`map`), *Per Vertex/Face Quality Function* (`mapToColor`), *Compute Harmonic Scalar Field* (`colorize`) | **Partly done.** `mapToColor` and `colorize` are gone; `map` remains on *Compute Vertex Scalar from Camera* and on the *Scalar by Expression* filters. The option is redundant beside the visualization hint, but removing a parameter is script-visible. |
 | Colorizing is the filter's actual purpose | *Colorize by vertex/face Quality* | **Correct as-is** — these are `Attribute/Color` filters by definition. |
 | Color is the main use of the scalar | *Compute Mesh Ambient Occlusion*, *Compute Point Cloud Ambient Occlusion* | **Reversed 2026-11-14.** Ambient occlusion is wanted as shading far more often than as a number, so both are `Attribute/Color` first and `Attribute/Scalar` second, write the value as a gray vertex color (0 is black, the largest value white) and declare `VC` in `outputModifies`. They ask for the `VertexColor` visualization hint. *Compute Obscurance* stays a pure scalar. |
 | Colorizing a newly created layer | *Sample Surface by Voronoi Relaxation* / *Sample Volume* volume meshes | **Acceptable** — writes to a new layer, destroys nothing. Low priority. |
@@ -226,8 +226,8 @@ of *Compute Point Cloud Ambient Occlusion*, the surface of *Compute Generalized 
 Number (libigl)* and the target of *Displace Vertices Toward Target Mesh* (both refuse the
 current layer), the projection reference of *Remesh Isotropically*, the samples to refine of
 *Sample Surface by Poisson Disk*, the fixed base of *Align Meshes Globally*, and the optional
-fit layer of *Create Grid*. That is all 17 filters with a single mesh parameter; the other
-30 with mesh parameters take two meshes.
+fit layer of *Create Grid*. That was all 17 filters with a single mesh parameter on that date; today 33 filters
+have one mesh parameter and 15 take two.
 
 **Open3D pairwise aligners, 2026-10-15.** The five pairwise registrations dropped
 `sourceMesh` and take only `referenceMesh`: the first filters migrated to the general rule
@@ -372,10 +372,10 @@ Open question:
 ## Open Questions
 
 - ~~Should `Registration` be a top-level family?~~ Settled by the plugin table:
-  `filter_align` exists as its own family (the three ICP/global-align filters were
+  the filters live in `filter_icp`, a family of their own (the three ICP/global-align filters were
   mis-filed under Remeshing + Measure).
 - ~~Should `Sampling` remain top-level?~~ Settled: `filter_sampling` is kept as a
-  family (17 filters).
+  family (14 filters).
 - ~~Should `Reconstruction` be top-level?~~ Settled by ruling 6: kept as its own
   family rather than folded into `Create`.
 - Should view-only actions be filters, commands, or both?

@@ -13,7 +13,7 @@ resources/preferences.json   declaration (same schema as any filters.json "param
         │
         └─ ParameterFormBuilder (src/ui)   descriptors → editors, shared with the filter panel
                     │
-                    └─ PreferencesDialog     ~75 lines; owns no widget knowledge
+                    └─ PreferencesDialog     owns no widget knowledge
 ```
 
 Adding a preference means adding a JSON entry and reading it back. There is no UI code
@@ -54,8 +54,8 @@ site reads as a drop-in replacement for the constant it replaces. `Preferences::
 fires after a new value is stored, for consumers that need to react live.
 
 Values are written to QSettings the moment they change — there is no OK/Cancel — and
-stored values are only adopted for ids that are still declared, so deleting an entry
-from the JSON leaves no stale key behind.
+stored values are only adopted for ids that are still declared, so a value stored for an
+entry since deleted from the JSON is ignored (its key stays in QSettings, unread).
 
 **Only overrides are stored.** A preference at its default has no QSettings key: setting
 a value equal to the default, `resetToDefault(id)`, and `resetToDefaults()` all remove

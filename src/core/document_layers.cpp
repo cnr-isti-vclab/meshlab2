@@ -243,8 +243,11 @@ int Document::addRaster(const RasterEntry &rasterData)
     auto entry = std::make_unique<RasterEntry>(rasterData);
     normalizeRasterEntry(*entry, rasterCount());
     entry->rasterId = m_nextRasterId++;
-    entry->imageRevision = entry->imageRevision == 0 ? 1 : entry->imageRevision;
-    entry->cameraRevision = entry->cameraRevision == 0 ? 1 : entry->cameraRevision;
+    // Raster revisions draw from the document's counter, as mesh revisions do, so that two
+    // undo branches never give one raster the same revision for different contents: a
+    // restore keeps a live raster whose revisions match the state's.
+    entry->imageRevision = m_nextGeometryRevision++;
+    entry->cameraRevision = m_nextGeometryRevision++;
 
     const int newIndex = rasterCount();
     m_rasters.push_back(std::move(entry));
@@ -279,6 +282,9 @@ int Document::addRasterImage(
     plane.sourcePath = sourcePath.trimmed();
     plane.size = image.size();
     plane.image = image;
+    // A caller that names a file hands over the image that file holds.
+    if (plane.hasSourcePath())
+        plane.sourceImageKey = image.cacheKey();
 
     RasterEntry entry;
     entry.name = plane.name;
@@ -767,7 +773,7 @@ void Document::setRasterShot(int index, const CameraShot &shot, const QString &c
         beginUndoStep(tr("Modify Raster Camera"));
 
     entry.shot = shot;
-    ++entry.cameraRevision;
+    entry.cameraRevision = m_nextGeometryRevision++;
     if (!contextMessage.trimmed().isEmpty()) {
         writeLog(contextMessage.trimmed(), LogSource::Application);
     } else {
@@ -798,8 +804,8 @@ void Document::setRasterLens(int index, const CameraLens &lens, const QString &c
         if (plane.hasSourcePath() && !plane.sourceUndistorted)
             plane.image = QImage();
     }
-    ++entry.cameraRevision;
-    ++entry.imageRevision;
+    entry.cameraRevision = m_nextGeometryRevision++;
+    entry.imageRevision = m_nextGeometryRevision++;
     writeLog(contextMessage.trimmed().isEmpty() ? tr("Raster lens updated: '%1'").arg(entry.name)
                                                 : contextMessage.trimmed(),
              LogSource::Application);
@@ -871,6 +877,7 @@ void Document::ensureRasterPlaneImage(const RasterEntry &raster, RasterPlane &pl
     if (!plane.sourceUndistorted)
         plane.image = raster.shot.undistortImage(plane.image, raster.lens);
     plane.size = plane.image.size();
+    plane.sourceImageKey = plane.image.cacheKey();
 }
 
 void Document::markRasterImageChanged(int index, const QString &contextMessage)
@@ -883,7 +890,7 @@ void Document::markRasterImageChanged(int index, const QString &contextMessage)
         beginUndoStep(tr("Modify Raster Image"));
 
     RasterEntry &entry = raster(index);
-    ++entry.imageRevision;
+    entry.imageRevision = m_nextGeometryRevision++;
     if (!contextMessage.trimmed().isEmpty()) {
         writeLog(contextMessage.trimmed(), LogSource::Application);
     } else {

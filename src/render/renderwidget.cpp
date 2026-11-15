@@ -1117,7 +1117,7 @@ void RenderWidget::resetToDefaults()
     m_uvPan = QVector2D(0.5f, 0.5f);
     m_uvFitRequested = true;
     resetRasterView();
-    m_rasterOpacity = 0.75f;
+    m_rasterOpacity = kDefaultRasterOpacity;
 
     setRenderSettings(preferenceRenderSettings());
     syncPerMeshRenderModesWithDocument();
@@ -1188,8 +1188,9 @@ QString RenderWidget::renderStateJson() const
         root.insert(QStringLiteral("view_mode"), viewModeToJson(m_viewMode));
 
     const float rasterOpacity = std::clamp(m_rasterOpacity, 0.0f, 1.0f);
-    if (!fuzzyFloatEqual(rasterOpacity, 1.0f))
-        root.insert(QStringLiteral("raster_opacity"), rasterOpacity);
+    // Always written: an absent value keeps the importing view's own, so leaving out any
+    // one value would stop that value from coming back.
+    root.insert(QStringLiteral("raster_opacity"), rasterOpacity);
 
     const QJsonObject trackball = ViewTrackball::stateToJson(m_trackball.state(), &defaultTrackball);
     if (!trackball.isEmpty())
@@ -1609,7 +1610,7 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
         Document::ensureRasterPlaneImage(rasterEntry, *plane);
         m_depthPickPending = false;
         resetRasterView();
-        m_rasterOpacity = 0.75f;
+        m_rasterOpacity = kDefaultRasterOpacity;
     }
 
     m_viewMode = mode;
@@ -1963,15 +1964,7 @@ void RenderWidget::createOverlayButtons()
         if (id == ToolStrip::kCameraId) {
             toggleToolSuspended();
         } else if (id == ToolStrip::kExitId) {
-            // What Esc does: cancel what is under way, and only then leave the tool.
-            if (m_activeTool && m_activeTool->gestureInFlight()) {
-                invalidateToolPick();
-                m_activeTool->cancelGesture();
-                updateToolStrip();
-                update();
-            } else {
-                emit toolExitRequested();
-            }
+            cancelGestureOrExitTool();
         } else {
             triggerToolControl(id, modifiers);
         }
@@ -3735,9 +3728,10 @@ void RenderWidget::keyPressEvent(QKeyEvent *e)
                 return;
             }
         }
-        // Esc exits the tool entirely; MainWindow syncs the toolbar/menu state.
+        // Esc cancels a gesture the tool did not take the key for, and otherwise exits
+        // the tool; MainWindow syncs the toolbar/menu state.
         if (e->key() == Qt::Key_Escape) {
-            emit toolExitRequested();
+            cancelGestureOrExitTool();
             e->accept();
             return;
         }
@@ -4220,4 +4214,18 @@ void RenderWidget::resizeEvent(QResizeEvent *e)
         m_statePreview->setGeometry(rect());
     updateQualityHistogramOverlay();
     layoutOverlayButtons();
+}
+
+// What Esc and the strip's Exit button do: cancel what is under way, and only then leave
+// the tool.
+void RenderWidget::cancelGestureOrExitTool()
+{
+    if (m_activeTool && m_activeTool->gestureInFlight()) {
+        invalidateToolPick();
+        m_activeTool->cancelGesture();
+        updateToolStrip();
+        update();
+    } else {
+        emit toolExitRequested();
+    }
 }

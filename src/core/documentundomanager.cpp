@@ -282,6 +282,7 @@ std::vector<UndoTreeNodeInfo> DocumentUndoManager::undoTreeInfo() const
         info.parentId = node.parentId;
         info.depth = depth;
         info.isCurrent = (id == m_undoCurrentNode);
+        info.attributeDelta = node.storageKind == UndoStorageKind::Delta;
         info.isOnCurrentPath = onPath.count(id) > 0;
         info.label = node.label;
         if (node.actionRecord.has_value()
@@ -492,6 +493,9 @@ bool DocumentUndoManager::makeRoot(int nodeId)
         return false;
     if (m_undoStepActive)
         return false;
+    // A delta node holds no complete document state to start the history from.
+    if (m_undoNodes[static_cast<size_t>(nodeId)].storageKind == UndoStorageKind::Delta)
+        return false;
     // Already the only node (trivial root) – nothing to do.
     if (m_undoNodes[static_cast<size_t>(nodeId)].parentId < 0 &&
         m_undoNodes.size() == 1)
@@ -510,10 +514,13 @@ bool DocumentUndoManager::makeRoot(int nodeId)
     }
     std::sort(reachable.begin(), reachable.end());
 
-    // If the current node is not in the surviving subtree, reset it to nodeId.
+    // If the current node is not in the surviving subtree, go to nodeId first, so that the
+    // live document is the state the tree then calls current.
     const bool currentSurvives =
         std::binary_search(reachable.begin(), reachable.end(), m_undoCurrentNode);
-    const int effectiveCurrent = currentSurvives ? m_undoCurrentNode : nodeId;
+    if (!currentSurvives && !jumpToNode(nodeId, false))
+        return false;
+    const int effectiveCurrent = m_undoCurrentNode;
 
     // Compact: remap old ids → new compact ids.
     std::map<int, int> remap;
@@ -584,9 +591,11 @@ bool DocumentUndoManager::purgeBranch(int nodeId)
     // The root is always index 0 and is never a descendant, so it always survives.
     const int rootId = reachable.front(); // always 0
 
-    // If the current node was a descendant, reset it to nodeId.
-    const bool currentSurvives = !descendants.count(m_undoCurrentNode);
-    const int effectiveCurrent = currentSurvives ? m_undoCurrentNode : nodeId;
+    // If the current node is being purged, go back to nodeId first, so that the live
+    // document is the state the tree then calls current.
+    if (descendants.count(m_undoCurrentNode) && !jumpToNode(nodeId, false))
+        return false;
+    const int effectiveCurrent = m_undoCurrentNode;
 
     // Compact: remap old ids → new compact ids.
     std::map<int, int> remap;
@@ -988,6 +997,13 @@ void DocumentUndoManager::pruneTreeToLimit()
     int newRoot = m_undoCurrentNode;
     for (int i = 0; i < m_undoLimit; ++i)
         newRoot = m_undoNodes[static_cast<size_t>(newRoot)].parentId;
+    // A delta node holds no complete document state to start the history from: keep the
+    // few steps back to the nearest full snapshot.
+    while (m_undoNodes[static_cast<size_t>(newRoot)].storageKind == UndoStorageKind::Delta
+           && m_undoNodes[static_cast<size_t>(newRoot)].parentId >= 0)
+        newRoot = m_undoNodes[static_cast<size_t>(newRoot)].parentId;
+    if (m_undoNodes[static_cast<size_t>(newRoot)].parentId < 0)
+        return;
     // newRoot is the node to become the new root; everything above it is discarded.
     // Use a BFS/DFS to mark all reachable node ids from newRoot; drop the rest.
     // We do this by building a remapping of old ids → new compact ids.

@@ -389,6 +389,7 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
         plane.size = image.size();
         // A photo as shot, like every plane file: through the raster's lens, as on decode
         plane.image = shot.undistortImage(image, entry.lens);
+        plane.sourceImageKey = plane.image.cacheKey();
         QString message;
         if (add) {
             entry.planes.push_back(std::move(plane));

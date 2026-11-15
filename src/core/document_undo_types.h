@@ -269,6 +269,8 @@ struct UndoTreeNodeInfo {
     // Only the state-changing action counts here: the informational calls recorded in
     // prefix/trailingActionRecords did not produce the state and are deliberately excluded.
     QString filterKey;
+    // Stores only the attributes its step changed, so it cannot become the root.
+    bool attributeDelta = false;
 };
 
 struct UndoStepMemoryInfo {

@@ -36,7 +36,7 @@ Design notes:
 
 - Mesh render modes are keyed by persistent `mesh_id`, not by row index.
 - The JSON is intentionally request-level and compact; GPU resources and concrete draw plans remain internal.
-- Export omits default-valued settings. During import, omitted settings/mode maps start from defaults, while omitted `view_mode` and `raster_opacity` keep the current view values.
+- Export omits default-valued settings. During import, omitted settings/mode maps start from defaults, while omitted `view_mode` and `raster_opacity` keep the current view values; for that reason `raster_opacity` is always written.
 - This contract is forward-versioned (`version`) and can be extended without changing filter call sites.
 
 Filter integration:
@@ -278,10 +278,10 @@ near plane pushed in front of an object cuts the object on Metal.
 5. Execute depth pick (if scheduled).
 6. Build current-mesh highlight masks (if `highlightCurrentMesh`).
 7. Build a concrete `RenderFramePlan` from a `RenderFrameRequest`.
-8. Run the radiance-scaling gradient pre-pass (if any planned plain fill item has `fillPlain.radianceScaling` on).
+8. Run the radiance-scaling gradient pre-pass (if any planned fill or point item has the radiance-scaling option on).
 9. Run main onscreen pass.
 
-Main pass draw order: scene background · raster background in RasterImage mode only · fill · wire · edges · bbox · points · raster camera frustums · decorators · trackball gizmo · depth-cued tool guides · current-mesh outline/debug composite · selection overlay · 2D informational/tool overlays.
+Main pass draw order: scene background · fill · solid cut · wire · edges · bbox · points · reference grid · raster camera frustums · decorators · depth-cued tool guides · raster image (`RasterImage` mode only: an overlay with no depth test, faded by the raster opacity) · trackball gizmo · current-mesh outline/debug composite · selection overlay · tool loupes · 2D informational/tool overlays.
 
 ## `Scene3D` Pass Details
 
@@ -307,11 +307,11 @@ Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfac
 
 Simple buffer pass execution (wire, edges, bbox, points), decorator execution, and selection execution are isolated in `renderwidget_scene_passes.cpp`. Their draw order remains controlled by `renderwidget_render.cpp`.
 
-**Rasters**: `renderwidget_raster.cpp` owns per-raster texture upload and draw execution. In `Scene3D`, rasters with valid camera shots draw as small line frustums with the apex at the raster camera origin and the base oriented by the camera view frustum (an orthographic shot draws as a box instead: no apex, four parallel edges between two equal rectangles, as does a peer view's camera when that view is orthographic); the current raster frustum is highlighted in warm yellow while other raster frustums use blue. Rasters without cameras are not drawn in the 3D view. The raster image itself is not pasted into the 3D scene. In `RasterImage`, only the active raster layer is requested as the full-viewport background reference, and mesh passes are included only when that raster has a valid camera.
+**Rasters**: `renderwidget_raster.cpp` owns per-raster texture upload and draw execution. In `Scene3D`, rasters with valid camera shots draw as small line frustums with the apex at the raster camera origin and the base oriented by the camera view frustum (an orthographic shot draws as a box instead: no apex, four parallel edges between two equal rectangles, as does a peer view's camera when that view is orthographic); the current raster frustum is highlighted in warm yellow while other raster frustums use blue. Rasters without cameras are not drawn in the 3D view. The raster image itself is not pasted into the 3D scene. In `RasterImage`, only the active raster layer is requested as the full-viewport reference, drawn over the meshes, and mesh passes are included only when that raster has a valid camera.
 
 ## Current Mesh Highlight
 
-Runs when `highlightCurrentMesh` is on, the current mesh is visible, the document holds more than one layer, and the layers are overlaid rather than arranged in a grid: with a single layer the outline marks nothing, and in the grid every layer already has a tile of its own. Every outline pass asks `RenderWidget::wantsCurrentMeshOutline()`, so the rule lives in one place.
+Runs when `highlightCurrentMesh` is on, the document holds more than one layer, and the layers are overlaid rather than arranged in a grid: with a single layer the outline marks nothing, and in the grid every layer already has a tile of its own. Every outline pass asks `RenderWidget::wantsCurrentMeshOutline()`, so the rule lives in one place.
 
 **Surface/edge path**: render current mesh depth mask → extract silhouette into `work` → render all other meshes into `mask` for occlusion → composite outline. Occluded outline portions use half alpha.
 
@@ -465,7 +465,7 @@ UV fill: color source comes from `fillPlain.colorSource`. Quality UV buffers use
 
 ## `RasterImage` Frame Sequence
 
-Current status: raster mode reuses the Scene3D request/plan/pass executors for mesh rendering. The active raster image is drawn as a background reference fitted to the widget while preserving its image aspect ratio. If the raster has a valid `CameraShot`, `CameraShot::viewMatrix()` and `CameraShot::projectionMatrix(...)` provide the frame matrices and visible meshes are rendered through that camera. The same raster pan/zoom transform is applied to both the background image and the raster-camera projection, so image navigation keeps the mesh aligned with the raster. If no camera is available, raster mode behaves as an image-only view.
+Current status: raster mode reuses the Scene3D request/plan/pass executors for mesh rendering. The active raster image is drawn over the meshes as a reference, without a depth test, fitted to the widget while preserving its image aspect ratio. If the raster has a valid `CameraShot`, `CameraShot::viewMatrix()` and `CameraShot::projectionMatrix(...)` provide the frame matrices and visible meshes are rendered through that camera. The same raster pan/zoom transform is applied to both the background image and the raster-camera projection, so image navigation keeps the mesh aligned with the raster. If no camera is available, raster mode behaves as an image-only view.
 
 Raster mode interaction mirrors UV mode: left or middle drag pans the raster, wheel zooms around the cursor, and double click zooms in around the clicked image position. Raster mode starts with `75%` opacity. `Ctrl+Wheel` adjusts raster opacity. Trackball motion, current-mesh outline, and camera synchronization remain disabled so the raster camera stays locked; depth picking runs only for a tool that supports the raster view (see [Depth Picking](#depth-picking)). `widgetToRasterImage` and `rasterImageToWidget` map between widget positions and the image, from (0, 0) at its top-left corner to (1, 1), as panned and zoomed.
 

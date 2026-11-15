@@ -10,10 +10,10 @@ See also: [Data Model](data_model.md) · [Rendering](rendering.md) · [Memory Ac
 
 ## Architectural Layers
 
-1. Application shell (`src/app`, `src/ui/MainWindow`)
-2. Data model (`src/core/Document`, `VCGMesh`, `DocumentUndoManager`, logs, progress/cancel state)
+1. Application shell (`src/app`, `MainWindow` in `src/ui`)
+2. Data model (`src/core`: `Document`, `VCGMesh`, `DocumentUndoManager`, logs, progress/cancel state)
 3. Plugin interfaces/managers (`src/plugins`) and built-in plugin registration (`plugins/`)
-4. Shared mesh GPU cache (`src/render/MeshGpuResourceCache`)
+4. Shared mesh GPU cache (`MeshGpuResourceCache` in `src/render`)
 5. Per-view rendering and interaction (`RenderWidget`, `ViewTrackball`, `ViewAxisGizmo`, `RenderOverlayPanel`, `InteractiveTool`)
 6. Optional embedded Python layer (`src/python`, `_meshlab`, `PythonHost`)
 7. Auxiliary views (`LayerWidget` tree/table layer dock, `MeshFilterPanel`, log dock, undo graph, Python console, status-bar stats/progress)
@@ -52,7 +52,7 @@ The camera of a 3D view: an orbit centre, rotation, distance, field of view and 
 
 ### `InteractiveTool`
 
-Base class for interactive editing tools. A tool owns mouse/keyboard handling for one `RenderWidget` at a time, shows live feedback/cursors, and commits durable document changes by calling `Document::runFilter(...)` once. This keeps tool edits in the same undo tree and Python script-action history as menu-invoked filters.
+Base class for interactive editing tools. A tool owns mouse/keyboard handling for one `RenderWidget` at a time, shows live feedback/cursors, and commits durable document changes by calling `Document::runFilter(...)` once (all but the measuring tool's *Export Layer*, which adds its layer directly in an undo step of its own). This keeps tool edits in the same undo tree and Python script-action history as menu-invoked filters.
 
 The built-in tools and how each behaves are in [User Interface](user_interface.md#interactive-tools).
 
@@ -70,7 +70,7 @@ The filter browser and runner: search, a parameter form built from the descripto
 
 ### `MainWindow`
 
-Builds the window and wires it to the document. It holds the central splitter of `RenderWidget`s, the layer, filter, log, Python and history docks, the status bar, the menus and the tool actions. It runs the file flows (open, save and drop of meshes, projects and rasters), splitting and closing views (the active one marked by a highlight border), camera synchronization and copy/paste, snapshots, and history-to-script export. It installs the document's view callbacks (`ViewState`, render-state snapshots, undo-node thumbnails) and keeps the document's visibility in step with the current view. It also connects the platform `MemoryPressureMonitor` to opt-in undo purging. What each part does for the user is in [User Interface](user_interface.md).
+Builds the window and wires it to the document. It holds the central splitter of `RenderWidget`s, the layer, filter, log, Python and history docks, the status bar, the menus and the tool actions. It runs the file flows (open, save and drop of meshes, projects and rasters), splitting and closing views (the active one marked by a highlight border), camera synchronization and copy/paste, snapshots, and history-to-script export. It installs the document's two view callbacks (`ViewState` and render-state snapshots), keeps the undo-node thumbnails, and keeps the document's visibility in step with the current view. It also connects the platform `MemoryPressureMonitor` to opt-in undo purging. What each part does for the user is in [User Interface](user_interface.md).
 
 ### `PythonHost` and `_meshlab`
 

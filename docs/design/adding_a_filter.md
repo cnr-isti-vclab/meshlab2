@@ -108,7 +108,7 @@ document's unit (`Document::unit()`, "mm", "m", ...) once the user has set one, 
 "abs" while it is unknown, so declare as `absperc` only what really is a length in the
 layer's coordinates -- not a count, an angle or a ratio.
 
-Every parameter also carries `label`, `help` and `group` — all 1168 declared
+Every parameter also carries `label`, `help` and `group` — all 1433 declared
 parameters do. Each distinct `group` becomes one section of the form, in order
 of first appearance, and headings only appear once there is more than one group.
 The name is cosmetic except for one rule: **a group whose name begins with

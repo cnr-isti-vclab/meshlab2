@@ -68,6 +68,10 @@ private slots:
     void perMeshColorSurvivesUndoAndRedo();
     void setMeshColorFilterUndoesAndRedoesWithoutACopy();
     void undoKeepsUnchangedLayers();
+    void undoRootAndPurgeKeepTheDocumentOnTheCurrentNode();
+    void rasterRevisionsDoNotCollideAcrossBranches();
+    void rasterPlaneEditedInMemoryIsChanged();
+    void reloadKeepsTheLayerName();
     void customAttributesSurviveUndoAndDuplication();
     void layerDataIsDroppedWhenGeometryChanges();
     void layerDataIsSharedByADuplicatedLayer();
@@ -766,6 +770,108 @@ void DocumentTests::undoKeepsUnchangedLayers()
     QVERIFY(doc.undo());
     QCOMPARE(doc.mesh(b).mesh.vert[0].P(), vcg::Point3f(0, 0, 0));
     QCOMPARE(&doc.mesh(a).mesh.vert[0], aVertices);
+}
+
+// Make Root and Purge Branch drop states; when they drop the current one, the document must
+// move to the state the tree then calls current, not keep showing a state that is gone. And
+// a selection delta, which stores only the bits it changed, never becomes the root.
+void DocumentTests::undoRootAndPurgeKeepTheDocumentOnTheCurrentNode()
+{
+    Document doc;
+    const int m = addTinyMesh(doc, QStringLiteral("M"));
+    QVERIFY(m >= 0);
+    doc.clearUndoHistory();
+    const auto moveTo = [&](float x) {
+        QMatrix4x4 t;
+        t.translate(x, 0, 0);
+        doc.setMeshTransform(m, t);
+    };
+    const auto xOf = [&]() { return doc.mesh(m).transform(0, 3); };
+
+    moveTo(1);                      // node 1
+    moveTo(2);                      // node 2
+    QVERIFY(doc.undo());            // back at 1
+    moveTo(3);                      // node 3, a sibling of 2
+    QCOMPARE(xOf(), 3.0f);
+
+    // Rooting at 2 drops 3, the current state: the document goes to 2.
+    QVERIFY(doc.makeUndoRoot(2));
+    QCOMPARE(xOf(), 2.0f);
+    QCOMPARE(doc.undoTreeInfo().size(), size_t(1));
+
+    // Purging the branch that holds the current state goes back to the purged node.
+    moveTo(4);
+    moveTo(5);
+    QVERIFY(doc.purgeUndoBranch(0));
+    QCOMPARE(xOf(), 2.0f);
+
+    // A selection delta cannot be the root.
+    doc.beginUndoStep(QStringLiteral("Select"), m, MeshAttributeSelection);
+    doc.mesh(m).mesh.vert[0].SetS();
+    doc.markMeshSelectionChanged(m);
+    doc.endUndoStep(true);
+    int deltaNode = -1;
+    for (const UndoTreeNodeInfo &info : doc.undoTreeInfo())
+        if (info.attributeDelta)
+            deltaNode = info.nodeId;
+    QVERIFY(deltaNode > 0);
+    QVERIFY(!doc.makeUndoRoot(deltaNode));
+}
+
+// Undo keeps a live raster whose revisions match the state's. If two branches could give
+// one raster the same revision for different images, a jump between them would keep the
+// wrong image.
+void DocumentTests::rasterRevisionsDoNotCollideAcrossBranches()
+{
+    Document doc;
+    QImage image(8, 8, QImage::Format_RGBA8888);
+    image.fill(Qt::black);
+    QVERIFY(doc.addRasterImage(image, QStringLiteral("R"), QString()) == 0);
+    doc.clearUndoHistory();
+    const auto paint = [&](const QColor &color) {
+        doc.beginUndoStep(QStringLiteral("Paint"));
+        doc.raster(0).currentPlane()->image.fill(color);
+        doc.markRasterImageChanged(0);
+        doc.endUndoStep(true);
+    };
+    paint(Qt::red);
+    const int redNode = 1; // the root is 0
+    QVERIFY(doc.undo());
+    paint(Qt::green);
+    QVERIFY(doc.jumpToUndoNode(redNode, false));
+    QCOMPARE(doc.raster(0).currentPlane()->image.pixelColor(0, 0), QColor(Qt::red));
+}
+
+// A plane is stored while its image is the one read from or written to its file; editing it
+// in memory makes it changed, and undoing the edit makes it stored again.
+void DocumentTests::rasterPlaneEditedInMemoryIsChanged()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QImage image(8, 8, QImage::Format_RGBA8888);
+    image.fill(Qt::blue);
+    const QString path = dir.filePath(QStringLiteral("photo.png"));
+    QVERIFY(image.save(path));
+
+    Document doc;
+    QCOMPARE(doc.loadRasterImage(path), 0);
+    QCOMPARE(doc.rasterPlaneStoredState(0, 0), Document::StoredState::Stored);
+    doc.beginUndoStep(QStringLiteral("Paint"));
+    doc.raster(0).currentPlane()->image.setPixelColor(0, 0, Qt::white);
+    doc.markRasterImageChanged(0);
+    doc.endUndoStep(true);
+    QCOMPARE(doc.rasterPlaneStoredState(0, 0), Document::StoredState::Changed);
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.rasterPlaneStoredState(0, 0), Document::StoredState::Stored);
+}
+
+void DocumentTests::reloadKeepsTheLayerName()
+{
+    Document doc;
+    QCOMPARE(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/data/simple.off")), 0);
+    doc.setMeshName(0, QStringLiteral("My Layer"));
+    QCOMPARE(doc.reloadMesh(0), 0);
+    QCOMPARE(doc.mesh(0).name, QStringLiteral("My Layer"));
 }
 
 // Custom attributes are the other thing that lives on the mesh without being an element

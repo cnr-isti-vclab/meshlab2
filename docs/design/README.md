@@ -34,7 +34,7 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [Branches and Releases](release_process.md) | The `devel`/`main` model, version tags, the release workflow and what is still open. |
 
 > **[Vocabulary](vocabulary.md) is read by the test suite at runtime.**
-> `test_filter_descriptors.cpp` and `test_filters.cpp` open it by path and parse
+> `test_filter_descriptors.cpp` opens it by path and parses
 > the `## 3. Verb lexicon` section. Renaming the file or that heading breaks the
 > build. Adding or retiring a verb there changes what the tests enforce, which is
 > the intent.

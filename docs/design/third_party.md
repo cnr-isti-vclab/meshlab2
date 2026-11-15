@@ -19,7 +19,7 @@ silently. Add or remove an entry whenever any of these changes:
 | What changed | Where it shows |
 | --- | --- |
 | A geometry dependency added to or dropped from `vcpkg.json` | CGAL, libigl, Geogram, Embree today |
-| A submodule added to or dropped from `.gitmodules` | VCGLib, TrueForm, MeshFix, QSlim, QuadWild-BiMDF today |
+| A submodule added to or dropped from `.gitmodules` | VCGLib, TrueForm, MeshFix, QSlim, QuadWild-BiMDF, JKQtPlotter, TextureConsolidation, TextureSignalProcessing today |
 | A tree vendored under `plugins/*/upstream/` or similar | PoissonRecon, Texture Defragmentation, xatlas, BPA, Instant Meshes, Isoparametrization, Open3D today |
 
 Not every dependency belongs there: the lists are about *geometry processing*, so the
@@ -73,7 +73,8 @@ first, since [microsoft/vcpkg#53211](https://github.com/microsoft/vcpkg/pull/532
 become its port; see `plugins/filter_open3d/UPSTREAM.md` for why it is not an option yet.
 
 Every **submodule** is unmodified (MeshFix, QSlim, QuadWild-BiMDF, TrueForm,
-JKQtPlotter), and `external/README.md` gives each one's reason; JKQtPlotter's is the
+JKQtPlotter) except the TextureConsolidation and TextureSignalProcessing forks, which
+carry fixes proposed upstream ([UPSTREAM](../../plugins/filter_texture_consolidation/UPSTREAM.md)), and `external/README.md` gives each one's reason; JKQtPlotter's is the
 clearest case of a vcpkg port that does not suit (it needs vcpkg's Qt). **vcglib is the
 exception**: it is the project's own library, edited in lockstep with MeshLab, and is
 governed by its own rules in `AGENTS.md`. One package is fetched at configure time, not stored: QuadWild's GMM dependency, pinned by

@@ -601,7 +601,8 @@ void UndoGraphWidget::contextMenuEvent(QContextMenuEvent *event)
         tr("Delete all states derived from this one. "
            "This state is preserved; all its descendants are permanently removed."));
     // Disable actions that would be no-ops.
-    makeRootAct->setEnabled(node && node->parentId >= 0);
+    // A delta state stores only what its step changed, so the history cannot start there.
+    makeRootAct->setEnabled(node && node->parentId >= 0 && !node->attributeDelta);
     purgeBranchAct->setEnabled(childCounts.value(nodeId) > 0);
 
     // Linearize is useful only when some state has more than one child; folded tries can

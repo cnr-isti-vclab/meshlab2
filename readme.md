@@ -159,7 +159,7 @@ cmake --build --preset default
 ```
 
 The tracked presets (`CMakePresets.json`) are `default` (vcpkg manifest mode, into
-`build/`) and `local-no-vcpkg` (below). They set no build type, so pass
+`build/`, inheriting `vcpkg-manifest`, which CI uses) and `local-no-vcpkg` (below). They set no build type, so pass
 `-DCMAKE_BUILD_TYPE=Release` (or `Debug`) yourself: without it the compiler gets no
 optimization flags, and mesh processing runs several times slower. The application is
 `build/MeshLab.app` on macOS and `build/MeshLab` elsewhere.
@@ -193,7 +193,8 @@ LaTeX rendering in filter help can likewise be disabled with
 
 ## GitHub Actions: macOS DMG
 
-The repository includes a manual GitHub Actions workflow at
+The repository includes a GitHub Actions workflow, run on every push to `devel` that
+is not documentation-only, by hand, and from `release.yml`, at
 `.github/workflows/macos-dmg.yml` that builds, signs, and notarizes an Apple
 Silicon macOS `.dmg`.
 
@@ -243,7 +244,7 @@ script still produces an ad-hoc signed DMG when used locally without
 
 ## GitHub Actions: Windows Portable ZIP
 
-The repository also includes a manual GitHub Actions workflow at
+The repository also includes a GitHub Actions workflow, triggered the same way, at
 `.github/workflows/windows-portable.yml` that builds a portable Windows `.zip`.
 
 What it does:

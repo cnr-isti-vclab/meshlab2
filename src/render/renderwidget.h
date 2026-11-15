@@ -737,6 +737,7 @@ struct SceneRasterProjectedDrawItem {
     bool toolLive() const;
     void applyToolCursor(); // sets the cursor for the current tool/suspend state
     void updateToolStrip();  // brings the tool strip up to date with the tool and its state
+    void cancelGestureOrExitTool();
     // Tab, from the key or the strip: the mouse goes to the camera, or back to the tool.
     void toggleToolSuspended();
     // A control of the active tool, from its button in the strip or from its key.
@@ -1165,7 +1166,9 @@ struct SceneRasterProjectedDrawItem {
     QPoint m_rasterLastMousePos;
     float m_rasterZoom = 1.0f;
     QVector2D m_rasterPan = QVector2D(0.5f, 0.5f);
-    float m_rasterOpacity = 0.75f;
+    // The opacity a raster view starts at.
+    static constexpr float kDefaultRasterOpacity = 0.75f;
+    float m_rasterOpacity = kDefaultRasterOpacity;
     std::vector<bool> m_meshVisibility;
     std::unordered_map<std::uint64_t, MeshRenderMode> m_meshRenderModes;
     std::unordered_map<std::uint64_t, std::pair<std::uint64_t, std::uint64_t>> m_meshRenderModeRevisions;

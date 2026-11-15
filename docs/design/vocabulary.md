@@ -31,7 +31,7 @@ intended:
 
 - **A plugin may contain filters in any number of categories.** This is structural,
   not a convention: in `filters.json`, `pluginId` is a **file-level** key while
-  `categories` is a **per-filter** key. `filter_mls` spans four categories,
+  `categories` is a **per-filter** key. `filter_mls` spans five categories,
   `filter_igl` spans several, and `filter_basic` still spans multiple categories.
   Plugins are dependency/build units; categories are the user-facing
   classification. See [Filter Organization](filter_organization.md), decisions 1–3.
@@ -95,8 +95,7 @@ validates against; this table mirrors it and must be updated together with it.
 | `Measurement` | `Geometric` · `Topological` · `Statistics` · `UV Mapping` | Reports values; does **not** modify the document |
 | `Document` | `Layer` · `Camera` · `Render` | Document structure and view state |
 
-`Repair` is a root, not a `Meshing` subcategory: at ~19 filters it is the single
-largest branch, and "clean up this broken scan" is a top-level task users come looking
+`Repair` is a root, not a `Meshing` subcategory: it holds 26 filters, and "clean up this broken scan" is a top-level task users come looking
 for, not a variety of meshing. Its subcategories, from the existing filters:
 
 | Subcategory | Covers |
@@ -139,8 +138,8 @@ Form rules:
 2. **Subcategories are singular** unless they name a class of countable items, where
    English forces the plural: `Repair/Duplicates`, `Creation/Primitives`,
    `Repair/Holes and Borders`.
-3. `Attribute`'s four subcategories are all singular quantity names —
-   `Normal` · `Scalar` · `Curvature` · `Color`. `Normals` was also a direct violation of
+3. `Attribute`'s quantity subcategories are all singular —
+   `Normal` · `Scalar` · `Curvature` · `Color`, beside `Custom`. `Normals` was also a direct violation of
    the noun lexicon in §4, which makes `normal` canonical.
 4. **A subcategory must not repeat a root name unqualified.** `Texture/Creation` was
    ambiguous against the root `Creation`, so texture subcategories are now
@@ -209,7 +208,7 @@ Two derivable facets, both already present in the descriptor in structured form:
 
 | Facet | Derived from | Gives |
 |---|---|---|
-| **Data touched** | `outputModifies` (`VG` 68, `VN` 61, `FV` 47, `VC` 31, `VQ` 30, `WT` 12, `TM`/`TX`, `FS`/`VS`) and `inputRequirements` | "writes UVs", "reads vertex color", "changes topology" — and the read/write distinction, which no hand tag currently captures |
+| **Data touched** | `outputModifies` (on 2026-11-15: `VG` 86, `VN` 86, `FV` 52, `VC` 27, `VQ` 35, `WT` 22, `TM`/`TX`, `FS`/`VS`) and `inputRequirements` | "writes UVs", "reads vertex color", "changes topology" — and the read/write distinction, which no hand tag currently captures |
 | **Implementation** | `provenance.project` and the plugin | "every QSlim filter", "everything backed by CGAL" — already searched today |
 
 So `tags` should become **generated** (categories + derived facets, flattened for

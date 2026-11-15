@@ -32,6 +32,9 @@ struct RasterPlane {
     // camera: written from memory, so not to be undistorted again by the raster's lens. A
     // plane file is otherwise the photo as shot.
     bool sourceUndistorted = false;
+    // QImage::cacheKey() of the image as last read from or written to sourcePath. The key
+    // changes when the image is edited, so the plane is stored only while the two match.
+    qint64 sourceImageKey = 0;
 
     bool hasImage() const { return !image.isNull(); }
     bool hasSourcePath() const { return !sourcePath.trimmed().isEmpty(); }

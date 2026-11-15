@@ -480,7 +480,7 @@ int Document::reloadMesh(int index)
 
     deepCopyMesh(reloadedMesh, entry.mesh);
     entry.ioMask = loadMask;
-    entry.name = QFileInfo(sourcePath).fileName();
+    // The name is the user's label, not the file's: reloading the contents keeps it.
     entry.sourcePath = sourcePath;
     entry.textureFileNames = textureFileNames;
     entry.textureFilePaths = textureFilePaths;
@@ -772,9 +772,13 @@ Document::StoredState Document::rasterPlaneStoredState(int rasterIndex, int plan
     if (planeIndex < 0 || planeIndex >= int(entry.planes.size()))
         return StoredState::NotStored;
     const RasterPlane &plane = entry.planes[size_t(planeIndex)];
-    if (plane.hasImage() && m_storedImages.count(plane.image.cacheKey()))
+    const bool onDisk = QFileInfo(plane.sourcePath.trimmed()).isFile();
+    if (!onDisk)
+        return StoredState::NotStored;
+    // Not decoded yet, or decoded and untouched: the file holds it.
+    if (!plane.hasImage() || plane.image.cacheKey() == plane.sourceImageKey)
         return StoredState::Stored;
-    return QFileInfo(plane.sourcePath.trimmed()).isFile() ? StoredState::Stored : StoredState::NotStored;
+    return StoredState::Changed;
 }
 
 namespace {
@@ -843,7 +847,7 @@ bool Document::saveRasterPlaneImage(int rasterIndex, int planeIndex, const QStri
         } else if (writeImageFile(plane.image, file, message)) {
             plane.sourcePath = QDir::toNativeSeparators(file);
             plane.sourceUndistorted = true; // what is in memory, already through the lens
-            m_storedImages[plane.image.cacheKey()] = { file, false };
+            plane.sourceImageKey = plane.image.cacheKey();
             writeLog(tr("Saved plane %1 of '%2' to %3")
                          .arg(planeIndex).arg(raster(rasterIndex).name, QDir::toNativeSeparators(file)),
                      LogSource::Application);
