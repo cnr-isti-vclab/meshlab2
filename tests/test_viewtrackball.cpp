@@ -36,6 +36,7 @@ private slots:
     void aBadProjectionNamesTheKey();
     void shiftDragRollsTheViewAboutItsOwnAxis();
     void rollingNearTheCentreDoesNothing();
+    void aStraightDragTurnsSteadilyUnderBothProjections();
     void framingFromTheEyeFillsTheViewWithoutMovingIt();
     void framingFromTheEyeRefusesWhatItCannotDo();
     void framingFromTheEyeCanChooseTheAspect();
@@ -437,6 +438,33 @@ void ViewTrackballTests::rollingNearTheCentreDoesNothing()
     const QMouseEvent move = mouseEvent(QEvent::MouseMove, c + QPointF(0, -20), Qt::LeftButton, Qt::ShiftModifier);
     QVERIFY(!tb.mouseMove(&move, size));
     QVERIFY((tb.cameraUp() - up).length() < 1e-6f);
+}
+
+// A drag straight in from the side of the view turns the camera further at every step: the
+// hit slides off the hyperbola onto the sphere on the way. (Short of a half turn, which the
+// angle measured here would wrap.) Orthographic once took the hyperbola's hit along the ray from the eye, which its
+// rays are not, and the turn fell back by a third where the two surfaces meet.
+void ViewTrackballTests::aStraightDragTurnsSteadilyUnderBothProjections()
+{
+    for (const Projection projection : { Projection::Perspective, Projection::Orthographic }) {
+        ViewTrackball tb = makeTrackball(projection, 40.0f);
+        const QSize size(800, 600);
+        const QMouseEvent press = mouseEvent(QEvent::MouseButtonPress, QPointF(100, 280), Qt::LeftButton, Qt::NoModifier);
+        tb.mousePress(&press, size);
+        const QQuaternion start = tb.state().rotation;
+        float previous = 0.0f;
+        for (int x = 110; x <= 350; x += 10) {
+            const QMouseEvent move = mouseEvent(QEvent::MouseMove, QPointF(x, 280), Qt::LeftButton, Qt::NoModifier);
+            tb.mouseMove(&move, size);
+            const QQuaternion turn = tb.state().rotation * start.conjugated();
+            const float angle = 2.0f * qRadiansToDegrees(std::acos(std::min(1.0f, std::abs(turn.scalar()))));
+            QVERIFY2(angle > previous,
+                     qPrintable(QStringLiteral("%1 at x=%2: %3 after %4")
+                                    .arg(ViewTrackball::projectionJsonName(projection))
+                                    .arg(x).arg(angle).arg(previous)));
+            previous = angle;
+        }
+    }
 }
 
 // An irregular cloud off the view axis ends up centred and touching two opposite edges of the

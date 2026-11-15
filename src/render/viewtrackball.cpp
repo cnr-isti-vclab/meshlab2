@@ -844,6 +844,16 @@ bool ViewTrackball::hitHyper(
         return false;
 
     const float r = qMax(1e-6f, gizmoWorldRadius());
+    const QVector3D dirRadial = (hitPlane - m_center) / hitPlaneY;
+    const QVector3D dirView = (vp - m_center) / viewPointX;
+    if (m_projection == Projection::Orthographic) {
+        // vcglib's HitHyperOrtho: the rays are parallel, so the hit lies straight above the
+        // view-plane point, on y = r^2 / (2x). The perspective construction below intersects
+        // the ray from the eye instead, which an orthographic ray is not: the hit then jumped
+        // where the sphere hands over to the hyperbola, and the drag snapped back.
+        hit = m_center + dirRadial * hitPlaneY + dirView * (0.5f * r * r / hitPlaneY);
+        return true;
+    }
     const float a = hitPlaneY / viewPointX;
     const float b = -hitPlaneY;
     const float c = (r * r) / 2.0f;
@@ -857,19 +867,6 @@ bool ViewTrackball::hitHyper(
     if (std::abs(xval) < 1e-12f)
         return false;
     const float yval = c / xval;
-
-    QVector3D dirRadial = hitPlane - m_center;
-    const float drLen = dirRadial.length();
-    if (drLen < 1e-12f)
-        return false;
-    dirRadial /= drLen;
-
-    QVector3D dirView = vp - m_center;
-    const float dvLen = dirView.length();
-    if (dvLen < 1e-12f)
-        return false;
-    dirView /= dvLen;
-
     hit = m_center + dirRadial * yval + dirView * xval;
     return true;
 }
