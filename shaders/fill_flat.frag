@@ -22,6 +22,10 @@ layout(std140, binding = 0) uniform buf {
     // rgb = the colour of the band where the surface meets the clipping plane, a = its
     // width in pixels. Zero width leaves the band undrawn.
     vec4 clipRim;
+    // A raw scalar q becomes the color map coordinate clamp(q * scale + offset): (scale,
+    // offset) for per-vertex values in xy, for per-face values in zw. Written at
+    // kUbufQualityMapOffset; the shaders that do not sample the color map leave it out.
+    vec4 qualityMap;
 } ub;
 
 layout(location = 0) in vec3 vViewPos;
@@ -117,9 +121,12 @@ vec3 faceNormal()
 void main()
 {
     vec3 baseColor = ub.fillColor.rgb;
-    if (v_meshColor.a < -0.5)
-        baseColor = texture(qualityLutTex, vec2(clamp(v_meshColor.r, 0.0, 1.0), 0.5)).rgb;
-    else
+    if (v_meshColor.a < -0.5) {
+        // A raw scalar: the flag says per-vertex (-1) or per-face (-2).
+        vec2 qualityMap = v_meshColor.a < -1.5 ? ub.qualityMap.zw : ub.qualityMap.xy;
+        float t = clamp(v_meshColor.r * qualityMap.x + qualityMap.y, 0.0, 1.0);
+        baseColor = texture(qualityLutTex, vec2(t, 0.5)).rgb;
+    } else
         baseColor = mix(ub.fillColor.rgb, v_meshColor.rgb, clamp(v_meshColor.a, 0.0, 1.0));
     const bool hasUv = v_texInfo.z > 0.5;
     vec2 uv = vec2(v_texInfo.x, 1.0 - v_texInfo.y);

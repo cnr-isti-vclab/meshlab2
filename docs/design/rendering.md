@@ -65,7 +65,7 @@ This is an internal architecture boundary, not a public serialization contract. 
 
 ## Shared GPU Cache (`MeshGpuResourceCache`)
 
-Cache key: `(QRhi*, meshId, variant, geometryRevision, materialRevision, selectionRevision where relevant)`. Quality variants also include fixed-range mode, min/max, center-on-zero, and percentile crop. Wire resources also track whether faux polygon edges should be respected.
+Cache key: `(QRhi*, meshId, variant, geometryRevision, materialRevision, selectionRevision where relevant)`. The quality variants hold the raw scalar, so no range setting is part of their key. Wire resources also track whether faux polygon edges should be respected.
 
 Entries are released when their layer leaves the document (`removeMesh`, `clearAllLayers`, or an undo that drops the layer: `purgeMesh`) and, for one QRhi, when a view's QRhi is replaced (`releaseRhiResources`). A revision change releases the fill and point variants left at the older revision as soon as a frame prepares that mesh; a variant still at the current revision stays, since another view may draw it. The other products' stale buffers are replaced the next time a frame asks for them.
 
@@ -79,7 +79,7 @@ Cached outputs:
 - **selection**: selected-face triangles, selected-vertex points, and selected edges both as plain segments and as fat-line quads (`LineRenderer::buildFatLineVertices`), keyed on `selectionRevision` so selection overlays rebuild without invalidating fill/wire/point resources.
 - **decorators**: vertex normals, face normals, boundary edges (line + fat-line), texture seams (line + fat-line), non-manifold edges (line + fat-line), non-manifold vertices, and curvature principal-direction lines.
 
-`Document` owns the cache, so a layer's buffers go with the layer, and hands it to the views as `gpuCache()`; a view builds what its frame needs through `RenderWidget::ensureMeshGpu` (the products as one `MeshGpuResourceCache::Needs`, the quality range always from the view's own settings) and reads the buffers back with the cache's `*PassView(rhi, meshId, ...)` calls.
+`Document` owns the cache, so a layer's buffers go with the layer, and hands it to the views as `gpuCache()`; a view builds what its frame needs through `RenderWidget::ensureMeshGpu` (the products as one `MeshGpuResourceCache::Needs`) and reads the buffers back with the cache's `*PassView(rhi, meshId, ...)` calls.
 
 `MeshGpuResourceCache::gpuMemoryStats()` sums the QRhi buffer sizes and known RGBA8
 texture payloads for all cache variants and RHIs, including non-manifold decorator
@@ -88,7 +88,7 @@ UV/raster/offscreen resources, backend alignment, staging/command storage, and d
 allocations are outside it. The Memory Info dialog therefore presents it separately from
 tracked CPU allocations and OS physical footprint.
 
-Fill uses an indexed path (shared vertices) or an expanded-triangle path for per-face colors or texture batching. For quality variants, normalized quality is stored in the buffer and resolved via LUT sampling in shaders. Changing colormap, inversion, or isoline settings updates only the per-view LUT texture; changing fixed range, center-on-zero, or percentile crop changes normalization and rebuilds the affected quality buffers.
+Fill uses an indexed path (shared vertices) or an expanded-triangle path for per-face colors or texture batching. For quality variants the buffer holds the raw scalar in the color's red slot, flagged in its alpha: -1 per-vertex, -2 per-face, or 0 (the plain fill color) for a value that is not finite, so missing data shows as a gap rather than as an average value. The shaders map it to a color map coordinate `t = clamp(q * scale + offset)` through the per-mesh `qualityMap` uniform (xy for per-vertex values, zw for per-face ones, `kUbufQualityMapOffset`), filled by `RenderWidget::qualityMapping`, and then sample the per-view LUT. So nothing in the quality settings rebuilds a buffer: the color map, inversion and isolines update the LUT texture, and fixed range, center-on-zero and percentile crop update the uniform. The range itself comes from `RenderWidget::qualityRange`, the fixed one when set and finite, otherwise `sampledQualityRange`, cached per mesh content and sampling settings. The histogram, Bake to Vertex Color, the fixed-range seeding and the UV view read it there too, so they cannot disagree. `tests/render_probes/scalar_color_map` checks the mapping, both halves of the uniform, and the gap.
 
 Boundary extraction: topological edge incidence (`incidentCount == 1`). Non-manifold edge extraction: topological edge incidence above two. Non-manifold vertex extraction: vertices whose faces form more than one fan -- two cones touching at the tip -- and that lie on no non-manifold edge, which that decorator already shows; the definition of vcglib's `CountNonManifoldVertexFF`, which the info panel counts with. The cache holds a const mesh without FF adjacency, so it finds the fans from the same edge map, joining the corners at each end of every manifold edge. Seam extraction: per-topological-edge UV sample comparison (texture-index changes, missing/invalid UV). Colors: green boundaries, blue seams, and one red-purple for both non-manifold decorators.
 
@@ -289,7 +289,7 @@ Main pass draw order: scene background · fill · solid cut · wire · edges · 
 
 **Fill**: Fill planning and execution are isolated in `renderwidget_fill.cpp`. `SceneFillFramePlan` contains fill draw items, each with a material renderer selected from `PlainFillRenderer` or `PbrFillRenderer`. Shared behavior such as UBO upload, texture SRB resolution, selected PBR texture lookup, and radiance-scaling gradient resource access goes through `FillRenderServices`.
 
-Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. Quality normalization honors fixed range, center-on-zero, and percentile crop settings. PBR binds base/normal/occlusion/roughness per batch. Tangent-space normal maps derive TBN from screen-space derivatives of view position and UV; object-space normal maps are transformed by the normal matrix and blended with the base normal using `normalScale`. Radiance scaling has [its own section](#radiance-scaling).
+Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. Quality normalization happens in the shader, through the `qualityMap` uniform. PBR binds base/normal/occlusion/roughness per batch. Tangent-space normal maps derive TBN from screen-space derivatives of view position and UV; object-space normal maps are transformed by the normal matrix and blended with the base normal using `normalScale`. Radiance scaling has [its own section](#radiance-scaling).
 
 **Wireframe**: barycentric triangles + fragment edge test; depth `LessOrEqual`, no depth write; alpha blending; `wireBackfaceCulling`; optional `wireRespectFaux` controls faux polygon edge handling in the cached wire data.
 
@@ -461,7 +461,7 @@ Current status: UV mode is still a separate renderer in `renderwidget_uv.cpp`. I
 
 When the mesh has multiple texture/material groups, a bottom-centered viewport strip shows one thumbnail per group. Clicking a thumbnail changes view-local, per-mesh state; it does not modify the document or undo history. Each UV buffer remains a single GPU allocation, with compact per-group byte ranges selecting what is drawn.
 
-UV fill: color source comes from `fillPlain.colorSource`. Quality UV buffers use the same fixed-range, center-on-zero, and percentile-crop normalization controls as Scene3D quality rendering. In `Texture` mode, `uvTextureChannel` selects base color, normal, occlusion, or roughness for the active group. Non-texture paths force `fillMaterial = Plain`. Scene corner/dimension overlays are hidden in UV mode.
+UV fill: color source comes from `fillPlain.colorSource`. Quality UV buffers bake the colors on the CPU with the range from `RenderWidget::qualityRange`, the one Scene3D uses, so they rebuild when the range moves; R9 of the [framework review](../framework_review_2026-11.md) moves them onto the shared cache. In `Texture` mode, `uvTextureChannel` selects base color, normal, occlusion, or roughness for the active group. Non-texture paths force `fillMaterial = Plain`. Scene corner/dimension overlays are hidden in UV mode.
 
 ## `RasterImage` Frame Sequence
 

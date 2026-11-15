@@ -25,6 +25,9 @@ layout(std140, binding = 0) uniform buf {
     // rgb = the colour of the band where the surface meets the clipping plane, a = its
     // width in pixels. Zero width leaves the band undrawn.
     vec4 clipRim;
+    // Read by the paired fragment shader (see there); a linked stage must declare the
+    // block the same way.
+    vec4 qualityMap;
 } ub;
 
 out gl_PerVertex {

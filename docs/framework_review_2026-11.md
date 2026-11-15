@@ -805,6 +805,133 @@ commit.
 **Estimated size:** about -600 together, but each touches many files. Write a mapping table of
 what moves where before starting, as AGENTS.md requires.
 
+#### Mapping table (2026-11-15, awaiting approval)
+
+Three commits in this order. R9 needs R6, because the colormap is the main difference between
+the two caches. U1 comes after R9, so that the UV cache it deletes needs no new keys. Line
+numbers are from the tree at `fe754200`.
+
+**R6: raw quality in the buffers, the range as a uniform**
+
+| # | Current | Target | Measured evidence | Verdict |
+|---|---|---|---|---|
+| R6.1 | Fill variant: range test `meshgpuresourcecache.cpp:277-318`, range computed `:363-406`, normalized into the buffer `:565-609` and `:919-938` | raw `cQ()` in slot 6, LUT flag −1 unchanged; no range state in the variant | 5 `quality*` fields in `FillVariantGpu` (`:127-131`); the shaders read only `v_meshColor.r` (`fill_flat.frag:121`, `fill_smooth.frag:110`) | change |
+| R6.2 | Points variant: range test and compute `:1074-1160` | same as R6.1 | `PointsVariantGpu` `:156-160`; `overlay_points.frag:56` | change |
+| R6.3 | `MeshSource::quality*` (`meshgpuresourcecache.h:46-50`), filled in `renderwidget_selection.cpp` | removed | 24 + 3 + 3 references in the cache `.cpp`/`.h` and `renderwidget_selection.cpp` | delete |
+| R6.4 | The automatic range is computed from the mesh at 5 sites: fill, points, UV (`renderwidget_uv.cpp:370-392`), histogram (`renderwidget.cpp:3098-3170`), and `automaticQualityRangeForCurrentMesh` (`:243-297`, used by fixed-range seeding `:2066` and by Bake `:3425`) | one `RenderWidget` range function, cached by (meshId, geometryRevision, element, centerOnZero, crop); the histogram and both callers read it | each site gathers the values and calls `sampledRenderQualityRange` (`qualityrange.h:22`) | merge 5 → 1 |
+| R6.5 | 15 shaders share the `buf` block, which ends at `clipRim` (offset 368, `kUbufSize = 384`) | `vec4 qualityRange` (min, 1/(max−min)) at offset 384, `kUbufSize = 400`, declared only by the 3 shaders that sample the LUT | grep `vec4 clipRim`: 15 files; LUT lookups: 3. std140 lets the other 12 omit a trailing member. The `ubufAligned` stride stays 512 at 256-byte alignment | change |
+| R6.6 | `qualityrange.h` | stays | used by `colorize_vertices_by_scalar` (`colorprocfilterplugin.cpp:295-570`), Bake, `test_colormap.cpp` | keep |
+
+Behaviour:
+
+- **Unchanged except when the range clamps inside a triangle.** There the clamp moves from the
+  vertices to the fragments, which is the correct result: normalization is affine, so it
+  commutes with interpolation.
+- **Non-finite values (decision D6-3).** Today they paint the middle of the LUT
+  (`normalizedRenderQuality` returns 0.5). A shader cannot test NaN reliably under Metal fast
+  math, so the CPU has to replace them when it builds the buffer.
+
+Size: about +40 / −130.
+
+**R6 done (2026-11-15).** Source and shaders +197 / −381; the 6 rows as mapped.
+
+- **Buffers and uniform.** The buffers carry the raw scalar, flagged −1 per-vertex, −2 per-face,
+  or 0 when it is not finite (D6-3). The fill and point variants hold no range state. The shaders
+  map through `qualityMap` (scale, offset per element), written by `uploadMainUbufForMesh`.
+- **One range.** `RenderWidget::qualityRange` and `sampledQualityRange` replace
+  `automaticQualityRangeForCurrentMesh` and the four inline computations; the UV view keys its
+  baked colors on the ranges it reads there.
+- **Shader interface.** `tests/test_shader_interfaces.cpp` requires linked stages to declare the
+  block alike, so `fill_flat.vert`, `fill_smooth.vert` and `overlay_points.vert` declare
+  `qualityMap` too. R6.5's "std140 lets the others omit it" holds only for stages not linked to
+  one of the three.
+- **Duplicate invalidation removed.** Both settings handlers cleared the histogram cache by hand
+  for fields its own key already compares; those blocks are gone.
+- **Tests.** The new `tests/render_probes/scalar_color_map` measures:
+  - a per-vertex 0.25 and a per-face 0.75 in [0, 1] on the gray map: 64 and 191 for fill, 64 for
+    points;
+  - the automatic range drawing pixel-for-pixel what the same fixed range draws;
+  - a clamp saturating to white;
+  - non-finite scalars drawing exactly the fill color.
+
+  All 10 render probes and the 23 ctest suites pass.
+- **Seen, not changed.** `uv_fill_texture.vert` declares a shorter anonymous `buf` than
+  `fill_smooth.frag`, which it is linked with. The shader-interface test only compares named
+  instances, so it does not see this.
+
+**R9: the UV view draws from the shared cache**
+
+| # | Current | Target | Measured evidence | Verdict |
+|---|---|---|---|---|
+| R9.1 | `ensureUvMeshResources` (`renderwidget_uv.cpp:187-674`, 488 lines) builds 5 fill variants, 3 point variants, wire, boundaries, seams, and selected faces and vertices, split by texture group | `MeshGpuResourceCache` products in a UV layout: positions `(u, v, 0)` from corner UVs, normal (0,0,1), key `(meshId, uvGroup)`; `uvGroup = −1` is the 3D layout | the 3D fill already has an expanded per-corner path (`expandTriangles`, `meshgpuresourcecache.cpp:361-408`) and the same 13-float stride (`:59` = `renderwidget_internal.h:75`); 3D boundaries and seams use the same vertex-pair edge map (`:1686-1840`) as the UV code (`renderwidget_uv.cpp:478-547`) | move into the cache, delete |
+| R9.2 | `UvMeshGpu` (`renderwidget.h:1101-1147`), `m_uvMeshGpu` (`:1161`), `syncUvCacheWithDocument` (`renderwidget_uv.cpp:41-66`) | the cache's `purgeMesh` | 20 references in `renderwidget_uv.cpp`, 1 in `renderwidget_resources.cpp` | delete |
+| R9.3 | The draw picks a `DrawRange` per product (`renderwidget_uv.cpp:1229-1386`) | the cache's pass views for `(meshId, activeGroup)` | only the active group is ever drawn (`:1019`, `:1229`) | simplify |
+| R9.4 | UV-only drawing: background, texture quad, axes, unit box, tick labels, group list, fit/pan/zoom | stays | `renderwidget_uv.cpp:67-186`, `676-1018` | keep |
+
+Behaviour:
+
+- **Colormap.** The UV code bakes the colormap into its buffer (`renderwidget_uv.cpp:342-347`).
+  After the move it samples the LUT, so changing the map no longer rebuilds anything.
+- **Variants.** Any change today rebuilds all 8 color variants (`:269-274`, `:636-651`). The cache
+  builds only the variant being drawn.
+- **Faux edges (decision D6-1).** The UV wire draws every edge, while the 3D wire respects faux
+  edges (`wireRespectFaux`, `meshgpuresourcecache.cpp:1018`).
+- **Seams.** The UV code compares UVs only; the 3D code also compares the texture index. The 3D
+  rule is taken.
+- **Switching texture group.** Today it only switches the draw range. After the move, the first
+  view of a group builds that group's faces.
+- **Memory.** There is one shared copy instead of one per UV view.
+
+Size: about +110 / −470.
+
+**U1 full form: every node a snapshot made of shared layers**
+
+| # | Current | Target | Measured evidence | Verdict |
+|---|---|---|---|---|
+| U1.1 | `MeshEntry` revisions geometry, material and selection (`document.h:69-73`) | add `colorRevision` and `scalarRevision`, moved by new `markMeshColorChanged` and `markMeshScalarChanged` beside `markMeshSelectionChanged` (`:406-413`) | color and scalar ride `geometryRevision` (`applyAttributeDelta`, `document_layers.cpp:1211-1213`) | new |
+| U1.2 | 63 filters that change only color or scalar call `markMeshGeometryChanged` | call the new markers instead, call site by call site | descriptor sweep (`outputModifies` ⊆ {VC, FC, EC, VQ, FQ, EQ}, SingleMesh): colorproc 28, expression 6, igl 5, geodesic 4, unsharp 3, sampling 3, trueform 3, embree 2, mls 2, color_projection 2, img_patch_param 2, camera 1, texture 1, geogram 1. Those 14 plugins hold 114 geometry-marker calls in all | migrate by hand. A filter left unmigrated stays correct and costs a copy, so nothing trusts the descriptor |
+| U1.3 | `MeshSnapshot::selection` and `selectionCache` keyed (meshId, selectionRevision) (`document_undo_types.h:81-83`, `documentundomanager.h:75-80, 110`) | selection, color and scalar layers on `MeshSnapshot`, in one cache keyed (meshId, kind, revision) | the phase 5 shape | generalize |
+| U1.4 | The delta node kind: `UndoStorageKind` (`document_undo_types.h:219-225`), `storageKind`, `before/afterAttributes` (`:243`, `:258-261`) | gone; every node is a snapshot | | delete |
+| U1.5 | The delta code in `DocumentUndoManager`: `beginDeltaStep`/`endDeltaStep` (`.cpp:210-248`), `pushDeltaStep` (`:888-928`), the delta branches in `endStep` (`:164-181`), `undo` (`:453-462`) and `redo` (`:493-501`), the delta walk in `jumpToNode` (`:401-425`), `clear` (`:533-534`), the root and prune guards (`:605-606`, `:733`, `:994-996`), `m_pendingDelta*` (`.h:120-122`), and the declarations (`.h:23-28`, `91-95`) | gone; a jump is one restore | line ranges read | delete |
+| U1.6 | The delta entry points: two `beginUndoStep` overloads (`document_undo.cpp:22-37`), `applyAttributeDelta` (`document_layers.cpp:1200-1221`), the "Change Selection" step (`:1023`), and the `outputModifies`→kind table with its branch (`meshfilterpluginmanager.cpp:1038-1072`, `1097-1101`) | gone. `captureAttributeDelta` and `applyAttributeValues` stay, to build and restore the layers | no callers outside undo (grep) | delete |
+| U1.7 | Code that learns of a color or scalar change through `geometryRevision`: the GPU fill/point keys (`MeshSource`, `meshgpuresourcecache.h:40-44`), the histogram (`renderwidget.cpp:3098`), the saved-file check (`document_io.cpp:727`, `761`), the metadata copy (`document_internal.cpp:395`) | add the two revisions | `geometryRevision` appears in 20 files; the others need geometry only (occluder, decorator counts, selection scope, xatlas, texture) | change |
+| U1.8 | Memory reporting: `deltaBytes`, `pendingDeltaBytes`, `attributeDelta` (`document_undo_types.h:283-302`), the memory dialog rows (`mainwindow.cpp:3014-3040`, `3123`), the Make Root guard (`undographwidget.cpp:605`) | layers counted with the geometry, as phase 5 does for selection; the guard removed | | delete (decision D6-2) |
+| U1.9 | Tests that assert delta storage: `test_document.cpp` 813-819, 3233-3285, 3310, 3389; `test_filters.cpp` 14691-14725, 15568-15570 | assert "no geometry copy" instead: geometry bytes unchanged across the step | grep | rewrite |
+
+Behaviour and risks:
+
+- **Memory.** A delta node keeps the before and after values; a layer keeps one set, shared by
+  the states that have it. That is about half.
+- **Cache miss.** A selection or color step whose "before" geometry is no longer interned (the
+  history was pruned below it) now copies, where a delta did not. Measure this on ESTE after a
+  prune.
+- **Hand-incremented revision.** `filter_texture` increments `materialRevision` by hand
+  (`texturefilterplugin.cpp:1033`, `1308`). It is harmless only because a fresh geometry
+  revision follows at once; fold it into `markMeshMaterialChanged` while there.
+
+Size: about +120 / −330.
+
+**Totals:** 19 rows.
+
+- R6, 6 rows: 3 change, 1 delete, 1 merge, 1 keep.
+- R9, 4 rows: 1 move, 1 delete, 1 simplify, 1 keep.
+- U1, 9 rows: 1 new, 1 migrate, 1 generalize, 4 delete, 1 change, 1 rewrite.
+
+Estimated about +270 / −930, a net −660 (the review's estimate was about −600).
+
+**Decisions (2026-11-15):**
+
+- **D6-1, UV wire and faux edges: no decision needed.** Hiding faux edges is already the
+  per-mesh "respect faux" setting (`PerMeshRenderSettings::wireRespectFaux`, on by default). After
+  R9 the UV wire follows it as the 3D wire does.
+- **D6-2, memory dialog: one "Attribute layers" row.** It counts the selection, color and scalar
+  layers, and the selection moves back out of the geometry bytes. The row reuses `deltaBytes`.
+- **D6-3, non-finite quality: the mesh's plain fill color.** The vertex carries the plain color
+  flag instead of the LUT flag, so it shows as a gap rather than as an average value. For
+  per-vertex quality the gap reaches about halfway to the neighbors. Bake to Vertex Color and
+  Colorize by Scalar keep painting the LUT's middle (`normalizedRenderQuality`); they are filters,
+  outside this change.
+
 ### Decisions needed before phase 1
 
 - **D1: per-view visibility after undo.** Today a full undo effectively resets each view's

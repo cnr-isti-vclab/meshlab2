@@ -3,6 +3,7 @@
 #include "renderingsettings.h"
 #include "renderwidget_internal.h"
 #include "meshgpuresourcecache.h"
+#include "qualityrange.h"
 #include "camerashot.h"
 #include "viewgrid.h"
 #include "viewtrackball.h"
@@ -22,7 +23,9 @@
 #include <cstdint>
 #include <memory>
 #include <functional>
+#include <map>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 class Document;
@@ -480,6 +483,16 @@ struct SceneRasterProjectedDrawItem {
     QRect sceneContentRect(const QSize &viewportSize) const;
     void updateDecoratorInfoOverlay();
     void bakeCurrentQualityMappingToVertexColor();
+    // The range this view maps a mesh's per-vertex or per-face scalar through: the fixed one
+    // when it is set and finite, otherwise sampledQualityRange. Every consumer -- the
+    // shaders, the histogram, Bake -- reads it here, so they cannot disagree.
+    RenderQualityRange qualityRange(int meshIndex, bool faceQuality) const;
+    // The range sampled from the finite values, with center-on-zero and percentile crop.
+    // It walks the whole mesh, so it is cached by mesh content and those two settings.
+    RenderQualityRange sampledQualityRange(int meshIndex, bool faceQuality) const;
+    // The shaders' qualityMap uniform: (scale, offset) for per-vertex values in xy and for
+    // per-face values in zw, for whichever of the two `settings` draws.
+    QVector4D qualityMapping(int meshIndex, const PerMeshRenderSettings &settings) const;
     // Runs Trim Surface by Plane on the current layer with the plane this view
     // is showing, then turns the clipping plane off so what is on screen is the
     // geometry rather than a view of it.
@@ -527,7 +540,8 @@ struct SceneRasterProjectedDrawItem {
         // Default zero = no clipping, which is what UV mode wants.
         const QVector4D &localClipPlane = QVector4D(),
         // The matrices were built for an orthographic view; see writeMainStyleToUbuf.
-        bool orthographic = false);
+        bool orthographic = false,
+        const QVector4D &qualityMap = QVector4D());
     quint32 uploadMainUbufForMesh(
         QRhiCommandBuffer *cb,
         int meshIndex,
@@ -1076,6 +1090,15 @@ struct SceneRasterProjectedDrawItem {
         std::vector<int> counts;
     };
     QualityHistogramCache m_qualityHistogram;
+    // sampledQualityRange's cache, by (meshId, per-face).
+    struct SampledQualityRange {
+        bool valid = false;
+        std::uint64_t geometryRevision = 0;
+        bool centerOnZero = false;
+        float percentileCrop = 0.0f;
+        RenderQualityRange range;
+    };
+    mutable std::map<std::pair<std::uint64_t, bool>, SampledQualityRange> m_sampledQualityRanges;
     // Cached decorator counts for the current mesh (recomputed on geometry change).
     struct DecoratorCounts {
         bool valid = false;
@@ -1119,11 +1142,8 @@ struct SceneRasterProjectedDrawItem {
         std::uint64_t selectionRevision = 0;
         QString qualityColorMapId = QStringLiteral("rainbow");
         bool qualityColorMapInverted = false;
-        bool qualityFixedRange = false;
-        float qualityRangeMin = 0.0f;
-        float qualityRangeMax = 1.0f;
-        bool qualityCenterOnZero = false;
-        float qualityPercentileCrop = 0.0f;
+        RenderQualityRange vertexQualityRange;
+        RenderQualityRange faceQualityRange;
         std::unique_ptr<QRhiBuffer> wireVbuf;
         int wireVertexCount = 0;
         std::vector<DrawRange> wireGroups;

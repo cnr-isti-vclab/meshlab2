@@ -43,11 +43,6 @@ public:
         std::uint64_t materialRevision = 0;
         std::uint64_t selectionRevision = 0;
         int ioMask = 0;
-        bool qualityFixedRange = false;
-        float qualityRangeMin = 0.0f;
-        float qualityRangeMax = 1.0f;
-        bool qualityCenterOnZero = false;
-        float qualityPercentileCrop = 0.0f;
         bool wireRespectFaux = true;
         const VCGMesh *mesh = nullptr;
         const QStringList *textureFilePaths = nullptr;

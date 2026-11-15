@@ -795,9 +795,7 @@ void RenderWidget::drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pi
     cb->draw(3);
 }
 
-// Builds or refreshes what one mesh needs in the shared cache. The quality range always
-// comes from this view's settings, so every caller asks for the same normalization and no
-// caller rebuilds a quality buffer another has just built.
+// Builds or refreshes what one mesh needs in the shared cache.
 void RenderWidget::ensureMeshGpu(
     QRhiCommandBuffer *cb,
     int meshIndex,
@@ -815,11 +813,6 @@ void RenderWidget::ensureMeshGpu(
     source.materialRevision = entry.materialRevision;
     source.selectionRevision = entry.selectionRevision;
     source.ioMask = entry.ioMask;
-    source.qualityFixedRange = m_renderSettings.qualityHistogramFixedRange;
-    source.qualityRangeMin = std::min(m_renderSettings.qualityHistogramMin, m_renderSettings.qualityHistogramMax);
-    source.qualityRangeMax = std::max(m_renderSettings.qualityHistogramMin, m_renderSettings.qualityHistogramMax);
-    source.qualityCenterOnZero = m_renderSettings.qualityHistogramCenterOnZero;
-    source.qualityPercentileCrop = m_renderSettings.qualityHistogramPercentileCrop;
     source.wireRespectFaux = wireRespectFaux;
     source.mesh = &entry.mesh;
     source.textureFilePaths = &entry.textureFilePaths;

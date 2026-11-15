@@ -22,6 +22,10 @@ layout(std140, binding = 0) uniform buf {
     // rgb = the colour of the band where the surface meets the clipping plane, a = its
     // width in pixels. Zero width leaves the band undrawn.
     vec4 clipRim;
+    // A raw scalar q becomes the color map coordinate clamp(q * scale + offset): (scale,
+    // offset) for per-vertex values in xy, for per-face values in zw. Written at
+    // kUbufQualityMapOffset; the shaders that do not sample the color map leave it out.
+    vec4 qualityMap;
 } ub;
 
 layout(location = 0) in vec4 vMeshColor;
@@ -52,9 +56,12 @@ void main()
         discard;
 
     vec3 color = ub.pointColor.rgb;
-    if (vMeshColor.a < -0.5)
-        color = texture(qualityLutTex, vec2(clamp(vMeshColor.r, 0.0, 1.0), 0.5)).rgb;
-    else
+    if (vMeshColor.a < -0.5) {
+        // A raw scalar: the flag says per-vertex (-1) or per-face (-2).
+        vec2 qualityMap = vMeshColor.a < -1.5 ? ub.qualityMap.zw : ub.qualityMap.xy;
+        float t = clamp(vMeshColor.r * qualityMap.x + qualityMap.y, 0.0, 1.0);
+        color = texture(qualityLutTex, vec2(t, 0.5)).rgb;
+    } else
         color = mix(ub.pointColor.rgb, vMeshColor.rgb, clamp(vMeshColor.a, 0.0, 1.0));
     // The lighting scale, 1 where nothing darkens the point; radiance scaling then bends it
     // by the curvature the point's neighbourhood has in the gradient buffer. Both need a normal.

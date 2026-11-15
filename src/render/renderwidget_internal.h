@@ -51,7 +51,7 @@ inline QShader loadShader(const QString &path)
     return QShader::fromSerialized(f.readAll());
 }
 
-inline constexpr int kUbufSize = 384; // expanded: added vec4 clipRim at offset 368
+inline constexpr int kUbufSize = 400; // expanded: added vec4 qualityMap at offset 384
 inline constexpr int kUbufFloatCount = kUbufSize / sizeof(float);
 inline constexpr int kUbufBBoxColorOffset = 176 / sizeof(float);
 inline constexpr int kUbufPointColorOffset = 192 / sizeof(float);
@@ -72,6 +72,10 @@ inline constexpr int kUbufClipPlaneOffset = 352 / sizeof(float);
 // rgb = the colour of the band where the surface meets the clipping plane, a = its width
 // in pixels. Zero width leaves the band undrawn.
 inline constexpr int kUbufClipRimOffset = 368 / sizeof(float);
+// How a raw scalar becomes a color map coordinate, t = clamp(q * scale + offset):
+// (scale, offset) for per-vertex values in xy, for per-face values in zw
+// (RenderWidget::qualityMapping). Only the shaders that sample the color map declare it.
+inline constexpr int kUbufQualityMapOffset = 384 / sizeof(float);
 inline constexpr int kFillVertexStrideFloats = 13;
 inline constexpr int kPointsVertexStrideFloats = 11;
 inline constexpr int kMaskMorphUbufSize = 16;

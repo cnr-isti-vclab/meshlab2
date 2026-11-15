@@ -196,32 +196,20 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     if (qualityColorMapName.isEmpty() || !registry.hasMap(qualityColorMapName))
         qualityColorMapName = registry.fallbackMapId();
     const bool qualityColorMapInverted = m_renderSettings.qualityHistogramInvertColorMap;
-    float qualityRangeMin = m_renderSettings.qualityHistogramMin;
-    float qualityRangeMax = m_renderSettings.qualityHistogramMax;
-    if (qualityRangeMin > qualityRangeMax)
-        std::swap(qualityRangeMin, qualityRangeMax);
-    const bool qualityFixedRange =
-        m_renderSettings.qualityHistogramFixedRange
-        && std::isfinite(qualityRangeMin)
-        && std::isfinite(qualityRangeMax);
-    const bool qualityCenterOnZero =
-        !qualityFixedRange && m_renderSettings.qualityHistogramCenterOnZero;
-    const float qualityPercentileCrop = qualityFixedRange
-        ? 0.0f
-        : std::clamp(m_renderSettings.qualityHistogramPercentileCrop, 0.0f, 0.5f);
+    // This view bakes the color map into its buffers, so it rebuilds when the range moves.
+    const RenderQualityRange vertexQualityRange = qualityRange(meshIndex, false);
+    const RenderQualityRange faceQualityRange = qualityRange(meshIndex, true);
+    const auto sameRange = [](const RenderQualityRange &a, const RenderQualityRange &b) {
+        return a.valid == b.valid && a.minV == b.minV && a.maxV == b.maxV;
+    };
     if (gpu.valid
         && gpu.geometryRevision == entry.geometryRevision
         && gpu.materialRevision == entry.materialRevision
         && gpu.selectionRevision == entry.selectionRevision
         && gpu.qualityColorMapId == qualityColorMapName
         && gpu.qualityColorMapInverted == qualityColorMapInverted
-        && gpu.qualityFixedRange == qualityFixedRange
-        && (!qualityFixedRange
-            || (gpu.qualityRangeMin == qualityRangeMin
-                && gpu.qualityRangeMax == qualityRangeMax))
-        && (qualityFixedRange
-            || (gpu.qualityCenterOnZero == qualityCenterOnZero
-                && gpu.qualityPercentileCrop == qualityPercentileCrop))) {
+        && sameRange(gpu.vertexQualityRange, vertexQualityRange)
+        && sameRange(gpu.faceQualityRange, faceQualityRange)) {
         return true;
     }
 
@@ -231,11 +219,8 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     gpu.selectionRevision = entry.selectionRevision;
     gpu.qualityColorMapId = qualityColorMapName;
     gpu.qualityColorMapInverted = qualityColorMapInverted;
-    gpu.qualityFixedRange = qualityFixedRange;
-    gpu.qualityRangeMin = qualityRangeMin;
-    gpu.qualityRangeMax = qualityRangeMax;
-    gpu.qualityCenterOnZero = qualityCenterOnZero;
-    gpu.qualityPercentileCrop = qualityPercentileCrop;
+    gpu.vertexQualityRange = vertexQualityRange;
+    gpu.faceQualityRange = faceQualityRange;
     if (!meshHasParametrization(meshIndex))
         return false;
 
@@ -345,51 +330,6 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
             t = 1.0f - t;
         return registry.sampleRgb(qualityMapDef, t);
     };
-
-    auto collectVertexQuality = [&]() {
-        std::vector<float> values;
-        values.reserve(size_t(mesh.VN()));
-        for (int vi = 0; vi < mesh.VN(); ++vi) {
-            const auto &v = mesh.vert[vi];
-            if (!v.IsD())
-                values.push_back(static_cast<float>(v.cQ()));
-        }
-        return values;
-    };
-    auto collectFaceQuality = [&]() {
-        std::vector<float> values;
-        values.reserve(size_t(mesh.FN()));
-        for (int fi = 0; fi < mesh.FN(); ++fi) {
-            const auto &f = mesh.face[fi];
-            if (!f.IsD())
-                values.push_back(static_cast<float>(f.cQ()));
-        }
-        return values;
-    };
-
-    RenderQualityRange vertexQualityRange;
-    if (hasVertexQuality) {
-        if (qualityFixedRange) {
-            vertexQualityRange = fixedRenderQualityRange(qualityRangeMin, qualityRangeMax);
-        } else {
-            vertexQualityRange = sampledRenderQualityRange(
-                collectVertexQuality(),
-                qualityCenterOnZero,
-                qualityPercentileCrop);
-        }
-    }
-
-    RenderQualityRange faceQualityRange;
-    if (hasFaceQuality) {
-        if (qualityFixedRange) {
-            faceQualityRange = fixedRenderQualityRange(qualityRangeMin, qualityRangeMax);
-        } else {
-            faceQualityRange = sampledRenderQualityRange(
-                collectFaceQuality(),
-                qualityCenterOnZero,
-                qualityPercentileCrop);
-        }
-    }
 
     for (int fi = 0; fi < mesh.FN(); ++fi) {
         const auto &f = mesh.face[fi];
