@@ -1121,6 +1121,83 @@ forward deltas.</p></li>
 <p><strong>Measure:</strong> re-run the whole section 0 table. Targets: <code class="docutils literal notranslate"><span class="pre">translate</span></code> after a selection, and
 <code class="docutils literal notranslate"><span class="pre">measure_geometric_properties</span></code> after a selection, add a few MiB, not hundreds.</p>
 <p><strong>Size:</strong> about +120 / -60.</p>
+<p><strong>Done (2026-11-15).</strong> Measured with a temporary benchmark in the filter tests (Release,
+<code class="docutils literal notranslate"><span class="pre">Document::runFilter</span></code>, resident memory from the kernel, undo bytes from <code class="docutils literal notranslate"><span class="pre">undoMemoryStats</span></code>):</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Mesh</p></th>
+<th class="head"><p>Step</p></th>
+<th class="head"><p>Before</p></th>
+<th class="head"><p>After</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>RattoA_2M</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_mesh_color</span></code> after <code class="docutils literal notranslate"><span class="pre">select_none</span></code></p></td>
+<td><p>+165 MiB undo copy</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_geometric_properties</span></code> after <code class="docutils literal notranslate"><span class="pre">select_all</span></code></p></td>
+<td><p>+264 MiB resident</p></td>
+<td><p>+1 MiB</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">translate</span></code> after <code class="docutils literal notranslate"><span class="pre">select_none</span></code></p></td>
+<td><p>+165 MiB undo copy</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p>whole sequence, undo history</p></td>
+<td><p>825 MiB in 5 copies</p></td>
+<td><p>495 MiB in 3</p></td>
+</tr>
+<tr class="row-even"><td><p>ESTE_PRINT</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_geometric_properties</span></code> after <code class="docutils literal notranslate"><span class="pre">select_all</span></code></p></td>
+<td><p>+1074 MiB resident</p></td>
+<td><p>+6 MiB</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">translate</span></code> after <code class="docutils literal notranslate"><span class="pre">select_none</span></code></p></td>
+<td><p>+758 MiB undo copy, 85 ms</p></td>
+<td><p>+2 MiB, 32 ms</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul class="simple">
+<li><p><strong>U2 not done as designed.</strong> The lazy capture cannot be hooked where the plan put it. Filters
+write into <code class="docutils literal notranslate"><span class="pre">doc.mesh(i).mesh</span></code> in place and announce it afterwards with <code class="docutils literal notranslate"><span class="pre">markMesh*Changed</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">prepareMeshesForFilter</span></code> writes too (OCF components, normals) before the filter runs: no
+mutator call comes before the first write. Its measured cost was a cache miss caused by the
+selection revision in the geometry key, which U1 removes; the table shows it gone. What is
+left, a read-only filter after a color or scalar delta, goes with <code class="docutils literal notranslate"><span class="pre">colorRevision</span></code> in phase 6.</p></li>
+<li><p><strong>U1 small form.</strong> A <code class="docutils literal notranslate"><span class="pre">MeshSnapshot</span></code> keeps its selection beside the geometry, as a
+selection-only <code class="docutils literal notranslate"><span class="pre">MeshAttributeDelta</span></code> interned by <code class="docutils literal notranslate"><span class="pre">(meshId,</span> <span class="pre">selectionRevision)</span></code>; the geometry key
+is <code class="docutils literal notranslate"><span class="pre">(meshId,</span> <span class="pre">geometryRevision,</span> <span class="pre">materialRevision)</span></code>. A restore writes the state’s selection into
+every copied layer and into a kept layer whose selection revision differs, which also makes
+undo across a selection change keep the layer instead of copying it. The packed selection now
+includes the per-face edge flags (<code class="docutils literal notranslate"><span class="pre">FaceEdgeS</span></code>): the <code class="docutils literal notranslate"><span class="pre">FES</span></code> filters take full snapshots, and
+their edge bits used to travel inside the copy. <code class="docutils literal notranslate"><span class="pre">applyAttributeValues</span></code> is the delta apply
+without revision moves or signals, shared by the delta path and the restore.</p></li>
+<li><p>The cache hygiene in <code class="docutils literal notranslate"><span class="pre">restoreUndoState</span></code> dropped entries newer than the restored revision,
+states ahead of it included, so a redo followed by a new step made a second copy of a mesh the
+history already held. It now drops only expired entries.</p></li>
+<li><p><strong>U5.</strong> <code class="docutils literal notranslate"><span class="pre">jumpToNode</span></code> restores one state: the target’s, or its nearest full snapshot followed
+by the deltas below it. A walk made of delta steps alone is still replayed, as each is cheaper
+than a restore; until phase 6 a jump across a color delta and a full step copies the layer
+where the walk applied the delta.</p></li>
+<li><p><strong>U7.</strong> <code class="docutils literal notranslate"><span class="pre">memoryStats</span></code> is built from a per-node <code class="docutils literal notranslate"><span class="pre">HistoryBytes</span></code> accumulator; pruning adds the
+current path from the tip back and roots once at the oldest full snapshot that fits, then
+measures once.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">select_outliers</span></code> leaves the <code class="docutils literal notranslate"><span class="pre">outlierScore</span></code> attribute but moved only the selection revision;
+its undo was correct only because the selection key forced a copy. It now marks the material
+changed, as the other attribute filters do. The smoke sweep caught it.</p></li>
+<li><p>New tests: the next state after a selection shares the copy and every restore puts back its
+own selection; a full step undoes a face-edge selection; a jump across full and delta steps
+on two branches; a byte budget keeps exactly the newest states that fit.</p></li>
+</ul>
 </section>
 <section id="phase-6-large-ask-first-data-model-simplifications">
 <h3>Phase 6 (large, ask first): data-model simplifications<a class="headerlink" href="#phase-6-large-ask-first-data-model-simplifications" title="Link to this heading">¶</a></h3>

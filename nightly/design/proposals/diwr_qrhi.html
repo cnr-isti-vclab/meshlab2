@@ -1,0 +1,525 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>DiWR through QRhi compute — feasibility assessment - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../texture_metrics.html">Texture and UV measures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/proposals/diwr_qrhi.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="diwr-through-qrhi-compute-feasibility-assessment">
+<h1>DiWR through QRhi compute — feasibility assessment<a class="headerlink" href="#diwr-through-qrhi-compute-feasibility-assessment" title="Link to this heading">¶</a></h1>
+<p>Assessed 2026-11-15. Proposal only; no implementation or migration is approved
+by this document. DiWR snapshot: <code class="docutils literal notranslate"><span class="pre">2397689443016bfb8e1c73f26f146cdee83780c2</span></code>.</p>
+<section id="verdict-and-scope">
+<h2>Verdict and scope<a class="headerlink" href="#verdict-and-scope" title="Link to this heading">¶</a></h2>
+<p>Feasible, with substantial engineering work. The floating-point math is mostly
+straightforward to express in compute shaders. The difficult parts are the GPU
+memory representation, scattered gradient accumulation, repeated spatial queries,
+and preserving numerical behavior across backends. QRhi provides dispatch and
+resources, not equivalents of CUDA managed memory, Thrust, or cudaKDTree.</p>
+<p>For one experienced C++/GPU engineer, estimate roughly one week for a targeted
+feasibility experiment, 4–6 weeks total for an end-to-end prototype on one backend,
+and 10–16 weeks total for a validated Metal/Vulkan/Direct3D MeshLab integration.
+These are planning judgments, not measured implementation times. They assume
+access to an NVIDIA reference machine, representative inputs, and the authors’
+intended parameters. Near-CUDA performance on all devices is a separate,
+unbounded optimization objective until profiling exists.</p>
+<p>DiWR is interesting independently of existing reconstructors: it jointly adjusts
+orientation, area weight and confidence for unoriented, unevenly sampled, noisy
+point clouds with outliers. The paper’s final extraction uses weighted Screened
+Poisson, which MeshLab already contains. This is a potential reuse point, not a
+replacement of DiWR’s optimization with Poisson.</p>
+</section>
+<section id="measured-source-inventory">
+<h2>Measured source inventory<a class="headerlink" href="#measured-source-inventory" title="Link to this heading">¶</a></h2>
+<p>Counts include comments, alternate paths and diagnostics; they are not estimates
+of the required port size. Kernel counts exclude bundled cudaKDTree headers.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Source</p></th>
+<th class="head text-right"><p>Lines</p></th>
+<th class="head text-right"><p><code class="docutils literal notranslate"><span class="pre">__global__</span></code> definitions</p></th>
+<th class="head"><p>Work</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">src/TurboDWG.cu</span></code></p></td>
+<td class="text-right"><p>4,442</p></td>
+<td class="text-right"><p>28</p></td>
+<td><p>Iteration control, orientation updates, sampling, regularizers, reductions and I/O</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">src/TurboLibiGWN.cu</span></code></p></td>
+<td class="text-right"><p>3,394</p></td>
+<td class="text-right"><p>16</p></td>
+<td><p>Octree winding evaluation, spatial derivatives and parameter derivatives</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">src/KNN_GWN.cu</span></code></p></td>
+<td class="text-right"><p>636</p></td>
+<td class="text-right"><p>1</p></td>
+<td><p>Wrappers around templated cudaKDTree construction and queries</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">src/TurboMC.cu</span></code></p></td>
+<td class="text-right"><p>531</p></td>
+<td class="text-right"><p>1</p></td>
+<td><p>Marching cubes, lookup tables and output allocation</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">src/TurboNormalInit.cu</span></code></p></td>
+<td class="text-right"><p>44</p></td>
+<td class="text-right"><p>1</p></td>
+<td><p>Normal initialization</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">src/RMSProp.cu</span></code></p></td>
+<td class="text-right"><p>30</p></td>
+<td class="text-right"><p>1</p></td>
+<td><p>Per-point optimizer update</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Total</strong></p></td>
+<td class="text-right"><p><strong>9,077</strong></p></td>
+<td class="text-right"><p><strong>48</strong></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The six files contain 219 <code class="docutils literal notranslate"><span class="pre">cudaMallocManaged</span></code> call sites, 70 explicit
+<code class="docutils literal notranslate"><span class="pre">cudaDeviceSynchronize</span></code> calls and 47 <code class="docutils literal notranslate"><span class="pre">atomicAdd</span></code> call sites. This is static source
+counting, not runtime frequency. The inspected code has no cuBLAS/cuSOLVER or
+neural-network runtime dependency. Its core device calculations use float/float3;
+CPU preparation also uses Eigen doubles. The main device sources use ordinary
+thread indexing, atomics and block barriers rather than warp-shuffle machinery.</p>
+</section>
+<section id="what-must-change">
+<h2>What must change<a class="headerlink" href="#what-must-change" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><strong>Memory layout: high effort.</strong> <code class="docutils literal notranslate"><span class="pre">OctreeNodeLibiGPU</span></code> holds pointers to children,
+point indices, six derivative arrays and query queues. Flatten these into a
+small number of storage-buffer arenas addressed by offsets. Preserve the
+existing iterative parent/child traversal first. CUDA float3 host layouts must
+not be copied blindly into std430 vec3 arrays; use explicit packed scalars or
+padded records. Managed pointers are also read and written directly by CPU
+loops, so uploads, readbacks and CPU/GPU ownership must become explicit.</p></li>
+<li><p><strong>Backward accumulation: highest performance risk.</strong> Multiple queries scatter
+floating-point contributions into the same area/confidence gradients. Normal
+updates also scatter into points. Native floating-point atomic addition is not
+a portable baseline across QRhi’s shader targets. Integer compare-and-swap on
+float bit patterns is a candidate for initial correctness, but contention may
+require staged partial sums or gather/segmented reduction. Some per-element
+atomic operations can become ordinary writes where unique ownership is proven.</p></li>
+<li><p><strong>Thrust and spatial queries: medium/high effort.</strong> Reductions, dot products,
+sorting and CUDA kd-tree construction have no QRhi library equivalent. Keep
+one-time preparation and infrequent sorting on CPU initially; use hierarchical
+compute reductions for the hot loop. Reuse vcglib’s CPU kd-tree where practical,
+but recurring GPU queries need a shader implementation or measured CPU transfers.</p></li>
+<li><p><strong>Marching cubes: medium effort.</strong> It is used inside the orientation loop to
+generate triangle centers/normals, not only for final output. CPU extraction is
+possible for an initial prototype but introduces repeated grid readbacks. For
+GPU extraction, replace its 64-bit atomic append counter with bounded 32-bit
+batches or count/scan/emit. Capacity checking must be explicit.</p></li>
+<li><p><strong>Scheduling: medium effort.</strong> Replace blanket CPU synchronization with
+dependent compute passes and occasional scalar readbacks. QRhi inserts resource
+barriers at pass boundaries; a workgroup barrier is not a global dependency
+between dispatches. Keep intermediate arrays resident and remove diagnostic
+file output from the iteration path.</p></li>
+<li><p><strong>Numerics: substantial validation.</strong> Different reduction order, atomics,
+fused operations and CUDA’s <code class="docutils literal notranslate"><span class="pre">--use_fast_math</span></code> can alter convergence. Compare
+fields, gradients and optimizer steps before evaluating only the final mesh.</p></li>
+</ul>
+<p>Memory needs attention beyond the point arrays. <code class="docutils literal notranslate"><span class="pre">AllocateQueryMem</span></code> allocates
+<code class="docutils literal notranslate"><span class="pre">max(query_count,</span> <span class="pre">point_count)</span></code> integer slots for each node with at least 1,000
+points; it also reserves 100 million integers in a temporary CPU vector. A cubic
+260³ grid alone requires about 268 MiB for float3 positions and float field
+values, before extraction buffers, octrees, optimizer state and CPU copies.
+Deriving grid positions from indices and processing queries in bounded batches
+are promising reductions. These are analytical sizes, not measured peak usage.</p>
+</section>
+<section id="meshlab-integration-and-reuse">
+<h2>MeshLab integration and reuse<a class="headerlink" href="#meshlab-integration-and-reuse" title="Link to this heading">¶</a></h2>
+<p>The current tree has no implemented <code class="docutils literal notranslate"><span class="pre">QRhiComputePipeline</span></code> or <code class="docutils literal notranslate"><span class="pre">beginComputePass</span></code>
+call. Rendering infrastructure exists, but a compute filter execution path does
+not. The Gaussian-splatting design discusses compute as proposed work.</p>
+<p>Use a small compute context with an explicit QRhi lifecycle, independent of a
+visible RenderWidget, so the filter can eventually serve GUI and Python use.
+Resource ownership must respect QRhi thread affinity. Gate execution on Compute,
+storage-buffer readback and device limits; report a meaningful refusal on
+unsupported devices. OpenGL below 4.3 cannot provide this path, including macOS’s
+OpenGL backend; Metal is the intended macOS backend. Headless setup needs its own
+validation rather than assuming an existing window or offscreen widget suffices.</p>
+<p>MeshLab requires Qt &gt;= 6.11. Its current shader batch targets GLSL 150. Compute
+shaders need a separate shader batch with suitable targets, such as GLSL 430,
+HLSL 50 and MSL, retaining SPIR-V for Vulkan. Shader resources must be linked into
+the consumers of the filter, including Python, not solely the MeshLab executable.</p>
+<p>PCL is used for initial normal estimation; vcglib has point-cloud normals and
+kd-tree implementations that may remove that dependency after numerical checks.
+Eigen, libigl and CGAL already have integration precedents. However, DiWR calls a
+custom <code class="docutils literal notranslate"><span class="pre">igl::octreeDWG</span></code> present in its bundled libigl: substituting stock libigl
+without accounting for that change will not work. Preserve algorithm provenance
+and avoid introducing a second unrestricted copy of libigl’s headers.</p>
+<p>MeshLab’s Screened Poisson adapter already normalizes the normal and scales it
+by vertex quality when confidence is enabled
+(<code class="docutils literal notranslate"><span class="pre">plugins/filter_screened_poisson/poissonrecon_adapter.cpp</span></code>). The paper describes
+effective weights a<em>c, but DiWR’s exported PLY min–max rescales a</em>c and adds 0.001.
+Confirm the intended reconstruction convention before connecting those paths.
+CPU geometry additions belong in vcglib where general-purpose; QRhi resources
+and dispatch belong on the MeshLab side. A provenance-preserving upstream copy
+is another option for code that must remain comparable to DiWR.</p>
+<p>The top-level license is MIT. Bundled components carry separate notices, including
+Apache-2.0 in cudaKDTree and MPL-2.0 in inspected libigl files; preserve the relevant
+notices and inventory the actual retained dependency subset before shipping.</p>
+</section>
+<section id="establish-a-reference-before-porting">
+<h2>Establish a reference before porting<a class="headerlink" href="#establish-a-reference-before-porting" title="Link to this heading">¶</a></h2>
+<p>The executable defaults to <code class="docutils literal notranslate"><span class="pre">com_As</span> <span class="pre">=</span> <span class="pre">1</span></code>, which dispatches
+<code class="docutils literal notranslate"><span class="pre">TurboScreenedDWGLaunch</span></code>, not the joint area/confidence optimization. Values 4/5
+dispatch <code class="docutils literal notranslate"><span class="pre">TurboScreenedDWGOptLaunch</span></code>, and value 5 propagates the optimized weights
+through a later output path. Do not treat an unconfigured run as a DiWR reference.
+The README does not provide a reproduction recipe or shipped benchmark models.</p>
+<p>Obtain an intended command line, small representative data and reference outputs
+from the authors/maintainer. Confirm the normalization, weight export and final
+Poisson settings rather than inferring them from branches and constants. Freeze
+that configuration while comparing the port. The paper reviewed here is arXiv
+v1; correspondence with the current released code must also be established.</p>
+</section>
+<section id="recommended-first-experiment">
+<h2>Recommended first experiment<a class="headerlink" href="#recommended-first-experiment" title="Link to this heading">¶</a></h2>
+<p>Budget approximately one week for a narrow decision point:</p>
+<ol class="arabic simple">
+<li><p>Establish CUDA outputs for a fixed small case: winding values, spatial
+gradients, area/confidence gradients and one RMSProp step.</p></li>
+<li><p>Flatten the octree and port the principal forward and backward paths. Use
+integer-CAS float accumulation initially; do not port every alternative mode.</p></li>
+<li><p>Run on Metal and a second backend. Check finite-difference gradients on small
+cases, numerical agreement with CUDA, contention and peak allocations.</p></li>
+<li><p>Decide whether simple CAS is adequate or accumulation needs redesign. Then
+commit to the full orientation loop, extraction, integration and validation.</p></li>
+</ol>
+<p>The lower-code initial route keeps CPU preparation, selected spatial operations
+and final Screened Poisson, with the costly field/gradient work on QRhi. It still
+implements DiWR’s orientation loop. Moving all marching cubes and kd-tree work
+to the GPU immediately would enlarge the project before the central risk is known.</p>
+<p>Validation should separate descriptor conformance, graceful refusal without
+compute, and numerical behavior. Shader behavior requires a real GPU harness;
+existing CPU ctests alone cannot validate it. Compare final reconstruction
+distance, normal consistency, connected components and boundary/nonmanifold
+edges on clean, nonuniform, noisy and outlier-heavy inputs. Use optimized builds
+for performance comparisons and record hardware/backend/parameters.</p>
+</section>
+<section id="checks-performed-for-this-assessment">
+<h2>Checks performed for this assessment<a class="headerlink" href="#checks-performed-for-this-assessment" title="Link to this heading">¶</a></h2>
+<p>Read the pinned public source, paper and local MeshLab implementation; did not
+build or run CUDA and did not benchmark the algorithm. Source was downloaded to
+scratch without changing Git state. A tiny integer-CAS float accumulation shader
+was successfully baked with local qsb 6.12.0 into SPIR-V 100, GLSL 430, HLSL 50 and
+MSL 12. A plain float <code class="docutils literal notranslate"><span class="pre">atomicAdd</span></code> shader failed without
+<code class="docutils literal notranslate"><span class="pre">GL_EXT_shader_atomic_float</span></code>, as expected. This checks shader translation only,
+not native driver compilation, numerical correctness or runtime performance.</p>
+<p>Sources:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/LaoChui999/DiWR/tree/2397689443016bfb8e1c73f26f146cdee83780c2">Pinned DiWR source</a></p></li>
+<li><p><a class="reference external" href="https://arxiv.org/html/2602.13801v1">Paper, arXiv v1</a></p></li>
+<li><p><a class="reference external" href="https://doc.qt.io/qt-6/qrhi.html">QRhi features, limits, synchronization and threading</a></p></li>
+<li><p><a class="reference external" href="https://doc.qt.io/qt-6/qtshadertools-qsb.html">Qt shader baker</a></p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">DiWR through QRhi compute — feasibility assessment</a><ul>
+<li><a class="reference internal" href="#verdict-and-scope">Verdict and scope</a></li>
+<li><a class="reference internal" href="#measured-source-inventory">Measured source inventory</a></li>
+<li><a class="reference internal" href="#what-must-change">What must change</a></li>
+<li><a class="reference internal" href="#meshlab-integration-and-reuse">MeshLab integration and reuse</a></li>
+<li><a class="reference internal" href="#establish-a-reference-before-porting">Establish a reference before porting</a></li>
+<li><a class="reference internal" href="#recommended-first-experiment">Recommended first experiment</a></li>
+<li><a class="reference internal" href="#checks-performed-for-this-assessment">Checks performed for this assessment</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

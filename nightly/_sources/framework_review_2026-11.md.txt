@@ -746,6 +746,49 @@ commit.
 
 **Size:** about +120 / -60.
 
+**Done (2026-11-15).** Measured with a temporary benchmark in the filter tests (Release,
+`Document::runFilter`, resident memory from the kernel, undo bytes from `undoMemoryStats`):
+
+| Mesh | Step | Before | After |
+|---|---|---|---|
+| RattoA_2M | `set_mesh_color` after `select_none` | +165 MiB undo copy | none |
+| | `measure_geometric_properties` after `select_all` | +264 MiB resident | +1 MiB |
+| | `translate` after `select_none` | +165 MiB undo copy | none |
+| | whole sequence, undo history | 825 MiB in 5 copies | 495 MiB in 3 |
+| ESTE_PRINT | `measure_geometric_properties` after `select_all` | +1074 MiB resident | +6 MiB |
+| | `translate` after `select_none` | +758 MiB undo copy, 85 ms | +2 MiB, 32 ms |
+
+- **U2 not done as designed.** The lazy capture cannot be hooked where the plan put it. Filters
+  write into `doc.mesh(i).mesh` in place and announce it afterwards with `markMesh*Changed`, and
+  `prepareMeshesForFilter` writes too (OCF components, normals) before the filter runs: no
+  mutator call comes before the first write. Its measured cost was a cache miss caused by the
+  selection revision in the geometry key, which U1 removes; the table shows it gone. What is
+  left, a read-only filter after a color or scalar delta, goes with `colorRevision` in phase 6.
+- **U1 small form.** A `MeshSnapshot` keeps its selection beside the geometry, as a
+  selection-only `MeshAttributeDelta` interned by `(meshId, selectionRevision)`; the geometry key
+  is `(meshId, geometryRevision, materialRevision)`. A restore writes the state's selection into
+  every copied layer and into a kept layer whose selection revision differs, which also makes
+  undo across a selection change keep the layer instead of copying it. The packed selection now
+  includes the per-face edge flags (`FaceEdgeS`): the `FES` filters take full snapshots, and
+  their edge bits used to travel inside the copy. `applyAttributeValues` is the delta apply
+  without revision moves or signals, shared by the delta path and the restore.
+- The cache hygiene in `restoreUndoState` dropped entries newer than the restored revision,
+  states ahead of it included, so a redo followed by a new step made a second copy of a mesh the
+  history already held. It now drops only expired entries.
+- **U5.** `jumpToNode` restores one state: the target's, or its nearest full snapshot followed
+  by the deltas below it. A walk made of delta steps alone is still replayed, as each is cheaper
+  than a restore; until phase 6 a jump across a color delta and a full step copies the layer
+  where the walk applied the delta.
+- **U7.** `memoryStats` is built from a per-node `HistoryBytes` accumulator; pruning adds the
+  current path from the tip back and roots once at the oldest full snapshot that fits, then
+  measures once.
+- `select_outliers` leaves the `outlierScore` attribute but moved only the selection revision;
+  its undo was correct only because the selection key forced a copy. It now marks the material
+  changed, as the other attribute filters do. The smoke sweep caught it.
+- New tests: the next state after a selection shares the copy and every restore puts back its
+  own selection; a full step undoes a face-edge selection; a jump across full and delta steps
+  on two branches; a byte budget keeps exactly the newest states that fit.
+
 ### Phase 6 (large, ask first): data-model simplifications
 
 - **R6:** raw quality in vertex buffers, range as a uniform; one range cache. Removes the four
